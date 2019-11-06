@@ -34,9 +34,13 @@ function usage () {
   echo "Options:"
   echo "  -dir <dir>                  Specify a custom target directory (see remarks below)"
   echo "  -j <nthreads>               Convert using <nthreads> threads [default: 1]"
-  echo "  -only <step>,<step>         Convert only listed time steps"
-  echo "  -only <step>-<step>         Convert only time steps in the given range"
-  echo "  -only <step>-<dstep>-<step> Convert only time steps in the given range with given interval"
+  echo "  -only <step>,<step>          Convert only listed time steps"
+  echo "  -only <step>-<step>          Convert only time steps in the given range"
+  echo "  -only <step>-<dstep>-<step>  Convert only time steps in the given range with given interval"
+  echo "  -donly <dstep>               Equivalent to -only 0-<dstep>-99999"
+  echo "  -time <time>,<time>          Selects time step roughly at <time> (JOREK-units)"
+  echo "  -time <time>-<dtime>-<time>  Selects time step within given time range with given interval"
+  echo "  -dtime <dtime>               Equivalent to -time 0-<dtime>-inf"
   echo "  -zip                        Compress the .vtk files using gzip"
   echo ""
   echo "Options passed to the binary via namelist input (source code for details):"
@@ -120,15 +124,14 @@ function do_convert () {
   
   cd ${tmpdir[$ithread]}
   
-  targetFile=${file##*/} # Remove directory from filename
-  stepnum=${targetFile:5:5}
-  targetFile="jorek.${targetFile:5:5}.vtk" # Target filename with same number as source
+  stepnum=${file##*/} # Remove directory from filename
+  stepnum=${stepnum:5:5}
+  targetFile="jorek.$stepnum.vtk" # Target filename with same number as source
   targetFile="$targetDir/$targetFile" # Target filename with full path
-  
+
   # Convert only new, selected restart files
   if ( [ ! -e $targetFile ] || [ "$file" -nt "$targetFile" ] ) \
-    && [ `is_selected $stepnum` == "yes" ]; then
-    
+    &&  ( [ ! -z "$select_arguments" ] || [ `is_selected $stepnum` == "yes" ] ) ; then
     rm -f jorek_restart.${RST_TYPE}
     ln -s $file jorek_restart.${RST_TYPE}
     for copyfile in $copyfiles; do
@@ -169,6 +172,7 @@ SCRIPTDIR=`dirname $0`; SCRIPTDIR=`readlink -f $SCRIPTDIR`
 # --- Process command line parameters
 nthreads="1"
 selected_steps="0-99999"
+select_arguments=""
 customdir=""
 nsub=""
 i_tor=""
@@ -191,6 +195,14 @@ while [ $# -gt 1 ]; do
     shift 2
   elif [ "$1" == "-only" ]; then
     selected_steps="$2"
+    #select_arguments="$1 $2"
+    shift 2
+  elif [ "$1" == "-donly" ]; then
+    selected_steps="0-$2-99999"
+    #select_arguments="$1 $2"
+    shift 2
+  elif ( [ "$1" == "-time" ] || [ "$1" == "-dtime" ] ) ; then
+    select_arguments="$1 $2"
     shift 2
   elif [ "$1" == "-dir" ]; then
     customdir="$2"
@@ -480,11 +492,22 @@ done
 . ${SCRIPTDIR}/detect_rst_type.sh
 if [ "$RST_TYPE" != "h5" ] && [ "$RST_TYPE" != "rst" ]; then
   echo "ERROR: RST_TYPE not detected properly: $RST_TYPE"
-  stop
+  exit 0
 fi
+
+
+
 # --- Parallel file conversion
 echo ""
-files=`ls $sourceDir/jorek?????.${RST_TYPE} 2> /dev/null`
+if [ -z "$select_arguments" ]; then
+  files=`ls $sourceDir/jorek?????.${RST_TYPE} 2> /dev/null`
+else
+  files=`${SCRIPTDIR}/select_restart_files.sh $select_arguments`
+  if [ "$files" == "Files are missing" ] ; then
+    echo "Files to select restart files are missing"
+    exit 0
+  fi
+fi
 for file in $files; do
   if [ -f "$ERROR_STOP_FILE" ]; then cleanup; fi
   ithread=`get_available_thread`
@@ -493,6 +516,7 @@ for file in $files; do
     do_convert $file $ithread &
   fi
 done
+
 
 
 sleep 1
