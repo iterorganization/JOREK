@@ -71,7 +71,11 @@ call tr_allocate(work_ndof2,Int1,n_dof,"work_ndof2",CAT_GMRES)
 work(1:n_dof)         = deltas(1:n_dof)                     ! the initial guess
 work(n_dof+1:2*n_dof) = RHS_glob(1:n_dof)                   ! the right hand side
 
-call gmres_matrix_vector(work(1:n_dof),work(2*n_dof+1:3*n_dof),my_id,my_id_n, i_tor, MPI_COMM_MASTER)
+work_ndof(Int1:n_dof) = work(Int1:n_dof)
+work_ndof2(Int1:n_dof) = work(2*n_dof+Int1:3*n_dof)
+call gmres_matrix_vector(n_dof,work_ndof,n_dof,work_ndof2,my_id,my_id_n, i_tor, MPI_COMM_MASTER)
+work(Int1:n_dof) = work_ndof(Int1:n_dof)
+work(2*n_dof+Int1:3*n_dof) = work_ndof2(Int1:n_dof)
 
 if (my_id .eq. 0) then
   sum = 0.d0
