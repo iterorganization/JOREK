@@ -58,10 +58,8 @@ integer :: i_ADF11
 character*3, dimension(1:6), parameter :: ADF11_filenames = (/"acd", "scd", "ccd", "plt", "prb", "prc"/)
 character*120 :: filename
 
-integer :: i, ierr, n_d, n_T, k, my_id, q, i_n
+integer :: i, ierr, n_d, n_T, k, q, i_n
 logical :: file_exists, recombining
-
-call MPI_COMM_RANK(MPI_COMM_WORLD, my_id, ierr)
 
 if (my_id .eq. 0) then
   write(*,'(A)') '*********************************'
@@ -175,8 +173,17 @@ do i=1,3,2 ! full, strip
           write(*,*) 'Mismatch in detected energy levels, ', q+1, k
           stop 1
         end if
-      end if
-    end do
+      end do
+      write(*,*) "Read ionisation energies from ", trim(filename)
+      close(10)
+      exit ! the loop, we have found a file
+    endif
+  else
+    if (i .eq. 3) then
+      write(*,*) "Cannot find ionisation data file ", trim(filename), "not loading ionisation energies"
+    end if
+  end if
+end do
 end function read_adf11
 
 

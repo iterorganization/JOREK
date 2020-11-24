@@ -65,7 +65,7 @@ fieldreader = event(read_jorek_fields_interp_linear(basename='jorek', i=-1))
 call with(sim, fieldreader)
 
 ! Read Open ADAS data
-adas = read_adf11('12_h')
+adas = read_adf11(sim%my_id,'12_h')
 
 if (use_sputtering) then  
   n_reflect = int(n_particles * 2.d-3)

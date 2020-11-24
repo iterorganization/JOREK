@@ -481,7 +481,7 @@ do i=1,n
   call HDF5_real_reading(file,sim%groups(i)%mass,group_name//"mass")
   call HDF5_char_reading(file,sim%groups(i)%ad%suffix,group_name//"adas_suffix")
   if (len_trim(sim%groups(i)%ad%suffix) .gt. 0) then
-    sim%groups(i)%ad = read_adf11(sim%groups(i)%ad%suffix)
+    sim%groups(i)%ad = read_adf11(sim%my_id,sim%groups(i)%ad%suffix)
     sim%groups(i)%cor = coronal(sim%groups(i)%ad)
   end if
 
