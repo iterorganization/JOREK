@@ -4,7 +4,7 @@ program coupling_function
 use particle_tracer
 use mod_particle_diagnostics
 use mpi
-use mod_elements
+use mod_atomic_elements
 use mod_particle_io
 use mod_event
 use mod_project_particles
