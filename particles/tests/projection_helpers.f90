@@ -110,6 +110,7 @@ subroutine default_flux_grid_31(node_list,element_list)
   node_list = cache_node_list
   element_list = cache_element_list
 end subroutine default_flux_grid_31
+
 subroutine default_flux_grid_32(node_list,element_list)
   type(type_node_list), intent(out) :: node_list
   type(type_element_list), intent(out) :: element_list
@@ -207,7 +208,9 @@ subroutine default_flux_grid(node_list, element_list, npol)
   node_list%n_nodes = 0
   element_list%n_elements = 0
   bnd_elm_list%n_bnd_elements  = 0
+
   call define_boundary()
+
   call grid_polar_bezier(R_geo, Z_geo, amin, 0.d0, 0.d0, fbnd, fpsi, mf, n_radial, n_pol,    &
     node_list, element_list)
 
@@ -224,31 +227,48 @@ end subroutine default_flux_grid
 
 
 !> Project a function onto the JOREK elements
-subroutine project_f(node_list, element_list, f, smoothing, smoothing2)
-  type(type_node_list), intent(inout) :: node_list
+subroutine project_f(node_list, element_list, f, filter, filter_hyper, integral)
+  type(type_node_list), intent(inout)    :: node_list
   type(type_element_list), intent(inout) :: element_list
   real*8, external :: f
-  real*8, optional, intent(in) :: smoothing, smoothing2 !< smoothing and hyper-smoothing
+  real*8, optional, intent(in) :: filter, filter_hyper !< smoothing and hyper-smoothing
+  real*8, optional, intent(out) :: integral !< The integral of the projected function, from the weights
+  real*8, dimension(:), allocatable :: this_integral_weights
   type(DMUMPS_STRUC) :: p
-  integer :: i, k, index
-  real*8 :: my_smoothing, my_smoothing2
+  integer :: i, k, index, i_tor_local, n_tor_local, mpi_comm_world, mpi_comm_n, mpi_comm_master
+  real*8 :: my_filter, my_filter_hyper, area, volume
 
-  my_smoothing = 0.d0
-  my_smoothing2 = 0.d0
-  if (present(smoothing)) my_smoothing = smoothing
-  if (present(smoothing2)) my_smoothing2 = smoothing2
-  call prepare_mumps_par(node_list, element_list, p, smoothing=my_smoothing, smoothing2=my_smoothing2)
-  allocate(p%rhs(p%n))
+  mpi_comm_world  = 0
+  mpi_comm_n      = 0
+  mpi_comm_master = 0
+  i_tor_local     = 0
+  n_tor_local     = 0
+
+  my_filter       = 0.d0
+  my_filter_hyper = 0.d0
+
+  if (present(filter))       my_filter       = filter 
+  if (present(filter_hyper)) my_filter_hyper = filter_hyper 
+  
+  if (present(integral)) then  
+    call prepare_mumps_par_n0(node_list, element_list, n_tor_local, i_tor_local, mpi_comm_world, mpi_comm_n, mpi_comm_master, &
+                           p,  area, volume, filter=my_filter, filter_hyper=my_filter_hyper, filter_parallel=0.d0, integral_weights=this_integral_weights)
+  else
+    call prepare_mumps_par(node_list, element_list, n_tor_local, i_tor_local, mpi_comm_world, mpi_comm_n, mpi_comm_master, &
+                           p, filter=my_filter, filter_hyper=my_filter_hyper, filter_parallel=0.d0)
+  endif
 
   ! Project manually
   p%JOB = 3
   p%icntl(21) = 0 ! solution is available only on host
   p%icntl(4)  = 1 ! print only errors
   ! Setup RHS by integrating manually
-  p%rhs = 0.d0
+  allocate(p%rhs(p%n))
   call calc_rhs_f(node_list,element_list,f,p%rhs)
 
   call DMUMPS(p)
+
+  if (present(integral)) integral = dot_product(p%rhs, this_integral_weights)
 
   do i=1,node_list%n_nodes
     do k=1,n_order+1
@@ -320,7 +340,7 @@ end subroutine calc_rhs_f
 
 
 
-subroutine elements_mean_rms(node_list, element_list, f, mean, rms)
+subroutine elements_mean_rms(node_list, element_list, f, mean, rms, volume)
   use basis_at_gaussian
   use constants, only: TWOPI
   use mod_interp, only: interp
@@ -328,17 +348,18 @@ subroutine elements_mean_rms(node_list, element_list, f, mean, rms)
   type(type_element_list), intent(in) :: element_list
   real*8, external :: f
   real*8, intent(out) :: mean, rms
+  real*8, intent(out), optional :: volume
 
   integer :: i_elm, m, i, j, ms, mt
   type(type_element) :: element
   type(type_node) :: nodes(4)
   real*8, dimension(n_gauss,n_gauss) :: x_g, x_s, x_t, y_g, y_s, y_t
-  real*8 :: my_ref, wst, volume, xjac
+  real*8 :: my_ref, wst, my_volume, xjac
   real*8 :: P, P_s, P_t, P_st, P_ss, P_tt
 
   call initialise_basis
 
-  volume = 0.d0
+  my_volume = 0.d0
   mean = 0.d0
   rms = 0.d0
 
@@ -373,7 +394,7 @@ subroutine elements_mean_rms(node_list, element_list, f, mean, rms)
       do mt=1, n_gauss
         wst = wgauss(ms)*wgauss(mt)
         xjac =  x_s(ms,mt)*y_t(ms,mt) - x_t(ms,mt)*y_s(ms,mt)
-        volume = volume + TWOPI * x_g(ms,mt) * xjac * wst
+        my_volume = my_volume + TWOPI * x_g(ms,mt) * xjac * wst
 
         ! calculate contribution to integral of this point
         call interp(node_list, element_list, i_elm, 1, 1, Xgauss(ms), Xgauss(mt), P, P_s, P_t, P_st, P_ss, P_tt)
@@ -384,7 +405,8 @@ subroutine elements_mean_rms(node_list, element_list, f, mean, rms)
     enddo
   enddo
 
-  rms = sqrt(rms / volume)
-  mean = mean/volume
+  rms = sqrt(rms / my_volume)
+  mean = mean/my_volume
+  if (present(volume)) volume = my_volume
 end subroutine elements_mean_rms
 end module projection_helpers

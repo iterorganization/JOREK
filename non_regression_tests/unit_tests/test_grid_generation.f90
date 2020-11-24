@@ -9,8 +9,9 @@ contains
 !> note that we should not use knowledge of the grid construction algorithm
 !> and we should not use the node ordering or element ordering in any way.
 subroutine test_square_grid
-  type(type_node_list) :: node_list
-  type(type_element_list) :: element_list
+!  type(type_node_list) :: node_list
+!  type(type_element_list) :: element_list
+  use nodes_elements
   integer, parameter :: n = 10
   real*8, parameter :: R_geo = 1.d0, Z_geo = 0.d0, amin = 0.5d0
   character(len=40) :: s

@@ -10,6 +10,8 @@ implicit none
 private
 public coronal
 public output_coronal
+public specific_coronal_equilibrium
+public coronal_prad
 
 !> Coronal equilibrium datatype
 type coronal
@@ -98,6 +100,28 @@ enddo
 
 end subroutine coronal_gradients
 
+
+!> Calculate the coronal equilibrium values at specific values of density and temperature
+function specific_coronal_equilibrium(ad, density, temperature) result(fractions)
+type (ADF11_all), intent(in) :: ad !< ADF11 datatype
+real*8, intent(in) :: density !< log10 density in m^-3
+real*8, intent(in) :: temperature !< log10 temperature in K
+real*8, dimension(0:ad%n_Z) :: fractions
+
+integer :: iz
+real*8 :: ion_rate, rec_rate
+
+fractions(0) = 1.d0
+do iz=1,ad%n_Z
+  call ad%SCD%interp_linear(iz-1, density, temperature, ion_rate) ! ionizing to level iz (0 is neutral)
+  call ad%ACD%interp_linear(iz,   density, temperature, rec_rate) ! recombining from iz+1
+  fractions(iz) = fractions(iz-1) * ion_rate/rec_rate
+end do
+fractions = fractions/sum(fractions)
+end function specific_coronal_equilibrium
+
+
+
 !> Calculate the coronal equilibrium values at specific values of density and temperature
 function coronal_equilibrium(ad) result(cor)
 use constants
@@ -127,7 +151,7 @@ call AllocFspline(cor%ZFspline,n_T,n_d)
 call AllocFspline(cor%PradFspline,n_T,n_d)
 
 do m=1, n_d
-  cor%density(m) = 18.d0 + float(m-1)/(n_d-1) * (21.-18.) ! log10 [m^-3], linear between 18 and 21
+  cor%density(m) = 18.d0 + real(m-1,8)/real(n_d-1,8) * (21.d0-18.d0) ! log10 [m^-3], linear between 18 and 21
 end do
 do k=1, n_T
   cor%temperature(k) = log10( 1.d0 + exp(log(4.d4)*float(k-1)/(float(n_T-1))) - 1.d0 ) + log10(EL_CHG) - log10(K_BOLTZ) ! in log10 [K], 1 to 40000 eV in logscale
@@ -144,16 +168,9 @@ end do
 
 do m=1, n_d
   do k=1, n_T
-    p(0) = 1.d0
-    do iz=1,ad%n_Z
-      ! The flux of particles from state iz to iz-1 is given by
-      ! p(iz-1) * scd(iz-1) - p(iz) * acd(iz)
-      call ad%SCD%interp(iz-1, cor%density(m), cor%temperature(k), ion_rate) ! ionizing from level iz-1 to iz
-      call ad%ACD%interp(iz, cor%density(m), cor%temperature(k), rec_rate) ! recombining from iz to iz - 1
-      p(iz) = p(iz-1) * ion_rate/rec_rate
-    end do
+    p = specific_coronal_equilibrium(ad, cor%density(m), cor%temperature(k))
 
-    cor%Z(m,k,:)  = p/sum(p)
+    cor%Z(m,k,0:ad%n_Z) = p(0:ad%n_Z)
     do iz=1,ad%n_Z
       Z_eff(m,k) = Z_eff(m,k) + cor%Z(m,k,iz) * real(iz,8)
     end do
@@ -176,6 +193,10 @@ do m=1, n_d
                     cor%PFspline(iz)%Cspline(m,:),cor%PFspline(iz)%Dspline(m,:))
   end do
 enddo
+
+if (any(cor%Z .lt. 0.d0)) then
+  write(*,*) "Z prob below zero", count(cor%Z .lt. 0.d0), minval(cor%Z), minloc(cor%Z)
+end if
 
 call ConstructFspline(cor%ZFspline,Z_eff)
 call ConstructFspline(cor%PradFspline,cor%Prad)

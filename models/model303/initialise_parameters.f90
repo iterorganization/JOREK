@@ -118,7 +118,13 @@ namelist /in1/  tstep, nstep, tstep_n, nstep_n,                     &
                 starwall_equil_coils, freeb_equil_iterate_area,     &
                 psi_offset_freeb, diag_coils, rmp_coils,            &
                 voltage_coils, vert_FB_amp, find_pf_coil_currents,  &
-                pastix_maxthrd, eta_ohmic, centralize_harm_mat
+                pastix_maxthrd, eta_ohmic, centralize_harm_mat,     &
+                n_particles, tstep_particles, nstep_particles,      &
+                nsubstep_particles,                                 &
+                filter_perp,    filter_hyper,    filter_par,        &
+                filter_perp_n0, filter_hyper_n0, filter_par_n0,     &
+                use_cx, use_sputtering, use_ionisation,             &
+                use_ncs, use_pcs, use_ccs
 
 if (my_id .eq. 0) then
 

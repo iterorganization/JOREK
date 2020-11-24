@@ -14,8 +14,10 @@ contains
   !------------------------------------------------------------------------------------------------------------------------------
   !------------------------------------------------------------------------------------------------------------------------------
   !------------------------------------------------------------------------------------------------------------------------------
-  subroutine element_matrix_fft(element, nodes, xpoint2, xcase2, R_axis, Z_axis, psi_axis, psi_bnd, R_xpoint, Z_xpoint, ELM, RHS, tid, &
-  ELM_p, ELM_n, ELM_k, ELM_kn, RHS_p, RHS_k,  eq_g, eq_s, eq_t, eq_p, eq_ss, eq_st, eq_tt, delta_g_arg, delta_s_arg, delta_t_arg, i_tor_min, i_tor_max)
+  subroutine element_matrix_fft(element, nodes, xpoint2, xcase2, R_axis, Z_axis, psi_axis, psi_bnd, R_xpoint, Z_xpoint, &
+                                ELM, RHS, tid, ELM_p, ELM_n, ELM_k, ELM_kn, RHS_p, RHS_k,                               &
+                                eq_g, eq_s, eq_t, eq_p, eq_ss, eq_st, eq_tt, delta_g_arg, delta_s_arg, delta_t_arg,     &
+                                i_tor_min, i_tor_max, aux_nodes)
 
     ! --- Modules
     use equation_variables
@@ -34,21 +36,23 @@ contains
     implicit none
     
     ! --- Structures
-    type (type_element) 			:: element
-    type (type_node)				:: nodes(n_vertex_max)
-    type (type_surface_list)			:: flux_list
+    type (type_element)        :: element
+    type (type_node)           :: nodes(n_vertex_max)     ! fluid variables
+    type (type_node), optional :: aux_nodes(n_vertex_max) !particel moments
+
+    type (type_surface_list)   :: flux_list
 
     ! --- Matrix elements and toroidal functions
-    integer, intent(in) 			:: tid
-    integer, intent(in)                         :: i_tor_min, i_tor_max
+    integer, intent(in)        :: tid
+    integer, intent(in)        :: i_tor_min, i_tor_max
 #define DIM0 n_tor*n_vertex_max*(n_order+1)*n_var
 #define DIM1 n_plane
 #define DIM2 1:n_vertex_max*n_var*(n_order+1)
 
-    real*8, dimension (DIM0,DIM0)	     	:: ELM
-    real*8, dimension (DIM0)	     		:: RHS
-    real*8, dimension(DIM1,DIM2,DIM2)    	:: ELM_p, ELM_n, ELM_k, ELM_kn
-    real*8, dimension(DIM1,DIM2)  	        :: RHS_p, RHS_k
+    real*8, dimension (DIM0,DIM0)     :: ELM
+    real*8, dimension (DIM0)          :: RHS
+    real*8, dimension(DIM1,DIM2,DIM2) :: ELM_p, ELM_n, ELM_k, ELM_kn
+    real*8, dimension(DIM1,DIM2)      :: RHS_p, RHS_k
 
 ! The following buffers are not used by this model:
     real*8, dimension(n_plane,n_var,n_gauss,n_gauss) :: eq_g, eq_s, eq_t

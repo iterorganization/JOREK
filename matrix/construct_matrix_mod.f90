@@ -11,7 +11,8 @@ contains
   !> subroutine that will construct elementary matrices
   subroutine elementary_matrix_build(element, nodes, xpoint2, xcase2, R_axis,         &
        &                             Z_axis, psi_axis, psi_bnd, R_xpoint, Z_xpoint,   &
-       &                             omp_tid, ife, n_local_elms, node_list, i_tor_min, i_tor_max)
+       &                             omp_tid, ife, n_local_elms, node_list, i_tor_min, i_tor_max, &
+                                     aux_nodes)
 
     ! --- Modules
     use mod_parameters,           only : n_tor, jorek_model, n_vertex_max, n_order, unified_element_matrix
@@ -41,6 +42,7 @@ contains
     integer,                          intent(in)     :: i_tor_min   
     integer,                          intent(in)     :: i_tor_max   
     TYPE (type_node_list),            intent(in)     :: node_list
+    type (type_node), optional,       intent(inout)  :: aux_nodes(n_vertex_max)
     
     ! -- internal parameters
     integer :: iv, iv2, iv3, iv4, inode1, inode2, inode3, inode4, i, j
@@ -69,13 +71,14 @@ contains
         thread_struct(omp_tid)%eq_g, thread_struct(omp_tid)%eq_s, thread_struct(omp_tid)%eq_t,     &
         thread_struct(omp_tid)%eq_p, thread_struct(omp_tid)%eq_ss, thread_struct(omp_tid)%eq_st,   &
         thread_struct(omp_tid)%eq_tt, thread_struct(omp_tid)%delta_g,                              &
-        thread_struct(omp_tid)%delta_s, thread_struct(omp_tid)%delta_t, i_tor_min, i_tor_max)
+        thread_struct(omp_tid)%delta_s, thread_struct(omp_tid)%delta_t, i_tor_min, i_tor_max,      &
+        aux_nodes)
     else
       ! (use the element matrix by toroidal integration in case of very few harmonics or in case
       ! of direct construction of the harmonic matrices used in preconditioning)
       call element_matrix(element,nodes, xpoint2, xcase2, R_axis, Z_axis, psi_axis, psi_bnd,       &
         R_xpoint, Z_xpoint, thread_struct(omp_tid)%ELM, thread_struct(omp_tid)%RHS, omp_tid,       &
-        i_tor_min, i_tor_max)
+        i_tor_min, i_tor_max, aux_nodes)
     endif
     
     ! --- Apply sheath boundary conditions at the targets
@@ -338,7 +341,7 @@ subroutine construct_matrix(my_id, MPI_COMM_N, my_id_n, MPI_COMM_MASTER, my_id_m
   
   !--- Internal variables
   type (type_element)               :: element
-  type (type_node)                  :: nodes(n_vertex_max)
+  type (type_node)                  :: nodes(n_vertex_max), aux_nodes(n_vertex_max)
   type (type_element)               :: element_father
   type (type_node)                  :: nodes_father(n_vertex_max)
   real*8,              allocatable  :: rhs_local(:)
@@ -421,12 +424,12 @@ subroutine construct_matrix(my_id, MPI_COMM_N, my_id_n, MPI_COMM_MASTER, my_id_m
   
   ! --- Declare shared and private variables for omp
   !$omp parallel default(none) &
-  !$omp   shared(n_local_elms,local_elms,element_list,node_list,          &
-  !$omp          index_min, index_max,xpoint2,xcase2,R_axis,Z_axis,psi_axis,psi_bnd,Z_xpoint,harmonic_matrix,       &
-  !$omp          A_mat, rhs_local, rhs, irn, jcn,      &
-  !$omp          R_xpoint,my_id,bc_natural_open,bc_natural_flux,refinement,thread_struct,n_tor_fft_thresh, &
+  !$omp   shared(n_local_elms,local_elms,element_list,node_list, aux_node_list,                                &
+  !$omp          index_min, index_max,xpoint2,xcase2,R_axis,Z_axis,psi_axis,psi_bnd,Z_xpoint,harmonic_matrix,  &
+  !$omp          A_mat, rhs_local, rhs, irn, jcn,                                                              &
+  !$omp          R_xpoint,my_id,bc_natural_open,bc_natural_flux,refinement,thread_struct,n_tor_fft_thresh,     &
   !$omp          difference_found,rhs_problem,elm_problem, i_tor_min, i_tor_max, ijA_index, ijA_size, irn_jcn) &
-  !$omp   private(ife,ielm,iv,inode,element,nodes,i,inode1,i_order,index_node1, n_tor_local,               &
+  !$omp   private(ife,ielm,iv,inode,element,nodes, aux_nodes, i,inode1,i_order,index_node1, n_tor_local,   &
   !$omp           index_large_i,j,index_ij,k,knode,k_order,index_node2,index_large_k,ijA_position,         &
   !$omp           l,index_kl,ilarge2,iv2,vertex,direction,inode2,omp_nthreads,omp_tid,                     &
   !$omp           i_father,element_father, nodes_father, inode_father, node_out, ivertex, iorder,          &
@@ -467,14 +470,15 @@ subroutine construct_matrix(my_id, MPI_COMM_N, my_id_n, MPI_COMM_MASTER, my_id_m
     else
        
       do iv = 1, n_vertex_max
-       inode   = element%vertex(iv)
-       nodes(iv) = node_list%node(inode)
+        inode         = element%vertex(iv)
+        nodes(iv)     = node_list%node(inode)
+        aux_nodes(iv) = aux_node_list%node(inode)
       enddo
 
     endif
 
     call elementary_matrix_build(element, nodes, xpoint2, xcase2, R_axis, Z_axis, psi_axis,        &
-      psi_bnd, R_xpoint, Z_xpoint, omp_tid, ife, n_local_elms, node_list, i_tor_min, i_tor_max)
+      psi_bnd, R_xpoint, Z_xpoint, omp_tid, ife, n_local_elms, node_list, i_tor_min, i_tor_max, aux_nodes)
     
 #ifdef PRINT_ELM_RHS
     if (.not. harmonic_matrix) then

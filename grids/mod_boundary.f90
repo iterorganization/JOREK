@@ -4,6 +4,8 @@ module mod_boundary
   implicit none
   private
   public boundary_from_grid, log_bnd_info
+  public wall_normal_vector
+
   
   
   
@@ -485,4 +487,65 @@ module mod_boundary
 
   end subroutine remove_elem
 
+
+  !> Get a normal vector from the wall on your element. It is your own responsibility to ensure
+  !> that it is actually on the wall ;) We just find the closest edge of the element and calculate the gradient
+  !> towards the inside of the element.
+  pure function wall_normal_vector(node_list, element_list, i_elm, s, t) result(n)
+    use data_structure
+    use mod_interp, only: interp_RZ
+    type(type_node_list), intent(in)    :: node_list
+    type(type_element_list), intent(in) :: element_list
+    integer, intent(in)                 :: i_elm
+    real*8, intent(in)                  :: s, t
+    real*8                              :: n(3)
+    real*8 :: R, R_s, R_t, Z, Z_s, Z_t
+    logical :: allowed(4)
+    integer :: i_side
+
+    ! Calculate the two vectors that span the surface element
+    ! One of them is always in the positive phi direction
+    ! the poloidal vector is constructed from the local coordinate space
+    ! Taking the cross product of those vectors gives the normal vector direction
+    ! after normalization we now have the normal vector of the surface where the particle left the grid
+        
+    ! interp RZ for (Rs,Zs) and (Rt,Zt)
+    call interp_RZ(node_list, element_list, i_elm, s, t, R, R_s, R_t, Z, Z_s, Z_t)    
+        
+    !> if statements for checking the side, to construct a normal vector on the element
+    !> Explanation for the first two if statements
+    !> if s>t, is the area below line from bottom left to right top.
+    !> and then, if (1-s)>t, is the other diagonal line. So this specifies the lower triangle and we appoint to according side to it
+    !> ________1
+    !> |\  3 /|
+    !> | \  / |
+    !> |4 \/ 2|
+    !> |  /\  | t       
+    !> | /  \ |                     
+    !> |/  1 \|0                      
+    !> 0^^^^^^1 
+    !>    s  
+    ! First select the side to use.
+    ! eligible sides are those with neighbours equal to 0.
+    ! if there are multiple the one which is closest to s,t is chosen
+    ! the distance is given by t, 1-s, 1-t, s respectively
+    allowed = element_list%element(i_elm)%neighbours(:) .eq. 0
+    if (.not. any(allowed)) allowed = .true. ! shortcut
+    i_side = minloc([t, 1.d0-s, 1.d0-t, s], mask=allowed, dim=1)
+    ! The normal can be found by norm(grad_R x) (where x = either s or t depending on the side)
+    ! A proper coordinate transfrom has to be caried out i.e. grad_R x = grad_s x J_s^-1, where J_s^-1 = J_R is the Jacobian matrix
+    ! Note that the normal vector does not have to be multiplied with the inverse of the determinant of the Jacobian matrix, 
+    ! because it is normalized directly after.
+    select case (i_side)
+    case (1)
+      n = [-Z_s, R_s, 0.d0]
+    case (2)
+      n = [-Z_t, R_t, 0.d0]
+    case (3)
+      n = [Z_s, -R_s, 0.d0]
+    case (4)
+      n = [Z_t, -R_t, 0.d0]
+    end select
+    n = n/norm2(n,1)
+  end function wall_normal_vector
 end module mod_boundary

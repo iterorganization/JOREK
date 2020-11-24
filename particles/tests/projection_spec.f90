@@ -221,10 +221,19 @@ subroutine test_projection_matrix_square_2_2
       0.034898,0.0055102,-0.00840136,-0.00132653,& ! index 3 (but node 4, because index is switched with matrix order)
       0.0165306,-0.00382653,-0.00397959,0.000921202] ! index 4 (but node 3)
   real*8, parameter :: tol = 1d-6
+  integer :: mpi_comm_world, mpi_comm_n, mpi_comm_master, i_tor_local, n_tor_local
+
+  mpi_comm_world  = 0
+  mpi_comm_n      = 0
+  mpi_comm_master = 0
+  i_tor_local     = 0
+  n_tor_local     = 0
+
   node_list%n_nodes = 0
   element_list%n_elements = 0
   call grid_bezier_square(n_R, n_Z, R_geo-amin,R_geo+amin, Z_geo-amin, Z_geo+amin, .true., node_list, element_list)
-  call prepare_mumps_par(node_list, element_list, p, smoothing=0d0, skip_factorisation=.true., smoothing2=0d0)
+  call prepare_mumps_par_n0(node_list, element_list, n_tor_local, i_tor_local, mpi_comm_world, mpi_comm_n, mpi_comm_master, &
+                           p,  area, volume, filter=my_filter, filter_hyper=my_filter_hyper, filter_parallel=0.d0 )
   do i=1,size(p%irn)
     if (p%irn(i) == 1) call assert_equals(ref(p%jcn(i)), p%A(i), tol, 'matrix element must match reference')
   end do

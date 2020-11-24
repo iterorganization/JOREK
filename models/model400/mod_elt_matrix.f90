@@ -3,7 +3,8 @@
 module mod_elt_matrix
 contains
 
-  subroutine element_matrix(element, nodes, xpoint2, xcase2, R_axis, Z_axis, psi_axis, psi_bnd, R_xpoint, Z_xpoint, ELM, RHS, tid, i_tor_min, i_tor_max)
+  subroutine element_matrix(element, nodes, xpoint2, xcase2, R_axis, Z_axis, psi_axis, psi_bnd, R_xpoint, Z_xpoint, &
+                            ELM, RHS, tid, i_tor_min, i_tor_max, aux_nodes)
   !--------------------------------------------------------------------------
   ! This is just a wrapper to the real routine since I combined both into one
   !--------------------------------------------------------------------------
@@ -13,8 +14,9 @@ contains
 
     implicit none
 
-    type (type_element) 	      :: element
-    type (type_node)		      :: nodes(n_vertex_max)
+    type (type_element)       :: element
+    type (type_node)          :: nodes(n_vertex_max)      ! fluid varibales
+    type (type_node),optional :: aux_nodes(n_vertex_max)  ! particle moments
 
     integer    :: xcase2
     logical    :: xpoint2
@@ -28,7 +30,7 @@ contains
                             thread_struct(tid)%RHS_p, thread_struct(tid)%RHS_k,  thread_struct(tid)%eq_g, thread_struct(tid)%eq_s,  &
                             thread_struct(tid)%eq_t, thread_struct(tid)%eq_p, thread_struct(tid)%eq_ss, thread_struct(tid)%eq_st,   &
                             thread_struct(tid)%eq_tt, thread_struct(tid)%delta_g, thread_struct(tid)%delta_s,                       &
-                            thread_struct(tid)%delta_t, i_tor_min, i_tor_max)
+                            thread_struct(tid)%delta_t, i_tor_min, i_tor_max, aux_nodes)
 
     return
 

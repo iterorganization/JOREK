@@ -12,13 +12,14 @@ public fields_base
 !> node_list and element_list should be the currently-valid representation of the grid
 !> (values themselves should not be used, only for find_RZ etc)
 type, abstract :: fields_base
-  type(type_node_list), allocatable    :: node_list !< Current node list
-  type(type_element_list), allocatable :: element_list !< Current element list
+  type(type_node_list),pointer         :: node_list !< Current node list
+  type(type_element_list), pointer     :: element_list !< Current element list
   logical                              :: static=.false. !< if true do not time interpolate
   logical                              :: flag_zero_dpsidt=.false. !< if true, P_time(1) = dpsi/dt = 0
   contains
     procedure(interp_PRZ), deferred, public   :: interp_PRZ
     procedure(interp_PRZ_2), deferred, public :: interp_PRZ_2
+    procedure, public :: calc_NeTe
     procedure, public :: calc_EBpsiU
     procedure, public :: calc_EBNormBGradBCurlbDbdt
     procedure, public :: calc_analytical_EBpsiU
@@ -79,21 +80,29 @@ real*8, intent(out) :: psi !< psi in JOREK units
 real*8, intent(out) :: u !< velocity stream function in m/s
 
 ! Internal parameters
-real*8             :: P(2), P_s(2), P_t(2), P_phi(2), P_R(2), P_Z(2), P_time(2)
-real*8             :: RZ(6) !<1:R, 2:R_s, 3:R_t, 4:Z, 5:Z_s, 6:Z_t
+integer, parameter :: i_var(2) = [1,2]
+real*8             :: P(2), P_s(2), P_t(2), P_phi(2), P_time(2) ! Placeholder for evaluating variables and derivatives locally
+! Values
+real*8             :: R, R_s, R_t, Z, Z_s, Z_t
 ! Others
-real*8             :: R_inv, t_norm
+real*8             :: inv_st_jac, R_inv
+real*8             :: psi_R, psi_Z, U_R, U_Z, U_phi, t_norm
 
 t_norm  = sqrt(mu_zero * mass_proton * central_mass * central_density * 1.d20) ! 1 jorek time unit in seconds
 
-! Interpolate the fields to get psi (i_v=1) and U (i_v=2) at the current position 
-! (and the changes u_n - u_{n-1})
-call fields%interp_PRZ(time, i_elm, [1,2], 2, st(1), st(2), phi, P, P_s, P_t, P_phi, P_time, RZ(1), RZ(2), RZ(3), RZ(4), RZ(5), RZ(6))
+! Interpolate the fields to get psi and U at the current position (and the
+! changes u_n - u(n-1))
+call fields%interp_PRZ(time, i_elm, i_var, 2, st(1), st(2), phi, P, P_s, P_t, P_phi, P_time, R, R_s, R_t, Z, Z_s, Z_t)
 
-R_inv = 1.d0/RZ(1)
+R_inv = 1.d0/R
+inv_st_jac = 1.d0/(R_s * Z_t - R_t * Z_s)
 
-! Calculate the derivatives wrt. R and Z
-call transform_derivatives_st_to_RZ(P_R,P_Z,2,P_s,P_t,RZ(2),RZ(3),RZ(5),RZ(6))
+! Calculate the derivatives to R and Z
+psi_R    = (  P_s(1) * Z_t - P_t(1) * Z_s ) * inv_st_jac
+psi_Z    = (- P_s(1) * R_t + P_t(1) * R_s ) * inv_st_jac
+U_R      = (  P_s(2) * Z_t - P_t(2) * Z_s ) * inv_st_jac
+U_Z      = (- P_s(2) * R_t + P_t(2) * R_s ) * inv_st_jac
+U_phi    = P_phi(2)
 
 ! Update psi and U
 psi = P(1)
@@ -103,13 +112,52 @@ U   = P(2)/t_norm
 if(fields%flag_zero_dpsidt) P_time(1) = 0.d0
 
 ! Calculate the magnetic field (see http://jorek.eu/wiki/doku.php?id=reduced_mhd)
-B     = [P_Z(1), -P_R(1), F0] * R_inv
+B     = [+psi_Z, -psi_R, F0] * R_inv
+
 ! The local electric field, obtained from E=-Grad (u F0)-\partial_t A
 ! See http://jorek.eu/wiki/doku.php?id=u_phi
-E     = -F0 * [P_R(2), P_Z(2), P_phi(2)*R_inv] / t_norm
+E     = [-F0*U_R, -F0*U_Z, -F0*U_phi*R_inv]/t_norm
 E(3)  = E(3) - R_inv*P_time(1) ! because this is not normalized with t_norm
 
 end subroutine calc_EBpsiU
+
+pure subroutine calc_NeTe(fields, time, i_elm, st, phi, n_e, T_e, grad_T_e)
+use phys_module, only: central_density
+use constants
+class(fields_base), intent(in)                    :: fields
+integer, intent(in)                               :: i_elm
+real*8, intent(in)                                :: time, st(2), phi
+real*8, intent(out)                               :: n_e !< electron density [m^-3]
+real*8, intent(out)                               :: T_e !< electron temperature [K]
+real*8, intent(out), optional, dimension(3)       :: grad_T_e !< gradient of electron temperature [K/m]
+
+real*8, dimension(2) :: P, P_s, P_t, P_phi, P_time
+real*8               :: R, R_s, R_t, Z, Z_s, Z_t, xjac
+real*8 :: T_norm !< temperature normalisation
+
+call fields%interp_PRZ(time,i_elm,&
+#if (JOREK_MODEL == 400)
+      [5,8],& ! electron temperature
+#else
+      [5,6],& ! electron temperature + ion temperature (assumed equal)
+#endif
+          2,st(1),st(2),phi,P,P_s,P_t,P_phi,P_time,R,R_s,R_t,Z,Z_s,Z_t)
+
+n_e = max(central_density * P(1) * 1d20,1d16)                           ! plasma density [1/m^3], capped against negative
+T_norm = (1.d0/K_BOLTZ/(2.d0*MU_ZERO*central_density*1.d20))
+#if (JOREK_MODEL == 400)
+T_norm = T_norm*2.d0 ! P(1) contains the electron temperature, reverse previous correction
+#endif
+T_e = max(P(2)*T_norm, 1.d0) ! temperature capped against going negative
+
+if (present(grad_T_e)) then
+
+  xjac = R_s * Z_t - R_t * Z_s
+  grad_T_e = T_norm*[(  P_s(2) * Z_t - P_t(2) * Z_s)/ xjac, &
+                     (- P_s(2) * R_t + P_t(2) * R_s)/ xjac, &
+                     P_phi(2)/R]
+end if
+end subroutine calc_NeTe
 
 !> This procedure computes the fields appearing in the
 !> the guiding center equations of motion

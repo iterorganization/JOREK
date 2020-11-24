@@ -71,11 +71,7 @@ call tr_allocate(work_ndof2,Int1,n_dof,"work_ndof2",CAT_GMRES)
 work(1:n_dof)         = deltas(1:n_dof)                     ! the initial guess
 work(n_dof+1:2*n_dof) = RHS_glob(1:n_dof)                   ! the right hand side
 
-work_ndof(Int1:n_dof) = work(Int1:n_dof)
-work_ndof2(Int1:n_dof) = work(2*n_dof+Int1:3*n_dof)
-call gmres_matrix_vector(n_dof,work_ndof,n_dof,work_ndof2,my_id,my_id_n, i_tor, MPI_COMM_MASTER)
-work(Int1:n_dof) = work_ndof(Int1:n_dof)
-work(2*n_dof+Int1:3*n_dof) = work_ndof2(Int1:n_dof)
+call gmres_matrix_vector(work(1:n_dof),work(2*n_dof+1:3*n_dof),my_id,my_id_n, i_tor, MPI_COMM_MASTER)
 
 if (my_id .eq. 0) then
   sum = 0.d0
@@ -147,6 +143,8 @@ end if
 
 !******************************** end of GMRES reverse communication
 
+if (my_id .eq. 0) write(*,*) 'check work : ',n_dof,maxval(abs(work(1:n_dof)))
+
 if (my_id .eq. 0) deltas(1:n_dof) = work(1:n_dof)
 
 work_ndof(Int1:n_dof) = deltas(Int1:n_dof)
@@ -161,9 +159,9 @@ if (my_id .eq. 0) then
   Bnorm = 0.d0
   Xnorm = 0.d0
   do i=1,n_dof
-       sum = sum      + (work(n_dof+i)-RHS_glob(i))**2
-       err = max(err,abs(work(n_dof+i)-RHS_glob(i)))
-       Bnorm = Bnorm + RHS_glob(i)**2
+    sum   = sum + (work(n_dof+i)-RHS_glob(i))**2
+    err   = max(err,abs(work(n_dof+i)-RHS_glob(i)))
+    Bnorm = Bnorm + RHS_glob(i)**2
     Xnorm = Xnorm + deltas(i)**2
   enddo
   write(*,'(A,4e16.8)') ' residu test after : ',sqrt(sum),err,sqrt(Bnorm),sqrt(Xnorm)

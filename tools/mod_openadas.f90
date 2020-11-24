@@ -34,6 +34,8 @@ type ADF11_all
   type(ADF11) :: PRB !< Continuum and line power driven by recombination and bremsstrahlung of dominant ions
   type(ADF11) :: PRC !< Line power due to charge transfer from thermal neutral hydrogen to dominant ions
   real*8, dimension(:), allocatable :: ionisation_energy !< energy in eV required to ionize to a level, indexed by the new charge state (i.e. 1 to 74 for W), no interpolation needed
+  !< state (i.e. 1 to 74 for W)
+  character(len=8) :: suffix = '' !< The dataset name (like 50_w)
 end type ADF11_all
 contains
 
@@ -56,8 +58,10 @@ integer :: i_ADF11
 character*3, dimension(1:6), parameter :: ADF11_filenames = (/"acd", "scd", "ccd", "plt", "prb", "prc"/)
 character*120 :: filename
 
-integer :: i, ierr, n_d, n_T, k, q, i_n
+integer :: i, ierr, n_d, n_T, k, my_id, q, i_n
 logical :: file_exists, recombining
+
+call MPI_COMM_RANK(MPI_COMM_WORLD, my_id, ierr)
 
 if (my_id .eq. 0) then
   write(*,'(A)') '*********************************'
@@ -72,7 +76,7 @@ do i_ADF11 = 1,size(ADF11_filenames,1)
   if (present(directory)) filename = trim(directory) // trim(filename)
   inquire(file=trim(filename), exist=file_exists)
   if (.not. file_exists) then
-    write(*,*) "File not found for", filename
+    write(*,*) "File not found for", trim(filename)
     cycle ! Skip this type of data
   end if
 
@@ -95,6 +99,7 @@ do i_ADF11 = 1,size(ADF11_filenames,1)
 
   read(10,*)  a%n_z, n_d, n_T, a%izmin, a%izmax
   ad%n_z = a%n_z
+  ad%suffix = suffix
   allocate(a%density(n_d), a%temperature(n_T), a%GRC(n_d,n_T,0:a%n_z))
   allocate(a%GRCFspline(0:a%n_z))
   
@@ -136,7 +141,7 @@ do i_ADF11 = 1,size(ADF11_filenames,1)
     a%GRCFspline(i)%ylinear = a%density
 
     call ConstructFspline(a%GRCFspline(i),a%GRC(:,:,i))
-  end do   
+  enddo
 
   if (my_id .eq. 0) write(*,"(A)") " succeeded"
 enddo
@@ -170,17 +175,8 @@ do i=1,3,2 ! full, strip
           write(*,*) 'Mismatch in detected energy levels, ', q+1, k
           stop 1
         end if
-      end do
-      write(*,*) "Read ionisation energies from ", trim(filename)
-      close(10)
-      exit ! the loop, we have found a file
-    endif
-  else
-    if (i .eq. 3) then
-      write(*,*) "Cannot find ionisation data file ", trim(filename), "not loading ionisation energies"
-    end if
-  end if
-end do
+      end if
+    end do
 end function read_adf11
 
 
@@ -226,22 +222,20 @@ endif
 end function dGRC_dn
 
 !> interpolation of log10 values of GRC in density and temperature
-function GRC(a, z, density, temperature)
+subroutine GRC(a, z, density, temperature, GRC_out)
 class(ADF11), intent(in) :: a           !< ADF11 datatype
 real*8, intent(in)            :: density     !< log10 density in m^-3
 real*8, intent(in)            :: temperature !< log10 temperature in K
 integer, intent(in)           :: z !< index in a%GRC(:,:,z) (is ionisation level or ionisation level - 1, 1:n_z)
-real*8 :: GRC !< Generalized Radiational Coefficient at this density and temperature
+real*8 :: GRC_out !< Generalized Radiational Coefficient at this density and temperature
 
-! If GRC exists and we are looking for a Z that is nonzero
+! If GRC exists and z is in the bounds
 if (allocated(a%GRC) .and. z .le. ubound(a%GRC,3) .and. z .ge. lbound(a%GRC,3)) then
-  GRC = 10.d0**L2Dinterp(a%density,a%temperature,a%GRC(:,:,z),density,temperature)
-  !call SL2Dinterp(a%GRCFspline(z),temperature,density,fout=GRC)
-  !GRC = 10.d0**GRC
+  GRC_out = 10.d0**L2Dinterp(a%density,a%temperature,a%GRC(:,:,z),density,temperature)
 else
-  GRC = 0.d0
+  GRC_out = 0.d0
 endif
-end function GRC
+end subroutine GRC
 
 !> interpolation of log10 values of GRC in density and temperature
 subroutine GRC_spl(a, z, density, temperature, GRC_out, dGRC_dT_out, dGRC_dn_out)

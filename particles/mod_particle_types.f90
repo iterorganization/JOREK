@@ -9,6 +9,9 @@ module mod_particle_types
   public particle_kinetic_relativistic, particle_gc_relativistic
   public particle_get_q
   public copy_particle
+  public copy_particle_base
+  public copy_particle_kinetic_leapfrog
+
 
   !> The base type for all other particles. Includes only the position and weight elements
   !> Integration in a 2D finite element method is included in the form of 2 coordinates
@@ -17,7 +20,10 @@ module mod_particle_types
     real*8    :: x(3)             !< particle position in real space
     real*8    :: st(2)            !< particle position in the element
     real*4    :: weight = 1.0     !< weight (i.e. number of particles)
-    integer*4 :: i_elm            !< index in element_list
+    integer*4 :: i_elm = 0        !< index in element_list. Negative indices indicate lost particles on the edge of - that element.
+    integer*4 :: i_life = 0       !< particle lifetime index (i.e. is this still the same particle?)
+    real*4    :: t_birth = 0.0    !< birth time of this particle
+    !< zero means lost without location specification.
   contains
     procedure :: copy => copy_particle
     generic :: assignment(=) => copy
@@ -25,29 +31,29 @@ module mod_particle_types
 
   !> A simple type just for fieldline tracing in two-step methods (Adams Bashforth) or for forward euler
   type, extends(particle_base) :: particle_fieldline
-    real*8    :: B_hat_prev(3) !< Field direction at previous timestep
-    real*8    :: v !< Parallel velocity along the fieldline
+    real*8    :: B_hat_prev(3) = 0.d0 !< Field direction at previous timestep
+    real*8    :: v = 0.d0 !< Parallel velocity along the fieldline
   end type particle_fieldline
 
   !> A simple guiding-center particle type.
   type, extends(particle_base) :: particle_gc
-    real*8    :: E !< The particle energy [eV]
-    real*8    :: mu !< The magnetic moment [eV/T]. Sign determines sign of v_par
-    integer*1 :: q !< Charge [e]
+    real*8    :: E = 0.d0 !< The particle energy [eV]
+    real*8    :: mu = 0.d0 !< The magnetic moment [eV/T]. Sign determines sign of v_par
+    integer*1 :: q = 0_1 !< Charge [e]
   end type particle_gc
 
   !> For most kinetic methods the velocity is required at time \(t\)
   type, extends(particle_base) :: particle_kinetic
-    real*8, dimension(3) :: v !< Velocity [m/s]
-    integer*1            :: q !< charge [e]
+    real*8, dimension(3) :: v = 0.d0 !< Velocity [m/s]
+    integer*1            :: q = 0_1 !< charge [e]
   end type particle_kinetic
 
   !> Leapfrog methods define the particle velocity at time \(t^{n-1/2}\)
   !> and are therefore incompatible with normal kinetic methods (but a conversion
   !> function should not be too difficult)
   type, extends(particle_base) :: particle_kinetic_leapfrog
-    real*8, dimension(3) :: v !< Velocity [m/s] at t=t^(n-1/2) (where the position is known at t^n)
-    integer*1            :: q !< charge [e]
+    real*8, dimension(3) :: v = 0.d0 !< Velocity [m/s] at t=t^(n-1/2) (where the position is known at t^n)
+    integer*1            :: q = 0_1 !< charge [e]
   end type particle_kinetic_leapfrog
 
   !> This particle type is used for computing the full orbit trajectory
@@ -86,6 +92,32 @@ contains
       q = 0
     end select
   end function particle_get_q
+  !> Copy the base variables from one particle of class(particle_base) to another
+  
+  pure subroutine copy_particle_base(in, out)
+    class(particle_base), intent(in)    :: in
+    class(particle_base), intent(inout) :: out
+    out%x      = in%x
+    out%st     = in%st
+    out%weight = in%weight
+    out%i_elm  = in%i_elm
+    out%i_life = in%i_life
+    out%t_birth= in%t_birth
+  end subroutine copy_particle_base
+
+  !> Copy one particle of a type kinetic_leapfrog to another
+  pure subroutine copy_particle_kinetic_leapfrog(in, out)
+    type(particle_kinetic_leapfrog), intent(in)    :: in
+    type(particle_kinetic_leapfrog), intent(inout) :: out
+    out%x       = in%x
+    out%st      = in%st
+    out%weight  = in%weight
+    out%i_elm   = in%i_elm
+    out%i_life  = in%i_life
+    out%t_birth = in%t_birth
+    out%v       = in%v
+    out%q       = in%q
+  end subroutine copy_particle_kinetic_leapfrog
 
   !> Copy a descendant of particle_base into another descendant of particle_base
   !> as requested by the types of the input and output parameters.

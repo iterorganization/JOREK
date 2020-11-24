@@ -734,8 +734,26 @@ write(*,'(1x,a)',advance='no') ' USE_COMPLEX_PRECOND          : '
      write(*,REAL_FMT) 'tor_frequency       ',  tor_frequency
      write(*,REAL_FMT) 'spi_Vel_diff        ',  spi_Vel_diff
    end if
-
 #endif
+
+  write(*,LOGI_FMT) 'restart_particles   ',restart_particles
+  write(*,REAL_FMT) 'n_particles         ',n_particles
+  write(*,INTG_FMT) 'nstep_particles     ',nstep_particles
+  write(*,INTG_FMT) 'nsubstep_particles  ',nsubstep_particles
+  write(*,REAL_FMT) 'tstep_particles     ',tstep_particles
+  write(*,REAL_FMT) 'filter_perp,        ',filter_perp
+  write(*,REAL_FMT) 'filter_hyper,       ',filter_hyper
+  write(*,REAL_FMT) 'filter_par,         ',filter_par
+  write(*,REAL_FMT) 'filter_perp_n0,     ',filter_perp_n0
+  write(*,REAL_FMT) 'filter_hyper_n0,    ',filter_hyper_n0   
+  write(*,REAL_FMT) 'filter_par_n0,      ',filter_par_n0     
+  write(*,LOGI_FMT) 'use_ncs,            ',use_ncs     
+  write(*,LOGI_FMT) 'use_ccs,            ',use_ccs    
+  write(*,LOGI_FMT) 'use_pcs,            ',use_pcs
+  write(*,LOGI_FMT) 'use_ionisation,     ',use_ionisation    
+  write(*,LOGI_FMT) 'use_sputtering,     ',use_sputtering    
+  write(*,LOGI_FMT) 'use_cx,             ',use_cx            
+
   write(*,*)
   write(*,200)
   write(*,*) '* NORMALIZATION FACTORS                                                       *'

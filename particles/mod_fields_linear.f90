@@ -302,6 +302,7 @@ subroutine do_read(this, sim, ev)
   use phys_module
   use mpi
   use mod_neighbours
+  use nodes_elements
   class(read_jorek_fields_interp_linear), intent(inout) :: this
   type(particle_sim), intent(inout) :: sim
   type(event), intent(inout), optional :: ev
@@ -326,8 +327,10 @@ subroutine do_read(this, sim, ev)
   else
     allocate(jorek_fields_interp_linear::sim%fields)
   end if
-  if (.not. allocated(sim%fields%node_list)) allocate(sim%fields%node_list)
-  if (.not. allocated(sim%fields%element_list)) allocate(sim%fields%element_list)
+
+  if (.not. associated(sim%fields%node_list))    sim%fields%node_list    => node_list
+  if (.not. associated(sim%fields%element_list)) sim%fields%element_list => element_list
+
   
   ! Continue for jorek_fields_interp_linear
   select type (f => sim%fields)

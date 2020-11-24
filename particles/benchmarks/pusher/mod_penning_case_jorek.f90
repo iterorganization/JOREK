@@ -14,6 +14,7 @@ subroutine jorek_penning_fields(node_list, element_list)
   use projection_helpers, only: prepare_mumps_par, calc_rhs_f
   use phys_module, only: F0, central_mass, central_density
   use constants, only: mass_proton, mu_zero, el_chg, atomic_mass_unit
+  use mpi
   implicit none
 
   include 'dmumps_struc.h'        ! MUMPS include files defining its datastructure
@@ -40,7 +41,9 @@ subroutine jorek_penning_fields(node_list, element_list)
   B0      = omega_b/qom ! In T
   Phi0    = epsilon*omega_e**2/qom/2.d0*t_norm ! In JOREK units: E_SI*t_norm
 
-  call prepare_mumps_par(node_list, element_list, p, smoothing=0.d0, smoothing2=0.d0)
+  call prepare_mumps_par(node_list, element_list, 0, 0, MPI_COMM_WORLD, MPI_COMM_WORLD, MPI_COMM_WORLD, &
+                         p, filter=0.d0, filter_hyper=0.d0, filter_parallel=0.d0, skip_factorisation=.false.)
+
   allocate(p%rhs(p%n))
 
   ! Project manually

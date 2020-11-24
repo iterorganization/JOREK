@@ -153,9 +153,8 @@ subroutine boris_all_initial_half_step_backwards_RZPhi(particles, m, fields, t, 
 
   !$omp parallel do default(private) shared(particles, fields, dt, m, t)
   do i=1,size(particles,1)
-    if (particles(i)%i_elm .eq. 0) cycle
-    call fields%calc_EBpsiU(t, particles(i)%i_elm, particles(i)%st, particles(i)%x(3), &
-        E, B, psi, U)
+    if (particles(i)%i_elm .le. 0) cycle
+    call fields%calc_EBpsiU(t, particles(i)%i_elm, particles(i)%st, particles(i)%x(3), E, B, psi, U)
     call boris_initial_half_step_backwards_RZPhi(particles(i), m, E, B, dt)
   end do
   !$omp end parallel do
@@ -173,9 +172,7 @@ function kinetic_leapfrog_to_gc(node_list, element_list, in, E, B, mass, dt) res
   real*8, intent(in)                          :: mass !< Mass of the particle [amu]
   real*8, intent(in)                          :: dt !< Timestep [s]
   type(particle_gc)             :: out
-  out = kinetic_to_gc(node_list, element_list, &
-      kinetic_leapfrog_to_kinetic(in, E, B, mass, dt), &
-      B, mass)
+  out = kinetic_to_gc(node_list, element_list, kinetic_leapfrog_to_kinetic(in, E, B, mass, dt),B, mass)
 end function kinetic_leapfrog_to_gc
 
 !> Shortcut functions for converting between GC and kinetic leapfrog
@@ -191,8 +188,7 @@ function gc_to_kinetic_leapfrog(in, node_list, element_list, chi, E, B, mass, dt
   real*8, intent(in)                          :: mass !< Mass of the particle [amu]
   real*8, intent(in)                          :: dt !< Timestep [s]
   type(particle_kinetic_leapfrog)             :: out
-  out = kinetic_to_kinetic_leapfrog(gc_to_kinetic(node_list, element_list, in, chi, B, mass), &
-      E, B, mass, dt)
+  out = kinetic_to_kinetic_leapfrog(gc_to_kinetic(node_list, element_list, in, chi, B, mass), E, B, mass, dt)
 end function gc_to_kinetic_leapfrog
 
 
@@ -252,6 +248,7 @@ function kinetic_to_gc(node_list, element_list, in, B, mass) result(out)
   real*8  :: B_hat(3), B_norm, v_par, v2
   integer :: ifail
 
+!  call copy_particle_base(in, out)
   out = in
   out%q      = in%q
 
@@ -304,8 +301,8 @@ function gc_to_kinetic(node_list, element_list, in, chi, B, mass) result(out)
   B_norm = norm2(B)
   B_hat  = B/B_norm
   ! mu [eV/T] * B_norm [T] * EL_CHG [C] = E [J]
-  v_perp = sqrt(2*abs(in%mu*B_norm*EL_CHG)/(mass*ATOMIC_MASS_UNIT)) ! [m/s]
-  v_par  = sign(sqrt(2*(in%E-abs(in%mu)*B_norm)*EL_CHG/(mass*ATOMIC_MASS_UNIT)),in%mu)
+  v_perp = sqrt(2.d0*abs(in%mu*B_norm*EL_CHG)/(mass*ATOMIC_MASS_UNIT)) ! [m/s]
+  v_par  = sign(sqrt(2.d0*(in%E-abs(in%mu)*B_norm)*EL_CHG/(mass*ATOMIC_MASS_UNIT)),in%mu)
 
   ! Define chi as the angle of the velocity vector with b x r
   call get_orthonormals(B_hat, e1, e2)

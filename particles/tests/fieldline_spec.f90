@@ -31,8 +31,8 @@ subroutine test_fieldline_backforth_euler
   integer :: ielm_out ! against find_RZ trouble
   integer :: i, j, k, ifail, i_elm_old
   character(len=2) :: is
-  if (.not. allocated(f%node_list)) allocate(f%node_list)
-  if (.not. allocated(f%element_list)) allocate(f%element_list)
+  if (.not. associated(f%node_list))    allocate(f%node_list)
+  if (.not. associated(f%element_list)) allocate(f%element_list)
   call default_flux_grid_31(f%node_list, f%element_list)
   ! Call this once to setup the rtree
   call find_RZ(f%node_list,f%element_list,2.d0,1.d0,R_out,Z_out,ielm_out,s_out,t_out,ifail)
@@ -91,8 +91,8 @@ subroutine test_fieldline_backforth_adams_bashforth
   integer :: ielm_out ! against find_RZ trouble
   integer :: i, j, k, ifail, i_elm_old
   character(len=2) :: is
-  if (.not. allocated(f%node_list)) allocate(f%node_list)
-  if (.not. allocated(f%element_list)) allocate(f%element_list)
+  if (.not. associated(f%node_list))    allocate(f%node_list)
+  if (.not. associated(f%element_list)) allocate(f%element_list)
   call default_flux_grid_31(f%node_list, f%element_list)
   ! Call this once to setup the rtree
   call find_RZ(f%node_list,f%element_list,2.d0,1.d0,R_out,Z_out,ielm_out,s_out,t_out,ifail)
