@@ -277,7 +277,11 @@ do while (.not. sim%stop_now)
   select type (particles => sim%groups(1)%particles)
   type is (particle_kinetic_leapfrog)
 
+#ifdef __GFORTRAN__
+    !$omp parallel do default(shared) & ! workaround for Error: '__vtab_mod_openadas_Adf11' not specified in enclosing ‘parallel’
+#else
     !$omp parallel do default(none) &
+#endif
     !$omp schedule(dynamic,10) &
     !$omp shared(sim, n_particles, n_steps, timesteps, rng, particle_start_time, &
     !$omp rho_norm, t_norm, v_norm, E_norm, M_norm, N_norm, &
@@ -455,7 +459,9 @@ do while (.not. sim%stop_now)
   select type (particles => sim%groups(1)%particles)
   type is (particle_kinetic_leapfrog)
 
-    !$omp parallel do default(none) &
+#ifdef __GFORTRAN__
+    !$omp parallel do default(shared) & ! workaround for Error: '__vtab_mod_openadas_Adf11' not specified in enclosing ‘parallel’                                                                     #else
+    !$omp parallel do default(none) &                                                               #endif
     !$omp reduction(+:particles_remaining, momentum_remaining, energy_remaining) &
     !$omp shared(sim) &
     !$omp private(j, E, B, psi, U, B_norm)
