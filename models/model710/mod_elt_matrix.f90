@@ -4,7 +4,7 @@ module mod_elt_matrix
 contains
 
   subroutine element_matrix(element, nodes, xpoint2, xcase2, R_axis, Z_axis, psi_axis, psi_bnd, R_xpoint, Z_xpoint, &
-                            ELM, RHS, tid, i_tor_min, i_tor_maxi, aux_nodes)
+                            ELM, RHS, tid, i_tor_min, i_tor_max, aux_nodes)
   !--------------------------------------------------------------------------
   ! This is just a wrapper to the real routine since I combined both into one
   !--------------------------------------------------------------------------
@@ -15,8 +15,8 @@ contains
     implicit none
 
     type (type_element)        :: element
-    type (type_nod             :: nodes(n_vertex_max)
-    type (type_node), optional :: nodes(n_vertex_max)
+    type (type_node)           :: nodes(n_vertex_max)
+    type (type_node), optional :: aux_nodes(n_vertex_max)
     integer    :: xcase2
     logical    :: xpoint2
     real*8     :: R_axis, Z_axis, psi_axis, psi_bnd, R_xpoint(2), Z_xpoint(2)

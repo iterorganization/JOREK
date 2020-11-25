@@ -279,7 +279,7 @@ do while (.not. sim%stop_now)
 
     !$omp parallel do default(none) &
     !$omp schedule(dynamic,10) &
-    !$omp shared(sim, particles, n_particles, n_steps, timesteps, rng, particle_start_time, &
+    !$omp shared(sim, n_particles, n_steps, timesteps, rng, particle_start_time, &
     !$omp rho_norm, t_norm, v_norm, E_norm, M_norm, N_norm, &
     !$omp use_cx, use_ionisation, use_sputtering, &
     !$omp jorek_feedback, CENTRAL_DENSITY, CENTRAL_MASS) &
@@ -457,7 +457,7 @@ do while (.not. sim%stop_now)
 
     !$omp parallel do default(none) &
     !$omp reduction(+:particles_remaining, momentum_remaining, energy_remaining) &
-    !$omp shared(sim, particles) &
+    !$omp shared(sim) &
     !$omp private(j, E, B, psi, U, B_norm)
     do j=1,size(particles,1)
 
