@@ -247,7 +247,7 @@ subroutine project_n(node_list, element_list, n, rng, name, volume, smoothing, r
     s = smoothing
     write(ss,'(g8.1)') s
   end if
-  p = projection(node_list, element_list, smoothing=s)
+  p = new_projection(node_list, element_list, filter=s)
   allocate(sim%groups(1))
 
   do j=1,size(n)

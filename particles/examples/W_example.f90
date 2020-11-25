@@ -57,8 +57,8 @@ diag = write_particle_diagnostics(filename='diag.h5')
 ! Perform a simple equilibrium simulation
 events = [fieldreader, &
           event(write_action(),   step=5d-6), &
-          event(projection(sim%fields%node_list, sim%fields%element_list, &
-            smoothing=1d-4, to_h5=.true.), step=5d-6), &
+          event(new_projection(sim%fields%node_list, sim%fields%element_list, &
+            filter=1d-4, to_h5=.true.), step=5d-6), &
           event(diag, step=5d-6), &
           event(stop_action(), start=5d-3)]
 call check_and_fix_timesteps(timesteps, events)
