@@ -883,7 +883,7 @@ function q_coronal(node_list, element_list, s, t, phi, i_elm, cor, u)
   local_Ne = P(1) * 1d20                           ! plasma density [1/m^3]
   local_Te = P(2)/(2.d0*MU_ZERO*central_density*1.d20)/K_BOLTZ
 #if (JOREK_MODEL == 400 || JOREK_MODEL == 502)
-  local_Te = local_T_e*2d0 ! P(1) contains the electron temperature, reverse previous correction
+  local_Te = local_Te*2d0 ! P(1) contains the electron temperature, reverse previous correction
 #endif
 
   if (local_Ne .le. 0.d0 .or. local_Te .le. 0.d0) then
