@@ -460,8 +460,10 @@ do while (.not. sim%stop_now)
   type is (particle_kinetic_leapfrog)
 
 #ifdef __GFORTRAN__
-    !$omp parallel do default(shared) & ! workaround for Error: '__vtab_mod_openadas_Adf11' not specified in enclosing ‘parallel’                                                                     #else
-    !$omp parallel do default(none) &                                                               #endif
+    !$omp parallel do default(shared) & ! workaround for Error: '__vtab_mod_openadas_Adf11' not specified in enclosing 'parallel'
+#else
+    !$omp parallel do default(none) & 
+#endif
     !$omp reduction(+:particles_remaining, momentum_remaining, energy_remaining) &
     !$omp shared(sim) &
     !$omp private(j, E, B, psi, U, B_norm)
