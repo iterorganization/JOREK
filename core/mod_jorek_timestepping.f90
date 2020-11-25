@@ -509,7 +509,7 @@ subroutine do_jorek_timestep(this, sim, ev)
       n_spi_begin = 1
       do i = 1, n_inj !< Do one update for each injection location
         if (t_now >= t_ns(i)) then
-          call update_spi(sim%my_id,sim%fields%node_list,sim%fields%node_list,&
+          call update_spi(sim%my_id,sim%fields%node_list,sim%fields%element_list,&
                           ns_R(i),ns_Z(i),ns_phi(i),ns_amplitude(i),&
                           spi_Vel_Rref(i),spi_Vel_Zref(i),spi_Vel_RxZref(i),&
                           spi_quantity(i),spi_quantity_bg(i),spi_Vel_diff(i),spi_L_inj(i),n_spi(i),n_spi_begin)
