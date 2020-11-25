@@ -373,6 +373,8 @@ subroutine do_jorek_timestep(this, sim, ev)
   character*8    :: label, itlabel
   character*14   :: fileout
 
+  integer        :: i, n_spi_begin
+
   call init_expr()
   allocate(res(exprs_all_int%n_expr+1))
   res = 0.d0  
@@ -390,7 +392,7 @@ subroutine do_jorek_timestep(this, sim, ev)
   if (.not. this%setup_done) then
     t_now = sim%time / sim%t_norm  
     index_now = index_start
-    if (sim%my_id .eq. 0) write(*,"(A,f16.8,A,g12.6,A)") "INFO: JOREK timestep: ", dt_jorek, " = ", dt, " s"
+    if (sim%my_id .eq. 0) write(*,"(A,f16.8,A,g15.6,A)") "INFO: JOREK timestep: ", dt_jorek, " = ", dt, " s"
     call setup_solvers(this, sim)
   end if
 
@@ -507,7 +509,7 @@ subroutine do_jorek_timestep(this, sim, ev)
       n_spi_begin = 1
       do i = 1, n_inj !< Do one update for each injection location
         if (t_now >= t_ns(i)) then
-          call update_spi(my_id,node_list,element_list,&
+          call update_spi(sim%my_id,sim%fields%node_list,sim%fields%node_list,&
                           ns_R(i),ns_Z(i),ns_phi(i),ns_amplitude(i),&
                           spi_Vel_Rref(i),spi_Vel_Zref(i),spi_Vel_RxZref(i),&
                           spi_quantity(i),spi_quantity_bg(i),spi_Vel_diff(i),spi_L_inj(i),n_spi(i),n_spi_begin)
