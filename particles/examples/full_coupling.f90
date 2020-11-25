@@ -177,6 +177,7 @@ use mod_basisfunctions
 use phys_module, only: tstep
 use phys_module, only: CENTRAL_MASS, CENTRAL_DENSITY
 use constants,   only: MU_ZERO, MASS_PROTON, ATOMIC_MASS_UNIT, K_BOLTZ, EL_CHG
+use mod_integrals3D, only: int3d_new
 
 implicit none
 real*8, parameter  :: binding_energy = 2.18d-18 ! ionization energy of a hydrogen atom [J] (= 13.6 eV)
@@ -444,8 +445,8 @@ do while (.not. sim%stop_now)
   call with(sim, events, at=sim%time)
 !===================================================
 
-  call Integrals_3D(sim%my_id, sim%fields%node_list, sim%fields%element_list, density_tot, density_in, density_out, &
-                    pressure, pressure_in, pressure_out, kin_par_tot, kin_par_in, kin_par_out, mom_par_tot, mom_par_in, mom_par_out)
+!  call Integrals_3D(sim%my_id, sim%fields%node_list, sim%fields%element_list, density_tot, density_in, density_out, &
+!                    pressure, pressure_in, pressure_out, kin_par_tot, kin_par_in, kin_par_out, mom_par_tot, mom_par_in, mom_par_out)
 
   particles_remaining = 0.d0
   momentum_remaining  = 0.d0
@@ -477,9 +478,9 @@ do while (.not. sim%stop_now)
 
   end select
 
-  write(*,'(A,126e16.8)') ' TOTAL : ',sim%time,density_tot+particles_remaining/1.d20, density_tot, particles_remaining/1.d20, &
-                                    mom_par_tot+momentum_remaining, mom_par_tot, momentum_remaining, &
-                                    pressure+kin_par_tot+energy_remaining, pressure, energy_remaining, kin_par_tot
+!  write(*,'(A,126e16.8)') ' TOTAL : ',sim%time,density_tot+particles_remaining/1.d20, density_tot, particles_remaining/1.d20, &
+!                                    mom_par_tot+momentum_remaining, mom_par_tot, momentum_remaining, &
+!                                    pressure+kin_par_tot+energy_remaining, pressure, energy_remaining, kin_par_tot
 
 end do
 
