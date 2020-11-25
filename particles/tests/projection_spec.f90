@@ -242,51 +242,51 @@ end subroutine project_f_with_assert_and_write
 
 !> Test the construction of the projection matrix with and without openmp for a
 !> simple grid. This is quite a slow test so it is in the EXTRATEST suite
-subroutine test_omp_projection_matrix_construction
-  use basis_at_gaussian
-  !$use omp_lib
-  type(type_node_list) :: node_list
-  type(type_element_list) :: element_list
-  type(DMUMPS_STRUC) :: p_seq, p_par
-
-  integer, parameter :: n_R = 10, n_Z = 10
-  real*8, parameter :: R_geo = 1.d0, Z_geo = 0.d0, amin = 0.5d0
-
-  integer :: i, j, n_threads
-  real*8, allocatable, dimension(:,:) :: A_par, A_seq
-  character(len=11) :: s
-  n_threads = 1
-
-  if (.not. EXTRATEST) return
-
-  node_list%n_nodes = 0
-  element_list%n_elements = 0
-  call grid_bezier_square(n_R, n_Z, R_geo-amin,R_geo+amin, Z_geo-amin, Z_geo+amin, .true., node_list, element_list)
-
-  ! Get the openmp number of threads
-  !$omp parallel
-    !$n_threads = omp_get_num_threads()
-  !$omp end parallel
-  call prepare_mumps_par(node_list, element_list, p_par, smoothing=0d0, skip_factorisation=.true.,smoothing2=0.d0)
-  !$ call omp_set_num_threads(1)
-  call prepare_mumps_par(node_list, element_list, p_seq, smoothing=0d0, skip_factorisation=.true.,smoothing2=0.d0)
-  !$ call omp_set_num_threads(n_threads)
-
-  ! Check that p_par and p_seq contain the same matrix
-  ! a bit slow perhaps. Generate one check per matrix element
-  allocate(A_seq(minval(p_par%irn):maxval(p_par%irn),minval(p_par%jcn):maxval(p_par%jcn)))
-  A_seq = 0.d0
-  allocate(A_par, source=A_seq)
-  A_par = 0.d0
-  do i=1,size(p_par%A)
-    A_par(p_par%irn(i),p_par%jcn(i)) = A_par(p_par%irn(i),p_par%jcn(i)) + p_par%A(i)
-    A_seq(p_seq%irn(i),p_seq%jcn(i)) = A_seq(p_seq%irn(i),p_seq%jcn(i)) + p_seq%A(i)
-  end do
-  do i=minval(p_par%irn),maxval(p_par%irn)
-    do j=minval(p_par%jcn),maxval(p_par%jcn)
-      write(s,"(i5,A1,i5)") i,j
-      if (A_par(i,j) .ne. 0.d0 .or. A_seq(i,j) .ne. 0.d0) call assert_equals(A_seq(i,j), A_par(i,j), s)
-    end do
-  end do
-end subroutine test_omp_projection_matrix_construction
+!subroutine test_omp_projection_matrix_construction
+!  use basis_at_gaussian
+!  !$use omp_lib
+!  type(type_node_list) :: node_list
+!  type(type_element_list) :: element_list
+!  type(DMUMPS_STRUC) :: p_seq, p_par
+!
+!  integer, parameter :: n_R = 10, n_Z = 10
+!  real*8, parameter :: R_geo = 1.d0, Z_geo = 0.d0, amin = 0.5d0
+!
+!  integer :: i, j, n_threads
+!  real*8, allocatable, dimension(:,:) :: A_par, A_seq
+!  character(len=11) :: s
+!  n_threads = 1
+!
+!  if (.not. EXTRATEST) return
+!
+!  node_list%n_nodes = 0
+!  element_list%n_elements = 0
+!  call grid_bezier_square(n_R, n_Z, R_geo-amin,R_geo+amin, Z_geo-amin, Z_geo+amin, .true., node_list, element_list)
+!
+!  ! Get the openmp number of threads
+!  !$omp parallel
+!    !$n_threads = omp_get_num_threads()
+!  !$omp end parallel
+!  call prepare_mumps_par(node_list, element_list, p_par, filter=0d0, skip_factorisation=.true.,filter_hyper=0.d0)
+!  !$ call omp_set_num_threads(1)
+!  call prepare_mumps_par(node_list, element_list, p_seq, filter=0d0, skip_factorisation=.true.,filter_hyper=0.d0)
+!  !$ call omp_set_num_threads(n_threads)
+!
+!  ! Check that p_par and p_seq contain the same matrix
+!  ! a bit slow perhaps. Generate one check per matrix element
+!  allocate(A_seq(minval(p_par%irn):maxval(p_par%irn),minval(p_par%jcn):maxval(p_par%jcn)))
+!  A_seq = 0.d0
+!  allocate(A_par, source=A_seq)
+!  A_par = 0.d0
+!  do i=1,size(p_par%A)
+!    A_par(p_par%irn(i),p_par%jcn(i)) = A_par(p_par%irn(i),p_par%jcn(i)) + p_par%A(i)
+!    A_seq(p_seq%irn(i),p_seq%jcn(i)) = A_seq(p_seq%irn(i),p_seq%jcn(i)) + p_seq%A(i)
+!  end do
+!  do i=minval(p_par%irn),maxval(p_par%irn)
+!    do j=minval(p_par%jcn),maxval(p_par%jcn)
+!      write(s,"(i5,A1,i5)") i,j
+!      if (A_par(i,j) .ne. 0.d0 .or. A_seq(i,j) .ne. 0.d0) call assert_equals(A_seq(i,j), A_par(i,j), s)
+!    end do
+!  end do
+!end subroutine test_omp_projection_matrix_construction
 end module projection_spec
