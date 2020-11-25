@@ -354,10 +354,8 @@ subroutine do_jorek_timestep(this, sim, ev)
   use mod_gmres_driver
   use mod_expression,          only: exprs_all_int, init_expr
   use mod_integrals3D
+  use pellet_module,           only: update_spi
 
-#if (JOREK_MODEL == 500 || JOREK_MODEL == 555)
-  use mgi_module,              only: update_mgi
-#endif
   class(jorek_timestep_action), intent(inout) :: this
   type(particle_sim), intent(inout)           :: sim
   type(event), intent(inout), optional        :: ev
@@ -504,8 +502,19 @@ subroutine do_jorek_timestep(this, sim, ev)
   if ( (gmres .and. (this%iter_gmres .lt. gmres_max_iter)) .or. (.not. gmres) ) then
 
     ! TODO add if use_pellet
-#if (JOREK_MODEL == 500 || JOREK_MODEL == 555)
-    call update_mgi(sim%my_id, sim%fields%node_list, sim%fields%element_list)
+#if (JOREK_MODEL == 500 || JOREK_MODEL == 501 || JOREK_MODEL == 502 || JOREK_MODEL == 555)
+    if (using_spi) then
+      n_spi_begin = 1
+      do i = 1, n_inj !< Do one update for each injection location
+        if (t_now >= t_ns(i)) then
+          call update_spi(my_id,node_list,element_list,&
+                          ns_R(i),ns_Z(i),ns_phi(i),ns_amplitude(i),&
+                          spi_Vel_Rref(i),spi_Vel_Zref(i),spi_Vel_RxZref(i),&
+                          spi_quantity(i),spi_quantity_bg(i),spi_Vel_diff(i),spi_L_inj(i),n_spi(i),n_spi_begin)
+        end if
+        n_spi_begin = n_spi_begin + n_spi(i)
+      end do
+    end if
 #endif
 
     call update_values(sim%my_id, sim%fields%element_list, sim%fields%node_list, deltas)         ! add solution to node values
