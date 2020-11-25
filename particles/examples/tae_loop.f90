@@ -274,12 +274,12 @@ call with(sim, counter)
 select type (particles => sim%groups(1)%particles)
 type is (particle_kinetic_leapfrog)
 #ifdef __GFORTRAN__
- !$omp parallel do default(shared) & ! workaround for Error: �__vtab_mod_pcg32_rng_Pcg32_rng� not specified in enclosing �parallel�
+ !$omp parallel do default(shared) & ! workaround for Error: �__vtab_mod_pcg32_rng_Pcg32_rng� not specified in enclosing 'parallel'
 #else
  !$omp parallel do default(none) &
 #endif
  !$omp schedule(dynamic,10) &
- !$omp shared(sim, particles, n_steps, timesteps, rng, particle_start_time,        &
+ !$omp shared(sim, n_steps, timesteps, rng, particle_start_time,        &
  !$omp rho_norm, t_norm, v_norm, E_norm, M_norm, N_norm,                           &
  !$omp jorek_feedback, CENTRAL_DENSITY, CENTRAL_MASS)                              &
  !$omp private(particle_tmp, i_rng, i,j,k,l,m, t, E, B, psi, U, rz_old, st_old,    &
