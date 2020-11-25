@@ -124,7 +124,7 @@ end select
 
 ! Set up feedback
 jorek_feedback = new_projection(sim%fields%node_list, sim%fields%element_list, &
-                     smoothing = 0d-3, smoothing2 = 1d-7, &
+                     filter = 0d-3, filter_hyper = 1d-7, &
                      fractional_digits = 9,  to_vtk=.FALSE., to_h5 = .FALSE., basename='projections')
 
 allocate(jorek_feedback%rhs(n_order+1, n_vertex_max, sim%fields%element_list%n_elements, n_tor, 3))
@@ -132,7 +132,7 @@ allocate(jorek_feedback%rhs(n_order+1, n_vertex_max, sim%fields%element_list%n_e
 jorek_feedback%rhs = 0.d0
 
 project_density = new_projection(sim%fields%node_list, sim%fields%element_list, &
-                      smoothing = 0d-4, smoothing2 = 1d-8, &
+                      filter = 0d-4, filter_hyper = 1d-8, &
                       f=[proj_f(proj_one, group = 1)], &
                       fractional_digits = 9,  to_vtk=.TRUE., to_h5=.FALSE., basename='density', nsub=5)
 
