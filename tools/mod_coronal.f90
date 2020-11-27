@@ -151,7 +151,7 @@ call AllocFspline(cor%ZFspline,n_T,n_d)
 call AllocFspline(cor%PradFspline,n_T,n_d)
 
 do m=1, n_d
-  cor%density(m) = 18.d0 + real(m-1,8)/real(n_d-1,8) * (21.d0-18.d0) ! log10 [m^-3], linear between 18 and 21
+  cor%density(m) = 18.d0 + real(m-1,8)/real(n_d-1,8) * (21.0-18.0) ! log10 [m^-3], linear between 18 and 21
 end do
 do k=1, n_T
   cor%temperature(k) = log10( 1.d0 + exp(log(4.d4)*float(k-1)/(float(n_T-1))) - 1.d0 ) + log10(EL_CHG) - log10(K_BOLTZ) ! in log10 [K], 1 to 40000 eV in logscale

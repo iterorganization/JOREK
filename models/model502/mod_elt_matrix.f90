@@ -1335,7 +1335,7 @@ do ms=1, n_gauss
                     !- (D_par-D_prof) * BigR / BB2 * Bgrad_rho_star * (Bgrad_rho)                                       * xjac * tstep &
                     ! Separate diffusion scheme for the impurities
                     - D_prof * BigR  * (v_x*(r0_x-rn0_x) + v_y*(r0_y-rn0_y) + v_p*(r0_p-rn0_p) * eps_cyl**2 /BigR**2 ) * xjac * tstep &
-                    - D_prof_imp * BigR  * (v_x*(rn0_x) + v_y*(rn0_y) + v_p*rn0_p)  * xjac * tstep &
+                    - D_prof_imp * BigR  * (v_x*(rn0_x) + v_y*(rn0_y) + v_p*rn0_p * eps_cyl**2 /BigR**2)               * xjac * tstep &
                     ! The old diffusion scheme for the impurities
                     !- D_prof * BigR  * (v_x*(r0_x) + v_y*(r0_y) + v_p*(r0_p) * eps_cyl**2 /BigR**2 )                   * xjac * tstep &
                     - v * F0 / BigR * Vpar0 * r0_p                                                                     * xjac * tstep &
