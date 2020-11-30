@@ -368,8 +368,8 @@
  SIG_open    = 0.8d0
  SIG_private = 0.5d0 
  SIG_theta   = 0.028d0 
- SIG_leg_0   = 0.8d0 
- SIG_leg_1   = 0.1d0 
+ SIG_leg_0   = 0.1d0 
+ SIG_leg_1   = 0.8d0 
 
  dPSI_open    = 0.0034 !0.058 ! 0.06 ! 0.062
  dPSI_private = 0.002
@@ -565,20 +565,20 @@
  ! tauIC real value= 1.482419e-09
  ! ---
  
- eta            = 2.431100e-09
- visco          = 1.000000e-08
- visco_par      = 1.000000e-05
+ eta            = 1.e-06
+ visco          = 1.e-06
+ visco_par      = 1.e-06
  
- D_par          = 1.d-1
- D_perp(1)      = 5.000000e+00
+ D_par          = 0.d-0
+ D_perp(1)      = 1.d-6
  D_perp(2)      = 0.9d0 
  D_perp(3)      = 0.13d0
  D_perp(4)      = 0.01d0
  D_perp(5)      = 0.92d0
  D_perp(10)     = 1.d0  
  
- ZK_par         = 2.092272e+03
- ZK_perp(1)     = 1.000000e-07
+ ZK_par         = 2.0e+02
+ ZK_perp(1)     = 1.e-06
  ZK_perp(2)     = 0.9d0 
  ZK_perp(3)     = 0.08d0
  ZK_perp(4)     = 0.01d0
@@ -590,8 +590,6 @@
  !              = 1.482419e-09
  tauIC          = 0.d0 ! 1.482419e-09
  Wdia           = .t.
- U_sheath       = .f.
- renormalise    = .t.
  bootstrap      = .t.
  
  eta_num        = 1.d-13
