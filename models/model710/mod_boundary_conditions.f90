@@ -245,7 +245,7 @@ contains
                     if (k == var_uR) Mach1_s    = uR0_s - beta_s    * BR0
                     if (k == var_uZ) Mach1_s    = uZ0_s - beta_s    * BZ0
                     if (k == var_up) Mach1_s    = up0_s - beta_s    * Bp0
-                    if (k == var_uR) Mach1_s_Us = 1.0
+                                     Mach1_s_Us = 1.0
                     if (k == var_uR) Mach1_s_T  =     - beta_s_T  * BR0
                     if (k == var_uZ) Mach1_s_T  =     - beta_s_T  * BZ0
                     if (k == var_up) Mach1_s_T  =     - beta_s_T  * Bp0

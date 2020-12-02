@@ -23,7 +23,8 @@ use mod_poloidal_currents
   use mod_injection_source
 #endif
 use mod_atomic_coeff_deuterium, only : atomic_coeff_deuterium
-
+use mod_openadas , only : read_adf11
+use mod_atomic_coeff_deuterium, only : ad_deuterium , atomic_coeff_deuterium
 implicit none
 
 type (type_node_list)   ,     pointer :: node_list
@@ -1197,6 +1198,7 @@ do i=1,element_list%n_elements
 enddo  ! n_elements
 
 #if (JOREK_MODEL == 500)
+  if (deuterium_adas)  ad_deuterium =  read_adf11(0,'96_h') !< for both include_radiation and include_neutral_dens
   if (include_radiation) then
     do i=1,nnos
 
@@ -1213,7 +1215,7 @@ enddo  ! n_elements
       Te_corr_eV   = corr_neg_temp(T_real8)/(2.d0*EL_CHG*MU_ZERO*central_density*1.d20)
 
       call atomic_coeff_deuterium(0.5d0*T_real8, Sion_T, dSion_dT, Srec_T, dSrec_dT,        &
-                                  LradDcont_T, dLradDcont_dT, LradDrays_T, dLradDrays_dT ) 
+                                  LradDcont_T, dLradDcont_dT, LradDrays_T, dLradDrays_dT ) !< add scalars(i,5) as last optional parameter for density dependence
 
       coef_rad_1 = 2.d0/(3.d0)*MU_ZERO**1.5d0*(central_mass*MASS_PROTON)**0.5d0*(central_density*1.d20)**2.5d0
 

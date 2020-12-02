@@ -17,6 +17,7 @@ type(projection) :: proj
 real*8, parameter :: alpha = 0.d0 !< if 0, sample from maxwellian
 type(event) :: fieldreader
 integer :: i
+integer :: ierr, my_id
 real*8, parameter :: timesteps(1) = [1d-9]
 
 ! Start up MPI, jorek
@@ -28,7 +29,8 @@ fieldreader = event(read_jorek_fields_interp_linear(&
 call with(sim, fieldreader)
 
 ! Prepare the coronal equilibrium
-sim%groups(1)%ad = read_adf11(0,'50_w')
+call MPI_COMM_RANK(MPI_COMM_WORLD, my_id, ierr)
+sim%groups(1)%ad = read_adf11(my_id, '50_w')
 cor = coronal(sim%groups(1)%ad)
 
 ! Set up particles

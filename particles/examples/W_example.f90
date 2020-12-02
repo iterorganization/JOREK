@@ -17,6 +17,7 @@ integer :: i, j, k, n_steps, n_lost, i_elm_old, ifail
 real*8 :: target_time, t
 real*8 :: E(3), B(3), rz_old(2), st_old(2), psi, U
 real*8, parameter :: alpha = 0.d0 !< if 0, sample from maxwellian
+integer :: ierr, my_id
 type(event) :: fieldreader
 
 ! Start up MPI, jorek
@@ -28,7 +29,8 @@ fieldreader = event(read_jorek_fields_interp_hermite_birkhoff(&
 call with(sim, fieldreader)
 
 ! Prepare the coronal equilibrium
-adas = read_adf11(0,'50_w')
+call MPI_COMM_RANK(MPI_COMM_WORLD, my_id, ierr)
+adas = read_adf11(my_id, '50_w')
 cor  = coronal(adas)
 
 ! Set up particles

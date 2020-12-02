@@ -368,8 +368,10 @@ subroutine preset_parameters
   
   equil              = .true.               ! compute equilibrium
   
-  parallel_projection= .true.               ! Full-MHD: use B-projection instead of Phi-projection for 3rd Mom.equation (on Up)
   Mach1_openBC       = .true.               ! Full-MHD: Apply Mach-1 BCs inside mod_boundary_matrix_open.f90 (or mod_boundary_conditions.f90)
+
+  eta_ARAZ_on        = .true.               !< Full-MHD: to switch on/off resistive   terms for AR and AZ equations
+  tauIC_ARAZ_on      = .true.               !< Full-MHD: to switch on/off diamagnetic terms for AR and AZ equations
 
   fix_axis_nodes     = .false.              !< Fix t-derivative on axis to avoid noise)
   
