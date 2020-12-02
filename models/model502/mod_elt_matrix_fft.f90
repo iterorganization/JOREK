@@ -847,10 +847,18 @@ do ms=1, n_gauss
        dE_ion_dT = dE_ion_dT * dTe_corr_eV_dT * EL_CHG / K_BOLTZ
 
      else
+
+       if (allocated(P_imp)) deallocate(P_imp)
+       if (allocated(dP_imp_dT)) deallocate(dP_imp_dT)
+
+       allocate(P_imp(0:imp_adas(1)%n_Z))
+       allocate(dP_imp_dT(0:imp_adas(1)%n_Z))
+
 !       call imp_cor(1)%interp(density=20.,temperature=log10(Te_corr_eV*EL_CHG/K_BOLTZ),&
 !                                          z_out=Z_imp,z_Te_out=dZ_imp_dT,z_TeTe_out=d2Z_imp_dT2)
        call imp_cor(1)%interp_linear(density=20.,temperature=log10(Te_corr_eV*EL_CHG/K_BOLTZ),&
-                                          z_avg=Z_imp,z_avg_Te=dZ_imp_dT,z_avg_TeTe=d2Z_imp_dT2)
+                                     p_out=P_imp,p_Te_out=dP_imp_dT,                          &
+                                     z_avg=Z_imp,z_avg_Te=dZ_imp_dT,z_avg_TeTe=d2Z_imp_dT2)
 
        E_ion     = 0.
        dE_ion_dT = 0.
