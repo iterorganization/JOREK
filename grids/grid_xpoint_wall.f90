@@ -390,10 +390,6 @@ deallocate(s_tmp); allocate(s_tmp(n_leg))
 s_tmp = 0
 call meshac2(n_leg,s_tmp,0.d0,1.d0,SIG_leg_0,SIG_leg_1,0.6d0,1.0d0)
 
-do j=1,n_leg
-  s_tmp(j) = real(j-1,8)/real(n_leg-1,8)
-enddo
-
 !----------------------------- inner leg, private side
 do j=1,n_leg
 

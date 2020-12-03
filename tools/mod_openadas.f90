@@ -179,7 +179,8 @@ do i=1,3,2 ! full, strip
     endif
   else
     if (i .eq. 3) then
-      write(*,*) "Cannot find ionisation data file ", trim(filename), "not loading ionisation energies"
+      write(*,*) "Cannot find ionisation data file ", trim(filename), ", terminating!"
+      stop
     end if
   end if
 end do
