@@ -317,7 +317,6 @@ do while (.not. sim%stop_now)
 #else
     !$omp shared(sim, particles, n_particles, n_steps, timesteps, rng, particle_start_time, &
 #endif
-    !$omp shared(sim, particles, n_particles, n_steps, timesteps, rng, particle_start_time, &
     !$omp rho_norm, t_norm, v_norm, E_norm, M_norm, N_norm, &
     !$omp use_cx, use_ionisation, use_sputtering,           &
     !$omp CENTRAL_DENSITY, CENTRAL_MASS)                    &
