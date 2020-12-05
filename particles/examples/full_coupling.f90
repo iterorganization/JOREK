@@ -310,6 +310,7 @@ do while (.not. sim%stop_now)
     !$omp parallel do default(shared) & ! workaround for Error: '__vtab_mod_openadas_Adf11' not specified in enclosing ‘parallel’
 #else
     !$omp parallel do default(none) &
+#endif
     !$omp schedule(dynamic,10)      &
     !$omp shared(sim, particles, n_particles, n_steps, timesteps, rng, particle_start_time, &
     !$omp rho_norm, t_norm, v_norm, E_norm, M_norm, N_norm, &
