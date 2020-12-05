@@ -312,6 +312,11 @@ do while (.not. sim%stop_now)
     !$omp parallel do default(none) &
 #endif
     !$omp schedule(dynamic,10)      &
+#ifdef __GFORTRAN__
+    !$omp shared(sim, n_particles, n_steps, timesteps, rng, particle_start_time, & ! This is to work around the GNU compiler error: ASSOCIATE name '__tmp_type_particle_kinetic_leapfrog' in SHARED clause
+#else
+    !$omp shared(sim, particles, n_particles, n_steps, timesteps, rng, particle_start_time, &
+#endif
     !$omp shared(sim, particles, n_particles, n_steps, timesteps, rng, particle_start_time, &
     !$omp rho_norm, t_norm, v_norm, E_norm, M_norm, N_norm, &
     !$omp use_cx, use_ionisation, use_sputtering,           &
