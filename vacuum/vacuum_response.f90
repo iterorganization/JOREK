@@ -1576,13 +1576,14 @@ module vacuum_response
   !! expressed by the STARWALL vacuum response in terms of the poloidal magnetic field at the
   !! interface (ideal and resistive wall) and the wall currents (resistive wall).
   subroutine vacuum_boundary_integral(my_id, bnd_node_list, node_list,bnd_elm_list,               &
-    freeboundary_equil, resistive_wall, index_min, index_max, rhs_loc, tstep,index_now)
+    freeboundary_equil, resistive_wall, index_min, index_max, rhs_loc, A_mat, tstep, index_now,   &
+    irn, jcn, n_matrix_block_size, ijA_index, ijA_size, irn_jcn, i_tor_min, i_tor_max)
 
     use data_structure, only: type_node_list, type_bnd_node_list,type_bnd_element_list, type_bnd_element
     use mod_parameters,     only: n_plane, n_var, n_tor
     use gauss,          only: n_gauss, xgauss, wgauss
     use global_distributed_matrix, only: irn_glob, jcn_glob, a_glob, ndof_glob,det_row_col,       &
-      det_sparse_pos, det_sparse_pos_block, n_matrix_block_size
+      det_sparse_pos, det_sparse_pos_block
     use basis_at_gaussian, only: H1, H1_s, HZ
     use phys_module, only: t_now, t_start
     use mpi_mod
@@ -1597,9 +1598,16 @@ module vacuum_response
     logical,                     intent(in)    :: freeboundary_equil   !< Use free boundary equilibrium?
     logical,                     intent(in)    :: resistive_wall       !< Resistive or ideal wall?
     integer,                     intent(in)    :: index_min, index_max !< Responsibility of MPI proc
-    real*8,                      intent(inout) :: rhs_loc(ndof_glob)   !< Part of RHS of MPI proc
+    real*8,                      intent(inout) :: rhs_loc(:)           !< Part of RHS of MPI proc 
+    real*8,  allocatable,      intent(inout)   :: A_mat(:)             !< Distributed global or harmonic matrix 
     real*8,                      intent(in)    :: tstep                !< delta t, timestep
     integer,                     intent(in)    :: index_now            !< Current timestep index
+    integer,                     intent(in)    :: i_tor_min, i_tor_max !< Toroidal harmonics 
+    integer, allocatable,        intent(inout) :: irn(:), jcn(:)  
+    integer,                     intent(in)    :: n_matrix_block_size
+    integer, allocatable,        intent(in)    :: ijA_index(:,:)
+    integer, allocatable,        intent(in)    :: ijA_size(:)
+    integer, allocatable,        intent(in)    :: irn_jcn(:,:)
 
     ! --- Local variables
     real*8, allocatable :: psibnd_vec(:)    ! Vector of the values of Psi at the boundary
@@ -1643,7 +1651,7 @@ module vacuum_response
       return
     end if
 
-    if ( vacuum_debug ) write(*,*) my_id, 'Before:', sum(abs(rhs_loc)),sum(abs(A_glob))
+    if ( vacuum_debug ) write(*,*) my_id, 'Before:', sum(abs(rhs_loc)),sum(abs(A_mat))
 
     ! --- Determine vectors of the psi and deltapsi boundary values.
     call det_psibnd_vec(bnd_node_list, node_list, psibnd_vec, dpsibnd_vec, psibnd_coils)
@@ -1688,8 +1696,9 @@ module vacuum_response
     ! --- Sum over boundary elements
     !$omp parallel do                                                                                         &
     !$omp default(none)                                                                                       &    
-    !$omp shared(my_id,a_glob, rhs_loc, bnd_elm_list, bnd_node_list, node_list,index_min, index_max,          &
+    !$omp shared(my_id,A_mat, rhs_loc, bnd_elm_list, bnd_node_list, node_list, index_min, index_max,          &
     !$omp   response_m_e, response_m_f, response_m_g, response_m_h, response_m_j, H1, HZ, sr,                 &
+    !$omp   i_tor_min, i_tor_max, irn, jcn, ijA_index, ijA_size, irn_jcn,                                     & 
     !$omp   bext_tan, I_coils, wall_curr, dwall_curr, psibnd_vec, dpsibnd_vec,psibnd_coils,                   &
 #ifdef __GFORTRAN__
     !$omp   wgauss_copy,                                                                                      &
@@ -1722,11 +1731,11 @@ module vacuum_response
 
           if ( (l_index < index_min) .or. (l_index > index_max) ) cycle ! This MPI proc responsible?
 
-          L_LS: do l_tor = 1, n_tor ! (loop over toroidal harmonics)
+          L_LS: do l_tor = i_tor_min, i_tor_max ! (loop over toroidal harmonics)
 
             ! --- Determine the row in the main matrix.
-            l_row_psi = det_row_col(l_index, ivar_psi, l_tor)
-            l_row_j   = det_row_col(l_index, ivar_j,   l_tor)
+            l_row_psi = det_row_col(l_index, ivar_psi, l_tor, i_tor_min, i_tor_max)
+            l_row_j   = det_row_col(l_index, ivar_j,   l_tor, i_tor_min, i_tor_max)
 
                 ! --- Sum over boundary dofs at which response is calculated
                 L_IV: do i_vertex = 1, 2 ! (loop over nodes in element m_bndelem)
@@ -1743,6 +1752,8 @@ module vacuum_response
                     L_IS: do i_starwall = 1, sr%n_tor ! (loop over STARWALL harmonics)
 
                       i_tor    = sr%i_tor(i_starwall)
+
+                      if ( (i_tor < i_tor_min) .or. (i_tor > i_tor_max) ) cycle    
 
                       i_resp_old   = response_index(i_node_bnd,i_starwall,i_dof)
 
@@ -1796,6 +1807,8 @@ module vacuum_response
                           L_JS: do j_starwall = 1, sr%n_tor ! (loop over STARWALL harmonics)
 
                             j_tor  = sr%i_tor(j_starwall)
+                      
+                            if ( (j_tor < i_tor_min) .or. (j_tor > i_tor_max) ) cycle    
 
                             j_resp   = (bnd_node_list%bnd_node(j_node_bnd)%index_starwall(1) - 1)*sr%n_tor0 &
                                      + bnd_node_list%bnd_node(j_node_bnd)%n_dof*(j_starwall-1)              &
@@ -1808,17 +1821,17 @@ module vacuum_response
                             if ( vacuum_decouple_modes .and. (j_tor /= i_tor) ) cycle
 
                             ! --- Determine the column in the main matrix
-                            j_col_psi = det_row_col(j_index, ivar_psi, j_tor)
+                            j_col_psi = det_row_col(j_index, ivar_psi, j_tor, i_tor_min, i_tor_max)
 
                             ! --- Determine the position in the sparse matrix data structure
                             !     which corresponds to the matrix entry at  l_row_j, j_col_psi.
-                            sparsepos_jp = det_sparse_pos(l_row_j,   j_col_psi, index_min)
-                            sparsepos_pp = det_sparse_pos(l_row_psi, j_col_psi, index_min)
+                            sparsepos_jp = det_sparse_pos(l_row_j,   j_col_psi, index_min, n_matrix_block_size, ijA_index, ijA_size, irn_jcn)
+                            sparsepos_pp = det_sparse_pos(l_row_psi, j_col_psi, index_min, n_matrix_block_size, ijA_index, ijA_size, irn_jcn)
 
                             ! --- Vacuum response contribution to the lhs of the current equation
                             amat_contrib = - common_prefactor * response_m_e(i_resp, j_resp)
                             !$omp atomic
-                            A_glob(sparsepos_jp) = A_glob(sparsepos_jp) + amat_contrib
+                            A_mat(sparsepos_jp) = A_mat(sparsepos_jp) + amat_contrib
 
                           end do L_JS
                         end do L_JD
@@ -1857,7 +1870,7 @@ module vacuum_response
     !write(68+my_id,*) real(t1 - t0 ) / real(rate)
     !###
 
-    if ( vacuum_debug ) write(*,*) my_id, 'After:', sum(abs(rhs_loc)),sum(abs(A_glob))
+    if ( vacuum_debug ) write(*,*) my_id, 'After:', sum(abs(rhs_loc)),sum(abs(A_mat))
 
     if ( allocated(psibnd_vec ) ) deallocate( psibnd_vec  )
     if ( allocated(dpsibnd_vec) ) deallocate( dpsibnd_vec )
@@ -2300,7 +2313,7 @@ module vacuum_response
   !!   (I_coil_1, I_coil_2, ..., I_coil_ncoil, Iw_net, Potw_1, Potw_2, ..., Potw_npotw-1)
   !!  
   !! where I_coil are the coil currents, Iw_net is the net wall current
-  !! and Potw are the single valued wall potentials.
+  !! and Potw are the single valued wall potentials.  
   subroutine reconstruct_triangle_potentials(tripot_w, wall_curr, my_id)
     
     use mpi_mod

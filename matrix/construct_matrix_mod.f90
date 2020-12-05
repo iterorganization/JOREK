@@ -283,7 +283,7 @@ contains
 !! added by external routine calls.
 subroutine construct_matrix(my_id, MPI_COMM_N, my_id_n, MPI_COMM_MASTER, my_id_master, local_elms, n_local_elms, index_min, index_max,& 
                             xpoint2, xcase2, R_axis, Z_axis, psi_axis, psi_bnd, R_xpoint, Z_xpoint, psi_xpoint,i_tor_min, i_tor_max,  &
-                            n, nz, ndof, A_mat, rhs, irn, jcn, ijA_index, ijA_size, irn_jcn, harmonic_matrix)
+                            n, nz, ndof, n_matrix_block_size, A_mat, rhs, irn, jcn, ijA_index, ijA_size, irn_jcn, harmonic_matrix)
   
   use mumps_module 
   use tr_module 
@@ -332,6 +332,7 @@ subroutine construct_matrix(my_id, MPI_COMM_N, my_id_n, MPI_COMM_MASTER, my_id_m
   integer(kind=int_all), intent(in) :: n
   integer(kind=int_all), intent(in) :: nz
   integer(kind=int_all), intent(in) :: ndof
+  integer,               intent(in) :: n_matrix_block_size
   logical,               intent(in) :: harmonic_matrix
   real*8,                intent(inout), allocatable :: A_mat(:)
   real*8,                intent(inout), allocatable :: rhs(:)
@@ -698,14 +699,15 @@ subroutine construct_matrix(my_id, MPI_COMM_N, my_id_n, MPI_COMM_MASTER, my_id_m
   ! --- Memory tracking
   call tr_vnorms("cm_A_aft_bc",A_mat,nz)
 
-  if ( .not. harmonic_matrix ) then 
 
     ! --- Add vacuum response (boundary integral) for free boundary computations
     if ( freeboundary .and. ( sr%n_tor /= 0 ) ) then
       call vacuum_boundary_integral(my_id, bnd_node_list, node_list, bnd_elm_list, freeboundary_equil, & 
-                                  resistive_wall, index_min, index_max, rhs_local, tstep, index_now)
+                                  resistive_wall, index_min, index_max, rhs_local, A_mat, tstep, index_now, & 
+                                  irn, jcn, n_matrix_block_size, ijA_index, ijA_size, irn_jcn, i_tor_min, i_tor_max)
     end if
   
+  if ( .not. harmonic_matrix ) then 
     ! --- Summarise element_matrix comparison
 #ifdef COMPARE_ELEMENT_MATRIX
     call MPI_Barrier(MPI_COMM_WORLD,ierr)
