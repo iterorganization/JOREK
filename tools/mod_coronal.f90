@@ -170,7 +170,7 @@ do m=1, n_d
   do k=1, n_T
     p = specific_coronal_equilibrium(ad, cor%density(m), cor%temperature(k))
 
-    cor%Z(m,k,0:ad%n_Z) = p(0:ad%n_Z)
+    cor%Z(m,k,0:ad%n_Z) = p(0:ad%n_Z)/sum(p)
     do iz=1,ad%n_Z
       Z_eff(m,k) = Z_eff(m,k) + cor%Z(m,k,iz) * real(iz,8)
     end do
