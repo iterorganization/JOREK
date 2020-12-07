@@ -461,7 +461,7 @@ subroutine merge_restart(node_list,element_list, restart_file, format_rst,my_id,
 
   ! Save the old values to calculate the new deltas
   allocate(values(n_tor,n_order+1,n_var,node_list%n_nodes))
-  !$omp parallel do default(none) shared(nod_list, values) private(inode)
+  !$omp parallel do default(none) shared(node_list, values) private(inode)
   do inode=1,node_list%n_nodes
     values(:,:,:,inode) = node_list%node(inode)%values(:,:,:)
   enddo
