@@ -113,8 +113,8 @@ real*8 :: ion_rate, rec_rate
 
 fractions(0) = 1.d0
 do iz=1,ad%n_Z
-  call ad%SCD%interp_linear(iz-1, density, temperature, ion_rate) ! ionizing to level iz (0 is neutral)
-  call ad%ACD%interp_linear(iz,   density, temperature, rec_rate) ! recombining from iz+1
+  call ad%SCD%interp(iz-1, density, temperature, ion_rate) ! ionizing to level iz (0 is neutral)
+  call ad%ACD%interp(iz,   density, temperature, rec_rate) ! recombining from iz+1
   fractions(iz) = fractions(iz-1) * ion_rate/rec_rate
 end do
 fractions = fractions/sum(fractions)
