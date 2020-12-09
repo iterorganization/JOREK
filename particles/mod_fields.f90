@@ -12,9 +12,9 @@ public fields_base
 !> node_list and element_list should be the currently-valid representation of the grid
 !> (values themselves should not be used, only for find_RZ etc)
 type, abstract :: fields_base
-  type(type_node_list),pointer         :: node_list => null()!< Current node list
-  type(type_element_list), pointer     :: element_list => null() !< Current element list
-  logical                              :: static=.false. !< if true do not time interpolate
+  type(type_node_list),pointer         :: node_list    => null()   !< Current node list
+  type(type_element_list), pointer     :: element_list => null()   !< Current element list
+  logical                              :: static=.false.           !< if true do not time interpolate
   logical                              :: flag_zero_dpsidt=.false. !< if true, P_time(1) = dpsi/dt = 0
   contains
     procedure(interp_PRZ), deferred, public   :: interp_PRZ

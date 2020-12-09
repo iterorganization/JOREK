@@ -100,12 +100,10 @@ allocate(particle_kinetic_leapfrog::sim%groups(1)%particles(n_particles_local))
 call initialise_particles_H_mu_psi(sim%groups(1)%particles, sim%fields, pcg32_rng(), sim%groups(1)%mass, &
            uniform_space=.true., uniform_space_rej_f=f_psi_inside, uniform_space_rej_vars=[1], charge = 0)
 
-physical_particles = 1.d20
+physical_particles = 1.d21
 weight = physical_particles/n_particles
 
-write(*,'(A,e14.6)') 'WEIGHT : ',weight
-
-v_kin_temp = 0.d0 !sqrt( (2.d0 * 1d5) / (sim%groups(1)%mass* ATOMIC_MASS_UNIT) / physical_particles)
+v_kin_temp = sqrt( (2.d0 * 1d5) / (sim%groups(1)%mass* ATOMIC_MASS_UNIT) / physical_particles)
 
 select type (p => sim%groups(1)%particles)
 type is (particle_kinetic_leapfrog)
@@ -120,7 +118,7 @@ type is (particle_kinetic_leapfrog)
     p(j)%v(2)  = v_kin_temp * B_norm(2)
     p(j)%v(3)  = v_kin_temp * B_norm(3)
 
-!    p(j)%weight = p(j)%weight* (1.d0 +  5.d0*cos(     p(j)%x(3)) +  7.d0*sin(     p(j)%x(3)) &
+!    p(j)%weight = p(j)%weight* (1.d0 + 0.8d0*cos(    p(j)%x(3))  +  0.d0*sin(     p(j)%x(3)) &
 !                                     + 11.d0*cos(2.d0*p(j)%x(3)) + 13.d0*sin(2.d0*p(j)%x(3)) &
 !                                     + 17.d0*cos(3.d0*p(j)%x(3)) + 19.d0*sin(3.d0*p(j)%x(3)) &
 !                                     + 23.d0*cos(4.d0*p(j)%x(3)) + 27.d0*sin(4.d0*p(j)%x(3))  )
@@ -134,29 +132,29 @@ end select
 jorek_feedback = new_projection(sim%fields%node_list, sim%fields%element_list, &
                      filter    = filter_perp,    filter_hyper    = filter_hyper,    filter_parallel    = filter_par, &
                      filter_n0 = filter_perp_n0, filter_hyper_n0 = filter_hyper_n0, filter_parallel_n0 = filter_par_n0, &
-                     fractional_digits = 9,  to_vtk=.TRUE., to_h5 = .FALSE., basename='projections')
+                     fractional_digits = 9,  to_vtk=.FALSE., to_h5 = .FALSE., basename='projections')
 
 aux_node_list => jorek_feedback%node_list
 
 if (use_ncs) then
   allocate(jorek_feedback%rhs(n_order+1, n_vertex_max, sim%fields%element_list%n_elements, n_tor, 3))
-elseif (use_pcs) then  
+elseif (use_pcs) then  ! not implemented yet!
   allocate(jorek_feedback%rhs(n_order+1, n_vertex_max, sim%fields%element_list%n_elements, n_tor, 1))
-elseif (use_pcs) then  
-  allocate(jorek_feedback%rhs(n_order+1, n_vertex_max, sim%fields%element_list%n_elements, n_tor, 1))
+elseif (use_ccs) then  ! not implemented yet!
+  allocate(jorek_feedback%rhs(n_order+1, n_vertex_max, sim%fields%element_list%n_elements, n_tor, 4))
 else
   stop 'define use_ncs, use_pcs or use_ccs'
 endif
 
 jorek_feedback%rhs = 0.d0
 
-project_density = new_projection(sim%fields%node_list, sim%fields%element_list, &
-                      filter    = filter_perp,    filter_hyper    = filter_hyper,    filter_parallel    = filter_par, &
-                      filter_n0 = filter_perp_n0, filter_hyper_n0 = filter_hyper_n0, filter_parallel_n0 = filter_par_n0, &
-                      f=[proj_f(proj_one, group = 1)], &
-                      fractional_digits = 9,  to_vtk=.TRUE., to_h5=.FALSE., basename='density', nsub=5)
-
-call with(sim, project_density)
+!project_density = new_projection(sim%fields%node_list, sim%fields%element_list, &
+!                      filter    = filter_perp,    filter_hyper    = filter_hyper,    filter_parallel    = filter_par, &
+!                      filter_n0 = filter_perp_n0, filter_hyper_n0 = filter_hyper_n0, filter_parallel_n0 = filter_par_n0, &
+!                      f=[proj_f(proj_one, group = 1)], &
+!                      fractional_digits = 9,  to_vtk=.TRUE., to_h5=.FALSE., basename='density', nsub=5)
+!
+!call with(sim, project_density)
 
 ! For proper timestepping, the projections need to be defined before the jorek timestepper
 jorek_stepper = new_jorek_timestep_action(jorek_feedback%node_list)
@@ -268,7 +266,7 @@ do while (.not. sim%stop_now)
 
   target_time = next_event_at(sim, events) 
 
-  if (sim%my_id .eq. 0) write(*,*) "PARTICLE : target_time : ",target_time
+  if (sim%my_id .eq. 0) write(*,'(A,3e16.8)') "PARTICLE : target_time : ",target_time
 
 !$ w0 = omp_get_wtime()
 
@@ -427,10 +425,7 @@ do while (.not. sim%stop_now)
 
         call basisfunctions(particles(j)%st(1), particles(j)%st(2), HH, HH_s, HH_t)
         call mode_moivre(particles(j)%x(3), HZ)
-        
-        HZ(1) = HZ(1)*0.5d0 ! int cos^2(nx) from 0 to 2pi = pi for n > 0
-        HZ(:) = HZ(:)/PI ! int 1 from 0 to 2pi = 2pi
-      
+              
         do l=1,n_vertex_max
           do m=1,n_order+1
 
@@ -465,7 +460,7 @@ do while (.not. sim%stop_now)
 
   if (use_ncs) then
     write(*,*) 'GATHER TIME : ',jorek_feedback%rhs_gather_time
-    jorek_feedback%rhs = feedback_rhs / jorek_feedback%rhs_gather_time * TWOPI
+    jorek_feedback%rhs = feedback_rhs / jorek_feedback%rhs_gather_time !* TWOPI
     jorek_feedback%rhs_gather_time = 0.d0
   else
     jorek_feedback%rhs = feedback_rhs 
@@ -521,14 +516,16 @@ do while (.not. sim%stop_now)
   end select
 
   call MPI_REDUCE(particles_remaining, all_particles, 1, MPI_DOUBLE_PRECISION, MPI_SUM, 0, MPI_COMM_WORLD, ierr)
-  call MPI_REDUCE(momentum_remaining, all_momentum,   1, MPI_DOUBLE_PRECISION, MPI_SUM, 0, MPI_COMM_WORLD, ierr)
-  call MPI_REDUCE(energy_remaining, all_energy,       1, MPI_DOUBLE_PRECISION, MPI_SUM, 0, MPI_COMM_WORLD, ierr)
+  call MPI_REDUCE(momentum_remaining,  all_momentum,  1, MPI_DOUBLE_PRECISION, MPI_SUM, 0, MPI_COMM_WORLD, ierr)
+  call MPI_REDUCE(energy_remaining,    all_energy,    1, MPI_DOUBLE_PRECISION, MPI_SUM, 0, MPI_COMM_WORLD, ierr)
+  
+  if (sim%my_id .eq. 0) then
+    write(*,'(A,3e16.8)') 'REMAINING (START) : ',all_particles, all_momentum, all_energy
 
-  write(*,'(A,3e16.8)') 'REMAINING (START) : ',all_particles, all_momentum, all_energy
-
-  write(*,'(A,126e16.8)') ' TOTAL : ',sim%time,density_tot+all_particles/1.d20, density_tot, all_particles/1.d20, &
-                                    mom_par_tot+all_momentum, mom_par_tot, all_momentum, &
-                                    pressure+kin_par_tot+all_energy, pressure, all_energy, kin_par_tot
+    write(*,'(A,126e16.8)') ' TOTAL : ',sim%time,density_tot+all_particles/1.d20, density_tot, all_particles/1.d20, &
+                                        mom_par_tot+all_momentum, mom_par_tot, all_momentum, &
+                                        pressure+kin_par_tot+all_energy, pressure, all_energy, kin_par_tot
+  endif
 
 end do
 
