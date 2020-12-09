@@ -280,7 +280,8 @@ module live_data
                                     heatingpower particlesource diag_coil_curr pf_coil_curr rmp_coil_curr integrated_energies  &
                                     bnd_fluxes dEdt helicity dissipative_terms work_terms mag_energy_balance                   &
                                     Xpoint_up Xpoint_low bnd_point                                                             &
-                                    area volume li3 energy_conservation net_tor_wall_curr dparticles_dt bnd_particle_fluxes'
+                                    area volume li3 energy_conservation net_tor_wall_curr dparticles_dt bnd_particle_fluxes    & 
+                                     vert_FB_response vert_FB_axis'   
     write(LIVE_DATA_HANDLE,'(A,15(A11,1X))') '@variable_names: ', variable_names
     
     ! --- Write file headers indicating what data is in the files.
@@ -850,17 +851,14 @@ module live_data
   
   
   
-  subroutine write_live_data_vacuum(index, diag_coil_curr, pf_coil_curr, rmp_coil_curr, net_tor_wall_curr)
+  subroutine write_live_data_vacuum(index)
     
-    use phys_module, only: xtime, mu_zero, sqrt_mu0_rho0
-    use vacuum, only: diag_coil_name, pf_coil_name, rmp_coil_name
+    use phys_module, only: xtime, mu_zero, sqrt_mu0_rho0, Z_axis_t
+    use vacuum
       
     integer,             intent(in) :: index
-    real*8, allocatable, intent(in) :: diag_coil_curr(:,:), pf_coil_curr(:,:), rmp_coil_curr(:,:), &
-                                       net_tor_wall_curr(:)
-    
     logical, save :: header_written_diag = .false., header_written_pf = .false., header_written_rmp = .false., &
-                     header_written_net  = .false.
+                     header_written_net  = .false., header_written_VFB = .false.
     integer :: n
     open(LIVE_DATA_HANDLE, file=LIVE_DATA_FILE, status='OLD', position='APPEND', action='WRITE')
     
@@ -934,11 +932,37 @@ module live_data
         write(LIVE_DATA_HANDLE,'(A,5ES17.9)') '@net_tor_wall_curr_x2si: ', sqrt_mu0_rho0*1.e3
         write(LIVE_DATA_HANDLE,'(A,5ES17.9)') '@net_tor_wall_curr_y2si: ', 1./mu_zero
         write(LIVE_DATA_HANDLE,'(A)') '@net_tor_wall_curr_logy: 0'
-        write(LIVE_DATA_HANDLE,'(A)',advance='no') '@net_tor_wall_curr: %"time"           "I_{tor,wall}"'
-        write(LIVE_DATA_HANDLE,*)
+        write(LIVE_DATA_HANDLE,'(A)') '@net_tor_wall_curr: %"time"           "I_{tor,wall}"'
         header_written_net = .true.
       end if
       write(LIVE_DATA_HANDLE,'(A,999ES17.9)') '@net_tor_wall_curr: ', xtime(index), net_tor_wall_curr(index)
+    end if
+
+    if ( allocated(vert_FB_response) ) then
+      if ( .not. header_written_VFB ) then
+        write(LIVE_DATA_HANDLE,'(A,I5)') '@n_vert_FB_response: ', 3
+        write(LIVE_DATA_HANDLE,'(A)') '@vert_FB_response_xlabel: normalized time'
+        write(LIVE_DATA_HANDLE,'(A)') '@vert_FB_response_xlabel_si: time [ms]'
+        write(LIVE_DATA_HANDLE,'(A)') '@vert_FB_response_ylabel: VFB response [-]'
+        write(LIVE_DATA_HANDLE,'(A)') '@vert_FB_response_ylabel_si: VFB response [-]'
+        write(LIVE_DATA_HANDLE,'(A,5ES17.9)') '@vert_FB_response_x2si: ', sqrt_mu0_rho0*1.e3
+        write(LIVE_DATA_HANDLE,'(A,5ES17.9)') '@vert_FB_response_y2si: ', 1.
+        write(LIVE_DATA_HANDLE,'(A)') '@vert_FB_response_logy: 0'
+        write(LIVE_DATA_HANDLE,'(A)') '@vert_FB_response: %"time"           "proportional_FB"              "derivative_FB"           "integral_FB"'
+
+        write(LIVE_DATA_HANDLE,'(A,I5)') '@n_vert_FB_axis: ', 2
+        write(LIVE_DATA_HANDLE,'(A)') '@vert_FB_axis_xlabel: normalized time'
+        write(LIVE_DATA_HANDLE,'(A)') '@vert_FB_axis_xlabel_si: time [ms]'
+        write(LIVE_DATA_HANDLE,'(A)') '@vert_FB_axis_ylabel: Z-axis [m]'
+        write(LIVE_DATA_HANDLE,'(A)') '@vert_FB_axis_ylabel_si: Z-axis [m]'
+        write(LIVE_DATA_HANDLE,'(A,5ES17.9)') '@vert_FB_axis_x2si: ', sqrt_mu0_rho0*1.e3
+        write(LIVE_DATA_HANDLE,'(A,5ES17.9)') '@vert_FB_axis_y2si: ', 1.
+        write(LIVE_DATA_HANDLE,'(A)') '@vert_FB_axis_logy: 0'
+        write(LIVE_DATA_HANDLE,'(A)') '@vert_FB_axis: %"time"           "Z-axis"              "Z-axis,target"'
+        header_written_VFB = .true.
+      end if
+      write(LIVE_DATA_HANDLE,'(A,999ES17.9)') '@vert_FB_response: ', xtime(index), vert_FB_response(index,1:3)
+      write(LIVE_DATA_HANDLE,'(A,999ES17.9)') '@vert_FB_axis:     ', xtime(index), Z_axis_t(index), vert_FB_response(index,4)
     end if
    
     close(LIVE_DATA_HANDLE)

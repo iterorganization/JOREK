@@ -21,7 +21,7 @@ integer,           intent(in) :: my_id !< MPI proc id
 logical, optional             :: short !< commandline short version or run long version
 
 ! --- Constants
-character(len=512), parameter :: REAL_FMT = "(1X,A, ' = ', 10ES12.4)"
+character(len=512), parameter :: REAL_FMT = "(1X,A, ' = ', 99ES12.4)"
 character(len=512), parameter :: REAL_FMT2 = "(1X,A, ' = ', ES12.4, A)"
 character(len=512), parameter :: INTG_FMT = "(1X,A, ' = ', 100I12)"
 character(len=512), parameter :: LOGI_FMT = "(1X,A, ' = ', 10L12)"
@@ -522,6 +522,14 @@ write(*,'(1x,a)',advance='no') ' USE_COMPLEX_PRECOND          : '
       write(*,REAL_FMT2) 'wall_resistivity_fact ', wall_resistivity_fact, ' (used only if STARWALL response file_version>=2)'
     end if
     write(*,REAL_FMT) 'PF_pert_start_time    ', PF_pert_start_time 
+    write(*,REAL_FMT) 'start_VFB_ts          ', start_VFB_ts
+    write(*,REAL_FMT) 'vert_FB_gain          ', vert_FB_gain(:)
+    write(*,REAL_FMT) 'vert_FB_amp_ts        ', vert_FB_amp_ts(1:n_pf_coils)
+    write(*,REAL_FMT) 'vert_FB_tact          ', vert_FB_tact
+    write(*,CHAR_FMT) 'vert_pos_file         ', trim(vert_pos_file)
+    write(*,REAL_FMT) 'I_coils_max           ', I_coils_max(1:n_pf_coils)
+
+    
   end if
   
   if ( manipulate_psi_map(1,1) /= 0.d0 ) &
@@ -563,11 +571,7 @@ write(*,'(1x,a)',advance='no') ' USE_COMPLEX_PRECOND          : '
       write(*,'(10ES12.4)',advance='no') pf_coils(i)%current
     end do
     write(*,*)
-    write(*,REAL_FMT,advance='no') 'vert_FB_amp           '
-    do i = 1, n_pf_coils
-      write(*,'(10ES12.4)',advance='no') vert_FB_amp(i)
-    end do
-    write(*,*)
+    write(*,REAL_FMT,advance='no') 'vert_FB_amp           ', vert_FB_amp(n_pf_coils)
     write(*,REAL_FMT,advance='no') 'pf_coils%pert         '
     do i = 1, n_pf_coils
       write(*,'(10ES12.4)',advance='no') pf_coils(i)%pert

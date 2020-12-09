@@ -75,7 +75,7 @@ module vacuum
   integer             :: n_feedback_current              !< Feedback will be performed each n_... iterations (see [[jorek-starwall-faqs|fbnd_eq_FAQs]])
   integer             :: n_feedback_vertical             !< Feedback will be performed each n_... iterations (see [[jorek-starwall-faqs|fbnd_eq_FAQs]])
   integer             :: n_iter_freeb                    !< Number of iterations for freeboundary equilibirum (see [[jorek-starwall-faqs|fbnd_eq_FAQs]])
-  
+
   !> @name Time-evolution PF coils parameters
   real*8              :: PF_pert_start_time              !< Time to start a perturbation to speed-up VDEs
   
@@ -158,8 +158,25 @@ module vacuum
   type(t_coil_curr_input), target :: voltage_coils(MAX_COILS) ! not ready yet (see [[jorek-starwall-faqs|jorek_starwall_FAQs]])
   type(t_coil_curr_input), target :: pf_coils(MAX_COILS)      ! see [[jorek-starwall-faqs|jorek_starwall_FAQs]]
   type(t_coil_curr_time_trace)    :: coil_curr_time_trace(4*MAX_COILS)
-  
   real*8 :: vert_FB_amp(MAX_COILS) = 0.d0 !< Tune direction and magnitude of vert feedback for each poloidal field coil ([[jorek-starwall-faqs|eq_FAQs]])
+  
+  ! --- Parameters for the feedback on the vertical position during timestepping (VFB), see ([[active_controller_model_for_vertical_stabilization|documentation]])
+  character(len=256)  :: vert_pos_file = 'none'
+  !> Time trace of axis position to match
+  type :: t_Z_axis_ref_ts     
+    integer                :: len = 0      !< Number of points in numerical time trace
+    real*8, allocatable    :: time(:)      !< time-values of numerical time trace
+    real*8, allocatable    :: position(:)  !< evolution of vertical axis position over time
+  end type t_Z_axis_ref_ts
+  real*8                        :: start_VFB_ts                  !< start time of active VFB during simulation ([JOREK units])
+  real*8                        :: vert_FB_amp_ts(MAX_COILS)     !< Amplitude and sign of vert feedback for each coil ([[jorek-starwall-faqs|eq_FAQs]])
+  real*8                        :: I_coils_max(MAX_COILS)        !< Current limit of each coil ([Ampere])
+  real*8                        :: vert_FB_gain(3)               !< Gain parameters for vertical feedback controller
+  real*8                        :: vert_FB_tact                  !< Time interval between two controller actions ([JOREK units])
+  real*8                        :: dZ_axis_integral              !< Integrated values of Z_axis-Z_reference for controller
+  real*8, allocatable           :: vert_FB_response(:,:)         !< Controller response (PID gain * err) and target axis
+  type(t_Z_axis_ref_ts), target :: Z_axis_ref_ts                 !< Time trace of axis target position
+  
   
   
   contains
@@ -206,7 +223,7 @@ module vacuum
         
         call readProf(coil_curr_time_trace(i)%time, coil_curr_time_trace(i)%curr, &
           coil_curr_time_trace(i)%len, coil_curr_input%curr_file)
-        
+
       else if ( coil_curr_input%curr_expr /= 'none' ) then ! ... analytical Python expression
         
         ! --- Python script
@@ -241,7 +258,7 @@ module vacuum
         ! --- Read the result
         call readProf(coil_curr_time_trace(i)%time, coil_curr_time_trace(i)%curr, &
           coil_curr_time_trace(i)%len, './jorek_curr_expr_'//trim(adjustl(s))//'.dat')
-        
+
         ! --- Delete temporary files
         call system('rm ./jorek_curr_expr_'//trim(adjustl(s))//'.py ./jorek_curr_expr_'//trim(adjustl(s))//'.dat')
         
@@ -323,6 +340,54 @@ module vacuum
   
   
   
+  
+  !> Read the prescribed time evolution profile of Z_axis from a file, if prsent. Otherwise use
+  !! either the input value Z_axis_ref or the equilibrium value
+  subroutine read_Z_axis_profile()
+
+    use profiles, only: readProf
+    use equil_info, only: ES
+    if (vert_pos_file /= 'none') then
+      call readProf(Z_axis_ref_ts%time, Z_axis_ref_ts%position, Z_axis_ref_ts%len, vert_pos_file)
+    else
+      if (Z_axis_ref > 1.d10) Z_axis_ref = ES%Z_axis
+
+      if (allocated(Z_axis_ref_ts%time))     deallocate(Z_axis_ref_ts%time)
+      if (allocated(Z_axis_ref_ts%position)) deallocate(Z_axis_ref_ts%position)
+      allocate(Z_axis_ref_ts%time    (2))
+      allocate(Z_axis_ref_ts%position(2))
+      Z_axis_ref_ts%len          =  2
+      Z_axis_ref_ts%time     (1) = -1.d12
+      Z_axis_ref_ts%time     (2) =  1.d12
+      Z_axis_ref_ts%position (1) =  Z_axis_ref 
+      Z_axis_ref_ts%position (2) =  Z_axis_ref
+    endif
+    call check_Z_axis_profile() 
+  end subroutine read_Z_axis_profile
+  
+  
+  
+  !> Basic checks that the prescribed Z_axis profile provided makes sense
+  subroutine check_Z_axis_profile()
+    if (sum(abs(vert_FB_amp_ts(1:n_pf_coils)))>1.d-6) then
+      if  (maxval(abs(Z_axis_ref_ts%position(:))) > 1.d10) then
+        write(*,*) 'ERROR: target Z_axis beyond Machine limits'
+        stop
+      else if (minval(I_coils_max(1:n_coils)) .lt. 0) then
+        write(*,*) 'ERROR: The maximum value of the coil cannot be smaller than 0.'
+        stop
+      else if (Z_axis_ref_ts%time(1)>0.d0) then        
+        write(*,*) 'ERROR: The Z_axis time trace does not start at time 0. Check your input file'
+        stop
+      else if (Z_axis_ref_ts%len .lt. 2) then        
+        write(*,*) 'ERROR: The length of the profile for the axis target position must be larger than 1'
+        stop
+      endif
+    endif
+  end subroutine check_Z_axis_profile
+  
+  
+  
   !> Preset freeboundary related input parameters to reasonable default values.
   subroutine vacuum_preset(my_id, freeboundary_equil, freeboundary, resistive_wall)
     
@@ -354,7 +419,14 @@ module vacuum
     
     PF_pert_start_time   = 1.d99
     psi_offset_freeb     = 0.d0
-    
+
+  ! ---- Parameters for vertical feedback (VFB)
+    start_VFB_ts          = 0.d0
+    vert_FB_amp_ts        = 0.d0   ! amplification factor (of PF coil)
+    vert_FB_gain(:)       = 0.d0   ! Proportional, derivative, integral gain of VFB controller
+    vert_FB_tact          = 1.d-9  ! Tact of VFB controller
+    I_coils_max           = 1.d99  ! Maximum absolute value for coils
+    dZ_axis_integral      = 0.d0   ! Integrated error of the Z-axis
   end subroutine vacuum_preset
   
   
@@ -472,6 +544,7 @@ module vacuum
       end if
       
       read(file_handle) current_FB_fact
+      read(file_handle) dZ_axis_integral
       read(file_handle) n_coils
       if ( n_coils /= 0 ) then
         if ( allocated(I_coils) ) deallocate(I_coils)
@@ -517,6 +590,7 @@ module vacuum
     real*8, allocatable :: t_diag_coil_curr(:,:), t_pf_coil_curr(:,:), t_rmp_coil_curr(:,:)
     character, allocatable :: t_diag_coil_name(:), t_pf_coil_name(:), t_rmp_coil_name(:)
     real*8, allocatable :: t_net_tor_wall_curr(:)   
+    real*8, allocatable :: t_vert_FB_response(:,:)
  
     call HDF5_char_reading(file_id,t_freeboundary,"freeboundary")
     freeboundary_rst = (t_freeboundary == "T")
@@ -563,6 +637,7 @@ module vacuum
             allocate( t_diag_coil_curr(index_start,n_diag_coil) )
             call HDF5_array2D_reading(file_id,t_diag_coil_curr,"diag_coil_curr")
             allocate( diag_coil_curr(index_start+nstep,n_diag_coil) )
+            diag_coil_curr = 0.d0
             diag_coil_curr(1:index_start,:) = t_diag_coil_curr(1:index_start,:)
             deallocate(t_diag_coil_curr)
 
@@ -583,6 +658,7 @@ module vacuum
             allocate( t_pf_coil_curr(index_start,n_pf_coil) )
             call HDF5_array2D_reading(file_id,t_pf_coil_curr,"pf_coil_curr")
             allocate( pf_coil_curr(index_start+nstep,n_pf_coil) )
+            pf_coil_curr  = 0.d0
             pf_coil_curr(1:index_start,:) = t_pf_coil_curr(1:index_start,:)
             deallocate(t_pf_coil_curr)
 
@@ -603,6 +679,7 @@ module vacuum
             allocate( t_rmp_coil_curr(index_start,n_rmp_coil) )
             call HDF5_array2D_reading(file_id,t_rmp_coil_curr,"rmp_coil_curr")
             allocate( rmp_coil_curr(index_start+nstep,n_rmp_coil) )
+            rmp_coil_curr = 0.d0
             rmp_coil_curr(1:index_start,:) = t_rmp_coil_curr(1:index_start,:)
             deallocate(t_rmp_coil_curr)
 
@@ -617,10 +694,22 @@ module vacuum
           if ( allocated(net_tor_wall_curr) ) deallocate(net_tor_wall_curr)
           allocate( t_net_tor_wall_curr(index_start) )
           call HDF5_array1D_reading(file_id,t_net_tor_wall_curr,"net_tor_wall_curr")
+          net_tor_wall_curr = 0.d0
           allocate( net_tor_wall_curr(index_start+nstep) )
           net_tor_wall_curr(1:index_start) = t_net_tor_wall_curr(1:index_start)
           deallocate(t_net_tor_wall_curr)
- 
+
+          
+          if ( n_coils > 1  ) then
+            if ( allocated(vert_FB_response)) deallocate(vert_FB_response)
+            allocate( t_vert_FB_response(index_start,4) )
+            call HDF5_array2D_reading(file_id,t_vert_FB_response,"vert_FB_response")
+            allocate( vert_FB_response(index_start+nstep,4) )
+            vert_FB_response = 0.d0
+            vert_FB_response(1:index_start,:) = t_vert_FB_response(1:index_start,:)
+            deallocate(t_vert_FB_response)
+          endif
+          
         end if
         
         if ( vacuum_debug .and. resistive_wall ) then
@@ -641,6 +730,7 @@ module vacuum
       end if
       
       call HDF5_real_reading(file_id,current_FB_fact,'current_FB_fact')
+      call HDF5_real_reading(file_id,dZ_axis_integral,'dZ_axis_integral')
       call HDF5_integer_reading(file_id,n_coils,"n_coils")
       if ( n_coils /= 0 ) then
         if ( allocated(I_coils) ) deallocate(I_coils)
@@ -690,6 +780,7 @@ module vacuum
       end if
       
       write(file_handle) current_FB_fact
+      write(file_handle) dZ_axis_integral
       
       if ( (n_coils/=0) .and. (.not. allocated(I_coils)) ) then
         write(*,*) 'ERROR in mod_vacuum.f90:export_restart_vacuum: I_coils not allocated.'
@@ -732,6 +823,7 @@ module vacuum
     character           :: t_freeboundary, t_resistive_wall
     real*8, allocatable :: t_diag_coil_curr(:,:), t_pf_coil_curr(:,:), t_rmp_coil_curr(:,:)
     real*8, allocatable :: t_net_tor_wall_curr(:)
+    real*8, allocatable :: t_vert_FB_response(:,:)
 
     t_freeboundary = "F"
     if (freeboundary) t_freeboundary = "T"
@@ -789,6 +881,13 @@ module vacuum
             deallocate(t_rmp_coil_curr)
           end if
 
+          if ( sr%ncoil > 0 ) then
+            allocate(t_vert_FB_response(index_now,4))
+            t_vert_FB_response(1:index_now,:) = vert_FB_response(1:index_now,:)
+            call HDF5_array2D_saving(file_id,t_vert_FB_response,index_now,4,"vert_FB_response"//char(0))
+            deallocate(t_vert_FB_response)
+          endif
+
         end if !--- index now
 
      end if !--- resistive wall
@@ -796,6 +895,7 @@ module vacuum
       call HDF5_array1D_saving(file_id,old_dpsibnd_vec,n_dof_starwall,"old_dpsibnd_vec"//char(0))
       
       call HDF5_real_saving(file_id,current_FB_fact,'current_FB_fact'//char(0))
+      call HDF5_real_saving(file_id,dZ_axis_integral,'dZ_axis_integral'//char(0))
       if ( (n_coils/=0) .and. (.not. allocated(I_coils)) )  then
         write(*,*) 'ERROR in mod_vacuum.f90:export_restart_vacuum: I_coils not allocated.'
         stop
@@ -826,7 +926,7 @@ module vacuum
     logical, intent(in) :: resistive_wall
     
     ! --- Local variables
-    integer :: ierr, sz_diag(2), sz_pol(2), sz_rmp(2), sz_net
+    integer :: ierr, sz_diag(2), sz_pol(2), sz_rmp(2), sz_net, sz_VFB(2)
 
     call MPI_BCAST(n_dof_starwall,1,MPI_INTEGER,0,MPI_COMM_WORLD,ierr)
     
@@ -834,6 +934,7 @@ module vacuum
     sz_diag(:) = 0
     sz_pol(:)  = 0
     sz_rmp(:)  = 0
+    sz_VFB(:)  = 0
 
     if ( resistive_wall ) then
       
@@ -854,11 +955,15 @@ module vacuum
         if ( allocated(rmp_coil_curr) ) then
           sz_rmp(:) = (/ size(rmp_coil_curr,1), size(rmp_coil_curr,2) /)
         end if
+        if ( allocated(vert_FB_response) ) then
+          sz_VFB(:) = (/ size(vert_FB_response,1), size(vert_FB_response,2) /)
+        end if
       end if
       call MPI_BCAST( sz_net,  1,MPI_INTEGER,0,MPI_COMM_WORLD,ierr)
       call MPI_BCAST(sz_diag,  2,MPI_INTEGER,0,MPI_COMM_WORLD,ierr)
       call MPI_BCAST( sz_pol,  2,MPI_INTEGER,0,MPI_COMM_WORLD,ierr)
       call MPI_BCAST( sz_rmp,  2,MPI_INTEGER,0,MPI_COMM_WORLD,ierr)
+      call MPI_BCAST( sz_VFB,  2,MPI_INTEGER,0,MPI_COMM_WORLD,ierr)
       
       if ( my_id /= 0 ) then
         if ( allocated(wall_curr) ) deallocate(wall_curr)
@@ -874,6 +979,7 @@ module vacuum
         if ( allocated(diag_coil_curr) )    deallocate(diag_coil_curr)
         if ( allocated(pf_coil_curr  ) )    deallocate(pf_coil_curr)
         if ( allocated(rmp_coil_curr ) )    deallocate(rmp_coil_curr)
+        if ( allocated(vert_FB_response) )  deallocate(vert_FB_response)
         if (         sz_net  > 0 ) allocate( net_tor_wall_curr(sz_net) )
         if ( minval(sz_diag) > 0 ) then
           if ( allocated(diag_coil_name) )    deallocate(diag_coil_name)
@@ -890,21 +996,27 @@ module vacuum
           allocate(  rmp_coil_curr( sz_rmp(1),  sz_rmp(2)) )
           allocate(  rmp_coil_name( sz_rmp(2)) )
         endif
+        if ( minval(sz_VFB) > 0 ) then
+          allocate( vert_FB_response(sz_VFB(1), sz_VFB(2)) )
+        endif
+
       end if
       call MPI_BCAST(wall_curr,n_wall_curr,MPI_DOUBLE_PRECISION,0,MPI_COMM_WORLD,ierr)
       call MPI_BCAST(dwall_curr,n_wall_curr,MPI_DOUBLE_PRECISION,0,MPI_COMM_WORLD,ierr)
       call MPI_BCAST(old_dpsibnd_vec,n_dof_starwall,MPI_DOUBLE_PRECISION,0,MPI_COMM_WORLD,ierr) 
       call MPI_BCAST(wall_curr_initialized,1,MPI_LOGICAL,0,MPI_COMM_WORLD,ierr)
-      if (         sz_net  > 0 ) call MPI_BCAST(net_tor_wall_curr,            sz_net,MPI_DOUBLE_PRECISION,0,MPI_COMM_WORLD,ierr)
-      if ( minval(sz_diag) > 0 ) call MPI_BCAST(diag_coil_curr,sz_diag(1)*sz_diag(2),MPI_DOUBLE_PRECISION,0,MPI_COMM_WORLD,ierr)
-      if ( minval( sz_pol) > 0 ) call MPI_BCAST(  pf_coil_curr, sz_pol(1)*sz_pol(2) ,MPI_DOUBLE_PRECISION,0,MPI_COMM_WORLD,ierr)      
-      if ( minval( sz_rmp) > 0 ) call MPI_BCAST( rmp_coil_curr, sz_rmp(1)*sz_rmp(2) ,MPI_DOUBLE_PRECISION,0,MPI_COMM_WORLD,ierr)
-      if ( minval(sz_diag) > 0 ) call MPI_BCAST(diag_coil_name, sz_diag(2)*COIL_NAME_LEN ,MPI_CHARACTER,0,MPI_COMM_WORLD,ierr)
-      if ( minval( sz_pol) > 0 ) call MPI_BCAST(  pf_coil_name,  sz_pol(2)*COIL_NAME_LEN ,MPI_CHARACTER,0,MPI_COMM_WORLD,ierr)
-      if ( minval( sz_rmp) > 0 ) call MPI_BCAST( rmp_coil_name,  sz_rmp(2)*COIL_NAME_LEN ,MPI_CHARACTER,0,MPI_COMM_WORLD,ierr)
+      if (         sz_net  > 0 ) call MPI_BCAST(net_tor_wall_curr, sz_net               ,MPI_DOUBLE_PRECISION,0,MPI_COMM_WORLD,ierr)
+      if ( minval(sz_diag) > 0 ) call MPI_BCAST(diag_coil_curr,    sz_diag(1)*sz_diag(2),MPI_DOUBLE_PRECISION,0,MPI_COMM_WORLD,ierr)
+      if ( minval( sz_pol) > 0 ) call MPI_BCAST(  pf_coil_curr,    sz_pol(1)*sz_pol(2)  ,MPI_DOUBLE_PRECISION,0,MPI_COMM_WORLD,ierr)      
+      if ( minval( sz_rmp) > 0 ) call MPI_BCAST( rmp_coil_curr,    sz_rmp(1)*sz_rmp(2)  ,MPI_DOUBLE_PRECISION,0,MPI_COMM_WORLD,ierr)
+      if ( minval(sz_diag) > 0 ) call MPI_BCAST(diag_coil_name, sz_diag(2)*COIL_NAME_LEN,MPI_CHARACTER,0,MPI_COMM_WORLD,ierr)
+      if ( minval( sz_pol) > 0 ) call MPI_BCAST(  pf_coil_name,  sz_pol(2)*COIL_NAME_LEN,MPI_CHARACTER,0,MPI_COMM_WORLD,ierr)
+      if ( minval( sz_rmp) > 0 ) call MPI_BCAST( rmp_coil_name,  sz_rmp(2)*COIL_NAME_LEN,MPI_CHARACTER,0,MPI_COMM_WORLD,ierr)
+      if ( minval( sz_VFB) > 0 ) call MPI_BCAST(vert_FB_response,  sz_VFB(1)*sz_VFB(2)  ,MPI_DOUBLE_PRECISION,0,MPI_COMM_WORLD,ierr)
     end if
     
     call MPI_BCAST(current_FB_fact,1,MPI_DOUBLE_PRECISION,0,MPI_COMM_WORLD,ierr)
+    call MPI_BCAST(dZ_axis_integral,1,MPI_DOUBLE_PRECISION,0,MPI_COMM_WORLD,ierr)
     
   end subroutine broadcast_vacuum
 

@@ -2121,7 +2121,8 @@ module vacuum_response
   subroutine coil_current_source(my_id)
     
     use constants
-    use phys_module, only: t_now
+    use phys_module, only: t_now, index_now, tstep, nstep, index_start
+    use equil_info, only: ES
     use profiles
     use mpi_mod    
 
@@ -2132,8 +2133,9 @@ module vacuum_response
     integer                   :: i, ierr
     real*8, allocatable       :: potentials_real_0(:)
     real*8, save, allocatable :: delta_Icoils_0(:)
+    real*8, save              :: t_last, Z_p = 1.d10
     logical, save             :: initialized=.false.
-
+    real*8                    :: z_ref_inter, Z_n
     if( my_id == 0 ) write(*,*) ' Imposing PF coil currents with a current source term '
 
     ! --- Calculate the difference between the input file coil currents and the ones coming from the restart file
@@ -2143,21 +2145,56 @@ module vacuum_response
       allocate(delta_Icoils_0(n_coils))
       delta_Icoils_0 = 0.d0
       do i=1, n_coils
-        if (vert_FB_amp(i) /= 0.d0) then
+        if ((vert_FB_amp(i) /= 0.d0) .or. (vert_FB_amp_ts(i)/=0.d0) ) then
           delta_Icoils_0(i) = I_coils(i) - interpolProf(coil_curr_time_trace(i)%time, coil_curr_time_trace(i)%curr, coil_curr_time_trace(i)%len, t_now)
         end if
       end do
       initialized = .true.
     end if
-
-    if (.not. allocated (Y_coils0)) allocate(Y_coils0(n_wall_curr))
-    if (.not. allocated (potentials_real_0)) allocate(potentials_real_0(n_wall_curr))
+    
 
     ! --- Calculate the specified coil currents at present time 
     do i=1, n_coils
-      I_coils(i) = interpolProf(coil_curr_time_trace(i)%time, coil_curr_time_trace(i)%curr, coil_curr_time_trace(i)%len, t_now) + delta_Icoils_0(i)
+      I_coils(i) = interpolProf(coil_curr_time_trace(i)%time, coil_curr_time_trace(i)%curr, coil_curr_time_trace(i)%len, t_now) 
     end do
 
+    ! -- During timestepping apply vertical feedback by the PF coils which were activated
+    ! Add the feedback current to the difference from the restart file
+    if (.not. allocated(vert_FB_response) .and. index_start+nstep>0) then
+      allocate(vert_FB_response(index_start+nstep,4))
+      vert_FB_response = 0.d0
+    endif
+    z_ref_inter = interpolProf(Z_axis_ref_ts%time, Z_axis_ref_ts%position ,  Z_axis_ref_ts%len, t_now)
+    vert_FB_response(index_now,4) = z_ref_inter
+    if ( t_now>start_VFB_ts .and. sum( abs(vert_FB_amp_ts(1:n_pf_coils)) )>1.e-6 .and. sr%i_tor(1) ==  1 ) then
+      Z_n = ES%Z_axis
+      if ( Z_p > 1.d9 ) Z_p = Z_n
+      dZ_axis_integral = dZ_axis_integral + ( Z_n - z_ref_inter )*tstep
+      if ( (t_now-t_last)>vert_FB_tact ) then 
+        if (my_id==0) write(*,*) 'Vertical feedback active'
+        t_last = t_now
+        vert_FB_response(index_now,1:3) =  &
+            (/  1.d3  * vert_FB_gain(1)* (Z_n - z_ref_inter), &
+                1.d5  * vert_FB_gain(2)* (Z_n - Z_p )/ tstep, &
+                1.d-3 * vert_FB_gain(3)* dZ_axis_integral /)
+        delta_Icoils_0(1:n_pf_coils) = delta_Icoils_0(1:n_pf_coils) +  sum(vert_FB_response(index_now,1:3))*vert_FB_amp_ts(1:n_pf_coils)
+      endif
+      Z_p = Z_n
+    endif
+
+    
+
+    ! -- Apply coil current limits
+    do i=1, n_coils
+      if ( abs( I_coils(i) + delta_Icoils_0(i)) .gt. I_coils_max(i) ) &
+          delta_Icoils_0(i) = ( I_coils(i) + delta_Icoils_0(i) ) / abs( I_coils(i) + delta_Icoils_0(i))&
+                                  *I_coils_max(i) - ( I_coils(i) + delta_Icoils_0(i) )
+      I_coils(i) = I_coils(i)  + delta_Icoils_0(i)
+    end do
+
+
+    if (.not. allocated (Y_coils0)) allocate(Y_coils0(n_wall_curr))
+    if (.not. allocated (potentials_real_0)) allocate(potentials_real_0(n_wall_curr))
     ! --- Transform real currents into starwall currents
     Y_coils0          = 0.d0
     potentials_real_0 = 0.d0
