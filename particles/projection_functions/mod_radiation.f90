@@ -71,7 +71,7 @@ function proj_Lz_equil(sim, group, particle) result(P_rad)
 
   ! This is more expensive but maybe correct
   allocate(fractions(0:sim%groups(group)%ad%n_Z))
-  fractions = specific_coronal_equilibrium(sim%groups(group)%ad, log_n_e, log_T_e)
+  fractions = specific_coronal_equilibrium(sim%groups(group)%ad, log_n_e, log_T_e, .true.)
 
   P_rad = coronal_Prad(sim%groups(group)%ad, log_n_e, log_T_e, fractions)
 end function proj_Lz_equil

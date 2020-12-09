@@ -102,21 +102,33 @@ end subroutine coronal_gradients
 
 
 !> Calculate the coronal equilibrium values at specific values of density and temperature
-function specific_coronal_equilibrium(ad, density, temperature) result(fractions)
+function specific_coronal_equilibrium(ad, density, temperature, linear) result(fractions)
 type (ADF11_all), intent(in) :: ad !< ADF11 datatype
 real*8, intent(in) :: density !< log10 density in m^-3
 real*8, intent(in) :: temperature !< log10 temperature in K
 real*8, dimension(0:ad%n_Z) :: fractions
+logical, intent(in), optional :: linear ! < If true, use linear interpolation instead of spline one
 
+logical :: linear_flag = .false.
 integer :: iz
 real*8 :: ion_rate, rec_rate
 
+if(present(linear)) linear_flag = linear
+
 fractions(0) = 1.d0
-do iz=1,ad%n_Z
-  call ad%SCD%interp(iz-1, density, temperature, ion_rate) ! ionizing to level iz (0 is neutral)
-  call ad%ACD%interp(iz,   density, temperature, rec_rate) ! recombining from iz+1
-  fractions(iz) = fractions(iz-1) * ion_rate/rec_rate
-end do
+if (linear_flag) then
+  do iz=1,ad%n_Z
+    call ad%SCD%interp_linear(iz-1, density, temperature, ion_rate) ! ionizing to level iz (0 is neutral)
+    call ad%ACD%interp_linear(iz,   density, temperature, rec_rate) ! recombining from iz+1
+    fractions(iz) = fractions(iz-1) * ion_rate/rec_rate
+  end do
+else
+  do iz=1,ad%n_Z
+    call ad%SCD%interp(iz-1, density, temperature, ion_rate) ! ionizing to level iz (0 is neutral)
+    call ad%ACD%interp(iz,   density, temperature, rec_rate) ! recombining from iz+1
+    fractions(iz) = fractions(iz-1) * ion_rate/rec_rate
+  end do
+endif
 fractions = fractions/sum(fractions)
 end function specific_coronal_equilibrium
 
