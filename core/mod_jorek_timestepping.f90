@@ -605,7 +605,7 @@ subroutine do_jorek_timestep(this, sim, ev)
     ! --- Output energies and growth_rates to text files during the code run
     call write_live_data(index_now)
     !call write_live_data_vacuum(index_now, diag_coil_curr, pf_coil_curr, rmp_coil_curr, net_tor_wall_curr)
-    write_live_data_vacuum(index_now)
+    call write_live_data_vacuum(index_now)
   endif
 
   call clck_time_barrier(t1)
