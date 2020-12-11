@@ -743,7 +743,7 @@ do ms=1, n_gauss
      endif
 
      D_prof     = get_dperp(psi_norm)
-     if (D_diff_flag .and. num_d_perp) then
+     if (D_diff_flag .and. num_d_perp_imp) then
        D_prof_imp = get_dperp(psi_norm,num_d_prof_x=num_d_perp_x_imp,&
                               num_d_prof_y=num_d_perp_y_imp,num_d_prof_len=num_d_perp_len_imp)
      else if (D_diff_flag) then

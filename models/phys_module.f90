@@ -440,6 +440,7 @@ module phys_module
   character(len=512)  :: zk_e_perp_file     !< ASCII file with perpendicular electron heat diffusion profile
   character(len=512)  :: zk_i_perp_file     !< ASCII file wtih perpendicular ion heat diffusion profile
   logical             :: num_d_perp         !< automatically set true if d_perp_file /= 'none'
+  logical             :: num_d_perp_imp     !< automatically set true if d_perp_file /= 'none'
   logical             :: num_zk_perp        !< automatically set true if zk_perp_file /= 'none'
   logical             :: num_zk_e_perp      !< automatically set true if zk_e_perp_file /= 'none'
   logical             :: num_zk_i_perp      !< automatically set true if zk_i_perp_file /= 'none'

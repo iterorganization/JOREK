@@ -120,19 +120,18 @@ subroutine read_num_profiles(my_id)
     end if
   end if
   
-  num_d_perp = ((( d_perp_file /= 'none' ) .and. ( d_perp_imp_file /= 'none' )) .or.&
-                (( d_perp_file /= 'none' ) .and. ( .not. D_diff_flag )))
+  num_d_perp = ( d_perp_file /= 'none' )
   if ( num_d_perp .and. ( my_id == 0 ) ) then
     call readProf(num_d_perp_x, num_d_perp_y, num_d_perp_len, d_perp_file)
     call check_num_prof(num_d_perp, num_d_perp_x, num_d_perp_y, num_d_perp_len, 'd_perp',          &
                         check_positive=.true.)
-#if (JOREK_MODEL == 501)
-    if (D_diff_flag) then
-      call readProf(num_d_perp_x_imp, num_d_perp_y_imp, num_d_perp_len_imp, d_perp_imp_file)
-      call check_num_prof(num_d_perp, num_d_perp_x_imp, num_d_perp_y_imp, num_d_perp_len_imp, &
-                          'd_perp_imp', check_positive=.true.)
-    end if
-#endif
+  end if
+
+  num_d_perp_imp = ( d_perp_imp_file /= 'none' )
+  if ( num_d_perp_imp .and. ( my_id == 0 ) ) then
+    call readProf(num_d_perp_x_imp, num_d_perp_y_imp, num_d_perp_len_imp, d_perp_imp_file)
+    call check_num_prof(num_d_perp, num_d_perp_x_imp, num_d_perp_y_imp, num_d_perp_len_imp, &
+                        'd_perp_imp', check_positive=.true.)
   end if
 
   num_zk_perp = ( zk_perp_file /= 'none' )
