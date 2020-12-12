@@ -29,7 +29,6 @@ use mod_edge_elements
 implicit none
 
 type(event)                                       :: fieldreader
-type(adf11_all)                                   :: adas
 type(pcg32_rng), dimension(:), allocatable        :: rng
 type(count_action)                                :: counter
 type(projection), target                          :: jorek_feedback, project_density
@@ -91,9 +90,25 @@ if (sim%my_id .eq.0) then
 endif
 
 ! Set up particles
-sim%groups(1)%Z    = -2
-sim%groups(1)%mass = atomic_weights(-2) !< atomic mass units
-sim%groups(1)%ad   = adas
+
+select case ( trim(gas_type) )
+  case('D2')
+    sim%groups(1)%Z    = -2
+    sim%groups(1)%mass = atomic_weights(-2) !< atomic mass units
+    sim%groups(1)%ad   = imp_adas(1)
+  case('Ar')
+    sim%groups(1)%Z    = 18
+    sim%groups(1)%mass = atomic_weights(18) !< atomic mass units
+    sim%groups(1)%ad   = imp_adas(1)
+  case('Ne')
+    sim%groups(1)%Z    = 10
+    sim%groups(1)%mass = atomic_weights(10) !< atomic mass units
+    sim%groups(1)%ad   = imp_adas(1)
+  case default
+    write(*,*) '!! Gas type "', trim(gas_type), '" unknown (in marker_502) !!'
+    write(*,*) 'Exiting NOW!!!'
+    stop
+end select
 
 allocate(particle_kinetic_leapfrog::sim%groups(1)%particles(n_particles_local))
 
@@ -117,14 +132,7 @@ type is (particle_kinetic_leapfrog)
     p(j)%v(1)  = v_kin_temp * B_norm(1)
     p(j)%v(2)  = v_kin_temp * B_norm(2)
     p(j)%v(3)  = v_kin_temp * B_norm(3)
-
-!    p(j)%weight = p(j)%weight* (1.d0 + 0.8d0*cos(    p(j)%x(3))  +  0.d0*sin(     p(j)%x(3)) &
-!                                     + 11.d0*cos(2.d0*p(j)%x(3)) + 13.d0*sin(2.d0*p(j)%x(3)) &
-!                                     + 17.d0*cos(3.d0*p(j)%x(3)) + 19.d0*sin(3.d0*p(j)%x(3)) &
-!                                     + 23.d0*cos(4.d0*p(j)%x(3)) + 27.d0*sin(4.d0*p(j)%x(3))  )
-                                  
   end do
-
   call boris_all_initial_half_step_backwards_RZPhi(p, sim%groups(1)%mass, sim%fields, sim%time, timesteps)
 end select
 

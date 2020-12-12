@@ -96,6 +96,7 @@ subroutine initialize(sim, num_groups, skip_jorek2help)
 
   ! Initialise the gaussian points at basis functions
   call initialise_basis
+
 end subroutine initialize
 
 !> Actions to perform when stopping the simulation.

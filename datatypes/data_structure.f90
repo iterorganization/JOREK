@@ -42,6 +42,10 @@ module data_structure
     type (type_node)   :: node(n_nodes_max)       !< an allocatable list of nodes
   end type type_node_list
 
+  type, extends(type_node_list) :: type_extended_node_list
+    type (type_extended_node)   :: node(n_nodes_max)   !< Extended variable values and derivatives
+  end type type_extended_node
+
   type type_element                               !< type definition for one elements
     integer :: vertex(n_vertex_max)               !< nodes of the corners
     integer :: neighbours(n_vertex_max)           !< neighbouring elements
