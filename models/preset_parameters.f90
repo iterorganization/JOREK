@@ -185,7 +185,6 @@ subroutine preset_parameters
   D_par        = 0.d0
   D_perp_imp(1:5)  = (/ 1.d-5, 0.d0, 0.d0, 99.d0, 99.d0 /)
   D_par_imp        = 0.d0
-  D_diff_flag      = .false.
 
   D_prof_neg         = 1.d-5
   D_prof_neg_thresh  = 0.d0 ! default is zero for keeping the old behavior
@@ -427,7 +426,6 @@ subroutine preset_parameters
 
   JET_MGI = .false.
   ASDEX_MGI = .false.
-  gas_type  = 'D2'
   ns_amplitude = 0.d0
   ns_R      = 3.2d0
   ns_Z      =  1.5d0

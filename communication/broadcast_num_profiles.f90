@@ -159,7 +159,7 @@ if ( num_d_perp ) then
   call MPI_BCAST(num_d_perp_y,num_d_perp_len,MPI_DOUBLE_PRECISION,0,MPI_COMM_WORLD,ierr)
 end if
 
-if ( num_d_perp_imp .and. D_diff_flag ) then
+if ( num_d_perp_imp ) then
   call MPI_BCAST(num_d_perp_len_imp,1,MPI_INTEGER,0,MPI_COMM_WORLD,ierr)
   if ( my_id /= 0 ) then
     call tr_allocate(num_d_perp_x_imp,1,num_d_perp_len_imp,"num_d_perp_x_imp")

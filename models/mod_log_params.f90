@@ -415,19 +415,13 @@ write(*,'(1x,a)',advance='no') ' USE_COMPLEX_PRECOND          : '
   else
     write(*,CHAR_FMT) 'D_perp_file           ', trim(D_perp_file)
   end if
+#if (JOREK_MODEL == 501 || JOREK_MODEL == 502)
+  write(*,REAL_FMT) 'D_par_imp               ', D_par_imp
   if ( .not. num_d_perp_imp ) then
     write(*,REAL_FMT) 'D_perp_imp            ', D_perp_imp(1:6)
   else
     write(*,CHAR_FMT) 'D_perp_imp_file       ', trim(D_perp_imp_file)
   end if
-#if (JOREK_MODEL == 501)
-  write(*,REAL_FMT) 'D_par_imp               ', D_par_imp
-  if ( .not. num_d_perp ) then
-    write(*,REAL_FMT) 'D_perp_imp            ', D_perp_imp(1:6)
-  else
-    write(*,CHAR_FMT) 'D_perp_imp_file       ', trim(D_perp_imp_file)
-  end if
-  write(*,LOGI_FMT) 'D_diff_flag           ', D_diff_flag
 #endif
   write(*,REAL_FMT) 'particlesource        ', particlesource
   write(*,REAL_FMT) 'particlesource_psin   ', particlesource_psin
