@@ -62,6 +62,7 @@ end interface proj_f
 !> At construction time the matrix is solved.
 type, extends(io_action) :: projection
   type(type_node_list),    pointer :: node_list !< node lists to save particle projections in
+  type(type_extended_node_list), pointer :: extended_node_list !< node lists to save particle projections in
   type(type_element_list), pointer :: element_list
 
   real*8 :: filter          !< Smoothing factor used for this projection (Laplacian, poloidal plane)
@@ -359,7 +360,7 @@ function new_projection(node_list, element_list,                                
   endif
 
   if (extended_value) then
-    allocate(type_extended_nodei_list::new%node_list)
+    allocate(type_extended_node_list::new%extended_node_list)
   else
     allocate(new%node_list,    source=node_list)
     new%node_list = node_list
