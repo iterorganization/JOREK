@@ -333,7 +333,7 @@ module mod_injection_source
         end do
 
         if (use_marker .and. (n_var_count > n_extended_var)) then
-          write "The total charge state number is larger than n_extended_var! EXIT!!!"
+          write(*,*) "The total charge state number is larger than n_extended_var! EXIT!!!"
           stop
         endif
       end if
