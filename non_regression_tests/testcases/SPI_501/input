@@ -81,6 +81,13 @@
  D_perp(4) = 0.01d0
  D_perp(5) = 0.92d0
 
+ D_par_imp = 0.d0
+ D_perp_imp(1) = 1.d-5
+ D_perp_imp(2) = 0.85d0
+ D_perp_imp(3) = 0.d0
+ D_perp_imp(4) = 0.01d0
+ D_perp_imp(5) = 0.92d0
+
  ZK_par     = 1.d5
  ZK_perp(1) = 1.d-5
  ZK_perp(2) = 0.85d0
