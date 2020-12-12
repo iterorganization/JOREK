@@ -304,11 +304,7 @@ module mod_injection_source
         do i=1, n_adas
           select case ( trim(gas_type) )
             case('D2')
-              write(*,*) "Deuterium adas calculation unsupported for now, terminating."
-              adas_suffix = 'none'
-              deallocate(imp_cor)
-              deallocate(imp_adas)
-              stop
+              adas_suffix = '12_h'
             case('Ar')
               adas_suffix = '89_ar'
             case('Ne')
