@@ -467,6 +467,7 @@ subroutine preset_parameters
   spi_shard_file  = 'none'
   spi_tor_rot     = .false.
   using_spi       = .false.
+  use_marker      = .false.
 
   output_rad_phi  = .false.
   n_adas          = 0

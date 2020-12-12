@@ -96,7 +96,7 @@ subroutine initialize(sim, num_groups, skip_jorek2help)
 
   ! Initialise the gaussian points at basis functions
   call initialise_basis
-end subroutine
+end subroutine initialize
 
 !> Actions to perform when stopping the simulation.
 subroutine finalize(sim)
@@ -109,5 +109,5 @@ subroutine finalize(sim)
     write(*,"(A,g14.6,A)") "INFO: End of events at ", sim%time, " , exiting"
   end if
   call MPI_Finalize(ierr)
-end subroutine
+end subroutine finalize
 end module mod_particle_sim
