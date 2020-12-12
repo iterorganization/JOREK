@@ -24,6 +24,7 @@ use mod_projection_functions, only: proj_f_combined_density, &
                                     proj_f_combined_energy, proj_f_combined_par_momentum
 use mod_edge_domain
 use mod_edge_elements
+use mod_injection_source
 !$ use omp_lib
 
 implicit none
