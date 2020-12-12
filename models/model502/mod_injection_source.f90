@@ -266,7 +266,7 @@ module mod_injection_source
     use phys_module
     use mod_openadas
     use mod_coronal
-    use mod_parameter, only:n_extended_var
+    use mod_parameters, only:n_extended_var
 
     implicit none
 
