@@ -26,6 +26,7 @@ module mod_parameters
   integer, parameter :: var_jec2 = 0                       ! place of variable ECCD current #2             (jec2)
 
   integer, parameter :: n_var          = 9         !< number of variables
+  integer, parameter :: n_extended_var = 19         !< number of variables
   integer, parameter :: n_dim          = 2         !< number of dimensions
   integer, parameter :: n_order        = 3         !< order of the polynomial basis
   integer, parameter :: n_tor          = 11         !< number of toroidal harmonics

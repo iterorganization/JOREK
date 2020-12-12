@@ -31,6 +31,11 @@ module data_structure
     logical    :: constrained                     !< Constrained node or not..."refinement"
   end type type_node
 
+  !> This is a extended type_node which include more variables than n_var
+  type, extends(type_node) :: type_extended_node
+    real*8     :: extended_values(n_tor,n_order+1,n_extended_var)   !< Extended variable values and derivatives
+  end type type_extended_node
+
   type type_node_list                             !< type definition of a list of nodes
     integer            :: n_nodes                 !< the number of nodes in the list
     integer            :: n_dof                   !< the total number of degrees of freedom

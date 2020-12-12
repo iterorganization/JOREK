@@ -35,6 +35,12 @@ module mod_particle_types
     real*8    :: v = 0.d0 !< Parallel velocity along the fieldline
   end type particle_fieldline
 
+  !> A simple type just for velocity fieldline tracing in two-step methods (Adams Bashforth) or for forward euler
+  type, extends(particle_base) :: particle_velocity_fieldline
+    real*8    :: v_hat_prev(3) = 0.d0 !< Field direction at previous timestep
+    real*8    :: v = 0.d0 !< Parallel velocity along the fieldline
+  end type particle_velocity_fieldline
+
   !> A simple guiding-center particle type.
   type, extends(particle_base) :: particle_gc
     real*8    :: E = 0.d0 !< The particle energy [eV]
