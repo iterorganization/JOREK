@@ -266,7 +266,6 @@ module mod_injection_source
     use phys_module
     use mod_openadas
     use mod_coronal
-    use mod_parameters, only:n_extended_var
 
     implicit none
 
@@ -321,21 +320,13 @@ module mod_injection_source
           end select
 
           imp_adas(i) = read_adf11(my_id, trim(adas_suffix),trim(adas_dir))
-          if (.not. use_marker) then
-            imp_cor(i)  = coronal(imp_adas(i))
-            ! This is to output a coronal equilibrium charge distribution as a
-            ! function of temperature assuming constant density
-            if (my_id == 0) call output_coronal(imp_cor(i))
-          else
-            n_var_count = n_var_count + imp_adas(i)%n_Z + 1 ! Including the neutrals
-          endif
+          imp_cor(i)  = coronal(imp_adas(i))
+          ! This is to output a coronal equilibrium charge distribution as a
+          ! function of temperature assuming constant density
+          if (my_id == 0) call output_coronal(imp_cor(i))
 
         end do
 
-        if (use_marker .and. (n_var_count > n_extended_var)) then
-          write(*,*) "The total charge state number is larger than n_extended_var! EXIT!!!"
-          stop
-        endif
       end if
 
     end if

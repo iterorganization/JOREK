@@ -62,7 +62,6 @@ end interface proj_f
 !> At construction time the matrix is solved.
 type, extends(io_action) :: projection
   type(type_node_list),    pointer :: node_list !< node lists to save particle projections in
-  type(type_extended_node_list), pointer :: extended_node_list !< node lists to save particle projections in
   type(type_element_list), pointer :: element_list
 
   real*8 :: filter          !< Smoothing factor used for this projection (Laplacian, poloidal plane)
@@ -297,7 +296,7 @@ function new_projection(node_list, element_list,                                
                         filter_n0, filter_hyper_n0, filter_parallel_n0,                             &
                         f, do_zonal, to_h5, to_vtk,                                                 &
                         nsub, filename, basename, decimal_digits, fractional_digits, calc_integrals,&
-                        extended_value) result(new)
+                        ) result(new)
   use mpi
   !use mod_parameters, only n_node_max
   type(projection) :: new
@@ -315,7 +314,6 @@ function new_projection(node_list, element_list,                                
   integer, intent(in), optional          :: decimal_digits
   integer, intent(in), optional          :: fractional_digits
   logical, intent(in), optional          :: calc_integrals !< After projecting, calculate and print the integral of each projected quantity
-  logical, intent(in), optional          :: extended_value !< After projecting, calculate and print the integral of each projected quantity
 
   integer              :: ierr, my_nsub, inode, n_masters, i
   integer, allocatable :: i_tor(:)
@@ -359,12 +357,8 @@ function new_projection(node_list, element_list,                                
     new%i_tor_local = 2*i_tor(new%my_id+1) - 2       ! i_tor_local is the (starting) index in HZ
   endif
 
-  if (extended_value) then
-    allocate(type_extended_node_list::new%extended_node_list)
-  else
-    allocate(new%node_list,    source=node_list)
-    new%node_list = node_list
-  endif    
+  allocate(new%node_list,    source=node_list)
+  new%node_list = node_list
 
   do inode = 1, n_nodes_max
     new%node_list%node(inode)%values = 0.d0
