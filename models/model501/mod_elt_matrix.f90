@@ -19,6 +19,7 @@ use pellet_module
 use diffusivities, only: get_dperp, get_zkperp
 use corr_neg
 use mod_injection_source
+use mod_impurity
 use mod_coronal
 use mod_bootstrap_functions
 use equil_info, only : get_psi_n

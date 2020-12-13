@@ -21,7 +21,7 @@ use mod_import_restart
   use mod_neutral_source
 #endif
 #if (JOREK_MODEL == 501 || JOREK_MODEL == 502)
-  use mod_injection_source
+  use mod_impurity
 #endif
 use mod_integrals3D
 use mod_expression, only: exprs_all_int, init_expr, t_expr_list

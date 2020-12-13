@@ -23,8 +23,8 @@ module mod_integrals3D
   use mod_neutral_source, only: neutral_source, total_n_particles, total_n_particles_inj, total_n_particles_inj_all 
 #endif
 #if (JOREK_MODEL == 501 || JOREK_MODEL == 502)
-  use mod_injection_source, only: inj_source, radiation_function, radiation_function_linear, total_n_particles, total_n_particles_inj, &
-                                  total_n_particles_inj_all
+  use mod_injection_source, only: inj_source, total_n_particles, total_n_particles_inj, total_n_particles_inj_all
+  use mod_impurity, only: radiation_function, radiation_function_linear
 #endif
   use equil_info, only : get_psi_n, ES
 

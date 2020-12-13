@@ -24,7 +24,7 @@ module mod_expression
   use mod_bootstrap_functions
   use mod_poloidal_currents
 #if (JOREK_MODEL == 501 || JOREK_MODEL == 502)
-  use mod_injection_source, only: radiation_function
+  use mod_impurity, only: radiation_function
 #endif
   use mod_atomic_coeff_deuterium, only : atomic_coeff_deuterium
   

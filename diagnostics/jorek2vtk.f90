@@ -20,7 +20,7 @@ use mod_poloidal_currents
   use mod_neutral_source
 #endif
 #if (JOREK_MODEL == 501 || JOREK_MODEL == 502)
-  use mod_injection_source
+  use mod_impurity
 #endif
 use mod_atomic_coeff_deuterium, only : atomic_coeff_deuterium
 use mod_openadas , only : read_adf11

@@ -81,7 +81,7 @@ program JOREK2
   use mod_neutral_source
 #endif
 #if (JOREK_MODEL == 501 || JOREK_MODEL == 502)
-  use mod_injection_source
+  use mod_impurity
 #endif
 
 
