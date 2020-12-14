@@ -63,12 +63,12 @@ use_cx         = .false.
 use_ionisation = .true.
 use_sputtering = .false.
 
+! --- Read ADAS data and generate coronal equilibrium is needed
+call init_imp_adas(sim%my_id)
+
 ! Set up the field reader
 fieldreader = event(read_jorek_fields_interp_linear(basename='jorek', i=-1))
 call with(sim, fieldreader)
-
-! --- Read ADAS data and generate coronal equilibrium is needed
-call init_imp_adas(sim%my_id)
 
 if (use_sputtering) then  
   n_reflect = int(n_particles * 2.d-3)
