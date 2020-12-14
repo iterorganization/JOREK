@@ -159,8 +159,10 @@ module mod_impurity
       dradRB_dT = ad%PRB%interp_grad_T(density,temperature) !Loglog gradient still!!!
       dradLT_dT = ad%PLT%interp_grad_T(density,temperature) !Loglog gradient still!!!
       do iz=0,ad%n_Z
-        radRB     = ad%PRB%interp_linear(iz,density,temperature)
-        radLT     = ad%PLT%interp_linear(iz,density,temperature)
+        !radRB     = ad%PRB%interp_linear(iz,density,temperature)
+        !radLT     = ad%PLT%interp_linear(iz,density,temperature)
+        call ad%PRB%interp_linear(iz,density,temperature, radRB)
+        call ad%PLT%interp_linear(iz,density,temperature, radLT)
         rad_p(iz)   = radRB + radLT
         drad_dT(iz) = dradRB_dT(iz) * radRB / (10.0**temperature) &
                       + dradLT_dT(iz) * radLT / (10.0**temperature) ! Convert to normal gradient
