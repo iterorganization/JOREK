@@ -295,7 +295,7 @@ function new_projection(node_list, element_list,                                
                         filter,    filter_hyper,    filter_parallel,                                &
                         filter_n0, filter_hyper_n0, filter_parallel_n0,                             &
                         f, do_zonal, to_h5, to_vtk,                                                 &
-                        nsub, filename, basename, decimal_digits, fractional_digits, calc_integrals,&
+                        nsub, filename, basename, decimal_digits, fractional_digits, calc_integrals &
                         ) result(new)
   use mpi
   !use mod_parameters, only n_node_max
