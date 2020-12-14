@@ -61,8 +61,8 @@ end interface proj_f
 !> You must use the (new_)projection() constructor to set this up.
 !> At construction time the matrix is solved.
 type, extends(io_action) :: projection
-  type(type_node_list),    pointer :: node_list !< node lists to save particle projections in
-  type(type_element_list), pointer :: element_list
+  type(type_node_list),    pointer :: node_list => null() !< node lists to save particle projections in
+  type(type_element_list), pointer :: element_list => null()
 
   real*8 :: filter          !< Smoothing factor used for this projection (Laplacian, poloidal plane)
   real*8 :: filter_hyper    !< hyper-smoothing factor used for this projection (double Laplacian, poloidal plane)

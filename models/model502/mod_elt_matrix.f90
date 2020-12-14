@@ -112,6 +112,9 @@ real*8     :: rn0, rn0_x, rn0_y, rn0_p, rn0_s, rn0_t, rn0_ss, rn0_st, rn0_tt, rn
 real*8     :: rhon, rhon_x, rhon_y, rhon_s, rhon_t, rhon_p, rhon_ss, rhon_st, rhon_tt, rhon_hat, rhon_x_hat, rhon_y_hat
 real*8     :: rn0_xx, rn0_yy, rn0_xy, rhon_xx, rhon_yy
 
+real*8     :: aux_rho0, aux_T0, aux_Vpar0, aux_dEion_dt, aux_rad
+real*8     :: aux_P0, aux_P0_s,  aux_P0_t, aux_P0_p, aux_q0, aux_jx0, aux_jy0, aux_jz0, aux_jz0_pcs
+
 ! Impurity and background source
 real*8     :: source_imp, source_bg
 real*8     :: source_tmp
@@ -181,18 +184,23 @@ real*8, dimension(:,:,:,:) , pointer :: eq_g, eq_s, eq_t
 real*8, dimension(:,:,:,:) , pointer :: eq_p
 real*8, dimension(:,:,:,:) , pointer :: eq_ss, eq_st, eq_tt   
 real*8, dimension(:,:,:,:) , pointer :: delta_g, delta_s, delta_t
+real*8, dimension(:,:,:,:) , pointer :: eq_aux_g, eq_aux_s, eq_aux_t, eq_aux_p
 
 
-eq_g    => thread_struct(tid)%eq_g   
-eq_s    => thread_struct(tid)%eq_s   
-eq_t    => thread_struct(tid)%eq_t   
-eq_p    => thread_struct(tid)%eq_p   
-eq_ss   => thread_struct(tid)%eq_ss  
-eq_st   => thread_struct(tid)%eq_st  
-eq_tt   => thread_struct(tid)%eq_tt  
-delta_g => thread_struct(tid)%delta_g
-delta_s => thread_struct(tid)%delta_s
-delta_t => thread_struct(tid)%delta_t
+eq_g     => thread_struct(tid)%eq_g   
+eq_s     => thread_struct(tid)%eq_s   
+eq_t     => thread_struct(tid)%eq_t   
+eq_p     => thread_struct(tid)%eq_p   
+eq_ss    => thread_struct(tid)%eq_ss  
+eq_st    => thread_struct(tid)%eq_st  
+eq_tt    => thread_struct(tid)%eq_tt  
+delta_g  => thread_struct(tid)%delta_g
+delta_s  => thread_struct(tid)%delta_s
+delta_t  => thread_struct(tid)%delta_t
+eq_aux_g => thread_struct(tid)%eq_aux_g   
+eq_aux_s => thread_struct(tid)%eq_aux_s   
+eq_aux_t => thread_struct(tid)%eq_aux_t   
+eq_aux_p => thread_struct(tid)%eq_aux_p   
 
 ELM = 0.d0
 RHS = 0.d0
@@ -212,6 +220,7 @@ zeta  = time_evol_zeta
 x_g  = 0.d0; x_s  = 0.d0; x_t  = 0.d0; x_st  = 0.d0; x_ss  = 0.d0; x_tt  = 0.d0;
 y_g  = 0.d0; y_s  = 0.d0; y_t  = 0.d0; y_st  = 0.d0; y_ss  = 0.d0; y_tt  = 0.d0;
 eq_g = 0.d0; eq_s = 0.d0; eq_t = 0.d0; eq_st = 0.d0; eq_ss = 0.d0; eq_tt = 0.d0; eq_p = 0.d0;
+eq_aux_g = 0.d0; eq_aux_s = 0.d0; eq_aux_t = 0.d0; eq_aux_p = 0.d0;
 
 delta_g = 0.d0; delta_s = 0.d0; delta_t = 0.d0
 
@@ -226,6 +235,9 @@ eq_zne          = 0.d0
 eq_zTe          = 0.d0         
 eq_zTi          = 0.d0
 
+aux_rho0  = 0.d0; aux_T0    = 0.d0; aux_Vpar0 = 0.d0; aux_dEion_dT = 0.0; aux_rad = 0.0
+aux_P0    = 0.d0; aux_P0_s  = 0.d0; aux_P0_t  = 0.d0; aux_P0_p  = 0.d0
+aux_q0    = 0.d0; aux_jx0   = 0.d0; aux_jy0   = 0.d0; aux_jz0   = 0.d0; aux_jz0_pcs = 0.d0
 
 do i=1,n_vertex_max
  do j=1,n_order+1
@@ -263,6 +275,13 @@ do i=1,n_vertex_max
              eq_ss(mp,k,ms,mt) = eq_ss(mp,k,ms,mt) + nodes(i)%values(in,j,k) * element%size(i,j) * H_ss(i,j,ms,mt)* HZ(in,mp)
              eq_st(mp,k,ms,mt) = eq_st(mp,k,ms,mt) + nodes(i)%values(in,j,k) * element%size(i,j) * H_st(i,j,ms,mt)* HZ(in,mp)
              eq_tt(mp,k,ms,mt) = eq_tt(mp,k,ms,mt) + nodes(i)%values(in,j,k) * element%size(i,j) * H_tt(i,j,ms,mt)* HZ(in,mp)
+
+             if (present(aux_nodes)) then
+               eq_aux_g(mp,k,ms,mt) =  eq_aux_g(mp,k,ms,mt) + aux_nodes(i)%values(in,j,k) * element%size(i,j) * H(i,j,ms,mt)   * HZ(in,mp)
+               eq_aux_s(mp,k,ms,mt) =  eq_aux_s(mp,k,ms,mt) + aux_nodes(i)%values(in,j,k) * element%size(i,j) * H_s(i,j,ms,mt) * HZ(in,mp)
+               eq_aux_t(mp,k,ms,mt) =  eq_aux_t(mp,k,ms,mt) + aux_nodes(i)%values(in,j,k) * element%size(i,j) * H_t(i,j,ms,mt) * HZ(in,mp)
+               eq_aux_p(mp,k,ms,mt) =  eq_aux_p(mp,k,ms,mt) + aux_nodes(i)%values(in,j,k) * element%size(i,j) * H(i,j,ms,mt)   * HZ_p(in,mp)
+             endif
 
              delta_g(mp,k,ms,mt) = delta_g(mp,k,ms,mt) + nodes(i)%deltas(in,j,k) * element%size(i,j) * H(i,j,ms,mt)   * HZ(in,mp)
              delta_s(mp,k,ms,mt) = delta_s(mp,k,ms,mt) + nodes(i)%deltas(in,j,k) * element%size(i,j) * H_s(i,j,ms,mt) * HZ(in,mp)
@@ -795,7 +814,7 @@ do ms=1, n_gauss
      ! We estimate the effective charge by a test density 10^20/m^3
      ! Later maybe we should implement a iterative method
 
-     if (allocated(imp_adas(1)%ionisation_energy)) then
+     if (allocated(imp_adas(1)%ionisation_energy) .and. (.not. use_marker)) then
 
        if (allocated(P_imp)) deallocate(P_imp)
        if (allocated(dP_imp_dT)) deallocate(dP_imp_dT)
@@ -829,7 +848,7 @@ do ms=1, n_gauss
        ! Convert the gradient in K to gradient in JOREK unit
        dE_ion_dT = dE_ion_dT * dTe_corr_eV_dT * EL_CHG / K_BOLTZ
 
-     else
+     else if (.not. use_marker) then
 
        if (allocated(P_imp)) deallocate(P_imp)
        if (allocated(dP_imp_dT)) deallocate(dP_imp_dT)
@@ -845,6 +864,23 @@ do ms=1, n_gauss
        E_ion     = 0.
        dE_ion_dT = 0.
        E_ion_bg  = 0.
+     else
+       if (allocated(P_imp)) deallocate(P_imp)
+       if (allocated(dP_imp_dT)) deallocate(dP_imp_dT)
+
+       allocate(P_imp(0:imp_adas(1)%n_Z))
+       allocate(dP_imp_dT(0:imp_adas(1)%n_Z))
+
+       E_ion     = 0.
+       dE_ion_dT = 0.
+       E_ion_bg  = 0.
+       P_imp     = 0.
+       dP_imp_dT = 0.
+       Z_imp     = 0.
+       dZ_imp_dT = 0.
+       aux_dEion_dt = eq_aux_g(mp,1,ms,mt)
+       aux_rad    = eq_aux_g(mp,2,ms,mt) 
+       Z_imp      = eq_aux_g(mp,3,ms,mt)        
      end if
 
      ! Convert gradient in T(K) in to gradient in T (eV)
