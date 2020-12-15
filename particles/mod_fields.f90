@@ -20,6 +20,7 @@ type, abstract :: fields_base
     procedure(interp_PRZ), deferred, public   :: interp_PRZ
     procedure(interp_PRZ_2), deferred, public :: interp_PRZ_2
     procedure, public :: calc_NeTe
+    procedure, public :: calc_NeTe_imp
     procedure, public :: calc_EBpsiU
     procedure, public :: calc_EBNormBGradBCurlbDbdt
     procedure, public :: calc_analytical_EBpsiU
@@ -123,6 +124,7 @@ end subroutine calc_EBpsiU
 
 pure subroutine calc_NeTe(fields, time, i_elm, st, phi, n_e, T_e, grad_T_e)
 use phys_module, only: central_density
+use mod_parameters
 use constants
 class(fields_base), intent(in)                    :: fields
 integer, intent(in)                               :: i_elm
@@ -136,16 +138,16 @@ real*8               :: R, R_s, R_t, Z, Z_s, Z_t, xjac
 real*8 :: T_norm !< temperature normalisation
 
 call fields%interp_PRZ(time,i_elm,&
-#if (JOREK_MODEL == 400)
-      [5,8],& ! electron temperature
+#if (JOREK_MODEL == 400 || JOREK_MODEL == 502)
+      [5,var_Te],& ! electron temperature
 #else
-      [5,6],& ! electron temperature + ion temperature (assumed equal)
+      [5,var_T],& ! electron temperature + ion temperature (assumed equal)
 #endif
           2,st(1),st(2),phi,P,P_s,P_t,P_phi,P_time,R,R_s,R_t,Z,Z_s,Z_t)
 
 n_e = max(central_density * P(1) * 1d20,1d16)                           ! plasma density [1/m^3], capped against negative
 T_norm = (1.d0/K_BOLTZ/(2.d0*MU_ZERO*central_density*1.d20))
-#if (JOREK_MODEL == 400)
+#if (JOREK_MODEL == 400 || JOREK_MODEL == 502)
 T_norm = T_norm*2.d0 ! P(1) contains the electron temperature, reverse previous correction
 #endif
 T_e = max(P(2)*T_norm, 1.d0) ! temperature capped against going negative
@@ -158,6 +160,61 @@ if (present(grad_T_e)) then
                      P_phi(2)/R]
 end if
 end subroutine calc_NeTe
+
+pure subroutine calc_NeTe_imp(fields, time, i_elm, st, phi, n_bg, n_imp, T_e, grad_T_e)
+use phys_module, only: central_density, gas_type, central_mass
+use constants
+use mod_parameters
+class(fields_base), intent(in)                    :: fields
+integer, intent(in)                               :: i_elm
+real*8, intent(in)                                :: time, st(2), phi
+real*8, intent(out)                               :: n_bg !< background species density [m^-3]
+real*8, intent(out)                               :: n_imp !< Impurity species density [m^-3]
+real*8, intent(out)                               :: T_e !< electron temperature [K]
+real*8, intent(out), optional, dimension(3)       :: grad_T_e !< gradient of electron temperature [K/m]
+
+real*8, dimension(3) :: P, P_s, P_t, P_phi, P_time
+real*8               :: R, R_s, R_t, Z, Z_s, Z_t, xjac, m_i_over_m_imp
+real*8 :: T_norm !< temperature normalisation
+
+call fields%interp_PRZ(time,i_elm,&
+#if (JOREK_MODEL == 400 || JOREK_MODEL == 502)
+      [var_rho,var_Te, var_rhon],& ! electron temperature
+#else
+      [var_rho,var_T, var_rhon],& ! electron temperature + ion temperature (assumed equal)
+#endif
+          3,st(1),st(2),phi,P,P_s,P_t,P_phi,P_time,R,R_s,R_t,Z,Z_s,Z_t)
+
+select case ( trim(gas_type) )
+  case('D2')
+    m_i_over_m_imp = central_mass/2.
+  case('Ar')
+    m_i_over_m_imp = central_mass/40. ! Argon mass = 40 u and main ion (D) mass = 2 u
+  case('Ne')
+    m_i_over_m_imp = central_mass/20. ! Neon mass = 20 u and main ion (D) mass = 2 u
+  case default
+    write(*,*) '!! Gas type "', trim(gas_type), '" unknown (in inj_source.f90) !!'
+    write(*,*) '=> We assume the gas is D2.'
+    m_i_over_m_imp = central_mass/2.
+end select
+
+n_bg = central_density * (P(1) - P(3))
+n_imp = central_density * P(3) * m_i_over_m_imp
+n_bg = max(central_density * n_bg * 1d20,1d16)        ! plasma density [1/m^3], capped against negative
+T_norm = (1.d0/K_BOLTZ/(2.d0*MU_ZERO*central_density*1.d20))
+#if (JOREK_MODEL == 400 || JOREK_MODEL == 502)
+T_norm = T_norm*2.d0 ! P(1) contains the electron temperature, reverse previous correction
+#endif
+T_e = max(P(2)*T_norm, 1.d0) ! temperature capped against going negative
+
+if (present(grad_T_e)) then
+
+  xjac = R_s * Z_t - R_t * Z_s
+  grad_T_e = T_norm*[(  P_s(2) * Z_t - P_t(2) * Z_s)/ xjac, &
+                     (- P_s(2) * R_t + P_t(2) * R_s)/ xjac, &
+                     P_phi(2)/R]
+end if
+end subroutine calc_NeTe_imp
 
 !> This procedure computes the fields appearing in the
 !> the guiding center equations of motion

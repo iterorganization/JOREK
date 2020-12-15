@@ -47,9 +47,9 @@ real*8, dimension(2) :: P, P_s, P_t, P_phi, P_time
 real*8               :: R, R_s, R_t, Z, Z_s, Z_t
 call fields%interp_PRZ(time,i_elm,&
 #if (JOREK_MODEL == 400 || JOREK_MODEL == 502)
-      [5,n_var],& ! electron temperature
+      [var_rho,var_Te],& ! electron temperature
 #else
-      [5,6],& ! electron temperature + ion temperature (assumed equal)
+      [var_rho,var_T],& ! electron temperature + ion temperature (assumed equal)
 #endif
           2,s,t,phi,P,P_s,P_t,P_phi,P_time,R,R_s,R_t,Z,Z_s,Z_t)
 

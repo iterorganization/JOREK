@@ -40,7 +40,7 @@ type(edge_elements)                               :: D_edge
 
 
 real*8    :: timesteps, tstep_si, t_norm, rho_norm, n_norm
-real*8    :: target_time, t, E(3), B(3), psi, U, n_e, T_e, rz_old(2), st_old(2)
+real*8    :: target_time, t, E(3), B(3), psi, U, n_rho, n_imp, T_e, rz_old(2), st_old(2)
 real*8    :: diag_time 
 real*8    :: temp(3), T_eV, K_eV, v_kin_temp, B_norm(3)
 real*8    :: physical_particles, weight
@@ -51,7 +51,7 @@ integer   :: j, seed, i_rng, n_stream
 ! For live updating the rhs of the projection
 real*8  :: R_g, Z_g, R_s, R_t, Z_s, Z_t, xjac, HZ(n_tor), HH(4,4), HH_s(4,4), HH_t(4,4)
 integer :: i_tor, index_lm, i_elm_temp
-logical :: use_cx, use_ionisation, use_sputtering
+logical :: use_cx, use_sputtering
 
 ! Start up MPI, jorek
 call sim%initialize(num_groups=1)
@@ -60,7 +60,6 @@ n_particles_local = int(n_particles/sim%n_cpu)
 timesteps         = tstep_particles
 
 use_cx         = .false.
-use_ionisation = .true.
 use_sputtering = .false.
 
 ! --- Read ADAS data and generate coronal equilibrium is needed
@@ -81,7 +80,7 @@ t_norm   = sqrt((MU_ZERO * rho_norm))                           ! t_SI   = t_nor
 
 tstep_si  = tstep * t_norm
 n_steps   = floor(tstep_si / timesteps)
-timesteps = tstep_si / n_steps
+timesteps = tstep_si / n_steps  ! Timestep in SI unit!
 n_steps   = tstep_si / timesteps
 
 if (sim%my_id .eq.0) then
@@ -97,14 +96,17 @@ select case ( trim(gas_type) )
     sim%groups(1)%Z    = -2
     sim%groups(1)%mass = atomic_weights(-2) !< atomic mass units
     sim%groups(1)%ad   = imp_adas(1)
+    sim%groups(1)%cor  = imp_cor(1)
   case('Ar')
     sim%groups(1)%Z    = 18
     sim%groups(1)%mass = atomic_weights(18) !< atomic mass units
     sim%groups(1)%ad   = imp_adas(1)
+    sim%groups(1)%cor  = imp_cor(1)
   case('Ne')
     sim%groups(1)%Z    = 10
     sim%groups(1)%mass = atomic_weights(10) !< atomic mass units
     sim%groups(1)%ad   = imp_adas(1)
+    sim%groups(1)%cor  = imp_cor(1)
   case default
     write(*,*) '!! Gas type "', trim(gas_type), '" unknown (in marker_502) !!'
     write(*,*) 'Exiting NOW!!!'
@@ -151,8 +153,10 @@ elseif (use_pcs) then  ! not implemented yet!
   allocate(jorek_feedback%rhs(n_order+1, n_vertex_max, sim%fields%element_list%n_elements, n_tor, 1))
 elseif (use_ccs) then  ! not implemented yet!
   allocate(jorek_feedback%rhs(n_order+1, n_vertex_max, sim%fields%element_list%n_elements, n_tor, 4))
+elseif (use_marker) then
+  allocate(jorek_feedback%rhs(n_order+1, n_vertex_max, sim%fields%element_list%n_elements, n_tor, 5))
 else
-  stop 'define use_ncs, use_pcs or use_ccs'
+  stop 'define use_ncs, use_pcs, use_marker or use_ccs'
 endif
 
 jorek_feedback%rhs = 0.d0
@@ -182,7 +186,7 @@ events = [ new_event_ptr(jorek_feedback,   start = sim%time),            &
 jorek_stepper%extra_event => events(1)
 
 call main_particle_loop(jorek_stepper, jorek_feedback, project_density, timesteps, &
-                        use_ionisation, use_cx, use_sputtering)
+                        use_cx, use_sputtering)
 
 call sim%finalize
 
@@ -190,7 +194,7 @@ contains
 
 !================================================================================================
 subroutine main_particle_loop(jorek_stepper, jorek_feedback, project_density, timesteps, &
-                              use_ionisation, use_cx, use_sputtering)
+                              use_cx, use_sputtering)
 !================================================================================================
 use particle_tracer
 use mod_particle_diagnostics
@@ -207,12 +211,13 @@ use phys_module, only: tstep, use_ncs, use_pcs, use_ccs, use_marker
 use phys_module, only: CENTRAL_MASS, CENTRAL_DENSITY
 use constants,   only: MU_ZERO, MASS_PROTON, ATOMIC_MASS_UNIT, K_BOLTZ, EL_CHG
 use mod_integrals3D, only: int3d_new
+use mod_radiation, only: proj_Lz
 
 implicit none
 real*8, parameter  :: binding_energy = 2.18d-18 ! ionization energy of a hydrogen atom [J] (= 13.6 eV)
 
 real*8, intent(in) :: timesteps
-logical            :: use_ionisation, use_cx, use_sputtering
+logical            :: use_cx, use_sputtering
 
 type(projection), target                          :: jorek_feedback, project_density
 type(jorek_timestep_action), target               :: jorek_stepper
@@ -220,15 +225,16 @@ type(jorek_timestep_action), target               :: jorek_stepper
 real*8,allocatable :: feedback_rhs(:,:,:,:,:)
 real*8    :: oldtime, step_rest_time, particle_step_time, particle_start_time, diag_time
 real*8    :: rho_norm, t_norm, v_norm, E_norm, M_norm, N_norm, tstep_si
-real*8    :: kinetic_energy, ion_energy
+real*8    :: kinetic_energy, ion_energy,
 real*8    :: n_lost_ion, n_lost_ion_all
 !$ real*8 :: w0, w1, mmm(3)
 integer   :: i, j, k, l, m, n_steps, i_elm_old
 integer   :: seed, i_rng, n_stream, ierr, nthreads, myid
-real*8    :: ion_rate, ion_source, ion_prob, ion_ran(1), cx_ran(7), cx_source, cx_energy 
+real*8    :: ion_rate, ion_source, ion_prob, ion_rec_ran(2), cx_ran(7), cx_source, cx_energy
+real*8    :: rec_rate, rec_source, dEion_dT, Z_imp, Z_eff, N_imp, Lrad, rad_sink
 real*8    :: cx_prob, CX_rate
 real*8    :: particle_source, velocity_par_source, energy_source
-real*8    :: v_temp(3), T_eV, K_eV, v_kin_temp, B_norm(3), v, v_v, v_E
+real*8    :: v_temp(3), T_eV, K_eV, v_kin_temp, B_norm(3), v_1, v_2, v_3, v_4
 real*8    :: density_tot, density_in, density_out,  pressure, pressure_in, pressure_out
 real*8    :: mom_par_tot, mom_par_in, mom_par_out, kin_par_tot, kin_par_out, kin_par_in
 real*8    :: particles_remaining, momentum_remaining, energy_remaining, all_particles, all_momentum, all_energy
@@ -237,8 +243,16 @@ n_norm   = CENTRAL_DENSITY * 1.d20                              ! (number) densi
 rho_norm = CENTRAL_MASS * MASS_PROTON * n_norm                  ! rho_SI = rho_norm * rho
 t_norm   = sqrt((MU_ZERO * rho_norm))                           ! t_SI   = t_norm * t_jorek
 v_norm   = 1.d0 / t_norm                                        ! V_SI   = v_norm * v_jorek
-E_norm   = 1.5d0 / MU_ZERO                                      ! E_SI   = E_norm * E_jorek
+E_norm   = 1.d0 / (MU_ZERO * (GAMMA-1.)）                       ! E_SI   = E_norm * E_jorek
 M_norm   = rho_norm * v_norm                                    ! momentum normalisation
+
+particle_source = 0.0
+velocity_par_source = 0.0
+energy_source = 0.0
+dEion_dT = 0.0
+Z_imp    = 0.0; Z_eff = 0.0; N_imp = 0.0
+
+v_1 = 0.0; v_2 = 0.0; v_3 = 0.0; v_4
 
 if (sim%my_id .eq. 0) then
   if (use_cx) then
@@ -325,12 +339,13 @@ do while (.not. sim%stop_now)
     !$omp shared(sim, particles, n_particles, n_steps, timesteps, rng, particle_start_time, &
 #endif
     !$omp rho_norm, t_norm, v_norm, E_norm, M_norm, N_norm, &
-    !$omp use_cx, use_ionisation, use_sputtering,           &
+    !$omp use_cx, use_sputtering,                           &
     !$omp CENTRAL_DENSITY, CENTRAL_MASS)                    &
-    !$omp private(i_rng, i,j,k,l,m, t, E, B, psi, U, rz_old, st_old,                        &
-    !$omp i_elm_old, n_e, T_e, ion_rate, ion_prob, ion_ran, ion_source, ion_energy, kinetic_energy,& 
+    !$omp private(i_rng, i,j,k,l,m, t, E, B, psi, U, rz_old, st_old, n_imp,                   &
+    !$omp i_elm_old, n_rho, T_e, ion_rate, ion_prob, ion_source, ion_energy, kinetic_energy,& 
+    !$omp rec_rate, rec_source, dEion_dt, ion_rec_ran, Z_imp, Z_eff, N_imp, Lrad, rad_sink, & 
     !$omp R_g, R_s, R_t, Z_g, Z_s, Z_t, xjac, HH, HH_s, HH_t, HZ, index_lm,                 &
-    !$omp ifail, CX_rate, CX_prob, CX_source, CX_energy, v, v_E, v_v,                       &
+    !$omp ifail, CX_rate, CX_prob, CX_source, CX_energy, v_1, v_2, v_3, v_4,                &
     !$omp particle_source, velocity_par_source, energy_source, v_temp, K_eV, T_eV, cx_ran)  &
     !$omp reduction(+:feedback_rhs)
     do j=1,size(particles,1)
@@ -349,41 +364,67 @@ do while (.not. sim%stop_now)
         st_old    = particles(j)%st
         i_elm_old = particles(j)%i_elm
 
-        call sim%fields%calc_NeTe(t, particles(j)%i_elm, particles(j)%st, particles(j)%x(3), n_e, T_e)
+        call sim%fields%calc_NeTe(t, particles(j)%i_elm, particles(j)%st, particles(j)%x(3), n_rho, T_e)
 
         ion_source = 0.d0
         ion_energy = 0.d0
 
-        if (use_ionisation) then
-       
-          call sim%groups(1)%ad%SCD%interp(int(particles(j)%q), log10(n_e), log10(T_e), ion_rate) ! [m^3/s]
-        
-          ion_prob = 1.d0 - exp(-ion_rate * n_e * timesteps) ! [0] poisson point process, exponential 
+        ! Do the time average of the the impurity number density as well as average charge
+        Z_imp = real(particles(j)%weight,8) * real(particles(j)%q,8) * timesteps
+        Z_eff = real(particles(j)%weight,8) * real(particles(j)%q,8)**2 * timesteps
+        N_imp = real(particles(j)%weight,8) * timesteps 
 
-          ! If the weight is to small throw away the particle with the probability, else reduce weight with ionising probability
-          ion_source = 0.d0
+        ! Do the particle radiation
+        ! We take away the n_rho here since it is not really the electron density
+        Lrad = proj_Lz(sim ,1, particles(j)) / n_rho
+        rad_sink = real(particles(j)%weight,8) * Lrad * timesteps 
 
-          if (particles(j)%weight .le. 1.0d7) then
+        ! Do the ionization and recombination
+        select case(particles(j)%q)
+        case(0)
+          call sim%groups(1)%ad%SCD%interp_linear(int(particles(j)%q), log10(n_rho), log10(T_e), ion_rate) ! [m^3/s]
+          rec_rate = 0.
+        case(sim%groups(1)%ad%n_Z)
+          call sim%groups(1)%ad%ACD%interp_linear(int(particles(j)%q), log10(n_rho), log10(T_e), rec_rate) ! [m^3/s]
+          ion_rate = 0.
+        case default             
+          call sim%groups(1)%ad%SCD%interp_linear(int(particles(j)%q), log10(n_rho), log10(T_e), ion_rate) ! [m^3/s]
+          call sim%groups(1)%ad%ACD%interp_linear(int(particles(j)%q), log10(n_rho), log10(T_e), rec_rate) ! [m^3/s]
+        end select
 
-            call rng(i_rng)%next(ion_ran)
+        ion_prob = 1.d0 - exp(-(ion_rate+rec_rate) * n_rho * timesteps) ! [0] poisson point process, exponential 
 
-            if (ion_ran(1) .le. ion_prob) then
-              particles(j)%i_elm  = 0
-              ion_source = particles(j)%weight
+        ! If the weight is small ionize the particle with the probability, else stop the code
+
+        if (particles(j)%weight .le. 1.0d7) then
+
+          call rng(i_rng)%next(ion_rec_ran)
+
+          ! Take ionization energy from the electron when ionizing, give the ionization energy back to be
+          ! cancelled with the recombination radiation power density to avoid double counting.
+          if (ion_rec_ran(1) .le. ion_prob) then
+            if ((ion_rec_ran(2) .le. (ion_rate/(ion_rate+rec_rate))) .and. (ion_rec_ran(2) .ne. 0.d0)) then
+              particles(j)%q  = particles(j)%q + 1
+              ion_source = real(particles(j)%weight,8)
+              dEion_dt = real(particles(j)%weight,8) * sim%groups(1)%ad%ionisation_energy(int(particles(j)%q))
             else
-              ion_source = 0.d0
+              particles(j)%q  = particles(j)%q - 1
+              rec_source = real(particles(j)%weight,8)
+              dEion_dt = -real(particles(j)%weight,8) * sim%groups(1)%ad%ionisation_energy(int(particles(j)%q)-1)
             endif
+          endif
+          
+          dEion_dt = dEion_dt * EL_CHG ! Convert from eV to Joule
 
-          else 
-            ion_source = particles(j)%weight * ion_prob
-            particles(j)%weight = particles(j)%weight * (1.d0 - ion_prob)
-          endif 
+        else 
+          write(*,*) "The particle weight is too large! Not supported for now, EXITING!!!"
+          stop
+        endif 
 
-          kinetic_energy = dot_product(particles(j)%v,particles(j)%v) *sim%groups(1)%mass * ATOMIC_MASS_UNIT /2.d0
+        kinetic_energy = dot_product(particles(j)%v,particles(j)%v) *sim%groups(1)%mass * ATOMIC_MASS_UNIT /2.d0
 
-          ion_energy     = kinetic_energy !- binding_energy
+        ion_energy     = kinetic_energy !- binding_energy
 
-        endif ! use_ionisation
 
         ! Charge Exchange
         ! It is assumed that we will have a exchange between hydrogen isotopes
@@ -394,9 +435,9 @@ do while (.not. sim%stop_now)
 
         if (use_cx) then
   
-          call sim%groups(1)%ad%CCD%interp(int(particles(j)%q+1), log10(n_e), log10(T_e), CX_rate) ! [m^3/s]
+          call sim%groups(1)%ad%CCD%interp(int(particles(j)%q+1), log10(n_rho), log10(T_e), CX_rate) ! [m^3/s]
 
-          CX_prob = 1.d0 - exp(-CX_rate * n_e * timesteps)
+          CX_prob = 1.d0 - exp(-CX_rate * n_rho * timesteps)
 
           call rng(i_rng)%next(cx_ran)
  
@@ -420,14 +461,16 @@ do while (.not. sim%stop_now)
 
         endif
 
-        energy_source       = ion_source * ion_energy + cx_source * cx_energy
+        if (use_ncs) then
+          energy_source       = ion_source * ion_energy + cx_source * cx_energy
 
-        particle_source     = ion_source * sim%groups(1)%mass * ATOMIC_MASS_UNIT
+          particle_source     = (ion_source - rec_source) * sim%groups(1)%mass * ATOMIC_MASS_UNIT
        
-        velocity_par_source = ion_source * dot_product(B, particles(j)%v)          * sim%groups(1)%mass * ATOMIC_MASS_UNIT &
+          velocity_par_source = ion_source * dot_product(B, particles(j)%v)          * sim%groups(1)%mass * ATOMIC_MASS_UNIT &
                             
-                            + CX_source  * dot_product(B, particles(j)%v - v_temp) * sim%groups(1)%mass * ATOMIC_MASS_UNIT 
-                               
+                              + CX_source  * dot_product(B, particles(j)%v - v_temp) * sim%groups(1)%mass * ATOMIC_MASS_UNIT 
+        endif        
+      
         particles(j)%v = v_temp 
 
         ! Calculate the projection of the ion source in real-time
@@ -440,14 +483,24 @@ do while (.not. sim%stop_now)
 
             index_lm = (l-1)*(n_order+1) + m
 
-            v   = HH(l,m) * sim%fields%element_list%element(i_elm_old)%size(l,m) * particle_source     * t_norm / rho_norm
-            v_E = HH(l,m) * sim%fields%element_list%element(i_elm_old)%size(l,m) * energy_source       * t_norm / E_norm
-            v_v = HH(l,m) * sim%fields%element_list%element(i_elm_old)%size(l,m) * velocity_par_source * t_norm / m_norm
-        
+            if (use_ncs) then
+              v_1 = HH(l,m) * sim%fields%element_list%element(i_elm_old)%size(l,m) * particle_source     * t_norm / rho_norm
+              v_2 = HH(l,m) * sim%fields%element_list%element(i_elm_old)%size(l,m) * energy_source       * t_norm / E_norm
+              v_3 = HH(l,m) * sim%fields%element_list%element(i_elm_old)%size(l,m) * velocity_par_source * t_norm / m_norm
+            else if (use_marker) then
+              v_1 = HH(l,m) * sim%fields%element_list%element(i_elm_old)%size(l,m) * dEion_dt * t_norm * / E_norm
+              v_2 = HH(l,m) * sim%fields%element_list%element(i_elm_old)%size(l,m) * rad_sink * t_norm * n_norm / E_norm
+              v_3 = HH(l,m) * sim%fields%element_list%element(i_elm_old)%size(l,m) * Z_eff / n_norm
+              v_4 = HH(l,m) * sim%fields%element_list%element(i_elm_old)%size(l,m) * Z_imp / n_norm
+              v_5 = HH(l,m) * sim%fields%element_list%element(i_elm_old)%size(l,m) * N_imp / n_norm
+            endif
+
             do i_tor=1,n_tor
-              feedback_rhs(m,l,i_elm_old,i_tor,1) = feedback_rhs(m,l,i_elm_old,i_tor,1) + HZ(i_tor) * v
-              feedback_rhs(m,l,i_elm_old,i_tor,2) = feedback_rhs(m,l,i_elm_old,i_tor,2) + HZ(i_tor) * v_E
-              feedback_rhs(m,l,i_elm_old,i_tor,3) = feedback_rhs(m,l,i_elm_old,i_tor,3) + HZ(i_tor) * v_v
+              feedback_rhs(m,l,i_elm_old,i_tor,1) = feedback_rhs(m,l,i_elm_old,i_tor,1) + HZ(i_tor) * v_1
+              feedback_rhs(m,l,i_elm_old,i_tor,2) = feedback_rhs(m,l,i_elm_old,i_tor,2) + HZ(i_tor) * v_2
+              feedback_rhs(m,l,i_elm_old,i_tor,3) = feedback_rhs(m,l,i_elm_old,i_tor,3) + HZ(i_tor) * v_3
+              feedback_rhs(m,l,i_elm_old,i_tor,4) = feedback_rhs(m,l,i_elm_old,i_tor,4) + HZ(i_tor) * v_4
+              feedback_rhs(m,l,i_elm_old,i_tor,5) = feedback_rhs(m,l,i_elm_old,i_tor,5) + HZ(i_tor) * v_5
             enddo
 
           enddo
@@ -471,11 +524,39 @@ do while (.not. sim%stop_now)
     write(*,*) 'GATHER TIME : ',jorek_feedback%rhs_gather_time
     jorek_feedback%rhs = feedback_rhs / jorek_feedback%rhs_gather_time !* TWOPI
     jorek_feedback%rhs_gather_time = 0.d0
+  else if (use_marker) then
+    write(*,*) 'GATHER TIME : ',jorek_feedback%rhs_gather_time
+    jorek_feedback%rhs(:,:,:,:,1) = feedback_rhs(:,:,:,:,1) / jorek_feedback%rhs_gather_time
+    jorek_feedback%rhs(:,:,:,:,2) = feedback_rhs(:,:,:,:,2) / jorek_feedback%rhs_gather_time
+    jorek_feedback%rhs(:,:,:,:,3) = feedback_rhs(:,:,:,:,3) / (feedback_rhs(:,:,:,:,5) + jorek_feedback%rhs_gather_time) !  In case of feedback_rhs(:,:,:,:,4) == 0
+    jorek_feedback%rhs(:,:,:,:,4) = feedback_rhs(:,:,:,:,4) / (feedback_rhs(:,:,:,:,5) + jorek_feedback%rhs_gather_time) !  In case of feedback_rhs(:,:,:,:,4) == 0
+    jorek_feedback%rhs(:,:,:,:,4) = feedback_rhs(:,:,:,:,5) / jorek_feedback%rhs_gather_time
   else
     jorek_feedback%rhs = feedback_rhs 
   endif
 
   deallocate(feedback_rhs)
+
+  if (minval(jorek_feedback%rhs(:,:,:,:,2)) < 0.0) then
+    write "SOMETHING WRONG in rad feedbacks,", minval(jorek_feedback%rhs(:,:,:,:,2)
+    stop
+  endif
+
+  if ((maxval(jorek_feedback%rhs(:,:,:,:,4)) > real(sim%groups(1)%ad%n_Z,8)) .or. &
+        (minval(jorek_feedback%rhs(:,:,:,:,4)) < 0.0)) then
+    write "SOMETHING WRONG in mean charge feedbacks,", maxval(jorek_feedback%rhs(:,:,:,:,3), minval(jorek_feedback%rhs(:,:,:,:,3)
+    stop
+  endif
+
+  if (minval(jorek_feedback%rhs(:,:,:,:,3)) < 0.0) then
+    write "SOMETHING WRONG in effective charge feedbacks,", minval(jorek_feedback%rhs(:,:,:,:,4)
+    stop
+  endif
+
+  if (minval(jorek_feedback%rhs(:,:,:,:,5)) < 0.0) then
+    write "SOMETHING WRONG in density feedbacks,", minval(jorek_feedback%rhs(:,:,:,:,4)
+    stop
+  endif
 
   call MPI_REDUCE(n_lost_ion, n_lost_ion_all, 1, MPI_INTEGER, MPI_SUM, 0, MPI_COMM_WORLD, ierr)
   
