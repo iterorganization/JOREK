@@ -193,8 +193,6 @@ select case ( trim(gas_type) )
   case('Ne')
     m_i_over_m_imp = central_mass/20. ! Neon mass = 20 u and main ion (D) mass = 2 u
   case default
-    write(*,*) '!! Gas type "', trim(gas_type), '" unknown (in inj_source.f90) !!'
-    write(*,*) '=> We assume the gas is D2.'
     m_i_over_m_imp = central_mass/2.
 end select
 

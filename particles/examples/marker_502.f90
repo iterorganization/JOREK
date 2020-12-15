@@ -15,7 +15,7 @@ use mod_basisfunctions
 use nodes_elements
 use phys_module, only: n_particles, nstep_particles, nsubstep_particles, tstep_particles, use_ncs, use_pcs, use_ccs
 use phys_module, only: filter_perp, filter_hyper, filter_par, filter_perp_n0, filter_hyper_n0, filter_par_n0
-use phys_module, only: tstep, gas_type, imp_adas, use_marker
+use phys_module, only: tstep, gas_type, imp_adas, imp_cor, use_marker
 use phys_module, only: CENTRAL_MASS, CENTRAL_DENSITY
 use constants,   only: MU_ZERO, MASS_PROTON, ATOMIC_MASS_UNIT, K_BOLTZ, EL_CHG
 
@@ -40,7 +40,7 @@ type(edge_elements)                               :: D_edge
 
 
 real*8    :: timesteps, tstep_si, t_norm, rho_norm, n_norm
-real*8    :: target_time, t, E(3), B(3), psi, U, n_rho, n_imp, T_e, rz_old(2), st_old(2)
+real*8    :: target_time, t, E(3), B(3), psi, U, n_rho, T_e, rz_old(2), st_old(2)
 real*8    :: diag_time 
 real*8    :: temp(3), T_eV, K_eV, v_kin_temp, B_norm(3)
 real*8    :: physical_particles, weight
@@ -208,7 +208,7 @@ use mod_interp, only: mode_moivre, interp_RZ
 use mod_jorek_timestepping
 use mod_basisfunctions
 use phys_module, only: tstep, use_ncs, use_pcs, use_ccs, use_marker
-use phys_module, only: CENTRAL_MASS, CENTRAL_DENSITY
+use phys_module, only: CENTRAL_MASS, CENTRAL_DENSITY, GAMMA
 use constants,   only: MU_ZERO, MASS_PROTON, ATOMIC_MASS_UNIT, K_BOLTZ, EL_CHG
 use mod_integrals3D, only: int3d_new
 use mod_radiation, only: proj_Lz
@@ -225,7 +225,7 @@ type(jorek_timestep_action), target               :: jorek_stepper
 real*8,allocatable :: feedback_rhs(:,:,:,:,:)
 real*8    :: oldtime, step_rest_time, particle_step_time, particle_start_time, diag_time
 real*8    :: rho_norm, t_norm, v_norm, E_norm, M_norm, N_norm, tstep_si
-real*8    :: kinetic_energy, ion_energy,
+real*8    :: kinetic_energy, ion_energy
 real*8    :: n_lost_ion, n_lost_ion_all
 !$ real*8 :: w0, w1, mmm(3)
 integer   :: i, j, k, l, m, n_steps, i_elm_old
@@ -234,7 +234,7 @@ real*8    :: ion_rate, ion_source, ion_prob, ion_rec_ran(2), cx_ran(7), cx_sourc
 real*8    :: rec_rate, rec_source, dEion_dT, Z_imp, Z_eff, N_imp, Lrad, rad_sink
 real*8    :: cx_prob, CX_rate
 real*8    :: particle_source, velocity_par_source, energy_source
-real*8    :: v_temp(3), T_eV, K_eV, v_kin_temp, B_norm(3), v_1, v_2, v_3, v_4
+real*8    :: v_temp(3), T_eV, K_eV, v_kin_temp, B_norm(3), v_1, v_2, v_3, v_4, v_5
 real*8    :: density_tot, density_in, density_out,  pressure, pressure_in, pressure_out
 real*8    :: mom_par_tot, mom_par_in, mom_par_out, kin_par_tot, kin_par_out, kin_par_in
 real*8    :: particles_remaining, momentum_remaining, energy_remaining, all_particles, all_momentum, all_energy
@@ -243,7 +243,7 @@ n_norm   = CENTRAL_DENSITY * 1.d20                              ! (number) densi
 rho_norm = CENTRAL_MASS * MASS_PROTON * n_norm                  ! rho_SI = rho_norm * rho
 t_norm   = sqrt((MU_ZERO * rho_norm))                           ! t_SI   = t_norm * t_jorek
 v_norm   = 1.d0 / t_norm                                        ! V_SI   = v_norm * v_jorek
-E_norm   = 1.d0 / (MU_ZERO * (GAMMA-1.)）                       ! E_SI   = E_norm * E_jorek
+E_norm   = 1.d0 / (MU_ZERO * (GAMMA-1.))                       ! E_SI   = E_norm * E_jorek
 M_norm   = rho_norm * v_norm                                    ! momentum normalisation
 
 particle_source = 0.0
@@ -252,7 +252,7 @@ energy_source = 0.0
 dEion_dT = 0.0
 Z_imp    = 0.0; Z_eff = 0.0; N_imp = 0.0
 
-v_1 = 0.0; v_2 = 0.0; v_3 = 0.0; v_4
+v_1 = 0.0; v_2 = 0.0; v_3 = 0.0; v_4 = 0.0; v_5 = 0.0
 
 if (sim%my_id .eq. 0) then
   if (use_cx) then
@@ -341,11 +341,11 @@ do while (.not. sim%stop_now)
     !$omp rho_norm, t_norm, v_norm, E_norm, M_norm, N_norm, &
     !$omp use_cx, use_sputtering,                           &
     !$omp CENTRAL_DENSITY, CENTRAL_MASS)                    &
-    !$omp private(i_rng, i,j,k,l,m, t, E, B, psi, U, rz_old, st_old, n_imp,                   &
+    !$omp private(i_rng, i,j,k,l,m, t, E, B, psi, U, rz_old, st_old,                        &
     !$omp i_elm_old, n_rho, T_e, ion_rate, ion_prob, ion_source, ion_energy, kinetic_energy,& 
     !$omp rec_rate, rec_source, dEion_dt, ion_rec_ran, Z_imp, Z_eff, N_imp, Lrad, rad_sink, & 
     !$omp R_g, R_s, R_t, Z_g, Z_s, Z_t, xjac, HH, HH_s, HH_t, HZ, index_lm,                 &
-    !$omp ifail, CX_rate, CX_prob, CX_source, CX_energy, v_1, v_2, v_3, v_4,                &
+    !$omp ifail, CX_rate, CX_prob, CX_source, CX_energy, v_1, v_2, v_3, v_4, v_5,           &
     !$omp particle_source, velocity_par_source, energy_source, v_temp, K_eV, T_eV, cx_ran)  &
     !$omp reduction(+:feedback_rhs)
     do j=1,size(particles,1)
@@ -380,17 +380,16 @@ do while (.not. sim%stop_now)
         rad_sink = real(particles(j)%weight,8) * Lrad * timesteps 
 
         ! Do the ionization and recombination
-        select case(particles(j)%q)
-        case(0)
+        if (particles(j)%q .eq. 0) then
           call sim%groups(1)%ad%SCD%interp_linear(int(particles(j)%q), log10(n_rho), log10(T_e), ion_rate) ! [m^3/s]
           rec_rate = 0.
-        case(sim%groups(1)%ad%n_Z)
+        elseif(particles(j)%q .eq. sim%groups(1)%ad%n_Z) then
           call sim%groups(1)%ad%ACD%interp_linear(int(particles(j)%q), log10(n_rho), log10(T_e), rec_rate) ! [m^3/s]
           ion_rate = 0.
-        case default             
+        else             
           call sim%groups(1)%ad%SCD%interp_linear(int(particles(j)%q), log10(n_rho), log10(T_e), ion_rate) ! [m^3/s]
           call sim%groups(1)%ad%ACD%interp_linear(int(particles(j)%q), log10(n_rho), log10(T_e), rec_rate) ! [m^3/s]
-        end select
+        endif
 
         ion_prob = 1.d0 - exp(-(ion_rate+rec_rate) * n_rho * timesteps) ! [0] poisson point process, exponential 
 
@@ -488,7 +487,7 @@ do while (.not. sim%stop_now)
               v_2 = HH(l,m) * sim%fields%element_list%element(i_elm_old)%size(l,m) * energy_source       * t_norm / E_norm
               v_3 = HH(l,m) * sim%fields%element_list%element(i_elm_old)%size(l,m) * velocity_par_source * t_norm / m_norm
             else if (use_marker) then
-              v_1 = HH(l,m) * sim%fields%element_list%element(i_elm_old)%size(l,m) * dEion_dt * t_norm * / E_norm
+              v_1 = HH(l,m) * sim%fields%element_list%element(i_elm_old)%size(l,m) * dEion_dt * t_norm / E_norm
               v_2 = HH(l,m) * sim%fields%element_list%element(i_elm_old)%size(l,m) * rad_sink * t_norm * n_norm / E_norm
               v_3 = HH(l,m) * sim%fields%element_list%element(i_elm_old)%size(l,m) * Z_eff / n_norm
               v_4 = HH(l,m) * sim%fields%element_list%element(i_elm_old)%size(l,m) * Z_imp / n_norm
@@ -538,23 +537,23 @@ do while (.not. sim%stop_now)
   deallocate(feedback_rhs)
 
   if (minval(jorek_feedback%rhs(:,:,:,:,2)) < 0.0) then
-    write "SOMETHING WRONG in rad feedbacks,", minval(jorek_feedback%rhs(:,:,:,:,2)
+    write(*,*) "SOMETHING WRONG in rad feedbacks,", minval(jorek_feedback%rhs(:,:,:,:,2))
     stop
   endif
 
   if ((maxval(jorek_feedback%rhs(:,:,:,:,4)) > real(sim%groups(1)%ad%n_Z,8)) .or. &
         (minval(jorek_feedback%rhs(:,:,:,:,4)) < 0.0)) then
-    write "SOMETHING WRONG in mean charge feedbacks,", maxval(jorek_feedback%rhs(:,:,:,:,3), minval(jorek_feedback%rhs(:,:,:,:,3)
+    write(*,*) "SOMETHING WRONG in mean charge feedbacks,", maxval(jorek_feedback%rhs(:,:,:,:,3)), minval(jorek_feedback%rhs(:,:,:,:,3))
     stop
   endif
 
   if (minval(jorek_feedback%rhs(:,:,:,:,3)) < 0.0) then
-    write "SOMETHING WRONG in effective charge feedbacks,", minval(jorek_feedback%rhs(:,:,:,:,4)
+    write(*,*) "SOMETHING WRONG in effective charge feedbacks,", minval(jorek_feedback%rhs(:,:,:,:,4))
     stop
   endif
 
   if (minval(jorek_feedback%rhs(:,:,:,:,5)) < 0.0) then
-    write "SOMETHING WRONG in density feedbacks,", minval(jorek_feedback%rhs(:,:,:,:,4)
+    write(*,*) "SOMETHING WRONG in density feedbacks,", minval(jorek_feedback%rhs(:,:,:,:,4))
     stop
   endif
 
