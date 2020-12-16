@@ -339,7 +339,7 @@ do while (.not. sim%stop_now)
     !$omp shared(sim, particles, n_particles, n_steps, timesteps, rng, particle_start_time, &
 #endif
     !$omp rho_norm, t_norm, v_norm, E_norm, M_norm, N_norm, &
-    !$omp use_cx, use_sputtering,                           &
+    !$omp use_cx, use_sputtering, use_ncs, use_marker,      &
     !$omp CENTRAL_DENSITY, CENTRAL_MASS)                    &
     !$omp private(i_rng, i,j,k,l,m, t, E, B, psi, U, rz_old, st_old,                        &
     !$omp i_elm_old, n_rho, T_e, ion_rate, ion_prob, ion_source, ion_energy, kinetic_energy,& 
@@ -405,11 +405,11 @@ do while (.not. sim%stop_now)
             if ((ion_rec_ran(2) .le. (ion_rate/(ion_rate+rec_rate))) .and. (ion_rec_ran(2) .ne. 0.d0)) then
               particles(j)%q  = particles(j)%q + 1
               ion_source = real(particles(j)%weight,8)
-              dEion_dt = real(particles(j)%weight,8) * sim%groups(1)%ad%ionisation_energy(int(particles(j)%q))
+              dEion_dt = ion_source * sim%groups(1)%ad%ionisation_energy(int(particles(j)%q))
             else
               particles(j)%q  = particles(j)%q - 1
               rec_source = real(particles(j)%weight,8)
-              dEion_dt = -real(particles(j)%weight,8) * sim%groups(1)%ad%ionisation_energy(int(particles(j)%q)-1)
+              dEion_dt = -rec_source * sim%groups(1)%ad%ionisation_energy(int(particles(j)%q+1))
             endif
           endif
           
@@ -529,7 +529,7 @@ do while (.not. sim%stop_now)
     jorek_feedback%rhs(:,:,:,:,2) = feedback_rhs(:,:,:,:,2) / jorek_feedback%rhs_gather_time
     jorek_feedback%rhs(:,:,:,:,3) = feedback_rhs(:,:,:,:,3) / (feedback_rhs(:,:,:,:,5) + jorek_feedback%rhs_gather_time) !  In case of feedback_rhs(:,:,:,:,4) == 0
     jorek_feedback%rhs(:,:,:,:,4) = feedback_rhs(:,:,:,:,4) / (feedback_rhs(:,:,:,:,5) + jorek_feedback%rhs_gather_time) !  In case of feedback_rhs(:,:,:,:,4) == 0
-    jorek_feedback%rhs(:,:,:,:,4) = feedback_rhs(:,:,:,:,5) / jorek_feedback%rhs_gather_time
+    jorek_feedback%rhs(:,:,:,:,5) = feedback_rhs(:,:,:,:,5) / jorek_feedback%rhs_gather_time
   else
     jorek_feedback%rhs = feedback_rhs 
   endif
