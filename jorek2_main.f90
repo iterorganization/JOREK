@@ -275,6 +275,11 @@ required = 0
   call init_imp_adas(my_id)
 #endif
   
+  ! --- Initialize time-traces of radiation and ionization energy/power
+#if (JOREK_MODEL == 500)
+  call init_xtime_rad_ionization(my_id)
+#endif
+
   ! --- Write out all parameters defined in parameters and the namelist input file.
   call log_parameters(my_id)
  
@@ -1494,7 +1499,7 @@ required = 0
 
     	  call density(    xpoint,xcase, Zp, ES%Z_xpoint, psi,ES%psi_axis,ES%psi_bnd,	       &
     	     zn,dn_dpsi,dn_dz,dn_dpsi2,dn_dz2,dn_dpsi_dz,dn_dpsi3,dn_dpsi_dz2,dn_dpsi2_dz)
-    	  if (jorek_model .eq. 400 .or. jorek_model .eq. 502) then	     
+    	  if ( (jorek_model .eq. 400) .or. (jorek_model .eq. 502) .or. (jorek_model .eq. 711) ) then	     
     	    call temperature_i(xpoint,xcase, Zp, ES%Z_xpoint, psi,ES%psi_axis,ES%psi_bnd, &
     	      zTi,dTi_dpsi,dTi_dz,dTi_dpsi2,dTi_dz2,dTi_dpsi_dz,dTi_dpsi3,dTi_dpsi_dz2,dTi_dpsi2_dz)			   
     	    call temperature_e(xpoint,xcase, Zp, ES%Z_xpoint, psi,ES%psi_axis,ES%psi_bnd, &

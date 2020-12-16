@@ -151,6 +151,9 @@ DEFINES += -DJOREK_MODEL=$(MODEL_NUMBER) -DUSE_MPI
 ifeq (model710, $(MODEL))
   DEFINES  := $(DEFINES) -Dfullmhd
 endif
+ifeq (model711, $(MODEL))
+  DEFINES  := $(DEFINES) -Dfullmhd
+endif
 
 ifeq (1, $(USE_FFTW))
   LIBS     := $(LIBS) $(LIBFFTW)

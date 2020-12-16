@@ -38,6 +38,10 @@ module phys_module
   logical :: renormalise          !< Set true to give all input MHD parameters in S.I. units (ie. renormalise them before equations)
   real*8  :: gamma_sheath         !< sheath boundary condition on open fieldlines (JOREK units); you can also provide gamma_stangeby in normal units instead!
   real*8  :: gamma_stangeby       !< Sheath tranmission coefficient given by P. Stangeby in (The plasma boundary of magnetic fusion devices)
+  real*8  :: gamma_sheath_e       !< sheath boundary condition on open fieldlines (JOREK units); you can also provide gamma_stangeby in normal units instead!
+  real*8  :: gamma_e_stangeby     !< Sheath tranmission coefficient given by P. Stangeby in (The plasma boundary of magnetic fusion devices)
+  real*8  :: gamma_sheath_i       !< sheath boundary condition on open fieldlines (JOREK units); you can also provide gamma_stangeby in normal units instead!
+  real*8  :: gamma_i_stangeby     !< Sheath tranmission coefficient given by P. Stangeby in (The plasma boundary of magnetic fusion devices)
   real*8  :: density_reflection   !< density reflection coeefficient on open fieldlines
   real*8  :: neutral_reflection   !< reflection coefficient of ions into neutrals (model500)
   real*8  :: imp_reflection       !< impurity reflection coefficient on open fieldlines
@@ -175,6 +179,8 @@ module phys_module
   real*8  :: heatsource_gauss          !< Additional Gaussian heat source amplitude
   real*8  :: heatsource_gauss_psin     !< Position around which Gaussian source is located
   real*8  :: heatsource_gauss_sig      !< Width over which Gaussian source extends
+  real*8  :: heatsource_gauss_i        !< Additional Gaussian heat source amplitude
+  real*8  :: heatsource_gauss_e        !< Additional Gaussian heat source amplitude
   
   !> @name Hyper-resistivity, -viscosity and -diffusivities
   real*8  :: eta_num, visco_num, visco_par_num, D_perp_num, Zk_perp_num, Dn_perp_num
@@ -328,7 +334,6 @@ module phys_module
 
   character(len=256) :: spi_shard_file !< The name of the shard size file
 
-  logical :: output_rad_phi     !< Output the radiation asymmetry into a file using integrals_3D
   integer :: n_adas             !< Number of species to be traced by ADAS, for future development only
 
   logical :: spi_tor_rot        !< Flag to turn on a rigid body toroidal plasma rotation for SPI
@@ -339,6 +344,8 @@ module phys_module
   type (adf11_all), allocatable :: imp_adas(:) !< The ADAS data for impurities
   type (coronal), allocatable   :: imp_cor(:)  !< The coronal equilibrium distribution of impurities
 
+  logical :: output_prad_phi    !< Output Prad(phi) into a file using integrals_3D
+  
   !> @name Fix boundary equilibrium parameters
   real*8  :: amix              !< Mix Poisson solution with previous one with a given factor
   real*8  :: equil_accuracy    !< Tolerance of the convergence for the fix-boundary equilibrium

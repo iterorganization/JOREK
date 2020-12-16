@@ -1,0 +1,110 @@
+&in1
+
+ ! --------------
+ ! --- Time steps
+ restart = .f.
+ tstep_n = 1.d-3, 1.d-2, 1.d-1, 1.d0, 2.d0 ! note: keep going with tstep=2 after that to get ballooning mode, eg. n=6
+ nstep_n = 10,    10,    10,    10,   10
+ nout    = 10
+ time_evol_scheme = 'Gears' 
+ 
+ ! ---------------
+ ! --- Equilibrium
+ F0    = 3.0
+ amin  = 1.
+ R_geo = 3.0
+ Z_geo = 0.
+
+ FF_0        = 1.6
+ FF_1        = 0.
+ FF_coef(1)  = -1.0
+ FF_coef(2)  = 0.0
+ FF_coef(3)  = 0.0857
+ FF_coef(4)  = 0.00001
+ FF_coef(5)  = 1.0
+ FF_coef(6)  = -0.254
+ FF_coef(7)  = 0.880
+ FF_coef(8)  = 0.058
+ FF_coef(9)  = 1.d0
+
+ T_0         = 3.0d-2
+ T_1         = 3.0d-4
+ T_coef(1)   = -0.66d0
+ T_coef(2)   = +0.0d0
+ T_coef(3)   = 0.d0
+ T_coef(4)   = 0.08d0
+ T_coef(5)   = 0.94d0
+             
+ rho_0       = 1.
+ rho_1       = 0.01
+ rho_coef(1) =  0.0
+ rho_coef(2) =  0.0
+ rho_coef(3) =  0.0
+ rho_coef(4) =  0.08
+ rho_coef(5) =  0.94d0
+
+ ! ------------------
+ ! --- GS psi-contour
+ ellip  = 1.7
+ tria_u = 0.
+ tria_l = 0.
+ quad_u = -0.
+ quad_l = -0.4
+
+ xampl  = +0.22
+ xsig   = 0.6
+ xwidth = 1.5
+ xtheta = 4.7
+ xleft  = -0.01
+ xshift = 0.02
+ xpoint = .t.
+
+ R_begin = 2.9
+ R_end   = 3.1
+ Z_begin = -0.1
+ Z_end   = 0.1
+
+ fbnd(1)   = 2.
+ fbnd(2:4) = 0.
+ mf        = 0
+
+ ! --------
+ ! --- Grid
+ fix_axis_nodes = .t.
+ Mach1_openBC   = .f.
+
+ n_R       = 0
+ n_Z       = 0
+ n_radial  = 100
+ n_pol     = 150
+             
+ n_flux    =  80
+ n_tht     = 120
+ n_open    =   4
+ n_leg     =  15
+ n_private =  10
+
+ SIG_closed  = 0.025
+ SIG_open    = 0.05
+
+ dPSI_open    = 0.06
+ dPSI_private = 0.012
+
+ ! ---------------------
+ ! --- Diffusion/sources
+ eta_ARAZ_on = .f.
+ tauIC_ARAZ_on = .f.
+
+ eta   = 1.d-5
+ visco = 3.d-6
+
+ D_par     = 0.d0
+ D_perp(1) = 1.d-6
+
+ ZK_par     = 10.d0
+ ZK_perp(1) = 1.d-6
+
+ heatsource     = 0.d-7
+ particlesource = 0.d-6
+
+/

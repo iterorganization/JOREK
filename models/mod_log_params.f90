@@ -370,7 +370,7 @@ write(*,'(1x,a)',advance='no') ' USE_COMPLEX_PRECOND          : '
     write(*,CHAR_FMT) 'T_file                ', trim(T_file)
   end if
 
-  if ( jorek_model == 400 ) then
+  if ( (jorek_model .eq. 400) .or. (jorek_model .eq. 711) ) then
     write(*,REAL_FMT) 'Te_0                   ', Te_0
     write(*,REAL_FMT) 'Te_1                   ', Te_1
     write(*,REAL_FMT) 'Te_coef                ', Te_coef(1:5)
@@ -586,6 +586,12 @@ write(*,'(1x,a)',advance='no') ' USE_COMPLEX_PRECOND          : '
   write(*,REAL_FMT) 'central_mass          ', central_mass
   write(*,REAL_FMT) 'gamma_sheath          ', gamma_sheath
   write(*,REAL_FMT) 'gamma_stangeby        ', gamma_stangeby
+  write(*,REAL_FMT) 'gamma_sheath_e        ', gamma_sheath_e
+  write(*,REAL_FMT) 'gamma_sheath_i        ', gamma_sheath_i
+#if ( (JOREK_MODEL == 400) || (JOREK_MODEL == 711) )
+  write(*,REAL_FMT) 'gamma_i_stangeby      ', gamma_i_stangeby
+  write(*,REAL_FMT) 'gamma_e_stangeby      ', gamma_e_stangeby
+#endif
   write(*,LOGI_FMT) 'vpar_smoothing        ', vpar_smoothing
   if ( vpar_smoothing ) then
     write(*,REAL_FMT) 'vpar_smoothing_coef   ', vpar_smoothing_coef(:)
@@ -625,7 +631,7 @@ write(*,'(1x,a)',advance='no') ' USE_COMPLEX_PRECOND          : '
   write(*,LOGI_FMT) 'deuterium_adas        ', deuterium_adas       
   write(*,LOGI_FMT) 'old_deuterium_atomic  ', old_deuterium_atomic
 
-  if (jorek_model .eq. 710) then
+  if ( (jorek_model .eq. 710) .or. (jorek_model .eq. 711) ) then
     write(*,LOGI_FMT) 'Mach1_openBC          ', Mach1_openBC
     write(*,LOGI_FMT) 'eta_ARAZ_on           ', eta_ARAZ_on
     write(*,LOGI_FMT) 'tauIC_ARAZ_on         ', tauIC_ARAZ_on
@@ -714,6 +720,7 @@ write(*,'(1x,a)',advance='no') ' USE_COMPLEX_PRECOND          : '
      write(*,REAL_FMT) 'neutral_line_Z_end  ', neutral_line_Z_end
      write(*,REAL_FMT) 'neutral_reflection  ', neutral_reflection
      write(*,REAL_FMT) 'imp_reflection      ', imp_reflection
+     write(*,LOGI_FMT) 'output_prad_phi     ', output_prad_phi
 
      !< Additional log for SPI model
    if(using_spi) then

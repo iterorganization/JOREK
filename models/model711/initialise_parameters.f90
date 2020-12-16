@@ -42,14 +42,27 @@ namelist /in1/  tstep, nstep, tstep_n, nstep_n,                     &
                 R_boundary, Z_boundary, psi_boundary, n_boundary,   &
                 tokamak_device, manipulate_psi_map,                 &
                 F0, gamma, gamma_stangeby,                          &
+                gamma_sheath_i, gamma_sheath_e,                     &
                 zjz_0, zjz_1, zj_coef,                              &
                 rho_0, rho_1, rho_coef,                             &
                 T_0,   T_1,   T_coef, T_min,                        &
+                Ti_0,  Ti_1,  Ti_coef,                              &
+                Te_0,  Te_1,  Te_coef,                              &
                 FF_0,  FF_1,  FF_coef,                              &
                 V_0, V_1, V_coef,                                   &
-                ZK_par, ZK_perp, ZK_par_max, D_par, D_perp,         &
+                ZK_par, ZK_i_par, ZK_e_par, ZK_par_max,             &
+                ZK_perp, ZK_i_perp, ZK_e_perp, D_par, D_perp,       &
+                heatsource_e, heatsource_i,                         &
                 eta, visco, visco_par,                              &
                 eta_num, visco_num, visco_par_num, D_perp_num,      &
+                heatsource_psin, heatsource_sig,                    &
+                particlesource_psin, particlesource_sig,            &
+                edgeparticlesource, edgeparticlesource_psin,        &
+                edgeparticlesource_sig,                             &
+                particlesource_gauss, heatsource_gauss,             &
+                heatsource_gauss_i, heatsource_gauss_e,             &
+                heatsource_gauss_psin, heatsource_gauss_sig,        &
+                particlesource_gauss_psin, particlesource_gauss_sig,&
                 particlesource, heatsource, tauIC,                  &
                 pellet_amplitude, pellet_R, pellet_Z, pellet_phi,   &
                 pellet_radius, pellet_sig, pellet_length,           &
@@ -60,6 +73,7 @@ namelist /in1/  tstep, nstep, tstep_n, nstep_n,                     &
                 xcase, time_evol_scheme,                            &
                 freeboundary_equil,                                 &
                 rho_file, T_file, ffprime_file, Fprofile_file,      &
+                Ti_file, Te_file,                                   &
                 bc_natural_open, bc_natural_flux, gamma_sheath,     &
                 freeboundary, resistive_wall, freeb_change_indices, &
                 use_mumps_eq, use_pastix_eq, use_strumpack_eq,      &
@@ -71,14 +85,6 @@ namelist /in1/  tstep, nstep, tstep_n, nstep_n,                     &
                 adaptive_time, equil, bench_without_plot,           &
                 no_zeros_pastix, no_zeros_mumps,                    &
                 eta_T_dependent, visco_T_dependent,ZKpar_T_dependent,&
-                heatsource_psin, heatsource_sig,                    &
-                particlesource_psin, particlesource_sig,            &
-                edgeparticlesource, edgeparticlesource_psin,        &
-                edgeparticlesource_sig,                             &
-                particlesource_gauss, heatsource_gauss,             &
-                heatsource_gauss_psin, heatsource_gauss_sig,        &
-                particlesource_gauss_psin, particlesource_gauss_sig,&
-                particlesource, heatsource, tauIC,                  &
                 produce_live_data, gmres, gmres_max_iter,           &
                 iter_precon, gmres_4, gmres_m, gmres_tol,           &
                 max_steps_noUpdate,                                 &
@@ -98,10 +104,7 @@ namelist /in1/  tstep, nstep, tstep_n, nstep_n,                     &
                 starwall_equil_coils, freeb_equil_iterate_area,     &
                 psi_offset_freeb, diag_coils, rmp_coils,            &
                 voltage_coils, vert_FB_amp, find_pf_coil_currents,  &
-                pastix_maxthrd, centralize_harm_mat,                & 
-                vert_FB_amp_ts, vert_FB_gain, vert_pos_file,        & 
-                vert_FB_tact, start_VFB_ts, I_coils_max
-
+                pastix_maxthrd, centralize_harm_mat
 
 if (my_id .eq. 0) then
 
@@ -160,11 +163,19 @@ if (my_id .eq. 0) then
     CLOSE(244)
   endif
   
+  ! --- Calculate normalisation factor for MGI source (related to its toroidal shape)
+  ns_tor_norm = ns_deltaphi * PI**0.5 * ERF(PI/ns_deltaphi)
+
   ! --- Calculate JOREK gamma_sheath from gamma_stangeby if provided (otherwise the other way around)
-  if (gamma_stangeby > -1.d89) then
-    gamma_sheath = (gamma-1.d0) * (0.5d0*gamma_stangeby - 1.d0 - 0.5d0*gamma)
+  if (gamma_e_stangeby > -1.d89) then
+    gamma_sheath_e = (gamma-1.d0) * (0.5d0*gamma_e_stangeby - 1.d0)
   else
-    gamma_stangeby = 2.d0 * ( gamma_sheath / (gamma-1.d0) + 1.d0 + 0.5d0 * gamma )
+    gamma_e_stangeby = 2.d0 * ( gamma_sheath_e / (gamma-1.d0) + 1.d0 )
+  end if
+  if (gamma_i_stangeby > -1.d89) then
+    gamma_sheath_i = (gamma-1.d0) * (0.5d0*gamma_i_stangeby - 1.d0)
+  else
+    gamma_i_stangeby = 2.d0 * ( gamma_sheath_i / (gamma-1.d0) + 1.d0 )
   end if
 
   if (sum(nstep_n) .gt. 0) then
