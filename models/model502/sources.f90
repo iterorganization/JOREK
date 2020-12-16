@@ -1,5 +1,6 @@
 !> Determine the heat and particle sources at a given position.
-subroutine sources(xpoint2, xcase2, Z, Z_xpoint, psi, psi_axis, psi_bnd, particle_source, heat_source)
+subroutine sources(xpoint2, xcase2, Z, Z_xpoint, psi, psi_axis, psi_bnd, &
+                   particle_source, heat_i_source, heat_e_source)
 
 use phys_module
 
@@ -14,7 +15,8 @@ real*8,  intent(in)   :: psi
 real*8,  intent(in)   :: psi_axis
 real*8,  intent(in)   :: psi_bnd
 real*8,  intent(out)  :: particle_source
-real*8,  intent(out)  :: heat_source
+real*8,  intent(out)  :: heat_i_source
+real*8,  intent(out)  :: heat_e_source
 
 ! --- Local variables
 real*8 :: psi_n
@@ -30,7 +32,10 @@ endif
 particle_source = particlesource * (0.5d0 - 0.5d0*tanh((psi_n - particlesource_psin)/particlesource_sig)) &
      + edgeparticlesource * (0.5d0 + 0.5d0*tanh((psi_n - edgeparticlesource_psin)/edgeparticlesource_sig))&
      + particlesource_gauss * exp(-(psi_n - particlesource_gauss_psin)**2/(particlesource_gauss_sig**2))
-heat_source     = heatsource     * (0.5d0 - 0.5d0*tanh((psi_n - heatsource_psin    )/heatsource_sig    )) &
+heat_i_source   = heatsource     * (0.5d0 - 0.5d0*tanh((psi_n - heatsource_psin    )/heatsource_sig    )) &
+     + heatsource_gauss * exp(-(psi_n - heatsource_gauss_psin)**2/(heatsource_gauss_sig**2))
+
+heat_e_source   = heatsource     * (0.5d0 - 0.5d0*tanh((psi_n - heatsource_psin    )/heatsource_sig    )) &
      + heatsource_gauss * exp(-(psi_n - heatsource_gauss_psin)**2/(heatsource_gauss_sig**2))
 
 return
