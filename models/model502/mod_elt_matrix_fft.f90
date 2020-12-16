@@ -128,6 +128,9 @@ real*8     :: rn0_xx, rn0_yy, rn0_xy, rhon_xx, rhon_yy
 ! New momentum equation related rhs and amat
 real*8     :: amat_25_n, amat_27_n
 
+real*8     :: aux_rho0, aux_T0, aux_Vpar0, aux_dEion_dt, aux_rad
+real*8     :: aux_P0, aux_P0_s,  aux_P0_t, aux_P0_p, aux_q0, aux_jx0, aux_jy0, aux_jz0, aux_jz0_pcs
+
 ! Neutral source
 real*8     :: source_imp, source_bg
 real*8     :: source_tmp       !Temporary neutral source for each shattered pellets 
@@ -153,7 +156,7 @@ real*8     :: ng_radius !< Radius of neutral gas cloud as a result of the ablati
 real*8     :: m_i_over_m_imp, m_imp
 !   -Mean impurity ionization state
 real*8     :: Z_imp, dZ_imp_dT, d2Z_imp_dT2, T0_Zimp, alpha_Zimp, Z_eff, dZ_eff_dT, eta_coef, deta_coef_dZeff
-real*8     :: dZ_eff_dr0, dZ_eff_drn0, Z_eff_imp, dZ_eff_imp_dT
+real*8     :: dZ_eff_dr0, dZ_eff_drn0, Z_eff_imp, dZ_eff_imp_dT, n_imp
 !   -Coefficients related to Z_imp
 real*8     :: alpha_i, dalpha_i_dT, d2alpha_i_dT2
 real*8     :: alpha_e, dalpha_e_dT, d2alpha_e_dT2, alpha_e_bis, alpha_e_tri
@@ -208,6 +211,7 @@ real*8, dimension(n_plane,n_var,n_gauss,n_gauss) :: eq_g, eq_s, eq_t
 real*8, dimension(n_plane,n_var,n_gauss,n_gauss) :: eq_p
 real*8, dimension(n_plane,n_var,n_gauss,n_gauss) :: eq_ss, eq_st, eq_tt
 real*8, dimension(n_plane,n_var,n_gauss,n_gauss) :: delta_g, delta_s, delta_t
+real*8, dimension(n_plane,n_var,n_gauss,n_gauss) :: eq_aux_g, eq_aux_s, eq_aux_t, eq_aux_p
 
 ELM_p = 0.d0
 ELM_n = 0.d0
@@ -237,6 +241,7 @@ zeta  = time_evol_zeta
 x_g  = 0.d0; x_s  = 0.d0; x_t  = 0.d0; x_st  = 0.d0; x_ss  = 0.d0; x_tt  = 0.d0;
 y_g  = 0.d0; y_s  = 0.d0; y_t  = 0.d0; y_st  = 0.d0; y_ss  = 0.d0; y_tt  = 0.d0;
 eq_g = 0.d0; eq_s = 0.d0; eq_t = 0.d0; eq_st = 0.d0; eq_ss = 0.d0; eq_tt = 0.d0; eq_p = 0.d0;
+eq_aux_g = 0.d0; eq_aux_s = 0.d0; eq_aux_t = 0.d0; eq_aux_p = 0.d0;
 
 delta_g = 0.d0; delta_s = 0.d0; delta_t = 0.d0
 
@@ -257,7 +262,9 @@ if ( NEO ) then
 endif
 !======================================= NEO
 
-
+aux_rho0  = 0.d0; aux_T0    = 0.d0; aux_Vpar0 = 0.d0; aux_dEion_dT = 0.0; aux_rad = 0.0
+aux_P0    = 0.d0; aux_P0_s  = 0.d0; aux_P0_t  = 0.d0; aux_P0_p  = 0.d0
+aux_q0    = 0.d0; aux_jx0   = 0.d0; aux_jy0   = 0.d0; aux_jz0   = 0.d0; aux_jz0_pcs = 0.d0
 
 do i=1,n_vertex_max
  do j=1,n_order+1
@@ -295,6 +302,13 @@ do i=1,n_vertex_max
              eq_ss(mp,k,ms,mt) = eq_ss(mp,k,ms,mt) + nodes(i)%values(in,j,k) * element%size(i,j) * H_ss(i,j,ms,mt)* HZ(in,mp)
              eq_st(mp,k,ms,mt) = eq_st(mp,k,ms,mt) + nodes(i)%values(in,j,k) * element%size(i,j) * H_st(i,j,ms,mt)* HZ(in,mp)
              eq_tt(mp,k,ms,mt) = eq_tt(mp,k,ms,mt) + nodes(i)%values(in,j,k) * element%size(i,j) * H_tt(i,j,ms,mt)* HZ(in,mp)
+
+             if (present(aux_nodes)) then
+               eq_aux_g(mp,k,ms,mt) =  eq_aux_g(mp,k,ms,mt) + aux_nodes(i)%values(in,j,k) * element%size(i,j) * H(i,j,ms,mt)   * HZ(in,mp)
+               eq_aux_s(mp,k,ms,mt) =  eq_aux_s(mp,k,ms,mt) + aux_nodes(i)%values(in,j,k) * element%size(i,j) * H_s(i,j,ms,mt) * HZ(in,mp)
+               eq_aux_t(mp,k,ms,mt) =  eq_aux_t(mp,k,ms,mt) + aux_nodes(i)%values(in,j,k) * element%size(i,j) * H_t(i,j,ms,mt) * HZ(in,mp)
+               eq_aux_p(mp,k,ms,mt) =  eq_aux_p(mp,k,ms,mt) + aux_nodes(i)%values(in,j,k) * element%size(i,j) * H(i,j,ms,mt)   * HZ_p(in,mp)
+             endif
 
              delta_g(mp,k,ms,mt) = delta_g(mp,k,ms,mt) + nodes(i)%deltas(in,j,k) * element%size(i,j) * H(i,j,ms,mt)   * HZ(in,mp)
              delta_s(mp,k,ms,mt) = delta_s(mp,k,ms,mt) + nodes(i)%deltas(in,j,k) * element%size(i,j) * H_s(i,j,ms,mt) * HZ(in,mp)
@@ -802,6 +816,15 @@ do ms=1, n_gauss
      dZ_imp_dT = 0.
      d2Z_imp_dT2 = 0.
 
+     n_imp = 0.
+
+     Z_eff        = 0.
+     dZ_eff_dT    = 0.
+     dZ_eff_dr0   = 0.
+     dZ_eff_drn0  = 0.
+     Z_eff_imp    = 0.
+     dZ_eff_imp_dT= 0.
+
      ! Te in eV:
      Te_corr_eV = Te0_corr/(EL_CHG*MU_ZERO*central_density*1.d20)
      dTe_corr_eV_dT = dTe0_corr_dT/(EL_CHG*MU_ZERO*central_density*1.d20)
@@ -810,7 +833,7 @@ do ms=1, n_gauss
      ! We estimate the effective charge by a test density 10^20/m^3
      ! Later maybe we should implement a iterative method
 
-     if (allocated(imp_adas(1)%ionisation_energy)) then
+     if (allocated(imp_adas(1)%ionisation_energy) .and. (.not. use_marker)) then
 
        if (allocated(P_imp)) deallocate(P_imp)
        if (allocated(dP_imp_dT)) deallocate(dP_imp_dT)
@@ -845,7 +868,7 @@ do ms=1, n_gauss
        ! Convert the gradient in K to gradient in JOREK unit
        dE_ion_dT = dE_ion_dT * dTe_corr_eV_dT * EL_CHG / K_BOLTZ
 
-     else
+     else if (.not. use_marker) then
 
        if (allocated(P_imp)) deallocate(P_imp)
        if (allocated(dP_imp_dT)) deallocate(dP_imp_dT)
@@ -862,6 +885,17 @@ do ms=1, n_gauss
        E_ion     = 0.
        dE_ion_dT = 0.
        E_ion_bg  = 0.
+     else
+       E_ion     = 0.
+       dE_ion_dT = 0.
+       E_ion_bg  = 0.
+       Z_imp     = 0.
+       dZ_imp_dT = 0.
+       aux_dEion_dt = eq_aux_g(mp,1,ms,mt) ! Accumulated ionization energy change
+       aux_rad    = eq_aux_g(mp,2,ms,mt)   ! The radiation power density divided by the electron density
+       Z_eff      = eq_aux_g(mp,3,ms,mt)   ! The sum (q^2) divided by the impurity number density
+       Z_imp      = eq_aux_g(mp,4,ms,mt)   ! The sum (q) divided by the impurity number density
+       n_imp      = eq_aux_g(mp,5,ms,mt)   ! The time averaged impurity number density
      end if
 
      ! Convert gradient in T(K) in to gradient in T (eV)
@@ -898,43 +932,42 @@ do ms=1, n_gauss
                                                             ! Too small rho_1 will cause a problem
      if (ne_SI < 1.d16) ne_SI = 1.d16
 
-     ! Calculate the effective charge of all species
-     Z_eff        = 0.
-     dZ_eff_dT    = 0.
-     dZ_eff_dr0   = 0.
-     dZ_eff_drn0  = 0.
-
-     Z_eff_imp    = 0.
-     dZ_eff_imp_dT= 0.
-
-     ! First get the value of Z_eff
-     Z_eff        = r0_corr - rn0_corr
-     do ion_i=1, imp_adas(1)%n_Z
-       Z_eff      = Z_eff + m_i_over_m_imp * rn0_corr * P_imp(ion_i) * real(ion_i,8)**2
-       Z_eff_imp  = Z_eff_imp + P_imp(ion_i) * real(ion_i,8)**2 ! The summation of normalized nZ**2 for impurity
-       dZ_eff_imp_dT = dZ_eff_imp_dT + dP_imp_dT(ion_i) * real(ion_i,8)**2 ! Its temperature gradient
-     end do
-     Z_eff        = Z_eff / ne_JOREK
-
-     ! Then three(!) gradients
-     if (Z_eff >= 1.) then
+     if (.not. use_marker) then
+       ! Calculate the effective charge of all species
+       ! First get the value of Z_eff
+       Z_eff        = r0_corr - rn0_corr
        do ion_i=1, imp_adas(1)%n_Z
-         dZ_eff_dT  = dZ_eff_dT + m_i_over_m_imp * rn0_corr * dP_imp_dT(ion_i) * real(ion_i,8)**2
+         Z_eff      = Z_eff + m_i_over_m_imp * rn0_corr * P_imp(ion_i) * real(ion_i,8)**2
+         Z_eff_imp  = Z_eff_imp + P_imp(ion_i) * real(ion_i,8)**2 ! The summation of normalized nZ**2 for impurity
+         dZ_eff_imp_dT = dZ_eff_imp_dT + dP_imp_dT(ion_i) * real(ion_i,8)**2 ! Its temperature gradient
        end do
-       dZ_eff_dT    = dZ_eff_dT / ne_JOREK
-       dZ_eff_dT    = dZ_eff_dT - Z_eff * dalpha_e_dT * rn0_corr / ne_JOREK
+       Z_eff        = Z_eff / ne_JOREK
   
-       dZ_eff_dr0   = (1. - Z_eff)/ne_JOREK
-  
-       dZ_eff_drn0  = dZ_eff_drn0 - 1.
-       do ion_i=1, imp_adas(1)%n_Z
-         dZ_eff_drn0= dZ_eff_drn0 + m_i_over_m_imp * P_imp(ion_i) * real(ion_i,8)**2
-       end do
-       dZ_eff_drn0  = dZ_eff_drn0 / ne_JOREK
-       dZ_eff_drn0  = dZ_eff_drn0 - Z_eff * alpha_e / ne_JOREK
+       ! Then three(!) gradients
+       if (Z_eff >= 1.) then
+         do ion_i=1, imp_adas(1)%n_Z
+           dZ_eff_dT  = dZ_eff_dT + m_i_over_m_imp * rn0_corr * dP_imp_dT(ion_i) * real(ion_i,8)**2
+         end do
+         dZ_eff_dT    = dZ_eff_dT / ne_JOREK
+         dZ_eff_dT    = dZ_eff_dT - Z_eff * dalpha_e_dT * rn0_corr / ne_JOREK
+    
+         dZ_eff_dr0   = (1. - Z_eff)/ne_JOREK
+    
+         dZ_eff_drn0  = dZ_eff_drn0 - 1.
+         do ion_i=1, imp_adas(1)%n_Z
+           dZ_eff_drn0= dZ_eff_drn0 + m_i_over_m_imp * P_imp(ion_i) * real(ion_i,8)**2
+         end do
+         dZ_eff_drn0  = dZ_eff_drn0 / ne_JOREK
+         dZ_eff_drn0  = dZ_eff_drn0 - Z_eff * alpha_e / ne_JOREK
+       else
+         Z_eff        = 1.
+       end if
      else
-       Z_eff        = 1.
-     end if
+       Z_eff_imp = Z_eff       ! The summation of normalized nZ**2 for impurity
+       Z_eff     = Z_eff * n_imp
+       Z_eff     = Z_eff + max((r0_corr - rn0_corr),0.)
+       Z_eff     = max(Z_eff / ne_JOREK, 1.) 
+     endif
 
      ! This is to represent the dependence on Z_eff in resistivity
      eta_coef     = Z_eff*(1.+1.198*Z_eff+0.222*Z_eff**2)/(1.+2.966*Z_eff+0.753*Z_eff**2)
@@ -965,37 +998,40 @@ do ms=1, n_gauss
      ! Normalization coefficient for radiation rate from SI units (W.m^3) to JOREK units:
      coef_rad_1 = (GAMMA-1.)*MU_ZERO**1.5d0*(central_mass*MASS_PROTON)**0.5d0&
                   *(central_density*1.d20)**2.5d0*m_i_over_m_imp
-
-     if (ne_SI > ne_SI_min .and. Te_eV > Te_eV_min .and. rn0 > rn0_min) then
-
-       Lrad = 0.0
-       dLrad_dT = 0.0
-
-       ! Here we are temperarily only considering one impurity species, in the
-       ! future maybe a do loop will is needed
-!       call radiation_function(imp_adas(1),imp_cor(1),log10(ne_SI),log10(Te_corr_eV*EL_CHG/K_BOLTZ),Lrad,dLrad_dT)
-       call radiation_function_linear(imp_adas(1),imp_cor(1),log10(ne_SI),log10(Te_corr_eV*EL_CHG/K_BOLTZ),Lrad,dLrad_dT)
-
-       Lrad = Lrad * coef_rad_1
-
-       ! Convert gradient in T(K) in to gradient in T (eV)
-       dLrad_dT = dLrad_dT * coef_rad_1 *  EL_CHG / K_BOLTZ 
-       ! Derivative wrt to T, with T in JOREK units
-       dLrad_dT = dLrad_dT / (EL_CHG*MU_ZERO*central_density*1.d20)
-       dLrad_dT = dLrad_dT * dTe0_corr_dT            
-
-       if (Lrad < 0.) then
+     if (.not. use_marker) then
+       if (ne_SI > ne_SI_min .and. Te_eV > Te_eV_min .and. rn0 > rn0_min) then
+  
+         Lrad = 0.0
+         dLrad_dT = 0.0
+  
+         ! Here we are temperarily only considering one impurity species, in the
+         ! future maybe a do loop will is needed
+  !       call radiation_function(imp_adas(1),imp_cor(1),log10(ne_SI),log10(Te_corr_eV*EL_CHG/K_BOLTZ),Lrad,dLrad_dT)
+         call radiation_function_linear(imp_adas(1),imp_cor(1),log10(ne_SI),log10(Te_corr_eV*EL_CHG/K_BOLTZ),Lrad,dLrad_dT)
+  
+         Lrad = Lrad * coef_rad_1
+  
+         ! Convert gradient in T(K) in to gradient in T (eV)
+         dLrad_dT = dLrad_dT * coef_rad_1 *  EL_CHG / K_BOLTZ 
+         ! Derivative wrt to T, with T in JOREK units
+         dLrad_dT = dLrad_dT / (EL_CHG*MU_ZERO*central_density*1.d20)
+         dLrad_dT = dLrad_dT * dTe0_corr_dT            
+  
+         if (Lrad < 0.) then
+           Lrad = 0.
+           dLrad_dT = 0.
+         end if
+  
+       else
          Lrad = 0.
          dLrad_dT = 0.
+  
+         !E_ion = 0.
+         !dE_ion_dT = 0.
        end if
-
      else
-       Lrad = 0.
-       dLrad_dT = 0.
-
-       !E_ion = 0.
-       !dE_ion_dT = 0.
-     end if
+       aux_rad = aux_rad * ne_JOREK ! The radiation power density in JOREK unit
+     endif
    
      ! This is to detect N/A
      if (Lrad/=Lrad .or. dLrad_dT/=dLrad_dT .or. E_ion/=E_ion .or. dE_ion_dT/=dE_ion_dT) then
@@ -1577,7 +1613,7 @@ do ms=1, n_gauss
 !#  equation 9 (electron energy  equation)                                                         #
 !###################################################################################################
 
-         rhs_ij_9 =   v * BigR * heat_source_e(ms,mt)                                  * xjac * tstep &
+         rhs_ij_9 =   v * BigR * (heat_source_e(ms,mt) - aux_dEion_dt - aux_rad)       * xjac * tstep &
  
                     + v * (r0 + rn0*alpha_e_bis) * BigR**2 * ( Te0_s * u0_t - Te0_t * u0_s)   * tstep &
                     + v * Te0 * BigR**2 * ( r0_s * u0_t - r0_t * u0_s)                        * tstep &
