@@ -137,12 +137,12 @@ subroutine setup_solvers(this, sim)
   call det_modes()
 
   ! Initialise the data writing 
-  call init_live_data()
+  if (sim%my_id == 0) call init_live_data()
 
-  if (restart) then
+  if (restart .and. (sim%my_id == 0)) then
      do i = 1, index_start
         call write_live_data_all(i)
-!      call write_live_data_vacuum(index_now, diag_coil_curr)
+        call write_live_data_vacuum(i)
      end do
   endif
 
