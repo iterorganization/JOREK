@@ -57,7 +57,6 @@ program JOREK2
 #endif
   use direct_construction_mod
   use centralization_mod
-  use mod_gmres_driver
 
 ! these write additional live data (global data) used when an ECCD current is applied)
 #ifdef JECCD
