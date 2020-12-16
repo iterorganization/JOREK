@@ -142,7 +142,7 @@ subroutine setup_solvers(this, sim)
   if (restart .and. (sim%my_id == 0)) then
      do i = 1, index_start
         call write_live_data_all(i)
-        call write_live_data_vacuum(i)
+        !call write_live_data_vacuum(i)
      end do
   endif
 
@@ -344,7 +344,7 @@ subroutine do_jorek_timestep(this, sim, ev)
   use data_structure,          only: new_thread_buffers, del_thread_buffers
   use mod_bootstrap_functions, only: bootstrap_find_minRad, bootstrap_get_q_and_ft_splines
   use live_data
-  use mod_live_data_core,      only: write_live_data_all
+  use mod_live_data_core,      only: write_live_data_all, write_live_data_vacuum
   use tr_module,               only: tr_print_memsize, tr_resetfile
   use mod_export_restart
   use construct_matrix_mod
