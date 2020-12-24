@@ -348,6 +348,21 @@ subroutine do_read(this, sim, ev)
         if (file_exists) then
           call import_hdf5_restart(f%node_list,f%element_list,restart_file,this%rst_format,ierr)
           f%static = .true.
+          if (ierr .ne. 0) then
+            if (my_id .eq. 0) write(*,*) "ERROR: cannot open restart file"
+            call exit(1)
+          else
+            f%time_now = t_start*t_norm ! set by import_hdf5_restart
+            ! Set sim%time to this time also, to start at the right point
+            if (sim%time .gt. 1d-16) then ! check if this is the right file if we have already set a time
+              if (sim%time .le. f%time_now) then
+                if (my_id .eq. 0) write(*,*) "ERROR: restart file read that is too far in the future"
+              end if
+            else ! otherwise set the time to the time of this file
+              sim%time = f%time_now
+            end if
+            if (my_id .eq. 0) write(*,"(A,f9.8,A)") "Read initial restart file, set t=", sim%time, " [s]"
+          endif
         else
           if (my_id .eq. 0) write(*,*) "ERROR: file ", trim(restart_file), " does not exist"
           call exit(1)
