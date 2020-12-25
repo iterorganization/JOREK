@@ -226,7 +226,7 @@ real*8,allocatable :: feedback_rhs(:,:,:,:,:)
 real*8    :: oldtime, step_rest_time, particle_step_time, particle_start_time, diag_time
 real*8    :: rho_norm, t_norm, v_norm, E_norm, M_norm, N_norm, tstep_si
 real*8    :: kinetic_energy, ion_energy
-real*8    :: E_lost_ion, E_lost_ion_all
+real*8    :: E_lost_ion, E_lost_ion_all, E_lost_rad, E_lost_rad_all
 !$ real*8 :: w0, w1, mmm(3)
 integer   :: i, j, k, l, m, n_steps, i_elm_old
 integer   :: seed, i_rng, n_stream, ierr, nthreads, myid
@@ -313,6 +313,8 @@ do while (.not. sim%stop_now)
 
   E_lost_ion = 0.d0
   E_lost_ion_all = 0.d0
+  E_lost_rad = 0.d0
+  E_lost_rad_all = 0.d0
 
 !  jorek_feedback%rhs_gather_time = jorek_feedback%rhs_gather_time + n_steps * timesteps
   jorek_feedback%rhs_gather_time = n_steps * timesteps
@@ -347,7 +349,7 @@ do while (.not. sim%stop_now)
     !$omp R_g, R_s, R_t, Z_g, Z_s, Z_t, xjac, HH, HH_s, HH_t, HZ, index_lm,                 &
     !$omp ifail, CX_rate, CX_prob, CX_source, CX_energy, v_1, v_2, v_3, v_4, v_5,           &
     !$omp particle_source, velocity_par_source, energy_source, v_temp, K_eV, T_eV, cx_ran)  &
-    !$omp reduction(+:feedback_rhs, E_lost_ion)
+    !$omp reduction(+:feedback_rhs, E_lost_ion, E_lost_rad)
     do j=1,size(particles,1)
 
 !      i_rng = 1
@@ -378,6 +380,7 @@ do while (.not. sim%stop_now)
         ! We take away the n_rho here since it is not really the electron density
         Lrad = proj_Lz(sim ,1, particles(j)) / n_rho
         rad_sink = real(particles(j)%weight,8) * Lrad * timesteps 
+        E_lost_rad = E_lost_rad + real(particles(j)%weight,8) * Lrad * timesteps * n_rho
 
         ! Do the ionization and recombination
         if (particles(j)%q .eq. 0) then
@@ -560,8 +563,10 @@ do while (.not. sim%stop_now)
 !  endif
 
   call MPI_AllReduce(E_lost_ion,E_lost_ion_all,1,MPI_DOUBLE_PRECISION,MPI_SUM,MPI_COMM_WORLD,ierr)
+  call MPI_AllReduce(E_lost_rad,E_lost_rad_all,1,MPI_DOUBLE_PRECISION,MPI_SUM,MPI_COMM_WORLD,ierr)
   
   if (sim%my_id .eq. 0) write(*,*) " Lost energy at t due to ionisation: ", sim%time, E_lost_ion_all
+  if (sim%my_id .eq. 0) write(*,*) " Lost energy at t due to radiation: ",  sim%time, E_lost_rad_all
   !$ w1 = omp_get_wtime()
   !$ mmm = mpi_minmeanmax(w1-w0)
   !$ if (sim%my_id .eq. 0) write(*,"(f10.7,A,3f9.4,A)") sim%time, " Particle stepping complete in ", mmm, "s"
