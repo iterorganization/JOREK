@@ -141,6 +141,28 @@ module mod_neutral_source
   end subroutine neutral_source
 
 
+  !> Initialize time-traces of radiation and ionization energy/power
+  subroutine init_xtime_rad_ionization(my_id)
+   
+    use phys_module
+
+    implicit none
+
+    integer, intent(in) :: my_id
+
+    if ( my_id == 0 ) then
+      if (allocated(xtime_radiation)) call tr_deallocate(xtime_radiation,"xtime_radiation",CAT_GRID)
+      if (nstep .gt. 0) call tr_allocate(xtime_radiation,1,nstep,"xtime_radiation")
+      if (allocated(xtime_rad_power)) call tr_deallocate(xtime_rad_power,"xtime_rad_power",CAT_GRID)
+      if (nstep .gt. 0) call tr_allocate(xtime_rad_power,1,nstep,"xtime_rad_power")
+      if (allocated(xtime_E_ion)) call tr_deallocate(xtime_E_ion,"xtime_E_ion",CAT_GRID)
+      if (nstep .gt. 0) call tr_allocate(xtime_E_ion,1,nstep,"xtime_E_ion")
+      if (allocated(xtime_E_ion_power)) call tr_deallocate(xtime_E_ion_power,"xtime_E_ion_power",CAT_GRID)
+      if (nstep .gt. 0) call tr_allocate(xtime_E_ion_power,1,nstep,"xtime_E_ion_power")
+    end if 
+
+  end subroutine init_xtime_rad_ionization
+
   !> Calculates the total number of neutral particles injected from the start of the simulation and for each timestep.
   !> Calculates the factorial of a number (which appears in gas dynamics formulae!)
   integer function factorial(n)
