@@ -741,31 +741,29 @@ do ife = ife_min, ife_max
         ! Atomic physics parameters for Impurities
         !-------------------------------------------
 
-     select case ( trim(gas_type) )
-       case('D2')
-         m_i_over_m_imp = central_mass/2.
-       case('Ar')
-         m_i_over_m_imp = central_mass/40. ! Argon mass = 40 u and main ion (D) mass = 2 u
-       case('Ne')
-         m_i_over_m_imp = central_mass/20. ! Neon mass = 20 u and main ion (D) mass = 2 u
-       case default
-         write(*,*) '!! Gas type "', trim(gas_type), '" unknown (in inj_source.f90) !!'
-         write(*,*) '=> We assume the gas is D2.'
-         m_i_over_m_imp = central_mass/2.
-     end select
+        select case ( trim(gas_type) )
+          case('D2')
+            m_i_over_m_imp = central_mass/2.
+          case('Ar')
+            m_i_over_m_imp = central_mass/40. ! Argon mass = 40 u and main ion (D) mass = 2 u
+          case('Ne')
+            m_i_over_m_imp = central_mass/20. ! Neon mass = 20 u and main ion (D) mass = 2 u
+          case default
+            write(*,*) '!! Gas type "', trim(gas_type), '" unknown (in inj_source.f90) !!'
+            write(*,*) '=> We assume the gas is D2.'
+            m_i_over_m_imp = central_mass/2.
+        end select
 
         ! Te in eV:
         Te_corr_eV = T0_corr/(EL_CHG*MU_ZERO*central_density*1.d20)
         Te_eV = T0e/(EL_CHG*MU_ZERO*central_density*1.d20)
    
+        if (allocated(P_imp)) deallocate(P_imp)
+        allocate(P_imp(0:imp_adas(1)%n_Z))
+        call imp_cor(1)%interp_linear(density=20.,temperature=log10(Te_corr_eV*EL_CHG/K_BOLTZ),&
+                                      p_out=P_imp,z_avg=Z_imp)
+
         if (allocated(imp_adas(1)%ionisation_energy)) then
-   
-          if (allocated(P_imp)) deallocate(P_imp)
-  
-          allocate(P_imp(0:imp_adas(1)%n_Z))
-   
-          call imp_cor(1)%interp_linear(density=20.,temperature=log10(Te_corr_eV*EL_CHG/K_BOLTZ),&
-                                        p_out=P_imp,z_avg=Z_imp)
    
           ! Calculate the ionization potential energy and it's time gradient
           E_ion     = 0.
