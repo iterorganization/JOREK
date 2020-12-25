@@ -352,7 +352,7 @@ subroutine do_read(this, sim, ev)
             if (my_id .eq. 0) write(*,*) "ERROR: cannot open restart file"
             call exit(1)
           else
-            f%time_now = t_start*t_norm ! set by import_hdf5_restart
+            f%time_now = t_start*sim%t_norm ! set by import_hdf5_restart
             ! Set sim%time to this time also, to start at the right point
             if (sim%time .gt. 1d-16) then ! check if this is the right file if we have already set a time
               if (sim%time .le. f%time_now) then
@@ -367,7 +367,6 @@ subroutine do_read(this, sim, ev)
           if (my_id .eq. 0) write(*,*) "ERROR: file ", trim(restart_file), " does not exist"
           call exit(1)
         end if
-        f%time_now = t_start * sim%t_norm
         t_now = t_start
 
         write(*,'(A,3e14.6,L4)') 'mod_fields_linear : (t_start, t_norm, t_now, static) ',t_start,sim%t_norm,t_now,f%static
