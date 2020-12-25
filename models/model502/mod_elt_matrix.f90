@@ -879,10 +879,10 @@ do ms=1, n_gauss
        Z_imp     = 0.
        dZ_imp_dT = 0.
        aux_dEion_dt = eq_aux_g(mp,1,ms,mt) ! Accumulated ionization energy change
-       aux_rad    = eq_aux_g(mp,2,ms,mt)   ! The radiation power density divided by the electron density
-       Z_eff      = eq_aux_g(mp,3,ms,mt)   ! The sum (q^2) divided by the impurity number density
-       Z_imp      = eq_aux_g(mp,4,ms,mt)   ! The sum (q) divided by the impurity number density
-       n_imp      = eq_aux_g(mp,5,ms,mt)   ! The time averaged impurity number density
+       aux_rad    = max(eq_aux_g(mp,2,ms,mt),0.0)   ! The radiation power density divided by the electron density
+       Z_eff      = max(eq_aux_g(mp,3,ms,mt),0.0)   ! The sum (q^2) divided by the impurity number density
+       Z_imp      = max(eq_aux_g(mp,4,ms,mt),0.0)   ! The sum (q) divided by the impurity number density
+       n_imp      = max(eq_aux_g(mp,5,ms,mt),0.0)   ! The time averaged impurity number density
      end if
 
      ! Convert gradient in T(K) in to gradient in T (eV)

@@ -226,12 +226,12 @@ real*8,allocatable :: feedback_rhs(:,:,:,:,:)
 real*8    :: oldtime, step_rest_time, particle_step_time, particle_start_time, diag_time
 real*8    :: rho_norm, t_norm, v_norm, E_norm, M_norm, N_norm, tstep_si
 real*8    :: kinetic_energy, ion_energy
-real*8    :: n_lost_ion, n_lost_ion_all
+real*8    :: E_lost_ion, E_lost_ion_all
 !$ real*8 :: w0, w1, mmm(3)
 integer   :: i, j, k, l, m, n_steps, i_elm_old
 integer   :: seed, i_rng, n_stream, ierr, nthreads, myid
 real*8    :: ion_rate, ion_source, ion_prob, ion_rec_ran(2), cx_ran(7), cx_source, cx_energy
-real*8    :: rec_rate, rec_source, dEion_dT, Z_imp, Z_eff, N_imp, Lrad, rad_sink
+real*8    :: rec_rate, dEion_dT, Z_imp, Z_eff, N_imp, Lrad, rad_sink
 real*8    :: cx_prob, CX_rate
 real*8    :: particle_source, velocity_par_source, energy_source
 real*8    :: v_temp(3), T_eV, K_eV, v_kin_temp, B_norm(3), v_1, v_2, v_3, v_4, v_5
@@ -311,8 +311,8 @@ do while (.not. sim%stop_now)
     write(*,*) "PARTICLE : step_rest_time      : ",step_rest_time
   endif
 
-  n_lost_ion = 0.d0
-  n_lost_ion_all = 0.d0
+  E_lost_ion = 0.d0
+  E_lost_ion_all = 0.d0
 
 !  jorek_feedback%rhs_gather_time = jorek_feedback%rhs_gather_time + n_steps * timesteps
   jorek_feedback%rhs_gather_time = n_steps * timesteps
@@ -339,15 +339,15 @@ do while (.not. sim%stop_now)
     !$omp shared(sim, particles, n_particles, n_steps, timesteps, rng, particle_start_time, &
 #endif
     !$omp rho_norm, t_norm, v_norm, E_norm, M_norm, N_norm, &
-    !$omp use_cx, use_sputtering, use_ncs, use_marker, jorek_feedback, jorek_stepper,       &
+    !$omp use_cx, use_sputtering, use_ncs, use_marker, E_lost_ion,                          &
     !$omp CENTRAL_DENSITY, CENTRAL_MASS)                    &
     !$omp private(i_rng, i,j,k,l,m, t, E, B, psi, U, rz_old, st_old,                        &
     !$omp i_elm_old, n_rho, T_e, ion_rate, ion_prob, ion_source, ion_energy, kinetic_energy,& 
-    !$omp rec_rate, rec_source, dEion_dt, ion_rec_ran, Z_imp, Z_eff, N_imp, Lrad, rad_sink, & 
+    !$omp rec_rate, dEion_dt, ion_rec_ran, Z_imp, Z_eff, N_imp, Lrad, rad_sink, & 
     !$omp R_g, R_s, R_t, Z_g, Z_s, Z_t, xjac, HH, HH_s, HH_t, HZ, index_lm,                 &
     !$omp ifail, CX_rate, CX_prob, CX_source, CX_energy, v_1, v_2, v_3, v_4, v_5,           &
     !$omp particle_source, velocity_par_source, energy_source, v_temp, K_eV, T_eV, cx_ran)  &
-    !$omp reduction(+:feedback_rhs)
+    !$omp reduction(+:feedback_rhs, E_lost_ion)
     do j=1,size(particles,1)
 
 !      i_rng = 1
@@ -408,12 +408,13 @@ do while (.not. sim%stop_now)
               dEion_dt = ion_source * sim%groups(1)%ad%ionisation_energy(int(particles(j)%q))
             else
               particles(j)%q  = particles(j)%q - 1
-              rec_source = real(particles(j)%weight,8)
-              dEion_dt = -rec_source * sim%groups(1)%ad%ionisation_energy(int(particles(j)%q+1))
+              ion_source = -real(particles(j)%weight,8)
+              dEion_dt = ion_source * sim%groups(1)%ad%ionisation_energy(int(particles(j)%q+1))
             endif
           endif
           
           dEion_dt = dEion_dt * EL_CHG ! Convert from eV to Joule
+          E_lost_ion = E_lost_ion + dEion_dt ! Accumulated ionization energy
 
         else 
           write(*,*) "The particle weight is too large! Not supported for now, EXITING!!!"
@@ -463,7 +464,7 @@ do while (.not. sim%stop_now)
         if (use_ncs) then
           energy_source       = ion_source * ion_energy + cx_source * cx_energy
 
-          particle_source     = (ion_source - rec_source) * sim%groups(1)%mass * ATOMIC_MASS_UNIT
+          particle_source     = ion_source * sim%groups(1)%mass * ATOMIC_MASS_UNIT
        
           velocity_par_source = ion_source * dot_product(B, particles(j)%v)          * sim%groups(1)%mass * ATOMIC_MASS_UNIT &
                             
@@ -537,30 +538,30 @@ do while (.not. sim%stop_now)
 
   deallocate(feedback_rhs)
 
-  if (minval(jorek_feedback%rhs(:,:,:,:,2)) < 0.0) then
-    write(*,*) "SOMETHING WRONG in rad feedbacks,", minval(jorek_feedback%rhs(:,:,:,:,2))
-    stop
-  endif
+!  if (minval(jorek_feedback%rhs(:,:,:,:,2)) < 0.0) then
+!    write(*,*) "SOMETHING WRONG in rad feedbacks,", minval(jorek_feedback%rhs(:,:,:,:,2))
+!    stop
+!  endif
+!
+!  if ((maxval(jorek_feedback%rhs(:,:,:,:,4)) > real(sim%groups(1)%ad%n_Z,8)) .or. &
+!        (minval(jorek_feedback%rhs(:,:,:,:,4)) < 0.0)) then
+!    write(*,*) "SOMETHING WRONG in mean charge feedbacks,", maxval(jorek_feedback%rhs(:,:,:,:,3)), minval(jorek_feedback%rhs(:,:,:,:,3))
+!    stop
+!  endif
+!
+!  if (minval(jorek_feedback%rhs(:,:,:,:,3)) < 0.0) then
+!    write(*,*) "SOMETHING WRONG in effective charge feedbacks,", minval(jorek_feedback%rhs(:,:,:,:,4))
+!    stop
+!  endif
+!
+!  if (minval(jorek_feedback%rhs(:,:,:,:,5)) < 0.0) then
+!    write(*,*) "SOMETHING WRONG in density feedbacks,", minval(jorek_feedback%rhs(:,:,:,:,4))
+!    stop
+!  endif
 
-  if ((maxval(jorek_feedback%rhs(:,:,:,:,4)) > real(sim%groups(1)%ad%n_Z,8)) .or. &
-        (minval(jorek_feedback%rhs(:,:,:,:,4)) < 0.0)) then
-    write(*,*) "SOMETHING WRONG in mean charge feedbacks,", maxval(jorek_feedback%rhs(:,:,:,:,3)), minval(jorek_feedback%rhs(:,:,:,:,3))
-    stop
-  endif
-
-  if (minval(jorek_feedback%rhs(:,:,:,:,3)) < 0.0) then
-    write(*,*) "SOMETHING WRONG in effective charge feedbacks,", minval(jorek_feedback%rhs(:,:,:,:,4))
-    stop
-  endif
-
-  if (minval(jorek_feedback%rhs(:,:,:,:,5)) < 0.0) then
-    write(*,*) "SOMETHING WRONG in density feedbacks,", minval(jorek_feedback%rhs(:,:,:,:,4))
-    stop
-  endif
-
-  call MPI_REDUCE(n_lost_ion, n_lost_ion_all, 1, MPI_INTEGER, MPI_SUM, 0, MPI_COMM_WORLD, ierr)
+  call MPI_AllReduce(E_lost_ion,E_lost_ion_all,1,MPI_DOUBLE_PRECISION,MPI_SUM,MPI_COMM_WORLD,ierr)
   
-  if (sim%my_id .eq. 0) write(*,*) " Lost particles at t due to ionisation: ", sim%time, n_lost_ion_all
+  if (sim%my_id .eq. 0) write(*,*) " Lost energy at t due to ionisation: ", sim%time, E_lost_ion_all
   !$ w1 = omp_get_wtime()
   !$ mmm = mpi_minmeanmax(w1-w0)
   !$ if (sim%my_id .eq. 0) write(*,"(f10.7,A,3f9.4,A)") sim%time, " Particle stepping complete in ", mmm, "s"
