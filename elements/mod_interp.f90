@@ -194,7 +194,7 @@ logical :: my_deltas
 call basisfunctions_T(s,t,H,H_s,H_t,H_st,H_ss,H_tt)
 
 P = 0.d0; P_s = 0.d0; P_t = 0.d0; P_st = 0.d0; P_ss = 0.d0; P_tt = 0.d0
-P_sphi = 0.d0; P_tphi = 0.d0; P_phiphi = 0.d0
+P_phi = 0.d0; P_sphi = 0.d0; P_tphi = 0.d0; P_phiphi = 0.d0
 
 call sincosperiod_moivre(phi, HZ, dHZ)
 do i=1,n_tor

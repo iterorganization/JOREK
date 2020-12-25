@@ -6,7 +6,7 @@ module mod_particle_types
   implicit none
   private
   public particle_base, particle_kinetic, particle_kinetic_leapfrog, particle_gc, particle_fieldline
-  public particle_kinetic_relativistic, particle_gc_relativistic
+  public particle_kinetic_relativistic, particle_gc_relativistic, particle_gc_vpar, particle_gc_Qin
   public particle_get_q
   public copy_particle
   public copy_particle_base
@@ -43,10 +43,29 @@ module mod_particle_types
 
   !> A simple guiding-center particle type.
   type, extends(particle_base) :: particle_gc
-    real*8    :: E = 0.d0 !< The particle energy [eV]
+    real*8    :: E  = 0.d0 !< The particle energy [eV]
     real*8    :: mu = 0.d0 !< The magnetic moment [eV/T]. Sign determines sign of v_par
-    integer*1 :: q = 0_1 !< Charge [e]
+    integer*1 :: q  = 0_1  !< Charge [e]
   end type particle_gc
+
+  !> A simple guiding-center particle type.
+  type, extends(particle_base) :: particle_gc_vpar
+    real*8    :: vpar = 0.d0 !< Guiding centre parallel velocity [m/s]
+    real*8    :: mu   = 0.d0 !< The magnetic moment [eV/T] 
+    integer*1 :: q    = 0_1  !< Charge [e]
+  end type particle_gc_vpar
+
+  !> A simple guiding-center particle type.
+  type, extends(particle_gc_vpar) :: particle_gc_Qin
+    real*8    :: x_m(3)        !< position (previous step)
+    real*8    :: vpar_m        !< parallel velocity (previous step)
+    real*8    :: Astar_m(3)    !< A* (previous step)
+    real*8    :: Astar_k(3)    !< A*  (current step)
+    real*8    :: dAstar_k(3,3) !< dA* (current step)
+    real*8    :: Bn_k          !< B   (amplitude, current step)
+    real*8    :: dBn_k(3)      !< dB  (derivatives of Bn, current step)
+    real*8    :: Bnorm_k(3)    !< normalised B (current step)
+  end type particle_gc_Qin
 
   !> For most kinetic methods the velocity is required at time \(t\)
   type, extends(particle_base) :: particle_kinetic
@@ -89,6 +108,10 @@ contains
     type is (particle_kinetic_leapfrog)
       q = p%q
     type is (particle_gc)
+      q = p%q
+    type is (particle_gc_vpar)
+      q = p%q
+    type is (particle_gc_Qin)
       q = p%q
     type is (particle_kinetic_relativistic)
       q = p%q
