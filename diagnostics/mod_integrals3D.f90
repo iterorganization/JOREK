@@ -664,13 +664,12 @@ do ife = ife_min, ife_max
         Te_corr_eV = T0_corr/(2.d0*EL_CHG*MU_ZERO*central_density*1.d20)
         Te_eV = T0/(2.d0*EL_CHG*MU_ZERO*central_density*1.d20)
    
+        if (allocated(P_imp)) deallocate(P_imp)
+        allocate(P_imp(0:imp_adas(1)%n_Z))
+        call imp_cor(1)%interp_linear(density=20.,temperature=log10(Te_corr_eV*EL_CHG/K_BOLTZ),&
+                                      p_out=P_imp,z_avg=Z_imp)
+
         if (allocated(imp_adas(1)%ionisation_energy)) then
-   
-          if (allocated(P_imp)) deallocate(P_imp)
-          allocate(P_imp(0:imp_adas(1)%n_Z))
-   
-          call imp_cor(1)%interp_linear(density=20.,temperature=log10(Te_corr_eV*EL_CHG/K_BOLTZ),&
-                                        p_out=P_imp,z_avg=Z_imp)
    
           ! Calculate the ionization potential energy and its derivative wrt. temperature
           E_ion     = 0.
