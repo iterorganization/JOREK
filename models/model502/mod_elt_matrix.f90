@@ -883,13 +883,9 @@ do ms=1, n_gauss
        Z_eff      = max(eq_aux_g(mp,3,ms,mt),0.0)   ! The sum (q^2) divided by the impurity number density
        Z_imp      = max(eq_aux_g(mp,4,ms,mt),0.0)   ! The sum (q) divided by the impurity number density
        n_imp      = max(eq_aux_g(mp,5,ms,mt),0.0)   ! The time averaged impurity number density
-       if (n_imp > 0.) then
-         Z_imp = Z_imp / n_imp
-         Z_eff = Z_eff / n_imp
-       else
-         Z_imp = 0.
-         Z_eff = 0.
-       endif
+       n_imp = corr_neg_dens(n_imp, (/ 1.d-9, 1.d-5 /),1.d-3)
+       Z_imp = Z_imp / n_imp
+       Z_eff = Z_eff / n_imp
      end if
 
      ! Convert gradient in T(K) in to gradient in T (eV)
