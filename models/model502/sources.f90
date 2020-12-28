@@ -32,11 +32,11 @@ endif
 particle_source = particlesource * (0.5d0 - 0.5d0*tanh((psi_n - particlesource_psin)/particlesource_sig)) &
      + edgeparticlesource * (0.5d0 + 0.5d0*tanh((psi_n - edgeparticlesource_psin)/edgeparticlesource_sig))&
      + particlesource_gauss * exp(-(psi_n - particlesource_gauss_psin)**2/(particlesource_gauss_sig**2))
-heat_i_source   = heatsource     * (0.5d0 - 0.5d0*tanh((psi_n - heatsource_psin    )/heatsource_sig    )) &
-     + heatsource_gauss * exp(-(psi_n - heatsource_gauss_psin)**2/(heatsource_gauss_sig**2))
+heat_i_source   = heatsource_i   * (0.5d0 - 0.5d0*tanh((psi_n - heatsource_psin    )/heatsource_sig    )) &
+     + heatsource_gauss_i * exp(-(psi_n - heatsource_gauss_psin)**2/(heatsource_gauss_sig**2))
 
-heat_e_source   = heatsource     * (0.5d0 - 0.5d0*tanh((psi_n - heatsource_psin    )/heatsource_sig    )) &
-     + heatsource_gauss * exp(-(psi_n - heatsource_gauss_psin)**2/(heatsource_gauss_sig**2))
+heat_e_source   = heatsource_e   * (0.5d0 - 0.5d0*tanh((psi_n - heatsource_psin    )/heatsource_sig    )) &
+     + heatsource_gauss_e * exp(-(psi_n - heatsource_gauss_psin)**2/(heatsource_gauss_sig**2))
 
 return
 end subroutine sources
