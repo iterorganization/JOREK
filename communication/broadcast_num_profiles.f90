@@ -179,7 +179,7 @@ if ( num_zk_perp ) then
   call MPI_BCAST(num_zk_perp_y,num_zk_perp_len,MPI_DOUBLE_PRECISION,0,MPI_COMM_WORLD,ierr)
 end if
 
-if ( jorek_model == 400 || jorek_model == 502 ) then
+if ( jorek_model == 400 .or. jorek_model == 502 ) then
   if ( num_zk_e_perp ) then
     call MPI_BCAST(num_zk_e_perp_len,1,MPI_INTEGER,0,MPI_COMM_WORLD,ierr)
     if ( my_id /= 0 ) then
