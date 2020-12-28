@@ -622,7 +622,7 @@ module live_data
     write(LIVE_DATA_HANDLE,'(A,5ES17.9)') '@particlecontent_x2si: ', sqrt_mu0_rho0*1.e3
     write(LIVE_DATA_HANDLE,'(A,5ES17.9)') '@particlecontent_y2si: ', 1.0
     write(LIVE_DATA_HANDLE,'(A)') '@particlecontent_logy: 0'
-#if (JOREK_MODEL == 501)
+#if (JOREK_MODEL == 501 || JOREK_MODEL == 502)
     write(LIVE_DATA_HANDLE,'(A)') '@particlecontent: %"time"  "Total main ions" "Main ions inside LCFS"  "Main ions outside LCFS" "Total impurities"'
 #else    
     write(LIVE_DATA_HANDLE,'(A)') '@particlecontent: %"time"  "Total ions" "Ions inside LCFS"  "Ions outside LCFS" "Total neutrals"'
@@ -804,9 +804,6 @@ module live_data
                        + viscopar_dissip_tot_t(index-1) - heat_src_tot_t(index-1)  &
                        + ohmic_tot_t(index-1)*(1.d0 - eta_ohmic/eta) - mag_ener_src_tot(index-1) &
                        - flux_poynting_t(index-1)
-#if (JOREK_MODEL == 501)
-     sum_fluxes_dissip = sum_fluxes_dissip + xtime_rad_power(index-1) + xtime_E_ion_power(index-1)
-#endif
 
 #if (JOREK_MODEL == 500 || JOREK_MODEL == 501 || JOREK_MODEL == 502)
      sum_fluxes_dissip = sum_fluxes_dissip + xtime_rad_power(index-1) + xtime_E_ion_power(index-1)

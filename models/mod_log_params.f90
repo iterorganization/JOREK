@@ -588,7 +588,7 @@ write(*,'(1x,a)',advance='no') ' USE_COMPLEX_PRECOND          : '
   write(*,REAL_FMT) 'gamma_stangeby        ', gamma_stangeby
   write(*,REAL_FMT) 'gamma_sheath_e        ', gamma_sheath_e
   write(*,REAL_FMT) 'gamma_sheath_i        ', gamma_sheath_i
-#if ( (JOREK_MODEL == 400) || (JOREK_MODEL == 711) )
+#if ( (JOREK_MODEL == 400) || (JOREK_MODEL == 500) || (JOREK_MODEL == 711) )
   write(*,REAL_FMT) 'gamma_i_stangeby      ', gamma_i_stangeby
   write(*,REAL_FMT) 'gamma_e_stangeby      ', gamma_e_stangeby
 #endif
