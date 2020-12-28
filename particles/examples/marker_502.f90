@@ -529,11 +529,7 @@ do while (.not. sim%stop_now)
     jorek_feedback%rhs_gather_time = 0.d0
   else if (use_marker) then
     write(*,*) 'GATHER TIME : ',jorek_feedback%rhs_gather_time
-    jorek_feedback%rhs(:,:,:,:,1) = feedback_rhs(:,:,:,:,1) / jorek_feedback%rhs_gather_time
-    jorek_feedback%rhs(:,:,:,:,2) = feedback_rhs(:,:,:,:,2) / jorek_feedback%rhs_gather_time
-    jorek_feedback%rhs(:,:,:,:,3) = feedback_rhs(:,:,:,:,3) / (feedback_rhs(:,:,:,:,5) + jorek_feedback%rhs_gather_time/n_norm) !  In case of feedback_rhs(:,:,:,:,4) == 0
-    jorek_feedback%rhs(:,:,:,:,4) = feedback_rhs(:,:,:,:,4) / (feedback_rhs(:,:,:,:,5) + jorek_feedback%rhs_gather_time/n_norm) !  In case of feedback_rhs(:,:,:,:,4) == 0
-    jorek_feedback%rhs(:,:,:,:,5) = feedback_rhs(:,:,:,:,5) / jorek_feedback%rhs_gather_time
+    jorek_feedback%rhs = feedback_rhs / jorek_feedback%rhs_gather_time !* TWOPI
     jorek_feedback%rhs_gather_time = 0.d0
   else
     jorek_feedback%rhs = feedback_rhs 
