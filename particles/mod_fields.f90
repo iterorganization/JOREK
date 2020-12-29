@@ -124,6 +124,63 @@ E(3)  = E(3) - R_inv*P_time(1) ! because this is not normalized with t_norm
 
 end subroutine calc_EBpsiU
 
+!> Calculates the electric and magnetic fields at a specific position
+!> in the jorek element `i_elm` at `st`.
+subroutine calc_VparU(fields, time, i_elm, st, phi, Vpar, B, psi, U)
+use phys_module, only: F0, mode, central_mass, central_density
+use constants, only: mu_zero, mass_proton
+use mod_coordinate_transforms, only: transform_derivatives_st_to_RZ
+! Routine parameters
+class(fields_base), intent(in) :: fields
+real*8, intent(in)  :: time
+integer, intent(in) :: i_elm !< JOREK element index
+real*8, intent(in)  :: st(2) !< element-local coordinates
+real*8, intent(in)  :: phi !< toroidal angle
+real*8, intent(out) :: Vpar !< Parallel velocity divided by B in [m/(s*T)]
+real*8, intent(out) :: B(3) !< Magnetic field [T]
+real*8, intent(out) :: psi !< psi in JOREK units
+real*8, intent(out) :: U !< velocity stream function in m/s
+
+! Internal parameters
+integer, parameter :: i_var(3) = [var_psi,var_u,var_Vpar]
+real*8             :: P(3), P_s(3), P_t(3), P_phi(3), P_time(3) ! Placeholder for evaluating variables and derivatives locally
+! Values
+real*8             :: R, R_s, R_t, Z, Z_s, Z_t
+! Others
+real*8             :: inv_st_jac, R_inv
+real*8             :: psi_R, psi_Z, U_R, U_Z, U_phi, t_norm
+
+t_norm  = sqrt(mu_zero * mass_proton * central_mass * central_density * 1.d20) ! 1 jorek time unit in seconds
+
+! Interpolate the fields to get psi and U at the current position (and the
+! changes u_n - u(n-1))
+call fields%interp_PRZ(time, i_elm, i_var, 2, st(1), st(2), phi, P, P_s, P_t, P_phi, P_time, R, R_s, R_t, Z, Z_s, Z_t)
+
+R_inv = 1.d0/R
+inv_st_jac = 1.d0/(R_s * Z_t - R_t * Z_s)
+
+! Calculate the derivatives to R and Z
+psi_R    = (  P_s(1) * Z_t - P_t(1) * Z_s ) * inv_st_jac
+psi_Z    = (- P_s(1) * R_t + P_t(1) * R_s ) * inv_st_jac
+U_R      = (  P_s(2) * Z_t - P_t(2) * Z_s ) * inv_st_jac
+U_Z      = (- P_s(2) * R_t + P_t(2) * R_s ) * inv_st_jac
+U_phi    = P_phi(2)
+
+! Update psi and U
+psi = P(1)
+U   = P(2)/t_norm
+
+! Set dpsi/dt to 0 if flag is true
+if(fields%flag_zero_dpsidt) P_time(1) = 0.d0
+
+! Calculate the magnetic field (see http://jorek.eu/wiki/doku.php?id=reduced_mhd)
+B     = [+psi_Z, -psi_R, F0] * R_inv
+
+! Calculate the value of the parallel velocity field
+Vpar = P(3)/t_norm
+
+end subroutine calc_VparU
+
 pure subroutine calc_NeTe(fields, time, i_elm, st, phi, n_e, T_e, grad_T_e)
 use phys_module, only: central_density
 use mod_parameters
