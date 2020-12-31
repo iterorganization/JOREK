@@ -243,7 +243,7 @@ real*8    :: density_tot, density_in, density_out,  pressure, pressure_in, press
 real*8    :: mom_par_tot, mom_par_in, mom_par_out, kin_par_tot, kin_par_out, kin_par_in
 real*8    :: particles_remaining, momentum_remaining, energy_remaining, all_particles, all_momentum, all_energy
 
-real*8, allocatable :: P_Z, P_tmp ! Real for purpose
+real*8, allocatable :: P_Z(:), P_tmp(:) ! Real for purpose
 real*8    :: P_ion(2), P_rcb(2)
 
 n_norm   = CENTRAL_DENSITY * 1.d20                              ! (number) density normalisation

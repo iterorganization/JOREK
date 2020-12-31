@@ -7,7 +7,7 @@ use mod_particle_sim
 use mod_particle_types, only: particle_get_q, particle_base, particle_marker
 implicit none
 private
-public proj_Lz, proj_Lz_equil
+public proj_Lz, proj_Lz_equil, get_Lz
 
 contains
 
