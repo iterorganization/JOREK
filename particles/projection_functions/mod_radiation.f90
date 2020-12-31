@@ -5,6 +5,7 @@ use mod_openadas
 use data_structure
 use mod_particle_sim
 use mod_particle_types, only: particle_get_q, particle_base, particle_marker
+use mod_ionisation_recombination, only: fields_interp_ne_Te
 implicit none
 private
 public proj_Lz, proj_Lz_equil, get_Lz
