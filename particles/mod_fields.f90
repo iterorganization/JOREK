@@ -142,6 +142,8 @@ real*8, intent(out) :: B(3) !< Magnetic field [T]
 real*8, intent(out) :: psi !< psi in JOREK units
 real*8, intent(out) :: U !< velocity stream function in m/s
 
+real*8              :: Vpar
+
 ! Internal parameters
 integer, parameter :: i_var(3) = [var_psi,var_u,var_Vpar]
 real*8             :: P(3), P_s(3), P_t(3), P_phi(3), P_time(3) ! Placeholder for evaluating variables and derivatives locally
