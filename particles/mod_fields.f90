@@ -22,6 +22,7 @@ type, abstract :: fields_base
     procedure, public :: calc_NeTe
     procedure, public :: calc_NeTe_imp
     procedure, public :: calc_EBpsiU
+    procedure, public :: calc_VBpsiU
     procedure, public :: calc_Qin, calc_Qin_analytic
     procedure, public :: calc_rk4, calc_RK4_analytic
     procedure, public :: calc_EBNormBGradBCurlbDbdt
@@ -126,7 +127,7 @@ end subroutine calc_EBpsiU
 
 !> Calculates the electric and magnetic fields at a specific position
 !> in the jorek element `i_elm` at `st`.
-subroutine calc_VparU(fields, time, i_elm, st, phi, Vpar, B, psi, U)
+subroutine calc_VBpsiU(fields, time, i_elm, st, phi, V, B, psi, U)
 use phys_module, only: F0, mode, central_mass, central_density
 use constants, only: mu_zero, mass_proton
 use mod_coordinate_transforms, only: transform_derivatives_st_to_RZ
@@ -136,7 +137,7 @@ real*8, intent(in)  :: time
 integer, intent(in) :: i_elm !< JOREK element index
 real*8, intent(in)  :: st(2) !< element-local coordinates
 real*8, intent(in)  :: phi !< toroidal angle
-real*8, intent(out) :: Vpar !< Parallel velocity divided by B in [m/(s*T)]
+real*8, intent(out) :: V(3) !< Parallel velocity in [m/(s)]
 real*8, intent(out) :: B(3) !< Magnetic field [T]
 real*8, intent(out) :: psi !< psi in JOREK units
 real*8, intent(out) :: U !< velocity stream function in m/s
@@ -179,7 +180,11 @@ B     = [+psi_Z, -psi_R, F0] * R_inv
 ! Calculate the value of the parallel velocity field
 Vpar = P(3)/t_norm
 
-end subroutine calc_VparU
+! Calculate the velocity field (see http://jorek.eu/wiki/doku.php?id=reduced_mhd)
+V    = [-U_Z, +U_R, 0.] * R
+V    = V + Vpar * B
+
+end subroutine calc_VBpsiU
 
 pure subroutine calc_NeTe(fields, time, i_elm, st, phi, n_e, T_e, grad_T_e)
 use phys_module, only: central_density
