@@ -49,7 +49,6 @@ integer   :: j, seed, i_rng, n_stream
 ! For live updating the rhs of the projection
 real*8  :: R_g, Z_g, R_s, R_t, Z_s, Z_t, xjac, HZ(n_tor), HH(4,4), HH_s(4,4), HH_t(4,4)
 integer :: i_tor, index_lm, i_elm_temp
-logical :: use_cx
 
 ! Start up MPI, jorek
 call sim%initialize(num_groups=1)
@@ -57,7 +56,6 @@ call sim%initialize(num_groups=1)
 n_particles_local = int(n_particles/sim%n_cpu) 
 timesteps         = tstep_particles
 
-use_cx         = .false.
 
 ! --- Read ADAS data and generate coronal equilibrium is needed
 call init_imp_adas(sim%my_id)
@@ -191,14 +189,14 @@ events = [ new_event_ptr(jorek_feedback,   start = sim%time),            &
 
 jorek_stepper%extra_event => events(1)
 
-call main_particle_loop(jorek_stepper, jorek_feedback, project_density, timesteps, use_cx)
+call main_particle_loop(jorek_stepper, jorek_feedback, project_density, timesteps)
 
 call sim%finalize
 
 contains
 
 !================================================================================================
-subroutine main_particle_loop(jorek_stepper, jorek_feedback, project_density, timesteps, use_cx)
+subroutine main_particle_loop(jorek_stepper, jorek_feedback, project_density, timesteps)
 !================================================================================================
 use particle_tracer
 use mod_particle_diagnostics
@@ -221,7 +219,6 @@ implicit none
 real*8, parameter  :: binding_energy = 2.18d-18 ! ionization energy of a hydrogen atom [J] (= 13.6 eV)
 
 real*8, intent(in) :: timesteps
-logical            :: use_cx
 
 type(projection), target                          :: jorek_feedback, project_density
 type(jorek_timestep_action), target               :: jorek_stepper
@@ -268,11 +265,6 @@ Z_imp    = 0.0; Z_eff = 0.0; N_imp = 0.0
 v_1 = 0.0; v_2 = 0.0; v_3 = 0.0; v_4 = 0.0; v_5 = 0.0
 
 if (sim%my_id .eq. 0) then
-  if (use_cx) then
-    write(*,*) ' including charge exchange'
-  else
-    write(*,*) ' NOT including charge exchange'
-  endif
   write(*,*)
   write(*,'(A,e14.6)') ' N_norm   : ',N_norm
   write(*,'(A,e14.6)') ' rho_norm : ',rho_norm
@@ -354,7 +346,7 @@ do while (.not. sim%stop_now)
     !$omp shared(sim, particles, n_particles, n_steps, timesteps, rng, particle_start_time, &
 #endif
     !$omp rho_norm, t_norm, v_norm, E_norm, M_norm, N_norm, P_Z, &
-    !$omp use_cx, use_ncs, use_marker,                                      &
+    !$omp use_ncs, use_marker,                                      &
     !$omp CENTRAL_DENSITY, CENTRAL_MASS)                    &
     !$omp private(i_rng, i,j,k,l,m, t, E, B, psi, U, rz_old, st_old, P_ion, P_rcb, iZ, P_tmp,&
     !$omp i_elm_old, n_rho, T_e, ion_rate, ion_prob, ion_source, ion_energy, kinetic_energy,& 
@@ -454,7 +446,7 @@ do while (.not. sim%stop_now)
                         + real(particles(j)%weight,8)*n_rho*timesteps*sim%groups(1)%ad%ionisation_energy(iZ+1)&
                             * (particles(j)%P_imp(iZ)*P_ion(1) - particles(j)%P_imp(iZ+1)*P_rcb(2))
             P_tmp(iZ) = max(P_tmp(iZ), 0.0)
-          elseif (iZ .eq. sim%groups(1)%ad%n_Z)
+          elseif (iZ .eq. sim%groups(1)%ad%n_Z) then
             call sim%groups(1)%ad%SCD%interp_linear(iZ-1, log10(n_rho), log10(T_e), P_ion(2))
             call sim%groups(1)%ad%ACD%interp_linear(iZ,   log10(n_rho), log10(T_e), P_rcb(1))
             P_tmp(iZ) = particles(j)%P_imp(iZ) * (1.-P_rcb(1)*n_rho*timesteps) &
@@ -493,41 +485,6 @@ do while (.not. sim%stop_now)
 
         ion_energy     = kinetic_energy !- binding_energy
 
-
-        ! Charge Exchange
-        ! It is assumed that we will have a exchange between hydrogen isotopes
-
-        v_temp    = particles(j)%v_hat_prev
-        cx_source = 0.d0
-        cx_energy = 0.d0
-
-        if (use_cx) then
-  
-          call sim%groups(1)%ad%CCD%interp(int(particles(j)%q+1), log10(n_rho), log10(T_e), CX_rate) ! [m^3/s]
-
-          CX_prob = 1.d0 - exp(-CX_rate * n_rho * timesteps)
-
-          call rng(i_rng)%next(cx_ran)
- 
-          if (cx_ran(1) .le. CX_prob) then
-
-            ! sample boltzman, randomize velocity
-            T_eV = T_e * K_BOLTZ / EL_CHG
-
-            ! sample from main plasma (should this not be a shifted Maxwellian?)
-
-            call sample_fluid_particle_energy(T_eV, cx_ran(2:4), 1, K_eV) ! K_eV in eV. 
-
-!THIS IS WRONG: use sample distorted maxwellian (or box-Mueller transform)
-            v_temp    = sqrt(2.d0* K_eV *EL_CHG/(sim%groups(1)%mass * ATOMIC_MASS_UNIT)) * cx_ran(5:7)
-
-            CX_source = particles(j)%weight
-
-            CX_energy   = 0.5d0 * sim%groups(1)%mass * ATOMIC_MASS_UNIT *  (dot_product(particles(j)%v,particles(j)%v) - dot_product(v_temp,v_temp))
-
-          endif
-
-        endif
 
         particles(j)%v_hat_prev = v_temp 
 
