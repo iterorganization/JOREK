@@ -138,7 +138,7 @@ type is (particle_marker)
     p(j)%v_hat_prev = V
     allocate(p(j)%P_imp(0:sim%groups(1)%ad%n_Z))
     p(j)%P_imp    = 0.
-    p(i)%P_imp(0) = 1.
+    p(j)%P_imp(0) = 1.
   end do
   p(:)%weight = weight
 
@@ -213,7 +213,7 @@ use phys_module, only: tstep, use_ncs, use_pcs, use_ccs, use_marker
 use phys_module, only: CENTRAL_MASS, CENTRAL_DENSITY, GAMMA
 use constants,   only: MU_ZERO, MASS_PROTON, ATOMIC_MASS_UNIT, K_BOLTZ, EL_CHG
 use mod_integrals3D, only: int3d_new
-use mod_radiation, only: proj_Lz
+use mod_radiation, only: proj_Lz, get_Lz
 
 implicit none
 real*8, parameter  :: binding_energy = 2.18d-18 ! ionization energy of a hydrogen atom [J] (= 13.6 eV)
