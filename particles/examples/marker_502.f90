@@ -477,6 +477,7 @@ do while (.not. sim%stop_now)
         enddo !iZ
         P_tmp = P_tmp / sum(P_tmp)
         particles(j)%P_imp = P_tmp
+        dEion_dt = dEion_dt * EL_CHG ! Turn from eV to Joule
         E_lost_ion = E_lost_ion + dEion_dt
         E_lost_rad = E_lost_rad + rad_sink
         rad_sink   = rad_sink / n_rho
