@@ -19,7 +19,6 @@ use phys_module, only: tstep, gas_type, imp_adas, imp_cor, use_marker
 use phys_module, only: CENTRAL_MASS, CENTRAL_DENSITY
 use constants,   only: MU_ZERO, MASS_PROTON, ATOMIC_MASS_UNIT, K_BOLTZ, EL_CHG
 
-use mod_particle_sputtering, only: particle_sputter, sample_fluid_particle_energy
 use mod_projection_functions, only: proj_f_combined_density, &
                                     proj_f_combined_energy, proj_f_combined_par_momentum
 use mod_edge_domain
@@ -34,7 +33,6 @@ type(pcg32_rng), dimension(:), allocatable        :: rng
 type(count_action)                                :: counter
 type(projection), target                          :: jorek_feedback, project_density
 type(jorek_timestep_action), target               :: jorek_stepper
-type(particle_sputter)                            :: D_sputter_source
 type(type_edge_domain), allocatable, dimension(:) :: edge_domains
 type(edge_elements)                               :: D_edge
 
@@ -51,7 +49,7 @@ integer   :: j, seed, i_rng, n_stream
 ! For live updating the rhs of the projection
 real*8  :: R_g, Z_g, R_s, R_t, Z_s, Z_t, xjac, HZ(n_tor), HH(4,4), HH_s(4,4), HH_t(4,4)
 integer :: i_tor, index_lm, i_elm_temp
-logical :: use_cx, use_sputtering
+logical :: use_cx
 
 ! Start up MPI, jorek
 call sim%initialize(num_groups=1)
@@ -60,7 +58,6 @@ n_particles_local = int(n_particles/sim%n_cpu)
 timesteps         = tstep_particles
 
 use_cx         = .false.
-use_sputtering = .false.
 
 ! --- Read ADAS data and generate coronal equilibrium is needed
 call init_imp_adas(sim%my_id)
@@ -68,11 +65,6 @@ call init_imp_adas(sim%my_id)
 ! Set up the field reader
 fieldreader = event(read_jorek_fields_interp_linear(basename='jorek', i=-1))
 call with(sim, fieldreader)
-
-if (use_sputtering) then  
-  n_reflect = int(n_particles * 2.d-3)
-  D_sputter_source = initialise_sputtering(sim%fields%node_list, sim%fields%element_list, n_reflect)
-endif
 
 n_norm   = CENTRAL_DENSITY * 1.d20                              ! (number) density normalisation
 rho_norm = CENTRAL_MASS * MASS_PROTON * n_norm                  ! rho_SI = rho_norm * rho
@@ -175,7 +167,6 @@ jorek_stepper = new_jorek_timestep_action(jorek_feedback%node_list)
 diag_time = 1.0d12
 events = [ new_event_ptr(jorek_feedback,   start = sim%time),            &
            new_event_ptr(jorek_stepper,    start = sim%time),            &
-!          new_event_ptr(D_sputter_source, start = sim%time, step=5d-6), &
 !          event(count_action(),           start = sim%time, step=1d-5), &
 !          event(write_particle_diagnostics(filename='diag.h5'), step=diag_time), &
 !          event(write_action(), step=diag_time),                        &
@@ -185,16 +176,14 @@ events = [ new_event_ptr(jorek_feedback,   start = sim%time),            &
 
 jorek_stepper%extra_event => events(1)
 
-call main_particle_loop(jorek_stepper, jorek_feedback, project_density, timesteps, &
-                        use_cx, use_sputtering)
+call main_particle_loop(jorek_stepper, jorek_feedback, project_density, timesteps, use_cx)
 
 call sim%finalize
 
 contains
 
 !================================================================================================
-subroutine main_particle_loop(jorek_stepper, jorek_feedback, project_density, timesteps, &
-                              use_cx, use_sputtering)
+subroutine main_particle_loop(jorek_stepper, jorek_feedback, project_density, timesteps, use_cx)
 !================================================================================================
 use particle_tracer
 use mod_particle_diagnostics
@@ -217,7 +206,7 @@ implicit none
 real*8, parameter  :: binding_energy = 2.18d-18 ! ionization energy of a hydrogen atom [J] (= 13.6 eV)
 
 real*8, intent(in) :: timesteps
-logical            :: use_cx, use_sputtering
+logical            :: use_cx
 
 type(projection), target                          :: jorek_feedback, project_density
 type(jorek_timestep_action), target               :: jorek_stepper
@@ -341,7 +330,7 @@ do while (.not. sim%stop_now)
     !$omp shared(sim, particles, n_particles, n_steps, timesteps, rng, particle_start_time, &
 #endif
     !$omp rho_norm, t_norm, v_norm, E_norm, M_norm, N_norm, &
-    !$omp use_cx, use_sputtering, use_ncs, use_marker,                                      &
+    !$omp use_cx, use_ncs, use_marker,                                      &
     !$omp CENTRAL_DENSITY, CENTRAL_MASS)                    &
     !$omp private(i_rng, i,j,k,l,m, t, E, B, psi, U, rz_old, st_old,                        &
     !$omp i_elm_old, n_rho, T_e, ion_rate, ion_prob, ion_source, ion_energy, kinetic_energy,& 
@@ -623,30 +612,6 @@ end do
 
 
 end subroutine
-
-function initialise_sputtering(node_list, element_list, n_reflect) result(D_sputter_source)
-
-  use mod_edge_domain
-  use mod_edge_elements
-
-  type(type_node_list), intent(in)    :: node_list
-  type(type_element_list)             :: element_list
-  type(particle_sputter)              :: D_sputter_source
-  integer                             :: n_reflect
-  type(type_edge_domain), allocatable, dimension(:) :: edge_domains
-
-  ! number of particles to sputter per species (should be renormalized to yield)
-
-  call find_edge_domains(node_list,element_list, edge_domains)
-
-  call D_edge%prepare(node_list, element_list, edge_domains, nsub=6, nsub_toroidal=1)
-
-  ! target group, number of particles per mpi task, densities, Zs, basename
-  D_sputter_source = particle_sputter(D_edge, 1, n_reflect, basename='D_reflect')
-  D_sputter_source%use_Yn_func = .false.
-
-end function
-
 
 pure function f_psi_inside(n, P, grad_P) result(f)
   integer, intent(in) :: n
