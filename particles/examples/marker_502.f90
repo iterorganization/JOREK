@@ -392,12 +392,12 @@ do while (.not. sim%stop_now)
         Z_eff = real(particles(j)%weight,8) * dot_product(particles(j)%P_imp,P_Z**2) * timesteps
         N_imp = real(particles(j)%weight,8) * timesteps 
 
-        ! Do the particle radiation
-        ! We take away the n_rho here since it is not really the electron density
-        Lrad = proj_Lz(sim ,1, particles(j))
-        rad_sink = real(particles(j)%weight,8) * Lrad * timesteps / n_rho
-        E_lost_rad = E_lost_rad + real(particles(j)%weight,8) * Lrad * timesteps
-
+!        ! Do the particle radiation
+!        ! We take away the n_rho here since it is not really the electron density
+!        Lrad = proj_Lz(sim ,1, particles(j))
+!        rad_sink = real(particles(j)%weight,8) * Lrad * timesteps / n_rho
+!        E_lost_rad = E_lost_rad + real(particles(j)%weight,8) * Lrad * timesteps
+!
         ! Do the ionization and recombination
 !        if (particles(j)%q .eq. 0) then
 !          call sim%groups(1)%ad%SCD%interp_linear(int(particles(j)%q), log10(n_rho), log10(T_e), ion_rate) ! [m^3/s]
@@ -441,6 +441,7 @@ do while (.not. sim%stop_now)
 !        endif 
 
         dEion_dt = 0.0
+        rad_sink = 0.0
         if (allocated(P_tmp)) deallocate(P_tmp)
         allocate(P_tmp(0:sim%groups(1)%ad%n_Z))
         do iZ = 0,sim%groups(1)%ad%n_Z
@@ -477,10 +478,16 @@ do while (.not. sim%stop_now)
                         + real(particles(j)%weight,8)*n_rho*timesteps*sim%groups(1)%ad%ionisation_energy(iZ)&
                             * (-particles(j)%P_imp(iZ)*P_rcb(1) + particles(j)%P_imp(iZ-1)*P_ion(2))
           endif
-        enddo
+
+          Lrad     = get_Lz(sim, 1, iZ, n_rho, T_e)
+          rad_sink = rad_sink + particles(j)%P_imp(iZ) * real(particles(j)%weight,8) * Lrad * timesteps
+
+        enddo !iZ
         P_tmp = P_tmp / sum(P_tmp)
         particles(j)%P_imp = P_tmp
         E_lost_ion = E_lost_ion + dEion_dt
+        E_lost_rad = E_lost_rad + rad_sink
+        rad_sink   = rad_sink / n_rho
 
         kinetic_energy = dot_product(particles(j)%v_hat_prev,particles(j)%v_hat_prev) *sim%groups(1)%mass * ATOMIC_MASS_UNIT /2.d0
 

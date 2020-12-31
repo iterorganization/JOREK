@@ -1,6 +1,5 @@
 !> module takes the OPEN-ADAS data to calculate the radiated power of a single atom
 module mod_radiation
-use mod_parameters
 use mod_openadas
 use data_structure
 use mod_particle_sim
@@ -20,8 +19,7 @@ function proj_Lz(sim, group, particle)
   real*8 :: proj_Lz
   real*8 :: n_e, T_e, log_T_e, log_n_e
   real*8 :: prb, plt, prc
-  real*8, dimension(0:ad%n_Z) :: rad, rad_RC
-  integer :: q, iZ
+  integer :: q
 #if (JOREK_MODEL == 500) || (JOREK_MODEL == 555)
   real*8 :: n_n
   real*8, dimension(1) :: P, P_s, P_t, P_phi, P_time
@@ -41,28 +39,14 @@ function proj_Lz(sim, group, particle)
   n_n = P(1)
 #endif
 
-  select type(p=>particle)
-  type is (particle_marker)
-    do iZ=0,sim%groups(group)%ad%n_Z
-      call sim%groups(group)%ad%PRB%interp_linear(iZ, log_n_e, log_T_e, prb)
-      call sim%groups(group)%ad%PLT%interp_linear(iZ, log_n_e, log_T_e, plt)
-      call sim%groups(group)%ad%PRC%interp_linear(iZ, log_n_e, log_T_e, prc)
-      rad(iZ) = prb + plt
-    enddo
-    proj_Lz      = dot_product(p%P_imp(0:sim%groups(group)%ad%n_Z), rad*n_e)
+  q = particle_get_q(particle)
+  ! From here on out we have a q
+  call sim%groups(group)%ad%PRB%interp_linear(q, log_n_e, log_T_e, prb)
+  call sim%groups(group)%ad%PLT%interp_linear(q, log_n_e, log_T_e, plt)
+  proj_Lz      = (prb + plt) * n_e
 #if (JOREK_MODEL == 500) || (JOREK_MODEL == 555)
-    proj_Lz      = proj_Lz + dot_product(p%P_imp(0:sim%groups(group)%ad%n_Z), prc*n_n)
+  call sim%groups(group)%ad%PRC%interp_linear(q, log_n_e, log_T_e, prc)
+  proj_Lz      = proj_Lz + prc * n_n
 #endif
-  class default
-    q = particle_get_q(particle)
-    ! From here on out we have a q
-    call sim%groups(group)%ad%PRB%interp_linear(q, log_n_e, log_T_e, prb)
-    call sim%groups(group)%ad%PLT%interp_linear(q, log_n_e, log_T_e, plt)
-    proj_Lz      = (prb + plt) * n_e
-#if (JOREK_MODEL == 500) || (JOREK_MODEL == 555)
-    call sim%groups(group)%ad%PRC%interp_linear(q, log_n_e, log_T_e, prc)
-    proj_Lz      = proj_Lz + prc * n_n
-#endif
-  end select
 end function proj_Lz
 end module mod_radiation

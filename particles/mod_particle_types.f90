@@ -7,7 +7,7 @@ module mod_particle_types
   private
   public particle_base, particle_kinetic, particle_kinetic_leapfrog, particle_gc, particle_fieldline
   public particle_kinetic_relativistic, particle_gc_relativistic, particle_gc_vpar, particle_gc_Qin
-  public particle_get_q
+  public particle_get_q, particle_marker
   public copy_particle
   public copy_particle_base
   public copy_particle_kinetic_leapfrog
