@@ -381,7 +381,7 @@ do while (.not. sim%stop_now)
         !Z_eff = real(particles(j)%weight,8) * real(particles(j)%q,8)**2 * timesteps
         !N_imp = real(particles(j)%weight,8) * timesteps 
         Z_imp = real(particles(j)%weight,8) * dot_product(particles(j)%P_imp,P_Z) * timesteps
-        Z_eff = real(particles(j)%weight,8) * dot_product(particles(j)%P_imp,P_Z**2) * timesteps
+        Z_eff = real(particles(j)%weight,8) * dot_product(particles(j)%P_imp,(P_Z**2)) * timesteps
         N_imp = real(particles(j)%weight,8) * timesteps 
 
 !        ! Do the particle radiation
@@ -460,9 +460,9 @@ do while (.not. sim%stop_now)
             call sim%groups(1)%ad%ACD%interp_linear(iZ,   log10(n_rho), log10(T_e), P_rcb(1))
             call sim%groups(1)%ad%SCD%interp_linear(iZ-1, log10(n_rho), log10(T_e), P_ion(2))
             call sim%groups(1)%ad%ACD%interp_linear(iZ+1, log10(n_rho), log10(T_e), P_rcb(2))
-            P_tmp(iZ) = particles(j)%P_imp(iZ) * (1.-P_ion(1)-P_rcb(1)) &
-                        + particles(j)%P_imp(iZ+1) * P_rcb(2)           &
-                        + particles(j)%P_imp(iZ-1) * P_ion(2)
+            P_tmp(iZ) = particles(j)%P_imp(iZ) * (1.-P_ion(1)*n_rho*timesteps-P_rcb(1)*n_rho*timesteps) &
+                        + particles(j)%P_imp(iZ+1) * P_rcb(2)*n_rho*timesteps           &
+                        + particles(j)%P_imp(iZ-1) * P_ion(2)*n_rho*timesteps
             P_tmp(iZ) = max(P_tmp(iZ), 0.0)
             dEion_dt  = dEion_dt &
                         + real(particles(j)%weight,8)*n_rho*timesteps*sim%groups(1)%ad%ionisation_energy(iZ+1)&
