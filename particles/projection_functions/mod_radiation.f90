@@ -32,8 +32,8 @@ function proj_Lz(sim, group, particle)
   ! Calculate local temperature, density
   call fields_interp_ne_Te(sim%fields, sim%time, particle%st(1), particle%st(2), &
       particle%x(3), particle%i_elm, n_e, T_e)
-  log_T_e = log(T_e)
-  log_n_e = log(n_e)
+  log_T_e = log10(T_e)
+  log_n_e = log10(n_e)
 
 #if (JOREK_MODEL == 500) || (JOREK_MODEL == 555)
   ! Calculate neutral_density if model5XX (model501 has n_imp in 8)
@@ -116,8 +116,8 @@ function get_Lz(sim, group, iz, n_e, T_e, n_n)
   real*8 :: prb, plt, prc
   integer :: q
 
-  log_T_e = log(T_e)
-  log_n_e = log(n_e)
+  log_T_e = log10(T_e)
+  log_n_e = log10(n_e)
 
   ! From here on out we have a q
   call sim%groups(group)%ad%PRB%interp_linear(iz, log_n_e, log_T_e, prb)

@@ -372,6 +372,7 @@ do while (.not. sim%stop_now)
         i_elm_old = particles(j)%i_elm
 
         call sim%fields%calc_NeTe(t, particles(j)%i_elm, particles(j)%st, particles(j)%x(3), n_rho, T_e)
+        T_eV = T_e * K_BOLTZ /  EL_CHG ! Change K to eV
 
         ion_source = 0.d0
         ion_energy = 0.d0
