@@ -53,7 +53,7 @@ integer :: i_tor, index_lm, i_elm_temp
 character(len=500) :: part_file
 
 ! Start up MPI, jorek
-!call sim%initialize(num_groups=1)
+call sim%initialize(num_groups=1)
 !call sim%initialize(num_groups=0)
 !call get_command_argument(1, part_file)
 

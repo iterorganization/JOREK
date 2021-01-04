@@ -37,9 +37,9 @@ integer(HID_T)                :: data_type
 integer(HID_T)                :: time_space_id, time_set_id
 character(len=12)             :: group_name
 character(len=particle_type_name_length) :: particle_type_name
-integer                       :: i, j, hdferr
+integer                       :: i, j, hdferr, iZ
 type(c_ptr) :: p_ptr
-real*8, dimension(:,:), allocatable :: x, v, x_all, v_all, st, st_all
+real*8, dimension(:,:), allocatable :: x, v, x_all, v_all, st, st_all, P1, P1_all
 real*8, dimension(:), allocatable   :: E, mu, v1, E_all, mu_all, v1_all
 real*4, dimension(:), allocatable   :: weight, weight_all, t_birth, t_birth_all
 integer, dimension(:), allocatable  :: i_elm, i_elm_all, i_life, i_life_all
@@ -282,6 +282,23 @@ if (allocated(sim%groups)) then
       end if
       deallocate(v1, v1_all)
 
+    type is (particle_marker)
+      particle_type_name = 'particle_marker'
+      ! P_imp
+      allocate(P1(0:sim%groups(i)%Z,n_here), P1_all(0:sim%groups(i)%Z,n_total))
+      do j=1,n_here
+        P1(0:sim%groups(i)%Z,n_here,j) = sim%groups(i)%particles(j)%P_imp
+      end do
+      do iZ = 0, sim%groups(i)%Z 
+        call MPI_Gatherv(P1(iZ,:), n_here, MPI_REAL8, &
+                         P1_all(iZ,:), particles_per_proc, [(sum(particles_per_proc(1:i),1), i=0,n_cpu-1)], &
+                         MPI_REAL8, 0, MPI_COMM_WORLD, ierr)
+      enddo
+      if (my_id .eq. 0) then
+        call HDF5_array2D_saving(file,P1_all,sim%groups(i)%Z+1,n_total,group_name//"P_imp")
+      end if
+      deallocate(P1, P1_all)
+
     type is (particle_kinetic_relativistic)
       particle_type_name = 'particle_kinetic_relativistic'
  
@@ -466,9 +483,13 @@ do i=1,n
     allocate(particle_gc::sim%groups(i)%particles(n_here), stat=ierr)
   case ('particle_fieldline')
     allocate(particle_fieldline::sim%groups(i)%particles(n_here), stat=ierr)
+  case ('particle_marker')
+    allocate(particle_marker::sim%groups(i)%particles(n_here), stat=ierr)
   case ('particle_kinetic_relativistic')
     allocate(particle_kinetic_relativistic::sim%groups(i)%particles(n_here), stat=ierr)
   case ('particle_gc_relativistic')
+    allocate(particle_gc_relativistic::sim%groups(i)%particles(n_here), stat=ierr)
+  case ('particle_marker')
     allocate(particle_gc_relativistic::sim%groups(i)%particles(n_here), stat=ierr)
   case default
     write(*,*) "error: missing type name declaration ", trim(particle_type_name), " for read"
@@ -610,6 +631,15 @@ do i=1,n
       p(j)%v = real8_1D(j)
     end do
     deallocate(real8_1D)
+
+  type is (particle_marker)
+    ! P_imp
+    allocate(real8_2D(0:sim%groups(i)%Z,n_here))
+    call HDF5_array2D_reading(file, real8_2D, group_name//"P_imp",start=[0_HSIZE_T,i_here])
+    do j=1,n_here
+      p(j)%P_imp = real8_2D(0:sim%groups(i)%Z,j)
+    end do
+    deallocate(real8_2D)
 
   type is (particle_kinetic_relativistic)
 
