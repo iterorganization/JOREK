@@ -489,8 +489,6 @@ do i=1,n
     allocate(particle_kinetic_relativistic::sim%groups(i)%particles(n_here), stat=ierr)
   case ('particle_gc_relativistic')
     allocate(particle_gc_relativistic::sim%groups(i)%particles(n_here), stat=ierr)
-  case ('particle_marker')
-    allocate(particle_gc_relativistic::sim%groups(i)%particles(n_here), stat=ierr)
   case default
     write(*,*) "error: missing type name declaration ", trim(particle_type_name), " for read"
     call exit(1)
