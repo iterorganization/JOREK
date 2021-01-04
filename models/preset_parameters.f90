@@ -481,6 +481,26 @@ subroutine preset_parameters
   gas_type        = ''
   output_prad_phi = .false.
 
+!==================Particle related presets==============
+  restart_particles = .false.
+  use_ncs           = .false.
+  use_ccs           = .false.
+  use_pcs           = .false.
+  use_cx            = .false.
+  use_marker        = .false.
+  use_sputtering    = .false.
+  use_ionisation    = .false.
+  n_particles       = 0.0
+  tstep_particles   = 0.0
+  nstep_particles   = 0
+  nsubstep_particles = 0
+  filter_perp       = 0.0
+  filter_hyper      = 0.0
+  filter_par        = 0.0
+  filter_perp_n0    = 0.0
+  filter_hyper_n0   = 0.0
+  filter_par_n0     = 0.0
+
 !======================JP ECCD injection parameters
   nu_jec_fast=1.d1
   nu_jec1_fast=1.d1

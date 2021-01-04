@@ -50,15 +50,15 @@ integer   :: j, seed, i_rng, n_stream
 real*8  :: R_g, Z_g, R_s, R_t, Z_s, Z_t, xjac, HZ(n_tor), HH(4,4), HH_s(4,4), HH_t(4,4)
 integer :: i_tor, index_lm, i_elm_temp
 
-character(len=500) :: part_file
+character(len=500) :: part_file = 'part_restart.h5'
 
 ! Start up MPI, jorek
 call sim%initialize(num_groups=1)
 !call sim%initialize(num_groups=0)
 !call get_command_argument(1, part_file)
 
-!partreader = event(read_action(filename=trim(part_file)))
-!call with(sim, partreader) 
+partreader = event(read_action(filename=trim(part_file)))
+call with(sim, partreader) 
 
 n_particles_local = int(n_particles/sim%n_cpu) 
 timesteps         = tstep_particles

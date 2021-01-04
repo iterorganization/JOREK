@@ -635,6 +635,7 @@ do i=1,n
     allocate(real8_2D(0:sim%groups(i)%Z,n_here))
     call HDF5_array2D_reading(file, real8_2D, group_name//"P_imp",start=[0_HSIZE_T,i_here])
     do j=1,n_here
+      if (.not. allocated(p(j)%P_imp)) allocate(p(j)%P_imp(0:sim%groups(i)%Z))
       p(j)%P_imp(0:sim%groups(i)%Z) = real8_2D(0:sim%groups(i)%Z,j)
     end do
     deallocate(real8_2D)

@@ -288,7 +288,6 @@ module phys_module
   real*8  :: delta_n_convection !< Switch to activate the convection term for neutrals (at the plasma velocity)
   real*8  :: nimp_bg            !< Density of background impurity (in \f$m^{-3}\f$)
 
-  logical :: use_marker         !< This flag determines whether to use marker particles to treat impurity
 
   character(len=80) :: gas_type !< Type of gas used in material injection (MGI, SPI, ...): Argon, D2, ...
 
@@ -686,6 +685,7 @@ module phys_module
   logical :: use_ccs
   logical :: use_pcs
   logical :: use_cx
+  logical :: use_marker         !< This flag determines whether to use marker particles to treat impurity
   logical :: use_sputtering
   logical :: use_ionisation
   real*8  :: n_particles      ! the number of particles (real on purpose)
