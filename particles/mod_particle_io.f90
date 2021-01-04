@@ -287,7 +287,7 @@ if (allocated(sim%groups)) then
       ! P_imp
       allocate(P1(0:sim%groups(i)%Z,n_here), P1_all(0:sim%groups(i)%Z,n_total))
       do j=1,n_here
-        P1(0:sim%groups(i)%Z,n_here,j) = sim%groups(i)%particles(j)%P_imp
+        P1(0:sim%groups(i)%Z,n_here,j) = p(j)%P_imp
       end do
       do iZ = 0, sim%groups(i)%Z 
         call MPI_Gatherv(P1(iZ,:), n_here, MPI_REAL8, &
