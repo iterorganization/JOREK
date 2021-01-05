@@ -57,13 +57,6 @@ call sim%initialize(num_groups=1)
 !call sim%initialize(num_groups=0)
 !call get_command_argument(1, part_file)
 
-partreader = event(read_action(filename=trim(part_file)))
-call with(sim, partreader) 
-
-n_particles_local = int(n_particles/sim%n_cpu) 
-timesteps         = tstep_particles
-
-
 ! --- Read ADAS data and generate coronal equilibrium is needed
 call init_imp_adas(sim%my_id)
 
@@ -86,70 +79,80 @@ if (sim%my_id .eq.0) then
   write(*,*) ' check : ', n_steps, tstep_si - n_steps*timesteps
 endif
 
+if (restart_particles) then
+
+  partreader = event(read_action(filename=trim(part_file)))
+  call with(sim, partreader) 
+  
+  n_particles_local = int(n_particles/sim%n_cpu) 
+  timesteps         = tstep_particles
+
+else
 ! Set up particles
 
-select case ( trim(gas_type) )
-  case('D2')
-    sim%groups(1)%Z    = -2
-    sim%groups(1)%mass = atomic_weights(-2) !< atomic mass units
-    sim%groups(1)%ad   = imp_adas(1)
-    sim%groups(1)%cor  = imp_cor(1)
-  case('Ar')
-    sim%groups(1)%Z    = 18
-    sim%groups(1)%mass = atomic_weights(18) !< atomic mass units
-    sim%groups(1)%ad   = imp_adas(1)
-    sim%groups(1)%cor  = imp_cor(1)
-  case('Ne')
-    sim%groups(1)%Z    = 10
-    sim%groups(1)%mass = atomic_weights(10) !< atomic mass units
-    sim%groups(1)%ad   = imp_adas(1)
-    sim%groups(1)%cor  = imp_cor(1)
-  case default
-    write(*,*) '!! Gas type "', trim(gas_type), '" unknown (in marker_502) !!'
-    write(*,*) 'Exiting NOW!!!'
-    stop
-end select
-
-!allocate(particle_kinetic_leapfrog::sim%groups(1)%particles(n_particles_local))
-allocate(particle_marker::sim%groups(1)%particles(n_particles_local))
-
-!call initialise_particles_H_mu_psi(sim%groups(1)%particles, sim%fields, pcg32_rng(), sim%groups(1)%mass, &
-!           uniform_space=.true., uniform_space_rej_f=f_psi_inside, uniform_space_rej_vars=[1], charge = 0)
-call initialise_particles(sim%groups(1)%particles, &
-    sim%fields%node_list, sim%fields%element_list, pcg32_rng())
-
-physical_particles = 1.d21
-weight = physical_particles/n_particles
-
-v_kin_temp = sqrt( (2.d0 * 1d5) / (sim%groups(1)%mass* ATOMIC_MASS_UNIT) / physical_particles)
-
-select type (p => sim%groups(1)%particles)
-type is (particle_kinetic_leapfrog)
- 
-  p(:)%q      = 0
-  p(:)%weight = weight
-
-  do j=1,size(p,1)
-    call sim%fields%calc_EBpsiU(sim%time , p(j)%i_elm, p(j)%st, p(j)%x(3), E, B, psi, U)
-    B_norm = B/norm2(B)
-    p(j)%v(1)  = v_kin_temp * B_norm(1)
-    p(j)%v(2)  = v_kin_temp * B_norm(2)
-    p(j)%v(3)  = v_kin_temp * B_norm(3)
-  end do
-  call boris_all_initial_half_step_backwards_RZPhi(p, sim%groups(1)%mass, sim%fields, sim%time, timesteps)
-
-type is (particle_marker)
+  select case ( trim(gas_type) )
+    case('D2')
+      sim%groups(1)%Z    = -2
+      sim%groups(1)%mass = atomic_weights(-2) !< atomic mass units
+      sim%groups(1)%ad   = imp_adas(1)
+      sim%groups(1)%cor  = imp_cor(1)
+    case('Ar')
+      sim%groups(1)%Z    = 18
+      sim%groups(1)%mass = atomic_weights(18) !< atomic mass units
+      sim%groups(1)%ad   = imp_adas(1)
+      sim%groups(1)%cor  = imp_cor(1)
+    case('Ne')
+      sim%groups(1)%Z    = 10
+      sim%groups(1)%mass = atomic_weights(10) !< atomic mass units
+      sim%groups(1)%ad   = imp_adas(1)
+      sim%groups(1)%cor  = imp_cor(1)
+    case default
+      write(*,*) '!! Gas type "', trim(gas_type), '" unknown (in marker_502) !!'
+      write(*,*) 'Exiting NOW!!!'
+      stop
+  end select
   
-  do j=1,size(p,1)
-    call sim%fields%calc_VBpsiU(sim%time , p(j)%i_elm, p(j)%st, p(j)%x(3), V, B, psi, U)
-    p(j)%v_hat_prev = V
-    allocate(p(j)%P_imp(0:sim%groups(1)%ad%n_Z))
-    p(j)%P_imp    = 0.
-    p(j)%P_imp(0) = 1.
-  end do
-  p(:)%weight = weight
-
-end select
+  !allocate(particle_kinetic_leapfrog::sim%groups(1)%particles(n_particles_local))
+  allocate(particle_marker::sim%groups(1)%particles(n_particles_local))
+  
+  !call initialise_particles_H_mu_psi(sim%groups(1)%particles, sim%fields, pcg32_rng(), sim%groups(1)%mass, &
+  !           uniform_space=.true., uniform_space_rej_f=f_psi_inside, uniform_space_rej_vars=[1], charge = 0)
+  call initialise_particles(sim%groups(1)%particles, &
+      sim%fields%node_list, sim%fields%element_list, pcg32_rng())
+  
+  physical_particles = 1.d21
+  weight = physical_particles/n_particles
+  
+  v_kin_temp = sqrt( (2.d0 * 1d5) / (sim%groups(1)%mass* ATOMIC_MASS_UNIT) / physical_particles)
+  
+  select type (p => sim%groups(1)%particles)
+  type is (particle_kinetic_leapfrog)
+   
+    p(:)%q      = 0
+    p(:)%weight = weight
+  
+    do j=1,size(p,1)
+      call sim%fields%calc_EBpsiU(sim%time , p(j)%i_elm, p(j)%st, p(j)%x(3), E, B, psi, U)
+      B_norm = B/norm2(B)
+      p(j)%v(1)  = v_kin_temp * B_norm(1)
+      p(j)%v(2)  = v_kin_temp * B_norm(2)
+      p(j)%v(3)  = v_kin_temp * B_norm(3)
+    end do
+    call boris_all_initial_half_step_backwards_RZPhi(p, sim%groups(1)%mass, sim%fields, sim%time, timesteps)
+  
+  type is (particle_marker)
+    
+    do j=1,size(p,1)
+      call sim%fields%calc_VBpsiU(sim%time , p(j)%i_elm, p(j)%st, p(j)%x(3), V, B, psi, U)
+      p(j)%v_hat_prev = V
+      allocate(p(j)%P_imp(0:sim%groups(1)%ad%n_Z))
+      p(j)%P_imp    = 0.
+      p(j)%P_imp(0) = 1.
+    end do
+    p(:)%weight = weight
+  
+  end select
+endif
 
 ! Set up feedback
 jorek_feedback = new_projection(sim%fields%node_list, sim%fields%element_list, &
