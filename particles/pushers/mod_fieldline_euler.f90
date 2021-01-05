@@ -50,6 +50,28 @@ pure subroutine fieldline_adams_bashforth_push_cylindrical(particle, B, dt)
   particle%B_hat_prev = B_hat
 end subroutine fieldline_adams_bashforth_push_cylindrical
 
+!> Follow a VELOCITY fieldline for a single timestep with a Two-step Adams-Bashfort method
+!> This routine works in RZPhi coordinates.
+!> v_hat_prev must be set in the particle or the first step will be inaccurate
+pure subroutine v_fieldline_adams_bashforth_push_cylindrical(particle, V, dt)
+  type(particle_marker), intent(inout) :: particle
+  real*8, dimension(3), intent(in) :: V
+  real*8, intent(in) :: dt
+  real*8 :: R, Rphi, V_value, V_value_prev
+  real*8 :: V_hat(3), V_hat_prev(3)
+
+  V_value      = norm2(V)
+  V_value_prev = norm2(particle%V_prev)
+  V_hat        = V / V_value
+  V_hat_prev   = particle%V_prev / V_value_prev
+
+  ! No cylindrical correction! works better because adams-bashforth needs linear steps
+  particle%x(3) = (particle%x(3)*particle%x(1) + (V_hat(3)*1.5d0 - V_hat_prev(3)*0.5d0) * V_value * dt)/particle%x(1)
+  particle%x(1) = particle%x(1)                + (V_hat(1)*1.5d0 - V_hat_prev(1)*0.5d0) * V_value * dt
+  particle%x(2) = particle%x(2)                + (V_hat(2)*1.5d0 - V_hat_prev(2)*0.5d0) * V_value * dt
+  particle%V_prev = V
+end subroutine v_fieldline_adams_bashforth_push_cylindrical
+
 !> Follow a fieldline for a single timestep with forward euler
 !> This routine works in RZPhi coordinates
 pure subroutine fieldline_euler_push_cartesian(particle, B, dt)

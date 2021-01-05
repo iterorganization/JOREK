@@ -144,7 +144,7 @@ else
     
     do j=1,size(p,1)
       call sim%fields%calc_VBpsiU(sim%time , p(j)%i_elm, p(j)%st, p(j)%x(3), V, B, psi, U)
-      p(j)%v_hat_prev = V
+      p(j)%V_prev = V
       allocate(p(j)%P_imp(0:sim%groups(1)%ad%n_Z))
       p(j)%P_imp    = 0.
       p(j)%P_imp(0) = 1.
@@ -378,7 +378,8 @@ do while (.not. sim%stop_now)
 
         t = particle_start_time + (k-1)*timesteps
 
-        call sim%fields%calc_EBpsiU(t, particles(j)%i_elm, particles(j)%st, particles(j)%x(3), E, B, psi, U)
+        !call sim%fields%calc_EBpsiU(t, particles(j)%i_elm, particles(j)%st, particles(j)%x(3), E, B, psi, U)
+        call sim%fields%calc_VBpsiU(sim%time , p(j)%i_elm, p(j)%st, p(j)%x(3), V, B, psi, U)
         rz_old    = particles(j)%x(1:2)
         st_old    = particles(j)%st
         i_elm_old = particles(j)%i_elm
@@ -495,12 +496,10 @@ do while (.not. sim%stop_now)
         E_lost_rad = E_lost_rad + rad_sink
         rad_sink   = rad_sink / n_rho
 
-        kinetic_energy = dot_product(particles(j)%v_hat_prev,particles(j)%v_hat_prev) *sim%groups(1)%mass * ATOMIC_MASS_UNIT /2.d0
+        kinetic_energy = dot_product(particles(j)%V_prev,particles(j)%V_prev) *sim%groups(1)%mass * ATOMIC_MASS_UNIT /2.d0
 
         ion_energy     = kinetic_energy !- binding_energy
 
-
-        particles(j)%v_hat_prev = v_temp 
 
         ! Calculate the projection of the ion source in real-time
 
@@ -542,7 +541,12 @@ do while (.not. sim%stop_now)
 !          call find_RZ_nearby(sim%fields%node_list, sim%fields%element_list, rz_old(1), rz_old(2), st_old(1), st_old(2), i_elm_old, &
 !                              particles(j)%x(1), particles(j)%x(2), particles(j)%st(1), particles(j)%st(2), particles(j)%i_elm, ifail)
 !        end if
-
+        if (particles(j)%i_elm .gt. 0) then
+          call v_fieldline_adams_bashforth_push_cylindrical(particles(j), V, timesteps)
+          call find_RZ_nearby(sim%fields%node_list, sim%fields%element_list, rz_old(1), rz_old(2), &
+                              st_old(1), st_old(2), i_elm_old, particles(j)%x(1), particles(j)%x(2), &
+                              particles(j)%st(1), particles(j)%st(2), particles(j)%i_elm, ifail)
+        endif
       end do ! steps
     end do   ! particles
     !$omp end parallel do

@@ -37,7 +37,7 @@ module mod_particle_types
 
   !> A simple type just for velocity fieldline tracing in two-step methods (Adams Bashforth) or for forward euler
   type, extends(particle_base) :: particle_marker
-    real*8    :: v_hat_prev(3) = 0.d0 !< Field direction at previous timestep
+    real*8    :: V_prev(3) = 0.d0 !< Field direction at previous timestep
     real*8, allocatable   :: P_imp(:) !< The charge state distribution
   end type particle_marker
 
