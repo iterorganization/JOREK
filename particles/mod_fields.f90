@@ -157,7 +157,7 @@ t_norm  = sqrt(mu_zero * mass_proton * central_mass * central_density * 1.d20) !
 
 ! Interpolate the fields to get psi and U at the current position (and the
 ! changes u_n - u(n-1))
-call fields%interp_PRZ(time, i_elm, i_var, 2, st(1), st(2), phi, P, P_s, P_t, P_phi, P_time, R, R_s, R_t, Z, Z_s, Z_t)
+call fields%interp_PRZ(time, i_elm, i_var, 3, st(1), st(2), phi, P, P_s, P_t, P_phi, P_time, R, R_s, R_t, Z, Z_s, Z_t)
 
 R_inv = 1.d0/R
 inv_st_jac = 1.d0/(R_s * Z_t - R_t * Z_s)
