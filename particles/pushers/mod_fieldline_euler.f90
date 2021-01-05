@@ -11,7 +11,7 @@ module mod_fieldline_euler
 
   public fieldline_euler_push_cylindrical, fieldline_euler_push_cartesian
   public fieldline_adams_bashforth_push_cylindrical, fieldline_adams_bashforth_push_cartesian
-  public gc_to_fieldline
+  public gc_to_fieldline, v_fieldline_adams_bashforth_push_cylindrical
 contains
 
 !> Follow a fieldline for a single timestep with forward euler
