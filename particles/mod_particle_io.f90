@@ -8,6 +8,7 @@ use mpi
 use mod_interp, only: interp_0
 use mod_particle_types
 use mod_particle_sim
+use phys_module, only: adas_dir
 implicit none
 private
 public write_simulation_hdf5, read_simulation_hdf5, get_simulation_hdf5_time
@@ -423,6 +424,7 @@ real*8, dimension(:,:), allocatable :: real8_2D
 integer*4, dimension(:), allocatable :: int4_1D
 real*4, dimension(:), allocatable :: real4_1D
 real*8, dimension(:), allocatable :: real8_1D
+real*8  :: B(3), psi, U, V(3)
 
 ! Preparation
 call MPI_COMM_RANK(MPI_COMM_WORLD, my_id, ierr)      ! id of each MPI proc
@@ -500,7 +502,11 @@ do i=1,n
   call HDF5_real_reading(file,sim%groups(i)%mass,group_name//"mass")
   call HDF5_char_reading(file,sim%groups(i)%ad%suffix,group_name//"adas_suffix")
   if (len_trim(sim%groups(i)%ad%suffix) .gt. 0) then
-    sim%groups(i)%ad = read_adf11(sim%my_id,sim%groups(i)%ad%suffix)
+    if (trim(adas_dir) .eq. '') then
+      sim%groups(i)%ad = read_adf11(sim%my_id,sim%groups(i)%ad%suffix)
+    else
+      sim%groups(i)%ad = read_adf11(sim%my_id,sim%groups(i)%ad%suffix,trim(adas_dir))
+    endif
     sim%groups(i)%cor = coronal(sim%groups(i)%ad)
   end if
 
@@ -637,6 +643,10 @@ do i=1,n
     do j=1,n_here
       if (.not. allocated(p(j)%P_imp)) allocate(p(j)%P_imp(0:sim%groups(i)%Z))
       p(j)%P_imp(0:sim%groups(i)%Z) = real8_2D(0:sim%groups(i)%Z,j)
+      if (allocated(sim%fields)) then
+        call sim%fields%calc_VBpsiU(sim%time , p(j)%i_elm, p(j)%st, p(j)%x(3), V, B, psi, U)
+        p(j)%v_hat_prev = V
+      endif
     end do
     deallocate(real8_2D)
 

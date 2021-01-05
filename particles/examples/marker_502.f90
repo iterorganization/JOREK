@@ -15,7 +15,7 @@ use mod_basisfunctions
 use nodes_elements
 use phys_module, only: n_particles, nstep_particles, nsubstep_particles, tstep_particles, use_ncs, use_pcs, use_ccs
 use phys_module, only: filter_perp, filter_hyper, filter_par, filter_perp_n0, filter_hyper_n0, filter_par_n0
-use phys_module, only: tstep, gas_type, imp_adas, imp_cor, use_marker
+use phys_module, only: tstep, gas_type, imp_adas, imp_cor, adas_dir, use_marker, restart_particles
 use phys_module, only: CENTRAL_MASS, CENTRAL_DENSITY
 use constants,   only: MU_ZERO, MASS_PROTON, ATOMIC_MASS_UNIT, K_BOLTZ, EL_CHG
 
@@ -28,7 +28,7 @@ use mod_impurity, only: init_imp_adas
 
 implicit none
 
-type(event)                                       :: fieldreader
+type(event)                                       :: fieldreader, partreader
 type(pcg32_rng), dimension(:), allocatable        :: rng
 type(count_action)                                :: counter
 type(projection), target                          :: jorek_feedback, project_density
@@ -61,6 +61,9 @@ call sim%initialize(num_groups=1)
 call init_imp_adas(sim%my_id)
 
 ! Set up the field reader
+n_particles_local = int(n_particles/sim%n_cpu) 
+timesteps         = tstep_particles
+
 fieldreader = event(read_jorek_fields_interp_linear(basename='jorek', i=-1))
 call with(sim, fieldreader)
 
@@ -83,9 +86,6 @@ if (restart_particles) then
 
   partreader = event(read_action(filename=trim(part_file)))
   call with(sim, partreader) 
-  
-  n_particles_local = int(n_particles/sim%n_cpu) 
-  timesteps         = tstep_particles
 
 else
 ! Set up particles
