@@ -379,7 +379,7 @@ do while (.not. sim%stop_now)
         t = particle_start_time + (k-1)*timesteps
 
         !call sim%fields%calc_EBpsiU(t, particles(j)%i_elm, particles(j)%st, particles(j)%x(3), E, B, psi, U)
-        call sim%fields%calc_VBpsiU(sim%time , p(j)%i_elm, p(j)%st, p(j)%x(3), V, B, psi, U)
+        call sim%fields%calc_VBpsiU(t, particles(j)%i_elm, particles(j)%st, particles(j)%x(3), V, B, psi, U)
         rz_old    = particles(j)%x(1:2)
         st_old    = particles(j)%st
         i_elm_old = particles(j)%i_elm
