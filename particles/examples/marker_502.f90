@@ -631,6 +631,24 @@ do while (.not. sim%stop_now)
 
     enddo
     !omp end parallel do
+  type is (particle_marker)
+
+#ifdef __GFORTRAN__
+    !$omp parallel do default(none) & ! workaround for Error: '__vtab_mod_openadas_Adf11' not specified in enclosing 'parallel'
+#else
+    !$omp parallel do default(none) & 
+#endif
+    !$omp reduction(+:particles_remaining, momentum_remaining, energy_remaining) &
+    !$omp shared(sim) &
+    !$omp private(j, E, B, psi, U, B_norm)
+    do j=1,size(particles,1)
+
+      if (particles(j)%i_elm .le. 0) cycle
+
+      particles_remaining = particles_remaining + particles(j)%weight
+
+    enddo
+    !omp end parallel do
   end select
 
   call MPI_REDUCE(particles_remaining, all_particles, 1, MPI_DOUBLE_PRECISION, MPI_SUM, 0, MPI_COMM_WORLD, ierr)
