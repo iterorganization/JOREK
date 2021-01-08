@@ -669,7 +669,7 @@ do while (.not. sim%stop_now)
                                         pressure+kin_par_tot+all_energy, pressure, all_energy, kin_par_tot
   endif
 ! --- Write a restart file every nout timesteps
-  if ( (sim%my_id == 0) .and. (mod(index_now,nout) == 0) ) then
+  if (mod(index_now,nout) == 0) then
     write(part_fileout,'(A4,i5.5,A3)') 'part',index_now,'.h5'
     call write_simulation_hdf5(sim, trim(part_fileout))
   endif
