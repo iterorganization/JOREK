@@ -875,7 +875,8 @@ do ms=1, n_gauss
      else
        E_ion     = 0.
        dE_ion_dT = 0.
-       E_ion_bg  = 0.
+       E_ion_bg  = 13.6
+       E_ion_bg  = E_ion_bg * EL_CHG*MU_ZERO*central_density*1.d20
        Z_imp     = 0.
        dZ_imp_dT = 0.
        aux_dEion_dt = eq_aux_g(mp,1,ms,mt) ! Accumulated ionization energy change
