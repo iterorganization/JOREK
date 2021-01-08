@@ -15,7 +15,8 @@ use mod_basisfunctions
 use nodes_elements
 use phys_module, only: n_particles, nstep_particles, nsubstep_particles, tstep_particles, use_ncs, use_pcs, use_ccs
 use phys_module, only: filter_perp, filter_hyper, filter_par, filter_perp_n0, filter_hyper_n0, filter_par_n0
-use phys_module, only: tstep, gas_type, imp_adas, imp_cor, adas_dir, use_marker, restart_particles
+use phys_module, only: tstep, gas_type, imp_adas, imp_cor, adas_dir, use_marker, restart_particles, index_now
+use phys_module, only: nout
 use phys_module, only: CENTRAL_MASS, CENTRAL_DENSITY
 use constants,   only: MU_ZERO, MASS_PROTON, ATOMIC_MASS_UNIT, K_BOLTZ, EL_CHG
 
@@ -50,6 +51,7 @@ integer   :: j, seed, i_rng, n_stream
 real*8  :: R_g, Z_g, R_s, R_t, Z_s, Z_t, xjac, HZ(n_tor), HH(4,4), HH_s(4,4), HH_t(4,4)
 integer :: i_tor, index_lm, i_elm_temp
 
+character(len=50)  :: part_fileout
 character(len=500) :: part_file = 'part_restart.h5'
 
 ! Start up MPI, jorek
@@ -666,7 +668,11 @@ do while (.not. sim%stop_now)
                                         mom_par_tot+all_momentum, mom_par_tot, all_momentum, &
                                         pressure+kin_par_tot+all_energy, pressure, all_energy, kin_par_tot
   endif
-
+! --- Write a restart file every nout timesteps
+  if ( (sim%my_id == 0) .and. (mod(index_now,nout) == 0) ) then
+    write(part_fileout,'(A4,i5.5,A3)') 'part',index_now,'.h5'
+    call write_simulation_hdf5(sim, trim(part_fileout))
+  endif
 end do
 
 
