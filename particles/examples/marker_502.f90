@@ -364,7 +364,7 @@ do while (.not. sim%stop_now)
     !$omp CENTRAL_DENSITY, CENTRAL_MASS)                    &
     !$omp private(i_rng, i,j,k,l,m, t, E, B, psi, U, rz_old, st_old, P_ion, P_rcb, iZ, P_tmp,&
     !$omp i_elm_old, n_rho, T_e, ion_rate, ion_prob, ion_source, ion_energy, kinetic_energy,& 
-    !$omp rec_rate, dEion_dt, ion_rec_ran, Z_imp, Z_eff, N_imp, Lrad, rad_sink, & 
+    !$omp rec_rate, dEion_dt, ion_rec_ran, Z_imp, Z_eff, N_imp, Lrad, rad_sink, V,          & 
     !$omp R_g, R_s, R_t, Z_g, Z_s, Z_t, xjac, HH, HH_s, HH_t, HZ, index_lm,                 &
     !$omp ifail, CX_rate, CX_prob, CX_source, CX_energy, v_1, v_2, v_3, v_4, v_5,           &
     !$omp particle_source, velocity_par_source, energy_source, v_temp, K_eV, T_eV, cx_ran)  &
@@ -380,8 +380,6 @@ do while (.not. sim%stop_now)
 
         t = particle_start_time + (k-1)*timesteps
 
-        !call sim%fields%calc_EBpsiU(t, particles(j)%i_elm, particles(j)%st, particles(j)%x(3), E, B, psi, U)
-        call sim%fields%calc_VBpsiU(t, particles(j)%i_elm, particles(j)%st, particles(j)%x(3), V, B, psi, U)
         rz_old    = particles(j)%x(1:2)
         st_old    = particles(j)%st
         i_elm_old = particles(j)%i_elm
@@ -544,6 +542,8 @@ do while (.not. sim%stop_now)
 !                              particles(j)%x(1), particles(j)%x(2), particles(j)%st(1), particles(j)%st(2), particles(j)%i_elm, ifail)
 !        end if
         if (particles(j)%i_elm .gt. 0) then
+          !call sim%fields%calc_EBpsiU(t, particles(j)%i_elm, particles(j)%st, particles(j)%x(3), E, B, psi, U)
+          call sim%fields%calc_VBpsiU(t, particles(j)%i_elm, particles(j)%st, particles(j)%x(3), V, B, psi, U)
           call v_fieldline_adams_bashforth_push_cylindrical(particles(j), V, timesteps)
           call find_RZ_nearby(sim%fields%node_list, sim%fields%element_list, rz_old(1), rz_old(2), &
                               st_old(1), st_old(2), i_elm_old, particles(j)%x(1), particles(j)%x(2), &

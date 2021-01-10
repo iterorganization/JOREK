@@ -183,7 +183,7 @@ B     = [+psi_Z, -psi_R, F0] * R_inv
 Vpar = P(3)/t_norm
 
 ! Calculate the velocity field (see http://jorek.eu/wiki/doku.php?id=reduced_mhd)
-V    = [-U_Z, +U_R, 0.] * R
+V    = [-U_Z, +U_R, 0.] * R / t_norm
 V    = V + Vpar * B
 
 end subroutine calc_VBpsiU
