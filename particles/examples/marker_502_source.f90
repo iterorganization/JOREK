@@ -1,6 +1,6 @@
 !> Testing the coupling of the projections of particles to JOREK
 
-program marker_502
+program marker_502_source
 use particle_tracer
 use mod_particle_diagnostics
 use mpi
@@ -16,9 +16,10 @@ use nodes_elements
 use phys_module, only: n_particles, nstep_particles, nsubstep_particles, tstep_particles, use_ncs, use_pcs, use_ccs
 use phys_module, only: filter_perp, filter_hyper, filter_par, filter_perp_n0, filter_hyper_n0, filter_par_n0
 use phys_module, only: tstep, gas_type, imp_adas, imp_cor, adas_dir, use_marker, restart_particles, index_now
-use phys_module, only: nout
+use phys_module, only: nout, n_spi_tot, pellets, R_geo, using_spi, spi_quantity
 use phys_module, only: CENTRAL_MASS, CENTRAL_DENSITY
-use constants,   only: MU_ZERO, MASS_PROTON, ATOMIC_MASS_UNIT, K_BOLTZ, EL_CHG
+use mod_parameters, only: n_plane
+use constants,   only: MU_ZERO, MASS_PROTON, ATOMIC_MASS_UNIT, K_BOLTZ, EL_CHG, PI, TWOPI
 
 use mod_projection_functions, only: proj_f_combined_density, &
                                     proj_f_combined_energy, proj_f_combined_par_momentum
@@ -41,7 +42,7 @@ type(edge_elements)                               :: D_edge
 real*8    :: timesteps, tstep_si, t_norm, rho_norm, n_norm
 real*8    :: target_time, t, E(3), B(3), psi, U, V(3), n_rho, T_e, rz_old(2), st_old(2)
 real*8    :: diag_time 
-real*8    :: temp(3), T_eV, K_eV, v_kin_temp, B_norm(3)
+real*8    :: temp(3), T_eV, K_eV, B_norm(3)
 real*8    :: physical_particles, weight
 integer   :: n_particles_local, n_steps, ifail
 integer   :: n_reflect
@@ -84,6 +85,10 @@ if (sim%my_id .eq.0) then
   write(*,*) ' check : ', n_steps, tstep_si - n_steps*timesteps
 endif
 
+physical_particles = 1.d21
+if (using_spi) physical_particles = sum(spi_quantity)
+weight = physical_particles/n_particles
+
 if (restart_particles) then
 
   partreader = event(read_action(filename=trim(part_file)))
@@ -114,46 +119,25 @@ else
       stop
   end select
   
-  !allocate(particle_kinetic_leapfrog::sim%groups(1)%particles(n_particles_local))
   allocate(particle_marker::sim%groups(1)%particles(n_particles_local))
   
-  !call initialise_particles_H_mu_psi(sim%groups(1)%particles, sim%fields, pcg32_rng(), sim%groups(1)%mass, &
-  !           uniform_space=.true., uniform_space_rej_f=f_psi_inside, uniform_space_rej_vars=[1], charge = 0)
-  call initialise_particles(sim%groups(1)%particles, &
-      sim%fields%node_list, sim%fields%element_list, pcg32_rng())
   
-  physical_particles = 1.d21
-  weight = physical_particles/n_particles
-  
-  v_kin_temp = sqrt( (2.d0 * 1d5) / (sim%groups(1)%mass* ATOMIC_MASS_UNIT) / physical_particles)
-  
-  select type (p => sim%groups(1)%particles)
-  type is (particle_kinetic_leapfrog)
-   
-    p(:)%q      = 0
-    p(:)%weight = weight
-  
-    do j=1,size(p,1)
-      call sim%fields%calc_EBpsiU(sim%time , p(j)%i_elm, p(j)%st, p(j)%x(3), E, B, psi, U)
-      B_norm = B/norm2(B)
-      p(j)%v(1)  = v_kin_temp * B_norm(1)
-      p(j)%v(2)  = v_kin_temp * B_norm(2)
-      p(j)%v(3)  = v_kin_temp * B_norm(3)
-    end do
-    call boris_all_initial_half_step_backwards_RZPhi(p, sim%groups(1)%mass, sim%fields, sim%time, timesteps)
-  
-  type is (particle_marker)
-    
-    do j=1,size(p,1)
-      call sim%fields%calc_VBpsiU(sim%time , p(j)%i_elm, p(j)%st, p(j)%x(3), V, B, psi, U)
-      p(j)%V_prev = V
-      allocate(p(j)%P_imp(0:sim%groups(1)%ad%n_Z))
-      p(j)%P_imp    = 0.
-      p(j)%P_imp(0) = 1.
-    end do
-    p(:)%weight = weight
-  
-  end select
+!  call initialise_particles(sim%groups(1)%particles, &
+!      sim%fields%node_list, sim%fields%element_list, pcg32_rng())
+!  
+!  select type (p => sim%groups(1)%particles)
+!  type is (particle_marker)
+!    
+!    do j=1,size(p,1)
+!      call sim%fields%calc_VBpsiU(sim%time , p(j)%i_elm, p(j)%st, p(j)%x(3), V, B, psi, U)
+!      p(j)%V_prev = V
+!      allocate(p(j)%P_imp(0:sim%groups(1)%ad%n_Z))
+!      p(j)%P_imp    = 0.
+!      p(j)%P_imp(0) = 1.
+!    end do
+!    p(:)%weight = weight
+!  
+!  end select
 endif
 
 ! Set up feedback
@@ -232,7 +216,7 @@ use mod_radiation, only: proj_Lz, get_Lz
 implicit none
 real*8, parameter  :: binding_energy = 2.18d-18 ! ionization energy of a hydrogen atom [J] (= 13.6 eV)
 
-real*8, intent(in) :: timesteps
+real*8, intent(in) :: timesteps                 ! In real time [s] !
 
 type(projection), target                          :: jorek_feedback, project_density
 type(jorek_timestep_action), target               :: jorek_stepper
@@ -243,19 +227,20 @@ real*8    :: rho_norm, t_norm, v_norm, E_norm, M_norm, N_norm, tstep_si
 real*8    :: kinetic_energy, ion_energy
 real*8    :: E_lost_ion, E_lost_ion_all, E_lost_rad, E_lost_rad_all
 !$ real*8 :: w0, w1, mmm(3)
-integer   :: i, j, k, l, m, n_steps, i_elm_old, iZ
+integer   :: i, j, k, l, m, n_steps, i_elm_old, iZ, spi_i
 integer   :: seed, i_rng, n_stream, ierr, nthreads, myid
 real*8    :: ion_rate, ion_source, ion_prob, ion_rec_ran(2), cx_ran(7), cx_source, cx_energy
-real*8    :: rec_rate, dEion_dT, Z_imp, Z_eff, N_imp, Lrad, rad_sink
+real*8    :: rec_rate, dEion_dT, Z_imp, Z_eff, N_imp, Lrad, rad_sink, spi_source_imp
 real*8    :: cx_prob, CX_rate
 real*8    :: particle_source, velocity_par_source, energy_source
-real*8    :: v_temp(3), T_eV, K_eV, v_kin_temp, B_norm(3), v_1, v_2, v_3, v_4, v_5
+real*8    :: v_temp(3), T_eV, K_eV, B_norm(3), v_1, v_2, v_3, v_4, v_5
 real*8    :: density_tot, density_in, density_out,  pressure, pressure_in, pressure_out
 real*8    :: mom_par_tot, mom_par_in, mom_par_out, kin_par_tot, kin_par_out, kin_par_in
 real*8    :: particles_remaining, momentum_remaining, energy_remaining, all_particles, all_momentum, all_energy
 
 real*8, allocatable :: P_Z(:), P_tmp(:) ! Real for purpose
 real*8    :: P_ion(2), P_rcb(2)
+integer   :: n_particles_add_local, particle_begin_local
 
 n_norm   = CENTRAL_DENSITY * 1.d20                              ! (number) density normalisation
 rho_norm = CENTRAL_MASS * MASS_PROTON * n_norm                  ! rho_SI = rho_norm * rho
@@ -263,6 +248,9 @@ t_norm   = sqrt((MU_ZERO * rho_norm))                           ! t_SI   = t_nor
 v_norm   = 1.d0 / t_norm                                        ! V_SI   = v_norm * v_jorek
 E_norm   = 1.d0 / (MU_ZERO * (GAMMA-1.))                       ! E_SI   = E_norm * E_jorek
 M_norm   = rho_norm * v_norm                                    ! momentum normalisation
+
+particle_begin_local = 1
+n_particles_add_local = 0
 
 if (.not.(allocated(P_Z))) allocate(P_Z(0:sim%groups(1)%ad%n_Z))
 do iZ=0,sim%groups(1)%ad%n_Z
@@ -335,6 +323,38 @@ do while (.not. sim%stop_now)
   E_lost_rad = 0.d0
   E_lost_rad_all = 0.d0
 
+  ! Get the total ablation amount within each timestep for rejection sampling, then the probability at
+  ! each position with source_imp density source is simply source_imp * timesteps * xjac * BigR * wst * delta_phi
+  ! divided by spi_source_imp *  timesteps
+  spi_source_imp = 0.0
+  do spi_i=1, n_spi_tot
+    spi_source_imp = spi_source_imp + pellets(spi_i)%spi_abl * pellets(spi_i)%spi_species
+  enddo
+  n_particles_add_local =  int(spi_source_imp * timesteps / (weight * sim%n_cpu)) 
+
+  ! Start assigning particles for this particle time step
+  select type (p => sim%groups(1)%particles)
+  type is (particle_marker)
+    
+    if (particle_begin_local+n_particles_add_local-1 > size(sim%groups(1)%particles,1)) then
+      write(*,*) "ERROR: No free particles can be allocated anymore!"
+      call exit(1)
+    endif 
+    call initialise_particles_marker(sim%groups(1)%particles, sim%fields%node_list, sim%fields%element_list, &
+                                      pcg32_rng(), n_particles_add_local, particle_begin_local, uniform=.false.,&
+                                      fluid_source=spi_source_imp,transform_rej_f=f_source_imp)
+    do j=particle_begin_local,particle_begin_local+n_particles_add_local-1
+      call sim%fields%calc_VBpsiU(sim%time , p(j)%i_elm, p(j)%st, p(j)%x(3), V, B, psi, U)
+      p(j)%V_prev = V
+      allocate(p(j)%P_imp(0:sim%groups(1)%ad%n_Z))
+      p(j)%P_imp    = 0.
+      p(j)%P_imp(0) = 1.
+      p(j)%weight   = real(spi_source_imp*timesteps/real(n_particles_add_local,8),4)
+    end do
+    particle_begin_local = particle_begin_local + n_particles_add_local
+  
+  end select
+  
 !  jorek_feedback%rhs_gather_time = jorek_feedback%rhs_gather_time + n_steps * timesteps
   jorek_feedback%rhs_gather_time = n_steps * timesteps
 
@@ -360,11 +380,11 @@ do while (.not. sim%stop_now)
     !$omp shared(sim, particles, n_particles, n_steps, timesteps, rng, particle_start_time, &
 #endif
     !$omp rho_norm, t_norm, v_norm, E_norm, M_norm, N_norm, P_Z, &
-    !$omp use_ncs, use_marker,                                      &
+    !$omp use_ncs, use_marker, n_particles_add_local,                                       &
     !$omp CENTRAL_DENSITY, CENTRAL_MASS)                    &
     !$omp private(i_rng, i,j,k,l,m, t, E, B, psi, U, rz_old, st_old, P_ion, P_rcb, iZ, P_tmp,&
     !$omp i_elm_old, n_rho, T_e, ion_rate, ion_prob, ion_source, ion_energy, kinetic_energy,& 
-    !$omp rec_rate, dEion_dt, ion_rec_ran, Z_imp, Z_eff, N_imp, Lrad, rad_sink, & 
+    !$omp rec_rate, dEion_dt, ion_rec_ran, Z_imp, Z_eff, N_imp, Lrad, rad_sink, V,          & 
     !$omp R_g, R_s, R_t, Z_g, Z_s, Z_t, xjac, HH, HH_s, HH_t, HZ, index_lm,                 &
     !$omp ifail, CX_rate, CX_prob, CX_source, CX_energy, v_1, v_2, v_3, v_4, v_5,           &
     !$omp particle_source, velocity_par_source, energy_source, v_temp, K_eV, T_eV, cx_ran)  &
@@ -380,8 +400,6 @@ do while (.not. sim%stop_now)
 
         t = particle_start_time + (k-1)*timesteps
 
-        !call sim%fields%calc_EBpsiU(t, particles(j)%i_elm, particles(j)%st, particles(j)%x(3), E, B, psi, U)
-        call sim%fields%calc_VBpsiU(t, particles(j)%i_elm, particles(j)%st, particles(j)%x(3), V, B, psi, U)
         rz_old    = particles(j)%x(1:2)
         st_old    = particles(j)%st
         i_elm_old = particles(j)%i_elm
@@ -544,6 +562,8 @@ do while (.not. sim%stop_now)
 !                              particles(j)%x(1), particles(j)%x(2), particles(j)%st(1), particles(j)%st(2), particles(j)%i_elm, ifail)
 !        end if
         if (particles(j)%i_elm .gt. 0) then
+          !call sim%fields%calc_EBpsiU(t, particles(j)%i_elm, particles(j)%st, particles(j)%x(3), E, B, psi, U)
+          call sim%fields%calc_VBpsiU(t, particles(j)%i_elm, particles(j)%st, particles(j)%x(3), V, B, psi, U)
           call v_fieldline_adams_bashforth_push_cylindrical(particles(j), V, timesteps)
           call find_RZ_nearby(sim%fields%node_list, sim%fields%element_list, rz_old(1), rz_old(2), &
                               st_old(1), st_old(2), i_elm_old, particles(j)%x(1), particles(j)%x(2), &
@@ -678,15 +698,14 @@ end do
 
 end subroutine
 
-pure function f_psi_inside(n, P, grad_P) result(f)
-  integer, intent(in) :: n
-  real*8, intent(in) :: P(n), grad_P(3,n)
-  real*4 :: f, psi_norm
+pure function f_source_imp(P, P_norm) result(f)
+  real*8, intent(in) :: P, P_norm
+  real*4 :: f, dv
 
-  psi_norm = (p(1) + 0.4463)/0.4463
+  dv = 0.01 * 0.01 * PI * R_geo * (TWOPI / n_plane) 
  
-  f = max((1. - psi_norm/0.2), 0.e0)**2
+  f = max(P*dV/P_norm, 0.e0)
 
-end function f_psi_inside
+end function f_source_imp
 
-end program marker_502
+end program marker_502_source

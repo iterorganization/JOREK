@@ -8,7 +8,7 @@ use constants
 use mod_interp
 implicit none
 private
-public initialise_particles, no_transform, adjust_particle_weights
+public initialise_particles, initialise_particles_marker, no_transform, adjust_particle_weights
 public set_velocity_from_T, domain_bounding_box, initialise_particles_H_mu_psi
 public set_particle_weights_canonical_maxwellian, normalize_with_projection
 public weigh_with_interp_f
@@ -27,9 +27,14 @@ interface
   function rej_f(n, P, gradP)
     integer, intent(in) :: n
     real*8, dimension(n), intent(in) :: P
-    real*8, dimension(3,n), intent(in) :: gradP
+    real*8, dimension(3,n), intent(in), optional:: gradP
     real*4 :: rej_f
   end function rej_f
+  function rej_f2(P, P_norm)
+    real*8, intent(in) :: P
+    real*8, intent(in) :: P_norm
+    real*4 :: rej_f2
+  end function rej_f2
 end interface
 contains
 !> Set positions for particles by rejection sampling from geometric and mhd
@@ -227,8 +232,13 @@ subroutine initialise_particles_marker(particles, node_list, element_list, &
   use mod_sampling
   use mod_random_seed
   use mod_interp
-  use phys_module, only: n_spi_tot, pellets, ng_radius_ratio, ng_radius_min, n_spi, using_spi 
-  use phys_module, only: JET_MGI, ASDEX_MGI, n_inj, ns_sig, ns_deltaphi 
+  use phys_module, only: central_mass, gas_type
+#if (JOREK_MODEL == 500 || JOREK_MODEL == 555)
+  use mod_neutral_source, only: get_source
+#endif
+#if (JOREK_MODEL == 501 || JOREK_MODEL == 502)
+  use mod_injection_source, only: get_source
+#endif
   !$ use omp_lib
   implicit none
 
@@ -240,7 +250,7 @@ subroutine initialise_particles_marker(particles, node_list, element_list, &
   integer, intent(in), optional                     :: n_start !< The first index of particle to be initialized, if absent, use 1.
   logical, intent(in), optional                     :: uniform !< Whether sample with regard to the fluid source or simply uniformally, if absent then uniform.
   real*8, intent(in), optional                      :: fluid_source !< The total ablation rate [/s].
-  procedure(rej_f), optional                        :: transform_rej_f !< Merge variables into a single criterium between 0 and 1 for rej.  sampling
+  procedure(rej_f2), optional                       :: transform_rej_f !< Merge variables into a single criterium between 0 and 1 for rej.  sampling
   !< Special values: 0 = 1, -1 = R, -2 = Z, -3 = Phi. Must be in ascending order!
   !< (particle weight proportional to transform(P) at that point.) If omitted take f=0.
   real*8, dimension(2), intent(in), optional        :: Rbound, Zbound, Phibound !< Between which coordinates to sample (RZPhi).
@@ -249,10 +259,10 @@ subroutine initialise_particles_marker(particles, node_list, element_list, &
   ! Internal variables
   real*8  :: R, Z, phi, s, t, DUMMY_REAL
   real*8  :: Rbox(2), Zbox(2), Phibox(2)
-  integer :: i, j, k, ifail, spi_i, i_inj
+  integer :: i, j, k, ifail, spi_i
   real*8  :: ran(7)
   integer :: i_elm
-  real*8  :: t0, t1, ostart, oend, phys_source
+  real*8  :: t0, t1, ostart, oend, phys_source, source_tmp, source_bg_tmp
   integer :: seq, n_streams, n_threads, i_thread
   integer :: n_particle_asn, n_start_asn
   logical :: uniform_sampling
@@ -263,8 +273,7 @@ subroutine initialise_particles_marker(particles, node_list, element_list, &
   integer, dimension(:), allocatable :: i_to_find
   logical, dimension(:), allocatable :: not_found
 
-  real*8  :: source_tmp, ng_radius, source_imp, spi_R_tmp, spi_Z_tmp, spi_phi_tmp, spi_abl_tmp
-  integer :: n_spi_tmp
+  real*8  :: m_i_over_m_imp 
 
   ostart = 0.d0
   oend   = 0.d0
@@ -273,16 +282,29 @@ subroutine initialise_particles_marker(particles, node_list, element_list, &
   n_start_asn    = 1
   uniform_sampling = .true.
 
-  if (present(n_particle)) n_particle_asn = n_particle
+  select case (trim(gas_type))
+    case('D2')
+      m_i_over_m_imp = central_mass/2.
+    case('Ar')
+      m_i_over_m_imp = central_mass/40. ! Argon mass = 40 u and main ion (D) mass = 2 u
+    case('Ne')
+      m_i_over_m_imp = central_mass/20. ! Neon mass = 20 u and main ion (D) mass = 2 u
+    case default
+      write(*,*) '!! Gas type "', trim(gas_type), '" unknown (in mod_initialise_particles.f90) !!'
+      write(*,*) '=> EXITING!!!'
+      call exit(1)
+  end select
+
+  if (present(n_particles)) n_particle_asn = n_particles
   if (present(n_start)) n_start_asn = n_start
   if (present(fluid_source)) phys_source = fluid_source
 
   if ((.not. uniform_sampling) .and. (.not. present(transform_rej_f))) then
     write(*,*) "ERROR: If not using uniform sampling then a rejection sampling transform must be present!"
-    exit(1)
+    call exit(1)
   else if ((.not. uniform_sampling) .and. (.not. present(fluid_source))) then
     write(*,*) "ERROR: If not using uniform sampling then a fluid source must be present!"
-    exit(1)
+    call exit(1)
   endif
 
   call MPI_COMM_RANK(MPI_COMM_WORLD, my_id, ifail)
@@ -316,8 +338,8 @@ subroutine initialise_particles_marker(particles, node_list, element_list, &
   call MPI_Bcast(seed, 1, MPI_INTEGER, 0, MPI_COMM_WORLD, ifail)
 
   ! Prepare list of particles to seed
-  allocate(i_to_find(n_particle_asn),not_found(size(n_particle_asn))
-  i_to_find = [(i, i=n_start_asn,nstart_asn+n_particle_asn-1)] ! which particles still to do
+  allocate(i_to_find(n_particle_asn),not_found(n_particle_asn))
+  i_to_find = [(i, i=n_start_asn,n_start_asn+n_particle_asn-1)] ! which particles still to do
   not_found = .true. ! whether this one has been sampled succesfully
 
   ! Setup (Q)RNGs, one per thread
@@ -349,19 +371,20 @@ subroutine initialise_particles_marker(particles, node_list, element_list, &
     ! be very careful (error message for default(none) below)
     ! Error: ‘__vtab_mod_particle_types_Particle_kinetic_leapfrog’ not specified in enclosing ‘parallel’
     !$omp parallel default(none) &
-    !$omp   shared(particles, node_list, element_list, n_particle_asn, n_start_asn, Rbox, Zbox, PhiBox, &
-    !$omp          n_spi_tot, pellets, phys_source, ng_radius_ratio, ng_radius_min, n_spi, using_spi,&
-    !$omp          JET_MGI, ASDEX_MGI, n_inj, ns_sig, ns_deltaphi, ns_tor_norm, &
-    !$omp          A_Dmv,K_Dmv,V_Dmv,P_Dmv, t_ns, t_now, &
-    !$omp          rngs, uniform_sampling, n_threads, n_streamsi, seed, my_id, i_to_find, not_found) &
+    !$omp   shared(particles, node_list, element_list, Rbox, Zbox, PhiBox, &
+    !$omp          phys_source, m_i_over_m_imp, &
+    !$omp          rngs, uniform_sampling, n_threads, n_streams, seed, my_id, i_to_find, not_found) &
     !$omp   private(j, i, spi_i, R, Z, phi, i_elm, s, t, ifail, seq, ran, i_thread, P, DUMMY_REAL,   &
-    !$omp           ng_radius, n_spi_tmp, source_tmp, source_imp, spi_R_tmp, spi_Z_tmp, spi_phi_tmp, &
-    !$omp           spi_abl_tmp, i_inj)
+    !$omp           source_tmp, source_bg_tmp)
     i_thread = 0
     !$ i_thread=omp_get_thread_num()
     !$omp do schedule(static)
     do i=1,size(i_to_find,1)
       j = i_to_find(i)
+      if ((particles(j)%i_life .ne. 0) .and. not_found(i)) then
+        write(*,*) "ERROR: SOMETHING WRONG when assigning the particles", particles(j)%i_life, not_found(i)
+        call exit(1)
+      endif
       ! Generate a random position to put this particle
       call rngs(i_thread)%next(ran)
       call transform_uniform_cylindrical(ran(1:3), Rbox, Zbox, PhiBox, R, Z, phi)
@@ -369,21 +392,15 @@ subroutine initialise_particles_marker(particles, node_list, element_list, &
       call find_RZ(node_list,element_list,R,Z,DUMMY_REAL,DUMMY_REAL,i_elm,s,t,ifail)
       if (ifail .eq. 0) then
         if (.not. uniform_sampling) then
-          ! Select the mhd variables requested
-          if (n_mhd .ge. 1) then
-            call interp_0(node_list,element_list,i_elm,variables(n_geom:n_geom+n_mhd),n_mhd,s,t,phi,P(n_geom:n_geom+n_mhd))
-          end if
-          do k=1,n_geom
-            select case (variables(k))
-            case (0);  P(k) = 1.d0
-            case (-1); P(k) = R
-            case (-2); P(k) = Z
-            case (-3); P(k) = phi
-            end select
-          end do
-  
+          ! Obtain the source term value at randomly generated particle position
+#if (JOREK_MODEL == 501 || JOREK_MODEL == 502)
+          call get_source(R,Z,phi,source_bg_tmp,source_tmp,m_i_over_m_imp) 
+#endif 
+#if (JOREK_MODEL == 500)
+          call get_source(R,Z,phi,source_tmp) 
+#endif 
           if (present(transform_rej_f)) then
-            if (ran(4) .lt. transform_rej_f(p)) then
+            if (ran(4) .lt. transform_rej_f(source_tmp,phys_source)) then
               particles(j)%x = [r, z, phi]
               particles(j)%i_elm = i_elm
               particles(j)%st = [s, t]
@@ -392,7 +409,11 @@ subroutine initialise_particles_marker(particles, node_list, element_list, &
                 pa%v = ran(5:7) ! save other components of this point for velocity init in a later routine
               end select
               not_found(i) = .false.
+              particles(j)%i_life = particles(j)%i_life +1
             end if
+          else
+            write(*,*) "ERROR: NO transform presented while using non-uniform particle assignment, EXITING!"
+            call exit(1)
           end if
         else
           particles(j)%x = [r, z, phi]
@@ -403,6 +424,7 @@ subroutine initialise_particles_marker(particles, node_list, element_list, &
             pa%v = ran(5:7) ! save other components of this point for velocity init in a later routine
           end select
           not_found(i) = .false.
+          particles(j)%i_life = particles(j)%i_life +1
         end if
       end if
     enddo
