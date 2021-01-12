@@ -261,4 +261,93 @@ module mod_injection_source
   return
   end subroutine inj_source
 
+!============================================================!
+! Important note: in order to implementing more complicated  !
+!    model, we should add more arguments to inj_source       !
+!============================================================!
+  subroutine get_source(R,Z,phi,source_background,source_impurity,mass_ratio) 
+
+    use phys_module, only: using_spi, JET_MGI, ASDEX_MGI, n_spi_tot, pellets, ng_radius_ratio, ns_radius
+    use phys_module, only: ng_radius_min, n_inj, n_spi, n_spi_tot, ns_sig, ns_deltaphi, L_tube
+    use phys_module, only: ns_tor_norm, A_Dmv,K_Dmv,V_Dmv,P_Dmv,t_ns, t_now, central_density, central_mass
+    use phys_module, only: ns_amplitude, ns_R, ns_Z, ns_phi
+
+    implicit none
+
+    real*8, intent(in)   :: R
+    real*8, intent(in)   :: Z
+    real*8, intent(in)   :: phi
+    real*8, intent(out)  :: source_background
+    real*8, intent(out)  :: source_impurity
+    real*8, intent(in)   :: mass_ratio
+
+    ! Temporary variables serving the SPI module
+    integer    :: spi_i, i_inj,  n_spi_tmp
+    
+    real*8     :: spi_R_tmp
+    real*8     :: spi_Z_tmp
+    real*8     :: spi_phi_tmp
+    real*8     :: spi_abl_tmp
+    real*8     :: ng_radius !< Radius of neutral gas cloud as a result of the ablation
+    real*8     :: source_tmp
+
+    if (using_spi) then
+
+      if (JET_MGI .or. ASDEX_MGI) then
+        write(*,*) "WARNING: Using SPI, disabling MGI settings"
+        JET_MGI = .false.
+        ASDEX_MGI = .false.
+      end if
+
+      do spi_i=1, n_spi_tot
+
+        source_tmp = 0.d0
+
+        if (pellets(spi_i)%spi_radius > 0.0) then
+          spi_R_tmp   = pellets(spi_i)%spi_R
+          spi_Z_tmp   = pellets(spi_i)%spi_Z
+          spi_phi_tmp = pellets(spi_i)%spi_phi
+          spi_abl_tmp = pellets(spi_i)%spi_abl
+
+          ng_radius   = pellets(spi_i)%spi_radius * ng_radius_ratio
+
+          if (ng_radius < ng_radius_min) then
+            ng_radius = ng_radius_min
+          end if
+          
+          n_spi_tmp = 0
+          do i_inj = 1, n_inj
+            n_spi_tmp = n_spi_tmp + n_spi(i_inj)
+            if (spi_i <= n_spi_tmp)  exit !< Determine the injection location index of the fragment
+          end do
+
+          call inj_source(spi_abl_tmp,spi_R_tmp,spi_Z_tmp,spi_phi_tmp,ng_radius,ns_sig,ns_deltaphi,&
+                        ns_tor_norm, A_Dmv,K_Dmv,V_Dmv,P_Dmv,t_ns(i_inj),0., R, Z,    &
+                        phi,source_tmp,t_now,JET_MGI,ASDEX_MGI,central_density,central_mass)
+        end if
+
+        ! Converting number density into mass density for each species respectively
+        source_background  = source_background + source_tmp * ( 1. - pellets(spi_i)%spi_species)
+        source_impurity    = source_impurity + source_tmp * pellets(spi_i)%spi_species / mass_ratio
+
+      end do
+
+    else
+
+      do i_inj = 1, n_inj
+        source_tmp = 0.d0
+        call inj_source(ns_amplitude(i_inj),ns_R(i_inj),ns_Z(i_inj),ns_phi(i_inj),   &
+                        ns_radius,ns_sig,ns_deltaphi,ns_tor_norm, &
+                        A_Dmv,K_Dmv,V_Dmv,P_Dmv,t_ns(i_inj),L_tube,R,Z,phi,source_impurity,&
+                        t_now, JET_MGI,ASDEX_MGI,central_density,central_mass)
+
+        source_impurity = source_impurity + source_tmp
+      end do
+
+      ! Converting number density into mass density for each species respectively
+      source_impurity = source_impurity / mass_ratio
+
+    end if
+
+  end subroutine get_source
 end module mod_injection_source

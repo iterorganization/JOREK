@@ -140,6 +140,78 @@ module mod_neutral_source
     return
   end subroutine neutral_source
 
+!============================================================!
+! Important note: in order to implementing more complicated  !
+!    model, we should add more arguments to inj_source       !
+!============================================================!
+  subroutine get_source(R,Z,phi,source_neutral) 
+
+    use phys_module, only: using_spi, JET_MGI, ASDEX_MGI, n_spi_tot, pellets, ng_radius_ratio, ns_radius
+    use phys_module, only: ng_radius_min, n_inj, n_spi, n_spi_tot, ns_sig, ns_deltaphi, L_tube
+    use phys_module, only: ns_tor_norm, A_Dmv,K_Dmv,V_Dmv,P_Dmv,t_ns, t_now, central_density, central_mass
+    use phys_module, only: ns_amplitude, ns_R, ns_Z, ns_phi
+
+    implicit none
+
+    real*8, intent(in)   :: R
+    real*8, intent(in)   :: Z
+    real*8, intent(in)   :: phi
+    real*8, intent(out)  :: source_neutral
+
+    ! Temporary variables serving the SPI module
+    integer    :: spi_i, i_inj,  n_spi_tmp
+    
+    real*8     :: spi_R_tmp
+    real*8     :: spi_Z_tmp
+    real*8     :: spi_phi_tmp
+    real*8     :: spi_abl_tmp
+    real*8     :: ng_radius !< Radius of neutral gas cloud as a result of the ablation
+    real*8     :: source_neutral_tmp
+
+    if (using_spi) then
+
+      do spi_i=1, n_spi_tot
+
+        source_neutral_tmp = 0.d0 
+
+        if (pellets(spi_i)%spi_radius > 0.0) then
+
+          ng_radius   = pellets(spi_i)%spi_radius * ng_radius_ratio
+
+          if (ng_radius < ng_radius_min) then
+            ng_radius = ng_radius_min
+          end if
+
+          n_spi_tmp = 0
+          do i_inj = 1, n_inj
+            n_spi_tmp = n_spi_tmp + n_spi(i_inj)
+            if (spi_i <= n_spi_tmp)  exit !< Determine the injection location index of the fragment
+          end do
+
+          call neutral_source(pellets(spi_i)%spi_abl,pellets(spi_i)%spi_R,pellets(spi_i)%spi_Z,pellets(spi_i)%spi_phi,&
+                        ng_radius,ns_sig,ns_deltaphi,&
+                        ns_tor_norm, A_Dmv,K_Dmv,V_Dmv,P_Dmv,t_ns(i_inj),0.,R,Z,     &
+                        phi,source_neutral_tmp,t_now,JET_MGI,ASDEX_MGI,central_density,central_mass)
+
+        end if
+
+        source_neutral = source_neutral + source_neutral_tmp
+
+      end do
+
+    else
+
+      do i_inj = 1, n_inj
+        source_neutral_tmp = 0.d0
+        call neutral_source(ns_amplitude(i_inj),ns_R(i_inj),ns_Z(i_inj),ns_phi(i_inj), &
+                      ns_radius,ns_sig,ns_deltaphi,ns_tor_norm, &
+                      A_Dmv,K_Dmv,V_Dmv,P_Dmv,t_ns(i_inj),L_tube,R,Z,phi,source_neutral,t_now, &
+                      JET_MGI,ASDEX_MGI,central_density,central_mass)
+        source_neutral = source_neutral + source_neutral_tmp
+      end do
+    end if
+
+  end subroutine get_source
 
   !> Initialize time-traces of radiation and ionization energy/power
   subroutine init_xtime_rad_ionization(my_id)

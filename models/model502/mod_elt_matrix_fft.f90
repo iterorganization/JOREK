@@ -133,23 +133,9 @@ real*8     :: aux_P0, aux_P0_s,  aux_P0_t, aux_P0_p, aux_q0, aux_jx0, aux_jy0, a
 
 ! Neutral source
 real*8     :: source_imp, source_bg
-real*8     :: source_tmp       !Temporary neutral source for each shattered pellets 
 
 ! time normalization
 real*8     :: t_norm
-
-! Temporary variables serving the SPI module
-integer    :: spi_i
-
-real*8     :: spi_R_tmp
-real*8     :: spi_Z_tmp
-real*8     :: spi_phi_tmp
-real*8     :: spi_abl_tmp 
-real*8     :: ng_radius !< Radius of neutral gas cloud as a result of the ablation
-! Additional variables reserved for future implementation
-!real*8     :: spi_Vel_R_tmp
-!real*8     :: spi_Vel_Z_tmp
-!real*8     :: spi_Vel_phi_tmp
 
 ! Atomic physics coefficients:
 !   -Mass ratio between main ions and impurites (m_i/m_imp)
@@ -1059,64 +1045,7 @@ do ms=1, n_gauss
 !    model, we should add more arguments to inj_source       !
 !============================================================!
 
-     if (using_spi) then
-
-       if (JET_MGI .or. ASDEX_MGI) then
-         write(*,*) "WARNING: Using SPI, disabling MGI settings"
-         JET_MGI = .false.
-         ASDEX_MGI = .false.
-       end if
-
-       do spi_i=1, n_spi_tot
-
-         source_tmp = 0.d0 
-
-         if (pellets(spi_i)%spi_radius > 0.0) then
-           spi_R_tmp   = pellets(spi_i)%spi_R
-           spi_Z_tmp   = pellets(spi_i)%spi_Z
-           spi_phi_tmp = pellets(spi_i)%spi_phi
-           spi_abl_tmp = pellets(spi_i)%spi_abl
-
-           ng_radius   = pellets(spi_i)%spi_radius * ng_radius_ratio
-
-           if (ng_radius < ng_radius_min) then
-             ng_radius = ng_radius_min
-           end if
-
-           n_spi_tmp = 0
-           do i_inj = 1, n_inj
-             n_spi_tmp = n_spi_tmp + n_spi(i_inj)
-             if (spi_i <= n_spi_tmp)  exit !< Determine the injection location index of the fragment
-           end do
-
-           call inj_source(spi_abl_tmp,spi_R_tmp,spi_Z_tmp,spi_phi_tmp,ng_radius,ns_sig,ns_deltaphi,&
-                         ns_tor_norm, A_Dmv,K_Dmv,V_Dmv,P_Dmv,t_ns(i_inj),0.,x_g(ms,mt),y_g(ms,mt),    &
-                         phi,source_tmp,t_now,JET_MGI,ASDEX_MGI,central_density,central_mass)
-         end if
-
-         ! Converting number density into mass density for each species respectively
-         source_bg  = source_bg + source_tmp * ( 1. - pellets(spi_i)%spi_species)
-         source_imp = source_imp + source_tmp * pellets(spi_i)%spi_species / m_i_over_m_imp
-
-       end do
-
-     else
-
-       do i_inj = 1, n_inj
-         source_tmp = 0.d0
-         call inj_source(ns_amplitude(i_inj),ns_R(i_inj),ns_Z(i_inj),ns_phi(i_inj),   &
-                         ns_radius,ns_sig,ns_deltaphi,ns_tor_norm, &
-                         A_Dmv,K_Dmv,V_Dmv,P_Dmv,t_ns(i_inj),L_tube,x_g(ms,mt),y_g(ms,mt),phi,source_imp,t_now,  &
-                         JET_MGI,ASDEX_MGI,central_density,central_mass)
-
-         source_imp = source_imp + source_tmp
-       end do
-
-       ! Converting number density into mass density for each species
-       ! respectively
-       source_imp = source_imp / m_i_over_m_imp
-   
-     end if
+     call get_source(x_g(ms,mt),y_g(ms,mt),phi,source_bg,source_imp,m_i_over_m_imp)
 
      ! This is to detect N/A
      if (source_imp /= source_imp .or. source_bg /= source_bg) then

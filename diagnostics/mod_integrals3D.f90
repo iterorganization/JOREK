@@ -20,10 +20,10 @@ module mod_integrals3D
   use corr_neg
   use pellet_module
 #if (JOREK_MODEL == 500 || JOREK_MODEL == 555)
-  use mod_neutral_source, only: neutral_source, total_n_particles, total_n_particles_inj, total_n_particles_inj_all 
+  use mod_neutral_source, only: get_source, total_n_particles, total_n_particles_inj, total_n_particles_inj_all 
 #endif
 #if (JOREK_MODEL == 501 || JOREK_MODEL == 502)
-  use mod_injection_source, only: inj_source, total_n_particles, total_n_particles_inj, total_n_particles_inj_all
+  use mod_injection_source, only: get_source, total_n_particles, total_n_particles_inj, total_n_particles_inj_all
   use mod_impurity, only: radiation_function, radiation_function_linear
 #endif
   use equil_info, only : get_psi_n, ES
@@ -131,10 +131,10 @@ real*8  :: viscopar_flux, viscopar_f, vpar_s, vpar_t, vpar_x, vpar_y, li3_tot, l
 real*8  :: varmin(n_var), varmax(n_var), V_min(n_var), V_max(n_var)
 
 #if (JOREK_MODEL == 500 || JOREK_MODEL == 555)
-real*8  :: source_neutral, source_tmp
+real*8  :: source_neutral
 #endif
 #if (JOREK_MODEL == 501 || JOREK_MODEL == 502)
-real*8  :: source_bg, source_imp, source_tmp
+real*8  :: source_bg, source_imp
 #endif
 
 ! Additional diagnostic variables for impurity model
@@ -162,10 +162,6 @@ real*8  :: alpha_imp, beta_imp
 !   -Coefficients related to Z_imp
 real*8  :: alpha_i, alpha_e
 #endif
-
-
-integer    :: spi_i, i_inj, n_spi_tmp
-real*8     :: ng_radius
 
 ! Additional variables related to the radiated power
 #if (JOREK_MODEL == 500)
@@ -297,9 +293,6 @@ ife_max   = min((my_id +1) * ife_delta, element_list%n_elements)
 !$omp          local_n_particles_inj, local_n_particles, ns_amplitude, ns_R, ns_Z,             &
 !$omp          ns_phi, ns_radius, ns_sig, ns_deltaphi, ns_tor_norm, spi_tor_rot,               &
 !$omp          t_now, A_Dmv, K_Dmv, V_Dmv, P_Dmv, t_ns, L_tube, JET_MGI,ASDEX_MGI,             &
-!$omp          pellets, tor_frequency,                                                         &
-!$omp          n_spi, using_spi, n_spi_tot, n_inj,                                             &
-!$omp          ng_radius_ratio, ng_radius_min, ng_radius, spi_shard_file,                      &
 #endif
 #if (JOREK_MODEL == 501 || JOREK_MODEL == 502)
 !$omp          local_radiation, local_E_ion, gas_type,                                         &
@@ -330,10 +323,10 @@ ife_max   = min((my_id +1) * ife_delta, element_list%n_elements)
 !$omp           rn0, rn0_corr,                                                                 &
 #endif
 #if (JOREK_MODEL == 500) || (JOREK_MODEL == 555)
-!$omp           source_neutral, source_tmp, n_spi_tmp,                                         &
+!$omp           source_neutral,                                                                &
 #endif
 #if (JOREK_MODEL == 501 || JOREK_MODEL == 502)
-!$omp           source_bg, source_imp, source_tmp, n_spi_tmp,                                  &
+!$omp           source_bg, source_imp,                                                         &
 !$omp           m_i_over_m_imp, Z_imp, T0_Zimp, alpha_Zimp,                                    &
 !$omp           Te_corr_eV, Te_eV, ne_SI, ne_JOREK, P_imp, Lrad, E_ion, E_ion_bg, ion_i,       &
 !$omp           ion_k, Z_eff, eta_coef,                                                        &
@@ -875,44 +868,7 @@ do ife = ife_min, ife_max
 
         source_neutral = 0.d0
 
-        if (using_spi) then
-
-          do spi_i = 1, n_spi_tot
-
-            source_tmp = 0.d0
-
-            ng_radius   = pellets(spi_i)%spi_radius * ng_radius_ratio
-
-            if (ng_radius < ng_radius_min) then
-              ng_radius = ng_radius_min
-            end if
-
-            n_spi_tmp = 0
-            do i_inj = 1, n_inj
-              n_spi_tmp = n_spi_tmp + n_spi(i_inj)
-              if (spi_i <= n_spi_tmp)  exit !< Determine the injection location index of the fragment
-            end do
- 
-            call neutral_source(pellets(spi_i)%spi_abl,pellets(spi_i)%spi_R,pellets(spi_i)%spi_Z,pellets(spi_i)%spi_phi,&
-                                  ng_radius,ns_sig,ns_deltaphi,     &
-                                  ns_tor_norm, A_Dmv,K_Dmv,V_Dmv,P_Dmv,t_ns(i_inj),L_tube,x_g(ms,mt),y_g(ms,mt),     &
-                                  phi,source_tmp,t_now,JET_MGI,ASDEX_MGI,central_density,central_mass)
-
-            source_neutral = source_neutral + source_tmp
-          end do
-
-        else
-
-          do i_inj = 1, n_inj
-            source_tmp = 0.d0
-            call neutral_source(ns_amplitude(i_inj),ns_R(i_inj),ns_Z(i_inj),ns_phi(i_inj),&
-                                  ns_radius,ns_sig,ns_deltaphi,ns_tor_norm,        &
-                                  A_Dmv,K_Dmv,V_Dmv,P_Dmv,t_ns(i_inj),L_tube,x_g(ms,mt),y_g(ms,mt),phi,source_tmp,t_now, &
-                                  JET_MGI,ASDEX_MGI,central_density,central_mass)
-  
-            source_neutral = source_neutral + source_tmp
-          end do
-        end if
+        call get_source(x_g(ms,mt),y_g(ms,mt),phi,source_neutral)
 
         ! Neutral injection rate in particles/s
         local_n_particles_inj = local_n_particles_inj + 0.5d0 * central_density * 1.d20 * source_neutral * bigR *&
@@ -926,52 +882,7 @@ do ife = ife_min, ife_max
         source_imp = 0.d0
         source_bg  = 0.d0
 
-        if (using_spi) then
-
-          do spi_i = 1, n_spi_tot
-
-            source_tmp = 0.d0
-
-            ng_radius   = pellets(spi_i)%spi_radius * ng_radius_ratio
-
-            if (ng_radius < ng_radius_min) then
-              ng_radius = ng_radius_min
-            end if
-
-            n_spi_tmp = 0
-            do i_inj = 1, n_inj
-              n_spi_tmp = n_spi_tmp + n_spi(i_inj)
-              if (spi_i <= n_spi_tmp)  exit !< Determine the injection location index of the fragment
-            end do
-
-            call inj_source(pellets(spi_i)%spi_abl,pellets(spi_i)%spi_R,pellets(spi_i)%spi_Z,pellets(spi_i)%spi_phi,&
-                                  ng_radius,ns_sig,ns_deltaphi,     &
-                                  ns_tor_norm, A_Dmv,K_Dmv,V_Dmv,P_Dmv,t_ns(i_inj),L_tube,x_g(ms,mt),y_g(ms,mt),     &
-                                  phi,source_tmp,t_now,JET_MGI,ASDEX_MGI,central_density,central_mass)
-
-            ! Converting number density into mass density for each species respectively
-            source_bg  = source_bg + source_tmp * ( 1. - pellets(spi_i)%spi_species)
-            source_imp = source_imp + source_tmp * pellets(spi_i)%spi_species / m_i_over_m_imp
-
-          end do
-
-        else
-
-          do i_inj = 1, n_inj
-            source_tmp = 0.d0
-
-            call inj_source(ns_amplitude(i_inj),ns_R(i_inj),ns_Z(i_inj),ns_phi(i_inj),   &
-                            ns_radius,ns_sig,ns_deltaphi,ns_tor_norm, &
-                            A_Dmv,K_Dmv,V_Dmv,P_Dmv,t_ns(i_inj),L_tube,x_g(ms,mt),y_g(ms,mt),phi,source_imp,t_now,  &
-                            JET_MGI,ASDEX_MGI,central_density,central_mass)
-  
-            source_imp = source_imp + source_tmp
-          end do
-
-          ! Converting number density into mass density for each species respectively
-          source_imp = source_imp / m_i_over_m_imp
-  
-        end if
+        call get_source(x_g(ms,mt),y_g(ms,mt),phi,source_bg,source_imp,m_i_over_m_imp)
 
         ! Neutral injection rate in particles/s
         local_n_particles_inj = local_n_particles_inj + 0.5d0 * central_density * 1.d20 * source_imp * m_i_over_m_imp * bigR &
