@@ -232,6 +232,7 @@ subroutine initialise_particles_marker(particles, node_list, element_list, field
   use mod_sampling
   use mod_random_seed
   use mod_interp
+  use mod_fields
   use phys_module, only: central_mass, gas_type
 #if (JOREK_MODEL == 500 || JOREK_MODEL == 555)
   use mod_neutral_source, only: get_source
@@ -245,11 +246,11 @@ subroutine initialise_particles_marker(particles, node_list, element_list, field
   class(particle_base), dimension(:), intent(inout) :: particles
   type(type_node_list), intent(in)                  :: node_list
   type(type_element_list), intent(in)               :: element_list
-  class(field_base), intent(in)                     :: fields
+  class(fields_base), intent(in)                    :: fields
   real*8, intent(in)                                :: time
   class(type_rng), intent(in)                       :: rng !< What type of random number generator to use. Is re-seeded in the subroutine.
   integer, intent(in), optional                     :: n_particles !< The number of particle to be initialized, if absent, initialize all particles.
-  integer, intent(in), optional                     :: dt !< The number of particle to be initialized, if absent, initialize all particles.
+  real*8, intent(in), optional                      :: dt !< The number of particle to be initialized, if absent, initialize all particles.
   logical, intent(in), optional                     :: uniform !< Whether sample with regard to the fluid source or simply uniformally, if absent then uniform.
   real*8, intent(in), optional                      :: fluid_source !< The total ablation rate [/s].
   procedure(rej_f2), optional                       :: transform_rej_f !< Merge variables into a single criterium between 0 and 1 for rej.  sampling
@@ -346,7 +347,7 @@ subroutine initialise_particles_marker(particles, node_list, element_list, field
   allocate(is_free(size(particles,1)))
   not_found = .true. ! whether this one has been sampled succesfully
   ! We now try to find all the free particles
-  !$omp parallel default(none) shared(particles, this, n_free, n_particle_asn, i_to_find, is_free) &
+  !$omp parallel default(none) shared(particles, n_free, n_particle_asn, i_to_find, is_free) &
   !$omp private(j,k)
   ! We need a loop here due to a gfortran bug with arrays of derived types
   !$omp do
@@ -403,7 +404,7 @@ subroutine initialise_particles_marker(particles, node_list, element_list, field
     ! Error: ‘__vtab_mod_particle_types_Particle_kinetic_leapfrog’ not specified in enclosing ‘parallel’
     !$omp parallel default(none) &
     !$omp   shared(particles, node_list, element_list, Rbox, Zbox, PhiBox, &
-    !$omp          phys_source, m_i_over_m_imp, timesteps, &
+    !$omp          phys_source, m_i_over_m_imp, time, fields, timesteps, n_particle_asn, &
     !$omp          rngs, uniform_sampling, n_threads, n_streams, seed, my_id, i_to_find, not_found) &
     !$omp   private(j, i, spi_i, R, Z, phi, i_elm, s, t, ifail, seq, ran, i_thread, P, DUMMY_REAL,   &
     !$omp           source_tmp, source_bg_tmp, V, B, psi, U)
@@ -437,9 +438,9 @@ subroutine initialise_particles_marker(particles, node_list, element_list, field
               particles(j)%st = [s, t]
               select type (pa => particles(j))
               type is (particle_marker)
-                call fields%calc_VBpsiU(time , pa(j)%i_elm, pa(j)%st, pa(j)%x(3), V, B, psi, U)
-                pa(j)%V_prev   = V
-                pa(j)%weight   = real(phys_source*timesteps/real(n_particle_asn,8),4)
+                call fields%calc_VBpsiU(time, pa%i_elm, pa%st, pa%x(3), V, B, psi, U)
+                pa%V_prev   = V
+                pa%weight   = real(phys_source*timesteps/real(n_particle_asn,8),4)
               end select
               not_found(i) = .false.
               particles(j)%i_life = particles(j)%i_life +1
