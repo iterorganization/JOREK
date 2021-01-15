@@ -227,7 +227,7 @@ subroutine initialise_particles(particles, node_list, element_list, &
 end subroutine initialise_particles
 
 subroutine initialise_particles_marker(particles, node_list, element_list, &
-        rng, n_particles, n_start, uniform, fluid_source, transform_rej_f, Rbound, Zbound, Phibound)
+        rng, n_particles, dt, uniform, fluid_source, transform_rej_f, Rbound, Zbound, Phibound)
   use mpi
   use mod_sampling
   use mod_random_seed
@@ -247,7 +247,7 @@ subroutine initialise_particles_marker(particles, node_list, element_list, &
   type(type_element_list), intent(in)               :: element_list
   class(type_rng), intent(in)                       :: rng !< What type of random number generator to use. Is re-seeded in the subroutine.
   integer, intent(in), optional                     :: n_particles !< The number of particle to be initialized, if absent, initialize all particles.
-  integer, intent(in), optional                     :: n_start !< The first index of particle to be initialized, if absent, use 1.
+  integer, intent(in), optional                     :: dt !< The number of particle to be initialized, if absent, initialize all particles.
   logical, intent(in), optional                     :: uniform !< Whether sample with regard to the fluid source or simply uniformally, if absent then uniform.
   real*8, intent(in), optional                      :: fluid_source !< The total ablation rate [/s].
   procedure(rej_f2), optional                       :: transform_rej_f !< Merge variables into a single criterium between 0 and 1 for rej.  sampling
@@ -260,18 +260,20 @@ subroutine initialise_particles_marker(particles, node_list, element_list, &
   real*8  :: R, Z, phi, s, t, DUMMY_REAL
   real*8  :: Rbox(2), Zbox(2), Phibox(2)
   integer :: i, j, k, ifail, spi_i
-  real*8  :: ran(7)
+  real*8  :: ran(4)
+  real*8  :: B(3), psi, U, V(3), timesteps
   integer :: i_elm
   real*8  :: t0, t1, ostart, oend, phys_source, source_tmp, source_bg_tmp
   integer :: seq, n_streams, n_threads, i_thread
-  integer :: n_particle_asn, n_start_asn
+  integer :: n_particle_asn
   logical :: uniform_sampling
   integer :: my_id, n_cpu
   integer :: seed
   real*8, dimension(:), allocatable :: P
   class(type_rng), allocatable, dimension(:) :: rngs ! The RNGs for all the threads
   integer, dimension(:), allocatable :: i_to_find
-  logical, dimension(:), allocatable :: not_found
+  logical, dimension(:), allocatable :: not_found, is_free
+  integer :: n_free
 
   real*8  :: m_i_over_m_imp 
 
@@ -279,7 +281,7 @@ subroutine initialise_particles_marker(particles, node_list, element_list, &
   oend   = 0.d0
   phys_source = 0.0
   n_particle_asn = size(particles,1)
-  n_start_asn    = 1
+  timesteps      = 0.0
   uniform_sampling = .true.
 
   select case (trim(gas_type))
@@ -296,8 +298,8 @@ subroutine initialise_particles_marker(particles, node_list, element_list, &
   end select
 
   if (present(n_particles)) n_particle_asn = n_particles
-  if (present(n_start)) n_start_asn = n_start
-  if (present(fluid_source)) phys_source = fluid_source
+  if (present(n_particles)) timesteps      = dt
+  if (present(fluid_source)) phys_source   = fluid_source
 
   if ((.not. uniform_sampling) .and. (.not. present(transform_rej_f))) then
     write(*,*) "ERROR: If not using uniform sampling then a rejection sampling transform must be present!"
@@ -339,8 +341,35 @@ subroutine initialise_particles_marker(particles, node_list, element_list, &
 
   ! Prepare list of particles to seed
   allocate(i_to_find(n_particle_asn),not_found(n_particle_asn))
-  i_to_find = [(i, i=n_start_asn,n_start_asn+n_particle_asn-1)] ! which particles still to do
+  allocate(is_free(size(sim%groups(i)%particles,1)))
   not_found = .true. ! whether this one has been sampled succesfully
+  ! We now try to find all the free particles
+  !$omp parallel default(none) shared(sim, this, n_free, n_particle_asn, i_to_find, is_free) &
+  !$omp private(j,k)
+  ! We need a loop here due to a gfortran bug with arrays of derived types
+  !$omp do
+  do j=1,size(sim%groups(i)%particles,1)
+    is_free(j) = sim%groups(i)%particles(j)%i_elm .le. 0
+  end do
+  !$omp end do
+  !$omp barrier
+  !$omp single
+  n_free = count(is_free)
+  if (n_particle_asn > n_free) then
+    write(*,*) "ERROR: No free particles can be allocated anymore!", n_particle_asn, n_free
+    call exit(1)
+  endif
+  k = 1
+  do j=1,size(sim%groups(i)%particles,1)
+    if (is_free(j)) then
+      i_to_find(k) = j
+      k = k+1
+    end if
+    if (k .eq. n_particle_asn) exit
+  end do
+  !$omp end single
+  !$omp end parallel
+
 
   ! Setup (Q)RNGs, one per thread
   n_threads = 1
@@ -372,10 +401,10 @@ subroutine initialise_particles_marker(particles, node_list, element_list, &
     ! Error: ‘__vtab_mod_particle_types_Particle_kinetic_leapfrog’ not specified in enclosing ‘parallel’
     !$omp parallel default(none) &
     !$omp   shared(particles, node_list, element_list, Rbox, Zbox, PhiBox, &
-    !$omp          phys_source, m_i_over_m_imp, &
+    !$omp          phys_source, m_i_over_m_imp, timesteps, &
     !$omp          rngs, uniform_sampling, n_threads, n_streams, seed, my_id, i_to_find, not_found) &
     !$omp   private(j, i, spi_i, R, Z, phi, i_elm, s, t, ifail, seq, ran, i_thread, P, DUMMY_REAL,   &
-    !$omp           source_tmp, source_bg_tmp)
+    !$omp           source_tmp, source_bg_tmp, V, B, psi, U)
     i_thread = 0
     !$ i_thread=omp_get_thread_num()
     !$omp do schedule(static)
@@ -405,8 +434,10 @@ subroutine initialise_particles_marker(particles, node_list, element_list, &
               particles(j)%i_elm = i_elm
               particles(j)%st = [s, t]
               select type (pa => particles(j))
-              type is (particle_kinetic_leapfrog)
-                pa%v = ran(5:7) ! save other components of this point for velocity init in a later routine
+              type is (particle_marker)
+                call sim%fields%calc_VBpsiU(sim%time , pa(j)%i_elm, pa(j)%st, pa(j)%x(3), V, B, psi, U)
+                pa(j)%V_prev   = V
+                pa(j)%weight   = real(phys_source*timesteps/real(n_particle_asn,8),4)
               end select
               not_found(i) = .false.
               particles(j)%i_life = particles(j)%i_life +1
@@ -435,6 +466,10 @@ subroutine initialise_particles_marker(particles, node_list, element_list, &
     deallocate(not_found); allocate(not_found(size(i_to_find,1)))
     not_found = .true.
   end do
+
+  deallocate(i_to_find)
+  deallocate(not_found)
+  deallocate(is_free)
 
   call cpu_time(t1)
   !$ oend = omp_get_wtime()

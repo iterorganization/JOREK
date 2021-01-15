@@ -121,23 +121,14 @@ else
   
   allocate(particle_marker::sim%groups(1)%particles(n_particles_local))
   
-  
-!  call initialise_particles(sim%groups(1)%particles, &
-!      sim%fields%node_list, sim%fields%element_list, pcg32_rng())
-!  
-!  select type (p => sim%groups(1)%particles)
-!  type is (particle_marker)
-!    
-!    do j=1,size(p,1)
-!      call sim%fields%calc_VBpsiU(sim%time , p(j)%i_elm, p(j)%st, p(j)%x(3), V, B, psi, U)
-!      p(j)%V_prev = V
-!      allocate(p(j)%P_imp(0:sim%groups(1)%ad%n_Z))
-!      p(j)%P_imp    = 0.
-!      p(j)%P_imp(0) = 1.
-!    end do
-!    p(:)%weight = weight
-!  
-!  end select
+  select type (p => sim%groups(1)%particles)
+  type is (particle_marker)
+    do j=1,size(p,1)
+      allocate(p(j)%P_imp(0:sim%groups(1)%ad%n_Z))
+      p(j)%P_imp    = 0.
+      p(j)%P_imp(0) = 1.
+    end do
+  end select
 endif
 
 ! Set up feedback
@@ -240,7 +231,7 @@ real*8    :: particles_remaining, momentum_remaining, energy_remaining, all_part
 
 real*8, allocatable :: P_Z(:), P_tmp(:) ! Real for purpose
 real*8    :: P_ion(2), P_rcb(2)
-integer   :: n_particles_add_local, particle_begin_local
+integer   :: n_particles_add_local
 
 n_norm   = CENTRAL_DENSITY * 1.d20                              ! (number) density normalisation
 rho_norm = CENTRAL_MASS * MASS_PROTON * n_norm                  ! rho_SI = rho_norm * rho
@@ -249,7 +240,6 @@ v_norm   = 1.d0 / t_norm                                        ! V_SI   = v_nor
 E_norm   = 1.d0 / (MU_ZERO * (GAMMA-1.))                       ! E_SI   = E_norm * E_jorek
 M_norm   = rho_norm * v_norm                                    ! momentum normalisation
 
-particle_begin_local = 1
 n_particles_add_local = 0
 
 if (.not.(allocated(P_Z))) allocate(P_Z(0:sim%groups(1)%ad%n_Z))
@@ -336,22 +326,9 @@ do while (.not. sim%stop_now)
   select type (p => sim%groups(1)%particles)
   type is (particle_marker)
     
-    if (particle_begin_local+n_particles_add_local-1 > size(sim%groups(1)%particles,1)) then
-      write(*,*) "ERROR: No free particles can be allocated anymore!"
-      call exit(1)
-    endif 
     call initialise_particles_marker(sim%groups(1)%particles, sim%fields%node_list, sim%fields%element_list, &
-                                      pcg32_rng(), n_particles_add_local, particle_begin_local, uniform=.false.,&
+                                      pcg32_rng(), n_particles_add_local, uniform=.false.,&
                                       fluid_source=spi_source_imp,transform_rej_f=f_source_imp)
-    do j=particle_begin_local,particle_begin_local+n_particles_add_local-1
-      call sim%fields%calc_VBpsiU(sim%time , p(j)%i_elm, p(j)%st, p(j)%x(3), V, B, psi, U)
-      p(j)%V_prev = V
-      allocate(p(j)%P_imp(0:sim%groups(1)%ad%n_Z))
-      p(j)%P_imp    = 0.
-      p(j)%P_imp(0) = 1.
-      p(j)%weight   = real(spi_source_imp*timesteps/real(n_particles_add_local,8),4)
-    end do
-    particle_begin_local = particle_begin_local + n_particles_add_local
   
   end select
   
@@ -633,30 +610,6 @@ do while (.not. sim%stop_now)
   energy_remaining    = 0.d0
 
   select type (particles => sim%groups(1)%particles)
-  type is (particle_kinetic_leapfrog)
-
-#ifdef __GFORTRAN__
-    !$omp parallel do default(none) & ! workaround for Error: '__vtab_mod_openadas_Adf11' not specified in enclosing 'parallel'
-#else
-    !$omp parallel do default(none) & 
-#endif
-    !$omp reduction(+:particles_remaining, momentum_remaining, energy_remaining) &
-    !$omp shared(sim) &
-    !$omp private(j, E, B, psi, U, B_norm)
-    do j=1,size(particles,1)
-
-      if (particles(j)%i_elm .le. 0) cycle
-
-      call sim%fields%calc_EBpsiU(sim%time , particles(j)%i_elm, particles(j)%st, particles(j)%x(3), E, B, psi, U)
-      B_norm = B/norm2(B)
-
-      particles_remaining = particles_remaining + particles(j)%weight
-      momentum_remaining  = momentum_remaining  + particles(j)%weight * dot_product(B_norm,particles(j)%v) *sim%groups(1)%mass * ATOMIC_MASS_UNIT
-      energy_remaining    = energy_remaining    + particles(j)%weight * dot_product(particles(j)%v,particles(j)%v) *sim%groups(1)%mass * ATOMIC_MASS_UNIT /2.d0
-!      energy_remaining    = energy_remaining    + particles(j)%weight * 2.18d-15
-
-    enddo
-    !omp end parallel do
   type is (particle_marker)
 
 #ifdef __GFORTRAN__
