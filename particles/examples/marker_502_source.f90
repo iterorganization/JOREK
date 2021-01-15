@@ -16,7 +16,7 @@ use nodes_elements
 use phys_module, only: n_particles, nstep_particles, nsubstep_particles, tstep_particles, use_ncs, use_pcs, use_ccs
 use phys_module, only: filter_perp, filter_hyper, filter_par, filter_perp_n0, filter_hyper_n0, filter_par_n0
 use phys_module, only: tstep, gas_type, imp_adas, imp_cor, adas_dir, use_marker, restart_particles, index_now
-use phys_module, only: nout, n_spi_tot, pellets, R_geo, using_spi, spi_quantity
+use phys_module, only: nout, R_geo, using_spi, spi_quantity
 use phys_module, only: CENTRAL_MASS, CENTRAL_DENSITY
 use mod_parameters, only: n_plane
 use constants,   only: MU_ZERO, MASS_PROTON, ATOMIC_MASS_UNIT, K_BOLTZ, EL_CHG, PI, TWOPI
@@ -199,6 +199,7 @@ use mod_interp, only: mode_moivre, interp_RZ
 use mod_jorek_timestepping
 use mod_basisfunctions
 use phys_module, only: tstep, use_ncs, use_pcs, use_ccs, use_marker
+use phys_module, only: pellets, n_spi_tot, ns_amplitude, n_inj, t_ns, t_now
 use phys_module, only: CENTRAL_MASS, CENTRAL_DENSITY, GAMMA
 use constants,   only: MU_ZERO, MASS_PROTON, ATOMIC_MASS_UNIT, K_BOLTZ, EL_CHG
 use mod_integrals3D, only: int3d_new
@@ -218,7 +219,7 @@ real*8    :: rho_norm, t_norm, v_norm, E_norm, M_norm, N_norm, tstep_si
 real*8    :: kinetic_energy, ion_energy
 real*8    :: E_lost_ion, E_lost_ion_all, E_lost_rad, E_lost_rad_all
 !$ real*8 :: w0, w1, mmm(3)
-integer   :: i, j, k, l, m, n_steps, i_elm_old, iZ, spi_i
+integer   :: i, j, k, l, m, n_steps, i_elm_old, iZ, spi_i, i_inj
 integer   :: seed, i_rng, n_stream, ierr, nthreads, myid
 real*8    :: ion_rate, ion_source, ion_prob, ion_rec_ran(2), cx_ran(7), cx_source, cx_energy
 real*8    :: rec_rate, dEion_dT, Z_imp, Z_eff, N_imp, Lrad, rad_sink, spi_source_imp
@@ -239,6 +240,8 @@ t_norm   = sqrt((MU_ZERO * rho_norm))                           ! t_SI   = t_nor
 v_norm   = 1.d0 / t_norm                                        ! V_SI   = v_norm * v_jorek
 E_norm   = 1.d0 / (MU_ZERO * (GAMMA-1.))                       ! E_SI   = E_norm * E_jorek
 M_norm   = rho_norm * v_norm                                    ! momentum normalisation
+
+density_tot = 0.0; mom_par_tot = 0.0; pressure = 0.0; kin_par_tot = 0.0 
 
 n_particles_add_local = 0
 
@@ -317,21 +320,29 @@ do while (.not. sim%stop_now)
   ! each position with source_imp density source is simply source_imp * timesteps * xjac * BigR * wst * delta_phi
   ! divided by spi_source_imp *  timesteps
   spi_source_imp = 0.0
-  do spi_i=1, n_spi_tot
-    spi_source_imp = spi_source_imp + pellets(spi_i)%spi_abl * pellets(spi_i)%spi_species
-  enddo
+  if (using_spi) then
+    do spi_i=1, n_spi_tot
+      spi_source_imp = spi_source_imp + pellets(spi_i)%spi_abl * pellets(spi_i)%spi_species
+    enddo
+  elseif (t_now .gt. minval(t_ns)) then
+    do i_inj=1, n_inj
+      if (t_now .gt. t_ns(i_inj)) spi_source_imp = spi_source_imp + ns_amplitude(i_inj)
+    enddo
+  endif
   n_particles_add_local =  int(spi_source_imp * timesteps / (weight * sim%n_cpu)) 
 
   ! Start assigning particles for this particle time step
-  select type (p => sim%groups(1)%particles)
-  type is (particle_marker)
+  if (n_particles_add_local .gt. 0) then ! Otherwise no need to do anything
+    select type (p => sim%groups(1)%particles)
+    type is (particle_marker)
+      
+      call initialise_particles_marker(sim%groups(1)%particles, sim%fields%node_list, sim%fields%element_list, &
+                                        sim%fields, sim%time,&
+                                        pcg32_rng(), n_particles_add_local, timesteps, uniform=.false.,&
+                                        fluid_source=spi_source_imp,transform_rej_f=f_source_imp)
     
-    call initialise_particles_marker(sim%groups(1)%particles, sim%fields%node_list, sim%fields%element_list, &
-                                      sim%fields, sim%time,&
-                                      pcg32_rng(), n_particles_add_local, timesteps, uniform=.false.,&
-                                      fluid_source=spi_source_imp,transform_rej_f=f_source_imp)
-  
-  end select
+    end select
+  endif
   
 !  jorek_feedback%rhs_gather_time = jorek_feedback%rhs_gather_time + n_steps * timesteps
   jorek_feedback%rhs_gather_time = n_steps * timesteps

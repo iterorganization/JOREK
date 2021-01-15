@@ -368,7 +368,7 @@ subroutine initialise_particles_marker(particles, node_list, element_list, field
       i_to_find(k) = j
       k = k+1
     end if
-    if (k .eq. n_particle_asn) exit
+    if (k > n_particle_asn) exit
   end do
   !$omp end single
   !$omp end parallel
