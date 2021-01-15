@@ -226,7 +226,7 @@ subroutine initialise_particles(particles, node_list, element_list, &
   endif
 end subroutine initialise_particles
 
-subroutine initialise_particles_marker(particles, node_list, element_list, &
+subroutine initialise_particles_marker(particles, node_list, element_list, fields, time, &
         rng, n_particles, dt, uniform, fluid_source, transform_rej_f, Rbound, Zbound, Phibound)
   use mpi
   use mod_sampling
@@ -245,6 +245,8 @@ subroutine initialise_particles_marker(particles, node_list, element_list, &
   class(particle_base), dimension(:), intent(inout) :: particles
   type(type_node_list), intent(in)                  :: node_list
   type(type_element_list), intent(in)               :: element_list
+  class(field_base), intent(in)                     :: fields
+  real*8, intent(in)                                :: time
   class(type_rng), intent(in)                       :: rng !< What type of random number generator to use. Is re-seeded in the subroutine.
   integer, intent(in), optional                     :: n_particles !< The number of particle to be initialized, if absent, initialize all particles.
   integer, intent(in), optional                     :: dt !< The number of particle to be initialized, if absent, initialize all particles.
@@ -341,15 +343,15 @@ subroutine initialise_particles_marker(particles, node_list, element_list, &
 
   ! Prepare list of particles to seed
   allocate(i_to_find(n_particle_asn),not_found(n_particle_asn))
-  allocate(is_free(size(sim%groups(i)%particles,1)))
+  allocate(is_free(size(particles,1)))
   not_found = .true. ! whether this one has been sampled succesfully
   ! We now try to find all the free particles
-  !$omp parallel default(none) shared(sim, this, n_free, n_particle_asn, i_to_find, is_free) &
+  !$omp parallel default(none) shared(particles, this, n_free, n_particle_asn, i_to_find, is_free) &
   !$omp private(j,k)
   ! We need a loop here due to a gfortran bug with arrays of derived types
   !$omp do
-  do j=1,size(sim%groups(i)%particles,1)
-    is_free(j) = sim%groups(i)%particles(j)%i_elm .le. 0
+  do j=1,size(particles,1)
+    is_free(j) = particles(j)%i_elm .le. 0
   end do
   !$omp end do
   !$omp barrier
@@ -360,7 +362,7 @@ subroutine initialise_particles_marker(particles, node_list, element_list, &
     call exit(1)
   endif
   k = 1
-  do j=1,size(sim%groups(i)%particles,1)
+  do j=1,size(particles,1)
     if (is_free(j)) then
       i_to_find(k) = j
       k = k+1
@@ -435,7 +437,7 @@ subroutine initialise_particles_marker(particles, node_list, element_list, &
               particles(j)%st = [s, t]
               select type (pa => particles(j))
               type is (particle_marker)
-                call sim%fields%calc_VBpsiU(sim%time , pa(j)%i_elm, pa(j)%st, pa(j)%x(3), V, B, psi, U)
+                call fields%calc_VBpsiU(time , pa(j)%i_elm, pa(j)%st, pa(j)%x(3), V, B, psi, U)
                 pa(j)%V_prev   = V
                 pa(j)%weight   = real(phys_source*timesteps/real(n_particle_asn,8),4)
               end select
