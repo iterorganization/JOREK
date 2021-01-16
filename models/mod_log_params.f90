@@ -350,6 +350,16 @@ write(*,'(1x,a)',advance='no') ' USE_COMPLEX_PRECOND          : '
     write(*,CHAR_FMT) 'rho_file              ', trim(rho_file)
   end if
 
+  if (jorek_model .eq. 500) then
+    if ( .not. num_rhon ) then
+      write(*,REAL_FMT) 'rhon_0                ', rhon_0
+      write(*,REAL_FMT) 'rhon_1                ', rhon_1
+      write(*,REAL_FMT) 'rhon_coef             ', rhon_coef(1:5)
+    else
+      write(*,CHAR_FMT) 'rhon_file             ', trim(rhon_file)
+    end if
+  end if
+
   if ( num_rot ) then
     write(*,CHAR_FMT) 'rot_file              ', trim(rot_file)
   else

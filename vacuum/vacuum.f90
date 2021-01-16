@@ -694,8 +694,8 @@ module vacuum
           if ( allocated(net_tor_wall_curr) ) deallocate(net_tor_wall_curr)
           allocate( t_net_tor_wall_curr(index_start) )
           call HDF5_array1D_reading(file_id,t_net_tor_wall_curr,"net_tor_wall_curr")
+          allocate( net_tor_wall_curr(index_start+nstep))
           net_tor_wall_curr = 0.d0
-          allocate( net_tor_wall_curr(index_start+nstep) )
           net_tor_wall_curr(1:index_start) = t_net_tor_wall_curr(1:index_start)
           deallocate(t_net_tor_wall_curr)
 

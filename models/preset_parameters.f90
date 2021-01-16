@@ -269,6 +269,12 @@ subroutine preset_parameters
   rho_coef    = 0.d0;  rho_coef(1) =  0.d0
   FF_coef     = 0.d0;  FF_coef(1)  = -1.d0
 
+  rhon_0 =  0.d0
+  rhon_1 =  0.d0
+  rhon_coef    = 0.d0
+  rhon_coef(4) = 0.01
+  rhon_coef(8) = 0.01
+
   pellet_amplitude  = 0.d0
   pellet_R          = 3.8d0
   pellet_Z          = 0.0d0

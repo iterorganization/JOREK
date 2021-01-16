@@ -12,6 +12,7 @@ program process_hdf5_jorek
 
   ! --- HDF5 variables including filename
   character*50   :: filename, filename_data
+  character*250  :: filename_data_multiple
   integer(HID_T) :: file_id, data_id
   integer        :: error
   
@@ -28,46 +29,76 @@ program process_hdf5_jorek
   integer :: status(MPI_STATUS_SIZE)
   
   ! --- Data variables
-  integer :: n_tor, n_period, n_elements, n_nodes, n_var, n_data, index_now
+  integer :: n_tor, n_period, n_elements, n_nodes, n_var, n_data, index_now, jorek_model
   real*8  :: phi_angle
   real*8  :: normalise_min, normalise_max, normalise_data
   real*8  :: central_density, F0, delta_t, time_now
-  integer :: i_var(20)
+  integer :: i_var(100) ! use a large buffer
   integer, allocatable :: elm_vertex(:,:)
   real*8,  allocatable :: psi_axis_t(:), psi_bnd_t(:), Z_xpoint_t(:,:)
   real*8,  allocatable :: modes(:), elm_size(:,:,:), RZ_nodes(:,:,:), values(:,:,:,:), deltas(:,:,:,:), time(:)
   real*8,  allocatable :: HZ(:), HZ_p(:), HZ_pp(:)
-  real*8,  allocatable :: my_var(:,:,:,:)
+  real*8,  allocatable :: my_var(:,:,:,:), my_var3D(:,:,:)
   real*8,  allocatable :: Rgrid(:,:), Zgrid(:,:)
-  character*50 :: variable_names(20)
+  real*8,  allocatable :: Xgrid3D(:), Ygrid3D(:), Zgrid3D(:)
+  character*50 :: variable_names(100) ! use a large buffer
   
   ! --- Grid variables
+  integer :: nx_3D, ny_3D, nz_3D
   integer :: nx_pix, ny_pix
   real*8  :: resolution
   real*8  :: Rmin, Rmax, Zmin, Zmax
   real*8  :: Rpix_min, Rpix_max
+  real*8  :: Xpix_min, Xpix_max
+  real*8  :: Ypix_min, Ypix_max
   real*8  :: Zpix_min, Zpix_max
-  logical :: save_pixels, use_pixel_file
+  logical :: save_pixels, use_pixel_file, use_3D_grid
   integer :: pix_start, pix_end, pix_delta
   integer :: local_pix_start, local_pix_end
   integer, allocatable :: i_elm_save(:,:)
   real*8,  allocatable :: s_save(:,:), t_save(:,:)
+  integer, allocatable :: Xindex3D(:), Yindex3D(:),Zindex3D(:), index3D(:,:,:)
+
+  ! --- VTK variables
+  integer               :: ivtk, vtk_n_cells, vtk_points_per_cell
+  integer               :: int32
+  real*4                :: float32
+  real*4,allocatable    :: vtk_xyz (:,:), vtk_scalars(:,:)
+  integer,allocatable   :: vtk_cells(:,:)
+  integer               :: etype
+  character             :: buffer*80, lf*1, str1*10, str2*10, str3*3
   
+  ! --- Photon Emissivity Coeff (PEC) variables
+  integer               :: PEC_size, PEC_index_Ne, PEC_index_Te, PEC_index, k_pec
+  character*50          :: line
+  real*8,allocatable    :: PEC_dens(:), PEC_temp(:), PEC(:)
+  logical               :: D_alpha
+  real*8                :: D_alpha_emission
+
   ! --- Other variables
-  integer :: i, j, k, i_elm, i_tor, i_check, j_check, n_tor_min, n_tor_max, k_tor
+  integer :: i, j, k, l, i_elm, i_tor, i_data, i_check, j_check, k_check, n_tor_min, n_tor_max, k_tor
   real*8  :: xjac
   real*8  :: R_tmp, R_out, RR_s, RR_t, s_out
   real*8  :: Z_tmp, Z_out, ZZ_s, ZZ_t, t_out
+  real*8  :: x_tmp3D, y_tmp3D, z_tmp3D
   real*8  :: psi, psi_s, psi_t, psi_ss, psi_tt, psi_st, psi_p, delta_psi, psi_R, psi_Z
   real*8  :: phi, phi_s, phi_t, phi_ss, phi_tt, phi_st, phi_p, delta_phi, phi_R, phi_Z
   real*8  :: pp,  pp_s,  pp_t,  pp_ss,  pp_tt,  pp_st,  pp_p,  delta_pp
+  real*8  :: rho, rho_n, Te
   real*8  :: BR, BZ, Bp, ER, EZ, Ep, Epar
   real*8  :: psi_axis, psi_bnd, Z_xpoint(2), psi_max
   integer :: ifail
   real*8  :: progress
-  logical :: extract_data, txt_data, fourier
+  logical :: txt_data, bin_data, hdf5_data, fourier
   real*8  :: rho_0, mu_0, t_norm, eV2Joules, B_tot
+  real*8  :: psi_norm, custom_sig, custom_mu
   
+  !***********************************************************************
+  !***********************************************************************
+  !********** SECTION-1: Initialisation & user-input *********************
+  !***********************************************************************
+  !***********************************************************************
+
   ! --- MPI initilisation
   call MPI_INIT(IERR)
   call MPI_COMM_RANK(MPI_COMM_WORLD, my_id, ierr)      ! id of each MPI proc
@@ -91,88 +122,132 @@ program process_hdf5_jorek
   colormap       = 1                     ! Colormap for image (1=heat, 2=rainbow)
   phi_angle      = 0.d0                  ! Toroidal angle where you want your poloidal slice [0,2pi)
   resolution     = 0.01                  ! Poloidal resolution (in meters)
+  use_3D_grid    = .false.               ! Save data on a 3D-grid boxed around plasma domain
   i_var(1)       = 5                     ! Variable to extract (default is density rho, ie. JOREK variable 5)
   n_data         = 0                     ! Number of physics quantities to be saved
   i_tor          = -1                    ! Toroidal mode number (-1 for all spectrum)
-  extract_data   = .true.                ! Extract JOREK data to text file
+  hdf5_data      = .true.                ! Data format is HDF5 (by default)
   txt_data       = .false.               ! Data format is txt (default is hdf5)
+  bin_data       = .false.               ! Data format is binary ASCII (default is hdf5)
   fourier        = .false.               ! Output data as separated n=0 and n!=0 modes
+  D_alpha        = .false.               ! User requests D_alpha
   
-  ! --- Define names of variables
+  ! --- Names of JOREK variables will be fully define once jorek_model is known
   variable_names(1)  = 'psi'
-  variable_names(2)  = 'Phi'
-  variable_names(3)  = 'j'
-  variable_names(4)  = 'w'
-  variable_names(5)  = 'rho'
-  variable_names(6)  = 'T'
-  variable_names(7)  = 'Vpar'
-  variable_names(8)  = 'BR'
-  variable_names(9)  = 'BZ'
-  variable_names(10) = 'Bp'
-  variable_names(11) = 'ER'
-  variable_names(12) = 'EZ'
-  variable_names(13) = 'Ep'
-  variable_names(14) = 'Epar'
-  variable_names(15) = 'dpsi_dt'
-  variable_names(16) = 'psi_norm'
+  
+  ! --- We start all non-physics-model variables at 20 (to leave space for various JOREK models)
+  variable_names(21) = 'BR'
+  variable_names(22) = 'BZ'
+  variable_names(23) = 'Bp'
+  variable_names(24) = 'ER'
+  variable_names(25) = 'EZ'
+  variable_names(26) = 'Ep'
+  variable_names(27) = 'Epar'
+  variable_names(28) = 'dpsi_dt'
+  variable_names(29) = 'psi_norm'
+  variable_names(30) = 'D_alpha' ! requires my_pec.dat !!!
+  variable_names(31) = 'custom'
   
   
   ! --- Get arguments
   n_arg=command_argument_count()
   do i = 1,n_arg
     call get_command_argument(i,str_input)
+    ! --- Asking for help
     if (trim(str_input) .eq. '-h') then
       if (my_id .eq. 0) then
-        write(*,*) ''
-        write(*,*) 'Here are the available options:'
-        write(*,*) '  -h                     : print this...'
-        write(*,*) '  -jorek_file <filename> : use the JOREK hdf5 file named <filename> to generate'
-        write(*,*) '                           the data (default is "jorek_restart.h5")'
-        write(*,*) '  -data_file <filename>  : name of text file where data will be saved'
-        write(*,*) '                           (default is "data_jorek.txt")'
-        write(*,*) '  -txt_data              : Data format is txt (default is hdf5)'
-        write(*,*) '  -no_data               : Do not extract data to file'
-        write(*,*) '  -save_pixels           : save the location of pixels in the JOREK domain to'
-        write(*,*) '                           the file "saved_pixels.dat" (default is "false")'
-        write(*,*) '  -use_pixel_file        : use the data file named "saved_pixels.dat" to get'
-        write(*,*) '                           the location of pixels in the JOREK domain - much'
-        write(*,*) '                           much faster - (default is "false") to use this'
-        write(*,*) '                           option, you first need to run once with -save_pixels'
-        write(*,*) '  -save_image            : save the extracted data into image named'
-        write(*,*) '                           "jorek_image.ppm" (default is "false")'
-        write(*,*) '  -colorbar <id>         : use id=1 for heat colorbar and id=2 for rainbow'
-        write(*,*) '                           colorbar (default is 1)'
-        write(*,*) '  -phi <angle>           : select the toroidal angle [0,2pi) at which you want'
-        write(*,*) '                           your poloidal slice (default is phi=0)'
-        write(*,*) '  -fourier               : instead of a poloidal slice at a given phi angle,'
-        write(*,*) '                           including all perturbations, this will output the'
-        write(*,*) '                           n=0 and each toroidal mode (sin/cos) perturbation'
-        write(*,*) '                           separately, for each variable'
-        write(*,*) '  -resolution <res>      : select the resolution of the rectangular grid in'
-        write(*,*) '                           meters (default is 0.01m)'
-        write(*,*) '  -variable <var>        : select the variable you want to extract,'
-        write(*,*) '                           it should be one of: psi, phi, j, w, rho, T, Vpar,'
-        write(*,*) '                           B, E, BR, BZ, Bp, ER, EZ, Ep, Epar, dpsi_dt, psi_norm'
-        write(*,*) '                           (default is rho)'
-        write(*,*) '  -mode <n>              : select toroidal mode you want to extract from file'
-        write(*,*) '                           n>=0 will select a given mode number'
-        write(*,*) '                           n=-1 will give you the whole spectrum'
-        write(*,*) '                           default is n=-1'
-        write(*,*) '***************************'
-        write(*,*) '***************************'
-        write(*,*) '***************************'
-        write(*,'(A)') 'Here is an example of how to run the code to extract data at 4 different phi planes.'
-        write(*,'(A)') 'Note that the first command (to define the pixel points) only needs to be run once'
-        write(*,'(A)') 'After this, data can be extracted for any phi-angle, and for any jorek#####.h5 file from the same simulation'
-        write(*,'(A)') '>> mpirun -np 16 ./fortran_process -jorek_file jorek01234.h5 -save_pixels -resolution 0.005'
-        write(*,'(A)') '>> mpirun -np 16 ./fortran_process -jorek_file jorek01234.h5 -use_pixel_file -phi 0.00000 -variable rho -variable BR -variable BZ -variable Bp -data_file processed_data1.h5'
-        write(*,'(A)') '>> mpirun -np 16 ./fortran_process -jorek_file jorek01234.h5 -use_pixel_file -phi 0.31415 -variable rho -variable BR -variable BZ -variable Bp -data_file processed_data2.h5'
-        write(*,'(A)') '>> mpirun -np 16 ./fortran_process -jorek_file jorek01234.h5 -use_pixel_file -phi 0.62830 -variable rho -variable BR -variable BZ -variable Bp -data_file processed_data3.h5'
-        write(*,'(A)') '>> mpirun -np 16 ./fortran_process -jorek_file jorek01234.h5 -use_pixel_file -phi 0.94245 -variable rho -variable BR -variable BZ -variable Bp -data_file processed_data4.h5'
+        if (i .lt. n_arg) then
+          call get_command_argument(i+1,str_input)
+          if ( (trim(str_input) .eq. 'variables') .or. (trim(str_input) .eq. 'variable') ) then
+            write(*,*) ''
+            write(*,*) 'Available variables are:'
+            write(*,*) '  "psi":      poloidal flux (magnetic potential)'
+            write(*,*) '  "phi":      electric potential'
+            write(*,*) '  "j":        toroidal current'
+            write(*,*) '  "w":        toroidal vorticity'
+            write(*,*) '  "rho":      density'
+            write(*,*) '  "T":        temperature'
+            write(*,*) '  "Ti":       ion temperature (only for model-400)'
+            write(*,*) '  "Te":       electron temperature (only for model-400)'
+            write(*,*) '  "Vpar":     parallel velocity (only for model >= 300)'
+            write(*,*) '  "B":        magnetic field components (BR,BZ,Bp)'
+            write(*,*) '  "E":        electric field components (ER,EZ,Ep)'
+            write(*,*) '  "BR":       horizontal magnetic field'
+            write(*,*) '  "BZ":       vertical magnetic field'
+            write(*,*) '  "Bp":       toroidal magnetic field'
+            write(*,*) '  "ER":       horizontal electric field'
+            write(*,*) '  "EZ":       vertical electric field'
+            write(*,*) '  "Ep":       toroidal electric field'
+            write(*,*) '  "Epar":     parallel electric field'
+            write(*,*) '  "dpsi_dt":  time derivative of psi'
+            write(*,*) '  "psi_norm": normalised psi'
+            write(*,*) '  "D_alpha":  D_alpha emissions (only for model-500s)'
+            write(*,*) '  "custom":   user-defined variable (hard-coded)'
+            write(*,*) '  (NOTE: default variable is "rho")'
+            write(*,*) '  (NOTE: "psi-norm" jumps to 100.0 outside JOREK domain)'
+          else
+            write(*,*) ''
+            write(*,*) 'Unknown -h flag ',trim(str_input)
+          endif
+        else
+          write(*,*) ''
+          write(*,*) 'Here are the available options:'
+          write(*,*) '  -h                     : print this...'
+          write(*,*) '  -jorek_file <filename> : use the JOREK hdf5 file named <filename> to generate'
+          write(*,*) '                           the data (default is "jorek_restart.h5")'
+          write(*,*) '  -data_file <filename>  : name of text file where data will be saved'
+          write(*,*) '                           (default is "data_jorek.txt")'
+          write(*,*) '  -txt_data              : Data format is txt (default is hdf5)'
+          write(*,*) '  -bin_data              : Data format is binary ASCII (default is hdf5)'
+          write(*,*) '                           (only valid for 3D-grids, uses Mitsuba2 format)'
+          write(*,*) '  -no_data               : Do not extract data to file'
+          write(*,*) '  -save_pixels           : save the location of pixels in the JOREK domain to'
+          write(*,*) '                           the file "saved_pixels.dat" (default is "false")'
+          write(*,*) '  -use_pixel_file        : use the data file named "saved_pixels.dat" to get'
+          write(*,*) '                           the location of pixels in the JOREK domain - much'
+          write(*,*) '                           much faster - (default is "false") to use this'
+          write(*,*) '                           option, you first need to run once with -save_pixels'
+          write(*,*) '  -save_image            : save the extracted data into image named'
+          write(*,*) '                           "jorek_image.ppm" (default is "false")'
+          write(*,*) '  -colorbar <id>         : use id=1 for heat colorbar and id=2 for rainbow'
+          write(*,*) '                           colorbar (default is 1)'
+          write(*,*) '  -phi <angle>           : select the toroidal angle [0,2pi) at which you want'
+          write(*,*) '                           your poloidal slice (default is phi=0)'
+          write(*,*) '  -fourier               : instead of a poloidal slice at a given phi angle,'
+          write(*,*) '                           including all perturbations, this will output the'
+          write(*,*) '                           n=0 and each toroidal mode (sin/cos) perturbation'
+          write(*,*) '                           separately, for each variable'
+          write(*,*) '  -resolution <res>      : select the resolution of the rectangular grid in'
+          write(*,*) '                           meters (default is 0.01m)'
+          write(*,*) '  -3D_grid               : Instead of a 2D poloidal grid at a selected phi-angle'
+          write(*,*) '                           use a 3D grid (x,y,z) boxed around simulation domain'
+          write(*,*) '                           with individual dimensions (nx,ny,nz) each determined'
+          write(*,*) '                           by the "resolution" parameter'
+          write(*,*) '  -variable <var>        : select the variable you want to extract'
+          write(*,*) '                           (note, you can extract many variables at once).'
+          write(*,*) '                           To view available variables, run with:'
+          write(*,*) '                           "-h variables"'
+          write(*,*) '  -mode <n>              : select toroidal mode you want to extract from file'
+          write(*,*) '                           n>=0 will select a given mode number'
+          write(*,*) '                           n=-1 will give you the whole spectrum'
+          write(*,*) '                           default is n=-1'
+          write(*,*) '***************************'
+          write(*,*) '***************************'
+          write(*,*) '***************************'
+          write(*,'(A)') 'Here is an example of how to run the code to extract data at 4 different phi planes.'
+          write(*,'(A)') 'Note that the first command (to define the pixel points) only needs to be run once'
+          write(*,'(A)') 'After this, data can be extracted for any phi-angle, and for any jorek#####.h5 file from the same simulation'
+          write(*,'(A)') '>> mpirun -np 16 ./fortran_process -jorek_file jorek01234.h5 -save_pixels -resolution 0.005'
+          write(*,'(A)') '>> mpirun -np 16 ./fortran_process -jorek_file jorek01234.h5 -use_pixel_file -phi 0.00000 -variable rho -variable BR -variable BZ -variable Bp -data_file processed_data1.h5'
+          write(*,'(A)') '>> mpirun -np 16 ./fortran_process -jorek_file jorek01234.h5 -use_pixel_file -phi 0.31415 -variable rho -variable BR -variable BZ -variable Bp -data_file processed_data2.h5'
+          write(*,'(A)') '>> mpirun -np 16 ./fortran_process -jorek_file jorek01234.h5 -use_pixel_file -phi 0.62830 -variable rho -variable BR -variable BZ -variable Bp -data_file processed_data3.h5'
+          write(*,'(A)') '>> mpirun -np 16 ./fortran_process -jorek_file jorek01234.h5 -use_pixel_file -phi 0.94245 -variable rho -variable BR -variable BZ -variable Bp -data_file processed_data4.h5'
+        endif
       endif
       call MPI_FINALIZE(IERR)
       stop
     endif
+    ! --- All other options
     if (trim(str_input) .eq. '-jorek_file') then
       call get_command_argument(i+1,str_input2)
       filename = trim(str_input2)
@@ -184,11 +259,19 @@ program process_hdf5_jorek
       if (my_id .eq. 0) write(*,*) 'Writing data to file: ',trim(filename_data)
     endif
     if (trim(str_input) .eq. '-txt_data') then
-      txt_data = .true.
+      hdf5_data = .false.
+      txt_data  = .true.
       if (my_id .eq. 0) write(*,*) 'Data format will be .txt'
     endif
+    if (trim(str_input) .eq. '-bin_data') then
+      hdf5_data = .false.
+      bin_data  = .true.
+      if (my_id .eq. 0) write(*,*) 'Data format will be .ascii.bin'
+    endif
     if (trim(str_input) .eq. '-no_data') then
-      extract_data = .false.
+      hdf5_data = .false.
+      bin_data  = .false.
+      txt_data  = .false.
       if (my_id .eq. 0) write(*,*) 'Data will not be saved'
     endif
     if (trim(str_input) .eq. '-save_pixels') then
@@ -223,39 +306,50 @@ program process_hdf5_jorek
       read(str_input2,'(f14.6)')resolution
       if (my_id .eq. 0) write(*,*) 'Getting data with resolution : ',resolution
     endif
+    if (trim(str_input) .eq. '-3D_grid') then
+      use_3D_grid = .true.
+    endif
     if (trim(str_input) .eq. '-variable') then
       n_data = n_data + 1
       call get_command_argument(i+1,str_input2)
-      if (trim(str_input2) .eq. 'psi' ) i_var(n_data) = 1
-      if (trim(str_input2) .eq. 'Phi' ) i_var(n_data) = 2
-      if (trim(str_input2) .eq. 'j'   ) i_var(n_data) = 3
-      if (trim(str_input2) .eq. 'w'   ) i_var(n_data) = 4
-      if (trim(str_input2) .eq. 'rho' ) i_var(n_data) = 5
-      if (trim(str_input2) .eq. 'T'   ) i_var(n_data) = 6
-      if (trim(str_input2) .eq. 'Vpar') i_var(n_data) = 7
-      if (trim(str_input2) .eq. 'BR'  ) i_var(n_data) = 8
-      if (trim(str_input2) .eq. 'BZ'  ) i_var(n_data) = 9
-      if (trim(str_input2) .eq. 'Bp'  ) i_var(n_data) = 10
-      if (trim(str_input2) .eq. 'B'   ) then
-        i_var(n_data) = 8
+      ! --- JOREK variables
+      if (trim(str_input2) .eq. 'psi'  ) i_var(n_data) = 1
+      if (trim(str_input2) .eq. 'Phi'  ) i_var(n_data) = 2
+      if (trim(str_input2) .eq. 'j'    ) i_var(n_data) = 3
+      if (trim(str_input2) .eq. 'w'    ) i_var(n_data) = 4
+      if (trim(str_input2) .eq. 'rho'  ) i_var(n_data) = 5
+      if (trim(str_input2) .eq. 'T'    ) i_var(n_data) = 6
+      if (trim(str_input2) .eq. 'Vpar' ) i_var(n_data) = 7
+      if (trim(str_input2) .eq. 'Ti'   ) i_var(n_data) = 6
+      if (trim(str_input2) .eq. 'Te'   ) i_var(n_data) = 8
+      if (trim(str_input2) .eq. 'rho_n') i_var(n_data) = 8
+      ! --- non-physics-model variables
+      if (trim(str_input2) .eq. 'BR'   ) i_var(n_data) = 21
+      if (trim(str_input2) .eq. 'BZ'   ) i_var(n_data) = 22
+      if (trim(str_input2) .eq. 'Bp'   ) i_var(n_data) = 23
+      if (trim(str_input2) .eq. 'B'    ) then
+        i_var(n_data) = 21
         n_data = n_data + 1
-        i_var(n_data) = 9
+        i_var(n_data) = 22
         n_data = n_data + 1
-        i_var(n_data) = 10
+        i_var(n_data) = 23
       endif
-      if (trim(str_input2) .eq. 'ER'  ) i_var(n_data) = 11
-      if (trim(str_input2) .eq. 'EZ'  ) i_var(n_data) = 12
-      if (trim(str_input2) .eq. 'Ep'  ) i_var(n_data) = 13
-      if (trim(str_input2) .eq. 'Epar') i_var(n_data) = 14
-      if (trim(str_input2) .eq. 'E'   ) then
-        i_var(n_data) = 11
+      if (trim(str_input2) .eq. 'ER'   ) i_var(n_data) = 24
+      if (trim(str_input2) .eq. 'EZ'   ) i_var(n_data) = 25
+      if (trim(str_input2) .eq. 'Ep'   ) i_var(n_data) = 26
+      if (trim(str_input2) .eq. 'Epar' ) i_var(n_data) = 27
+      if (trim(str_input2) .eq. 'E'    ) then
+        i_var(n_data) = 24
         n_data = n_data + 1
-        i_var(n_data) = 12
+        i_var(n_data) = 25
         n_data = n_data + 1
-        i_var(n_data) = 13
+        i_var(n_data) = 26
       endif
-      if (trim(str_input2) .eq. 'dpsi_dt' ) i_var(n_data) = 15
-      if (trim(str_input2) .eq. 'psi_norm') i_var(n_data) = 16
+      if (trim(str_input2) .eq. 'dpsi_dt' ) i_var(n_data) = 28
+      if (trim(str_input2) .eq. 'psi_norm') i_var(n_data) = 29
+      if (trim(str_input2) .eq. 'D_alpha' ) i_var(n_data) = 30
+      if (trim(str_input2) .eq. 'D_alpha' ) D_alpha       = .true.
+      if (trim(str_input2) .eq. 'custom'  ) i_var(n_data) = 31
       if (my_id .eq. 0) write(*,*) 'Getting variable : ',trim(str_input2)
     endif
     if (trim(str_input) .eq. '-mode') then
@@ -267,9 +361,17 @@ program process_hdf5_jorek
       endif
     endif
   enddo
-  if (n_data .eq. 0)      n_data = 1
-  if (.not. extract_data) n_data = 1
-  if (txt_data .and. extract_data .and. (trim(filename_data) .eq. 'data_jorek.h5') ) filename_data = 'data_jorek.txt'
+  n_data = max(1,n_data)
+  if (txt_data .and. (trim(filename_data) .eq. 'data_jorek.h5') ) filename_data = 'data_jorek.txt'
+  if (bin_data .and. (trim(filename_data) .eq. 'data_jorek.h5') ) filename_data = 'data_jorek.ascii.bin'
+  if (bin_data .and. (.not. use_3D_grid) ) then
+    if (my_id .eq. 0) write(*,*)'Warning, binary data format is reserved for 3D-grids...'
+    if (my_id .eq. 0) write(*,*)'Defaulting back to hdf5 format...'
+    txt_data  = .false.
+    bin_data  = .false.
+    hdf5_data = .true.
+    filename_data = 'data_jorek.h5'
+  endif
   
   ! --- Choose if you want to output an image or a pixel file or use an existing pixel file
   if (save_pixels .and. use_pixel_file) then
@@ -278,13 +380,26 @@ program process_hdf5_jorek
     save_pixels = .false.
   endif
 
+  ! --- Fourier doesn't make sense on a 3D_grid
+  if (use_3D_grid .and. fourier) then
+    if (my_id .eq. 0) write(*,*)'Warning, you cannot use Fourier modes with a 3D-grid...'
+    if (my_id .eq. 0) write(*,*)'Defaulting to Fourier=False...'
+    fourier = .false.
+  endif
+
+  !***********************************************************************
+  !***********************************************************************
+  !********** SECTION-2: Read JOREK data from HDF5 ***********************
+  !***********************************************************************
+  !***********************************************************************
+
   ! --- Initialize FORTRAN interface.
   CALL h5open_f(error)
 
   ! --- Open jorek h5 file.
-  call h5fopen_f (trim(filename), H5F_ACC_RDWR_F, file_id, error)
+  call h5fopen_f (trim(filename), H5F_ACC_RDONLY_F, file_id, error)
   if (error .ne. 0) then
-    if (my_id .eq. 0) write(*,*)'Failed to open file',trim(filename)
+    if (my_id .eq. 0) write(*,*)'Failed to open file ',trim(filename)
     if (my_id .eq. 0) write(*,*)'aborting...'
     stop
   endif
@@ -312,6 +427,10 @@ program process_hdf5_jorek
     modes(i) = int((i)/2) * n_period
   enddo
   
+  ! --- Define names of JOREK variables depending on model
+  call HDF5_integer_reading(file_id,jorek_model,'jorek_model')
+  call define_jorek_variable_names(jorek_model,variable_names)
+
   ! --- Get poloidal grid data
   call HDF5_integer_reading(file_id,n_elements,'n_elements')
   call HDF5_integer_reading(file_id,n_nodes,   'n_nodes')
@@ -361,21 +480,95 @@ program process_hdf5_jorek
   t_norm    = sqrt(rho_0*mu_0)
   eV2Joules = 1.602176487d-19
   
+  ! --- Get JOREK time and normalise it
   call HDF5_integer_reading(file_id,index_now,      'index_now')
   allocate(time(index_now))
   call HDF5_array1D_reading(file_id,time,           'xtime')
   time_now = time(index_now) * t_norm
+
+  ! --- If user requests D_alpha, we need jorek_model500 and my_pec.dat file
+  if (D_alpha) then
+    ! --- D_alpha makes no sense for harmonics
+    if (fourier) then
+      if (my_id .eq. 0) then
+        write(*,*) 'Variable "D_alpha" only for full toroidal variables.'
+        write(*,*) '(ie. do not use "-fourier" option)'
+        write(*,*) 'Aborting...'
+      endif
+      call MPI_FINALIZE(ierr)
+      stop
+    endif
+    ! --- Make sure this is jorek_model500
+    if (jorek_model .ne. 500) then
+      if (my_id .eq. 0) then
+        write(*,*) 'You can only request variable "D_alpha" with jorek-model 500.'
+        write(*,*) 'Aborting...'
+      endif
+      call MPI_FINALIZE(ierr)
+      stop
+    endif
+    ! --- If user requests D_alpha, we need the my_pec.dat file
+    open(123, file="./my_pec.dat", action='read', iostat=ierr)
+    if ( ierr .ne. 0 ) then
+      if (my_id .eq. 0) then
+        write(*,*) 'Failed to open PEC data file "./my_pec.dat" with error ',ierr
+        write(*,*) 'If you request variable "D_alpha", you need the file "my_pec.dat".'
+        write(*,*) 'Aborting...'
+      endif
+      call MPI_FINALIZE(ierr)
+      stop
+    ! --- Read data file with PEC(Ne,Te) grid (Photon Emissivity Coefficients)  !
+    else
+      ! --- File should start with a comment line
+      read(123,'(A)') line
+      ! --- Second line should be "np"
+      read(123,'(A)') line
+      ! --- Third line should be the value of "np"
+      read(123,'(A)') line
+      read(line,*) PEC_size
+      ! --- Allocate vectors
+      allocate(PEC_dens(PEC_size),PEC_temp(PEC_size),PEC(PEC_size*PEC_size))
+      ! --- Then comes the density profile
+      read(123,'(A)') line
+      do i=1, PEC_size
+        read(123,'(A)') line
+        read(line,*) PEC_dens(i)
+      enddo
+      ! --- Then comes the temperature profile
+      read(123,'(A)') line
+      do i=1, PEC_size
+        read(123,'(A)') line
+        read(line,*) PEC_temp(i)
+      enddo
+      ! --- Then comes the PEC profiles
+      read(123,'(A)') line
+      do i=1, PEC_size*PEC_size
+        read(123,'(A)') line
+        read(line,*) PEC(i)
+      enddo
+      close(123)
+    endif
+  endif
   
-  ! --- Extract data at given toroidal slice
-  
-  ! --- Write pixel file
+  !***********************************************************************
+  !***********************************************************************
+  !********** SECTION-3: Setup grid parameters ***************************
+  !***********************************************************************
+  !***********************************************************************
+
+  ! --- Get/Set grid dimensions
   if (use_pixel_file) then
     ! --- Open image file with PPM P3 format
     open(unit=21,file='saved_pixels.dat', ACTION = 'read')
     if (my_id .eq. 0) write(*,*) 'Reading pixel file : saved_pixels.dat'
     ! --- header with pixel size and domain
-    read(21,'(2i8)')  nx_pix, ny_pix
-    read(21,'(4e21.11)')   Rpix_min, Rpix_max, Zpix_min, Zpix_max
+    if (use_3D_grid) then
+      read(21,'(3i8)')  nx_3D, ny_3D, nz_3D
+      read(21,'(6e21.11)')   Xpix_min, Xpix_max, Ypix_min, Ypix_max, Zpix_min, Zpix_max
+    else
+      read(21,'(2i8)')  nx_pix, ny_pix
+      read(21,'(4e21.11)')   Rpix_min, Rpix_max, Zpix_min, Zpix_max
+    endif
   else
     ! --- Determine boundaries of grid
     if (my_id .eq. 0) write(*,*)'Finding minmax of domain'
@@ -398,41 +591,115 @@ program process_hdf5_jorek
     ! --- Grid size
     nx_pix = int( (Rpix_max-Rpix_min)/resolution + 1 )
     ny_pix = int( (Zpix_max-Zpix_min)/resolution + 1 )
+    ! --- Add Y-dimention if doing 3D
+    if (use_3D_grid) then
+      Xpix_min =-Rpix_max
+      Xpix_max = Rpix_max
+      Ypix_min = Xpix_min
+      Ypix_max = Xpix_max
+      nx_3D = 2*nx_pix
+      ny_3D = 2*nx_pix
+      nz_3D = ny_pix
+    endif
   endif
-  if (my_id .eq. 0) write(*,*)'Doing rectangular grid domain'
-  if (my_id .eq. 0) write(*,*)'   R-min-max:',Rpix_min,Rpix_max
-  if (my_id .eq. 0) write(*,*)'   Z-min-max:',Zpix_min,Zpix_max
-  if (my_id .eq. 0) write(*,*)'   nR:',nx_pix
-  if (my_id .eq. 0) write(*,*)'   nZ:',ny_pix
+  ! --- Allocate data
+  if (use_3D_grid) then
+    if (my_id .eq. 0) write(*,*)'Doing 3D grid domain'
+    if (my_id .eq. 0) write(*,*)'   X-min-max:',Xpix_min,Xpix_max
+    if (my_id .eq. 0) write(*,*)'   Y-min-max:',Ypix_min,Ypix_max
+    if (my_id .eq. 0) write(*,*)'   Z-min-max:',Zpix_min,Zpix_max
+    if (my_id .eq. 0) write(*,*)'   (nX,nY,nZ):',nx_3D,ny_3D,nz_3D
+    ! --- We use ny_pix for the parallelisation, with one vector to save indexing
+    nx_pix = 1
+    ny_pix = nx_3D*ny_3D*nz_3D
+    allocate(Xindex3D(ny_pix),Yindex3D(ny_pix),Zindex3D(ny_pix),index3D(nx_3D,ny_3D,nz_3D))
+    ny_pix = 0
+    do i = 1,nx_3D
+      do j = 1,ny_3D
+        do k = 1,nz_3D
+          ny_pix = ny_pix + 1
+          index3D(i,j,k)   = ny_pix
+          Xindex3D(ny_pix) = i
+          Yindex3D(ny_pix) = j
+          Zindex3D(ny_pix) = k
+        enddo
+      enddo
+    enddo
+    allocate(Xgrid3D(ny_pix),Ygrid3D(ny_pix),Zgrid3D(ny_pix))
+    allocate(my_var(1,ny_pix,1,n_data))
+  else
+    if (my_id .eq. 0) write(*,*)'Doing rectangular grid domain'
+    if (my_id .eq. 0) write(*,*)'   R-min-max:',Rpix_min,Rpix_max
+    if (my_id .eq. 0) write(*,*)'   Z-min-max:',Zpix_min,Zpix_max
+    if (my_id .eq. 0) write(*,*)'   nR:',nx_pix
+    if (my_id .eq. 0) write(*,*)'   nZ:',ny_pix
+    allocate(Rgrid(nx_pix,ny_pix),Zgrid(nx_pix,ny_pix))
+    if (fourier) then
+      allocate(my_var(nx_pix,ny_pix,n_tor,n_data))
+    else
+      allocate(my_var(nx_pix,ny_pix,1,n_data))
+    endif
+  endif
   if ( (save_pixels) .or. (use_pixel_file) ) then
     allocate(i_elm_save(nx_pix,ny_pix), s_save(nx_pix,ny_pix), t_save(nx_pix,ny_pix))
-  endif
-  allocate(Rgrid(nx_pix,ny_pix),Zgrid(nx_pix,ny_pix))
-  if (fourier) then
-    allocate(my_var(nx_pix,ny_pix,n_data,n_tor))
-  else
-    allocate(my_var(nx_pix,ny_pix,n_data,1))
   endif
   
   ! --- Get the position data from file
   if (use_pixel_file) then
-    ! --- Write to image file
-    do i = 1,nx_pix
-      do j = 1,ny_pix
-        read(21,'(3i8,4e21.11)') i_check, j_check, i_elm_save(i,j), s_save(i,j), t_save(i,j), Rgrid(i,j), Zgrid(i,j)
-        if ( (i_check .ne. i) .or. (j_check .ne. j) ) then
-          if (my_id .eq. 0) write(*,*)'WARNING! Cannot make sense out of file saved_pixels.dat'
-          if (my_id .eq. 0) write(*,*)'         You should rerun with save_pixel option'
-          if (my_id .eq. 0) write(*,*)'         Aborting'
-          call MPI_FINALIZE(IERR)
-          stop
+    if (use_3D_grid) then
+      ! --- Read pixel file
+      if (my_id .eq. 0) write(*,*)'Now reading data from saved_pixels.dat...'
+      ny_pix = 0
+      do i = 1,nx_3D
+        if (my_id .eq. 0) then
+          progress = 1.d2 * float(i-1) / float(nx_3D)
+          progress = max(0.d0,progress)
+          progress = min(1.d2,progress)
+          write(*,"(' Processing  ... ',I0,'%',A,$)") int(progress),CHAR(13)
         endif
+        do j = 1,ny_3D
+          do k = 1,nz_3D
+            ny_pix = ny_pix + 1
+            read(21,'(4i8,5e21.11)') i_check, j_check, k_check, &
+                                     i_elm_save(1,ny_pix), s_save(1,ny_pix), t_save(1,ny_pix), &
+                                     Xgrid3D(ny_pix), Ygrid3D(ny_pix), Zgrid3D(ny_pix)
+            !too slow to do if-statement here in 3D
+            !if ( (i_check .ne. i) .or. (j_check .ne. j) .or. (k_check .ne. k) ) then
+            !  if (my_id .eq. 0) write(*,*)'WARNING! Cannot make sense out of file saved_pixels.dat'
+            !  if (my_id .eq. 0) write(*,*)'         You should rerun with save_pixel option'
+            !  if (my_id .eq. 0) write(*,*)'         Aborting'
+            !  call MPI_FINALIZE(IERR)
+            !  stop
+            !endif
+          enddo
+        enddo
       enddo
-    enddo
+    else
+      ! --- Read pixel file
+      do i = 1,nx_pix
+        do j = 1,ny_pix
+          read(21,'(3i8,4e21.11)') i_check, j_check, i_elm_save(i,j), s_save(i,j), t_save(i,j), Rgrid(i,j), Zgrid(i,j)
+          if ( (i_check .ne. i) .or. (j_check .ne. j) ) then
+            if (my_id .eq. 0) write(*,*)'WARNING! Cannot make sense out of file saved_pixels.dat'
+            if (my_id .eq. 0) write(*,*)'         You should rerun with save_pixel option'
+            if (my_id .eq. 0) write(*,*)'         Aborting'
+            call MPI_FINALIZE(IERR)
+            stop
+          endif
+        enddo
+      enddo
+    endif
     close(21)
   endif
     
+  !***********************************************************************
+  !***********************************************************************
+  !********** SECTION-4: MPI parallelise on ny_pix parameter *************
+  !***********************************************************************
+  !***********************************************************************
+
   ! --- The elements we are looking at (note element indexing starts at axis going gradually outwards)
+  ! --- We parallelise on ny_pix, both in 2D and 3D (in 3D, ny_pix is the total number of points)
   pix_start = 1
   pix_end   = ny_pix
   
@@ -444,17 +711,26 @@ program process_hdf5_jorek
   
   ! --- Some info print outs
   call MPI_Barrier(MPI_COMM_WORLD,ierr)
-  if (my_id .eq. 0) write(*,*) ' Total number of horizontal lines : ',ny_pix
-  write(*,'(A,3i6)') ' Local MPI elements (mpi_id, line_start, line_end) : ', my_id, local_pix_start, local_pix_end
+  if (use_3D_grid) then
+    if (my_id .eq. 0) write(*,*) ' Total number of points in 3D grid : ',ny_pix
+  else
+    if (my_id .eq. 0) write(*,*) ' Total number of horizontal lines : ',ny_pix
+  endif
+  write(*,'(A,3i8)') ' Local MPI elements (mpi_id, line_start, line_end) : ', my_id, local_pix_start, local_pix_end
   call MPI_Barrier(MPI_COMM_WORLD,ierr)
   
+  !***********************************************************************
+  !***********************************************************************
+  !********** SECTION-5: Interpolate JOREK data on grid ******************
+  !***********************************************************************
+  !***********************************************************************
+
   ! --- Now get the data on grid
   if (my_id .eq. 0) write(*,*)'Extracting data...'
   call MPI_Barrier(MPI_COMM_WORLD,ierr)
   icnt = 0
   do j = local_pix_end,local_pix_start,-1
-    ! --- Printout?
-    !if (my_id .eq. 0) write(*,*)'remaining horizontal lines : ',j-local_pix_start
+    ! --- Progress
     if (my_id .eq. 0) then
       progress = 1.d2 - 1.d2 * float(j-local_pix_start) / float(pix_delta)
       progress = max(0.d0,progress)
@@ -465,24 +741,63 @@ program process_hdf5_jorek
     do i = 1,nx_pix
       
       ! --- Get data at RZ-location
-      if (use_pixel_file) then
-        i_elm = i_elm_save(i,j)
-        s_out = s_save(i,j)
-        t_out = t_save(i,j)
-        call interp_RZ(elm_vertex, elm_size, RZ_nodes, i_elm, n_elements, n_nodes, s_out, t_out, R_tmp, RR_s, RR_t, Z_tmp, ZZ_s, ZZ_t)
-        R_out = R_tmp
-        Z_out = Z_tmp
-        ifail = 0
-        if (i_elm .eq. 0) ifail = 99
-      else
-        R_tmp = Rpix_min + float(i-1)/float(nx_pix-1) * (Rpix_max-Rpix_min)
-        Z_tmp = Zpix_min + float(j-1)/float(ny_pix-1) * (Zpix_max-Zpix_min)
-        Rgrid(i,j) = R_tmp
-        Zgrid(i,j) = Z_tmp
-        call find_RZ(n_elements, n_nodes, elm_vertex, elm_size, RZ_nodes, R_tmp, Z_tmp, R_out, Z_out, i_elm, s_out, t_out, ifail)
-        call interp_RZ(elm_vertex, elm_size, RZ_nodes, i_elm, n_elements, n_nodes, s_out, t_out, R_out, RR_s, RR_t, Z_out, ZZ_s, ZZ_t)
+      if (use_3D_grid) then
+        if (use_pixel_file) then
+          i_elm = i_elm_save(1,j)
+          s_out = s_save(1,j)
+          t_out = t_save(1,j)
+          call interp_RZ(elm_vertex, elm_size, RZ_nodes, i_elm, n_elements, n_nodes, s_out, t_out, &
+                         R_tmp, RR_s, RR_t, Z_tmp, ZZ_s, ZZ_t)
+          ! --- Transform (x,y,z) -> (R,Z,phi)
+          R_out = R_tmp
+          Z_out = Z_tmp
+          x_tmp3D = Xgrid3D(j)
+          y_tmp3D = Ygrid3D(j)
+          z_tmp3D = Zgrid3D(j)
+          phi_angle = atan2(y_tmp3D,x_tmp3D)
+          call initialise_toroidal_basis(phi_angle, n_period, n_tor, modes, HZ, HZ_p, HZ_pp)
+          ifail = 0
+          if (i_elm .eq. 0) ifail = 99
+        else
+          x_tmp3D = Xpix_min + float(Xindex3D(j)-1)/float(nx_3D-1) * (Xpix_max-Xpix_min)
+          y_tmp3D = Ypix_min + float(Yindex3D(j)-1)/float(ny_3D-1) * (Ypix_max-Ypix_min)
+          z_tmp3D = Zpix_min + float(Zindex3D(j)-1)/float(nz_3D-1) * (Zpix_max-Zpix_min)
+          Xgrid3D(j) = x_tmp3D
+          Ygrid3D(j) = y_tmp3D
+          Zgrid3D(j) = z_tmp3D
+          ! --- Transform (x,y,z) -> (R,Z,phi)
+          R_tmp = sqrt( x_tmp3D**2 + y_tmp3D**2 )
+          Z_tmp = z_tmp3D
+          phi_angle = atan2(y_tmp3D,x_tmp3D)
+          call initialise_toroidal_basis(phi_angle, n_period, n_tor, modes, HZ, HZ_p, HZ_pp)
+          call find_RZ(n_elements, n_nodes, elm_vertex, elm_size, RZ_nodes, &
+                       R_tmp, Z_tmp, R_out, Z_out, i_elm, s_out, t_out, ifail)
+          call interp_RZ(elm_vertex, elm_size, RZ_nodes, i_elm, n_elements, n_nodes, s_out, t_out, &
+                         R_out, RR_s, RR_t, Z_out, ZZ_s, ZZ_t)
+        endif
+      else ! not use_3D_grid
+        if (use_pixel_file) then
+          i_elm = i_elm_save(i,j)
+          s_out = s_save(i,j)
+          t_out = t_save(i,j)
+          call interp_RZ(elm_vertex, elm_size, RZ_nodes, i_elm, n_elements, n_nodes, s_out, t_out, &
+                         R_tmp, RR_s, RR_t, Z_tmp, ZZ_s, ZZ_t)
+          R_out = R_tmp
+          Z_out = Z_tmp
+          ifail = 0
+          if (i_elm .eq. 0) ifail = 99
+        else
+          R_tmp = Rpix_min + float(i-1)/float(nx_pix-1) * (Rpix_max-Rpix_min)
+          Z_tmp = Zpix_min + float(j-1)/float(ny_pix-1) * (Zpix_max-Zpix_min)
+          Rgrid(i,j) = R_tmp
+          Zgrid(i,j) = Z_tmp
+          call find_RZ(n_elements, n_nodes, elm_vertex, elm_size, RZ_nodes, &
+                       R_tmp, Z_tmp, R_out, Z_out, i_elm, s_out, t_out, ifail)
+          call interp_RZ(elm_vertex, elm_size, RZ_nodes, i_elm, n_elements, n_nodes, s_out, t_out, &
+                         R_out, RR_s, RR_t, Z_out, ZZ_s, ZZ_t)
+        endif
       endif
-      xjac = RR_s*ZZ_t - RR_t*ZZ_s
+      ! --- Save Pixel file?
       if (save_pixels) then
         if (ifail .eq. 0) then
           i_elm_save(i,j) = i_elm
@@ -494,14 +809,24 @@ program process_hdf5_jorek
           t_save(i,j)     = 0.d0
         endif
       endif
+      ! --- Now get data at location
       if (ifail .eq. 0) then
+        xjac = RR_s*ZZ_t - RR_t*ZZ_s
         do k_tor = n_tor_min, n_tor_max
           if (fourier) then
-            call interp_fourier(elm_vertex, elm_size, values, deltas, i_elm, n_elements, n_nodes, 1, n_var, k_tor, n_tor, s_out, t_out, psi, psi_s, psi_t, psi_ss, psi_tt, psi_st, psi_p, delta_psi)
-            call interp_fourier(elm_vertex, elm_size, values, deltas, i_elm, n_elements, n_nodes, 2, n_var, k_tor, n_tor, s_out, t_out, phi, phi_s, phi_t, phi_ss, phi_tt, phi_st, phi_p, delta_phi)
+            call interp_fourier(elm_vertex, elm_size, values, deltas, i_elm, n_elements, n_nodes, &
+                                1, n_var, k_tor, n_tor, s_out, t_out, &
+                                psi, psi_s, psi_t, psi_ss, psi_tt, psi_st, psi_p, delta_psi)
+            call interp_fourier(elm_vertex, elm_size, values, deltas, i_elm, n_elements, n_nodes, &
+                                2, n_var, k_tor, n_tor, s_out, t_out, &
+                                phi, phi_s, phi_t, phi_ss, phi_tt, phi_st, phi_p, delta_phi)
           else
-            call interp(elm_vertex, elm_size, values, deltas, i_elm, n_elements, n_nodes, 1, n_var, i_tor, n_tor, HZ, HZ_p, s_out, t_out, psi, psi_s, psi_t, psi_ss, psi_tt, psi_st, psi_p, delta_psi)
-            call interp(elm_vertex, elm_size, values, deltas, i_elm, n_elements, n_nodes, 2, n_var, i_tor, n_tor, HZ, HZ_p, s_out, t_out, phi, phi_s, phi_t, phi_ss, phi_tt, phi_st, phi_p, delta_phi)
+            call interp(elm_vertex, elm_size, values, deltas, i_elm, n_elements, n_nodes, &
+                        1, n_var, i_tor, n_tor, HZ, HZ_p, s_out, t_out, &
+                        psi, psi_s, psi_t, psi_ss, psi_tt, psi_st, psi_p, delta_psi)
+            call interp(elm_vertex, elm_size, values, deltas, i_elm, n_elements, n_nodes, &
+                        2, n_var, i_tor, n_tor, HZ, HZ_p, s_out, t_out, &
+                        phi, phi_s, phi_t, phi_ss, phi_tt, phi_st, phi_p, delta_phi)
           endif
           psi_R = ( + ZZ_t*psi_s - ZZ_s*psi_t ) / xjac
           psi_Z = ( - RR_t*psi_s + RR_s*psi_t ) / xjac
@@ -511,25 +836,32 @@ program process_hdf5_jorek
           do k = 1,n_data
             if (i_var(k) .le. n_var) then
               if (fourier) then
-                call interp_fourier(elm_vertex, elm_size, values, deltas, i_elm, n_elements, n_nodes, i_var(k), n_var, k_tor, n_tor, s_out, t_out, pp, pp_s, pp_t, pp_ss, pp_tt, pp_st, pp_p, delta_pp)
+                call interp_fourier(elm_vertex, elm_size, values, deltas, i_elm, n_elements, n_nodes, i_var(k), &
+                                    n_var, k_tor, n_tor, s_out, t_out, &
+                                    pp, pp_s, pp_t, pp_ss, pp_tt, pp_st, pp_p, delta_pp)
               else
-                call interp(elm_vertex, elm_size, values, deltas, i_elm, n_elements, n_nodes, i_var(k), n_var, i_tor, n_tor, HZ, HZ_p, s_out, t_out, pp, pp_s, pp_t, pp_ss, pp_tt, pp_st, pp_p, delta_pp)
+                call interp(elm_vertex, elm_size, values, deltas, i_elm, n_elements, n_nodes, i_var(k), &
+                            n_var, i_tor, n_tor, HZ, HZ_p, s_out, t_out, &
+                            pp, pp_s, pp_t, pp_ss, pp_tt, pp_st, pp_p, delta_pp)
               endif
               ! --- Normal variable
-              my_var(i,j,k,k_tor) = pp
+              my_var(i,j,k_tor,k) = pp
             endif
-            if (trim(variable_names(i_var(k))) .eq. 'Phi'     ) my_var(i,j,k,k_tor) = - F0 * my_var(i,j,k,k_tor) / t_norm
-            if (trim(variable_names(i_var(k))) .eq. 'j'       ) my_var(i,j,k,k_tor) = - my_var(i,j,k,k_tor) / R_out / mu_0
-            if (trim(variable_names(i_var(k))) .eq. 'rho'     ) my_var(i,j,k,k_tor) = central_density * my_var(i,j,k,k_tor)
-            if (trim(variable_names(i_var(k))) .eq. 'T'       ) my_var(i,j,k,k_tor) = my_var(i,j,k,k_tor) / (central_density * mu_0) / eV2Joules
-            if (trim(variable_names(i_var(k))) .eq. 'Vpar'    ) my_var(i,j,k,k_tor) = my_var(i,j,k,k_tor) * B_tot / t_norm
-            if (trim(variable_names(i_var(k))) .eq. 'BR'      ) my_var(i,j,k,k_tor) = psi_Z / R_out
-            if (trim(variable_names(i_var(k))) .eq. 'BZ'      ) my_var(i,j,k,k_tor) = -psi_R / R_out
-            if (trim(variable_names(i_var(k))) .eq. 'Bp'      ) my_var(i,j,k,k_tor) = F0 / R_out
-            if (trim(variable_names(i_var(k))) .eq. 'ER'      ) my_var(i,j,k,k_tor) = - F0 * phi_R / t_norm
-            if (trim(variable_names(i_var(k))) .eq. 'EZ'      ) my_var(i,j,k,k_tor) = - F0 * phi_Z / t_norm
-            if (trim(variable_names(i_var(k))) .eq. 'Ep'      ) my_var(i,j,k,k_tor) = (- F0 * phi_p / R_out - delta_psi / delta_t / R_out ) / t_norm
-            if (trim(variable_names(i_var(k))) .eq. 'dpsi_dt' ) my_var(i,j,k,k_tor) = - delta_psi / delta_t / R_out / t_norm
+            if (trim(variable_names(i_var(k))) .eq. 'Phi'     ) my_var(i,j,k_tor,k) = - F0 * my_var(i,j,k_tor,k) / t_norm
+            if (trim(variable_names(i_var(k))) .eq. 'j'       ) my_var(i,j,k_tor,k) = - my_var(i,j,k_tor,k) / R_out / mu_0
+            if (trim(variable_names(i_var(k))) .eq. 'rho'     ) my_var(i,j,k_tor,k) = max(0.d0,central_density * my_var(i,j,k_tor,k))
+            if (trim(variable_names(i_var(k))) .eq. 'T'       ) my_var(i,j,k_tor,k) = max(0.d0,my_var(i,j,k_tor,k) / (central_density * mu_0) / eV2Joules)
+            if (trim(variable_names(i_var(k))) .eq. 'Ti'      ) my_var(i,j,k_tor,k) = max(0.d0,my_var(i,j,k_tor,k) / (central_density * mu_0) / eV2Joules)
+            if (trim(variable_names(i_var(k))) .eq. 'Te'      ) my_var(i,j,k_tor,k) = max(0.d0,my_var(i,j,k_tor,k) / (central_density * mu_0) / eV2Joules)
+            if (trim(variable_names(i_var(k))) .eq. 'rho_n'   ) my_var(i,j,k_tor,k) = max(0.d0,central_density * my_var(i,j,k_tor,k))
+            if (trim(variable_names(i_var(k))) .eq. 'Vpar'    ) my_var(i,j,k_tor,k) = my_var(i,j,k_tor,k) * B_tot / t_norm
+            if (trim(variable_names(i_var(k))) .eq. 'BR'      ) my_var(i,j,k_tor,k) = psi_Z / R_out
+            if (trim(variable_names(i_var(k))) .eq. 'BZ'      ) my_var(i,j,k_tor,k) = -psi_R / R_out
+            if (trim(variable_names(i_var(k))) .eq. 'Bp'      ) my_var(i,j,k_tor,k) = F0 / R_out
+            if (trim(variable_names(i_var(k))) .eq. 'ER'      ) my_var(i,j,k_tor,k) = - F0 * phi_R / t_norm
+            if (trim(variable_names(i_var(k))) .eq. 'EZ'      ) my_var(i,j,k_tor,k) = - F0 * phi_Z / t_norm
+            if (trim(variable_names(i_var(k))) .eq. 'Ep'      ) my_var(i,j,k_tor,k) = (- F0 * phi_p / R_out - delta_psi / delta_t / R_out ) / t_norm
+            if (trim(variable_names(i_var(k))) .eq. 'dpsi_dt' ) my_var(i,j,k_tor,k) = - delta_psi / delta_t / R_out / t_norm
             if (trim(variable_names(i_var(k))) .eq. 'Epar'    ) then
               BR   = psi_Z / R_out
               BZ   = -psi_R / R_out
@@ -538,21 +870,71 @@ program process_hdf5_jorek
               EZ   = - F0 * phi_Z / t_norm
               Ep   = (- F0 * phi_p / R_out - delta_psi / delta_t / R_out ) / t_norm
               Epar = (BR*ER + BZ*EZ + Bp*Ep) / sqrt(BR**2 + BZ**2 + Bp**2)
-              my_var(i,j,k,k_tor) = Epar
+              my_var(i,j,k_tor,k) = Epar
             endif
-            if (trim(variable_names(i_var(k))) .eq. 'psi_norm') then
-              my_var(i,j,k,k_tor) = (psi - psi_axis) / (psi_bnd - psi_axis)
-              if ((my_var(i,j,k,k_tor) .lt. 1.d0) .and. (Z_out .lt. Z_xpoint(1)) ) my_var(i,j,k,k_tor) = 2.d0 - my_var(i,j,k,k_tor)
-              if ((my_var(i,j,k,k_tor) .lt. 1.d0) .and. (Z_out .lt. Z_xpoint(2)) ) my_var(i,j,k,k_tor) = 2.d0 - my_var(i,j,k,k_tor)
-              if (my_var(i,j,k,k_tor) .lt. 0.d0) my_var(i,j,k,k_tor) = 0.d0
+            psi_norm   = (psi - psi_axis) / (psi_bnd - psi_axis)
+              if ((psi_norm .lt. 1.d0) .and. (Z_out .lt. Z_xpoint(1)) ) psi_norm = 2.d0 - psi_norm
+              if ((psi_norm .lt. 1.d0) .and. (Z_out .gt. Z_xpoint(2)) ) psi_norm = 2.d0 - psi_norm
+              if ( psi_norm .lt. 0.d0) psi_norm = 0.d0
+            if (trim(variable_names(i_var(k))) .eq. 'psi_norm') my_var(i,j,k_tor,k) = psi_norm
+            if (trim(variable_names(i_var(k))) .eq. 'D_alpha'  ) then
+              ! --- Need density, neutrals and temperature
+              call interp(elm_vertex, elm_size, values, deltas, i_elm, n_elements, n_nodes, &
+                          5, n_var, i_tor, n_tor, HZ, HZ_p, s_out, t_out, &
+                          rho, pp_s, pp_t, pp_ss, pp_tt, pp_st, pp_p, delta_pp)
+              call interp(elm_vertex, elm_size, values, deltas, i_elm, n_elements, n_nodes, &
+                          8, n_var, i_tor, n_tor, HZ, HZ_p, s_out, t_out, &
+                          rho_n, pp_s, pp_t, pp_ss, pp_tt, pp_st, pp_p, delta_pp)
+              call interp(elm_vertex, elm_size, values, deltas, i_elm, n_elements, n_nodes, &
+                          6, n_var, i_tor, n_tor, HZ, HZ_p, s_out, t_out, &
+                          Te, pp_s, pp_t, pp_ss, pp_tt, pp_st, pp_p, delta_pp)
+              rho   = max(0.d0, rho * central_density)
+              rho_n = max(0.d0, rho_n * central_density)
+              Te    = max(0.d0, Te/2.0 / (central_density * mu_0 * eV2Joules) )
+              ! --- Calculate PEC(Ne,Te)
+              do k_pec=2,PEC_size
+                if (rho .lt. PEC_dens(k_pec)) then
+                  if (abs(PEC_dens(k_pec)-rho) .lt. abs(PEC_dens(k_pec-1)-rho)) then
+                    PEC_index_Ne = k_pec
+                  else
+                    PEC_index_Ne = k_pec-1        
+                  endif
+                  exit
+                endif
+                !if ( (k_pec .eq. PEC_size) .and. (my_id .eq. 0) ) &
+                !  write(*,'(A,3e)') 'Warning! no PEC found for density :',rho,PEC_dens(1),PEC_dens(k_pec)
+              enddo
+              do k_pec=2,PEC_size
+                if (Te .lt. PEC_temp(k_pec)) then
+                  if (abs(PEC_temp(k_pec)-Te) .lt. abs(PEC_temp(k_pec-1)-Te)) then
+                    PEC_index_Te = k_pec
+                  else
+                    PEC_index_Te = k_pec-1        
+                  endif
+                  exit
+                endif
+                !if ( (k_pec .eq. PEC_size) .and. (my_id .eq. 0) ) &
+                !  write(*,'(A,3e)') 'Warning! no PEC found for temperature:',Te,PEC_temp(1),PEC_temp(k_pec)
+              enddo
+              PEC_index = (PEC_index_Ne-1)*PEC_size + PEC_index_Te
+              ! --- Integrate Emissivity
+              my_var(i,j,k_tor,k) = rho_n*rho*PEC(PEC_index)
             endif
-          enddo
-        enddo
+            if (trim(variable_names(i_var(k))) .eq. 'custom'  ) then
+              custom_mu  = 0.97
+              custom_sig = 0.05
+              my_var(i,j,k_tor,k) = exp(-((psi_norm-custom_mu)/custom_sig)**2.0/2.0) / custom_sig / 2.0/3.1415
+            endif
+          enddo ! n_data
+        enddo ! n_tor
       else
+        ! --- If we are outside the simulation domain
+        ! --- All variables are set to zero, except psi_norm
+        ! --- which is used as a flag, by being set to psi_norm=100.0
         my_var(i,j,:,:) = 0.d0
         do k = 1,n_data
           if (trim(variable_names(i_var(k))) .eq. 'psi_norm') then
-            my_var(i,j,k,n_tor_min:n_tor_max) = 1.d2
+            my_var(i,j,n_tor_min:n_tor_max,k) = 1.d2
           endif
         enddo
       endif
@@ -560,11 +942,14 @@ program process_hdf5_jorek
     enddo
   enddo
   
+  !***********************************************************************
+  !***********************************************************************
+  !********** SECTION-6: MPI gather data on 0th process ******************
+  !***********************************************************************
+  !***********************************************************************
+
   ! --- Wait here before sending/collecting data
   call MPI_Barrier(MPI_COMM_WORLD,ierr)
-  
-  
-  
   
   ! --- Gather MPI data to process 0
   if (my_id .eq. 0) then
@@ -579,11 +964,17 @@ program process_hdf5_jorek
           call mpi_recv(s_save    (:,local_pix_start:local_pix_end),nrecv, MPI_DOUBLE_PRECISION, j, j, MPI_COMM_WORLD, status, ierr)
           call mpi_recv(t_save    (:,local_pix_start:local_pix_end),nrecv, MPI_DOUBLE_PRECISION, j, j, MPI_COMM_WORLD, status, ierr)
         endif
-        call mpi_recv(Rgrid(:,local_pix_start:local_pix_end),nrecv, MPI_DOUBLE_PRECISION, j, j, MPI_COMM_WORLD, status, ierr)
-        call mpi_recv(Zgrid(:,local_pix_start:local_pix_end),nrecv, MPI_DOUBLE_PRECISION, j, j, MPI_COMM_WORLD, status, ierr)
+        if (use_3D_grid) then
+          call mpi_recv(Xgrid3D(local_pix_start:local_pix_end),nrecv, MPI_DOUBLE_PRECISION, j, j, MPI_COMM_WORLD, status, ierr)
+          call mpi_recv(Ygrid3D(local_pix_start:local_pix_end),nrecv, MPI_DOUBLE_PRECISION, j, j, MPI_COMM_WORLD, status, ierr)
+          call mpi_recv(Zgrid3D(local_pix_start:local_pix_end),nrecv, MPI_DOUBLE_PRECISION, j, j, MPI_COMM_WORLD, status, ierr)
+        else
+          call mpi_recv(Rgrid(:,local_pix_start:local_pix_end),nrecv, MPI_DOUBLE_PRECISION, j, j, MPI_COMM_WORLD, status, ierr)
+          call mpi_recv(Zgrid(:,local_pix_start:local_pix_end),nrecv, MPI_DOUBLE_PRECISION, j, j, MPI_COMM_WORLD, status, ierr)
+        endif
         do i=1,n_data
           do k_tor = n_tor_min,n_tor_max
-            call mpi_recv(my_var(:,local_pix_start:local_pix_end,i,k_tor),nrecv, MPI_DOUBLE_PRECISION, j, j, MPI_COMM_WORLD, status, ierr)
+            call mpi_recv(my_var(:,local_pix_start:local_pix_end,k_tor,i),nrecv, MPI_DOUBLE_PRECISION, j, j, MPI_COMM_WORLD, status, ierr)
           enddo
         enddo
       endif
@@ -599,17 +990,29 @@ program process_hdf5_jorek
         call mpi_send(s_save    (:,local_pix_start:local_pix_end), nsend, MPI_DOUBLE_PRECISION, 0, my_id, MPI_COMM_WORLD, ierr)
         call mpi_send(t_save    (:,local_pix_start:local_pix_end), nsend, MPI_DOUBLE_PRECISION, 0, my_id, MPI_COMM_WORLD, ierr)
       endif
-      call mpi_send(Rgrid(:,local_pix_start:local_pix_end), nsend, MPI_DOUBLE_PRECISION, 0, my_id, MPI_COMM_WORLD, ierr)
-      call mpi_send(Zgrid(:,local_pix_start:local_pix_end), nsend, MPI_DOUBLE_PRECISION, 0, my_id, MPI_COMM_WORLD, ierr)
+      if (use_3D_grid) then
+        call mpi_send(Xgrid3D(local_pix_start:local_pix_end), nsend, MPI_DOUBLE_PRECISION, 0, my_id, MPI_COMM_WORLD, ierr)
+        call mpi_send(Ygrid3D(local_pix_start:local_pix_end), nsend, MPI_DOUBLE_PRECISION, 0, my_id, MPI_COMM_WORLD, ierr)
+        call mpi_send(Zgrid3D(local_pix_start:local_pix_end), nsend, MPI_DOUBLE_PRECISION, 0, my_id, MPI_COMM_WORLD, ierr)
+      else
+        call mpi_send(Rgrid(:,local_pix_start:local_pix_end), nsend, MPI_DOUBLE_PRECISION, 0, my_id, MPI_COMM_WORLD, ierr)
+        call mpi_send(Zgrid(:,local_pix_start:local_pix_end), nsend, MPI_DOUBLE_PRECISION, 0, my_id, MPI_COMM_WORLD, ierr)
+      endif
       do i=1,n_data
         do k_tor = n_tor_min,n_tor_max
-          call mpi_send(my_var(:,local_pix_start:local_pix_end,i,k_tor), nsend, MPI_DOUBLE_PRECISION, 0, my_id, MPI_COMM_WORLD, ierr)
+          call mpi_send(my_var(:,local_pix_start:local_pix_end,k_tor,i), nsend, MPI_DOUBLE_PRECISION, 0, my_id, MPI_COMM_WORLD, ierr)
         enddo
       enddo
     endif
   endif
   
-  ! --- Write image file or pixel file
+  !***********************************************************************
+  !***********************************************************************
+  !********** SECTION-7: Write Pixel File ********************************
+  !***********************************************************************
+  !***********************************************************************
+
+  ! --- Write pixel-file
   if (my_id .eq. 0) then
     
     ! --- Write pixel file
@@ -617,164 +1020,424 @@ program process_hdf5_jorek
       ! --- Open image file with PPM P3 format
       open(unit=2,file='saved_pixels.dat', ACTION = 'write')
       write(*,*) 'Now writing pixel file : saved_pixels.dat'
-      ! --- header with pixel size and domain
-      write(2,'(2i8)')  nx_pix, ny_pix
-      write(2,'(4e21.11)')   Rpix_min, Rpix_max, Zpix_min, Zpix_max
-      ! --- Write to image file
-      do i = 1,nx_pix
-        do j = 1,ny_pix
-          write(2,'(3i8,4e21.11)') i, j, i_elm_save(i,j), s_save(i,j), t_save(i,j), Rgrid(i,j), Zgrid(i,j)
+      if (use_3D_grid) then
+        ! --- header with pixel size and domain
+        write(2,'(3i8)')  nx_3D, ny_3D, nz_3D
+        write(2,'(6e21.11)')   Xpix_min, Xpix_max, Ypix_min, Ypix_max, Zpix_min, Zpix_max
+        ! --- Write to image file
+        ny_pix = 0
+        do i = 1,nx_3D
+          do j = 1,ny_3D
+            do k = 1,nz_3D
+              ny_pix = ny_pix + 1
+              write(2,'(4i8,5e21.11)') i, j, k, &
+                                       i_elm_save(1,ny_pix), s_save(1,ny_pix), t_save(1,ny_pix), &
+                                       Xgrid3D(ny_pix), Ygrid3D(ny_pix), Zgrid3D(ny_pix)
+            enddo
+          enddo
         enddo
-      enddo
-      close(2)
-    endif
-    
-    ! --- Get min/max of data (for normalisation and filename)
-    normalise_min = +1.d10
-    normalise_max = -1.d10
-    do j = 1,ny_pix
-      do i = 1,nx_pix
-        normalise_min = min(my_var(i,j,1,1),normalise_min)
-        normalise_max = max(my_var(i,j,1,1),normalise_max)
-      enddo
-    enddo
-    
-    ! --- Write data file
-    if (extract_data) then
-      ! --- hdf5 format
-      if (.not. txt_data) then
-        ! --- Open jorek h5 file.
-        call HDF5_create(trim(filename_data),data_id,error)
-        if (error .ne. 0) then
-          if (my_id .eq. 0) write(*,*)'Failed to open file',trim(filename_data)
-          if (my_id .eq. 0) write(*,*)'aborting...'
-          stop
-        endif
-        write(*,*) 'Now writing data file : ', trim(filename_data)
-        ! --- header
-        call HDF5_real_saving   (data_id,time_now,'time_now')
-        call HDF5_integer_saving(data_id,nx_pix,'nR')
-        call HDF5_integer_saving(data_id,ny_pix,'nZ')
-        call HDF5_real_saving   (data_id,Rpix_min,'Rmin')
-        call HDF5_real_saving   (data_id,Rpix_max,'Rmax')
-        call HDF5_real_saving   (data_id,Zpix_min,'Zmin')
-        call HDF5_real_saving   (data_id,Zpix_max,'Zmax')
-        call HDF5_array2D_saving(data_id,Rgrid,nx_pix,ny_pix,'Rgrid(nR,nZ)')
-        call HDF5_array2D_saving(data_id,Zgrid,nx_pix,ny_pix,'Zgrid(nR,nZ)')
-        if (fourier) then
-          do k = 1,n_data
-            call HDF5_array3D_saving(data_id,my_var(:,:,k,:), nx_pix,ny_pix,n_tor_max-n_tor_min,trim(variable_names(i_var(k))))
-          enddo
-        else
-          do k = 1,n_data
-            call HDF5_array2D_saving(data_id,my_var(:,:,k,1), nx_pix,ny_pix,trim(variable_names(i_var(k))))
-          enddo
-        endif
-        call HDF5_close(data_id)
-      ! --- txt format
       else
-        open(unit=2,file=trim(filename_data), ACTION = 'write')
-        write(*,*) 'Now writing data file : ', trim(filename_data)
-        ! --- header
-        write(2,'(A21)')    'time_now'
-        write(2,'(e21.11)')  time_now
-        write(2,'(A8)',advance='no')  'nR'
-        write(2,'(A8)')  'nZ'
+        ! --- header with pixel size and domain
         write(2,'(2i8)')  nx_pix, ny_pix
-        write(2,'(A21)',advance='no')  'Rmin'
-        write(2,'(A21)',advance='no')  'Rmax'
-        write(2,'(A21)',advance='no')  'Zmin'
-        write(2,'(A21)')               'Zmax'
         write(2,'(4e21.11)')   Rpix_min, Rpix_max, Zpix_min, Zpix_max
-        write(2,'(A21)',advance='no')  'R'
-        write(2,'(A21)',advance='no')  'Z'
-        do k = 1,n_data
-          do k_tor = n_tor_min, n_tor_max
-            if (fourier) then
-              if (k_tor .eq. 1) then
-                write(char_min,'(A,A)')trim(variable_names(i_var(k))),' (n=0)'
-              else
-                write(char_min,'(A,A,i2)')trim(variable_names(i_var(k))),' (n=',n_period*((k_tor-mod(k_tor,2)))/2
-                if (mod(k_tor,2) .eq. 0) write(char_min,'(A,A)')trim(char_min),' cos)'
-                if (mod(k_tor,2) .eq. 1) write(char_min,'(A,A)')trim(char_min),' sin)'
-              endif
-              write(2,'(A21)',advance='no')  trim(char_min)
-            else
-              write(2,'(A21)',advance='no')  trim(variable_names(i_var(k)))
-            endif
-          enddo
-        enddo
-        write(2,'(A)')  ''
         ! --- Write to image file
         do i = 1,nx_pix
-          progress = 1.d2 * float(i-1) / float(ny_pix)
-          progress = max(0.d0,progress)
-          progress = min(1.d2,progress)
-          write(*,"(' Processing  ... ',I0,'%',A,$)") int(progress),CHAR(13)
           do j = 1,ny_pix
-            write(2,'(2e21.11)',advance='no') Rgrid(i,j),Zgrid(i,j)
-            do k = 1,n_data
-              do k_tor = n_tor_min, n_tor_max
-                write(2,'(e21.11)',advance='no') my_var(i,j,k,k_tor)
-              enddo
+            write(2,'(3i8,4e21.11)') i, j, i_elm_save(i,j), s_save(i,j), t_save(i,j), Rgrid(i,j), Zgrid(i,j)
+          enddo
+        enddo
+      endif
+      close(2)
+    endif
+
+  endif ! my_id=0
+    
+  !***********************************************************************
+  !***********************************************************************
+  !********** SECTION-8: Write HDF5 Data File ****************************
+  !***********************************************************************
+  !***********************************************************************
+
+  ! --- Write data-file
+  if ( (my_id .eq. 0) .and. (hdf5_data) ) then
+    
+    ! --- Open jorek h5 file.
+    call HDF5_create(trim(filename_data),data_id,error)
+    if (error .ne. 0) then
+      if (my_id .eq. 0) write(*,*)'Failed to open file ',trim(filename_data)
+      if (my_id .eq. 0) write(*,*)'aborting...'
+      stop
+    endif
+    write(*,*) 'Now writing data file : ', trim(filename_data)
+    call HDF5_real_saving   (data_id,time_now,'time_now')
+    if (use_3D_grid) then
+      call HDF5_integer_saving(data_id,nx_3D,'nX')
+      call HDF5_integer_saving(data_id,ny_3D,'nY')
+      call HDF5_integer_saving(data_id,nz_3D,'nZ')
+      call HDF5_real_saving   (data_id,Xpix_min,'Xmin')
+      call HDF5_real_saving   (data_id,Xpix_max,'Xmax')
+      call HDF5_real_saving   (data_id,Ypix_min,'Ymin')
+      call HDF5_real_saving   (data_id,Ypix_max,'Ymax')
+      call HDF5_real_saving   (data_id,Zpix_min,'Zmin')
+      call HDF5_real_saving   (data_id,Zpix_max,'Zmax')
+      allocate(my_var3D(nx_3D,ny_3D,nz_3D))
+      do i=1,ny_pix
+        my_var3D(Xindex3D(i),Yindex3D(j),Zindex3D(i)) = Xgrid3D(i)
+      enddo
+      call HDF5_array3D_saving(data_id,my_var3D,nx_3D,ny_3D,nz_3D,'Xgrid(nX,nY,nZ)')
+      do i=1,ny_pix
+        my_var3D(Xindex3D(i),Yindex3D(j),Zindex3D(i)) = Ygrid3D(i)
+      enddo
+      call HDF5_array3D_saving(data_id,my_var3D,nx_3D,ny_3D,nz_3D,'Ygrid(nX,nY,nZ)')
+      do i=1,ny_pix
+        my_var3D(Xindex3D(i),Yindex3D(j),Zindex3D(i)) = Zgrid3D(i)
+      enddo
+      call HDF5_array3D_saving(data_id,my_var3D,nx_3D,ny_3D,nz_3D,'Zgrid(nX,nY,nZ)')
+      do k = 1,n_data
+        do i=1,ny_pix
+          my_var3D(Xindex3D(i),Yindex3D(j),Zindex3D(i)) = my_var(1,i,1,k)
+        enddo
+        call HDF5_array3D_saving(data_id,my_var3D,nx_3D,ny_3D,nz_3D,trim(variable_names(i_var(k))))
+      enddo
+      deallocate(my_var3D)
+    else
+      call HDF5_integer_saving(data_id,nx_pix,'nR')
+      call HDF5_integer_saving(data_id,ny_pix,'nZ')
+      call HDF5_real_saving   (data_id,Rpix_min,'Rmin')
+      call HDF5_real_saving   (data_id,Rpix_max,'Rmax')
+      call HDF5_real_saving   (data_id,Zpix_min,'Zmin')
+      call HDF5_real_saving   (data_id,Zpix_max,'Zmax')
+      call HDF5_array2D_saving(data_id,Rgrid,nx_pix,ny_pix,'Rgrid(nR,nZ)')
+      call HDF5_array2D_saving(data_id,Zgrid,nx_pix,ny_pix,'Zgrid(nR,nZ)')
+      if (fourier) then
+        do k = 1,n_data
+          call HDF5_array3D_saving(data_id,my_var(:,:,:,k), nx_pix,ny_pix,n_tor_max-n_tor_min,trim(variable_names(i_var(k))))
+        enddo
+      else
+        do k = 1,n_data
+          call HDF5_array2D_saving(data_id,my_var(:,:,1,k), nx_pix,ny_pix,trim(variable_names(i_var(k))))
+        enddo
+      endif
+    endif
+    call HDF5_close(data_id)
+  endif ! my_id=0
+    
+  !***********************************************************************
+  !***********************************************************************
+  !********** SECTION-9: Write TEXT Data File ****************************
+  !***********************************************************************
+  !***********************************************************************
+
+  ! --- Write data-file
+  if ( (my_id .eq. 0) .and. (txt_data) ) then
+    
+    open(unit=2,file=trim(filename_data), ACTION = 'write')
+    write(*,*) 'Now writing data file : ', trim(filename_data)
+    if (use_3D_grid) then
+      write(2,'(A21)')    'time_now'
+      write(2,'(e21.11)')  time_now
+      write(2,'(A8)',advance='no')  'nX'
+      write(2,'(A8)',advance='no')  'nY'
+      write(2,'(A8)')  'nZ'
+      write(2,'(3i8)')  nx_3D, ny_3D, nz_3D
+      write(2,'(A21)',advance='no')  'Xmin'
+      write(2,'(A21)',advance='no')  'Xmax'
+      write(2,'(A21)',advance='no')  'Ymin'
+      write(2,'(A21)',advance='no')  'Ymax'
+      write(2,'(A21)',advance='no')  'Zmin'
+      write(2,'(A21)')               'Zmax'
+      write(2,'(6e21.11)')   Xpix_min, Xpix_max, Ypix_min, Ypix_max, Zpix_min, Zpix_max
+      write(2,'(A21)',advance='no')  'X'
+      write(2,'(A21)',advance='no')  'Y'
+      write(2,'(A21)',advance='no')  'Z'
+      do k = 1,n_data
+        write(2,'(A21)',advance='no')  trim(variable_names(i_var(k)))
+      enddo
+      write(2,'(A)')  ''
+      ! --- Write to text file
+      ny_pix = 0
+      do i = 1,nx_3D
+        progress = 1.d2 * float(i-1) / float(nx_3D)
+        progress = max(0.d0,progress)
+        progress = min(1.d2,progress)
+        write(*,"(' Processing  ... ',I0,'%',A,$)") int(progress),CHAR(13)
+        do j = 1,ny_3D
+          do k = 1,nz_3D
+            write(2,'(3e21.11)',advance='no') Xgrid3D(index3D(i,j,k)),Ygrid3D(index3D(i,j,k)),Zgrid3D(index3D(i,j,k))
+            ny_pix = ny_pix + 1
+            do l = 1,n_data
+                write(2,'(e21.11)',advance='no') my_var(1,ny_pix,1,l)
             enddo
             write(2,'(A)') ''
           enddo
         enddo
-        write(2,'(A)') ' '
-        close(2)
-      endif
-    endif
-  
-    ! --- Write image file
-    if (image_output) then
-      my_var = (my_var-normalise_min) / (normalise_max-normalise_min)
-      ! --- Open image file with PPM P3 format
-      write(char_min,'(sp,e10.3)')normalise_min
-      write(char_max,'(sp,e10.3)')normalise_max
-      write(filename_picture,'(A6,A,A5,A,A5,A,A4)')'jorek_',trim(variable_names(i_var(1))),'_min_',trim(char_min),'_max_',trim(char_max),'.ppm'
-      !filename_picture = 'jorek_image.ppm' ! name of PPM file
-      open(unit=2,file=trim(filename_picture),status='unknown')
-      write(*,*) 'Now writing PPM (P3) file : ', trim(filename_picture)
-      ! --- header
-      write(2,'(A)') 'P3'
-      write(2,'(2(1x,i4),'' 255 '')')  nx_pix, ny_pix
-      ! --- Write to image file
-      do j = ny_pix,1,-1
-        progress = 1.d2 - 1.d2 * float(j-1) / float(ny_pix)
+      enddo
+    else ! not 3D_grid
+      write(2,'(A21)')    'time_now'
+      write(2,'(e21.11)')  time_now
+      write(2,'(A8)',advance='no')  'nR'
+      write(2,'(A8)')  'nZ'
+      write(2,'(2i8)')  nx_pix, ny_pix
+      write(2,'(A21)',advance='no')  'Rmin'
+      write(2,'(A21)',advance='no')  'Rmax'
+      write(2,'(A21)',advance='no')  'Zmin'
+      write(2,'(A21)')               'Zmax'
+      write(2,'(4e21.11)')   Rpix_min, Rpix_max, Zpix_min, Zpix_max
+      write(2,'(A21)',advance='no')  'R'
+      write(2,'(A21)',advance='no')  'Z'
+      do k = 1,n_data
+        do k_tor = n_tor_min, n_tor_max
+          if (fourier) then
+            if (k_tor .eq. 1) then
+              write(char_min,'(A,A)')trim(variable_names(i_var(k))),' (n=0)'
+            else
+              write(char_min,'(A,A,i2)')trim(variable_names(i_var(k))),' (n=',n_period*((k_tor-mod(k_tor,2)))/2
+              if (mod(k_tor,2) .eq. 0) write(char_min,'(A,A)')trim(char_min),' cos)'
+              if (mod(k_tor,2) .eq. 1) write(char_min,'(A,A)')trim(char_min),' sin)'
+            endif
+            write(2,'(A21)',advance='no')  trim(char_min)
+          else
+            write(2,'(A21)',advance='no')  trim(variable_names(i_var(k)))
+          endif
+        enddo
+      enddo
+      write(2,'(A)')  ''
+      ! --- Write to text file
+      do i = 1,nx_pix
+        progress = 1.d2 * float(i-1) / float(ny_pix)
         progress = max(0.d0,progress)
         progress = min(1.d2,progress)
         write(*,"(' Processing  ... ',I0,'%',A,$)") int(progress),CHAR(13)
-        do i = 1,nx_pix
-          call get_color(colormap, my_var(i,j,1,1), rgb)
-          do k = 1, 3
-            itmp = ichar(rgb(k))
-            icnt = icnt + 4
-            if (icnt .LT. 60) then
-              write(2,fmt='(1x,i3,$)') itmp	! "$" is not standard.
-            else
-              write(2,fmt='(1x,i3)') itmp
-              icnt = 0
-            endif
+        do j = 1,ny_pix
+          write(2,'(2e21.11)',advance='no') Rgrid(i,j),Zgrid(i,j)
+          do k = 1,n_data
+            do k_tor = n_tor_min, n_tor_max
+              write(2,'(e21.11)',advance='no') my_var(i,j,k_tor,k)
+            enddo
           enddo
-    
-    
+          write(2,'(A)') ''
         enddo
       enddo
-    
-      write(2,'(A)') ' '
-      close(2)
     endif
+    write(2,'(A)') ' '
+    close(2)
+  endif ! my_id=0
     
-  endif
+  !***********************************************************************
+  !***********************************************************************
+  !********** SECTION-10: Write ASCII-BINARY File (Mitsuba2 format) ******
+  !***********************************************************************
+  !***********************************************************************
+
+  ! --- Write data-file
+  if ( (my_id .eq. 0) .and. (bin_data) ) then
+    ! --- Copy data in usable format
+    allocate(vtk_scalars(n_data,ny_pix))
+    do i=1,ny_pix
+      do i_data=1,n_data
+        vtk_scalars(i_data,i) = my_var(1,i,1,i_data)
+      enddo
+    enddo
+    ! --- Write one file per data
+    do i_data = 1,n_data
+      write(filename_data_multiple,'(A11,A,A10)')'jorek_data_',trim(variable_names(i_var(i_data))),'.ascii.bin'
+      open(unit=2,file=trim(filename_data_multiple), ACTION = 'write', form="unformatted", status='replace')
+      write(*,*) 'Now writing data file : ', trim(filename_data_multiple)
+      str3 = 'VOL'    ; write(2) str3  ! for Mitsuba2 (guess this means "VOLUME")
+      int32 = 3       ; write(2) int32 ! for Mitsuba2 (File format version, currently 3)
+      int32 = 1       ; write(2) int32 ! for Mitsuba2: [=1->float32] [=2->float16(NotSupported)] [=3->uint8(0..255)] [=4->DenseQuantized]
+      int32 = nx_3D   ; write(2) int32
+      int32 = ny_3D   ; write(2) int32
+      int32 = nz_3D   ; write(2) int32
+      int32 = 1       ; write(2) int32
+      float32 = Xpix_min ; write(2) float32
+      float32 = Ypix_min ; write(2) float32
+      float32 = Zpix_min ; write(2) float32
+      float32 = Xpix_max ; write(2) float32
+      float32 = Ypix_max ; write(2) float32
+      float32 = Zpix_max ; write(2) float32
+      ny_pix = 0
+      do k = 1,nz_3D
+        progress = 1.d2 * float(k-1) / float(nz_3D)
+        progress = max(0.d0,progress)
+        progress = min(1.d2,progress)
+        write(*,"(' Processing  ... ',I0,'%',A,$)") int(progress),CHAR(13)
+        do j = 1,ny_3D
+          do i = 1,nx_3D
+            ny_pix = ny_pix + 1
+            write(2) vtk_scalars(i_data,ny_pix)
+          enddo
+        enddo
+      enddo
+      close(2)
+    enddo
+    deallocate(vtk_scalars)
+  endif ! my_id=0
+
+  !***********************************************************************
+  !***********************************************************************
+  !********** SECTION-11: Write Image File *******************************
+  !***********************************************************************
+  !***********************************************************************
+
+  ! --- Write image-files
+  if (my_id .eq. 0) then
+    
+    ! --- Write image file
+    if (image_output) then
+
+      ! --- In 3D, we write a .vtk file
+      if (use_3D_grid) then
+        write(*,*) 'Now writing VTK file : jorek_3D_grid.vtk'
+
+        ! --- Open file
+        ivtk = 101 ! just the file write number
+#ifdef IBM_MACHINE
+        open(unit=ivtk,file='jorek_3D_grid.vtk',form='unformatted',access='stream',status='replace')
+#else
+        open(unit=ivtk,file='jorek_3D_grid.vtk',form='unformatted',access='stream',convert='BIG_ENDIAN',status='replace')
+#endif
+        ! --- Headers
+        lf = char(10) ! line feed character
+        buffer = '# vtk DataFile Version 3.0'//lf                                             ; write(ivtk) trim(buffer)
+        buffer = 'vtk output'//lf                                                             ; write(ivtk) trim(buffer)
+        buffer = 'BINARY'//lf                                                                 ; write(ivtk) trim(buffer)
+        buffer = 'DATASET UNSTRUCTURED_GRID'//lf//lf                                          ; write(ivtk) trim(buffer)
+        
+        ! --- POINTS SECTION
+        write(*,*) '                     : writing points...'
+        allocate(vtk_xyz(3,ny_pix), vtk_scalars(n_data,ny_pix))
+        do i=1,ny_pix
+          vtk_xyz(1,i) = Xgrid3D(i)
+          vtk_xyz(2,i) = Ygrid3D(i)
+          vtk_xyz(3,i) = Zgrid3D(i)
+          do j=1,n_data
+            vtk_scalars(j,i) = my_var(1,i,1,j)
+          enddo
+        enddo
+        write(str1(1:10),'(i10)') ny_pix
+        buffer = 'POINTS '//str1//'  float'//lf                                               ; write(ivtk) trim(buffer)
+        write(ivtk) ((vtk_xyz(i,j),i=1,3),j=1,ny_pix)
+        
+        ! --- CELLS SECTION
+        write(*,*) '                     : writing cells...'
+        vtk_points_per_cell = 8
+        vtk_n_cells = (nx_3D-1)*(ny_3D-1)*(nz_3D-1)
+        allocate(vtk_cells(vtk_points_per_cell,vtk_n_cells))
+        vtk_n_cells = 0
+        do l=1,ny_pix
+          if (Xindex3D(l) .ge. nx_3D-0) cycle
+          if (Yindex3D(l) .ge. ny_3D-0) cycle
+          if (Zindex3D(l) .ge. nz_3D-0) cycle
+          vtk_n_cells = vtk_n_cells + 1
+          i = Xindex3D(l) ; j = Yindex3D(l) ; k = Zindex3D(l)
+          vtk_cells(1,vtk_n_cells) = index3D(i  ,j  ,k  ) - 1
+          vtk_cells(2,vtk_n_cells) = index3D(i+1,j  ,k  ) - 1
+          vtk_cells(3,vtk_n_cells) = index3D(i+1,j+1,k  ) - 1
+          vtk_cells(4,vtk_n_cells) = index3D(i  ,j+1,k  ) - 1
+          vtk_cells(5,vtk_n_cells) = index3D(i  ,j  ,k+1) - 1
+          vtk_cells(6,vtk_n_cells) = index3D(i+1,j  ,k+1) - 1
+          vtk_cells(7,vtk_n_cells) = index3D(i+1,j+1,k+1) - 1
+          vtk_cells(8,vtk_n_cells) = index3D(i  ,j+1,k+1) - 1
+        enddo
+        write(str1(1:10),'(i10)') vtk_n_cells                          ! number of elements (cells)
+        write(str2(1:10),'(i10)') vtk_n_cells*(1+vtk_points_per_cell)  ! size of element list (+1 because first entry is # of entry in line)
+        buffer = lf//lf//'CELLS '//str1//' '//str2//lf                                        ; write(ivtk) trim(buffer)
+        write(ivtk) (vtk_points_per_cell,(vtk_cells(i,j),i=1,vtk_points_per_cell),j=1,vtk_n_cells)
+        
+        ! --- CELL_TYPES SECTION
+        write(*,*) '                     : writing cell types...'
+        etype = 12  ! for vtk_quad
+        write(str1(1:10),'(i10)') vtk_n_cells                          ! number of elements (cells)
+        buffer = lf//lf//'CELL_TYPES'//str1//lf                                               ; write(ivtk) trim(buffer)
+        write(ivtk) (etype,i=1,vtk_n_cells)
+        
+        ! --- POINT_DATA SECTION
+        write(*,*) '                     : writing data on points...'
+        write(str1(1:10),'(i10)') ny_pix
+        buffer = lf//lf//'POINT_DATA '//str1//lf                                              ; write(ivtk) trim(buffer)
+        do i =1, n_data
+          buffer = 'SCALARS '//variable_names(i_var(i))//' float'//lf                         ; write(ivtk) trim(buffer)
+          buffer = 'LOOKUP_TABLE default'//lf                                                 ; write(ivtk) trim(buffer)
+          write(ivtk) (vtk_scalars(i,j),j=1,ny_pix)
+        enddo
+        
+        close(ivtk)
+        deallocate(vtk_xyz,vtk_scalars,vtk_cells)
+        write(*,*) '                     : finished'
+
+      ! --- In 2D, we write a simple pixel .ppm image
+      else
+        ! --- One file per variable
+        do l=1,n_data 
+          ! --- Get min/max of data (for normalisation and filename)
+          normalise_min = +1.d10
+          normalise_max = -1.d10
+          do j = 1,ny_pix
+            do i = 1,nx_pix
+              normalise_min = min(my_var(i,j,1,l),normalise_min)
+              normalise_max = max(my_var(i,j,1,l),normalise_max)
+            enddo
+          enddo
+          do j = 1,ny_pix
+            do i = 1,nx_pix
+              my_var(i,j,1,l) = (my_var(i,j,1,l)-normalise_min) / (normalise_max-normalise_min)
+            enddo
+          enddo
+          ! --- Open image file with PPM P3 format
+          write(char_min,'(sp,e10.3)')normalise_min
+          write(char_max,'(sp,e10.3)')normalise_max
+          write(filename_picture,'(A6,A,A5,A,A5,A,A4)')'jorek_',trim(variable_names(i_var(l))),'_min_',trim(char_min),'_max_',trim(char_max),'.ppm'
+          open(unit=2,file=trim(filename_picture),status='unknown')
+          write(*,*) 'Now writing PPM (P3) file : ', trim(filename_picture)
+          ! --- header
+          write(2,'(A)') 'P3'
+          write(2,'(2(1x,i4),'' 255 '')')  nx_pix, ny_pix
+          ! --- Write to image file
+          do j = ny_pix,1,-1
+            progress = 1.d2 - 1.d2 * float(j-1) / float(ny_pix)
+            progress = max(0.d0,progress)
+            progress = min(1.d2,progress)
+            write(*,"(' Processing  ... ',I0,'%',A,$)") int(progress),CHAR(13)
+            do i = 1,nx_pix
+              call get_color(colormap, my_var(i,j,1,l), rgb)
+              do k = 1, 3
+                itmp = ichar(rgb(k))
+                icnt = icnt + 4
+                if (icnt .LT. 60) then
+                  write(2,fmt='(1x,i3,$)') itmp ! "$" is not standard.
+                else
+                  write(2,fmt='(1x,i3)') itmp
+                  icnt = 0
+                endif
+              enddo
+            enddo
+          enddo
+          write(2,'(A)') ' '
+          close(2)
+        enddo
+      endif ! 3D_grid
+    endif ! image_output
+   
+  endif ! my_id=0
   
-  
+  !***********************************************************************
+  !***********************************************************************
+  !********** SECTION-12: Allocation and MPI cleanup *********************
+  !***********************************************************************
+  !***********************************************************************
   
   ! --- Cleanup
   if (my_id .eq. 0) write(*,*) 'Finished. Cleaning up...'
   deallocate(modes, elm_vertex, elm_size, RZ_nodes, values, deltas, HZ, HZ_p, HZ_pp)
-  deallocate(my_var,Rgrid,Zgrid)
-  if (save_pixels) deallocate(i_elm_save, s_save, t_save)
+  deallocate(my_var)
+  if (use_3D_grid) then
+    deallocate(Xindex3D,Yindex3D,Zindex3D,index3D)
+    deallocate(Xgrid3D,Ygrid3D,Zgrid3D)
+  else
+    deallocate(Rgrid,Zgrid)
+  endif
+  if ( (save_pixels) .or. (use_pixel_file) ) deallocate(i_elm_save, s_save, t_save)
   
   ! --- Close the file.
   CALL h5fclose_f(file_id, error)
@@ -793,6 +1456,24 @@ END PROGRAM process_hdf5_jorek
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+!***********************************************************************
+!***********************************************************************
+!********** SECTION-ROUTINES: JOREK polynomial routines ****************
+!***********************************************************************
+!***********************************************************************
+  
 
 ! --- Given density, return red/green/blue coefs for colormap
 subroutine get_color(colormap, density, rgb)
@@ -867,6 +1548,74 @@ subroutine get_color(colormap, density, rgb)
   return
 end subroutine get_color
 
+
+
+
+
+
+
+
+
+! --- Define JOREK variable names depending on JOREK model
+subroutine define_jorek_variable_names(jorek_model,variable_names)
+
+  implicit none
+
+  ! --- Routine variables
+  integer,      intent(in)    :: jorek_model
+  character*50, intent(inout) :: variable_names(100)
+
+  ! --- Internal variables
+  integer :: i
+
+  do i=1,20
+    variable_names(1)  = ''
+  enddo
+
+  if (jorek_model .ge. 199) then
+    variable_names(1)  = 'psi'
+    variable_names(2)  = 'Phi'
+    variable_names(3)  = 'j'
+    variable_names(4)  = 'w'
+    variable_names(5)  = 'rho'
+    variable_names(6)  = 'T'
+  endif
+
+  if ( (jorek_model .ge. 300) .and. (jorek_model .lt. 400) ) then
+    variable_names(1)  = 'psi'
+    variable_names(2)  = 'Phi'
+    variable_names(3)  = 'j'
+    variable_names(4)  = 'w'
+    variable_names(5)  = 'rho'
+    variable_names(6)  = 'T'
+    variable_names(7)  = 'Vpar'
+  endif
+
+  if ( (jorek_model .ge. 400) .and. (jorek_model .lt. 500) ) then
+    variable_names(1)  = 'psi'
+    variable_names(2)  = 'Phi'
+    variable_names(3)  = 'j'
+    variable_names(4)  = 'w'
+    variable_names(5)  = 'rho'
+    variable_names(6)  = 'Ti'
+    variable_names(7)  = 'Vpar'
+    variable_names(8)  = 'Te'
+  endif
+
+  if (jorek_model .eq. 500) then
+    variable_names(1)  = 'psi'
+    variable_names(2)  = 'Phi'
+    variable_names(3)  = 'j'
+    variable_names(4)  = 'w'
+    variable_names(5)  = 'rho'
+    variable_names(6)  = 'T'
+    variable_names(7)  = 'Vpar'
+    variable_names(8)  = 'rho_n'
+  endif
+
+  return
+
+end subroutine define_jorek_variable_names
 
 
 
