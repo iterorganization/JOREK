@@ -301,8 +301,9 @@ subroutine initialise_particles_marker(particles, node_list, element_list, field
   end select
 
   if (present(n_particles)) n_particle_asn = n_particles
-  if (present(n_particles)) timesteps      = dt
+  if (present(dt)) timesteps               = dt
   if (present(fluid_source)) phys_source   = fluid_source
+  if (present(uniform)) uniform_sampling   = uniform
 
   if ((.not. uniform_sampling) .and. (.not. present(transform_rej_f))) then
     write(*,*) "ERROR: If not using uniform sampling then a rejection sampling transform must be present!"
@@ -410,7 +411,7 @@ subroutine initialise_particles_marker(particles, node_list, element_list, field
     !$omp           source_tmp, source_bg_tmp, V, B, psi, U)
     i_thread = 0
     !$ i_thread=omp_get_thread_num()
-    !$omp do schedule(static)
+    !$omp do
     do i=1,size(i_to_find,1)
       j = i_to_find(i)
       if ((particles(j)%i_life .ne. 0) .and. not_found(i)) then
@@ -454,8 +455,10 @@ subroutine initialise_particles_marker(particles, node_list, element_list, field
           particles(j)%i_elm = i_elm
           particles(j)%st = [s, t]
           select type (pa => particles(j))
-          type is (particle_kinetic_leapfrog)
-            pa%v = ran(5:7) ! save other components of this point for velocity init in a later routine
+          type is (particle_marker)
+            call fields%calc_VBpsiU(time, pa%i_elm, pa%st, pa%x(3), V, B, psi, U)
+            pa%V_prev   = V
+            pa%weight   = real(phys_source*timesteps/real(n_particle_asn,8),4)
           end select
           not_found(i) = .false.
           particles(j)%i_life = particles(j)%i_life +1
