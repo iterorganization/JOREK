@@ -233,7 +233,8 @@ subroutine initialise_particles_marker(particles, node_list, element_list, field
   use mod_random_seed
   use mod_interp
   use mod_fields
-  use phys_module, only: central_mass, gas_type
+  use constants
+  use phys_module, only: central_density, central_mass, gas_type
 #if (JOREK_MODEL == 500 || JOREK_MODEL == 555)
   use mod_neutral_source, only: get_source
 #endif
@@ -265,6 +266,7 @@ subroutine initialise_particles_marker(particles, node_list, element_list, field
   integer :: i, j, k, ifail, spi_i
   real*8  :: ran(4)
   real*8  :: B(3), psi, U, V(3), timesteps
+  real*8  :: t_norm, n_norm
   integer :: i_elm
   real*8  :: t0, t1, ostart, oend, phys_source, source_tmp, source_bg_tmp
   integer :: seq, n_streams, n_threads, i_thread
@@ -286,6 +288,9 @@ subroutine initialise_particles_marker(particles, node_list, element_list, field
   n_particle_asn = size(particles,1)
   timesteps      = 0.0
   uniform_sampling = .true.
+
+  t_norm = sqrt(MU_ZERO * central_mass * MASS_PROTON * central_density * 1.d20)
+  n_norm = central_density * 1.d20
 
   select case (trim(gas_type))
     case('D2')
@@ -404,7 +409,7 @@ subroutine initialise_particles_marker(particles, node_list, element_list, field
     ! be very careful (error message for default(none) below)
     ! Error: ‘__vtab_mod_particle_types_Particle_kinetic_leapfrog’ not specified in enclosing ‘parallel’
     !$omp parallel default(none) &
-    !$omp   shared(particles, node_list, element_list, Rbox, Zbox, PhiBox, &
+    !$omp   shared(particles, node_list, element_list, Rbox, Zbox, PhiBox, t_norm, n_norm, &
     !$omp          phys_source, m_i_over_m_imp, time, fields, timesteps, n_particle_asn, &
     !$omp          rngs, uniform_sampling, n_threads, n_streams, seed, my_id, i_to_find, not_found) &
     !$omp   private(j, i, spi_i, R, Z, phi, i_elm, s, t, ifail, seq, ran, i_thread, P, DUMMY_REAL,   &
@@ -433,7 +438,7 @@ subroutine initialise_particles_marker(particles, node_list, element_list, field
           call get_source(R,Z,phi,source_tmp) 
 #endif 
           if (present(transform_rej_f)) then
-            if (ran(4) .lt. transform_rej_f(source_tmp,phys_source)) then
+            if (ran(4) .lt. transform_rej_f(source_tmp,(phys_source*t_norm/n_norm))) then
               particles(j)%x = [r, z, phi]
               particles(j)%i_elm = i_elm
               particles(j)%st = [s, t]
