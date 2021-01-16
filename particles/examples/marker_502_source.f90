@@ -337,9 +337,9 @@ do while (.not. sim%stop_now)
     type is (particle_marker)
       
       call initialise_particles_marker(sim%groups(1)%particles, sim%fields%node_list, sim%fields%element_list, &
-                                        sim%fields, sim%time,&
-                                        pcg32_rng(), n_particles_add_local, timesteps, uniform=.false.,&
-                                        fluid_source=spi_source_imp,transform_rej_f=f_source_imp)
+                                        sim%fields, sim%time, pcg32_rng(), n_particles_add_local, timesteps, &
+                                        uniform=.false., fluid_source=(spi_source_imp*t_norm/n_norm),&
+                                        transform_rej_f=f_source_imp)
     
     end select
   endif
