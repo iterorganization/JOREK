@@ -643,7 +643,7 @@ do i=1,n
     do j=1,n_here
       if (.not. allocated(p(j)%P_imp)) allocate(p(j)%P_imp(0:sim%groups(i)%Z))
       p(j)%P_imp(0:sim%groups(i)%Z) = real8_2D(0:sim%groups(i)%Z,j)
-      if (allocated(sim%fields)) then
+      if (allocated(sim%fields) .and. p(j)%i_elm .gt. 0) then
         call sim%fields%calc_VBpsiU(sim%time , p(j)%i_elm, p(j)%st, p(j)%x(3), V, B, psi, U)
         p(j)%V_prev = V
       endif
