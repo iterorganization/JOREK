@@ -904,7 +904,7 @@ do ms=1, n_gauss
 
      ne_SI       = (r0_corr + alpha_e * rn0_corr) * 1.d20 * central_density ! electron density (SI)
      ne_JOREK     = r0_corr + alpha_e * rn0_corr ! Electron density in JOREK unit
-     ne_JOREK     = corr_neg_dens(ne_JOREK,(/1.d-1,1.d-1/),1.d-3) ! Correction for negative electron density
+     ne_JOREK     = corr_neg_dens(ne_JOREK,(/1.d-1,1.d-1/),1.d-2) ! Correction for negative electron density
                                                             ! Too small rho_1 will cause a problem
      if (ne_SI < 1.d16) ne_SI = 1.d16
     
