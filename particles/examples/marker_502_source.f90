@@ -222,7 +222,7 @@ real*8    :: E_lost_ion, E_lost_ion_all, E_lost_rad, E_lost_rad_all
 integer   :: i, j, k, l, m, n_steps, i_elm_old, iZ, spi_i, i_inj
 integer   :: seed, i_rng, n_stream, ierr, nthreads, myid
 real*8    :: ion_rate, ion_source, ion_prob, ion_rec_ran(2), cx_ran(7), cx_source, cx_energy
-real*8    :: rec_rate, dEion_dT, Z_imp, Z_eff, N_imp, Lrad, rad_sink, spi_source_imp
+real*8    :: rec_rate, dEion_dT, Z_imp, Z_eff, N_imp, Lrad, rad_sink, spi_source_imp, spi_source_imp_local
 real*8    :: cx_prob, CX_rate
 real*8    :: particle_source, velocity_par_source, energy_source
 real*8    :: v_temp(3), T_eV, K_eV, B_norm(3), v_1, v_2, v_3, v_4, v_5
@@ -316,10 +316,12 @@ do while (.not. sim%stop_now)
   E_lost_rad = 0.d0
   E_lost_rad_all = 0.d0
 
-  ! Get the total ablation amount within each timestep for rejection sampling, then the probability at
-  ! each position with source_imp density source is simply source_imp * timesteps * xjac * BigR * wst * delta_phi
-  ! divided by spi_source_imp *  timesteps
+  ! Get the total ablation amount within each time step for rejection sampling, then the probability at
+  ! each position with source_imp density source is simply:
+  ! source_imp * particle_step_time * xjac * BigR * wst * delta_phi divided by
+  ! spi_source_imp *  particle_step_time
   spi_source_imp = 0.0
+  spi_source_imp_local = 0.0
   if (using_spi) then
     do spi_i=1, n_spi_tot
       spi_source_imp = spi_source_imp + pellets(spi_i)%spi_abl * pellets(spi_i)%spi_species
@@ -329,7 +331,8 @@ do while (.not. sim%stop_now)
       if (t_now .gt. t_ns(i_inj)) spi_source_imp = spi_source_imp + ns_amplitude(i_inj)
     enddo
   endif
-  n_particles_add_local =  int(spi_source_imp * timesteps / (weight * sim%n_cpu)) 
+  spi_source_imp_local = spi_source_imp / sim%n_cpu
+  n_particles_add_local =  int(spi_source_imp_local * particle_step_time / weight) 
 
   ! Start assigning particles for this particle time step
   if (n_particles_add_local .gt. 0) then ! Otherwise no need to do anything
@@ -337,8 +340,8 @@ do while (.not. sim%stop_now)
     type is (particle_marker)
       
       call initialise_particles_marker(sim%groups(1)%particles, sim%fields%node_list, sim%fields%element_list, &
-                                        sim%fields, sim%time, pcg32_rng(), n_particles_add_local, timesteps, &
-                                        uniform=.false., fluid_source=spi_source_imp,&
+                                        sim%fields, sim%time, pcg32_rng(), n_particles_add_local, &
+                                        particle_step_time, uniform=.false., fluid_source=spi_source_imp_local,&
                                         transform_rej_f=f_source_imp)
     
     end select
