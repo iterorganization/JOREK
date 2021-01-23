@@ -670,9 +670,9 @@ pure function f_source_imp(P, P_norm) result(f)
   real*8, intent(in) :: P, P_norm
   real*4 :: f, dv
 
-  dv = 0.01 * 0.01 * PI * R_geo * (TWOPI / n_plane) 
+  dv = 0.005 * 0.005 * PI * R_geo * (TWOPI / n_plane) 
  
-  f = max(P*dV/P_norm, 0.e0)
+  f = max(P*dv/P_norm, 0.e0)
 
 end function f_source_imp
 
