@@ -1452,9 +1452,7 @@ module mod_expression
              fact_vpar     = sqrt(BB2) / fact_time                                 ! factor for Vpar
              fact_resistiv = sqrt ( MU_zero / rho_norm )                           ! factor for eta == 1 / (factor for visco)
              fact_Er       = F0 / fact_time
-#if JOREK_MODEL == 500 || JOREK_MODEL == 501 || JOREK_MODEL == 502
              fact_rad      = 1.d0/(2.d0/3.d0*MU_ZERO**1.5d0*(central_mass*MASS_PROTON*central_density*1.d20)**0.5d0)
-#endif
              fact_flux     = 1.d0/(mu_zero*fact_time)  
           else if ( units == JOREK_UNITS ) then
              rho_norm      = 1.d0
@@ -1466,9 +1464,7 @@ module mod_expression
              fact_vpar     = 1.d0
              fact_resistiv = 1.d0
              fact_Er       = 1.d0
-#if JOREK_MODEL == 500 || JOREK_MODEL == 501 || JOREK_MODEL == 502			 
              fact_rad      = 1.d0
-#endif
              fact_flux     = 1.d0 
           end if
           

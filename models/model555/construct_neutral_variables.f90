@@ -133,6 +133,11 @@ subroutine ELM_build_neutral_variables(element, nodes, ms, mt, i_plane)
     enddo
   enddo
 
+  ! changes deltas for variable time steps
+  delta_g = delta_g * tstep / tstep_prev
+  delta_s = delta_s * tstep / tstep_prev
+  delta_t = delta_t * tstep / tstep_prev
+
   ! --- Variable 1
   ps0_x    = (   y_t * ps0_s - y_s * ps0_t ) / xjac
   ps0_y    = ( - x_t * ps0_s + x_s * ps0_t ) / xjac

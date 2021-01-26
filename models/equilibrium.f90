@@ -186,26 +186,8 @@ if (freeboundary_equil) then
       
       write(*,*)
       write(*,'(1x,a,i5,a)') '>>> ITERATION', iter, ' <<<'
-         
-      call integral_current(node_list,element_list,psi_axis, psi_bnd, xpoint2, xcase2, Z_xpoint, current_tot)
-  
-      current_int = current_int + (current_tot-current_ref)
-      
-      if (mod(iter,n_feedback_current) .eq. 0) then
-        current_FB_fact  = current_FB_fact * (1. - FB_Ip_position * (current_tot-current_ref)/current_ref &
-                                                 - FB_Ip_integral *  current_int/current_ref   )
-      endif
-      
-      !-------------- Multiplying FF' and p' profiles by the same factor to scale total current -------------------------
-      FF_0 = FF_0_old * current_FB_fact   
-      FF_1 = FF_1_old * current_FB_fact      
-        
-      T_0  = T_0_old  * current_FB_fact    
-      T_1  = T_1_old  * current_FB_fact
-      !------------------------------------------------------------------------------------------------------------------
-      
-      write(*,'(A,1e12.4)') 'Current Feedback factor = ',  current_FB_fact
                      
+      ! Update axis annd boundary values
       call find_axis(my_id,node_list,element_list,psi_axis,R_axis,Z_axis,i_elm_axis,s_axis,t_axis,ifail)
       
       write(10,'(i6,9e20.12)') iter, current_tot, R_axis, Z_axis, psi_bnd-psi_axis
@@ -245,13 +227,33 @@ if (freeboundary_equil) then
           write(*,'(A,4f8.3)') ' LIMITER PLASMA ',psi_lim, psi_bnd, R_lim,Z_lim
         endif
       endif
-      
+
       if (freeb_equil_iterate_area .and. (.not. xpoint2)) then
         call iterate2area(node_list,element_list, psi_axis, psi_lim, xpoint2, xcase2, area_ref, psi_bnd)
       endif
       
       write(*,'(A,1f8.3)') ' Psi_bnd = ', psi_bnd   
+      
+      ! Calculate current feedback
+      call integral_current(node_list,element_list,psi_axis, psi_bnd, xpoint2, xcase2, Z_xpoint, current_tot)
   
+      current_int = current_int + (current_tot-current_ref)
+      
+      if (mod(iter,n_feedback_current) .eq. 0) then
+        current_FB_fact  = current_FB_fact * (1. - FB_Ip_position * (current_tot-current_ref)/current_ref &
+                                                 - FB_Ip_integral *  current_int/current_ref   )
+      endif
+      
+      !-------------- Multiplying FF' and p' profiles by the same factor to scale total current -------------------------
+      FF_0 = FF_0_old * current_FB_fact   
+      FF_1 = FF_1_old * current_FB_fact      
+        
+      T_0  = T_0_old  * current_FB_fact    
+      T_1  = T_1_old  * current_FB_fact
+      !------------------------------------------------------------------------------------------------------------------
+      
+      write(*,'(A,1e12.4)') 'Current Feedback factor = ',  current_FB_fact
+      
       !Vertical feedback - needed for vertically unstable plasmas        
       Z_axis_int = Z_axis_int + (Z_axis - Z_axis_ref)
       if (iter .eq. 1) then
@@ -259,25 +261,25 @@ if (freeboundary_equil) then
       else
         dZ_axis = Z_axis - Z_axis_old
       end if
-     
+      
       if ((mod(iter,n_feedback_vertical) .eq. 0) .and. (iter .ge. start_VFB) ) then
         vertical_FB = FB_Zaxis_position   * (Z_axis-Z_axis_ref) &   ! vertical_FB is used in vacuum_equilibrium.f90 to modify the coils current
                     + FB_Zaxis_integral   * Z_axis_int          &   
                     + FB_Zaxis_derivative * dZ_axis
       endif
-      
-      Z_axis_old = Z_axis
-     
+        
+        Z_axis_old = Z_axis
+       
     end if ! my_id == 0
     
     call MPI_bcast(vertical_FB, 1, MPI_DOUBLE_PRECISION,  0, MPI_COMM_WORLD,ierr)
-
+  
     ! --- Iterate equation
     call poisson(my_id,-1,node_list,element_list,bnd_node_list,bnd_elm_list,3,1,1, &
                  psi_axis,psi_bnd,xpoint2,xcase2,Z_xpoint,freeboundary_equil,refinement,iter)   !----------- for GS use -1
-
-!    call boundary_check
- 
+  
+  !  call boundary_check
+   
     if (my_id == 0) then
       diff = 0.d0
       do i=1, node_list%n_nodes
@@ -287,9 +289,9 @@ if (freeboundary_equil) then
     
       write(*,'(A,i5,e14.6)') ' iteration, diff : ',iter,diff
     end if ! my_id == 0
-
+  
     call MPI_bcast(diff, 1, MPI_DOUBLE_PRECISION,  0, MPI_COMM_WORLD,ierr)
-
+  
     if ( (iter > 1) .and. (diff < equil_accuracy_freeb) ) then
       if (my_id == 0) write(*,'(A,I4,A)') ' Free boundary equilibrium converged: after', iter, ' iterations'
       exit
@@ -297,16 +299,60 @@ if (freeboundary_equil) then
       if (my_id == 0) write(*,'(A,ES10.3)') ' WARNING: Free boundary equilibrium not fully converged: diff=', diff
       exit
     end if
-
+  
   enddo
-
+  
   if (freeb_equil_iterate_area .and. (.not. xpoint2)) then
     n_limiter = 1  ! set found limiter (defined inside iterate2area)
   endif
-
+  
 endif
 
 if (my_id == 0) then
+  ! Update psi axis and boundary with new values from the last iteration of equilibrium solvers 
+  call find_axis(my_id,node_list,element_list,psi_axis,R_axis,Z_axis,i_elm_axis,s_axis,t_axis,ifail)
+        
+  write(10,'(i6,9e20.12)') iter, current_tot, R_axis, Z_axis, psi_bnd-psi_axis
+  
+  if ((ifail .ne. 0) .and. (iter .le. 5)) then
+    call find_RZ(node_list,element_list,R_geo,Z_geo,R_out,Z_out,i_elm,s_out,t_out,ifail)
+    call interp(node_list,element_list,i_elm,1,1,s_out,t_out,psi_axis,P_s,P_t,P_st,P_ss,P_tt)
+    write(*,*)  ' changed magnetic axis to :  ', R_out,Z_out,psi_axis
+  endif
+  
+  psi_bnd = 0.d0
+  
+  if (xpoint2) then
+    call find_xpoint(my_id,node_list,element_list,psi_xpoint,R_xpoint,Z_xpoint,i_elm_xpoint,s_xpoint,t_xpoint,xcase2,ifail)
+    if (ifail .ne. 1) then      
+      psi_bnd  = psi_xpoint(1)
+      if( (xcase2 .eq. 2) .or. ((xcase2 .eq. 3) .and. (psi_xpoint(2) .lt. psi_xpoint(1))) ) then
+        psi_bnd = psi_xpoint(2)
+      endif
+      if(xcase2 .eq. 1) Z_xpoint(2) = +99.d0
+      if(xcase2 .eq. 2) Z_xpoint(1) = -99.d0
+    else
+      Z_xpoint(1) = -99.d0 
+      Z_xpoint(2) = +99.d0
+    endif
+  endif
+  if (.not. xpoint2) then
+    call find_limiter(my_id,node_list,element_list,bnd_elm_list,psi_lim,R_lim,Z_lim)
+    if ( (Z_lim .gt. Z_xpoint(1)) .and. (Z_lim .lt. Z_xpoint(2)) ) then
+      call is_axis_psi_mininum(node_list, element_list, bnd_elm_list)
+      if (ES%axis_is_psi_minimum) then
+        psi_bnd = min(psi_lim,psi_bnd)
+      else
+        psi_bnd = max(psi_lim,psi_bnd)
+      endif
+      write(*,'(A,4f8.3)') ' LIMITER PLASMA ',psi_lim, psi_bnd, R_lim,Z_lim
+    endif
+  endif
+
+  if (freeboundary_equil .and. freeb_equil_iterate_area .and. (.not. xpoint2)) then
+    call iterate2area(node_list,element_list, psi_axis, psi_lim, xpoint2, xcase2, area_ref, psi_bnd)
+  endif
+  
   !------------------------------- end of equilibrium, start filling data
   psi_axis = psi_axis - psi_offset_freeb
   psi_bnd  = psi_bnd  - psi_offset_freeb

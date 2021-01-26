@@ -346,7 +346,9 @@ Qvec_k    = 0.d0
 
 ! --- Implicit scheme
 theta = time_evol_theta
-zeta  = time_evol_zeta
+!zeta  = time_evol_zeta
+! change zeta for variable dt
+zeta  = time_evol_zeta * 2.0d0 * tstep / (tstep + tstep_prev)
 
 ! --- Do we need to use the FFT or non-FFT version?
 if ( (i_tor_min == 1) .and. (i_tor_max == n_tor) ) then
@@ -1123,7 +1125,7 @@ do i=1,n_vertex_max
             if (use_fft) then
               index_ij =       n_var*(n_order+1)*(i-1) +       n_var*(j-1) + 1
               do ivar= 1,n_var
-                RHS_p_ij(ivar) = tstep * Qvec_p(ivar) + zeta * Pvec_prev(ivar)
+                RHS_p_ij(ivar) = tstep * Qvec_p(ivar) + zeta * Pvec_prev(ivar) * tstep / tstep_prev
                 RHS_k_ij(ivar) = tstep * Qvec_k(ivar)
 
                 ij = index_ij + (ivar-1)
@@ -1133,7 +1135,7 @@ do i=1,n_vertex_max
             else
               index_ij = n_tor_local*n_var*(n_order+1)*(i-1) + n_tor_local*n_var*(j-1) + im - n_tor_start +1
               do ivar= 1,n_var
-                RHS_p_ij(ivar) = tstep * Qvec_p(ivar) + zeta * Pvec_prev(ivar)
+                RHS_p_ij(ivar) = tstep * Qvec_p(ivar) + zeta * Pvec_prev(ivar) * tstep / tstep_prev
                 RHS_k_ij(ivar) = tstep * Qvec_k(ivar)
 
                 ij = index_ij + (ivar-1)*n_tor_local

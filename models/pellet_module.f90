@@ -127,58 +127,59 @@ module pellet_module
   ! and physical pellet sizes (from the integral of the pellet particle source) *
   !******************************************************************************
   
-  use constants
-  use data_structure
-  use phys_module
-  use mpi_mod
-  use mod_interp, only: interp
-  
-  implicit none
-  
-  integer,                      intent(in)    :: my_id
-  type (type_node_list),        intent(in)    :: node_list
-  type (type_element_list),     intent(in)    :: element_list
-  
-  real*8  :: psi_axis, psi_bnd
-  integer :: ierr
-  real*8  :: V_normalisation, density, density_in, density_out, pressure,pressure_in,pressure_out
-  
-  real*8  :: R_out, Z_out, s_out, t_out, P0_s,P0_t,P0_st,P0_ss,P0_tt
-  integer :: i_elm, ifail
-  
-  if (pellet_amplitude .gt. 0) return
-  
-  V_normalisation = 1.d0 / sqrt(central_density * 1d20 * mass_proton * central_mass * MU_ZERO) ! assumes Deuterium!
-  
-  pellet_R = pellet_R + pellet_velocity_R * tstep / V_normalisation
-  pellet_Z = pellet_Z + pellet_velocity_Z * tstep / V_normalisation
-  
-  
-  phys_ablation = total_pellet_particles * central_density / sqrt(central_density * 1d20 * mass_proton * central_mass * MU_ZERO)
-  
-  total_pellet_particles = total_pellet_particles * central_density * tstep 
-  total_plasma_particles = total_plasma_particles * central_density          ! undo normalisation
-  
-  
-  call find_RZ(node_list,element_list,pellet_R,pellet_Z,R_out,Z_out,i_elm,s_out,t_out,ifail)
-  call interp(node_list,element_list,i_elm,1,1,s_out,t_out,pellet_psi,P0_s,P0_t,P0_st,P0_ss,P0_tt)
-  
-  if (my_id .eq. 0) then
-  
-      pellet_particles = max(pellet_particles - total_pellet_particles, 0.d0)
-  
-      write(*,'(A,4e14.6)') ' pellet (R,Z) =', pellet_R, pellet_Z,pellet_velocity_R/V_normalisation,pellet_velocity_Z/V_normalisation
-      write(*,'(A,6e14.6,A)') ' total particles added in this step : ', pellet_R, pellet_Z,pellet_particles,total_pellet_particles, total_plasma_particles,phys_ablation,' [10^20]'
-      write(*,'(A,4e14.6)') ' remaining particles in pellet      : ', pellet_particles
-      write(*,'(A,4e14.6)') ' pellet volume (sim,phys)           : ', total_pellet_volume,pellet_particles/pellet_density
-  
-  else 
-    pellet_particles = 0.0
-  end if
-   
-  call MPI_Bcast(pellet_particles,1,MPI_DOUBLE_PRECISION,0,MPI_COMM_WORLD,ierr)
-  
-  return 
+    use constants
+    use data_structure
+    use phys_module
+    use mpi_mod
+    use mod_interp, only: interp
+    !use mod_integrals3D
+    
+    implicit none
+    
+    integer,                      intent(in)    :: my_id
+    type (type_node_list),        intent(in)    :: node_list
+    type (type_element_list),     intent(in)    :: element_list
+    
+    real*8  :: psi_axis, psi_bnd
+    integer             :: ierr, i_elm, ifail
+    real*8  :: V_normalisation, density, density_in, density_out, pressure, pressure_in, pressure_out
+    
+    real*8  :: R_out, Z_out, s_out, t_out, P0_s,P0_t,P0_st,P0_ss,P0_tt
+    
+    if (pellet_amplitude .gt. 0) return
+    
+    call Integrals_3D(my_id, node_list,element_list,density,density_in,density_out,pressure,pressure_in,pressure_out)
+    V_normalisation = 1.d0 / sqrt(central_density * 1d20 * mass_proton * central_mass * MU_ZERO)
+    
+    pellet_R = pellet_R + pellet_velocity_R * tstep / V_normalisation
+    pellet_Z = pellet_Z + pellet_velocity_Z * tstep / V_normalisation
+    
+    
+    phys_ablation = total_pellet_particles * central_density / sqrt(central_density * 1d20 * mass_proton * central_mass * MU_ZERO)
+    
+    total_pellet_particles = total_pellet_particles * central_density * tstep 
+    total_plasma_particles = total_plasma_particles * central_density          ! undo normalisation
+    
+    
+    call find_RZ(node_list,element_list,pellet_R,pellet_Z,R_out,Z_out,i_elm,s_out,t_out,ifail)
+    call interp(node_list,element_list,i_elm,1,1,s_out,t_out,pellet_psi,P0_s,P0_t,P0_st,P0_ss,P0_tt)
+    
+    if (my_id .eq. 0) then
+    
+        pellet_particles = max(pellet_particles - total_pellet_particles, 0.d0)
+    
+        write(*,'(A,4e14.6)') ' pellet (R,Z) =', pellet_R, pellet_Z,pellet_velocity_R/V_normalisation,pellet_velocity_Z/V_normalisation
+        write(*,'(A,6e14.6,A)') ' total particles added in this step : ', pellet_R, pellet_Z,pellet_particles,total_pellet_particles, total_plasma_particles,phys_ablation,' [10^20]'
+        write(*,'(A,4e14.6)') ' remaining particles in pellet      : ', pellet_particles
+        write(*,'(A,4e14.6)') ' pellet volume (sim,phys)           : ', total_pellet_volume,pellet_particles/pellet_density
+    
+    else 
+      pellet_particles = 0.0
+    end if
+     
+    call MPI_Bcast(pellet_particles,1,MPI_DOUBLE_PRECISION,0,MPI_COMM_WORLD,ierr)
+    
+    return 
    
   end subroutine update_pellet
   

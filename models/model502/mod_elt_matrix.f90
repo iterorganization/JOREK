@@ -199,7 +199,9 @@ TG_num8    = TGNUM(8); TG_num9    = TGNUM(9)
 
 ! --- Take time evolution parameters from phys_module
 theta = time_evol_theta
-zeta  = time_evol_zeta
+!zeta  = time_evol_zeta
+! change zeta for variable dt
+zeta  = time_evol_zeta * 2.0d0 * tstep / (tstep + tstep_prev)
 
 !---------------------------------------------------- value of (x,y) and derivatives on Gaussian points
 x_g  = 0.d0; x_s  = 0.d0; x_t  = 0.d0; x_st  = 0.d0; x_ss  = 0.d0; x_tt  = 0.d0;
@@ -281,6 +283,11 @@ do i=1,n_vertex_max
    enddo
  enddo
 enddo
+
+! changes deltas for variable time steps
+delta_g = delta_g * tstep / tstep_prev
+delta_s = delta_s * tstep / tstep_prev
+delta_t = delta_t * tstep / tstep_prev
 
 do ms=1, n_gauss
   do mt=1, n_gauss

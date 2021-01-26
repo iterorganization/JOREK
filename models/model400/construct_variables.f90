@@ -212,6 +212,11 @@ subroutine ELM_build_variables(element, nodes, ms, mt, i_plane)
     enddo
   enddo
 
+  ! changes deltas for variable time steps
+  delta_g = delta_g * tstep / tstep_prev
+  delta_s = delta_s * tstep / tstep_prev
+  delta_t = delta_t * tstep / tstep_prev
+
   ! --- Variable 1
   ps0_x    = get_deriv_x (ps0_s, ps0_t)
   ps0_y    = get_deriv_y (ps0_s, ps0_t)

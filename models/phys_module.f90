@@ -44,7 +44,6 @@ module phys_module
   real*8  :: gamma_i_stangeby     !< Sheath tranmission coefficient given by P. Stangeby in (The plasma boundary of magnetic fusion devices)
   real*8  :: density_reflection   !< density reflection coeefficient on open fieldlines
   real*8  :: neutral_reflection   !< reflection coefficient of ions into neutrals (model500)
-  real*8  :: imp_reflection       !< impurity reflection coefficient on open fieldlines
   logical :: old_deuterium_atomic !< use old fit to calculate atomic coefficients for D (ionization, recombination, radiation), otherwise a better fit is used
   logical :: deuterium_adas       !< use OPEN ADAS to calculate ionization, recombination and radiation coeffients for deuterium                        
   logical :: mach_one_bnd_integral!< use a boundary integral (boundary_matrix_open) to implement Mach=one boundary condition
@@ -187,6 +186,7 @@ module phys_module
   
   !> @name Timestepping parameters
   real*8  :: tstep             		!< Size of the timesteps (\f$ \Delta t \f$)
+  real*8  :: tstep_prev                 !< Previous time-step if using variable dt Gears
   real*8  :: tstep_n(10)       		!< Alternative to tstep: Up to ten values may be given
   integer :: nstep             		!< Number of timesteps to perform
   integer :: nstep_n(10)       		!< Alternative to nstep: Up to ten values may be given

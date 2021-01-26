@@ -95,7 +95,9 @@ contains
         
     ! --- Take time evolution parameters from phys_module
     theta = time_evol_theta
-    zeta  = time_evol_zeta
+    !zeta  = time_evol_zeta
+    ! change zeta for variable dt
+    zeta  = time_evol_zeta * 2.0d0 * tstep / (tstep + tstep_prev)
 
     ! for cylinder geometry : epscyl = eps
     eps_cyl = 1.d0

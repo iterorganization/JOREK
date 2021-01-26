@@ -54,6 +54,7 @@ if (my_id .eq. 0) then
   position = 0
 
   call MPI_PACK(tstep,                  1,MPI_REAL8,buffer,bufsize,position,MPI_COMM_WORLD,ierr)
+  call MPI_PACK(tstep_prev,             1,MPI_REAL8,buffer,bufsize,position,MPI_COMM_WORLD,ierr)
   call MPI_PACK(tstep_n,               10,MPI_REAL8,buffer,bufsize,position,MPI_COMM_WORLD,ierr)
   call MPI_PACK(F0,                     1,MPI_REAL8,buffer,bufsize,position,MPI_COMM_WORLD,ierr)
   call MPI_PACK(GAMMA,                  1,MPI_REAL8,buffer,bufsize,position,MPI_COMM_WORLD,ierr)
@@ -128,6 +129,7 @@ if (my_id .eq. 0) then
   call MPI_PACK(ZK_prof_neg_thresh,     1,MPI_REAL8,buffer,bufsize,position,MPI_COMM_WORLD,ierr)
   call MPI_PACK(ZK_par_neg_thresh,      1,MPI_REAL8,buffer,bufsize,position,MPI_COMM_WORLD,ierr)
   call MPI_PACK(T_min,                  1,MPI_REAL8,buffer,bufsize,position,MPI_COMM_WORLD,ierr)
+  call MPI_PACK(rho_min,                1,MPI_REAL8,buffer,bufsize,position,MPI_COMM_WORLD,ierr)
   call MPI_PACK(ne_SI_min,              1,MPI_REAL8,buffer,bufsize,position,MPI_COMM_WORLD,ierr)
   call MPI_PACK(Te_eV_min,              1,MPI_REAL8,buffer,bufsize,position,MPI_COMM_WORLD,ierr)
   call MPI_PACK(rn0_min,                1,MPI_REAL8,buffer,bufsize,position,MPI_COMM_WORLD,ierr)
@@ -156,7 +158,6 @@ if (my_id .eq. 0) then
   call MPI_PACK(gamma_i_stangeby,       1,MPI_REAL8,buffer,bufsize,position,MPI_COMM_WORLD,ierr)
   call MPI_PACK(density_reflection,     1,MPI_REAL8,buffer,bufsize,position,MPI_COMM_WORLD,ierr)
   call MPI_PACK(neutral_reflection,     1,MPI_REAL8,buffer,bufsize,position,MPI_COMM_WORLD,ierr)
-  call MPI_PACK(imp_reflection,         1,MPI_REAL8,buffer,bufsize,position,MPI_COMM_WORLD,ierr)
   call MPI_PACK(neutral_line_source,   10,MPI_REAL8,buffer,bufsize,position,MPI_COMM_WORLD,ierr)
   call MPI_PACK(neutral_line_R_start,  10,MPI_REAL8,buffer,bufsize,position,MPI_COMM_WORLD,ierr)
   call MPI_PACK(neutral_line_Z_start,  10,MPI_REAL8,buffer,bufsize,position,MPI_COMM_WORLD,ierr)
@@ -650,6 +651,7 @@ if (my_id .ne. 0) then
   position = 0
 
   call MPI_UNPACK(buffer,bufsize,position,tstep,                  1,MPI_REAL8,MPI_COMM_WORLD,ierr)
+  call MPI_UNPACK(buffer,bufsize,position,tstep_prev,             1,MPI_REAL8,MPI_COMM_WORLD,ierr)
   call MPI_UNPACK(buffer,bufsize,position,tstep_n,               10,MPI_REAL8,MPI_COMM_WORLD,ierr)
   call MPI_UNPACK(buffer,bufsize,position,F0,                     1,MPI_REAL8,MPI_COMM_WORLD,ierr)
   call MPI_UNPACK(buffer,bufsize,position,GAMMA,                  1,MPI_REAL8,MPI_COMM_WORLD,ierr)
@@ -724,6 +726,7 @@ if (my_id .ne. 0) then
   call MPI_UNPACK(buffer,bufsize,position,ZK_prof_neg_thresh,     1,MPI_REAL8,MPI_COMM_WORLD,ierr)
   call MPI_UNPACK(buffer,bufsize,position,ZK_par_neg_thresh,      1,MPI_REAL8,MPI_COMM_WORLD,ierr)
   call MPI_UNPACK(buffer,bufsize,position,T_min,                  1,MPI_REAL8,MPI_COMM_WORLD,ierr)
+  call MPI_UNPACK(buffer,bufsize,position,rho_min,                1,MPI_REAL8,MPI_COMM_WORLD,ierr)
   call MPI_UNPACK(buffer,bufsize,position,ne_SI_min,              1,MPI_REAL8,MPI_COMM_WORLD,ierr)
   call MPI_UNPACK(buffer,bufsize,position,Te_eV_min,              1,MPI_REAL8,MPI_COMM_WORLD,ierr)
   call MPI_UNPACK(buffer,bufsize,position,rn0_min,                1,MPI_REAL8,MPI_COMM_WORLD,ierr)
@@ -752,7 +755,6 @@ if (my_id .ne. 0) then
   call MPI_UNPACK(buffer,bufsize,position,gamma_i_stangeby,       1,MPI_REAL8,MPI_COMM_WORLD,ierr)
   call MPI_UNPACK(buffer,bufsize,position,density_reflection,     1,MPI_REAL8,MPI_COMM_WORLD,ierr)
   call MPI_UNPACK(buffer,bufsize,position,neutral_reflection,     1,MPI_REAL8,MPI_COMM_WORLD,ierr)
-  call MPI_UNPACK(buffer,bufsize,position,imp_reflection,         1,MPI_REAL8,MPI_COMM_WORLD,ierr)
   call MPI_UNPACK(buffer,bufsize,position,neutral_line_source,   10,MPI_REAL8,MPI_COMM_WORLD,ierr)
   call MPI_UNPACK(buffer,bufsize,position,neutral_line_R_start,  10,MPI_REAL8,MPI_COMM_WORLD,ierr)
   call MPI_UNPACK(buffer,bufsize,position,neutral_line_Z_start,  10,MPI_REAL8,MPI_COMM_WORLD,ierr)

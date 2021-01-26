@@ -56,8 +56,9 @@ integer    :: n_tor_local
 type (type_node)         :: tmp_node
 
 theta = time_evol_theta
-zeta  = time_evol_zeta
-
+!zeta  = time_evol_zeta
+! change zeta for variable dt
+zeta  = time_evol_zeta * 2.0d0 * tstep / (tstep + tstep_prev)
 Zbig = 1.d12
 
 !--------------------- reorder the nodes to have the same direction as full element (maybe not necesary)
@@ -154,6 +155,10 @@ do i=1,2    ! sum over 2 verices
     enddo
   enddo
 enddo
+
+! changes deltas for variable time steps
+delta_g = delta_g * tstep / tstep_prev
+delta_s = delta_s * tstep / tstep_prev
 
 n_tor_local = i_tor_max - i_tor_min +1
 !--------------------------------------------------- sum over the Gaussian integration points

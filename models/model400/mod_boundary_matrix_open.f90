@@ -52,10 +52,14 @@ real*8     :: amat_81, amat_85, amat_88, amat_87
 real*8     :: element_size_ij, element_size_kl
 logical    :: xpoint2
 
-theta = 0.5d0; zeta = 0.d0          ! Crank-Nicholson parameter
+!theta = 0.5d0; zeta = 0.d0          ! Crank-Nicholson parameter
 !theta = 1.0d0  ; zeta = 0.0d0       ! Euler scheme 
 !theta = 1.0d0   ; zeta = 0.5d0       ! BDF2 (Gears) scheme
 
+theta = time_evol_theta
+!zeta  = time_evol_zeta
+! change zeta for variable dt
+zeta  = time_evol_zeta * 2.0d0 * tstep / (tstep + tstep_prev)
 
 !---------------------------------------------------- value of (x,y) and derivatives on Gaussian points
 x_g  = 0.d0; x_s  = 0.d0;  x_ss  = 0.d0; 
@@ -104,6 +108,10 @@ do i=1,2
     enddo
   enddo
 enddo
+
+! changes deltas for variable time steps
+delta_g = delta_g * tstep / tstep_prev
+delta_s = delta_s * tstep / tstep_prev
 
 n_tor_local = i_tor_max - i_tor_min + 1
 !--------------------------------------------------- sum over the Gaussian integration points

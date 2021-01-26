@@ -45,8 +45,9 @@ logical    :: xpoint2
 !theta = 1.0d0   ; zeta = 0.5d0      ! BDF2 (Gears) scheme
 
 theta=time_evol_theta
-zeta=time_evol_zeta
-
+!zeta=time_evol_zeta
+! change zeta for variable dt
+zeta  = time_evol_zeta * 2.0d0 * tstep / (tstep + tstep_prev)
 !---------------------------------------------------- value of (x,y) and derivatives on Gaussian points
 x_g  = 0.d0; x_s  = 0.d0;  x_ss  = 0.d0; 
 y_g  = 0.d0; y_s  = 0.d0;  y_ss  = 0.d0; 
@@ -91,6 +92,9 @@ do i=1,2
   enddo
 enddo
 
+! changes deltas for variable time steps
+delta_g = delta_g * tstep / tstep_prev
+delta_s = delta_s * tstep / tstep_prev
 
 !gamma_sheeth = -3.d0
 

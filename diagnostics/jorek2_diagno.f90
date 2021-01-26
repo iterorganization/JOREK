@@ -15,46 +15,24 @@ use phys_module
 use basis_at_gaussian
 use pellet_module
 use mpi_mod
-use mod_boundary, only: boundary_from_grid 
 use mod_import_restart
-#if (JOREK_MODEL == 500 || JOREK_MODEL == 555)
-  use mod_neutral_source
-#endif
-#if (JOREK_MODEL == 501 || JOREK_MODEL == 502)
-  use mod_impurity
-#endif
-use mod_integrals3D
-use mod_expression, only: exprs_all_int, init_expr, t_expr_list
-
 implicit none
 
-type (type_node_list)        :: node_list
-type (type_element_list)     :: element_list
-type (type_bnd_node_list)    :: bnd_node_list
-type (type_bnd_element_list) :: bnd_elm_list
-type (t_expr_list)           :: expr_list
-real*8, allocatable          :: res(:)
-integer                      :: units
-
-
-integer :: i, in, i_tor, i_spi
+type (type_node_list)    :: node_list
+type (type_element_list) :: element_list
+integer :: i, in, i_tor
 real*8  :: growth_kin, growth_mag,density,density_in,density_out,pressure,pressure_in,pressure_out
 real*8  :: Rplot(2), Zplot(2)
 real*8  :: psi_axis,R_axis,Z_axis,s_axis,t_axis
-integer :: ifail, ierr, i_elm_axis
+integer :: ifail, my_id, ierr, i_elm_axis
 integer :: required, provided, StatInfo
-real*8  :: spi_abl_rate_tot, spi_abl_tot
-real*8  :: spi_abl_bg_rate_tot, spi_abl_bg_tot
 
 
 write(*,*) '***************************************'
 write(*,*) '* JOREK2_diagno                       *'
 write(*,*) '***************************************'
 
-call init_expr()
-allocate(res(exprs_all_int%n_expr+1))
-res = 0.d0
-
+my_id=0
 
 #ifdef FUNNELED
   required = MPI_THREAD_FUNNELED
@@ -64,7 +42,7 @@ res = 0.d0
 call MPI_Init_thread(required, provided, StatInfo)
 
 
-call initialise_parameters(0, "__NO_FILENAME__")
+call initialise_parameters(my_id, "__NO_FILENAME__")
 
 do i_tor=1, n_tor
   mode(i_tor) = + int(i_tor / 2) * n_period
@@ -73,7 +51,7 @@ enddo
 
 call import_restart(node_list,element_list, 'jorek_restart', rst_format, ierr, .true.)
 
-call initialise_basis()                              ! define the basis functions at the Gaussian points
+call initialise_basis                              ! define the basis functions at the Gaussian points
 
 open(20,file='energies.txt')
 
@@ -82,10 +60,10 @@ write(20,'(A,25(A11,i3.3))') '      i      time',('          M',n_period*((in-1)
 
 do i=2,index_start
 
- !Growth_mag  = 0.5d0*log(abs(energies(n_tor,1,i)/energies(n_tor,1,i-1))) &
- !            / (xtime(i)-xtime(i-1))
- !Growth_kin  = 0.5d0*log(abs(energies(n_tor,2,i)/energies(n_tor,2,i-1))) &
- !            / (xtime(i)-xtime(i-1))
+ Growth_mag  = 0.5d0*log(abs(energies(n_tor,1,i)/energies(n_tor,1,i-1))) &
+             / (xtime(i)-xtime(i-1))
+ Growth_kin  = 0.5d0*log(abs(energies(n_tor,2,i)/energies(n_tor,2,i-1))) &
+             / (xtime(i)-xtime(i-1))
 
  !write(*,'(i7,f12.3,200e14.6)') i,xtime(i),energies(1:n_tor,:,i),growth_mag,growth_kin
 
@@ -109,62 +87,14 @@ if (use_pellet) then
 
 endif
 
-open(20,file="rad_history.dat")
 
-write(20,'(2A20)') 'time', 'total_radiation (MJ)'
 
-do i=1,index_start
-  write(20,'(i7,f12.3,1e14.6)') i,xtime(i), xtime_radiation(i)/1.d6
-enddo
-close(20)
+call Integrals_3D(my_id,node_list,element_list,density,density_in,density_out,pressure,pressure_in,pressure_out)
 
-if (using_spi) then
-
-  open(20,file="abl_history.dat")
-
-  write(20,'(A11)') 'time', 'total_abl_rate', 'total_abl_number'
-
-  do i=1,index_start
-    spi_abl_rate_tot = 0.0
-    spi_abl_tot = 0.0
-    spi_abl_bg_rate_tot = 0.0
-    spi_abl_bg_tot = 0.0
-    do i_spi = 1, n_spi_tot
-      spi_abl_rate_tot = spi_abl_rate_tot + xtime_spi_ablation_rate(i_spi,i)
-      spi_abl_tot = spi_abl_tot + xtime_spi_ablation(i_spi,i)
-      spi_abl_bg_rate_tot = spi_abl_bg_rate_tot + xtime_spi_ablation_bg_rate(i_spi,i)
-      spi_abl_bg_tot = spi_abl_bg_tot + xtime_spi_ablation_bg(i_spi,i)
-    end do
-    write(20,'(i7,f12.3,4e14.6)') i,xtime(i), spi_abl_rate_tot, spi_abl_tot, spi_abl_bg_rate_tot, spi_abl_bg_tot
-  enddo
-  close(20)
-
-  open(20,file="fragments_position.dat")
-
-  do i_spi = 1, n_spi_tot
-    write(20,'(i7,3f12.3,e14.6,f12.3)') i_spi, pellets(i_spi)%spi_R, pellets(i_spi)%spi_Z, pellets(i_spi)%spi_phi,&
-                                               pellets(i_spi)%spi_radius, pellets(i_spi)%spi_species
-  end do
-  close(20)
-
-endif
-
-#if (JOREK_MODEL == 501 || JOREK_MODEL == 502)
-  ! --- Read ADAS data and generate coronal equilibrium is needed
-  call init_imp_adas(0)
-#endif
-#if (JOREK_MODEL == 500 || JOREK_MODEL == 501 || JOREK_MODEL == 502 || JOREK_MODEL == 555)
-  if (output_prad_phi) then
-    ! --- Determine boundary information from the grid
-    call boundary_from_grid(node_list, element_list, bnd_node_list, bnd_elm_list, .false.)
-
-    call int3d_new(0, node_list, element_list, bnd_node_list, bnd_elm_list, exprs_all_int, res, 1)
-  endif
-#endif
-!if (use_pellet) then
-!   pellet_volume = total_pellet_volume
-!   call update_pellet(0d,node_list,element_list)
-!end if
+if (use_pellet) then
+   pellet_volume = total_pellet_volume
+   call update_pellet(my_id,node_list,element_list)
+end if
 !------------------lowshape3bis outside
 !Rplot(1) = 3.0
 !Rplot(2) = 3.676
@@ -189,14 +119,14 @@ endif
 !Zplot(1) = 0.07
 !Zplot(2) = 0.07
 
-!call find_axis(0,node_list,element_list,psi_axis,R_axis,Z_axis,i_elm_axis,s_axis,t_axis,ifail)
+!call find_axis(my_id,node_list,element_list,psi_axis,R_axis,Z_axis,i_elm_axis,s_axis,t_axis,ifail)
 
-!Rplot(1) = 1.0
-!Rplot(2) = 3.5
-!Zplot(1) = Z_axis
-!Zplot(2) = Z_axis 
+Rplot(1) = 1.0
+Rplot(2) = 3.5
+Zplot(1) = Z_axis
+Zplot(2) = Z_axis 
 
-!call plot_profiles(node_list,element_list,Rplot,Zplot)
+call plot_profiles(node_list,element_list,Rplot,Zplot)
 
 
 !call export_helena(node_list,element_list)

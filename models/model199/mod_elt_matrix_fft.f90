@@ -110,7 +110,9 @@ GAMMA = 5.d0 / 3.d0
 
 ! --- Take time evolution parameters from phys_module
 theta = time_evol_theta
-zeta  = time_evol_zeta
+!zeta  = time_evol_zeta
+! change zeta for variable dt
+zeta  = time_evol_zeta * 2.0d0 * tstep / (tstep + tstep_prev)
 
 current_source  = 0.d0
 particle_source = 0.d0
@@ -180,6 +182,10 @@ do i=1,n_vertex_max
  enddo
 enddo
 
+! changes deltas for variable time steps
+delta_g = delta_g * tstep / tstep_prev
+delta_s = delta_s * tstep / tstep_prev
+delta_t = delta_t * tstep / tstep_prev
 
 !--------------------------------------------------- sum over the Gaussian integration points
 do ms=1, n_gauss

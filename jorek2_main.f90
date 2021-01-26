@@ -489,6 +489,13 @@ required = 0
     call import_restart(node_list, element_list, 'jorek_restart', rst_format, ierr)
     if ( ierr /= 0 ) stop
 
+    ! for variable time step Gears method
+    if ( index_now==1) then
+      tstep_prev = tstep
+    else
+      tstep_prev = xtime(index_start) - xtime(index_start-1)
+    end if
+
     ! --- Write live data for previous time-steps
     if ( .not. bench_without_plot ) then
       do index_now = 1, index_start
@@ -953,12 +960,14 @@ required = 0
     index_now = index_now + 1
     
     tstep = tstep_n(jstep)
+    ! start from t=0 
+    if ( index_now == 1 ) tstep_prev = tstep
     
     if ( freeboundary ) call update_response(my_id,tstep, freeboundary_equil, resistive_wall)
 
     if ( my_id == 0 ) then
       write(*,*) '******************************************************'
-      write(*,'(A17,3i7,f14.5,A)') ' *   time step : ',jstep,istep,index_now,tstep,'  *'
+      write(*,'(A17,3i7,2f14.5,A)') ' *   time step : ',jstep,istep,index_now,tstep,tstep_prev,'  *'
       write(*,*) '******************************************************'
     end if
 
@@ -1161,6 +1170,10 @@ required = 0
       call update_deltas(my_id,node_list)
  
       t_now = t_now + tstep
+
+      ! save previous time step
+      tstep_prev = tstep
+
 
     else
       if ( my_id == 0 ) then

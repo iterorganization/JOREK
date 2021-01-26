@@ -215,8 +215,8 @@ module exec_commands
           call select_loop_si_units(command, ierr)
         case ( 'spi-state' )
           call spi_state(command, first_step, ierr)
-	case ( 'shards' )
-	  call shards(command, ierr)
+        case ( 'shards' )
+          call shards(command, ierr)
         case ( 'timesteps' )
           call timesteps 
         case default
