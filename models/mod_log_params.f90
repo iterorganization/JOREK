@@ -730,6 +730,7 @@ write(*,'(1x,a)',advance='no') ' USE_COMPLEX_PRECOND          : '
      write(*,REAL_FMT) 'neutral_line_R_end  ', neutral_line_R_end
      write(*,REAL_FMT) 'neutral_line_Z_end  ', neutral_line_Z_end
      write(*,REAL_FMT) 'neutral_reflection  ', neutral_reflection
+     write(*,REAL_FMT) 'imp_reflection      ', imp_reflection
      write(*,LOGI_FMT) 'output_prad_phi     ', output_prad_phi
 
      !< Additional log for SPI model

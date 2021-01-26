@@ -65,6 +65,7 @@ subroutine preset_parameters
   gamma_i_stangeby   = -1.d99 ! sheath transmission factor (ion fluid) given by Stangeby
   density_reflection = 0.d0   ! reflection coefficient for outgoing density
   neutral_reflection = 0.d0   ! reflection coefficient for (fluid) neutrals
+  imp_reflection     = 0.d0   ! reflection coefficient for (fluid) impurities
   
   deuterium_adas        = .false. 
   old_deuterium_atomic  = .false. 
