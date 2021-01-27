@@ -166,11 +166,11 @@ subroutine find_new_edge_domain_start(i_elm, i_list, current_element, i, i_side,
     !   1------>2
     !     1
     
-    a_12(1) = node_list%node(node_2)%x(1,1) - node_list%node(node_1)%x(1,1)
-    a_12(2) = node_list%node(node_2)%x(1,2) - node_list%node(node_1)%x(1,2)
+    a_12(1) = node_list%node(node_2)%x(1,1,1) - node_list%node(node_1)%x(1,1,1)
+    a_12(2) = node_list%node(node_2)%x(1,1,2) - node_list%node(node_1)%x(1,1,2)
     a_12(3) = 0 !< element lies in the RZ plane
-    b_13(1) = node_list%node(node_3)%x(1,1) - node_list%node(node_1)%x(1,1)
-    b_13(2) = node_list%node(node_3)%x(1,2) - node_list%node(node_1)%x(1,2)
+    b_13(1) = node_list%node(node_3)%x(1,1,1) - node_list%node(node_1)%x(1,1,1)
+    b_13(2) = node_list%node(node_3)%x(1,1,2) - node_list%node(node_1)%x(1,1,2)
     b_13(3) = 0
     
     c =  cross_product(a_12, b_13)
@@ -256,7 +256,7 @@ jorek_element : do i_elm=1,element_list%n_elements
 
       if (use_cutoff_function) then
         ! use cutoff function to determine if i_elm location is below the cutoff line
-        x      = (node_list%node(node_1)%x(1,:) + node_list%node(node_2)%x(1,:))*0.5 !< average R and Z position of the 2 nodes on a side    
+        x      = (node_list%node(node_1)%x(1,1,:) + node_list%node(node_2)%x(1,1,:))*0.5 !< average R and Z position of the 2 nodes on a side    
         my_flip_ud = .false.
         if (present(flip_ud)) my_flip_ud = flip_ud
         cut_off = check_cutoff_edge_domain(x, x1, x2, my_flip_ud) 
