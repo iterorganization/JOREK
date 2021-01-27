@@ -144,6 +144,7 @@ real*8     :: m_i_over_m_imp, m_imp
 real*8     :: Z_imp, dZ_imp_dT, d2Z_imp_dT2, T0_Zimp, alpha_Zimp, Z_eff, dZ_eff_dT, eta_coef, deta_coef_dZeff
 real*8     :: dZ_eff_dr0, dZ_eff_drn0, Z_eff_imp, dZ_eff_imp_dT, n_imp
 real*8     :: Z_imp_s, Z_imp_t, Z_imp_p, Z_imp_x, Z_imp_y
+real*8     :: n_imp_s, n_imp_t, n_imp_p, n_imp_x, n_imp_y
 !   -Coefficients related to Z_imp
 real*8     :: alpha_i, dalpha_i_dT, d2alpha_i_dT2
 real*8     :: alpha_e, dalpha_e_dT, d2alpha_e_dT2, alpha_e_bis, alpha_e_tri
@@ -817,6 +818,11 @@ do ms=1, n_gauss
      Z_imp_s  = 0.0
      Z_imp_t  = 0.0
 
+     n_imp_x  = 0.0
+     n_imp_y  = 0.0
+     n_imp_p  = 0.0
+     n_imp_s  = 0.0
+     n_imp_t  = 0.0
      n_imp = 0.
 
      Z_eff        = 0.
