@@ -720,8 +720,8 @@ do i=1,n_flux
     call create_new_node(node_list, element_list, newnode_list, index, i, j, nwpts)
 
     if (i .eq. 1) then   !------------------------------------ magnetic axis : special case
-      newnode_list%node(index)%x(3,:) = 0.d0
-      newnode_list%node(index)%x(4,:) = 0.d0
+      newnode_list%node(index)%x(1,3,:) = 0.d0
+      newnode_list%node(index)%x(1,4,:) = 0.d0
     endif
 
   enddo
@@ -1117,11 +1117,11 @@ if (plot_grid) then
     do j=1,n_loop
       do i=1,2
         index = newelement_list%element(j)%vertex(i)
-        write(101,'(A,i6,A,f15.4)') ' r[',4*(j-1)+2*i-2,'] = ',newnode_list%node(index)%x(1,1)
-        write(101,'(A,i6,A,f15.4)') ' z[',4*(j-1)+2*i-2,'] = ',newnode_list%node(index)%x(1,2)
+        write(101,'(A,i6,A,f15.4)') ' r[',4*(j-1)+2*i-2,'] = ',newnode_list%node(index)%x(1,1,1)
+        write(101,'(A,i6,A,f15.4)') ' z[',4*(j-1)+2*i-2,'] = ',newnode_list%node(index)%x(1,1,2)
         index = newelement_list%element(j)%vertex(i+2)
-        write(101,'(A,i6,A,f15.4)') ' r[',4*(j-1)+2*i-1,'] = ',newnode_list%node(index)%x(1,1)
-        write(101,'(A,i6,A,f15.4)') ' z[',4*(j-1)+2*i-1,'] = ',newnode_list%node(index)%x(1,2)
+        write(101,'(A,i6,A,f15.4)') ' r[',4*(j-1)+2*i-1,'] = ',newnode_list%node(index)%x(1,1,1)
+        write(101,'(A,i6,A,f15.4)') ' z[',4*(j-1)+2*i-1,'] = ',newnode_list%node(index)%x(1,1,2)
       enddo
     enddo
     write(101,'(A,i6,A)')    ' for i in range (0,',n_loop*2,'):'
@@ -1129,8 +1129,8 @@ if (plot_grid) then
     do j=1,n_loop
       do i=1,4
         index = newelement_list%element(j)%vertex(i)
-        write(101,'(A,i6,A,f15.4)') ' r[',4*(j-1)+i-1,'] = ',newnode_list%node(index)%x(1,1)
-        write(101,'(A,i6,A,f15.4)') ' z[',4*(j-1)+i-1,'] = ',newnode_list%node(index)%x(1,2)
+        write(101,'(A,i6,A,f15.4)') ' r[',4*(j-1)+i-1,'] = ',newnode_list%node(index)%x(1,1,1)
+        write(101,'(A,i6,A,f15.4)') ' z[',4*(j-1)+i-1,'] = ',newnode_list%node(index)%x(1,1,2)
       enddo
     enddo
     write(101,'(A,i6,A)')    ' for i in range (0,',n_loop,'):'

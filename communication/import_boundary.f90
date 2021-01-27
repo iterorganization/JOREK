@@ -22,11 +22,11 @@ do i=1,boundary_list%n_bnd_elements
   iv2   = boundary_list%bnd_element(i)%vertex(2)
   idir1 = boundary_list%bnd_element(i)%direction(1,2)
   idir2 = boundary_list%bnd_element(i)%direction(2,2)
-  read(22,'(3i6,12e16.8)') j,iv1,iv2, node_list%node(iv1)%x(1,1:2),          &
-                                      node_list%node(iv1)%x(idir1,1:2),      &
+  read(22,'(3i6,12e16.8)') j,iv1,iv2, node_list%node(iv1)%x(1,1,1:2),          &
+                                      node_list%node(iv1)%x(1,idir1,1:2),      &
                                       boundary_list%bnd_element(i)%size(1:2,2), &	
-                                      node_list%node(iv2)%x(1,1:2),          &
-                                      node_list%node(iv2)%x(idir2,1:2),      &
+                                      node_list%node(iv2)%x(1,1,1:2),          &
+                                      node_list%node(iv2)%x(1,idir2,1:2),      &
                                       boundary_list%bnd_element(i)%size(1:2,2) 
   if (i .ne. j) then
     write(*,*) 'WARNING: index mismatch in import boundary', i, j

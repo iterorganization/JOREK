@@ -423,21 +423,21 @@ do i=1,nrnew
     index0 =                npnew*(i-1) + j
     index  = n_node_start + npnew*(i-1) + j
 
-    node_list%node(index)%X(1,1) = RRnew(1,index0)
-    node_list%node(index)%X(1,2) = ZZnew(1,index0)
+    node_list%node(index)%X(1,1,1) = RRnew(1,index0)
+    node_list%node(index)%X(1,1,2) = ZZnew(1,index0)
 
     node_list%node(index)%values(1,1,1) = PSInew(1,index0)
 
-    node_list%node(index)%X(2,1) = RRnew(2,index0)         * 2.d0/3.d0
-    node_list%node(index)%X(2,2) = ZZnew(2,index0)         * 2.d0/3.d0
+    node_list%node(index)%X(1,2,1) = RRnew(2,index0)         * 2.d0/3.d0
+    node_list%node(index)%X(1,2,2) = ZZnew(2,index0)         * 2.d0/3.d0
     node_list%node(index)%values(1,2,1) = PSInew(2,index0) * 2.d0/3.d0
 
-    node_list%node(index)%X(3,1) = RRnew(3,index0)         * 2.d0/3.d0
-    node_list%node(index)%X(3,2) = ZZnew(3,index0)         * 2.d0/3.d0
+    node_list%node(index)%X(1,3,1) = RRnew(3,index0)         * 2.d0/3.d0
+    node_list%node(index)%X(1,3,2) = ZZnew(3,index0)         * 2.d0/3.d0
     node_list%node(index)%values(1,3,1) = PSInew(3,index0) * 2.d0/3.d0
 
-    node_list%node(index)%X(4,1) = RRnew(4,index0)         * 4.d0/9.d0
-    node_list%node(index)%X(4,2) = ZZnew(4,index0)         * 4.d0/9.d0
+    node_list%node(index)%X(1,4,1) = RRnew(4,index0)         * 4.d0/9.d0
+    node_list%node(index)%X(1,4,2) = ZZnew(4,index0)         * 4.d0/9.d0
     node_list%node(index)%values(1,4,1) = PSInew(4,index0) * 4.d0/9.d0
 
     if (i .eq. nrnew) node_list%node(index)%boundary = 2
@@ -522,23 +522,23 @@ do k=n_element_start+1 , element_list%n_elements   ! fill in the size of the ele
 
    if ((iv .eq. 1) .or. (iv .eq.3)) then
 
-     delta_Rp = node_list%node(node_ivp)%X(1,1) - node_list%node(node_iv)%X(1,1)
-     delta_Zp = node_list%node(node_ivp)%X(1,2) - node_list%node(node_iv)%X(1,2)
-     dir_2    = delta_Rp * node_list%node(node_iv)%X(2,1) + delta_Zp * node_list%node(node_iv)%X(2,2)
+     delta_Rp = node_list%node(node_ivp)%X(1,1,1) - node_list%node(node_iv)%X(1,1,1)
+     delta_Zp = node_list%node(node_ivp)%X(1,1,2) - node_list%node(node_iv)%X(1,1,2)
+     dir_2    = delta_Rp * node_list%node(node_iv)%X(1,2,1) + delta_Zp * node_list%node(node_iv)%X(1,2,2)
 
-     delta_Rm = node_list%node(node_ivm)%X(1,1) - node_list%node(node_iv)%X(1,1)
-     delta_Zm = node_list%node(node_ivm)%X(1,2) - node_list%node(node_iv)%X(1,2)
-     dir_3    = delta_Rm * node_list%node(node_iv)%X(3,1) + delta_Zm * node_list%node(node_iv)%X(3,2)
+     delta_Rm = node_list%node(node_ivm)%X(1,1,1) - node_list%node(node_iv)%X(1,1,1)
+     delta_Zm = node_list%node(node_ivm)%X(1,1,2) - node_list%node(node_iv)%X(1,1,2)
+     dir_3    = delta_Rm * node_list%node(node_iv)%X(1,3,1) + delta_Zm * node_list%node(node_iv)%X(1,3,2)
 
    else
 
-     delta_Rp = node_list%node(node_ivp)%X(1,1) - node_list%node(node_iv)%X(1,1)
-     delta_Zp = node_list%node(node_ivp)%X(1,2) - node_list%node(node_iv)%X(1,2)
-     dir_3    = delta_Rp * node_list%node(node_iv)%X(3,1) + delta_Zp * node_list%node(node_iv)%X(3,2)
+     delta_Rp = node_list%node(node_ivp)%X(1,1,1) - node_list%node(node_iv)%X(1,1,1)
+     delta_Zp = node_list%node(node_ivp)%X(1,1,2) - node_list%node(node_iv)%X(1,1,2)
+     dir_3    = delta_Rp * node_list%node(node_iv)%X(1,3,1) + delta_Zp * node_list%node(node_iv)%X(1,3,2)
 
-     delta_Rm = node_list%node(node_ivm)%X(1,1) - node_list%node(node_iv)%X(1,1)
-     delta_Zm = node_list%node(node_ivm)%X(1,2) - node_list%node(node_iv)%X(1,2)
-     dir_2    = delta_Rm * node_list%node(node_iv)%X(2,1) + delta_Zm * node_list%node(node_iv)%X(2,2)
+     delta_Rm = node_list%node(node_ivm)%X(1,1,1) - node_list%node(node_iv)%X(1,1,1)
+     delta_Zm = node_list%node(node_ivm)%X(1,1,2) - node_list%node(node_iv)%X(1,1,2)
+     dir_2    = delta_Rm * node_list%node(node_iv)%X(1,2,1) + delta_Zm * node_list%node(node_iv)%X(1,2,2)
 
    endif
 

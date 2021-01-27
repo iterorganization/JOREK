@@ -303,8 +303,8 @@ module mod_boundary
       write(*,*) trim(DIR) // '/boundary_element_nodes' // trim(filename_appendix)
       open(42, file=trim(DIR) // '/boundary_element_nodes' // trim(filename_appendix), status='replace', action='write')
       do i = 1, bnd_elm_list%n_bnd_elements
-        write(42,*) node_list%node( bnd_elm_list%bnd_element(i)%vertex(1) )%x(1,:)
-        write(42,*) node_list%node( bnd_elm_list%bnd_element(i)%vertex(2) )%x(1,:)
+        write(42,*) node_list%node( bnd_elm_list%bnd_element(i)%vertex(1) )%x(1,1,:)
+        write(42,*) node_list%node( bnd_elm_list%bnd_element(i)%vertex(2) )%x(1,1,:)
         write(42,*)
         write(42,*)
       end do
@@ -315,7 +315,7 @@ module mod_boundary
       write(*,*) trim(DIR) // '/boundary_nodes' // trim(filename_appendix)
       open(42, file=trim(DIR) // '/boundary_nodes' // trim(filename_appendix), status='replace', action='write')
       do i = 1, bnd_node_list%n_bnd_nodes
-        write(42,*) node_list%node( bnd_node_list%bnd_node(i)%index_jorek )%x(1,:)
+        write(42,*) node_list%node( bnd_node_list%bnd_node(i)%index_jorek )%x(1,1,:)
       end do
       close(42)
       
@@ -332,8 +332,8 @@ module mod_boundary
           bnd_elm_list%bnd_element(i)%direction(:,:), bnd_elm_list%bnd_element(i)%element,                   &
           bnd_elm_list%bnd_element(i)%side, node_list%node(bnd_elm_list%bnd_element(i)%vertex(1))%boundary,  &
           node_list%node(bnd_elm_list%bnd_element(i)%vertex(2))%boundary,                                    &
-          node_list%node(bnd_elm_list%bnd_element(i)%vertex(1))%x(1,:),                                      &
-          node_list%node(bnd_elm_list%bnd_element(i)%vertex(1))%x(2,:)
+          node_list%node(bnd_elm_list%bnd_element(i)%vertex(1))%x(1,1,:),                                      &
+          node_list%node(bnd_elm_list%bnd_element(i)%vertex(1))%x(1,2,:)
       end do
       close(42)
       

@@ -193,10 +193,10 @@ module mod_poloidal_currents
           k_size   = bndelem%size(k_vertex,k_dof)
           node_k   = node_list%node(k_node)
         
-          R  (:)   = R  (:)  + node_k%x(k_dir,1) * k_size * H1  (k_vertex,k_dof,:)
-          Z  (:)   = Z  (:)  + node_k%x(k_dir,2) * k_size * H1  (k_vertex,k_dof,:)
-          R_s(:)   = R_s(:)  + node_k%x(k_dir,1) * k_size * H1_s(k_vertex,k_dof,:)
-          Z_s(:)   = Z_s(:)  + node_k%x(k_dir,2) * k_size * H1_s(k_vertex,k_dof,:)
+          R  (:)   = R  (:)  + node_k%x(1,k_dir,1) * k_size * H1  (k_vertex,k_dof,:)
+          Z  (:)   = Z  (:)  + node_k%x(1,k_dir,2) * k_size * H1  (k_vertex,k_dof,:)
+          R_s(:)   = R_s(:)  + node_k%x(1,k_dir,1) * k_size * H1_s(k_vertex,k_dof,:)
+          Z_s(:)   = Z_s(:)  + node_k%x(1,k_dir,2) * k_size * H1_s(k_vertex,k_dof,:)
         
           do mp=1,n_plane
             do in=1,n_tor
@@ -320,10 +320,10 @@ module mod_poloidal_currents
           k_size   = bndelem%size(k_vertex,k_dof)
           node_k   = node_list%node(k_node)
         
-          R  (:)   = R  (:)  + node_k%x(k_dir,1) * k_size * H1  (k_vertex,k_dof,:)
-          Z  (:)   = Z  (:)  + node_k%x(k_dir,2) * k_size * H1  (k_vertex,k_dof,:)
-          R_s(:)   = R_s(:)  + node_k%x(k_dir,1) * k_size * H1_s(k_vertex,k_dof,:)
-          Z_s(:)   = Z_s(:)  + node_k%x(k_dir,2) * k_size * H1_s(k_vertex,k_dof,:)
+          R  (:)   = R  (:)  + node_k%x(1,k_dir,1) * k_size * H1  (k_vertex,k_dof,:)
+          Z  (:)   = Z  (:)  + node_k%x(1,k_dir,2) * k_size * H1  (k_vertex,k_dof,:)
+          R_s(:)   = R_s(:)  + node_k%x(1,k_dir,1) * k_size * H1_s(k_vertex,k_dof,:)
+          Z_s(:)   = Z_s(:)  + node_k%x(1,k_dir,2) * k_size * H1_s(k_vertex,k_dof,:)
         
           do in=1,n_tor
             psi_s(:) = psi_s(:) + node_k%values(in,k_dir,1) * k_size*H1_s(k_vertex,k_dof,:) * HZ(in,i_plane)
@@ -351,8 +351,8 @@ module mod_poloidal_currents
       do i = 1, n_vertex_max
         do j = 1, n_order+1
           node_k = node_list%node(elm_k%vertex(i)) 
-          R_c    = R_c + node_k%x(j,1) * elm_k%size(i,j) * G(i,j)
-          Z_c    = Z_c + node_k%x(j,2) * elm_k%size(i,j) * G(i,j)
+          R_c    = R_c + node_k%x(1,j,1) * elm_k%size(i,j) * G(i,j)
+          Z_c    = Z_c + node_k%x(1,j,2) * elm_k%size(i,j) * G(i,j)
         enddo
       enddo  
       vec_inside = (/ R_c - R(2), Z_c - Z(2) /)       ! vector pointing towards the domain

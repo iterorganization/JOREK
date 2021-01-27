@@ -41,8 +41,8 @@ if (my_id .eq. 0) then
 
     node_list%node(i)%values(1,:,:) = 0.d0
 
-    R   = node_list%node(i)%x(1,1)
-    Z   = node_list%node(i)%x(1,2)
+    R   = node_list%node(i)%x(1,1,1)
+    Z   = node_list%node(i)%x(1,1,2)
 
     radius1 = (R-R1)*(R-R1) + (Z-Z1)*(Z-Z1)
     radius2 = (R-R2)*(R-R2) + (Z-Z2)*(Z-Z2)
@@ -61,12 +61,12 @@ if (my_id .eq. 0) then
     W_ZZ =  - amplitude1 * 2./sigma1 * exp(-radius1/sigma1) + amplitude1 * 2.*(Z-Z1)/sigma1 * 2.*(Z-Z1)/sigma1 * exp(-radius1/sigma1) &
             - amplitude2 * 2./sigma2 * exp(-radius2/sigma2) + amplitude2 * 2.*(Z-Z2)/sigma2 * 2.*(Z-Z2)/sigma2 * exp(-radius2/sigma2)
  
-    R_s  = node_list%node(i)%x(2,1)
-    R_t  = node_list%node(i)%x(3,1)
-    R_st = node_list%node(i)%x(4,1)
-    Z_s  = node_list%node(i)%x(2,2)
-    Z_t  = node_list%node(i)%x(3,2)
-    Z_st = node_list%node(i)%x(4,2)
+    R_s  = node_list%node(i)%x(1,2,1)
+    R_t  = node_list%node(i)%x(1,3,1)
+    R_st = node_list%node(i)%x(1,4,1)
+    Z_s  = node_list%node(i)%x(1,2,2)
+    Z_t  = node_list%node(i)%x(1,3,2)
+    Z_st = node_list%node(i)%x(1,4,2)
         
     node_list%node(i)%values(1,1,2) = W
     node_list%node(i)%values(1,2,2) = W_R * R_s + W_z * Z_s                                      

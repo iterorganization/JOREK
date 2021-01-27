@@ -27,11 +27,11 @@ subroutine export_boundary(node_list, boundary_list, bnd_node_list)
     idir2 = boundary_list%bnd_element(i)%direction(2,2)
 
     write(22,'(3i7,12e16.8)') i, ib1, ib2,      &
-      node_list%node(iv1)%x(1,1:2),             &
-      node_list%node(iv1)%x(idir1,1:2),         &
+      node_list%node(iv1)%x(1,1,1:2),             &
+      node_list%node(iv1)%x(1,idir1,1:2),         &
       boundary_list%bnd_element(i)%size(1,1:2), &
-      node_list%node(iv2)%x(1,1:2),             &
-      node_list%node(iv2)%x(idir2,1:2),         &
+      node_list%node(iv2)%x(1,1,1:2),             &
+      node_list%node(iv2)%x(1,idir2,1:2),         &
       boundary_list%bnd_element(i)%size(2,1:2) 
 
   end do

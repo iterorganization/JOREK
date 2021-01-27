@@ -69,7 +69,7 @@ do i=1,4
 
   index = index + 1
   
-  newnode_list%node(index)%x(4,:) = 0.d0
+  newnode_list%node(index)%x(1,4,:) = 0.d0
   newnode_list%node(index)%boundary = 0
   
   if (Xup .eq. 1) angle = stpts%angle_LowerRight
@@ -97,23 +97,23 @@ do i=1,4
   alpha_max = max(alpha1,alpha2)
   alpha_min = min(alpha1,alpha2)
 
-  newnode_list%node(index)%x(1,:) = (/ R_xpoint(Xup), Z_xpoint(Xup) /)
+  newnode_list%node(index)%x(1,1,:) = (/ R_xpoint(Xup), Z_xpoint(Xup) /)
   
   if (i .eq. 1) then
-    newnode_list%node(index)%x(2,:) = (/ cos(angle),sin(angle) /)
-    newnode_list%node(index)%x(3,:) = (/ alpha_max,1.d0 /) / sqrt(alpha_max**2 + 1.d0)
+    newnode_list%node(index)%x(1,2,:) = (/ cos(angle),sin(angle) /)
+    newnode_list%node(index)%x(1,3,:) = (/ alpha_max,1.d0 /) / sqrt(alpha_max**2 + 1.d0)
   endif
   if (i .eq. 2) then
-    newnode_list%node(index)%x(2,:) = (/ R_xpoint(Xup)-R_axis,Z_xpoint(Xup)-Z_axis/)/sqrt((R_xpoint(Xup)-R_axis)**2+(Z_xpoint(Xup)-Z_axis)**2)
-    newnode_list%node(index)%x(3,:) = (/ alpha_max,1.d0 /) / sqrt(alpha_max**2 + 1.d0)
+    newnode_list%node(index)%x(1,2,:) = (/ R_xpoint(Xup)-R_axis,Z_xpoint(Xup)-Z_axis/)/sqrt((R_xpoint(Xup)-R_axis)**2+(Z_xpoint(Xup)-Z_axis)**2)
+    newnode_list%node(index)%x(1,3,:) = (/ alpha_max,1.d0 /) / sqrt(alpha_max**2 + 1.d0)
   endif
   if (i .eq. 3) then
-    newnode_list%node(index)%x(2,:) = (/ R_xpoint(Xup)-R_axis,Z_xpoint(Xup)-Z_axis/)/sqrt((R_xpoint(Xup)-R_axis)**2+(Z_xpoint(Xup)-Z_axis)**2)
-    newnode_list%node(index)%x(3,:) = (/ alpha_min,1.d0 /) / sqrt(alpha_min**2 + 1.d0)
+    newnode_list%node(index)%x(1,2,:) = (/ R_xpoint(Xup)-R_axis,Z_xpoint(Xup)-Z_axis/)/sqrt((R_xpoint(Xup)-R_axis)**2+(Z_xpoint(Xup)-Z_axis)**2)
+    newnode_list%node(index)%x(1,3,:) = (/ alpha_min,1.d0 /) / sqrt(alpha_min**2 + 1.d0)
   endif
   if (i .eq. 4) then
-    newnode_list%node(index)%x(2,:) = (/ cos(angle),sin(angle) /)
-    newnode_list%node(index)%x(3,:) = (/ alpha_min,1.d0 /) / sqrt(alpha_min**2 + 1.d0)
+    newnode_list%node(index)%x(1,2,:) = (/ cos(angle),sin(angle) /)
+    newnode_list%node(index)%x(1,3,:) = (/ alpha_min,1.d0 /) / sqrt(alpha_min**2 + 1.d0)
   endif
 
 enddo

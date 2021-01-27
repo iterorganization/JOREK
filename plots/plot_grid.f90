@@ -37,7 +37,7 @@ write(*,*) ' bezier                      : ',bezier
 call tr_allocate(xp,1,node_list%n_nodes,1,n_dim,"xp",CAT_GRID)
 
 do i=1,node_list%n_nodes
- xp(i,1:n_dim) = node_list%node(i)%x(1,1:n_dim)
+ xp(i,1:n_dim) = node_list%node(i)%x(1,1,1:n_dim)
 enddo
 xmax = 1.1 * maxval(xp(:,1))
 xmin = minval(xp(:,1))
@@ -56,16 +56,16 @@ if ( write_ps ) then
   call lincol(2)
   do i=1,node_list%n_nodes
 
-    xs(1,1:n_dim) = node_list%node(i)%x(1,1:n_dim)
+    xs(1,1:n_dim) = node_list%node(i)%x(1,1,1:n_dim)
 
     if ((node_list%node(i)%boundary .eq. 1) .or. (node_list%node(i)%boundary .eq. 3)) then
 
-      !    write(*,'(A,i5,6e16.8)') ' boundary point (1,3) : ',i,node_list%node(i)%x(1,:)
+      !    write(*,'(A,i5,6e16.8)') ' boundary point (1,3) : ',i,node_list%node(i)%x(1,1,:)
 
-      x_length = sqrt( node_list%node(i)%x(2,1)**2 +  node_list%node(i)%x(2,2)**2)
+      x_length = sqrt( node_list%node(i)%x(1,2,1)**2 +  node_list%node(i)%x(1,2,2)**2)
 
       if (x_length .gt. 0.d0) then
-        xs(2,1:n_dim) = xs(1,1:n_dim) + 0.1 * node_list%node(i)%x(2,1:n_dim) / x_length
+        xs(2,1:n_dim) = xs(1,1:n_dim) + 0.1 * node_list%node(i)%x(1,2,1:n_dim) / x_length
         call lplot6(1,1,xs(:,1),xs(:,2),-2,' ')
       endif
 
@@ -79,13 +79,13 @@ if ( write_ps ) then
 
     if ((node_list%node(i)%boundary .eq. 2) .or. (node_list%node(i)%boundary .eq. 3)) then
 
-      !    write(*,'(A,i5,6e16.8)') ' boundary point (2,3) : ',i,node_list%node(i)%x(1,:)
+      !    write(*,'(A,i5,6e16.8)') ' boundary point (2,3) : ',i,node_list%node(i)%x(1,1,:)
 
-      x_length = sqrt( node_list%node(i)%x(3,1)**2 +  node_list%node(i)%x(3,2)**2)
+      x_length = sqrt( node_list%node(i)%x(1,3,1)**2 +  node_list%node(i)%x(1,3,2)**2)
 
       if (x_length .gt. 0.d0) then
-        xs(1,1:n_dim) = node_list%node(i)%x(1,1:n_dim)
-        xs(2,1:n_dim) = xs(1,1:n_dim) + 0.1 * node_list%node(i)%x(3,1:n_dim) / x_length
+        xs(1,1:n_dim) = node_list%node(i)%x(1,1,1:n_dim)
+        xs(2,1:n_dim) = xs(1,1:n_dim) + 0.1 * node_list%node(i)%x(1,3,1:n_dim) / x_length
         call lplot6(1,1,xs(:,1),xs(:,2),-2,' ')
       endif
 
@@ -115,14 +115,14 @@ do k=1, element_list%n_elements
    iuv = mod(i+1,2)+1             ! the direction vector corresponding to this edge (i)
 
    inode_0 = element_list%element(k)%vertex(i)
-   xx_0    = node_list%node(inode_0)%x(1,:)
-   uv_0    = node_list%node(inode_0)%x(iuv+1,:)
+   xx_0    = node_list%node(inode_0)%x(1,1,:)
+   uv_0    = node_list%node(inode_0)%x(1,iuv+1,:)
    huv_0   = element_list%element(k)%size(i,iuv+1)
 
    ip      = mod(i,4)+1
    inode_p = element_list%element(k)%vertex(ip)
-   xx_p    = node_list%node(inode_p)%x(1,:)
-   uv_p    = node_list%node(inode_p)%x(iuv+1,:)
+   xx_p    = node_list%node(inode_p)%x(1,1,:)
+   uv_p    = node_list%node(inode_p)%x(1,iuv+1,:)
    huv_p   = element_list%element(k)%size(ip,iuv+1)
 
 !    write(*,*) xx_0
@@ -159,15 +159,15 @@ if ( write_ps ) then
     idir_0 = boundary_list%bnd_element(k)%direction(1,2)
 
     inode_0 = boundary_list%bnd_element(k)%vertex(1)
-    xx_0    = node_list%node(inode_0)%x(1,:)
-    uv_0    = node_list%node(inode_0)%x(idir_0,:)
+    xx_0    = node_list%node(inode_0)%x(1,1,:)
+    uv_0    = node_list%node(inode_0)%x(1,idir_0,:)
     huv_0   = boundary_list%bnd_element(k)%size(1,2)
 
     idir_p = boundary_list%bnd_element(k)%direction(2,2)
 
     inode_p = boundary_list%bnd_element(k)%vertex(2)
-    xx_p    = node_list%node(inode_p)%x(1,:)
-    uv_p    = node_list%node(inode_p)%x(idir_p,:)
+    xx_p    = node_list%node(inode_p)%x(1,1,:)
+    uv_p    = node_list%node(inode_p)%x(1,idir_p,:)
     huv_p   = boundary_list%bnd_element(k)%size(2,2)
 
 !    write(*,*) xx_0
@@ -205,14 +205,14 @@ if ( write_ps ) then
     do i=1,4
 
       inode_0 = element_list%element(k)%vertex(i)
-      xx_0    = node_list%node(inode_0)%x(1,:)
-      uu_0    = node_list%node(inode_0)%x(2,:)
-      vv_0    = node_list%node(inode_0)%x(3,:)
-      ww_0    = node_list%node(inode_0)%x(4,:)
+      xx_0    = node_list%node(inode_0)%x(1,1,:)
+      uu_0    = node_list%node(inode_0)%x(1,2,:)
+      vv_0    = node_list%node(inode_0)%x(1,3,:)
+      ww_0    = node_list%node(inode_0)%x(1,4,:)
 
-      xp(iplot+1,:) = node_list%node(inode_0)%x(1,:) + uu_0(:) * element_list%element(k)%size(i,2)
-      xp(iplot+2,:) = node_list%node(inode_0)%x(1,:) + vv_0(:) * element_list%element(k)%size(i,3)
-      xp(iplot+3,:) = node_list%node(inode_0)%x(1,:)  &
+      xp(iplot+1,:) = node_list%node(inode_0)%x(1,1,:) + uu_0(:) * element_list%element(k)%size(i,2)
+      xp(iplot+2,:) = node_list%node(inode_0)%x(1,1,:) + vv_0(:) * element_list%element(k)%size(i,3)
+      xp(iplot+3,:) = node_list%node(inode_0)%x(1,1,:)  &
           + uu_0(:) * element_list%element(k)%size(i,2) &
           + vv_0(:) * element_list%element(k)%size(i,3) &
           + ww_0(:) * element_list%element(k)%size(i,4)

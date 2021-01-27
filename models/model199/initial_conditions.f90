@@ -37,8 +37,8 @@ if (my_id .eq. 0) then
   do i=1,node_list%n_nodes
 
     psi = node_list%node(i)%values(1,1,1)
-    R   = node_list%node(i)%x(1,1)
-    Z   = node_list%node(i)%x(1,2)
+    R   = node_list%node(i)%x(1,1,1)
+    Z   = node_list%node(i)%x(1,1,2)
 
     call density(    xpoint2, xcase2, Z, ES%Z_xpoint, psi,ES%psi_axis,ES%psi_bnd,zn,dn_dpsi,dn_dz,dn_dpsi2,dn_dz2,             &
                                                                dn_dpsi_dz,dn_dpsi3,dn_dpsi_dz2, dn_dpsi2_dz)
@@ -50,25 +50,25 @@ if (my_id .eq. 0) then
                                                                dFFprime_dpsi2,dFFprime_dz2, dFFprime_dpsi_dz, .true.)
 
     node_list%node(i)%values(1,1,5) = zn
-    node_list%node(i)%values(1,2,5) = dn_dpsi  * node_list%node(i)%values(1,2,1) + dn_dz * node_list%node(i)%x(2,2)
-    node_list%node(i)%values(1,3,5) = dn_dpsi  * node_list%node(i)%values(1,3,1) + dn_dz * node_list%node(i)%x(3,2)
-    node_list%node(i)%values(1,4,5) = dn_dpsi  * node_list%node(i)%values(1,4,1) + dn_dz * node_list%node(i)%x(4,2) &
+    node_list%node(i)%values(1,2,5) = dn_dpsi  * node_list%node(i)%values(1,2,1) + dn_dz * node_list%node(i)%x(1,2,2)
+    node_list%node(i)%values(1,3,5) = dn_dpsi  * node_list%node(i)%values(1,3,1) + dn_dz * node_list%node(i)%x(1,3,2)
+    node_list%node(i)%values(1,4,5) = dn_dpsi  * node_list%node(i)%values(1,4,1) + dn_dz * node_list%node(i)%x(1,4,2) &
                                     + dn_dpsi2 * node_list%node(i)%values(1,2,1) * node_list%node(i)%values(1,3,1)  &
-                                    + dn_dz2   * node_list%node(i)%x(2,2)        * node_list%node(i)%x(3,2) &
+                                    + dn_dz2   * node_list%node(i)%x(1,2,2)        * node_list%node(i)%x(1,3,2) &
                                     + dn_dpsi_dz * ( &
-                                      + node_list%node(i)%values(1,3,1) * node_list%node(i)%x(2,2) &
-                                      + node_list%node(i)%values(1,2,1) * node_list%node(i)%x(3,2) &
+                                      + node_list%node(i)%values(1,3,1) * node_list%node(i)%x(1,2,2) &
+                                      + node_list%node(i)%values(1,2,1) * node_list%node(i)%x(1,3,2) &
                                       )
 
     node_list%node(i)%values(1,1,6) = zT
-    node_list%node(i)%values(1,2,6) = dT_dpsi  * node_list%node(i)%values(1,2,1) + dT_dz * node_list%node(i)%x(2,2)
-    node_list%node(i)%values(1,3,6) = dT_dpsi  * node_list%node(i)%values(1,3,1) + dT_dz * node_list%node(i)%x(3,2)
-    node_list%node(i)%values(1,4,6) = dT_dpsi  * node_list%node(i)%values(1,4,1) + dT_dz * node_list%node(i)%x(4,2) &
+    node_list%node(i)%values(1,2,6) = dT_dpsi  * node_list%node(i)%values(1,2,1) + dT_dz * node_list%node(i)%x(1,2,2)
+    node_list%node(i)%values(1,3,6) = dT_dpsi  * node_list%node(i)%values(1,3,1) + dT_dz * node_list%node(i)%x(1,3,2)
+    node_list%node(i)%values(1,4,6) = dT_dpsi  * node_list%node(i)%values(1,4,1) + dT_dz * node_list%node(i)%x(1,4,2) &
                                     + dT_dpsi2 * node_list%node(i)%values(1,2,1) * node_list%node(i)%values(1,3,1)  &
-                                    + dT_dz2   * node_list%node(i)%x(2,2)        * node_list%node(i)%x(3,2) &
+                                    + dT_dz2   * node_list%node(i)%x(1,2,2)        * node_list%node(i)%x(1,3,2) &
                                     + dT_dpsi_dz * ( &
-                                      + node_list%node(i)%values(1,3,1) * node_list%node(i)%x(2,2) &
-                                      + node_list%node(i)%values(1,2,1) * node_list%node(i)%x(3,2) &
+                                      + node_list%node(i)%values(1,3,1) * node_list%node(i)%x(1,2,2) &
+                                      + node_list%node(i)%values(1,2,1) * node_list%node(i)%x(1,3,2) &
                                       )
 
   enddo
@@ -89,7 +89,7 @@ do in=2,n_tor
       node_list%node(i)%values(in,:,:) = 0.d0
 
       psi = node_list%node(i)%values(1,1,1)
-      Z   = node_list%node(i)%x(1,2)
+      Z   = node_list%node(i)%x(1,1,2)
 
       psi_n = (psi - ES%psi_axis)/(ES%psi_bnd - ES%psi_axis)
 

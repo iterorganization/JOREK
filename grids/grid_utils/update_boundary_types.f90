@@ -100,7 +100,7 @@ subroutine update_boundary_types(element_list,node_list, across_xpoint)
     write(*,*)'Could not find first boundary element. Aborting...'
     return
   endif
-  if (debug) write(*,'(A,i6,2f10.3)')'Found first bnd elm    :',i_node,node_list%node(i_node)%x(1,1:2)
+  if (debug) write(*,'(A,i6,2f10.3)')'Found first bnd elm    :',i_node,node_list%node(i_node)%x(1,1,1:2)
   
   ! --- Make sure our boundary is coherent (should not last longer than the number of elements)
   found_first  = .false.
@@ -119,7 +119,7 @@ subroutine update_boundary_types(element_list,node_list, across_xpoint)
     endif
     i_node = element_list%element(i_elm_now)%vertex(i_vertex_now)
     if (debug2) write(*,'(A,i6,2f10.3)')'Starting on new element:',i_elm_now
-    if (debug2) write(*,'(A,i6,2f10.3)')'On new elm, starting at:',i_node,node_list%node(i_node)%x(1,1:2)
+    if (debug2) write(*,'(A,i6,2f10.3)')'On new elm, starting at:',i_node,node_list%node(i_node)%x(1,1,1:2)
     if (elm_sum .eq. 1) node_list%node(i_node)%boundary = 1
     if (elm_sum .eq. 2) node_list%node(i_node)%boundary = 3
     
@@ -127,13 +127,13 @@ subroutine update_boundary_types(element_list,node_list, across_xpoint)
     i_vertex_next = mod(i_vertex_now,4) + 1 ! it should always be the same direction (ie. +1, not -1)... or should it?
     call adjacent_elements(element_list,node_list,i_elm_now,i_vertex_next,3,elm_sum)
     if (debug2) write(*,'(A,i6,2f10.3,i2)')'Trying next bnd node   :',element_list%element(i_elm_now)%vertex(i_vertex_next),&
-                                            node_list%node(element_list%element(i_elm_now)%vertex(i_vertex_next))%x(1,1:2),elm_sum
+                                            node_list%node(element_list%element(i_elm_now)%vertex(i_vertex_next))%x(1,1,1:2),elm_sum
     if (elm_sum .eq. 3) then
       ! --- Something wrong: we went back inside grid. change direction...'
       i_vertex_next = mod(i_vertex_now+2,4) + 1
       call adjacent_elements(element_list,node_list,i_elm_now,i_vertex_next,3,elm_sum)
       if (debug2) write(*,'(A,i6,2f10.3,i2)')'Wrong direction, other :',element_list%element(i_elm_now)%vertex(i_vertex_next),&
-                                              node_list%node(element_list%element(i_elm_now)%vertex(i_vertex_next))%x(1,1:2),elm_sum
+                                              node_list%node(element_list%element(i_elm_now)%vertex(i_vertex_next))%x(1,1,1:2),elm_sum
       if (elm_sum .eq. 3) then
         write(*,*)'Something wrong: we went back inside grid. Aborting...'
         exit
@@ -150,13 +150,13 @@ subroutine update_boundary_types(element_list,node_list, across_xpoint)
       i_vertex_next = mod(i_vertex_next,4) + 1 ! it should always be the same direction (ie. +1, not -1)
       call adjacent_elements(element_list,node_list,i_elm_now,i_vertex_next,3,elm_sum)
       if (debug2) write(*,'(A,i6,2f10.3,i2)')'On corner, next node is:',element_list%element(i_elm_now)%vertex(i_vertex_next),&
-                                              node_list%node(element_list%element(i_elm_now)%vertex(i_vertex_next))%x(1,1:2),elm_sum
+                                              node_list%node(element_list%element(i_elm_now)%vertex(i_vertex_next))%x(1,1,1:2),elm_sum
       if ( (elm_sum .eq. 3) .or. (element_list%element(i_elm_now)%vertex(i_vertex_next) .eq. i_node_prev) ) then
         ! --- Something wrong: we went back inside grid. change direction...'
         i_vertex_next = mod(i_vertex_save+2,4) + 1
         call adjacent_elements(element_list,node_list,i_elm_now,i_vertex_next,3,elm_sum)
         if (debug2) write(*,'(A,i6,2f10.3,i2)')'Wrong direction, other :',element_list%element(i_elm_now)%vertex(i_vertex_next),&
-                                                node_list%node(element_list%element(i_elm_now)%vertex(i_vertex_next))%x(1,1:2),elm_sum
+                                                node_list%node(element_list%element(i_elm_now)%vertex(i_vertex_next))%x(1,1,1:2),elm_sum
         if (elm_sum .eq. 3) then
           write(*,*)'Something wrong at corner: we went back inside grid. Aborting...'
           exit
@@ -170,7 +170,7 @@ subroutine update_boundary_types(element_list,node_list, across_xpoint)
         exit
       endif
     endif
-    if (debug2) write(*,'(A,i6,2f10.3)')'Found next bnd node    :',i_node,node_list%node(i_node)%x(1,1:2)
+    if (debug2) write(*,'(A,i6,2f10.3)')'Found next bnd node    :',i_node,node_list%node(i_node)%x(1,1,1:2)
     i_vertex_now = i_vertex_next
   
     ! --- Find the next element (it should have at least 2 boundary nodes!)
@@ -227,7 +227,7 @@ subroutine update_boundary_types(element_list,node_list, across_xpoint)
       write(*,*)'Could not find next element. Aborting...',i_node
       exit
     else
-      if (debug2) write(*,'(A,i6,2f10.3)')'Found next bnd elm/node:',i_node2,node_list%node(i_node2)%x(1,1:2)
+      if (debug2) write(*,'(A,i6,2f10.3)')'Found next bnd elm/node:',i_node2,node_list%node(i_node2)%x(1,1,1:2)
     endif
     
     ! --- Check if we looped all around
@@ -267,8 +267,8 @@ subroutine update_boundary_types(element_list,node_list, across_xpoint)
       write(101,'(A)')                'import pylab'
       write(101,'(A)')                'def main():'
       do i_node=1,node_list%n_nodes
-        write(101,'(A,f15.4)')        ' r = ',node_list%node(i_node)%x(1,1)
-        write(101,'(A,f15.4)')        ' z = ',node_list%node(i_node)%x(1,2)
+        write(101,'(A,f15.4)')        ' r = ',node_list%node(i_node)%x(1,1,1)
+        write(101,'(A,f15.4)')        ' z = ',node_list%node(i_node)%x(1,1,2)
         if (node_list%node(i_node)%boundary .eq. 1) then
           write(101,'(A)')            ' pylab.plot(r,z, "rx")'
         elseif (node_list%node(i_node)%boundary .eq. 3) then
@@ -395,12 +395,12 @@ subroutine update_boundary_types_final(element_list,node_list)
     enddo
 
     ! --- psi and RZ variables
-    R         = node_list%node(i_node)%x(1,1)
-    R_s       = node_list%node(i_node)%x(2,1)
-    R_t       = node_list%node(i_node)%x(3,1)
-    Z         = node_list%node(i_node)%x(1,2)
-    Z_s       = node_list%node(i_node)%x(2,2)
-    Z_t       = node_list%node(i_node)%x(3,2)
+    R         = node_list%node(i_node)%x(1,1,1)
+    R_s       = node_list%node(i_node)%x(1,2,1)
+    R_t       = node_list%node(i_node)%x(1,3,1)
+    Z         = node_list%node(i_node)%x(1,1,2)
+    Z_s       = node_list%node(i_node)%x(1,2,2)
+    Z_t       = node_list%node(i_node)%x(1,3,2)
     xjac      =  R_s*Z_t - R_t*Z_s
     psi_s     = node_list%node(i_node)%values(1,2,1)
     psi_t     = node_list%node(i_node)%values(1,3,1)
@@ -424,14 +424,14 @@ subroutine update_boundary_types_final(element_list,node_list)
       i_node_side   = element_list%element(i_elm_bnd(1))%vertex(i_node_side)
       
       ! --- The tangent vector
-      tang_R = node_list%node(i_node_inside)%x(1,1) - node_list%node(i_node)%x(1,1)
-      tang_Z = node_list%node(i_node_inside)%x(1,2) - node_list%node(i_node)%x(1,2)
+      tang_R = node_list%node(i_node_inside)%x(1,1,1) - node_list%node(i_node)%x(1,1,1)
+      tang_Z = node_list%node(i_node_inside)%x(1,1,2) - node_list%node(i_node)%x(1,1,2)
       alpha_tang = atan2(tang_Z,tang_R)
       if (alpha_tang .lt. 0.d0) alpha_tang = alpha_tang + 2.d0*PI
 
       ! --- The other tangent vector
-      tang_R = node_list%node(i_node_side)%x(1,1) - node_list%node(i_node)%x(1,1)
-      tang_Z = node_list%node(i_node_side)%x(1,2) - node_list%node(i_node)%x(1,2)
+      tang_R = node_list%node(i_node_side)%x(1,1,1) - node_list%node(i_node)%x(1,1,1)
+      tang_Z = node_list%node(i_node_side)%x(1,1,2) - node_list%node(i_node)%x(1,1,2)
       alpha_tang2 = atan2(tang_Z,tang_R)
       if (alpha_tang2 .lt. 0.d0) alpha_tang2 = alpha_tang2 + 2.d0*PI
       
@@ -483,16 +483,16 @@ subroutine update_boundary_types_final(element_list,node_list)
       endif
       
       ! --- The normal vector
-      norm_R = node_list%node(i_node_inside)%x(1,1) - node_list%node(i_node)%x(1,1)
-      norm_Z = node_list%node(i_node_inside)%x(1,2) - node_list%node(i_node)%x(1,2)
+      norm_R = node_list%node(i_node_inside)%x(1,1,1) - node_list%node(i_node)%x(1,1,1)
+      norm_Z = node_list%node(i_node_inside)%x(1,1,2) - node_list%node(i_node)%x(1,1,2)
 
       ! --- The tangent vector
-      tang_R = node_list%node(i_node_side)%x(1,1) - node_list%node(i_node)%x(1,1)
-      tang_Z = node_list%node(i_node_side)%x(1,2) - node_list%node(i_node)%x(1,2)
+      tang_R = node_list%node(i_node_side)%x(1,1,1) - node_list%node(i_node)%x(1,1,1)
+      tang_Z = node_list%node(i_node_side)%x(1,1,2) - node_list%node(i_node)%x(1,1,2)
 
       ! --- The other tangent vector
-      tang_R2 = node_list%node(i_node_side2)%x(1,1) - node_list%node(i_node)%x(1,1)
-      tang_Z2 = node_list%node(i_node_side2)%x(1,2) - node_list%node(i_node)%x(1,2)
+      tang_R2 = node_list%node(i_node_side2)%x(1,1,1) - node_list%node(i_node)%x(1,1,1)
+      tang_Z2 = node_list%node(i_node_side2)%x(1,1,2) - node_list%node(i_node)%x(1,1,2)
 
       ! --- The angles
       alpha_norm = atan2(norm_Z,norm_R)
@@ -753,12 +753,12 @@ subroutine update_boundary_types_final_old(element_list,node_list)
     enddo
 
     ! --- psi and RZ variables
-    R         = node_list%node(i_node)%x(1,1)
-    R_s       = node_list%node(i_node)%x(2,1)
-    R_t       = node_list%node(i_node)%x(3,1)
-    Z         = node_list%node(i_node)%x(1,2)
-    Z_s       = node_list%node(i_node)%x(2,2)
-    Z_t       = node_list%node(i_node)%x(3,2)
+    R         = node_list%node(i_node)%x(1,1,1)
+    R_s       = node_list%node(i_node)%x(1,2,1)
+    R_t       = node_list%node(i_node)%x(1,3,1)
+    Z         = node_list%node(i_node)%x(1,1,2)
+    Z_s       = node_list%node(i_node)%x(1,2,2)
+    Z_t       = node_list%node(i_node)%x(1,3,2)
     xjac      =  R_s*Z_t - R_t*Z_s
     psi_s     = node_list%node(i_node)%values(1,2,1)
     psi_t     = node_list%node(i_node)%values(1,3,1)
@@ -782,14 +782,14 @@ subroutine update_boundary_types_final_old(element_list,node_list)
       i_node_side   = element_list%element(i_elm_bnd(1))%vertex(i_node_side)
       
       ! --- The tangent vector
-      tang_R = node_list%node(i_node_inside)%x(1,1) - node_list%node(i_node)%x(1,1)
-      tang_Z = node_list%node(i_node_inside)%x(1,2) - node_list%node(i_node)%x(1,2)
+      tang_R = node_list%node(i_node_inside)%x(1,1,1) - node_list%node(i_node)%x(1,1,1)
+      tang_Z = node_list%node(i_node_inside)%x(1,1,2) - node_list%node(i_node)%x(1,1,2)
       alpha_tang = atan2(tang_Z,tang_R)
       if (alpha_tang .lt. 0.d0) alpha_tang = alpha_tang + 2.d0*PI
 
       ! --- The other tangent vector
-      tang_R = node_list%node(i_node_side)%x(1,1) - node_list%node(i_node)%x(1,1)
-      tang_Z = node_list%node(i_node_side)%x(1,2) - node_list%node(i_node)%x(1,2)
+      tang_R = node_list%node(i_node_side)%x(1,1,1) - node_list%node(i_node)%x(1,1,1)
+      tang_Z = node_list%node(i_node_side)%x(1,1,2) - node_list%node(i_node)%x(1,1,2)
       alpha_tang2 = atan2(tang_Z,tang_R)
       if (alpha_tang2 .lt. 0.d0) alpha_tang2 = alpha_tang2 + 2.d0*PI
       
@@ -841,16 +841,16 @@ subroutine update_boundary_types_final_old(element_list,node_list)
       endif
       
       ! --- The normal vector
-      norm_R = node_list%node(i_node_inside)%x(1,1) - node_list%node(i_node)%x(1,1)
-      norm_Z = node_list%node(i_node_inside)%x(1,2) - node_list%node(i_node)%x(1,2)
+      norm_R = node_list%node(i_node_inside)%x(1,1,1) - node_list%node(i_node)%x(1,1,1)
+      norm_Z = node_list%node(i_node_inside)%x(1,1,2) - node_list%node(i_node)%x(1,1,2)
 
       ! --- The tangent vector
-      tang_R = node_list%node(i_node_side)%x(1,1) - node_list%node(i_node)%x(1,1)
-      tang_Z = node_list%node(i_node_side)%x(1,2) - node_list%node(i_node)%x(1,2)
+      tang_R = node_list%node(i_node_side)%x(1,1,1) - node_list%node(i_node)%x(1,1,1)
+      tang_Z = node_list%node(i_node_side)%x(1,1,2) - node_list%node(i_node)%x(1,1,2)
 
       ! --- The other tangent vector
-      tang_R2 = node_list%node(i_node_side2)%x(1,1) - node_list%node(i_node)%x(1,1)
-      tang_Z2 = node_list%node(i_node_side2)%x(1,2) - node_list%node(i_node)%x(1,2)
+      tang_R2 = node_list%node(i_node_side2)%x(1,1,1) - node_list%node(i_node)%x(1,1,1)
+      tang_Z2 = node_list%node(i_node_side2)%x(1,1,2) - node_list%node(i_node)%x(1,1,2)
 
       ! --- The angles
       alpha_norm = atan2(norm_Z,norm_R)

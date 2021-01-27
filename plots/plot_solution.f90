@@ -55,13 +55,13 @@ do i=1,element_list%n_elements
 
           iv = element_list%element(i)%vertex(kv)
 
-          x_g(ms,mt) = x_g(ms,mt) + node_list%node(iv)%x(kf,1) * element_list%element(i)%size(kv,kf) * H(kv,kf,ms,mt)
-          y_g(ms,mt) = y_g(ms,mt) + node_list%node(iv)%x(kf,2) * element_list%element(i)%size(kv,kf) * H(kv,kf,ms,mt)
+          x_g(ms,mt) = x_g(ms,mt) + node_list%node(iv)%x(1,kf,1) * element_list%element(i)%size(kv,kf) * H(kv,kf,ms,mt)
+          y_g(ms,mt) = y_g(ms,mt) + node_list%node(iv)%x(1,kf,2) * element_list%element(i)%size(kv,kf) * H(kv,kf,ms,mt)
 
-          x_s(ms,mt) = x_s(ms,mt) + node_list%node(iv)%x(kf,1) * element_list%element(i)%size(kv,kf) * H_s(kv,kf,ms,mt)
-          x_t(ms,mt) = x_t(ms,mt) + node_list%node(iv)%x(kf,1) * element_list%element(i)%size(kv,kf) * H_t(kv,kf,ms,mt)
-          y_s(ms,mt) = y_s(ms,mt) + node_list%node(iv)%x(kf,2) * element_list%element(i)%size(kv,kf) * H_s(kv,kf,ms,mt)
-          y_t(ms,mt) = y_t(ms,mt) + node_list%node(iv)%x(kf,2) * element_list%element(i)%size(kv,kf) * H_t(kv,kf,ms,mt)
+          x_s(ms,mt) = x_s(ms,mt) + node_list%node(iv)%x(1,kf,1) * element_list%element(i)%size(kv,kf) * H_s(kv,kf,ms,mt)
+          x_t(ms,mt) = x_t(ms,mt) + node_list%node(iv)%x(1,kf,1) * element_list%element(i)%size(kv,kf) * H_t(kv,kf,ms,mt)
+          y_s(ms,mt) = y_s(ms,mt) + node_list%node(iv)%x(1,kf,2) * element_list%element(i)%size(kv,kf) * H_s(kv,kf,ms,mt)
+          y_t(ms,mt) = y_t(ms,mt) + node_list%node(iv)%x(1,kf,2) * element_list%element(i)%size(kv,kf) * H_t(kv,kf,ms,mt)
 
        enddo
      enddo
@@ -117,7 +117,7 @@ write(*,*) ' min/max : ',psi_min,psi_max
 call tr_allocate(xp,1,node_list%n_nodes,1,n_dim,"xp",CAT_GRID)
 
 do i=1,node_list%n_nodes
- xp(i,1:n_dim) = node_list%node(i)%x(1,1:n_dim)
+ xp(i,1:n_dim) = node_list%node(i)%x(1,1,1:n_dim)
 enddo
 R_max = maxval(xp(:,1))
 R_min = minval(xp(:,1))
@@ -153,13 +153,13 @@ do i=1,element_list%n_elements
 
           iv = element_list%element(i)%vertex(kv)
 
-          x_g(ms,mt) = x_g(ms,mt) + node_list%node(iv)%x(kf,1) * element_list%element(i)%size(kv,kf) * H(kv,kf,ms,mt)
-          y_g(ms,mt) = y_g(ms,mt) + node_list%node(iv)%x(kf,2) * element_list%element(i)%size(kv,kf) * H(kv,kf,ms,mt)
+          x_g(ms,mt) = x_g(ms,mt) + node_list%node(iv)%x(1,kf,1) * element_list%element(i)%size(kv,kf) * H(kv,kf,ms,mt)
+          y_g(ms,mt) = y_g(ms,mt) + node_list%node(iv)%x(1,kf,2) * element_list%element(i)%size(kv,kf) * H(kv,kf,ms,mt)
 
-          x_s(ms,mt) = x_s(ms,mt) + node_list%node(iv)%x(kf,1) * element_list%element(i)%size(kv,kf) * H_s(kv,kf,ms,mt)
-          x_t(ms,mt) = x_t(ms,mt) + node_list%node(iv)%x(kf,1) * element_list%element(i)%size(kv,kf) * H_t(kv,kf,ms,mt)
-          y_s(ms,mt) = y_s(ms,mt) + node_list%node(iv)%x(kf,2) * element_list%element(i)%size(kv,kf) * H_s(kv,kf,ms,mt)
-          y_t(ms,mt) = y_t(ms,mt) + node_list%node(iv)%x(kf,2) * element_list%element(i)%size(kv,kf) * H_t(kv,kf,ms,mt)
+          x_s(ms,mt) = x_s(ms,mt) + node_list%node(iv)%x(1,kf,1) * element_list%element(i)%size(kv,kf) * H_s(kv,kf,ms,mt)
+          x_t(ms,mt) = x_t(ms,mt) + node_list%node(iv)%x(1,kf,1) * element_list%element(i)%size(kv,kf) * H_t(kv,kf,ms,mt)
+          y_s(ms,mt) = y_s(ms,mt) + node_list%node(iv)%x(1,kf,2) * element_list%element(i)%size(kv,kf) * H_s(kv,kf,ms,mt)
+          y_t(ms,mt) = y_t(ms,mt) + node_list%node(iv)%x(1,kf,2) * element_list%element(i)%size(kv,kf) * H_t(kv,kf,ms,mt)
 
        enddo
      enddo

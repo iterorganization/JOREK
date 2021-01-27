@@ -1439,21 +1439,21 @@ do i_elm=1,element_list%n_elements
     do j=1,n_order+1
       do ms=1, n_gauss
         do mt=1, n_gauss
-          x_g(ms,mt)  = x_g(ms,mt)  + nodes(i)%x(j,1) * element%size(i,j) * H(i,j,ms,mt)
-          x_s(ms,mt)  = x_s(ms,mt)  + nodes(i)%x(j,1) * element%size(i,j) * H_s(i,j,ms,mt)
-          x_t(ms,mt)  = x_t(ms,mt)  + nodes(i)%x(j,1) * element%size(i,j) * H_t(i,j,ms,mt)
+          x_g(ms,mt)  = x_g(ms,mt)  + nodes(i)%x(1,j,1) * element%size(i,j) * H(i,j,ms,mt)
+          x_s(ms,mt)  = x_s(ms,mt)  + nodes(i)%x(1,j,1) * element%size(i,j) * H_s(i,j,ms,mt)
+          x_t(ms,mt)  = x_t(ms,mt)  + nodes(i)%x(1,j,1) * element%size(i,j) * H_t(i,j,ms,mt)
 
-          x_ss(ms,mt) = x_ss(ms,mt) + nodes(i)%x(j,1) * element%size(i,j) * H_ss(i,j,ms,mt)
-          x_st(ms,mt) = x_st(ms,mt) + nodes(i)%x(j,1) * element%size(i,j) * H_st(i,j,ms,mt)
-          x_tt(ms,mt) = x_tt(ms,mt) + nodes(i)%x(j,1) * element%size(i,j) * H_tt(i,j,ms,mt)
+          x_ss(ms,mt) = x_ss(ms,mt) + nodes(i)%x(1,j,1) * element%size(i,j) * H_ss(i,j,ms,mt)
+          x_st(ms,mt) = x_st(ms,mt) + nodes(i)%x(1,j,1) * element%size(i,j) * H_st(i,j,ms,mt)
+          x_tt(ms,mt) = x_tt(ms,mt) + nodes(i)%x(1,j,1) * element%size(i,j) * H_tt(i,j,ms,mt)
 
-          y_g(ms,mt)  = y_g(ms,mt)  + nodes(i)%x(j,2) * element%size(i,j) * H(i,j,ms,mt)
-          y_s(ms,mt)  = y_s(ms,mt)  + nodes(i)%x(j,2) * element%size(i,j) * H_s(i,j,ms,mt)
-          y_t(ms,mt)  = y_t(ms,mt)  + nodes(i)%x(j,2) * element%size(i,j) * H_t(i,j,ms,mt)
+          y_g(ms,mt)  = y_g(ms,mt)  + nodes(i)%x(1,j,2) * element%size(i,j) * H(i,j,ms,mt)
+          y_s(ms,mt)  = y_s(ms,mt)  + nodes(i)%x(1,j,2) * element%size(i,j) * H_s(i,j,ms,mt)
+          y_t(ms,mt)  = y_t(ms,mt)  + nodes(i)%x(1,j,2) * element%size(i,j) * H_t(i,j,ms,mt)
 
-          y_ss(ms,mt) = y_ss(ms,mt) + nodes(i)%x(j,2) * element%size(i,j) * H_ss(i,j,ms,mt)
-          y_st(ms,mt) = y_st(ms,mt) + nodes(i)%x(j,2) * element%size(i,j) * H_st(i,j,ms,mt)
-          y_tt(ms,mt) = y_tt(ms,mt) + nodes(i)%x(j,2) * element%size(i,j) * H_tt(i,j,ms,mt)
+          y_ss(ms,mt) = y_ss(ms,mt) + nodes(i)%x(1,j,2) * element%size(i,j) * H_ss(i,j,ms,mt)
+          y_st(ms,mt) = y_st(ms,mt) + nodes(i)%x(1,j,2) * element%size(i,j) * H_st(i,j,ms,mt)
+          y_tt(ms,mt) = y_tt(ms,mt) + nodes(i)%x(1,j,2) * element%size(i,j) * H_tt(i,j,ms,mt)
 
           psi_g(ms,mt)  = psi_g(ms,mt)  + nodes(i)%values(1,j,1) * element%size(i,j) * H(i,j,ms,mt)
           psi_s(ms,mt)  = psi_s(ms,mt)  + nodes(i)%values(1,j,1) * element%size(i,j) * H_s(i,j,ms,mt)
@@ -1732,8 +1732,8 @@ integer(HID_T)     :: file_id
 integer            :: ierr
 
 ! type_node, node_list%n_nodes
-real(RKIND), allocatable :: t_x(:,:,:)                   ! n_order+1, n_dim
-real(RKIND), allocatable :: t_values(:,:,:,:)            ! n_tor, n_order+1, n_fields
+real(RKIND), allocatable :: t_x(:,:,:,:)                   ! n_coord_tor, n_order+1, n_dim
+real(RKIND), allocatable :: t_values(:,:,:,:)              !       n_tor, n_order+1, n_fields
 
 ! element, element_list%n_elements
 integer,     allocatable :: t_vertex(:,:)                ! n_vertex_max
@@ -1741,7 +1741,7 @@ integer,     allocatable :: t_neighbours(:,:)            ! n_vertex_max
 real(RKIND), allocatable :: t_size(:,:,:)                ! n_vertex_max,n_order+1
 
 ! type_node, node_list%n_nodes
-call tr_allocate(t_x,1,node_list%n_nodes,1,n_order+1,1,n_dim, &
+call tr_allocate(t_x,1,node_list%n_nodes,1,n_coord_tor,1,n_order+1,1,n_dim, &
      "node_list%x",CAT_UNKNOWN)
 call tr_allocate(t_values,1,node_list%n_nodes,1,n_tor,1,n_order+1,1,n_fields, &
      "node_list%values",CAT_UNKNOWN)
@@ -1752,7 +1752,7 @@ call tr_allocate(t_neighbours,1,element_list%n_elements,1,n_vertex_max,"neighbou
 call tr_allocate(t_size,1,element_list%n_elements,1,n_vertex_max,1,n_order+1,"size",CAT_UNKNOWN)
 
 do i=1,node_list%n_nodes
-   t_x(i,:,:)        = node_list%node(i)%x
+   t_x(i,:,:,:)        = node_list%node(i)%x
    t_values(i,:,:,:) = node_list%node(i)%values(:,:,1:n_fields)
 end do
 
@@ -1779,6 +1779,7 @@ call HDF5_integer_saving(file_id,n_fields,'n_var'//char(0))
 call HDF5_integer_saving(file_id,n_dim,'n_dim'//char(0))
 call HDF5_integer_saving(file_id,n_order,'n_order'//char(0))
 call HDF5_integer_saving(file_id,n_tor,'n_tor'//char(0))
+call HDF5_integer_saving(file_id,n_coord_tor,'n_coord_tor'//char(0))
 call HDF5_integer_saving(file_id,n_period,'n_period'//char(0))
 call HDF5_integer_saving(file_id,n_vertex_max,'n_vertex_max'//char(0))
 call HDF5_integer_saving(file_id,n_nodes_max,'n_nodes_max'//char(0))
@@ -1789,8 +1790,8 @@ call HDF5_integer_saving(file_id,node_list%n_nodes,'n_nodes'//char(0))
 call HDF5_integer_saving(file_id,element_list%n_elements,'n_elements'//char(0))
 call HDF5_integer_saving(file_id,node_list%n_dof,'n_dof'//char(0))
 
-call HDF5_array3D_saving(file_id,t_x, &
-     node_list%n_nodes,n_order+1,n_dim,'x'//char(0))
+call HDF5_array4D_saving(file_id,t_x, &
+     node_list%n_nodes,n_coord_tor,n_order+1,n_dim,'x'//char(0))
 call HDF5_array4D_saving(file_id,t_values, &
      node_list%n_nodes,n_tor,n_order+1,n_fields,'values'//char(0))
 

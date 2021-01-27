@@ -140,13 +140,13 @@ module mod_plasma_response
           do ms=1, n_gauss
             do mt=1, n_gauss
 
-              x_g(ms,mt) = x_g(ms,mt) + nodes(i)%x(j,1) * element%size(i,j) * H(i,j,ms,mt)
-              y_g(ms,mt) = y_g(ms,mt) + nodes(i)%x(j,2) * element%size(i,j) * H(i,j,ms,mt)
+              x_g(ms,mt) = x_g(ms,mt) + nodes(i)%x(1,j,1) * element%size(i,j) * H(i,j,ms,mt)
+              y_g(ms,mt) = y_g(ms,mt) + nodes(i)%x(1,j,2) * element%size(i,j) * H(i,j,ms,mt)
 
-              x_s(ms,mt) = x_s(ms,mt) + nodes(i)%x(j,1) * element%size(i,j) * H_s(i,j,ms,mt)
-              x_t(ms,mt) = x_t(ms,mt) + nodes(i)%x(j,1) * element%size(i,j) * H_t(i,j,ms,mt)
-              y_s(ms,mt) = y_s(ms,mt) + nodes(i)%x(j,2) * element%size(i,j) * H_s(i,j,ms,mt)
-              y_t(ms,mt) = y_t(ms,mt) + nodes(i)%x(j,2) * element%size(i,j) * H_t(i,j,ms,mt)
+              x_s(ms,mt) = x_s(ms,mt) + nodes(i)%x(1,j,1) * element%size(i,j) * H_s(i,j,ms,mt)
+              x_t(ms,mt) = x_t(ms,mt) + nodes(i)%x(1,j,1) * element%size(i,j) * H_t(i,j,ms,mt)
+              y_s(ms,mt) = y_s(ms,mt) + nodes(i)%x(1,j,2) * element%size(i,j) * H_s(i,j,ms,mt)
+              y_t(ms,mt) = y_t(ms,mt) + nodes(i)%x(1,j,2) * element%size(i,j) * H_t(i,j,ms,mt)
 
             enddo
           enddo
@@ -258,13 +258,13 @@ module mod_plasma_response
           do ms=1, n_gauss
             do mt=1, n_gauss
 
-              x_g(ms,mt) = x_g(ms,mt) + nodes(i)%x(j,1) * element%size(i,j) * H(i,j,ms,mt)
-              y_g(ms,mt) = y_g(ms,mt) + nodes(i)%x(j,2) * element%size(i,j) * H(i,j,ms,mt)
+              x_g(ms,mt) = x_g(ms,mt) + nodes(i)%x(1,j,1) * element%size(i,j) * H(i,j,ms,mt)
+              y_g(ms,mt) = y_g(ms,mt) + nodes(i)%x(1,j,2) * element%size(i,j) * H(i,j,ms,mt)
 
-              x_s(ms,mt) = x_s(ms,mt) + nodes(i)%x(j,1) * element%size(i,j) * H_s(i,j,ms,mt)
-              x_t(ms,mt) = x_t(ms,mt) + nodes(i)%x(j,1) * element%size(i,j) * H_t(i,j,ms,mt)
-              y_s(ms,mt) = y_s(ms,mt) + nodes(i)%x(j,2) * element%size(i,j) * H_s(i,j,ms,mt)
-              y_t(ms,mt) = y_t(ms,mt) + nodes(i)%x(j,2) * element%size(i,j) * H_t(i,j,ms,mt)
+              x_s(ms,mt) = x_s(ms,mt) + nodes(i)%x(1,j,1) * element%size(i,j) * H_s(i,j,ms,mt)
+              x_t(ms,mt) = x_t(ms,mt) + nodes(i)%x(1,j,1) * element%size(i,j) * H_t(i,j,ms,mt)
+              y_s(ms,mt) = y_s(ms,mt) + nodes(i)%x(1,j,2) * element%size(i,j) * H_s(i,j,ms,mt)
+              y_t(ms,mt) = y_t(ms,mt) + nodes(i)%x(1,j,2) * element%size(i,j) * H_t(i,j,ms,mt)
 
             enddo
           enddo
@@ -403,10 +403,10 @@ module mod_plasma_response
       m_elm     = bnd_elm_list%bnd_element(m_bndelem)%element
       mv1       = bnd_elm_list%bnd_element(m_bndelem)%side
     
-      R1 = node_list%node(bndelem_m%vertex(1))%x(1,1)
-      Z1 = node_list%node(bndelem_m%vertex(1))%x(1,2)
-      R2 = node_list%node(bndelem_m%vertex(2))%x(1,1)
-      Z2 = node_list%node(bndelem_m%vertex(2))%x(1,2)
+      R1 = node_list%node(bndelem_m%vertex(1))%x(1,1,1)
+      Z1 = node_list%node(bndelem_m%vertex(1))%x(1,1,2)
+      R2 = node_list%node(bndelem_m%vertex(2))%x(1,1,1)
+      Z2 = node_list%node(bndelem_m%vertex(2))%x(1,1,2)
     
       ! --- For several points in the boundary element, do...
       L_MP: do m_pt = 1, n_points_elm
@@ -626,10 +626,10 @@ module mod_plasma_response
       m_elm     = bnd_elm_list%bnd_element(m_bndelem)%element
       mv1       = bnd_elm_list%bnd_element(m_bndelem)%side
     
-      R1 = node_list%node(bndelem_m%vertex(1))%x(1,1)
-      Z1 = node_list%node(bndelem_m%vertex(1))%x(1,2)
-      R2 = node_list%node(bndelem_m%vertex(2))%x(1,1)
-      Z2 = node_list%node(bndelem_m%vertex(2))%x(1,2)
+      R1 = node_list%node(bndelem_m%vertex(1))%x(1,1,1)
+      Z1 = node_list%node(bndelem_m%vertex(1))%x(1,1,2)
+      R2 = node_list%node(bndelem_m%vertex(2))%x(1,1,1)
+      Z2 = node_list%node(bndelem_m%vertex(2))%x(1,1,2)
     
       ! --- For several points in the boundary element, do...
       L_MP: do m_pt = 1, n_points_elm

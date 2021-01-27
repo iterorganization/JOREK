@@ -174,8 +174,8 @@ subroutine grid_inside_wall(n_R,n_Z,R_begin,R_end,Z_begin,Z_end,boundary,node_li
       node_list%n_nodes = node_list%n_nodes + 1
       elm_node_index(j,i) = node_list%n_nodes
       ! --- Position
-      node_list%node(node_list%n_nodes)%x(1,1) = R_grid(j,i)
-      node_list%node(node_list%n_nodes)%x(1,2) = Z_grid(j,i)
+      node_list%node(node_list%n_nodes)%x(1,1,1) = R_grid(j,i)
+      node_list%node(node_list%n_nodes)%x(1,1,2) = Z_grid(j,i)
     enddo
   enddo
       
@@ -203,19 +203,19 @@ subroutine grid_inside_wall(n_R,n_Z,R_begin,R_end,Z_begin,Z_end,boundary,node_li
       if (j .eq. 3) jp1 = 4
       if (j .eq. 4) jp1 = 3
       width = sqrt((R_tmp(jp1) - R_tmp(j))**2 + (Z_tmp(jp1) - Z_tmp(j))**2)
-      node_list%node(i_node)%x(2,1) = (R_tmp(jp1) - R_tmp(j)) / width
-      node_list%node(i_node)%x(2,2) = (Z_tmp(jp1) - Z_tmp(j)) / width
+      node_list%node(i_node)%x(1,2,1) = (R_tmp(jp1) - R_tmp(j)) / width
+      node_list%node(i_node)%x(1,2,2) = (Z_tmp(jp1) - Z_tmp(j)) / width
       ! --- vector v
       if (j .eq. 1) jp1 = 4
       if (j .eq. 2) jp1 = 3
       if (j .eq. 3) jp1 = 2
       if (j .eq. 4) jp1 = 1
       width = sqrt((R_tmp(jp1) - R_tmp(j))**2 + (Z_tmp(jp1) - Z_tmp(j))**2)
-      node_list%node(i_node)%x(3,1) = (R_tmp(jp1) - R_tmp(j)) / width
-      node_list%node(i_node)%x(3,2) = (Z_tmp(jp1) - Z_tmp(j)) / width
+      node_list%node(i_node)%x(1,3,1) = (R_tmp(jp1) - R_tmp(j)) / width
+      node_list%node(i_node)%x(1,3,2) = (Z_tmp(jp1) - Z_tmp(j)) / width
       ! --- vector w
-      node_list%node(i_node)%x(4,1) = 0.d0
-      node_list%node(i_node)%x(4,2) = 0.d0
+      node_list%node(i_node)%x(1,4,1) = 0.d0
+      node_list%node(i_node)%x(1,4,2) = 0.d0
       
       ! --- boundary
       node_list%node(i_node)%boundary = 0
@@ -230,9 +230,9 @@ subroutine grid_inside_wall(n_R,n_Z,R_begin,R_end,Z_begin,Z_end,boundary,node_li
       
       ! --- values in grid
       node_list%node(i_node)%values(1,1,1) = psi
-      node_list%node(i_node)%values(1,2,1) = psi_R * node_list%node(i_node)%x(2,1) + psi_Z * node_list%node(i_node)%x(2,2)
-      node_list%node(i_node)%values(1,3,1) = psi_R * node_list%node(i_node)%x(3,1) + psi_Z * node_list%node(i_node)%x(3,2)
-      node_list%node(i_node)%values(1,4,1) = psi_R * node_list%node(i_node)%x(4,1) + psi_Z * node_list%node(i_node)%x(4,2)
+      node_list%node(i_node)%values(1,2,1) = psi_R * node_list%node(i_node)%x(1,2,1) + psi_Z * node_list%node(i_node)%x(1,2,2)
+      node_list%node(i_node)%values(1,3,1) = psi_R * node_list%node(i_node)%x(1,3,1) + psi_Z * node_list%node(i_node)%x(1,3,2)
+      node_list%node(i_node)%values(1,4,1) = psi_R * node_list%node(i_node)%x(1,4,1) + psi_Z * node_list%node(i_node)%x(1,4,2)
     enddo
                        
     
@@ -246,13 +246,13 @@ subroutine grid_inside_wall(n_R,n_Z,R_begin,R_end,Z_begin,Z_end,boundary,node_li
       iuv = mod(iv+1,2)+1           ! the direction vector corresponding to this edge (i)
 
       inode_0 = element_list%element(k)%vertex(iv)
-      xx_0    = node_list%node(inode_0)%x(1,:)
-      uv_0    = node_list%node(inode_0)%x(iuv+1,:)
+      xx_0    = node_list%node(inode_0)%x(1,1,:)
+      uv_0    = node_list%node(inode_0)%x(1,iuv+1,:)
 
       ip      = mod(iv,4)+1
       inode_p = element_list%element(k)%vertex(ip)
-      xx_p    = node_list%node(inode_p)%x(1,:)
-      uv_p    = node_list%node(inode_p)%x(iuv+1,:)
+      xx_p    = node_list%node(inode_p)%x(1,1,:)
+      uv_p    = node_list%node(inode_p)%x(1,iuv+1,:)
 
       element_list%element(k)%size(iv,1)     = 1.
       element_list%element(k)%size(iv,iuv+1) = sign(dlength(xx_p,xx_0),ddot(n_dim,xx_p - xx_0,1,uv_0,1)) /3.d0
@@ -275,14 +275,14 @@ subroutine grid_inside_wall(n_R,n_Z,R_begin,R_end,Z_begin,Z_end,boundary,node_li
   if ( (tokamak_device(1:6) .eq. 'MAST-U') .and. (abs(xshift) .gt. 0.d0) ) then
     write(*,*)'WARNING!!! shifting plasma, use xshift=0.0 if you do not want to!' 
     do inode=1, node_list%n_nodes
-      if ( (node_list%node(inode)%boundary .gt. 0) .and. (node_list%node(inode)%x(1,1) .lt. 0.37) ) then
-      !if ( (node_list%node(inode)%boundary .gt. 0) .and. (abs(node_list%node(inode)%x(1,2)) .le. 1.2) ) then
+      if ( (node_list%node(inode)%boundary .gt. 0) .and. (node_list%node(inode)%x(1,1,1) .lt. 0.37) ) then
+      !if ( (node_list%node(inode)%boundary .gt. 0) .and. (abs(node_list%node(inode)%x(1,1,2)) .le. 1.2) ) then
         Zmin  = -1.1!-0.7
         z_min = -0.3!-0.4
         Zmax  = +1.1!+0.7
         z_max = +0.3!+0.4
-        R_elm = node_list%node(inode)%x(1,1)
-        Z_elm = node_list%node(inode)%x(1,2)
+        R_elm = node_list%node(inode)%x(1,1,1)
+        Z_elm = node_list%node(inode)%x(1,1,2)
         diff  = xshift
         if ( (Z_elm .le. z_min) .and. (Z_elm .ge. Zmin) ) then
           diff = (Z_elm-Zmin)/(z_min-Zmin)*diff
@@ -322,11 +322,11 @@ subroutine grid_inside_wall(n_R,n_Z,R_begin,R_end,Z_begin,Z_end,boundary,node_li
       do j=1,n_loop
         do i=1,2
           index = element_list%element(j)%vertex(i)
-          write(101,'(A,i6,A,f15.4)') ' r[',4*(j-1)+2*i-2,'] = ',node_list%node(index)%x(1,1)
-          write(101,'(A,i6,A,f15.4)') ' z[',4*(j-1)+2*i-2,'] = ',node_list%node(index)%x(1,2)
+          write(101,'(A,i6,A,f15.4)') ' r[',4*(j-1)+2*i-2,'] = ',node_list%node(index)%x(1,1,1)
+          write(101,'(A,i6,A,f15.4)') ' z[',4*(j-1)+2*i-2,'] = ',node_list%node(index)%x(1,1,2)
           index = element_list%element(j)%vertex(i+2)
-          write(101,'(A,i6,A,f15.4)') ' r[',4*(j-1)+2*i-1,'] = ',node_list%node(index)%x(1,1)
-          write(101,'(A,i6,A,f15.4)') ' z[',4*(j-1)+2*i-1,'] = ',node_list%node(index)%x(1,2)
+          write(101,'(A,i6,A,f15.4)') ' r[',4*(j-1)+2*i-1,'] = ',node_list%node(index)%x(1,1,1)
+          write(101,'(A,i6,A,f15.4)') ' z[',4*(j-1)+2*i-1,'] = ',node_list%node(index)%x(1,1,2)
         enddo
       enddo
       write(101,'(A,i6,A)')    ' for i in range (0,',n_loop,'):'
@@ -335,8 +335,8 @@ subroutine grid_inside_wall(n_R,n_Z,R_begin,R_end,Z_begin,Z_end,boundary,node_li
       do j=1,n_loop
         do i=1,4
           index = element_list%element(j)%vertex(i)
-          write(101,'(A,i6,A,f15.4)') ' r[',4*(j-1)+i-1,'] = ',node_list%node(index)%x(1,1)
-          write(101,'(A,i6,A,f15.4)') ' z[',4*(j-1)+i-1,'] = ',node_list%node(index)%x(1,2)
+          write(101,'(A,i6,A,f15.4)') ' r[',4*(j-1)+i-1,'] = ',node_list%node(index)%x(1,1,1)
+          write(101,'(A,i6,A,f15.4)') ' z[',4*(j-1)+i-1,'] = ',node_list%node(index)%x(1,1,2)
         enddo
       enddo
       write(101,'(A,i6,A)')    ' for i in range (0,',n_loop,'):'

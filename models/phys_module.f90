@@ -202,7 +202,7 @@ module phys_module
 
   integer :: rst_hdf5                   !< Write hdf5 restart files if set to 1
   integer :: rst_hdf5_version           !< Write which version of hdf5 files?
-  integer, parameter :: rst_hdf5_version_supported = 1 !< What is the highest version number supported?
+  integer, parameter :: rst_hdf5_version_supported = 2 !< What is the highest version number supported?
   
   !> @name Machine name
   character(len=512) :: tokamak_device 	!< Name of the tokamak device we are simulating

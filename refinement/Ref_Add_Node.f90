@@ -67,24 +67,24 @@ subroutine Ref_Add_Node(node_list, element_list,lambda, mu, iref,iside, i12, ine
 
             do l = 1, n_order+1
 	    
-	         Somme_X = Somme_X + node_list%node(pr(k))%x(l,1) * H(k,l)	 &
+	         Somme_X = Somme_X + node_list%node(pr(k))%x(1,l,1) * H(k,l)	 &
 		     * element_list%element(iref)%size(k,l)
-	         Somme_Y = Somme_Y + node_list%node(pr(k))%x(l,2) * H(k,l)	 &
+	         Somme_Y = Somme_Y + node_list%node(pr(k))%x(1,l,2) * H(k,l)	 &
              	     * element_list%element(iref)%size(k,l)
                 
-	         dX_ds = dx_ds + node_list%node(pr(k))%x(l,1) * H_s(k,l)    &
+	         dX_ds = dx_ds + node_list%node(pr(k))%x(1,l,1) * H_s(k,l)    &
 		     * element_list%element(iref)%size(k,l)
-	         dy_ds = dy_ds + node_list%node(pr(k))%x(l,2) * H_s(k,l)    &
+	         dy_ds = dy_ds + node_list%node(pr(k))%x(1,l,2) * H_s(k,l)    &
              	     * element_list%element(iref)%size(k,l)	       
             
-	         dx_dt = dx_dt + node_list%node(pr(k))%x(l,1) * H_t(k,l)    &
+	         dx_dt = dx_dt + node_list%node(pr(k))%x(1,l,1) * H_t(k,l)    &
 		     * element_list%element(iref)%size(k,l)
-	         dy_dt = dy_dt + node_list%node(pr(k))%x(l,2) * H_t(k,l)    &
+	         dy_dt = dy_dt + node_list%node(pr(k))%x(1,l,2) * H_t(k,l)    &
              	     * element_list%element(iref)%size(k,l)
              	       
-	         d2X_dsdt = d2X_dsdt + node_list%node(pr(k))%x(l,1) * H_st(k,l)    &
+	         d2X_dsdt = d2X_dsdt + node_list%node(pr(k))%x(1,l,1) * H_st(k,l)    &
 		     * element_list%element(iref)%size(k,l)
-	         d2Y_dsdt = d2Y_dsdt + node_list%node(pr(k))%x(l,2) * H_st(k,l)    &
+	         d2Y_dsdt = d2Y_dsdt + node_list%node(pr(k))%x(1,l,2) * H_st(k,l)    &
              	     * element_list%element(iref)%size(k,l)	       
             enddo
        enddo  
@@ -150,10 +150,10 @@ subroutine Ref_Add_Node(node_list, element_list,lambda, mu, iref,iside, i12, ine
 
          
        do j = 1, 2 !  directions "s" and "t"				     
-            node_list%node(inew)%x(1,j) = P(j)	       
-            node_list%node(inew)%x(2,j) = u(j) 
-            node_list%node(inew)%x(3,j) = v(j) 
-            node_list%node(inew)%x(4,j) = w(j)
+            node_list%node(inew)%x(1,1,j) = P(j)	       
+            node_list%node(inew)%x(1,2,j) = u(j) 
+            node_list%node(inew)%x(1,3,j) = v(j) 
+            node_list%node(inew)%x(1,4,j) = w(j)
                 
        end do
 

@@ -71,8 +71,8 @@ do kv = 1,n_vertex_max  ! 4 vertices
       end do
     end do
   end if
-  xR(:,kv) = node_list%node(iv)%x(:,1) * sizes(:)
-  xZ(:,kv) = node_list%node(iv)%x(:,2) * sizes(:)
+  xR(:,kv) = node_list%node(iv)%x(1,:,1) * sizes(:)
+  xZ(:,kv) = node_list%node(iv)%x(1,:,2) * sizes(:)
 end do
 
 ! together 7%
@@ -141,8 +141,8 @@ do kv = 1,n_vertex_max  ! 4 vertices
       end do
     end do
   end if
-  xR(:,kv) = node_list%node(iv)%x(:,1) * sizes(:)
-  xZ(:,kv) = node_list%node(iv)%x(:,2) * sizes(:)
+  xR(:,kv) = node_list%node(iv)%x(1,:,1) * sizes(:)
+  xZ(:,kv) = node_list%node(iv)%x(1,:,2) * sizes(:)
 end do
 
 ! together 7%
@@ -224,8 +224,8 @@ do kv = 1,n_vertex_max  ! 4 vertices
       end do
     end do
   end if
-  xR(:,kv) = node_list%node(iv)%x(:,1) * sizes(:)
-  xZ(:,kv) = node_list%node(iv)%x(:,2) * sizes(:)
+  xR(:,kv) = node_list%node(iv)%x(1,:,1) * sizes(:)
+  xZ(:,kv) = node_list%node(iv)%x(1,:,2) * sizes(:)
 end do
 
 R    = sum(xR*H)
@@ -507,8 +507,8 @@ R = 0.d0; Z = 0.d0
 do kv = 1,n_vertex_max  ! 4 vertices
   iv = element_list%element(i_elm)%vertex(kv)  ! the node number
   do kf = 1, n_order+1       ! 4 basis functions
-    xx1 = node_list%node(iv)%x(kf,1)
-    xx2 = node_list%node(iv)%x(kf,2)
+    xx1 = node_list%node(iv)%x(1,kf,1)
+    xx2 = node_list%node(iv)%x(1,kf,2)
     ss  = element_list%element(i_elm)%size(kv,kf)
     
     R    = R    + xx1 * ss * G(kv,kf)
@@ -540,8 +540,8 @@ call basisfunctions_T(s,t,H,H_s,H_t)
 do kv = 1,n_vertex_max  ! 4 vertices
   iv = element_list%element(i_elm)%vertex(kv)
   sizes(:) = element_list%element(i_elm)%size(kv,:)
-  xR(:,kv) = node_list%node(iv)%x(:,1) * sizes(:)
-  xZ(:,kv) = node_list%node(iv)%x(:,2) * sizes(:)
+  xR(:,kv) = node_list%node(iv)%x(1,:,1) * sizes(:)
+  xZ(:,kv) = node_list%node(iv)%x(1,:,2) * sizes(:)
 end do
 
 R   = sum(xR*H)
@@ -575,8 +575,8 @@ call basisfunctions_T(s,t,H,H_s,H_t,H_st,H_ss,H_tt)
 do kv = 1,n_vertex_max  ! 4 vertices
   iv = element_list%element(i_elm)%vertex(kv)
   sizes(:) = element_list%element(i_elm)%size(kv,:)
-  xR(:,kv) = node_list%node(iv)%x(:,1) * sizes(:)
-  xZ(:,kv) = node_list%node(iv)%x(:,2) * sizes(:)
+  xR(:,kv) = node_list%node(iv)%x(1,:,1) * sizes(:)
+  xZ(:,kv) = node_list%node(iv)%x(1,:,2) * sizes(:)
 end do
 
 R    = sum(xR*H)

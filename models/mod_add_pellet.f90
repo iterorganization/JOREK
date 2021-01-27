@@ -34,21 +34,21 @@ call tr_allocate(T_phi_st,1,nfft+2,"T_phi_st",CAT_GRID)
 
 do i=1,node_list%n_nodes
 
-  radius = sqrt((node_list%node(i)%x(1,1)-pellet_R)**2 + (node_list%node(i)%x(1,2)-pellet_Z)**2 )
+  radius = sqrt((node_list%node(i)%x(1,1,1)-pellet_R)**2 + (node_list%node(i)%x(1,1,2)-pellet_Z)**2 )
   
-  dradius_dR = (node_list%node(i)%x(1,1)-pellet_R)/radius
-  dradius_dZ = (node_list%node(i)%x(1,2)-pellet_Z)/radius
+  dradius_dR = (node_list%node(i)%x(1,1,1)-pellet_R)/radius
+  dradius_dZ = (node_list%node(i)%x(1,1,2)-pellet_Z)/radius
   
-  dradius_DRR = -1d0 / radius**3d0 * (node_list%node(i)%x(1,1)-pellet_R)**2 + 1.d0/radius
-  dradius_DRZ = -1d0 / radius**3d0 * (node_list%node(i)%x(1,2)-pellet_Z)**2 + 1.d0/radius
-  dradius_DZZ = -1d0 / radius**3d0 * (node_list%node(i)%x(1,1)-pellet_R)*(node_list%node(i)%x(1,2)-pellet_Z) 
+  dradius_DRR = -1d0 / radius**3d0 * (node_list%node(i)%x(1,1,1)-pellet_R)**2 + 1.d0/radius
+  dradius_DRZ = -1d0 / radius**3d0 * (node_list%node(i)%x(1,1,2)-pellet_Z)**2 + 1.d0/radius
+  dradius_DZZ = -1d0 / radius**3d0 * (node_list%node(i)%x(1,1,1)-pellet_R)*(node_list%node(i)%x(1,1,2)-pellet_Z) 
   
-  dR_ds   = node_list%node(i)%x(2,1)
-  dR_dt   = node_list%node(i)%x(3,1)
-  dR_dsdt = node_list%node(i)%x(4,1)
-  dZ_ds   = node_list%node(i)%x(2,2)
-  dZ_dt   = node_list%node(i)%x(3,2)
-  dZ_dsdt = node_list%node(i)%x(4,2)
+  dR_ds   = node_list%node(i)%x(1,2,1)
+  dR_dt   = node_list%node(i)%x(1,3,1)
+  dR_dsdt = node_list%node(i)%x(1,4,1)
+  dZ_ds   = node_list%node(i)%x(1,2,2)
+  dZ_dt   = node_list%node(i)%x(1,3,2)
+  dZ_dsdt = node_list%node(i)%x(1,4,2)
   
   dradius_ds = dradius_dR * dR_ds + dradius_dZ * dZ_ds
   dradius_dt = dradius_dR * dR_dt + dradius_dZ * dZ_dt

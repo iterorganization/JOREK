@@ -56,17 +56,17 @@ do j=1,nZ
 
     inode = inode + 1
 
-    node_list%node(inode)%x(1,1) = R_begin + (R_end - R_begin) * float(i-1)/float(nR-1)   ! the position of the node
-    node_list%node(inode)%x(1,2) = Z_begin + (Z_end - Z_begin) * float(j-1)/float(nZ-1)
+    node_list%node(inode)%x(1,1,1) = R_begin + (R_end - R_begin) * float(i-1)/float(nR-1)   ! the position of the node
+    node_list%node(inode)%x(1,1,2) = Z_begin + (Z_end - Z_begin) * float(j-1)/float(nZ-1)
 
-    node_list%node(inode)%x(2,1) = 1.0d0                ! the unit vector u
-    node_list%node(inode)%x(2,2) = sqrt(1.d0 - node_list%node(inode)%x(2,1)**2)
+    node_list%node(inode)%x(1,2,1) = 1.0d0                ! the unit vector u
+    node_list%node(inode)%x(1,2,2) = sqrt(1.d0 - node_list%node(inode)%x(1,2,1)**2)
 
-    node_list%node(inode)%x(3,1) = 0.d0                ! the unit vector v
-    node_list%node(inode)%x(3,2) = sqrt(1.d0 - node_list%node(inode)%x(3,1)**2)
+    node_list%node(inode)%x(1,3,1) = 0.d0                ! the unit vector v
+    node_list%node(inode)%x(1,3,2) = sqrt(1.d0 - node_list%node(inode)%x(1,3,1)**2)
 
-    node_list%node(inode)%x(4,1) = 0.                ! the vector w
-    node_list%node(inode)%x(4,2) = 0.
+    node_list%node(inode)%x(1,4,1) = 0.                ! the vector w
+    node_list%node(inode)%x(1,4,2) = 0.
 
     if (boundary) then
       if ((i .eq. 1) .or. (i .eq. nR)) node_list%node(inode)%boundary = node_list%node(inode)%boundary + 2
@@ -119,13 +119,13 @@ do k=1, element_list%n_elements   ! fill in the size of the elements
    iuv = mod(iv+1,2)+1           ! the direction vector corresponding to this edge (i)
 
    inode_0 = element_list%element(k)%vertex(iv)
-   xx_0    = node_list%node(inode_0)%x(1,:)
-   uv_0    = node_list%node(inode_0)%x(iuv+1,:)
+   xx_0    = node_list%node(inode_0)%x(1,1,:)
+   uv_0    = node_list%node(inode_0)%x(1,iuv+1,:)
 
    ip      = mod(iv,4)+1
    inode_p = element_list%element(k)%vertex(ip)
-   xx_p    = node_list%node(inode_p)%x(1,:)
-   uv_p    = node_list%node(inode_p)%x(iuv+1,:)
+   xx_p    = node_list%node(inode_p)%x(1,1,:)
+   uv_p    = node_list%node(inode_p)%x(1,iuv+1,:)
 
    element_list%element(k)%size(iv,1)     = 1.
    element_list%element(k)%size(iv,iuv+1) = sign(dlength(xx_p,xx_0),ddot(n_dim,xx_p - xx_0,1,uv_0,1)) /3.d0

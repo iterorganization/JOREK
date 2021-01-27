@@ -204,10 +204,10 @@ contains
 
                              index_node = node_list%node(inode)%index(1)  ! index in RHS (or matrix A not compressed)
 
-                             Rnode     = node_list%node(inode)%x(1,1)
-                             dRnode_ds = node_list%node(inode)%x(2,1)
-                             Znode     = node_list%node(inode)%x(1,2)
-                             dZnode_ds = node_list%node(inode)%x(2,2)
+                             Rnode     = node_list%node(inode)%x(1,1,1)
+                             dRnode_ds = node_list%node(inode)%x(1,2,1)
+                             Znode     = node_list%node(inode)%x(1,1,2)
+                             dZnode_ds = node_list%node(inode)%x(1,2,2)
 
                              if (in.eq.RMP_har_cos) then
                                 delta_psi_rmp = psi_RMP_cos1(node_list%node(inode)%boundary_index)
@@ -314,10 +314,10 @@ contains
 
                             T0        = max(node_list%node(inode)%values(1,1,6), T_min)
                             Vpar0     = node_list%node(inode)%values(1,1,7)
-                            BigR      = node_list%node(inode)%x(1,1)
+                            BigR      = node_list%node(inode)%x(1,1,1)
                             dT0_ds    = node_list%node(inode)%values(1,2,6)
                             dVpar0_ds = node_list%node(inode)%values(1,2,7)
-                            dBigR_ds  = node_list%node(inode)%x(2,1)
+                            dBigR_ds  = node_list%node(inode)%x(1,2,1)
 
                             ps0_s     = node_list%node(inode)%values(1,2,1)
                             ps0_t     = node_list%node(inode)%values(1,3,1)
@@ -325,10 +325,10 @@ contains
                             U0_s      = node_list%node(inode)%values(1,2,2)
                             U0_t      = node_list%node(inode)%values(1,3,2)
 
-                            R_s       = node_list%node(inode)%x(2,1)
-                            R_t       = node_list%node(inode)%x(3,1)
-                            Z_s       = node_list%node(inode)%x(2,2)
-                            Z_t       = node_list%node(inode)%x(3,2)
+                            R_s       = node_list%node(inode)%x(1,2,1)
+                            R_t       = node_list%node(inode)%x(1,3,1)
+                            Z_s       = node_list%node(inode)%x(1,2,2)
+                            Z_t       = node_list%node(inode)%x(1,3,2)
 
                             xjac  =  R_s*Z_t - R_t*Z_s
                             ps0_x = (   Z_t * ps0_s - Z_s * ps0_t ) / xjac
@@ -339,23 +339,23 @@ contains
 
                             alpha = ((Z_axis) - Z_xpoint(1))/(R_axis - R_xpoint(1))
 
-                            R_inside = alpha*(node_list%node(inode)%x(1,2)-Z_xpoint(1)) &
-                                 + node_list%node(inode)%x(1,1) + alpha**2 * R_xpoint(1)
+                            R_inside = alpha*(node_list%node(inode)%x(1,1,2)-Z_xpoint(1)) &
+                                 + node_list%node(inode)%x(1,1,1) + alpha**2 * R_xpoint(1)
                             R_inside = R_inside / (1.d0 + alpha**2)
                             Z_inside = alpha * (R_inside - R_xpoint(1)) + Z_xpoint(1)
 
                             R_inside = min(max(R_inside,R_xpoint(1)),R_axis)
                             Z_inside = min(max(Z_inside,Z_xpoint(1)),Z_axis)
 
-                            direction = ps0_s * (  (node_list%node(inode)%x(1,1)-R_inside)*Z_s &
-                                 - (node_list%node(inode)%x(1,2)-Z_inside)*R_s)
+                            direction = ps0_s * (  (node_list%node(inode)%x(1,1,1)-R_inside)*Z_s &
+                                 - (node_list%node(inode)%x(1,1,2)-Z_inside)*R_s)
                             direction = direction / abs(direction)
 
                             if (xcase2 .eq. 2) then
                                direction = -direction
-                            else if ((xcase2 .eq. 3).and.(node_list%node(inode)%x(1,2).gt.Z_axis +0.1).and.(node_list%node(inode)%x(1,1).gt.R_xpoint(2))) then
+                            else if ((xcase2 .eq. 3).and.(node_list%node(inode)%x(1,1,2).gt.Z_axis +0.1).and.(node_list%node(inode)%x(1,1,1).gt.R_xpoint(2))) then
                               direction = -1.
-                            else if ((xcase2 .eq. 3) .and. (node_list%node(inode)%x(1,2).gt.Z_axis +0.1).and.(node_list%node(inode)%x(1,1).lt.R_xpoint(2)))then
+                            else if ((xcase2 .eq. 3) .and. (node_list%node(inode)%x(1,1,2).gt.Z_axis +0.1).and.(node_list%node(inode)%x(1,1,1).lt.R_xpoint(2)))then
                               direction = +1.
                             end if
 
@@ -530,10 +530,10 @@ contains
 
                             T0        = max(node_list%node(inode)%values(1,1,6), T_min)
                             Vpar0     = node_list%node(inode)%values(1,1,7)
-                            BigR      = node_list%node(inode)%x(1,1)
+                            BigR      = node_list%node(inode)%x(1,1,1)
                             dT0_dt    = node_list%node(inode)%values(1,3,6)
                             dVpar0_dt = node_list%node(inode)%values(1,3,7)
-                            dBigR_dt  = node_list%node(inode)%x(3,1)
+                            dBigR_dt  = node_list%node(inode)%x(1,3,1)
 
                             ps0_s     = node_list%node(inode)%values(1,2,1)
                             ps0_t     = node_list%node(inode)%values(1,3,1)
@@ -541,10 +541,10 @@ contains
                             U0_s      = node_list%node(inode)%values(1,2,2)
                             U0_t      = node_list%node(inode)%values(1,3,2)
 
-                            R_s       = node_list%node(inode)%x(2,1)
-                            R_t       = node_list%node(inode)%x(3,1)
-                            Z_s       = node_list%node(inode)%x(2,2)
-                            Z_t       = node_list%node(inode)%x(3,2)
+                            R_s       = node_list%node(inode)%x(1,2,1)
+                            R_t       = node_list%node(inode)%x(1,3,1)
+                            Z_s       = node_list%node(inode)%x(1,2,2)
+                            Z_t       = node_list%node(inode)%x(1,3,2)
 
                             xjac  =  R_s*Z_t - R_t*Z_s
                             ps0_x = (   Z_t * ps0_s - Z_s * ps0_t ) / xjac
@@ -555,16 +555,16 @@ contains
 
                             alpha = ((Z_axis) - Z_xpoint(1))/(R_axis - R_xpoint(1))
 
-                            R_inside = alpha*(node_list%node(inode)%x(1,2)-Z_xpoint(1)) &
-                                 + node_list%node(inode)%x(1,1) + alpha**2 * R_xpoint(1)
+                            R_inside = alpha*(node_list%node(inode)%x(1,1,2)-Z_xpoint(1)) &
+                                 + node_list%node(inode)%x(1,1,1) + alpha**2 * R_xpoint(1)
                             R_inside = R_inside / (1.d0 + alpha**2)
                             Z_inside = alpha * (R_inside - R_xpoint(1)) + Z_xpoint(1)
 
                             R_inside = min(max(R_inside,R_xpoint(1)),R_axis)
                             Z_inside = min(max(Z_inside,Z_xpoint(1)),Z_axis)
 
-                            direction = ps0_t * (  (node_list%node(inode)%x(1,1)-R_inside)*Z_t &
-                                 - (node_list%node(inode)%x(1,2)-Z_inside)*R_t)
+                            direction = ps0_t * (  (node_list%node(inode)%x(1,1,1)-R_inside)*Z_t &
+                                 - (node_list%node(inode)%x(1,1,2)-Z_inside)*R_t)
                             direction = direction / abs(direction)
 
                             ! --- Special field direction for grid patches
@@ -682,10 +682,10 @@ contains
 
                              index_node = node_list%node(inode)%index(1)  ! index in RHS (or matrix A not compressed)
 
-                             Rnode     = node_list%node(inode)%x(1,1)
-                             dRnode_dt = node_list%node(inode)%x(3,1)
-                             Znode     = node_list%node(inode)%x(1,2)
-                             dZnode_dt = node_list%node(inode)%x(3,2)
+                             Rnode     = node_list%node(inode)%x(1,1,1)
+                             dRnode_dt = node_list%node(inode)%x(1,3,1)
+                             Znode     = node_list%node(inode)%x(1,1,2)
+                             dZnode_dt = node_list%node(inode)%x(1,3,2)
 
                              if (in.eq.RMP_har_cos) then
 
@@ -811,12 +811,12 @@ contains
 
                              index_node = node_list%node(inode)%index(1)  ! index in RHS (or matrix A not compressed)
 
-                             Rnode     = node_list%node(inode)%x(1,1)
-                             dRnode_ds = node_list%node(inode)%x(2,1)
-                             dRnode_dt = node_list%node(inode)%x(3,1)
-                             Znode     = node_list%node(inode)%x(1,2)
-                             dZnode_ds = node_list%node(inode)%x(2,2)
-                             dZnode_dt = node_list%node(inode)%x(3,2)
+                             Rnode     = node_list%node(inode)%x(1,1,1)
+                             dRnode_ds = node_list%node(inode)%x(1,2,1)
+                             dRnode_dt = node_list%node(inode)%x(1,3,1)
+                             Znode     = node_list%node(inode)%x(1,1,2)
+                             dZnode_ds = node_list%node(inode)%x(1,2,2)
+                             dZnode_dt = node_list%node(inode)%x(1,3,2)
 
                              if (in.eq.RMP_har_cos) then
                                 delta_psi_rmp = psi_RMP_cos1(node_list%node(inode)%boundary_index)

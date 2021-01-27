@@ -29,10 +29,10 @@ subroutine find_strike(node_list, bnd_elm_list)
     psi1 = node_list%node(iv1)%values(1,1,1)
     psi2 = node_list%node(iv2)%values(1,1,1)
     
-    R1   = node_list%node(iv1)%x(1,1)
-    Z1   = node_list%node(iv1)%x(1,2)
-    R2   = node_list%node(iv2)%x(1,1)
-    Z2   = node_list%node(iv2)%x(1,2)
+    R1   = node_list%node(iv1)%x(1,1,1)
+    Z1   = node_list%node(iv1)%x(1,1,2)
+    R2   = node_list%node(iv2)%x(1,1,1)
+    Z2   = node_list%node(iv2)%x(1,1,2)
     
     if ( (min(psi1,psi2) < ES%psi_bnd) .and. (max(psi1,psi2) > ES%psi_bnd) ) then
       ES%num_strike = ES%num_strike + 1

@@ -62,11 +62,11 @@ do i=1,2
 
     do ms=1, n_gauss
 
-      x_g(ms)  = x_g(ms)  + nodes(i)%x(j,1) * element%size(i,j) * H1(i,j,ms)
-      x_s(ms)  = x_s(ms)  + nodes(i)%x(j,1) * element%size(i,j) * H1_s(i,j,ms)
+      x_g(ms)  = x_g(ms)  + nodes(i)%x(1,j,1) * element%size(i,j) * H1(i,j,ms)
+      x_s(ms)  = x_s(ms)  + nodes(i)%x(1,j,1) * element%size(i,j) * H1_s(i,j,ms)
 
-      y_g(ms)  = y_g(ms)  + nodes(i)%x(j,2) * element%size(i,j) * H1(i,j,ms)
-      y_s(ms)  = y_s(ms)  + nodes(i)%x(j,2) * element%size(i,j) * H1_s(i,j,ms)
+      y_g(ms)  = y_g(ms)  + nodes(i)%x(1,j,2) * element%size(i,j) * H1(i,j,ms)
+      y_s(ms)  = y_s(ms)  + nodes(i)%x(1,j,2) * element%size(i,j) * H1_s(i,j,ms)
 
       do mp=1,n_plane
 

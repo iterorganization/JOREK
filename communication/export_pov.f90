@@ -21,10 +21,10 @@ character*11 :: filename
 
 x_min = 1.d10; x_max = -1.d10; y_min = 1.d10; y_max = -1.d10;  z_min = 1.d10; z_max = -1.d10
 do i=1,node_list%n_nodes
- x_min = min(x_min,node_list%node(i)%x(1,1))
- x_max = max(x_max,node_list%node(i)%x(1,1))
- y_min = min(y_min,node_list%node(i)%x(1,2))
- y_max = max(y_max,node_list%node(i)%x(1,2))
+ x_min = min(x_min,node_list%node(i)%x(1,1,1))
+ x_max = max(x_max,node_list%node(i)%x(1,1,1))
+ y_min = min(y_min,node_list%node(i)%x(1,1,2))
+ y_max = max(y_max,node_list%node(i)%x(1,1,2))
  z_min = min(z_min,real(node_list%node(i)%values(iharm,1,ivar)))
  z_max = max(z_max,real(node_list%node(i)%values(iharm,1,ivar)))
 enddo
@@ -78,10 +78,10 @@ do i=1,element_list%n_elements
  v11 = 0.d0; v14 = 0.d0; v44 = 0.d0; v41 = 0.d0
  w11 = 0.d0; w14 = 0.d0; w44 = 0.d0; w41 = 0.d0
 
- x11(1:2) = node_list%node(iv1)%x(1,1:2)
- x14(1:2) = node_list%node(iv2)%x(1,1:2)
- x44(1:2) = node_list%node(iv3)%x(1,1:2)
- x41(1:2) = node_list%node(iv4)%x(1,1:2)
+ x11(1:2) = node_list%node(iv1)%x(1,1,1:2)
+ x14(1:2) = node_list%node(iv2)%x(1,1,1:2)
+ x44(1:2) = node_list%node(iv3)%x(1,1,1:2)
+ x41(1:2) = node_list%node(iv4)%x(1,1,1:2)
 
  do iharm=1,n_tor
    x11(3) = x11(3) + scale * node_list%node(iv1)%values(iharm,1,ivar) * HZ(iharm,1)
@@ -90,10 +90,10 @@ do i=1,element_list%n_elements
    x41(3) = x41(3) + scale * node_list%node(iv4)%values(iharm,1,ivar) * HZ(iharm,1)
  enddo
 
- u11(1:2) = node_list%node(iv1)%x(2,1:2) * element_list%element(i)%size(1,2)
- u14(1:2) = node_list%node(iv2)%x(2,1:2) * element_list%element(i)%size(2,2)
- u44(1:2) = node_list%node(iv3)%x(2,1:2) * element_list%element(i)%size(3,2)
- u41(1:2) = node_list%node(iv4)%x(2,1:2) * element_list%element(i)%size(4,2)
+ u11(1:2) = node_list%node(iv1)%x(1,2,1:2) * element_list%element(i)%size(1,2)
+ u14(1:2) = node_list%node(iv2)%x(1,2,1:2) * element_list%element(i)%size(2,2)
+ u44(1:2) = node_list%node(iv3)%x(1,2,1:2) * element_list%element(i)%size(3,2)
+ u41(1:2) = node_list%node(iv4)%x(1,2,1:2) * element_list%element(i)%size(4,2)
 
  do iharm=1,n_tor
    u11(3) = u11(3) + scale * node_list%node(iv1)%values(iharm,2,ivar) * element_list%element(i)%size(1,2) * HZ(iharm,1)
@@ -102,10 +102,10 @@ do i=1,element_list%n_elements
    u41(3) = u41(3) + scale * node_list%node(iv4)%values(iharm,2,ivar) * element_list%element(i)%size(4,2) * HZ(iharm,1)
  enddo
 
- v11(1:2) = node_list%node(iv1)%x(3,1:2) * element_list%element(i)%size(1,3)
- v14(1:2) = node_list%node(iv2)%x(3,1:2) * element_list%element(i)%size(2,3)
- v44(1:2) = node_list%node(iv3)%x(3,1:2) * element_list%element(i)%size(3,3)
- v41(1:2) = node_list%node(iv4)%x(3,1:2) * element_list%element(i)%size(4,3)
+ v11(1:2) = node_list%node(iv1)%x(1,3,1:2) * element_list%element(i)%size(1,3)
+ v14(1:2) = node_list%node(iv2)%x(1,3,1:2) * element_list%element(i)%size(2,3)
+ v44(1:2) = node_list%node(iv3)%x(1,3,1:2) * element_list%element(i)%size(3,3)
+ v41(1:2) = node_list%node(iv4)%x(1,3,1:2) * element_list%element(i)%size(4,3)
 
  do iharm=1,n_tor
    v11(3) = v11(3) + scale * node_list%node(iv1)%values(iharm,3,ivar) * element_list%element(i)%size(1,3) * HZ(iharm,1)
@@ -114,10 +114,10 @@ do i=1,element_list%n_elements
    v41(3) = v41(3) + scale * node_list%node(iv4)%values(iharm,3,ivar) * element_list%element(i)%size(4,3) * HZ(iharm,1)
  enddo
 
- w11(1:2) = node_list%node(iv1)%x(4,1:2) * element_list%element(i)%size(1,4)
- w14(1:2) = node_list%node(iv2)%x(4,1:2) * element_list%element(i)%size(2,4)
- w44(1:2) = node_list%node(iv3)%x(4,1:2) * element_list%element(i)%size(3,4)
- w41(1:2) = node_list%node(iv4)%x(4,1:2) * element_list%element(i)%size(4,4)
+ w11(1:2) = node_list%node(iv1)%x(1,4,1:2) * element_list%element(i)%size(1,4)
+ w14(1:2) = node_list%node(iv2)%x(1,4,1:2) * element_list%element(i)%size(2,4)
+ w44(1:2) = node_list%node(iv3)%x(1,4,1:2) * element_list%element(i)%size(3,4)
+ w41(1:2) = node_list%node(iv4)%x(1,4,1:2) * element_list%element(i)%size(4,4)
 
  do iharm=1,n_tor
    w11(3) = w11(3) + scale * node_list%node(iv1)%values(iharm,4,ivar) * element_list%element(i)%size(1,4) * HZ(iharm,1)

@@ -51,23 +51,23 @@ do i_ext = 1,n_wall_blocks
   diff_min_end = 1.d10
   do i_node = 1,node_list%n_nodes
     if (node_list%node(i_node)%boundary .eq. 0) cycle
-    diff = sqrt( (node_list%node(i_node)%x(1,1)-R_block_points_left(i_ext,1))**2 &
-                +(node_list%node(i_node)%x(1,2)-Z_block_points_left(i_ext,1))**2 )
+    diff = sqrt( (node_list%node(i_node)%x(1,1,1)-R_block_points_left(i_ext,1))**2 &
+                +(node_list%node(i_node)%x(1,1,2)-Z_block_points_left(i_ext,1))**2 )
     if (diff .lt. diff_min_beg) then
       diff_min_beg = diff
       i_bnd_beg = i_node
     endif
-    diff = sqrt( (node_list%node(i_node)%x(1,1)-R_block_points_right(i_ext,1))**2 &
-                +(node_list%node(i_node)%x(1,2)-Z_block_points_right(i_ext,1))**2 )
+    diff = sqrt( (node_list%node(i_node)%x(1,1,1)-R_block_points_right(i_ext,1))**2 &
+                +(node_list%node(i_node)%x(1,1,2)-Z_block_points_right(i_ext,1))**2 )
     if (diff .lt. diff_min_end) then
       diff_min_end = diff
       i_bnd_end = i_node
     endif
   enddo
-  R_block_points_left (i_ext,1) = node_list%node(i_bnd_beg)%x(1,1)
-  Z_block_points_left (i_ext,1) = node_list%node(i_bnd_beg)%x(1,2)
-  R_block_points_right(i_ext,1) = node_list%node(i_bnd_end)%x(1,1)
-  Z_block_points_right(i_ext,1) = node_list%node(i_bnd_end)%x(1,2)
+  R_block_points_left (i_ext,1) = node_list%node(i_bnd_beg)%x(1,1,1)
+  Z_block_points_left (i_ext,1) = node_list%node(i_bnd_beg)%x(1,1,2)
+  R_block_points_right(i_ext,1) = node_list%node(i_bnd_end)%x(1,1,1)
+  Z_block_points_right(i_ext,1) = node_list%node(i_bnd_end)%x(1,1,2)
   write(*,'(A,i2,A,i2)')            ' n_ext_block         (',i_ext,           ')    = ',n_ext_block(i_ext)
   write(*,'(A,i2,A,i2)')            ' n_block_points_left (',i_ext,           ')    = ',n_block_points_left(i_ext)
   do i_part=1,n_block_points_left(i_ext)

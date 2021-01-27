@@ -18,8 +18,8 @@ write(*,*) '**************************************************'
 write(*,*) ' node_list : n_nodes =',node_list%n_nodes
 write(*,'(A68)') '   i,    x,      y,      ux,     uy,     vx,     vy,     wx,     wy'
 do i=1,node_list%n_nodes
-  write(*,'(i5,8f8.3)') i,node_list%node(i)%x(1,1:2),node_list%node(i)%x(2,1:2), &
-                         node_list%node(i)%x(3,1:2),node_list%node(i)%x(4,1:2)
+  write(*,'(i5,8f8.3)') i,node_list%node(i)%x(1,1,1:2),node_list%node(i)%x(1,2,1:2), &
+                         node_list%node(i)%x(1,3,1:2),node_list%node(i)%x(1,4,1:2)
 enddo
 write(*,*)
 write(*,*) ' element_list : n_elements =',element_list%n_elements

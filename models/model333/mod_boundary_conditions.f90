@@ -480,12 +480,12 @@ contains
     real*8,             intent(in)    :: psi_bnd
   
     ! --- Define (R,Z) coords and Jacobian
-    R         = node%x(1,1)
-    R_s       = node%x(2,1)
-    R_t       = node%x(3,1)
-    Z         = node%x(1,2)
-    Z_s       = node%x(2,2)
-    Z_t       = node%x(3,2)
+    R         = node%x(1,1,1)
+    R_s       = node%x(1,2,1)
+    R_t       = node%x(1,3,1)
+    Z         = node%x(1,1,2)
+    Z_s       = node%x(1,2,2)
+    Z_t       = node%x(1,3,2)
     xjac      = R_s*Z_t - R_t*Z_s
     
     ! --- Define psi variables

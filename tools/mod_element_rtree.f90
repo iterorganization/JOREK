@@ -75,10 +75,10 @@ subroutine nearby_elements(node_list, element_list, i_elm, i_nearby)
   integer(C_INT) :: num_elements
 
   vertices = element_list%element(i_elm)%vertex(:)
-  minx = real(minval(node_list%node(vertices)%x(1,1)) - 1d-6, kind=C_DOUBLE)
-  maxx = real(maxval(node_list%node(vertices)%x(1,1)) + 1d-6, kind=C_DOUBLE)
-  miny = real(minval(node_list%node(vertices)%x(1,2)) - 1d-6, kind=C_DOUBLE)
-  maxy = real(maxval(node_list%node(vertices)%x(1,2)) + 1d-6, kind=C_DOUBLE)
+  minx = real(minval(node_list%node(vertices)%x(1,1,1)) - 1d-6, kind=C_DOUBLE)
+  maxx = real(maxval(node_list%node(vertices)%x(1,1,1)) + 1d-6, kind=C_DOUBLE)
+  miny = real(minval(node_list%node(vertices)%x(1,1,2)) - 1d-6, kind=C_DOUBLE)
+  maxy = real(maxval(node_list%node(vertices)%x(1,1,2)) + 1d-6, kind=C_DOUBLE)
 
   num_elements = int(num_elements_in_rect(minx, miny, maxx, maxy))
   allocate(i_nearby(num_elements),i_nearby_C(num_elements))

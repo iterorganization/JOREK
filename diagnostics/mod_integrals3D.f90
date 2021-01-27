@@ -385,20 +385,20 @@ do ife = ife_min, ife_max
       do ms=1, n_gauss
         do mt=1, n_gauss
 
-          x_g(ms,mt) = x_g(ms,mt) + nodes(i)%x(j,1) * element%size(i,j) * H(i,j,ms,mt)
-          y_g(ms,mt) = y_g(ms,mt) + nodes(i)%x(j,2) * element%size(i,j) * H(i,j,ms,mt)
+          x_g(ms,mt) = x_g(ms,mt) + nodes(i)%x(1,j,1) * element%size(i,j) * H(i,j,ms,mt)
+          y_g(ms,mt) = y_g(ms,mt) + nodes(i)%x(1,j,2) * element%size(i,j) * H(i,j,ms,mt)
 
-          x_s(ms,mt) = x_s(ms,mt) + nodes(i)%x(j,1) * element%size(i,j) * H_s(i,j,ms,mt)
-          x_t(ms,mt) = x_t(ms,mt) + nodes(i)%x(j,1) * element%size(i,j) * H_t(i,j,ms,mt)
-          x_ss(ms,mt) = x_ss(ms,mt) + nodes(i)%x(j,1) * element%size(i,j) * H_ss(i,j,ms,mt)
-          x_tt(ms,mt) = x_tt(ms,mt) + nodes(i)%x(j,1) * element%size(i,j) * H_tt(i,j,ms,mt)
-          x_st(ms,mt) = x_st(ms,mt) + nodes(i)%x(j,1) * element%size(i,j) * H_st(i,j,ms,mt)
+          x_s(ms,mt) = x_s(ms,mt) + nodes(i)%x(1,j,1) * element%size(i,j) * H_s(i,j,ms,mt)
+          x_t(ms,mt) = x_t(ms,mt) + nodes(i)%x(1,j,1) * element%size(i,j) * H_t(i,j,ms,mt)
+          x_ss(ms,mt) = x_ss(ms,mt) + nodes(i)%x(1,j,1) * element%size(i,j) * H_ss(i,j,ms,mt)
+          x_tt(ms,mt) = x_tt(ms,mt) + nodes(i)%x(1,j,1) * element%size(i,j) * H_tt(i,j,ms,mt)
+          x_st(ms,mt) = x_st(ms,mt) + nodes(i)%x(1,j,1) * element%size(i,j) * H_st(i,j,ms,mt)
           
-          y_s(ms,mt) = y_s(ms,mt) + nodes(i)%x(j,2) * element%size(i,j) * H_s(i,j,ms,mt)
-          y_t(ms,mt) = y_t(ms,mt) + nodes(i)%x(j,2) * element%size(i,j) * H_t(i,j,ms,mt)
-          y_ss(ms,mt) = y_ss(ms,mt) + nodes(i)%x(j,2) * element%size(i,j) * H_ss(i,j,ms,mt)
-          y_tt(ms,mt) = y_tt(ms,mt) + nodes(i)%x(j,2) * element%size(i,j) * H_tt(i,j,ms,mt)
-          y_st(ms,mt) = y_st(ms,mt) + nodes(i)%x(j,2) * element%size(i,j) * H_st(i,j,ms,mt)
+          y_s(ms,mt) = y_s(ms,mt) + nodes(i)%x(1,j,2) * element%size(i,j) * H_s(i,j,ms,mt)
+          y_t(ms,mt) = y_t(ms,mt) + nodes(i)%x(1,j,2) * element%size(i,j) * H_t(i,j,ms,mt)
+          y_ss(ms,mt) = y_ss(ms,mt) + nodes(i)%x(1,j,2) * element%size(i,j) * H_ss(i,j,ms,mt)
+          y_tt(ms,mt) = y_tt(ms,mt) + nodes(i)%x(1,j,2) * element%size(i,j) * H_tt(i,j,ms,mt)
+          y_st(ms,mt) = y_st(ms,mt) + nodes(i)%x(1,j,2) * element%size(i,j) * H_st(i,j,ms,mt)
 
 #ifdef fullmhd
           ! --- Equilibrium psi (n=0 only)
@@ -958,10 +958,10 @@ do m_bndelem = 1, bnd_elm_list%n_bnd_elements
       k_size      = bndelem%size(k_vertex,k_dof)
       node_k      = node_list%node(k_node)
   
-      x_g_1D(:)   = x_g_1D(:)  + node_k%x(k_dir,1) * k_size * H1  (k_vertex,k_dof,:)
-      y_g_1D(:)   = y_g_1D(:)  + node_k%x(k_dir,2) * k_size * H1  (k_vertex,k_dof,:)
-      x_s_1D(:)   = x_s_1D(:)  + node_k%x(k_dir,1) * k_size * H1_s(k_vertex,k_dof,:)
-      y_s_1D(:)   = y_s_1D(:)  + node_k%x(k_dir,2) * k_size * H1_s(k_vertex,k_dof,:)
+      x_g_1D(:)   = x_g_1D(:)  + node_k%x(1,k_dir,1) * k_size * H1  (k_vertex,k_dof,:)
+      y_g_1D(:)   = y_g_1D(:)  + node_k%x(1,k_dir,2) * k_size * H1  (k_vertex,k_dof,:)
+      x_s_1D(:)   = x_s_1D(:)  + node_k%x(1,k_dir,1) * k_size * H1_s(k_vertex,k_dof,:)
+      y_s_1D(:)   = y_s_1D(:)  + node_k%x(1,k_dir,2) * k_size * H1_s(k_vertex,k_dof,:)
 
       do k=1,n_var
         do mp=1, n_plane 
@@ -985,8 +985,8 @@ do m_bndelem = 1, bnd_elm_list%n_bnd_elements
   do i = 1, n_vertex_max
     do j = 1, n_order+1
       node_k = node_list%node(elm_k%vertex(i)) 
-      R_c    = R_c + node_k%x(j,1) * elm_k%size(i,j) * G(i,j)
-      Z_c    = Z_c + node_k%x(j,2) * elm_k%size(i,j) * G(i,j)
+      R_c    = R_c + node_k%x(1,j,1) * elm_k%size(i,j) * G(i,j)
+      Z_c    = Z_c + node_k%x(1,j,2) * elm_k%size(i,j) * G(i,j)
     enddo
   enddo  
   vec_inside = (/ R_c - x_g_1D(2), Z_c - y_g_1D(2) /)       ! vector pointing towards the domain

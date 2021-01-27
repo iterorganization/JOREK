@@ -48,8 +48,8 @@ if (my_id .eq. 0) then
   do i=1,node_list%n_nodes
 
     psi = node_list%node(i)%values(1,1,1)
-    R   = node_list%node(i)%x(1,1)
-    Z   = node_list%node(i)%x(1,2)
+    R   = node_list%node(i)%x(1,1,1)
+    Z   = node_list%node(i)%x(1,1,2)
 
     call density(    xpoint2, xcase2, Z, ES%Z_xpoint, psi,ES%psi_axis,ES%psi_bnd,zn,dn_dpsi,dn_dz,dn_dpsi2,dn_dz2,             &
                                                                dn_dpsi_dz,dn_dpsi3,dn_dpsi_dz2, dn_dpsi2_dz)
@@ -68,32 +68,32 @@ if (my_id .eq. 0) then
     node_list%node(i)%values(1,:,var_AZ) = 0.d0
 
     node_list%node(i)%values(1,1,var_rho) = zn
-    node_list%node(i)%values(1,2,var_rho) = dn_dpsi    * node_list%node(i)%values(1,2,var_A3) + dn_dz * node_list%node(i)%x(2,2)
-    node_list%node(i)%values(1,3,var_rho) = dn_dpsi    * node_list%node(i)%values(1,3,var_A3) + dn_dz * node_list%node(i)%x(3,2)
-    node_list%node(i)%values(1,4,var_rho) = dn_dpsi    * node_list%node(i)%values(1,4,var_A3) + dn_dz * node_list%node(i)%x(4,2) &
+    node_list%node(i)%values(1,2,var_rho) = dn_dpsi    * node_list%node(i)%values(1,2,var_A3) + dn_dz * node_list%node(i)%x(1,2,2)
+    node_list%node(i)%values(1,3,var_rho) = dn_dpsi    * node_list%node(i)%values(1,3,var_A3) + dn_dz * node_list%node(i)%x(1,3,2)
+    node_list%node(i)%values(1,4,var_rho) = dn_dpsi    * node_list%node(i)%values(1,4,var_A3) + dn_dz * node_list%node(i)%x(1,4,2) &
                                           + dn_dpsi2   * node_list%node(i)%values(1,2,var_A3) * node_list%node(i)%values(1,3,var_A3)  &
-                                          + dn_dz2     * node_list%node(i)%x(2,2)             * node_list%node(i)%x(3,2)         &
-                                          + dn_dpsi_dz * node_list%node(i)%values(1,3,var_A3) * node_list%node(i)%x(2,2)         &
-                                          + dn_dpsi_dz * node_list%node(i)%values(1,2,var_A3) * node_list%node(i)%x(3,2)      
+                                          + dn_dz2     * node_list%node(i)%x(1,2,2)             * node_list%node(i)%x(1,3,2)         &
+                                          + dn_dpsi_dz * node_list%node(i)%values(1,3,var_A3) * node_list%node(i)%x(1,2,2)         &
+                                          + dn_dpsi_dz * node_list%node(i)%values(1,2,var_A3) * node_list%node(i)%x(1,3,2)      
 
 
     node_list%node(i)%values(1,1,var_Ti) = zTi
-    node_list%node(i)%values(1,2,var_Ti) = dTi_dpsi    * node_list%node(i)%values(1,2,var_A3) + dTi_dz * node_list%node(i)%x(2,2)
-    node_list%node(i)%values(1,3,var_Ti) = dTi_dpsi    * node_list%node(i)%values(1,3,var_A3) + dTi_dz * node_list%node(i)%x(3,2)
-    node_list%node(i)%values(1,4,var_Ti) = dTi_dpsi    * node_list%node(i)%values(1,4,var_A3) + dTi_dz * node_list%node(i)%x(4,2) &
+    node_list%node(i)%values(1,2,var_Ti) = dTi_dpsi    * node_list%node(i)%values(1,2,var_A3) + dTi_dz * node_list%node(i)%x(1,2,2)
+    node_list%node(i)%values(1,3,var_Ti) = dTi_dpsi    * node_list%node(i)%values(1,3,var_A3) + dTi_dz * node_list%node(i)%x(1,3,2)
+    node_list%node(i)%values(1,4,var_Ti) = dTi_dpsi    * node_list%node(i)%values(1,4,var_A3) + dTi_dz * node_list%node(i)%x(1,4,2) &
                                          + dTi_dpsi2   * node_list%node(i)%values(1,2,var_A3) * node_list%node(i)%values(1,3,var_A3)  &
-                                         + dTi_dz2     * node_list%node(i)%x(2,2)             * node_list%node(i)%x(3,2)         &
-                                         + dTi_dpsi_dz * node_list%node(i)%values(1,3,var_A3) * node_list%node(i)%x(2,2)         &
-                                         + dTi_dpsi_dz * node_list%node(i)%values(1,2,var_A3) * node_list%node(i)%x(3,2)      
+                                         + dTi_dz2     * node_list%node(i)%x(1,2,2)             * node_list%node(i)%x(1,3,2)         &
+                                         + dTi_dpsi_dz * node_list%node(i)%values(1,3,var_A3) * node_list%node(i)%x(1,2,2)         &
+                                         + dTi_dpsi_dz * node_list%node(i)%values(1,2,var_A3) * node_list%node(i)%x(1,3,2)      
     
     node_list%node(i)%values(1,1,var_Te) = zTe
-    node_list%node(i)%values(1,2,var_Te) = dTe_dpsi    * node_list%node(i)%values(1,2,var_A3) + dTe_dz * node_list%node(i)%x(2,2)
-    node_list%node(i)%values(1,3,var_Te) = dTe_dpsi    * node_list%node(i)%values(1,3,var_A3) + dTe_dz * node_list%node(i)%x(3,2)
-    node_list%node(i)%values(1,4,var_Te) = dTe_dpsi    * node_list%node(i)%values(1,4,var_A3) + dTe_dz * node_list%node(i)%x(4,2) &
+    node_list%node(i)%values(1,2,var_Te) = dTe_dpsi    * node_list%node(i)%values(1,2,var_A3) + dTe_dz * node_list%node(i)%x(1,2,2)
+    node_list%node(i)%values(1,3,var_Te) = dTe_dpsi    * node_list%node(i)%values(1,3,var_A3) + dTe_dz * node_list%node(i)%x(1,3,2)
+    node_list%node(i)%values(1,4,var_Te) = dTe_dpsi    * node_list%node(i)%values(1,4,var_A3) + dTe_dz * node_list%node(i)%x(1,4,2) &
                                          + dTe_dpsi2   * node_list%node(i)%values(1,2,var_A3) * node_list%node(i)%values(1,3,var_A3)  &
-                                         + dTe_dz2     * node_list%node(i)%x(2,2)             * node_list%node(i)%x(3,2)         &
-                                         + dTe_dpsi_dz * node_list%node(i)%values(1,3,var_A3) * node_list%node(i)%x(2,2)         &
-                                         + dTe_dpsi_dz * node_list%node(i)%values(1,2,var_A3) * node_list%node(i)%x(3,2)      
+                                         + dTe_dz2     * node_list%node(i)%x(1,2,2)             * node_list%node(i)%x(1,3,2)         &
+                                         + dTe_dpsi_dz * node_list%node(i)%values(1,3,var_A3) * node_list%node(i)%x(1,2,2)         &
+                                         + dTe_dpsi_dz * node_list%node(i)%values(1,2,var_A3) * node_list%node(i)%x(1,3,2)      
     
     node_list%node(i)%values(1,:,var_up) = 0.d0
 
@@ -109,13 +109,13 @@ if (my_id .eq. 0) then
                    F_prof,          dF_dpsi,  dF_dz,  dF_dpsi2,  dF_dz2,  dF_dpsi_dz , &
                    FFprime_profile, dFF_dpsi, dFF_dz, dFF_dpsi2, dFF_dz2, dFF_dpsi_dz)
     node_list%node(i)%Fprof_eq(1) =   F_prof
-    node_list%node(i)%Fprof_eq(2) =   dF_dpsi  * node_list%node(i)%values(1,2,var_A3) + dF_dz * node_list%node(i)%x(2,2)
-    node_list%node(i)%Fprof_eq(3) =   dF_dpsi  * node_list%node(i)%values(1,3,var_A3) + dF_dz * node_list%node(i)%x(3,2)
-    node_list%node(i)%Fprof_eq(4) = dF_dpsi    * node_list%node(i)%values(1,4,var_A3) + dF_dz * node_list%node(i)%x(4,2) &
+    node_list%node(i)%Fprof_eq(2) =   dF_dpsi  * node_list%node(i)%values(1,2,var_A3) + dF_dz * node_list%node(i)%x(1,2,2)
+    node_list%node(i)%Fprof_eq(3) =   dF_dpsi  * node_list%node(i)%values(1,3,var_A3) + dF_dz * node_list%node(i)%x(1,3,2)
+    node_list%node(i)%Fprof_eq(4) = dF_dpsi    * node_list%node(i)%values(1,4,var_A3) + dF_dz * node_list%node(i)%x(1,4,2) &
                                   + dF_dpsi2   * node_list%node(i)%values(1,2,var_A3) * node_list%node(i)%values(1,3,var_A3)  &
-                                  + dF_dz2     * node_list%node(i)%x(2,2)             * node_list%node(i)%x(3,2)         &
-                                  + dF_dpsi_dz * node_list%node(i)%values(1,3,var_A3) * node_list%node(i)%x(2,2)         &
-                                  + dF_dpsi_dz * node_list%node(i)%values(1,2,var_A3) * node_list%node(i)%x(3,2)      
+                                  + dF_dz2     * node_list%node(i)%x(1,2,2)             * node_list%node(i)%x(1,3,2)         &
+                                  + dF_dpsi_dz * node_list%node(i)%values(1,3,var_A3) * node_list%node(i)%x(1,2,2)         &
+                                  + dF_dpsi_dz * node_list%node(i)%values(1,2,var_A3) * node_list%node(i)%x(1,3,2)      
 
   enddo
 
@@ -139,7 +139,7 @@ do in=2,n_tor
       node_list%node(i)%values(in,:,:) = 0.d0
 
       psi = node_list%node(i)%values(1,1,1)
-      Z   = node_list%node(i)%x(1,2)
+      Z   = node_list%node(i)%x(1,1,2)
       psi_n = (psi - ES%psi_axis)/(ES%psi_bnd - ES%psi_axis)
 
      

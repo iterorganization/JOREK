@@ -48,10 +48,10 @@ real*8              :: PSg1,dPSg1_dr,dPSg1_ds,dPSg1_drs,dPSg1_drr,dPSg1_dss
   PSI_R = (   dPSg1_dr * dZZg1_ds - dPSg1_ds * dZZg1_dr ) / RZ_jac
   PSI_Z = ( - dPSg1_dr * dRRg1_ds + dPSg1_ds * dRRg1_dr ) / RZ_jac
   
-  newnode_list%node(index)%x(1,:) = (/ nwpts%RR_new(i2,j2), nwpts%ZZ_new(i2,j2) /)
-  newnode_list%node(index)%x(2,:) = (/ dR_dt, dZ_dt /)   / sqrt(dR_dt**2 + dZ_dt**2)
-  newnode_list%node(index)%x(3,:) = (/ -PSI_Z, +PSI_R /) / sqrt(PSI_R**2 + PSI_Z**2)
-  newnode_list%node(index)%x(4,:) = 0.d0
+  newnode_list%node(index)%x(1,1,:) = (/ nwpts%RR_new(i2,j2), nwpts%ZZ_new(i2,j2) /)
+  newnode_list%node(index)%x(1,2,:) = (/ dR_dt, dZ_dt /)   / sqrt(dR_dt**2 + dZ_dt**2)
+  newnode_list%node(index)%x(1,3,:) = (/ -PSI_Z, +PSI_R /) / sqrt(PSI_R**2 + PSI_Z**2)
+  newnode_list%node(index)%x(1,4,:) = 0.d0
   newnode_list%node(index)%boundary = 0
 
 return
@@ -116,10 +116,10 @@ real*8  :: tmp1, tmp2
   call CUB1D(R_cub1d2(1), R_cub1d2(2), R_cub1d2(3), R_cub1d2(4),ss2,tmp1, dR_dt2)
   call CUB1D(Z_cub1d2(1), Z_cub1d2(2), Z_cub1d2(3), Z_cub1d2(4),ss2,tmp2, dZ_dt2)
 
-  newnode_list%node(index)%x(1,:) = (/ R_point, Z_point /)
-  newnode_list%node(index)%x(2,:) = (/ dR_dt2, dZ_dt2 /)   / sqrt(dR_dt2**2 + dZ_dt2**2)
-  newnode_list%node(index)%x(3,:) = (/ dR_dt1, dZ_dt1 /)   / sqrt(dR_dt1**2 + dZ_dt1**2)
-  newnode_list%node(index)%x(4,:) = 0.d0
+  newnode_list%node(index)%x(1,1,:) = (/ R_point, Z_point /)
+  newnode_list%node(index)%x(1,2,:) = (/ dR_dt2, dZ_dt2 /)   / sqrt(dR_dt2**2 + dZ_dt2**2)
+  newnode_list%node(index)%x(1,3,:) = (/ dR_dt1, dZ_dt1 /)   / sqrt(dR_dt1**2 + dZ_dt1**2)
+  newnode_list%node(index)%x(1,4,:) = 0.d0
   newnode_list%node(index)%boundary = 0
 
 return

@@ -174,11 +174,11 @@ contains
           inode = element_list%element(ielm)%vertex(iv)
           if (node_list%node(inode)%boundary .ne. 0) then
             i_mid = i_mid + 1
-            R_mid = R_mid + node_list%node(inode)%x(1,1)     ! mid point on boundary (approx.)
-            Z_mid = Z_mid + node_list%node(inode)%x(1,2)     ! mid point on boundary (approx.)
+            R_mid = R_mid + node_list%node(inode)%x(1,1,1)     ! mid point on boundary (approx.)
+            Z_mid = Z_mid + node_list%node(inode)%x(1,1,2)     ! mid point on boundary (approx.)
           endif
-          R_center = R_center + node_list%node(inode)%x(1,1)       ! center point within element (approx.)
-          Z_center = Z_center + node_list%node(inode)%x(1,2)       ! center point within element (approx.)
+          R_center = R_center + node_list%node(inode)%x(1,1,1)       ! center point within element (approx.)
+          Z_center = Z_center + node_list%node(inode)%x(1,1,2)       ! center point within element (approx.)
         enddo
         R_mid    = R_mid    / real(i_mid,8)
         Z_mid    = Z_mid    / real(i_mid,8)
@@ -193,20 +193,20 @@ contains
 
            if (node_list%node(inode)%boundary .ne. 0) then !==================if boundary nodes
 
-             R_mid = node_list%node(inode)%x(1,1)
-             Z_mid = node_list%node(inode)%x(1,2)
+             R_mid = node_list%node(inode)%x(1,1,1)
+             Z_mid = node_list%node(inode)%x(1,1,2)
 
              inode_p = element_list%element(ielm)%vertex(mod(iv  ,4) + 1)
              inode_m = element_list%element(ielm)%vertex(mod(iv+2,4) + 1)
 
              if (node_list%node(inode_p)%boundary .eq. 0) then 
-               R_center = node_list%node(inode_p)%x(1,1)
-               Z_center = node_list%node(inode_p)%x(1,2)
+               R_center = node_list%node(inode_p)%x(1,1,1)
+               Z_center = node_list%node(inode_p)%x(1,1,2)
                iv2 = mod(iv+2,4) + 1                                  ! the index of the other boundary vertex
                inode2 = inode_m
              elseif (node_list%node(inode_m)%boundary .eq. 0) then 
-               R_center = node_list%node(inode_m)%x(1,1)
-               Z_center = node_list%node(inode_m)%x(1,2)
+               R_center = node_list%node(inode_m)%x(1,1,1)
+               Z_center = node_list%node(inode_m)%x(1,1,2)
                iv2 = mod(iv  ,4) + 1                                  ! the index of the other boundary vertex
                inode2 = inode_p
              endif
@@ -273,10 +273,10 @@ contains
 
                              index_node = node_list%node(inode)%index(1)  ! index in RHS (or matrix A not compressed)
                                                 
-                             Rnode     = node_list%node(inode)%x(1,1) 
-                             dRnode_ds = node_list%node(inode)%x(2,1) 
-                             Znode     = node_list%node(inode)%x(1,2) 
-                             dZnode_ds = node_list%node(inode)%x(2,2) 
+                             Rnode     = node_list%node(inode)%x(1,1,1) 
+                             dRnode_ds = node_list%node(inode)%x(1,2,1) 
+                             Znode     = node_list%node(inode)%x(1,1,2) 
+                             dZnode_ds = node_list%node(inode)%x(1,2,2) 
                           
                              if (in.eq.RMP_har_cos_spectrum(n_rmp_harm)) then
                                 delta_psi_rmp = psi_RMP_cos1(node_list%node(inode)%boundary_index +N_rmp_har_block_size*(n_rmp_harm-1))
@@ -364,10 +364,10 @@ contains
 
                             T0        = max(node_list%node(inode)%values(1,1,6), T_min)
                             Vpar0     = node_list%node(inode)%values(1,1,7)
-                            BigR      = node_list%node(inode)%x(1,1)
+                            BigR      = node_list%node(inode)%x(1,1,1)
                             dT0_ds    = node_list%node(inode)%values(1,2,6)
                             dVpar0_ds = node_list%node(inode)%values(1,2,7)
-                            dBigR_ds  = node_list%node(inode)%x(2,1)
+                            dBigR_ds  = node_list%node(inode)%x(1,2,1)
 
                             ps0_s     = node_list%node(inode)%values(1,2,1)
                             ps0_t     = node_list%node(inode)%values(1,3,1)
@@ -375,10 +375,10 @@ contains
                             U0_s      = node_list%node(inode)%values(1,2,2)
                             U0_t      = node_list%node(inode)%values(1,3,2)
 
-                            R_s       = node_list%node(inode)%x(2,1)
-                            R_t       = node_list%node(inode)%x(3,1)
-                            Z_s       = node_list%node(inode)%x(2,2)
-                            Z_t       = node_list%node(inode)%x(3,2)
+                            R_s       = node_list%node(inode)%x(1,2,1)
+                            R_t       = node_list%node(inode)%x(1,3,1)
+                            Z_s       = node_list%node(inode)%x(1,2,2)
+                            Z_t       = node_list%node(inode)%x(1,3,2)
 
                             xjac  =  R_s*Z_t - R_t*Z_s
                             ps0_x = (   Z_t * ps0_s - Z_s * ps0_t ) / xjac
@@ -389,23 +389,23 @@ contains
 
                             alpha = ((Z_axis) - Z_xpoint(1))/(R_axis - R_xpoint(1))
 
-                            R_inside = alpha*(node_list%node(inode)%x(1,2)-Z_xpoint(1)) &
-                                 + node_list%node(inode)%x(1,1) + alpha**2 * R_xpoint(1)
+                            R_inside = alpha*(node_list%node(inode)%x(1,1,2)-Z_xpoint(1)) &
+                                 + node_list%node(inode)%x(1,1,1) + alpha**2 * R_xpoint(1)
                             R_inside = R_inside / (1.d0 + alpha**2)
                             Z_inside = alpha * (R_inside - R_xpoint(1)) + Z_xpoint(1)
 
                             R_inside = min(max(R_inside,R_xpoint(1)),R_axis)
                             Z_inside = min(max(Z_inside,Z_xpoint(1)),Z_axis)
 
-                            direction = ps0_s * (  (node_list%node(inode)%x(1,1)-R_inside)*Z_s &
-                                 - (node_list%node(inode)%x(1,2)-Z_inside)*R_s)
+                            direction = ps0_s * (  (node_list%node(inode)%x(1,1,1)-R_inside)*Z_s &
+                                 - (node_list%node(inode)%x(1,1,2)-Z_inside)*R_s)
                             direction = direction / abs(direction)
 
                             if (xcase2 .eq. 2) then
                                direction = -direction
-                            else if ((xcase2 .eq. 3).and.(node_list%node(inode)%x(1,2).gt.Z_axis +0.1).and.(node_list%node(inode)%x(1,1).gt.R_xpoint(2))) then
+                            else if ((xcase2 .eq. 3).and.(node_list%node(inode)%x(1,1,2).gt.Z_axis +0.1).and.(node_list%node(inode)%x(1,1,1).gt.R_xpoint(2))) then
                               direction = -1.
-                            else if ((xcase2 .eq. 3) .and. (node_list%node(inode)%x(1,2).gt.Z_axis +0.1).and.(node_list%node(inode)%x(1,1).lt.R_xpoint(2)))then
+                            else if ((xcase2 .eq. 3) .and. (node_list%node(inode)%x(1,1,2).gt.Z_axis +0.1).and.(node_list%node(inode)%x(1,1,1).lt.R_xpoint(2)))then
                               direction = +1.
                             end if
                             
@@ -563,10 +563,10 @@ contains
                           
                              index_node = node_list%node(inode)%index(1)  ! index in RHS (or matrix A not compressed)
                                                 
-                             Rnode     = node_list%node(inode)%x(1,1) 
-                             dRnode_dt = node_list%node(inode)%x(3,1) 
-                             Znode     = node_list%node(inode)%x(1,2) 
-                             dZnode_dt = node_list%node(inode)%x(3,2) 
+                             Rnode     = node_list%node(inode)%x(1,1,1) 
+                             dRnode_dt = node_list%node(inode)%x(1,3,1) 
+                             Znode     = node_list%node(inode)%x(1,1,2) 
+                             dZnode_dt = node_list%node(inode)%x(1,3,2) 
                           
                              if (in.eq.RMP_har_cos_spectrum(n_rmp_harm)) then
                                 delta_psi_rmp = psi_RMP_cos1(node_list%node(inode)%boundary_index+N_rmp_har_block_size*(n_rmp_harm-1))
@@ -683,11 +683,11 @@ contains
 
                             T0        = max(node_list%node(inode)%values(1,1,6), T_min)
                             Vpar0     = node_list%node(inode)%values(1,1,7)
-                            BigR      = node_list%node(inode)%x(1,1)
+                            BigR      = node_list%node(inode)%x(1,1,1)
 
                             dT0_dt    = node_list%node(inode)%values(1,3,6) * element_size_0 
                             dVpar0_dt = node_list%node(inode)%values(1,3,7) * element_size_0 
-                            dBigR_dt  = node_list%node(inode)%x(3,1)        * element_size_0
+                            dBigR_dt  = node_list%node(inode)%x(1,3,1)        * element_size_0
 
                             ps0       = node_list%node(inode)%values(1,1,1)
                             ps0_s     = node_list%node(inode)%values(1,2,1) * element_size_perp
@@ -696,26 +696,26 @@ contains
                             U0_s      = node_list%node(inode)%values(1,2,2) * element_size_perp
                             U0_t      = node_list%node(inode)%values(1,3,2) * element_size_0   
 
-                            R_s       = node_list%node(inode)%x(2,1) * element_size_perp
-                            R_t       = node_list%node(inode)%x(3,1) * element_size_0    
-                            Z_s       = node_list%node(inode)%x(2,2) * element_size_perp
-                            Z_t       = node_list%node(inode)%x(3,2) * element_size_0    
-                            Z         = node_list%node(inode)%x(1,2)
+                            R_s       = node_list%node(inode)%x(1,2,1) * element_size_perp
+                            R_t       = node_list%node(inode)%x(1,3,1) * element_size_0    
+                            Z_s       = node_list%node(inode)%x(1,2,2) * element_size_perp
+                            Z_t       = node_list%node(inode)%x(1,3,2) * element_size_0    
+                            Z         = node_list%node(inode)%x(1,1,2)
                             
                             ps0_tt = element_list%element(ielm)%size(iv ,1) * node_list%node(inode)%values(1,1,1)  * H1_ss(1,1) &
                                    + element_list%element(ielm)%size(iv ,3) * node_list%node(inode)%values(1,3,1)  * H1_ss(1,2) &
                                    + element_list%element(ielm)%size(iv2,1) * node_list%node(inode2)%values(1,1,1) * H1_ss(2,1) &
                                    + element_list%element(ielm)%size(iv2,3) * node_list%node(inode2)%values(1,3,1) * H1_ss(2,2)
 
-                            R_tt = + element_list%element(ielm)%size(iv ,1) * node_list%node(inode )%x(1,1) * H1_ss(1,1)  &
-                                   + element_list%element(ielm)%size(iv ,3) * node_list%node(inode )%x(3,1) * H1_ss(1,2)  &
-                                   + element_list%element(ielm)%size(iv2,1) * node_list%node(inode2)%x(1,1) * H1_ss(2,1)  &
-                                   + element_list%element(ielm)%size(iv2,3) * node_list%node(inode2)%x(3,1) * H1_ss(2,2)  
+                            R_tt = + element_list%element(ielm)%size(iv ,1) * node_list%node(inode )%x(1,1,1) * H1_ss(1,1)  &
+                                   + element_list%element(ielm)%size(iv ,3) * node_list%node(inode )%x(1,3,1) * H1_ss(1,2)  &
+                                   + element_list%element(ielm)%size(iv2,1) * node_list%node(inode2)%x(1,1,1) * H1_ss(2,1)  &
+                                   + element_list%element(ielm)%size(iv2,3) * node_list%node(inode2)%x(1,3,1) * H1_ss(2,2)  
 
-                            Z_tt = + element_list%element(ielm)%size(iv ,1) * node_list%node(inode )%x(1,2) * H1_ss(1,1)  &
-                                   + element_list%element(ielm)%size(iv ,3) * node_list%node(inode )%x(3,2) * H1_ss(1,2)  &
-                                   + element_list%element(ielm)%size(iv2,1) * node_list%node(inode2)%x(1,2) * H1_ss(2,1)  &
-                                   + element_list%element(ielm)%size(iv2,3) * node_list%node(inode2)%x(3,2) * H1_ss(2,2)  
+                            Z_tt = + element_list%element(ielm)%size(iv ,1) * node_list%node(inode )%x(1,1,2) * H1_ss(1,1)  &
+                                   + element_list%element(ielm)%size(iv ,3) * node_list%node(inode )%x(1,3,2) * H1_ss(1,2)  &
+                                   + element_list%element(ielm)%size(iv2,1) * node_list%node(inode2)%x(1,1,2) * H1_ss(2,1)  &
+                                   + element_list%element(ielm)%size(iv2,3) * node_list%node(inode2)%x(1,3,2) * H1_ss(2,2)  
                             
 !                            call find_RZ(node_list, element_list, BigR, Z, R_out, Z_out, i_elm, s_elm, t_elm, ifail)
 !                            call interp_RZ_2(node_list,element_list,i_elm,s_elm,t_elm,QR,QR_s,QR_t,QR_st,QR_ss,QR_tt,QZ,QZ_s,QZ_t,QZ_st,QZ_ss,QZ_tt)
@@ -737,16 +737,16 @@ contains
 
                             alpha = ((Z_axis) - Z_xpoint(1))/(R_axis - R_xpoint(1))
 
-                            R_inside = alpha*(node_list%node(inode)%x(1,2)-Z_xpoint(1)) &
-                                 + node_list%node(inode)%x(1,1) + alpha**2 * R_xpoint(1)
+                            R_inside = alpha*(node_list%node(inode)%x(1,1,2)-Z_xpoint(1)) &
+                                 + node_list%node(inode)%x(1,1,1) + alpha**2 * R_xpoint(1)
                             R_inside = R_inside / (1.d0 + alpha**2)
                             Z_inside = alpha * (R_inside - R_xpoint(1)) + Z_xpoint(1)
 
                             R_inside = min(max(R_inside,R_xpoint(1)),R_axis)
                             Z_inside = min(max(Z_inside,Z_xpoint(1)),Z_axis)
 
-                            direction = ps0_t * (  (node_list%node(inode)%x(1,1)-R_inside)*Z_t &
-                                 - (node_list%node(inode)%x(1,2)-Z_inside)*R_t)
+                            direction = ps0_t * (  (node_list%node(inode)%x(1,1,1)-R_inside)*Z_t &
+                                 - (node_list%node(inode)%x(1,1,2)-Z_inside)*R_t)
                             direction = direction / abs(direction)
 
                             ! --- Special field direction for grid patches
@@ -900,10 +900,10 @@ contains
 
                              index_node = node_list%node(inode)%index(1)  ! index in RHS (or matrix A not compressed)
                                                 
-                             Rnode     = node_list%node(inode)%x(1,1) 
-                             dRnode_dt = node_list%node(inode)%x(3,1) 
-                             Znode     = node_list%node(inode)%x(1,2) 
-                             dZnode_dt = node_list%node(inode)%x(3,2) 
+                             Rnode     = node_list%node(inode)%x(1,1,1) 
+                             dRnode_dt = node_list%node(inode)%x(1,3,1) 
+                             Znode     = node_list%node(inode)%x(1,1,2) 
+                             dZnode_dt = node_list%node(inode)%x(1,3,2) 
                           
                              if (in.eq.RMP_har_cos_spectrum(n_rmp_harm)) then
                                 delta_psi_rmp = psi_RMP_cos1(node_list%node(inode)%boundary_index+N_rmp_har_block_size*(n_rmp_harm-1))
@@ -1022,10 +1022,10 @@ contains
 
                              index_node = node_list%node(inode)%index(1)  ! index in RHS (or matrix A not compressed)
                                                 
-                             Rnode     = node_list%node(inode)%x(1,1) 
-                             dRnode_dt = node_list%node(inode)%x(3,1) 
-                             Znode     = node_list%node(inode)%x(1,2) 
-                             dZnode_dt = node_list%node(inode)%x(3,2) 
+                             Rnode     = node_list%node(inode)%x(1,1,1) 
+                             dRnode_dt = node_list%node(inode)%x(1,3,1) 
+                             Znode     = node_list%node(inode)%x(1,1,2) 
+                             dZnode_dt = node_list%node(inode)%x(1,3,2) 
                           
                              if (in.eq.RMP_har_cos_spectrum(n_rmp_harm)) then
                                 delta_psi_rmp = psi_RMP_cos1(node_list%node(inode)%boundary_index+N_rmp_har_block_size*(n_rmp_harm-1))

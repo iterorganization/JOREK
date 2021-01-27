@@ -29,7 +29,7 @@ type(type_node_list),    intent(inout) :: node_list      !< list of grid nodes
 type(type_element_list), intent(inout) :: element_list   !< list of finite elements
 
 ! --- Local variables
-real*8  :: radius, x_tmp(n_order+1,n_dim), index_tmp(n_order+1)
+real*8  :: radius, x_tmp(n_coord_tor, n_order+1,n_dim), index_tmp(n_order+1)
 real*8  :: Rgeo, Zgeo, u_length, angle_start
 integer :: n_pol, i, k, n_node_start, n_element_start, n_element_polar, n_polar, n_glue, n_sqr
 integer :: i_glue, i_polar, n_index_start
@@ -50,14 +50,14 @@ write(*,'(A,i6)') ' number of elements : ',element_list%n_elements
 !-------------- adapt square grid such that all edge vectors point outwards
 
 do i=1, nR
-  node_list%node(i)%x(3,2) = - node_list%node(i)%x(3,2)
+  node_list%node(i)%x(1,3,2) = - node_list%node(i)%x(1,3,2)
 enddo
 do i=1,nR-1
   element_list%element(i)%size(1,3) = -  element_list%element(i)%size(1,3)
   element_list%element(i)%size(2,3) = -  element_list%element(i)%size(2,3)
 enddo
 do i=1, nZ
-  node_list%node((i-1)*nR+1)%x(2,1) = - node_list%node((i-1)*nR+1)%x(2,1)
+  node_list%node((i-1)*nR+1)%x(1,2,1) = - node_list%node((i-1)*nR+1)%x(1,2,1)
 enddo
 do i=1,nZ-1
   element_list%element((i-1)*(nR-1)+1)%size(1,2) = - element_list%element((i-1)*(nR-1)+1)%size(1,2)
@@ -74,8 +74,8 @@ do i=1, nR
   node_list%node(n_node_start+i) = node_list%node(i)
 
   x_tmp = node_list%node(n_node_start+i)%x
-  node_list%node(n_node_start+i)%x(2,:) = x_tmp(3,:)
-  node_list%node(n_node_start+i)%x(3,:) = x_tmp(2,:)
+  node_list%node(n_node_start+i)%x(1,2,:) = x_tmp(1,3,:)
+  node_list%node(n_node_start+i)%x(1,3,:) = x_tmp(1,2,:)
 
   index_tmp = node_list%node(n_node_start+i)%index
   node_list%node(n_node_start+i)%index(2) = index_tmp(3)
@@ -97,8 +97,8 @@ do i=1, nR
   node_list%node(n_node_start+i) = node_list%node(nR*nZ - i + 1)
 
   x_tmp = node_list%node(n_node_start+i)%x
-  node_list%node(n_node_start+i)%x(2,:) = x_tmp(3,:)
-  node_list%node(n_node_start+i)%x(3,:) = x_tmp(2,:)
+  node_list%node(n_node_start+i)%x(1,2,:) = x_tmp(1,3,:)
+  node_list%node(n_node_start+i)%x(1,3,:) = x_tmp(1,2,:)
 
   index_tmp = node_list%node(n_node_start+i)%index
   node_list%node(n_node_start+i)%index(2) = index_tmp(3)
@@ -171,13 +171,13 @@ angle_start = -0.75 * PI
 call grid_polar_bezier(Rgeo,Zgeo,amin,radius,angle_start,fbnd,fpsi,mf,n_radial,n_pol,node_list,element_list)
 
 !-------------- adapt the corner nodes
-!node_list%node(nR*nZ+1)%x(1,2)  = 1.1*node_list%node(nR*nZ+1)%x(1,2)
-node_list%node(nR*nZ+1)%x(2,:)  = node_list%node(nR*nZ + 2*nR + 2*Nz + 1)%x(2,:)
-node_list%node(nR*nZ+1)%x(3,:)  = node_list%node(1)%x(2,:)
+!node_list%node(nR*nZ+1)%x(1,1,2)  = 1.1*node_list%node(nR*nZ+1)%x(1,1,2)
+node_list%node(nR*nZ+1)%x(1,2,:)  = node_list%node(nR*nZ + 2*nR + 2*Nz + 1)%x(1,2,:)
+node_list%node(nR*nZ+1)%x(1,3,:)  = node_list%node(1)%x(1,2,:)
 
-!node_list%node(nR*nZ+nR)%x(1,2) = 1.1 * node_list%node(nR*nZ+nR)%x(1,2)
-node_list%node(nR*nZ+nR)%x(2,:) = node_list%node(nR*nZ + 2*nR + 2*Nz + nR)%x(2,:)
-node_list%node(nR*nZ+nR)%x(3,:) = node_list%node(nR)%x(2,:)
+!node_list%node(nR*nZ+nR)%x(1,1,2) = 1.1 * node_list%node(nR*nZ+nR)%x(1,1,2)
+node_list%node(nR*nZ+nR)%x(1,2,:) = node_list%node(nR*nZ + 2*nR + 2*Nz + nR)%x(1,2,:)
+node_list%node(nR*nZ+nR)%x(1,3,:) = node_list%node(nR)%x(1,2,:)
 
 
 
@@ -199,24 +199,24 @@ do i=1,nR-1
   element_list%element(n_element_start+i)%vertex(4) = n_glue  + i + 1
   element_list%element(n_element_start+i)%vertex(1) = n_glue  + i
 
-  u_length = sqrt(node_list%node(n_glue+i)%x(2,1)**2 + node_list%node(n_glue+i)%x(2,2)**2)
-  element_list%element(n_element_start+i)%size(1,2) = dlength(node_list%node(n_polar+i)%x(1,:), &
-                                                              node_list%node(n_glue+i)%x(1,:))/3.d0 / u_length
+  u_length = sqrt(node_list%node(n_glue+i)%x(1,2,1)**2 + node_list%node(n_glue+i)%x(1,2,2)**2)
+  element_list%element(n_element_start+i)%size(1,2) = dlength(node_list%node(n_polar+i)%x(1,1,:), &
+                                                              node_list%node(n_glue+i)%x(1,1,:))/3.d0 / u_length
   element_list%element(n_element_start+i)%size(1,3) = element_list%element(i)%size(1,2)
 
-  u_length = sqrt(node_list%node(n_polar+i)%x(2,1)**2 + node_list%node(n_polar+i)%x(2,2)**2)
-  element_list%element(n_element_start+i)%size(2,2) = - dlength(node_list%node(n_polar+i)%x(1,:), &
-                                                                node_list%node(n_glue+i)%x(1,:))/3.d0 / u_length
+  u_length = sqrt(node_list%node(n_polar+i)%x(1,2,1)**2 + node_list%node(n_polar+i)%x(1,2,2)**2)
+  element_list%element(n_element_start+i)%size(2,2) = - dlength(node_list%node(n_polar+i)%x(1,1,:), &
+                                                                node_list%node(n_glue+i)%x(1,1,:))/3.d0 / u_length
   element_list%element(n_element_start+i)%size(2,3) = element_list%element(n_element_polar+i)%size(1,3)
 
-  u_length = sqrt(node_list%node(n_polar+i+1)%x(2,1)**2 + node_list%node(n_polar+i+1)%x(2,2)**2)
-  element_list%element(n_element_start+i)%size(3,2) = - dlength(node_list%node(n_polar+i+1)%x(1,:), &
-                                                                node_list%node(n_glue+i+1)%x(1,:))/3.d0 / u_length
+  u_length = sqrt(node_list%node(n_polar+i+1)%x(1,2,1)**2 + node_list%node(n_polar+i+1)%x(1,2,2)**2)
+  element_list%element(n_element_start+i)%size(3,2) = - dlength(node_list%node(n_polar+i+1)%x(1,1,:), &
+                                                                node_list%node(n_glue+i+1)%x(1,1,:))/3.d0 / u_length
   element_list%element(n_element_start+i)%size(3,3) = element_list%element(n_element_polar+i)%size(4,3)
 
-  u_length = sqrt(node_list%node(n_glue+i+1)%x(2,1)**2 + node_list%node(n_glue+i+1)%x(2,2)**2)
-  element_list%element(n_element_start+i)%size(4,2) = dlength(node_list%node(n_polar+i+1)%x(1,:), &
-                                                              node_list%node(n_glue+i+1)%x(1,:))/3.d0 / u_length
+  u_length = sqrt(node_list%node(n_glue+i+1)%x(1,2,1)**2 + node_list%node(n_glue+i+1)%x(1,2,2)**2)
+  element_list%element(n_element_start+i)%size(4,2) = dlength(node_list%node(n_polar+i+1)%x(1,1,:), &
+                                                              node_list%node(n_glue+i+1)%x(1,1,:))/3.d0 / u_length
   element_list%element(n_element_start+i)%size(4,3) = element_list%element(i)%size(3,2)
 
 enddo
@@ -226,13 +226,13 @@ enddo
 
 n_element_start = (nR-1)*(nZ-1) + (nR-1)
 
-!node_list%node(nR*nZ+nR+1)%x(1,1)  = 1.1*node_list%node(nR*nZ+nR+1)%x(1,1)
-node_list%node(nR*nZ+nR+1)%x(2,:)  = node_list%node(nR*nZ+nR)%x(2,:)
-node_list%node(nR*nZ+nR+1)%x(3,:)  = node_list%node(nR)%x(3,:)
+!node_list%node(nR*nZ+nR+1)%x(1,1,1)  = 1.1*node_list%node(nR*nZ+nR+1)%x(1,1,1)
+node_list%node(nR*nZ+nR+1)%x(1,2,:)  = node_list%node(nR*nZ+nR)%x(1,2,:)
+node_list%node(nR*nZ+nR+1)%x(1,3,:)  = node_list%node(nR)%x(1,3,:)
 
-!node_list%node(nR*nZ+nR+nZ)%x(1,1) = 1.1*node_list%node(nR*nZ+nR+nZ)%x(1,1)
-node_list%node(nR*nZ+nR+nZ)%x(2,:) = node_list%node(nR*nZ + 2*nR + 2*Nz + nR + nZ - 1)%x(2,:)
-node_list%node(nR*nZ+nR+nZ)%x(3,:) = node_list%node(nR*nZ)%x(3,:)
+!node_list%node(nR*nZ+nR+nZ)%x(1,1,1) = 1.1*node_list%node(nR*nZ+nR+nZ)%x(1,1,1)
+node_list%node(nR*nZ+nR+nZ)%x(1,2,:) = node_list%node(nR*nZ + 2*nR + 2*Nz + nR + nZ - 1)%x(1,2,:)
+node_list%node(nR*nZ+nR+nZ)%x(1,3,:) = node_list%node(nR*nZ)%x(1,3,:)
 
 do i=1,nZ-1
 
@@ -241,37 +241,37 @@ do i=1,nZ-1
   element_list%element(n_element_start+i)%vertex(4) = n_glue  + nR     + i + 1
   element_list%element(n_element_start+i)%vertex(1) = n_glue  + nR     + i
 
-  u_length = sqrt(node_list%node(n_glue+nR+i)%x(2,1)**2 + node_list%node(n_glue+nR+i)%x(2,2)**2)
-  element_list%element(n_element_start+i)%size(1,2) = dlength(node_list%node(n_polar+nR+i-1)%x(1,:), &
-                                                              node_list%node(n_glue+nR+i)%x(1,:))/3.d0 / u_length
+  u_length = sqrt(node_list%node(n_glue+nR+i)%x(1,2,1)**2 + node_list%node(n_glue+nR+i)%x(1,2,2)**2)
+  element_list%element(n_element_start+i)%size(1,2) = dlength(node_list%node(n_polar+nR+i-1)%x(1,1,:), &
+                                                              node_list%node(n_glue+nR+i)%x(1,1,:))/3.d0 / u_length
   element_list%element(n_element_start+i)%size(1,3) = element_list%element(i)%size(1,2)
 
-  u_length = sqrt(node_list%node(n_polar+nR+i-1)%x(2,1)**2 + node_list%node(n_polar+nR+i-1)%x(2,2)**2)
-  element_list%element(n_element_start+i)%size(2,2) = - dlength(node_list%node(n_polar+nR+i-1)%x(1,:), &
-                                                                node_list%node(n_glue+nR+i)%x(1,:))/3.d0 / u_length
+  u_length = sqrt(node_list%node(n_polar+nR+i-1)%x(1,2,1)**2 + node_list%node(n_polar+nR+i-1)%x(1,2,2)**2)
+  element_list%element(n_element_start+i)%size(2,2) = - dlength(node_list%node(n_polar+nR+i-1)%x(1,1,:), &
+                                                                node_list%node(n_glue+nR+i)%x(1,1,:))/3.d0 / u_length
   element_list%element(n_element_start+i)%size(2,3) = element_list%element(n_element_polar+nR+i-1)%size(1,3)
 
-  u_length = sqrt(node_list%node(n_polar+nR+i)%x(2,1)**2 + node_list%node(n_polar+nR+i)%x(2,2)**2)
-  element_list%element(n_element_start+i)%size(3,2) = - dlength(node_list%node(n_polar+nR+i)%x(1,:), &
-                                                                node_list%node(n_glue+i+nR+1)%x(1,:))/3.d0 / u_length
+  u_length = sqrt(node_list%node(n_polar+nR+i)%x(1,2,1)**2 + node_list%node(n_polar+nR+i)%x(1,2,2)**2)
+  element_list%element(n_element_start+i)%size(3,2) = - dlength(node_list%node(n_polar+nR+i)%x(1,1,:), &
+                                                                node_list%node(n_glue+i+nR+1)%x(1,1,:))/3.d0 / u_length
   element_list%element(n_element_start+i)%size(3,3) = element_list%element(n_element_polar+nR+i-1)%size(4,3)
 
-  u_length = sqrt(node_list%node(n_glue+nR+i+1)%x(2,1)**2 + node_list%node(n_glue+nR+i+1)%x(2,2)**2)
-  element_list%element(n_element_start+i)%size(4,2) = dlength(node_list%node(n_polar+nR+i)%x(1,:), &
-                                                              node_list%node(n_glue+nR+i+1)%x(1,:))/3.d0 / u_length
+  u_length = sqrt(node_list%node(n_glue+nR+i+1)%x(1,2,1)**2 + node_list%node(n_glue+nR+i+1)%x(1,2,2)**2)
+  element_list%element(n_element_start+i)%size(4,2) = dlength(node_list%node(n_polar+nR+i)%x(1,1,:), &
+                                                              node_list%node(n_glue+nR+i+1)%x(1,1,:))/3.d0 / u_length
   element_list%element(n_element_start+i)%size(4,3) = element_list%element(i)%size(3,2)
 
 enddo
 
 !-------------- adapt the corner nodes (north)
 
-!node_list%node(nR*nZ+nR+nZ+1)%x(1,2)  = 1.1*node_list%node(nR*nZ+nR+nZ+1)%x(1,2)
-node_list%node(nR*nZ+nR+nZ+1)%x(2,:)  = node_list%node(nR*nZ+nR+nZ)%x(2,:)
-node_list%node(nR*nZ+nR+nZ+1)%x(3,:)  = node_list%node(nR*nZ)%x(2,:)
+!node_list%node(nR*nZ+nR+nZ+1)%x(1,1,2)  = 1.1*node_list%node(nR*nZ+nR+nZ+1)%x(1,1,2)
+node_list%node(nR*nZ+nR+nZ+1)%x(1,2,:)  = node_list%node(nR*nZ+nR+nZ)%x(1,2,:)
+node_list%node(nR*nZ+nR+nZ+1)%x(1,3,:)  = node_list%node(nR*nZ)%x(1,2,:)
 
-!node_list%node(nR*nZ+2*nR+nZ)%x(1,2) = 1.1*node_list%node(nR*nZ+2*nR+nZ)%x(1,2)
-node_list%node(nR*nZ+2*nR+nZ)%x(2,:) = node_list%node(nR*nZ + 2*nR + 2*Nz + 2*nR + nZ - 2)%x(2,:)
-node_list%node(nR*nZ+2*nR+nZ)%x(3,:) = node_list%node(nR*nZ - nR + 1)%x(2,:)
+!node_list%node(nR*nZ+2*nR+nZ)%x(1,1,2) = 1.1*node_list%node(nR*nZ+2*nR+nZ)%x(1,1,2)
+node_list%node(nR*nZ+2*nR+nZ)%x(1,2,:) = node_list%node(nR*nZ + 2*nR + 2*Nz + 2*nR + nZ - 2)%x(1,2,:)
+node_list%node(nR*nZ+2*nR+nZ)%x(1,3,:) = node_list%node(nR*nZ - nR + 1)%x(1,2,:)
 
 n_element_start = (nR-1)*(nZ-1) + (nR-1) + (nZ-1)
 
@@ -282,24 +282,24 @@ do i=1,nR-1
   element_list%element(n_element_start+i)%vertex(4) = n_glue  + nR + nZ + i + 1
   element_list%element(n_element_start+i)%vertex(1) = n_glue  + nR + nZ + i
 
-  u_length = sqrt(node_list%node(n_glue+nR+nZ+i)%x(2,1)**2 + node_list%node(n_glue+nR+nZ+i)%x(2,2)**2)
-  element_list%element(n_element_start+i)%size(1,2) = dlength(node_list%node(n_polar+nR+nZ+i-2)%x(1,:), &
-                                                              node_list%node(n_glue+nR+nZ+i)%x(1,:))/3.d0 / u_length
+  u_length = sqrt(node_list%node(n_glue+nR+nZ+i)%x(1,2,1)**2 + node_list%node(n_glue+nR+nZ+i)%x(1,2,2)**2)
+  element_list%element(n_element_start+i)%size(1,2) = dlength(node_list%node(n_polar+nR+nZ+i-2)%x(1,1,:), &
+                                                              node_list%node(n_glue+nR+nZ+i)%x(1,1,:))/3.d0 / u_length
   element_list%element(n_element_start+i)%size(1,3) = element_list%element((nR-1)*(nZ-1)-i+1)%size(3,2)
 
-  u_length = sqrt(node_list%node(n_polar+nR+nZ+i-2)%x(2,1)**2 + node_list%node(n_polar+nR+nZ+i-2)%x(2,2)**2)
-  element_list%element(n_element_start+i)%size(2,2) = - dlength(node_list%node(n_polar+nR+nZ+i-2)%x(1,:), &
-                                                                node_list%node(n_glue+nR+nZ+i)%x(1,:))/3.d0 / u_length
+  u_length = sqrt(node_list%node(n_polar+nR+nZ+i-2)%x(1,2,1)**2 + node_list%node(n_polar+nR+nZ+i-2)%x(1,2,2)**2)
+  element_list%element(n_element_start+i)%size(2,2) = - dlength(node_list%node(n_polar+nR+nZ+i-2)%x(1,1,:), &
+                                                                node_list%node(n_glue+nR+nZ+i)%x(1,1,:))/3.d0 / u_length
   element_list%element(n_element_start+i)%size(2,3) = element_list%element(n_element_polar+nR+nZ+i-2)%size(1,3)
 
-  u_length = sqrt(node_list%node(n_polar+nR+nZ+i-1)%x(2,1)**2 + node_list%node(n_polar+nR+nZ+i-1)%x(2,2)**2)
-  element_list%element(n_element_start+i)%size(3,2) = - dlength(node_list%node(n_polar+nR+nZ+i-1)%x(1,:), &
-                                                                node_list%node(n_glue+i+nR+nZ+1)%x(1,:))/3.d0 / u_length
+  u_length = sqrt(node_list%node(n_polar+nR+nZ+i-1)%x(1,2,1)**2 + node_list%node(n_polar+nR+nZ+i-1)%x(1,2,2)**2)
+  element_list%element(n_element_start+i)%size(3,2) = - dlength(node_list%node(n_polar+nR+nZ+i-1)%x(1,1,:), &
+                                                                node_list%node(n_glue+i+nR+nZ+1)%x(1,1,:))/3.d0 / u_length
   element_list%element(n_element_start+i)%size(3,3) = element_list%element(n_element_polar+nR+nZ+i-2)%size(4,3)
 
-  u_length = sqrt(node_list%node(n_glue+nR+nZ+i+1)%x(2,1)**2 + node_list%node(n_glue+nR+nZ+i+1)%x(2,2)**2)
-  element_list%element(n_element_start+i)%size(4,2) = dlength(node_list%node(n_polar+nR+nZ+i-1)%x(1,:), &
-                                                              node_list%node(n_glue+nR+nZ+i+1)%x(1,:))/3.d0 / u_length
+  u_length = sqrt(node_list%node(n_glue+nR+nZ+i+1)%x(1,2,1)**2 + node_list%node(n_glue+nR+nZ+i+1)%x(1,2,2)**2)
+  element_list%element(n_element_start+i)%size(4,2) = dlength(node_list%node(n_polar+nR+nZ+i-1)%x(1,1,:), &
+                                                              node_list%node(n_glue+nR+nZ+i+1)%x(1,1,:))/3.d0 / u_length
   element_list%element(n_element_start+i)%size(4,3) = - element_list%element((nR-1)*(nZ-1)-i)%size(3,2)
 
   if (i .eq. (nR-1)) element_list%element(n_element_start+i)%size(4,3) = - element_list%element(n_element_start+i)%size(4,3)
@@ -308,13 +308,13 @@ enddo
 
 !-------------- adapt the corner nodes (west)
 
-!node_list%node(nR*nZ+2*nR+nZ+1)%x(1,1)  = 1.1*node_list%node(nR*nZ+2*nR+nZ+1)%x(1,1)
-node_list%node(nR*nZ+2*nR+nZ+1)%x(2,:)  = node_list%node(nR*nZ+2*nR+nZ)%x(2,:)
-node_list%node(nR*nZ+2*nR+nZ+1)%x(3,:)  = node_list%node(nR*nZ-nR+1)%x(3,:)
+!node_list%node(nR*nZ+2*nR+nZ+1)%x(1,1,1)  = 1.1*node_list%node(nR*nZ+2*nR+nZ+1)%x(1,1,1)
+node_list%node(nR*nZ+2*nR+nZ+1)%x(1,2,:)  = node_list%node(nR*nZ+2*nR+nZ)%x(1,2,:)
+node_list%node(nR*nZ+2*nR+nZ+1)%x(1,3,:)  = node_list%node(nR*nZ-nR+1)%x(1,3,:)
 
-!node_list%node(nR*nZ+2*nR+2*nZ)%x(1,1) = 1.1*node_list%node(nR*nZ+2*nR+2*nZ)%x(1,1)
-node_list%node(nR*nZ+2*nR+2*nZ)%x(2,:) = node_list%node(nR*nZ+1)%x(2,:)
-node_list%node(nR*nZ+2*nR+2*nZ)%x(3,:) = node_list%node(1)%x(3,:)
+!node_list%node(nR*nZ+2*nR+2*nZ)%x(1,1,1) = 1.1*node_list%node(nR*nZ+2*nR+2*nZ)%x(1,1,1)
+node_list%node(nR*nZ+2*nR+2*nZ)%x(1,2,:) = node_list%node(nR*nZ+1)%x(1,2,:)
+node_list%node(nR*nZ+2*nR+2*nZ)%x(1,3,:) = node_list%node(1)%x(1,3,:)
 
 n_element_start = (nR-1)*(nZ-1) + 2*(nR-1) + (nZ-1)
 
@@ -330,35 +330,35 @@ do i=1,nZ-1
   i_glue  = n_glue + nR + nZ + nR + i
   i_polar = n_polar+nR+nZ+nR+i-3
 
-  u_length = sqrt(node_list%node(i_glue)%x(2,1)**2 + node_list%node(i_glue)%x(2,2)**2)
-  element_list%element(n_element_start+i)%size(1,2) = dlength(node_list%node(i_polar)%x(1,:), &
-                                                              node_list%node(i_glue)%x(1,:))/3.d0 / u_length
+  u_length = sqrt(node_list%node(i_glue)%x(1,2,1)**2 + node_list%node(i_glue)%x(1,2,2)**2)
+  element_list%element(n_element_start+i)%size(1,2) = dlength(node_list%node(i_polar)%x(1,1,:), &
+                                                              node_list%node(i_glue)%x(1,1,:))/3.d0 / u_length
   element_list%element(n_element_start+i)%size(1,3) = element_list%element((nR-1)*(nZ-1)-i*(nR-1)+1)%size(4,3)
 
-  u_length = sqrt(node_list%node(i_polar)%x(2,1)**2 + node_list%node(i_polar)%x(2,2)**2)
-  element_list%element(n_element_start+i)%size(2,2) = - dlength(node_list%node(i_polar)%x(1,:), &
-                                                                node_list%node(i_glue)%x(1,:))/3.d0 / u_length
+  u_length = sqrt(node_list%node(i_polar)%x(1,2,1)**2 + node_list%node(i_polar)%x(1,2,2)**2)
+  element_list%element(n_element_start+i)%size(2,2) = - dlength(node_list%node(i_polar)%x(1,1,:), &
+                                                                node_list%node(i_glue)%x(1,1,:))/3.d0 / u_length
   element_list%element(n_element_start+i)%size(2,3) = element_list%element(n_element_polar+nR+nZ+i-2)%size(1,3)
 
-  u_length = sqrt(node_list%node(i_polar+1)%x(2,1)**2 + node_list%node(i_polar+1)%x(2,2)**2)
-  element_list%element(n_element_start+i)%size(3,2) = - dlength(node_list%node(i_polar+1)%x(1,:), &
-                                                                node_list%node(i_glue+1)%x(1,:))/3.d0 / u_length
+  u_length = sqrt(node_list%node(i_polar+1)%x(1,2,1)**2 + node_list%node(i_polar+1)%x(1,2,2)**2)
+  element_list%element(n_element_start+i)%size(3,2) = - dlength(node_list%node(i_polar+1)%x(1,1,:), &
+                                                                node_list%node(i_glue+1)%x(1,1,:))/3.d0 / u_length
   element_list%element(n_element_start+i)%size(3,3) = element_list%element(n_element_polar+nR+nZ+i-2)%size(4,3)
 
-  u_length = sqrt(node_list%node(i_glue+1)%x(2,1)**2 + node_list%node(i_glue+1)%x(2,2)**2)
-  element_list%element(n_element_start+i)%size(4,2) = dlength(node_list%node(i_polar+1)%x(1,:), &
-                                                              node_list%node(i_glue+1)%x(1,:))/3.d0 / u_length
+  u_length = sqrt(node_list%node(i_glue+1)%x(1,2,1)**2 + node_list%node(i_glue+1)%x(1,2,2)**2)
+  element_list%element(n_element_start+i)%size(4,2) = dlength(node_list%node(i_polar+1)%x(1,1,:), &
+                                                              node_list%node(i_glue+1)%x(1,1,:))/3.d0 / u_length
   element_list%element(n_element_start+i)%size(4,3) = element_list%element((nR-1)*(nZ-1)-i*(nZ-1)+1)%size(1,3)
 
   if (i .eq. (nZ-1)) then
 
-    u_length = sqrt(node_list%node(n_polar+1)%x(2,1)**2 + node_list%node(n_polar+1)%x(2,2)**2)
-    element_list%element(n_element_start+i)%size(3,2) = - dlength(node_list%node(n_polar+1)%x(1,:), &
-                                                                  node_list%node(i_glue+1)%x(1,:))/3.d0 / u_length
+    u_length = sqrt(node_list%node(n_polar+1)%x(1,2,1)**2 + node_list%node(n_polar+1)%x(1,2,2)**2)
+    element_list%element(n_element_start+i)%size(3,2) = - dlength(node_list%node(n_polar+1)%x(1,1,:), &
+                                                                  node_list%node(i_glue+1)%x(1,1,:))/3.d0 / u_length
 
-    u_length = sqrt(node_list%node(i_glue+1)%x(2,1)**2 + node_list%node(i_glue+1)%x(2,2)**2)
-    element_list%element(n_element_start+i)%size(4,2) = dlength(node_list%node(n_polar+1)%x(1,:), &
-                                                                node_list%node(i_glue+1)%x(1,:))/3.d0 / u_length
+    u_length = sqrt(node_list%node(i_glue+1)%x(1,2,1)**2 + node_list%node(i_glue+1)%x(1,2,2)**2)
+    element_list%element(n_element_start+i)%size(4,2) = dlength(node_list%node(n_polar+1)%x(1,1,:), &
+                                                                node_list%node(i_glue+1)%x(1,1,:))/3.d0 / u_length
 
   endif
 

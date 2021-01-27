@@ -610,19 +610,19 @@ if (my_id == 0) then
   
             do l = 1, n_order+1
     
-              dx_ds = dx_ds + node_list%node(pr(k))%x(l,1) * H_s(k,l) 	&
+              dx_ds = dx_ds + node_list%node(pr(k))%x(1,l,1) * H_s(k,l) 	&
               * element_list%element(index_elm)%size(k,l)
-        dx_dt = dx_dt + node_list%node(pr(k))%x(l,1) * H_t(k,l) 	&
+        dx_dt = dx_dt + node_list%node(pr(k))%x(1,l,1) * H_t(k,l) 	&
                     * element_list%element(index_elm)%size(k,l)
   
-              dy_ds = dy_ds + node_list%node(pr(k))%x(l,2) * H_s(k,l) 	&
+              dy_ds = dy_ds + node_list%node(pr(k))%x(1,l,2) * H_s(k,l) 	&
                     * element_list%element(index_elm)%size(k,l)
-        dy_dt = dy_dt + node_list%node(pr(k))%x(l,2) * H_t(k,l) 	&
+        dy_dt = dy_dt + node_list%node(pr(k))%x(1,l,2) * H_t(k,l) 	&
               * element_list%element(index_elm)%size(k,l)
   
-              d2x_dsdt = d2x_dsdt + node_list%node(pr(k))%x(l,1) * H_st(k,l) 	&
+              d2x_dsdt = d2x_dsdt + node_list%node(pr(k))%x(1,l,1) * H_st(k,l) 	&
                        * element_list%element(index_elm)%size(k,l)
-              d2y_dsdt = d2y_dsdt + node_list%node(pr(k))%x(l,2) * H_st(k,l) 	&
+              d2y_dsdt = d2y_dsdt + node_list%node(pr(k))%x(1,l,2) * H_st(k,l) 	&
                        * element_list%element(index_elm)%size(k,l)
   
               Psi = Psi  + node_list%node(pr(k))%values(i_harm,l,ivar_out)*H(k,l)	   &

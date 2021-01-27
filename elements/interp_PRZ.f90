@@ -33,8 +33,8 @@ do kv = 1,n_vertex_max  ! 4 vertices
 
   do kf = 1, n_order+1       ! 4 basis functions
 
-    xx1 = node_list%node(iv)%x(kf,1)
-    xx2 = node_list%node(iv)%x(kf,2)
+    xx1 = node_list%node(iv)%x(1,kf,1)
+    xx2 = node_list%node(iv)%x(1,kf,2)
     ss  = element_list%element(i_elm)%size(kv,kf)
 
     R    = R    + xx1 * ss * H(kv,kf)

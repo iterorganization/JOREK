@@ -371,21 +371,21 @@ do ife = 1, element_list%n_elements
    do ms=1,n_gauss
     do mt=1,n_gauss
 
-      x_g(ms,mt)  = x_g(ms,mt)  + nodes(i)%x(j,1) * element%size(i,j) * H(i,j,ms,mt)
-      x_s(ms,mt)  = x_s(ms,mt)  + nodes(i)%x(j,1) * element%size(i,j) * H_s(i,j,ms,mt)
-      x_t(ms,mt)  = x_t(ms,mt)  + nodes(i)%x(j,1) * element%size(i,j) * H_t(i,j,ms,mt)
+      x_g(ms,mt)  = x_g(ms,mt)  + nodes(i)%x(1,j,1) * element%size(i,j) * H(i,j,ms,mt)
+      x_s(ms,mt)  = x_s(ms,mt)  + nodes(i)%x(1,j,1) * element%size(i,j) * H_s(i,j,ms,mt)
+      x_t(ms,mt)  = x_t(ms,mt)  + nodes(i)%x(1,j,1) * element%size(i,j) * H_t(i,j,ms,mt)
 
-      x_ss(ms,mt) = x_ss(ms,mt) + nodes(i)%x(j,1) * element%size(i,j) * H_ss(i,j,ms,mt)
-      x_st(ms,mt) = x_st(ms,mt) + nodes(i)%x(j,1) * element%size(i,j) * H_st(i,j,ms,mt)
-      x_tt(ms,mt) = x_tt(ms,mt) + nodes(i)%x(j,1) * element%size(i,j) * H_tt(i,j,ms,mt)
+      x_ss(ms,mt) = x_ss(ms,mt) + nodes(i)%x(1,j,1) * element%size(i,j) * H_ss(i,j,ms,mt)
+      x_st(ms,mt) = x_st(ms,mt) + nodes(i)%x(1,j,1) * element%size(i,j) * H_st(i,j,ms,mt)
+      x_tt(ms,mt) = x_tt(ms,mt) + nodes(i)%x(1,j,1) * element%size(i,j) * H_tt(i,j,ms,mt)
 
-      y_g(ms,mt)  = y_g(ms,mt)  + nodes(i)%x(j,2) * element%size(i,j) * H(i,j,ms,mt)
-      y_s(ms,mt)  = y_s(ms,mt)  + nodes(i)%x(j,2) * element%size(i,j) * H_s(i,j,ms,mt)
-      y_t(ms,mt)  = y_t(ms,mt)  + nodes(i)%x(j,2) * element%size(i,j) * H_t(i,j,ms,mt)
+      y_g(ms,mt)  = y_g(ms,mt)  + nodes(i)%x(1,j,2) * element%size(i,j) * H(i,j,ms,mt)
+      y_s(ms,mt)  = y_s(ms,mt)  + nodes(i)%x(1,j,2) * element%size(i,j) * H_s(i,j,ms,mt)
+      y_t(ms,mt)  = y_t(ms,mt)  + nodes(i)%x(1,j,2) * element%size(i,j) * H_t(i,j,ms,mt)
 
-      y_ss(ms,mt) = y_ss(ms,mt) + nodes(i)%x(j,2) * element%size(i,j) * H_ss(i,j,ms,mt)
-      y_st(ms,mt) = y_st(ms,mt) + nodes(i)%x(j,2) * element%size(i,j) * H_st(i,j,ms,mt)
-      y_tt(ms,mt) = y_tt(ms,mt) + nodes(i)%x(j,2) * element%size(i,j) * H_tt(i,j,ms,mt)
+      y_ss(ms,mt) = y_ss(ms,mt) + nodes(i)%x(1,j,2) * element%size(i,j) * H_ss(i,j,ms,mt)
+      y_st(ms,mt) = y_st(ms,mt) + nodes(i)%x(1,j,2) * element%size(i,j) * H_st(i,j,ms,mt)
+      y_tt(ms,mt) = y_tt(ms,mt) + nodes(i)%x(1,j,2) * element%size(i,j) * H_tt(i,j,ms,mt)
       
       do mp=1,n_plane_local
        do k=1,n_var
@@ -1232,25 +1232,25 @@ enddo
 !print*, ' element_list%element(200)%vertex(:) = ', element_list%element(200)%vertex(:)
 !print*, ' element_list%element(201)%vertex(:) = ', element_list%element(201)%vertex(:)
 !print*, ' '
-!print*, ' 1 node_list%node(1)%x(1,1)          = ', node_list%node(element_list%element(1)%vertex(1))%x(1,1)
-!print*, ' 1 node_list%node(2)%x(1,1)          = ', node_list%node(element_list%element(1)%vertex(2))%x(1,1)
-!print*, ' 1 node_list%node(3)%x(1,1)          = ', node_list%node(element_list%element(1)%vertex(3))%x(1,1)
-!print*, ' 1 node_list%node(4)%x(1,1)          = ', node_list%node(element_list%element(1)%vertex(4))%x(1,1)
+!print*, ' 1 node_list%node(1)%x(1,1,1)          = ', node_list%node(element_list%element(1)%vertex(1))%x(1,1,1)
+!print*, ' 1 node_list%node(2)%x(1,1,1)          = ', node_list%node(element_list%element(1)%vertex(2))%x(1,1,1)
+!print*, ' 1 node_list%node(3)%x(1,1,1)          = ', node_list%node(element_list%element(1)%vertex(3))%x(1,1,1)
+!print*, ' 1 node_list%node(4)%x(1,1,1)          = ', node_list%node(element_list%element(1)%vertex(4))%x(1,1,1)
 !print*, ' '
-!print*, ' 2 node_list%node(1)%x(1,1)          = ', node_list%node(element_list%element(2)%vertex(1))%x(1,1)
-!print*, ' 2 node_list%node(2)%x(1,1)          = ', node_list%node(element_list%element(2)%vertex(2))%x(1,1)
-!print*, ' 2 node_list%node(3)%x(1,1)          = ', node_list%node(element_list%element(2)%vertex(3))%x(1,1)
-!print*, ' 2 node_list%node(4)%x(1,1)          = ', node_list%node(element_list%element(2)%vertex(4))%x(1,1)
+!print*, ' 2 node_list%node(1)%x(1,1,1)          = ', node_list%node(element_list%element(2)%vertex(1))%x(1,1,1)
+!print*, ' 2 node_list%node(2)%x(1,1,1)          = ', node_list%node(element_list%element(2)%vertex(2))%x(1,1,1)
+!print*, ' 2 node_list%node(3)%x(1,1,1)          = ', node_list%node(element_list%element(2)%vertex(3))%x(1,1,1)
+!print*, ' 2 node_list%node(4)%x(1,1,1)          = ', node_list%node(element_list%element(2)%vertex(4))%x(1,1,1)
 !print*, ' '
-!print*, ' 1 node_list%node(1)%x(1,2)          = ', node_list%node(element_list%element(1)%vertex(1))%x(1,2)
-!print*, ' 1 node_list%node(2)%x(1,2)          = ', node_list%node(element_list%element(1)%vertex(2))%x(1,2)
-!print*, ' 1 node_list%node(3)%x(1,2)          = ', node_list%node(element_list%element(1)%vertex(3))%x(1,2)
-!print*, ' 1 node_list%node(4)%x(1,2)          = ', node_list%node(element_list%element(1)%vertex(4))%x(1,2)
+!print*, ' 1 node_list%node(1)%x(1,1,2)          = ', node_list%node(element_list%element(1)%vertex(1))%x(1,1,2)
+!print*, ' 1 node_list%node(2)%x(1,1,2)          = ', node_list%node(element_list%element(1)%vertex(2))%x(1,1,2)
+!print*, ' 1 node_list%node(3)%x(1,1,2)          = ', node_list%node(element_list%element(1)%vertex(3))%x(1,1,2)
+!print*, ' 1 node_list%node(4)%x(1,1,2)          = ', node_list%node(element_list%element(1)%vertex(4))%x(1,1,2)
 !print*, ' '
-!print*, ' 2 node_list%node(1)%x(1,2)          = ', node_list%node(element_list%element(2)%vertex(1))%x(1,2)
-!print*, ' 2 node_list%node(2)%x(1,2)          = ', node_list%node(element_list%element(2)%vertex(2))%x(1,2)
-!print*, ' 2 node_list%node(3)%x(1,2)          = ', node_list%node(element_list%element(2)%vertex(3))%x(1,2)
-!print*, ' 2 node_list%node(4)%x(1,2)          = ', node_list%node(element_list%element(2)%vertex(4))%x(1,2)
+!print*, ' 2 node_list%node(1)%x(1,1,2)          = ', node_list%node(element_list%element(2)%vertex(1))%x(1,1,2)
+!print*, ' 2 node_list%node(2)%x(1,1,2)          = ', node_list%node(element_list%element(2)%vertex(2))%x(1,1,2)
+!print*, ' 2 node_list%node(3)%x(1,1,2)          = ', node_list%node(element_list%element(2)%vertex(3))%x(1,1,2)
+!print*, ' 2 node_list%node(4)%x(1,1,2)          = ', node_list%node(element_list%element(2)%vertex(4))%x(1,1,2)
 !print*, ' '
 
 

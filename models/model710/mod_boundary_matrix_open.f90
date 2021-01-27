@@ -105,10 +105,10 @@ delta_g = 0.d0; delta_s = 0.d0; delta_t = 0.d0;
 Fprofile = 0.d0
 
 ! --- Strategic points on elements to define normal vector properly
-R_mid = sum(nodes(1:2)%x(1,1)) / 2.d0     ! mid point on boundary (approx.)
-Z_mid = sum(nodes(1:2)%x(1,2)) / 2.d0
-R_cnt = sum(nodes(1:4)%x(1,1)) / 4.d0     ! center point within element (approx.)
-Z_cnt = sum(nodes(1:4)%x(1,2)) / 4.d0
+R_mid = sum(nodes(1:2)%x(1,1,1)) / 2.d0     ! mid point on boundary (approx.)
+Z_mid = sum(nodes(1:2)%x(1,1,2)) / 2.d0
+R_cnt = sum(nodes(1:4)%x(1,1,1)) / 4.d0     ! center point within element (approx.)
+Z_cnt = sum(nodes(1:4)%x(1,1,2)) / 4.d0
 
 normal_direction = (/R_mid - R_cnt, Z_mid - Z_cnt /) / norm2((/R_mid - R_cnt, Z_mid - Z_cnt /))
 direction_perp(1) = 6 / direction(2)     ! =3 if direction(2)=2, =3 if direction(2)=3
@@ -134,13 +134,13 @@ do i=1,2
     do ms=1, n_gauss
 
       ! --- Pre-define R and Z
-      R_g(ms)  = R_g(ms)  + nodes(i)%x(j2,1) * element_size_ij * H1(i,j,ms)
-      R_s(ms)  = R_s(ms)  + nodes(i)%x(j2,1) * element_size_ij * H1_s(i,j,ms)
-      R_t(ms)  = R_t(ms)  + nodes(i)%x(j3,1) * element_size_ij * H1(i,j,ms)   * element_size_perp
+      R_g(ms)  = R_g(ms)  + nodes(i)%x(1,j2,1) * element_size_ij * H1(i,j,ms)
+      R_s(ms)  = R_s(ms)  + nodes(i)%x(1,j2,1) * element_size_ij * H1_s(i,j,ms)
+      R_t(ms)  = R_t(ms)  + nodes(i)%x(1,j3,1) * element_size_ij * H1(i,j,ms)   * element_size_perp
 
-      Z_g(ms)  = Z_g(ms)  + nodes(i)%x(j2,2) * element_size_ij * H1(i,j,ms)
-      Z_s(ms)  = Z_s(ms)  + nodes(i)%x(j2,2) * element_size_ij * H1_s(i,j,ms)
-      Z_t(ms)  = Z_t(ms)  + nodes(i)%x(j3,2) * element_size_ij * H1(i,j,ms)   * element_size_perp
+      Z_g(ms)  = Z_g(ms)  + nodes(i)%x(1,j2,2) * element_size_ij * H1(i,j,ms)
+      Z_s(ms)  = Z_s(ms)  + nodes(i)%x(1,j2,2) * element_size_ij * H1_s(i,j,ms)
+      Z_t(ms)  = Z_t(ms)  + nodes(i)%x(1,j3,2) * element_size_ij * H1(i,j,ms)   * element_size_perp
 
       ! --- Pre-define F-profile from initial equilibrium
       Fprofile(ms)   = Fprofile(ms)   + nodes(i)%Fprof_eq(j2)    * element_size_ij * H1(i,j,ms)

@@ -31,17 +31,17 @@ do k=1,2
 
     if ((iv .eq. 1) .or. (iv .eq. 3)) THEN
 
-      PSIM  =  node_list%node(n1)%x(1,k) * element_list%element(i_elm)%size(iv,1)            
-      PSIMR =  node_list%node(n1)%x(2,k) * element_list%element(i_elm)%size(iv,2) * 3.d0/2.d0
-      PSIP  =  node_list%node(n2)%x(1,k) * element_list%element(i_elm)%size(im,1)            
-      PSIPR = -node_list%node(n2)%x(2,k) * element_list%element(i_elm)%size(im,2) * 3.d0/2.d0
+      PSIM  =  node_list%node(n1)%x(1,1,k) * element_list%element(i_elm)%size(iv,1)            
+      PSIMR =  node_list%node(n1)%x(1,2,k) * element_list%element(i_elm)%size(iv,2) * 3.d0/2.d0
+      PSIP  =  node_list%node(n2)%x(1,1,k) * element_list%element(i_elm)%size(im,1)            
+      PSIPR = -node_list%node(n2)%x(1,2,k) * element_list%element(i_elm)%size(im,2) * 3.d0/2.d0
 
     elseif ((iv .eq. 2) .or. (iv .eq. 4)) then
       
-      PSIM  =   node_list%node(n1)%x(1,k) * element_list%element(i_elm)%size(iv,1)            
-      PSIMR =   node_list%node(n1)%x(3,k) * element_list%element(i_elm)%size(iv,3) * 3.d0/2.d0
-      PSIP  =   node_list%node(n2)%x(1,k) * element_list%element(i_elm)%size(im,1)            
-      PSIPR = - node_list%node(n2)%x(3,k) * element_list%element(i_elm)%size(im,3) * 3.d0/2.d0
+      PSIM  =   node_list%node(n1)%x(1,1,k) * element_list%element(i_elm)%size(iv,1)            
+      PSIMR =   node_list%node(n1)%x(1,3,k) * element_list%element(i_elm)%size(iv,3) * 3.d0/2.d0
+      PSIP  =   node_list%node(n2)%x(1,1,k) * element_list%element(i_elm)%size(im,1)            
+      PSIPR = - node_list%node(n2)%x(1,3,k) * element_list%element(i_elm)%size(im,3) * 3.d0/2.d0
 
     endif
 

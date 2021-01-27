@@ -39,10 +39,10 @@ do i = 1, node_list%n_nodes
   end if
   
   ! --- Determine geometrical region covered with nodes
-  Rmin = min( Rmin, node_list%node(i)%x(1,1) )
-  Rmax = max( Rmax, node_list%node(i)%x(1,1) )
-  Zmin = min( Zmin, node_list%node(i)%x(1,2) )
-  Zmax = max( Zmax, node_list%node(i)%x(1,2) )
+  Rmin = min( Rmin, node_list%node(i)%x(1,1,1) )
+  Rmax = max( Rmax, node_list%node(i)%x(1,1,1) )
+  Zmin = min( Zmin, node_list%node(i)%x(1,1,2) )
+  Zmax = max( Zmax, node_list%node(i)%x(1,1,2) )
   
   ! --- Count nodes on axis
   if ( node_list%node(i)%axis_node ) n_axis = n_axis + 1
@@ -72,7 +72,7 @@ if ( verbose ) then
     end if
   end do
   do i = 1, node_list%n_nodes
-      write(400+node_list%node(i)%boundary,*) node_list%node(i)%x(1,1:2)
+      write(400+node_list%node(i)%boundary,*) node_list%node(i)%x(1,1,1:2)
   end do
   do i = 0, maxbnd
     if (boundary_types(i)/=0) close(400+i)
@@ -87,7 +87,7 @@ if ( verbose ) then
   write(filename,'(3a)') trim(DIR), '/nodes', trim(filename_appendix)
   open(400, file=filename, status='replace', form='formatted', action='write')
   do i = 1, node_list%n_nodes
-      write(400,*) node_list%node(i)%x(1,1:2)
+      write(400,*) node_list%node(i)%x(1,1,1:2)
       write(400,*)
       write(400,*)
   end do
@@ -104,7 +104,7 @@ if ( verbose ) then
   do i = 1, element_list%n_elements
       x = 0.d0
       do j = 1, n_vertex_max
-        x = x + node_list%node(element_list%element(i)%vertex(j))%x(1,1:2) / real(n_vertex_max)
+        x = x + node_list%node(element_list%element(i)%vertex(j))%x(1,1,1:2) / real(n_vertex_max)
       end do
       write(400,*) x
       write(400,*)

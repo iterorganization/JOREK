@@ -149,34 +149,34 @@ diff_min_beg = 1.d10
 diff_min_end = 1.d10
 do i_node = 1,node_list%n_nodes
   if (node_list%node(i_node)%boundary .eq. 0) cycle
-  diff = sqrt( (node_list%node(i_node)%x(1,1)-R_block_points_left(i_ext,1))**2 &
-              +(node_list%node(i_node)%x(1,2)-Z_block_points_left(i_ext,1))**2 )
+  diff = sqrt( (node_list%node(i_node)%x(1,1,1)-R_block_points_left(i_ext,1))**2 &
+              +(node_list%node(i_node)%x(1,1,2)-Z_block_points_left(i_ext,1))**2 )
   if (diff .lt. diff_min_beg) then
     diff_min_beg = diff
     i_bnd_beg = i_node
   endif
-  diff = sqrt( (node_list%node(i_node)%x(1,1)-R_block_points_right(i_ext,1))**2 &
-              +(node_list%node(i_node)%x(1,2)-Z_block_points_right(i_ext,1))**2 )
+  diff = sqrt( (node_list%node(i_node)%x(1,1,1)-R_block_points_right(i_ext,1))**2 &
+              +(node_list%node(i_node)%x(1,1,2)-Z_block_points_right(i_ext,1))**2 )
   if (diff .lt. diff_min_end) then
     diff_min_end = diff
     i_bnd_end = i_node
   endif
 enddo
-R_block_points_left (i_ext,1) = node_list%node(i_bnd_beg)%x(1,1)
-Z_block_points_left (i_ext,1) = node_list%node(i_bnd_beg)%x(1,2)
-R_block_points_right(i_ext,1) = node_list%node(i_bnd_end)%x(1,1)
-Z_block_points_right(i_ext,1) = node_list%node(i_bnd_end)%x(1,2)
+R_block_points_left (i_ext,1) = node_list%node(i_bnd_beg)%x(1,1,1)
+Z_block_points_left (i_ext,1) = node_list%node(i_bnd_beg)%x(1,1,2)
+R_block_points_right(i_ext,1) = node_list%node(i_bnd_end)%x(1,1,1)
+Z_block_points_right(i_ext,1) = node_list%node(i_bnd_end)%x(1,1,2)
 
 ! --- Now step along boundary between these two nodes
 call find_next_bnd_node(node_list,element_list,i_bnd_beg,-1,i_node_prev)
 call find_next_bnd_node(node_list,element_list,i_bnd_beg,+1,i_node_next)
 
-R1 = node_list%node(i_bnd_end)%x(1,1)
-Z1 = node_list%node(i_bnd_end)%x(1,2)
-R2 = node_list%node(i_node_prev)%x(1,1)
-Z2 = node_list%node(i_node_prev)%x(1,2)
-R3 = node_list%node(i_node_next)%x(1,1)
-Z3 = node_list%node(i_node_next)%x(1,2)
+R1 = node_list%node(i_bnd_end)%x(1,1,1)
+Z1 = node_list%node(i_bnd_end)%x(1,1,2)
+R2 = node_list%node(i_node_prev)%x(1,1,1)
+Z2 = node_list%node(i_node_prev)%x(1,1,2)
+R3 = node_list%node(i_node_next)%x(1,1,1)
+Z3 = node_list%node(i_node_next)%x(1,1,2)
 
 if ( sqrt( (R1-R3)**2 + (Z1-Z3)**2 ) .lt. sqrt( (R1-R2)**2 + (Z1-Z2)**2 ) ) then
   direction = +1
@@ -380,15 +380,15 @@ if (i_ext .gt. 1) then
     diff_min_end = 1.d10
     do i_node = 1,node_list%n_nodes
       if (node_list%node(i_node)%boundary .eq. 0) cycle
-      diff = sqrt( (node_list%node(i_node)%x(1,1)-R_block_points_right(i_ext-1,1))**2 &
-                  +(node_list%node(i_node)%x(1,2)-Z_block_points_right(i_ext-1,1))**2 )
+      diff = sqrt( (node_list%node(i_node)%x(1,1,1)-R_block_points_right(i_ext-1,1))**2 &
+                  +(node_list%node(i_node)%x(1,1,2)-Z_block_points_right(i_ext-1,1))**2 )
       if (diff .lt. diff_min_beg) then
         diff_min_beg = diff
         i_bnd_beg_prev = i_node
       endif
       n_tmp = n_block_points_right(i_ext-1)
-      diff = sqrt( (node_list%node(i_node)%x(1,1)-R_block_points_right(i_ext-1,n_tmp))**2 &
-                  +(node_list%node(i_node)%x(1,2)-Z_block_points_right(i_ext-1,n_tmp))**2 )
+      diff = sqrt( (node_list%node(i_node)%x(1,1,1)-R_block_points_right(i_ext-1,n_tmp))**2 &
+                  +(node_list%node(i_node)%x(1,1,2)-Z_block_points_right(i_ext-1,n_tmp))**2 )
       if (diff .lt. diff_min_end) then
         diff_min_end = diff
         i_bnd_end_prev = i_node
@@ -398,12 +398,12 @@ if (i_ext .gt. 1) then
     ! --- Now step along boundary between these two nodes
     call find_next_bnd_node(node_list,element_list,i_bnd_beg_prev,-1,i_node_prev)
     call find_next_bnd_node(node_list,element_list,i_bnd_beg_prev,+1,i_node_next)
-    R1 = node_list%node(i_bnd_end_prev)%x(1,1)
-    Z1 = node_list%node(i_bnd_end_prev)%x(1,2)
-    R2 = node_list%node(i_node_prev)%x(1,1)
-    Z2 = node_list%node(i_node_prev)%x(1,2)
-    R3 = node_list%node(i_node_next)%x(1,1)
-    Z3 = node_list%node(i_node_next)%x(1,2)
+    R1 = node_list%node(i_bnd_end_prev)%x(1,1,1)
+    Z1 = node_list%node(i_bnd_end_prev)%x(1,1,2)
+    R2 = node_list%node(i_node_prev)%x(1,1,1)
+    Z2 = node_list%node(i_node_prev)%x(1,1,2)
+    R3 = node_list%node(i_node_next)%x(1,1,1)
+    Z3 = node_list%node(i_node_next)%x(1,1,2)
     if ( sqrt( (R1-R3)**2 + (Z1-Z3)**2 ) .lt. sqrt( (R1-R2)**2 + (Z1-Z2)**2 ) ) then
       direction = +1
     else
@@ -464,8 +464,8 @@ if (i_ext .gt. 1) then
     allocate(R_seg_prev(n_seg_prev), Z_seg_prev(n_seg_prev))
     do i=1,n_seg_prev
       i_node = index_bnd_prev(i)
-      R_seg_prev(i) = node_list%node(i_node)%x(1,1)
-      Z_seg_prev(i) = node_list%node(i_node)%x(1,2)
+      R_seg_prev(i) = node_list%node(i_node)%x(1,1,1)
+      Z_seg_prev(i) = node_list%node(i_node)%x(1,1,2)
     enddo
     
   endif
@@ -554,8 +554,8 @@ endif
 ! --- Segmentation in other direction will be given by bnd nodes
 do i=1,n_nodes
   i_node = index_bnd(i)
-  R_seg_bnd(i) = node_list%node(i_node)%x(1,1)
-  Z_seg_bnd(i) = node_list%node(i_node)%x(1,2)
+  R_seg_bnd(i) = node_list%node(i_node)%x(1,1,1)
+  Z_seg_bnd(i) = node_list%node(i_node)%x(1,1,2)
 enddo
 call create_polar_lines_simple(n_nodes, R_seg_bnd(1:n_nodes), Z_seg_bnd(1:n_nodes), R_polar_bnd(1:n_nodes-1,1:4) , Z_polar_bnd(1:n_nodes-1,1:4) )
 length_bottom = 0.d0
@@ -943,18 +943,18 @@ do i = i_start,n_nodes
     if (element_direction .eq. 8) index_bnd_tmp = 3
   endif
   i_node = element_list%element(i_elm)%vertex(index_bnd_tmp)
-  previous_length = sqrt(  (node_list%node(i_node)%x(1,1)-node_list%node(index_bnd(i))%x(1,1))**2 &
-                         + (node_list%node(i_node)%x(1,2)-node_list%node(index_bnd(i))%x(1,2))**2 )
+  previous_length = sqrt(  (node_list%node(i_node)%x(1,1,1)-node_list%node(index_bnd(i))%x(1,1,1))**2 &
+                         + (node_list%node(i_node)%x(1,1,2)-node_list%node(index_bnd(i))%x(1,1,2))**2 )
   ! --- Correct length with respective angle
-  alpha1 = atan2(node_list%node(i_node)%x(1,2)-node_list%node(index_bnd(i))%x(1,2),&
-                 node_list%node(i_node)%x(1,1)-node_list%node(index_bnd(i))%x(1,1))
+  alpha1 = atan2(node_list%node(i_node)%x(1,1,2)-node_list%node(index_bnd(i))%x(1,1,2),&
+                 node_list%node(i_node)%x(1,1,1)-node_list%node(index_bnd(i))%x(1,1,1))
   if (alpha1 .lt. 0.d0) alpha1 = alpha1 + 2.d0 * PI
   if (i .eq. 1) then
-    alpha2 = atan2(node_list%node(index_bnd(i+1))%x(1,2)-node_list%node(index_bnd(i))%x(1,2),&
-                   node_list%node(index_bnd(i+1))%x(1,1)-node_list%node(index_bnd(i))%x(1,1))
+    alpha2 = atan2(node_list%node(index_bnd(i+1))%x(1,1,2)-node_list%node(index_bnd(i))%x(1,1,2),&
+                   node_list%node(index_bnd(i+1))%x(1,1,1)-node_list%node(index_bnd(i))%x(1,1,1))
   else
-    alpha2 = atan2(node_list%node(index_bnd(i-1))%x(1,2)-node_list%node(index_bnd(i))%x(1,2),&
-                   node_list%node(index_bnd(i-1))%x(1,1)-node_list%node(index_bnd(i))%x(1,1))
+    alpha2 = atan2(node_list%node(index_bnd(i-1))%x(1,1,2)-node_list%node(index_bnd(i))%x(1,1,2),&
+                   node_list%node(index_bnd(i-1))%x(1,1,1)-node_list%node(index_bnd(i))%x(1,1,1))
   endif
   if (alpha2 .lt. 0.d0) alpha2 = alpha2 + 2.d0 * PI
   alpha = alpha2 - alpha1
@@ -977,11 +977,11 @@ do i = i_start,n_nodes
   else
     i_node = index_bnd(i-1)
   endif
-  alpha1 = atan2(node_list%node(i_node)%x(1,2)-node_list%node(index_bnd(i))%x(1,2),&
-                 node_list%node(i_node)%x(1,1)-node_list%node(index_bnd(i))%x(1,1))
+  alpha1 = atan2(node_list%node(i_node)%x(1,1,2)-node_list%node(index_bnd(i))%x(1,1,2),&
+                 node_list%node(i_node)%x(1,1,1)-node_list%node(index_bnd(i))%x(1,1,1))
   if (alpha1 .lt. 0.d0) alpha1 = alpha1 + 2.d0 * PI
-  alpha2 = atan2(Z_seg(2,i)-node_list%node(index_bnd(i))%x(1,2),&
-                 R_seg(2,i)-node_list%node(index_bnd(i))%x(1,1))
+  alpha2 = atan2(Z_seg(2,i)-node_list%node(index_bnd(i))%x(1,1,2),&
+                 R_seg(2,i)-node_list%node(index_bnd(i))%x(1,1,1))
   if (alpha2 .lt. 0.d0) alpha2 = alpha2 + 2.d0 * PI
   alpha = alpha2 - alpha1
   if (alpha .lt. 0.d0   ) alpha = alpha + 2.d0 * PI
@@ -1104,8 +1104,8 @@ if (plot_grid) then
     write(101,'(A,i6,A)')           ' r = N.zeros(',newnode_list%n_nodes,')'
     write(101,'(A,i6,A)')           ' z = N.zeros(',newnode_list%n_nodes,')'
     do i=1,newnode_list%n_nodes
-      write(101,'(A,i6,A,f15.4)') ' r[',i-1,'] = ',newnode_list%node(i)%x(1,1)
-      write(101,'(A,i6,A,f15.4)') ' z[',i-1,'] = ',newnode_list%node(i)%x(1,2)
+      write(101,'(A,i6,A,f15.4)') ' r[',i-1,'] = ',newnode_list%node(i)%x(1,1,1)
+      write(101,'(A,i6,A,f15.4)') ' z[',i-1,'] = ',newnode_list%node(i)%x(1,1,2)
     enddo
     write(101,'(A)')              ' pylab.plot(r,z, "bx")'
 
@@ -1205,11 +1205,11 @@ if (plot_grid) then
     do j=1,n_tmp
       do i=1,2
         index = newelement_list%element(j)%vertex(i)
-        write(101,'(A,i6,A,f15.4)') ' r[',4*(j-1)+2*i-2,'] = ',newnode_list%node(index)%x(1,1)
-        write(101,'(A,i6,A,f15.4)') ' z[',4*(j-1)+2*i-2,'] = ',newnode_list%node(index)%x(1,2)
+        write(101,'(A,i6,A,f15.4)') ' r[',4*(j-1)+2*i-2,'] = ',newnode_list%node(index)%x(1,1,1)
+        write(101,'(A,i6,A,f15.4)') ' z[',4*(j-1)+2*i-2,'] = ',newnode_list%node(index)%x(1,1,2)
         index = newelement_list%element(j)%vertex(i+2)
-        write(101,'(A,i6,A,f15.4)') ' r[',4*(j-1)+2*i-1,'] = ',newnode_list%node(index)%x(1,1)
-        write(101,'(A,i6,A,f15.4)') ' z[',4*(j-1)+2*i-1,'] = ',newnode_list%node(index)%x(1,2)
+        write(101,'(A,i6,A,f15.4)') ' r[',4*(j-1)+2*i-1,'] = ',newnode_list%node(index)%x(1,1,1)
+        write(101,'(A,i6,A,f15.4)') ' z[',4*(j-1)+2*i-1,'] = ',newnode_list%node(index)%x(1,1,2)
       enddo
     enddo
     write(101,'(A,i6,A)')    ' for i in range (0,',n_tmp,'):'
@@ -1218,8 +1218,8 @@ if (plot_grid) then
     do j=1,n_tmp
       do i=1,4
         index = newelement_list%element(j)%vertex(i)
-        write(101,'(A,i6,A,f15.4)') ' r[',4*(j-1)+i-1,'] = ',newnode_list%node(index)%x(1,1)
-        write(101,'(A,i6,A,f15.4)') ' z[',4*(j-1)+i-1,'] = ',newnode_list%node(index)%x(1,2)
+        write(101,'(A,i6,A,f15.4)') ' r[',4*(j-1)+i-1,'] = ',newnode_list%node(index)%x(1,1,1)
+        write(101,'(A,i6,A,f15.4)') ' z[',4*(j-1)+i-1,'] = ',newnode_list%node(index)%x(1,1,2)
       enddo
     enddo
     write(101,'(A,i6,A)')    ' for i in range (0,',n_tmp,'):'

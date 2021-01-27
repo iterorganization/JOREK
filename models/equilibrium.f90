@@ -361,8 +361,8 @@ if (my_id == 0) then
   
     node_list%node(i)%values(1,1,1) = node_list%node(i)%values(1,1,1) - psi_offset_freeb
     psi = node_list%node(i)%values(1,1,1)
-    R   = node_list%node(i)%x(1,1)
-    Z   = node_list%node(i)%x(1,2)
+    R   = node_list%node(i)%x(1,1,1)
+    Z   = node_list%node(i)%x(1,1,2)
   
     call density(    xpoint2, xcase2, Z, Z_xpoint, psi,psi_axis,psi_bnd,zn,dn_dpsi,dn_dz,dn_dpsi2,dn_dz2,             &
                                                                dn_dpsi_dz,dn_dpsi3,dn_dpsi_dz2, dn_dpsi2_dz)
@@ -394,11 +394,11 @@ if (my_id == 0) then
                                                                   dFFprime_dpsi2,dFFprime_dz2 ,dFFprime_dpsi_dz)
   
       node_list%node(i)%Fprof_eq(1) =   F_prof
-      node_list%node(i)%Fprof_eq(2) =   dF_dpsi * node_list%node(i)%values(1,2,var_A3)  + dF_dz * node_list%node(i)%x(2,2)
-      node_list%node(i)%Fprof_eq(3) =   dF_dpsi * node_list%node(i)%values(1,3,var_A3)  + dF_dz * node_list%node(i)%x(3,2)
-      node_list%node(i)%Fprof_eq(4) =   dF_dpsi * node_list%node(i)%values(1,4,var_A3)  + dF_dz * node_list%node(i)%x(4,2)      &
+      node_list%node(i)%Fprof_eq(2) =   dF_dpsi * node_list%node(i)%values(1,2,var_A3)  + dF_dz * node_list%node(i)%x(1,2,2)
+      node_list%node(i)%Fprof_eq(3) =   dF_dpsi * node_list%node(i)%values(1,3,var_A3)  + dF_dz * node_list%node(i)%x(1,3,2)
+      node_list%node(i)%Fprof_eq(4) =   dF_dpsi * node_list%node(i)%values(1,4,var_A3)  + dF_dz * node_list%node(i)%x(1,4,2)      &
                                       + dF_dpsi2 * node_list%node(i)%values(1,2,var_A3) * node_list%node(i)%values(1,3,var_A3)  &
-                                      + dF_dz2   * node_list%node(i)%x(2,2) * node_list%node(i)%x(3,2)
+                                      + dF_dz2   * node_list%node(i)%x(1,2,2) * node_list%node(i)%x(1,3,2)
 #else
     call FFprime(    xpoint2, xcase2, Z, Z_xpoint, psi,psi_axis,psi_bnd,zFFprime,dFFprime_dpsi,dFFprime_dz, &
                                                                dFFprime_dpsi2,dFFprime_dz2, dFFprime_dpsi_dz, .true.)
@@ -431,25 +431,25 @@ if (my_id == 0) then
     node_list%node(i)%values(1,1,3) = zjz
   
     node_list%node(i)%values(1,2,3) = dj_dpsi * node_list%node(i)%values(1,2,1) &
-                                    + dj_dR   * node_list%node(i)%x(2,1)        &
-                                    + dj_dZ   * node_list%node(i)%x(2,2)
+                                    + dj_dR   * node_list%node(i)%x(1,2,1)        &
+                                    + dj_dZ   * node_list%node(i)%x(1,2,2)
   
     node_list%node(i)%values(1,3,3) = dj_dpsi * node_list%node(i)%values(1,3,1) &
-                                    + dj_dR   * node_list%node(i)%x(3,1)        &
-                                    + dj_dZ   * node_list%node(i)%x(3,2)
+                                    + dj_dR   * node_list%node(i)%x(1,3,1)        &
+                                    + dj_dZ   * node_list%node(i)%x(1,3,2)
   
     node_list%node(i)%values(1,4,3) = dj_dpsi  * node_list%node(i)%values(1,4,1) &
-                                    + dj_dR    * node_list%node(i)%x(4,1)        &
-                                    + dj_dZ    * node_list%node(i)%x(4,2)        &
-                                    + dj_dR_dR * node_list%node(i)%x(2,1) * node_list%node(i)%x(3,1)  &
-                                    + dj_dZ_dZ * node_list%node(i)%x(2,2) * node_list%node(i)%x(3,2)  &
+                                    + dj_dR    * node_list%node(i)%x(1,4,1)        &
+                                    + dj_dZ    * node_list%node(i)%x(1,4,2)        &
+                                    + dj_dR_dR * node_list%node(i)%x(1,2,1) * node_list%node(i)%x(1,3,1)  &
+                                    + dj_dZ_dZ * node_list%node(i)%x(1,2,2) * node_list%node(i)%x(1,3,2)  &
                                     + dj_dpsi2 * node_list%node(i)%values(1,2,1) * node_list%node(i)%values(1,3,1)  &
-                                    + dj_dR_dZ * ( node_list%node(i)%x(2,1) * node_list%node(i)%x(3,2)          &
-                                                 + node_list%node(i)%x(3,1) * node_list%node(i)%x(2,2) )        &
-                                    + dj_dR_dpsi*( node_list%node(i)%x(2,1) * node_list%node(i)%values(1,3,1)   &
-                                                 + node_list%node(i)%x(3,1) * node_list%node(i)%values(1,2,1) ) &
-                                    + dj_dZ_dpsi*( node_list%node(i)%x(2,2) * node_list%node(i)%values(1,3,1)   &
-                                                 + node_list%node(i)%x(3,2) * node_list%node(i)%values(1,2,1) )
+                                    + dj_dR_dZ * ( node_list%node(i)%x(1,2,1) * node_list%node(i)%x(1,3,2)          &
+                                                 + node_list%node(i)%x(1,3,1) * node_list%node(i)%x(1,2,2) )        &
+                                    + dj_dR_dpsi*( node_list%node(i)%x(1,2,1) * node_list%node(i)%values(1,3,1)   &
+                                                 + node_list%node(i)%x(1,3,1) * node_list%node(i)%values(1,2,1) ) &
+                                    + dj_dZ_dpsi*( node_list%node(i)%x(1,2,2) * node_list%node(i)%values(1,3,1)   &
+                                                 + node_list%node(i)%x(1,3,2) * node_list%node(i)%values(1,2,1) )
   
   enddo
   

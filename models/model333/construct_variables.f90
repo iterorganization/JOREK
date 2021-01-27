@@ -32,21 +32,21 @@ subroutine ELM_build_RZ_and_Jacobians(element, nodes, ms, mt)
   do i=1,n_vertex_max
     do j=1,n_order+1
 
-      x_g  = x_g  + nodes(i)%x(j,1) * element%size(i,j) * H   (i,j,ms,mt)
-      x_s  = x_s  + nodes(i)%x(j,1) * element%size(i,j) * H_s (i,j,ms,mt)
-      x_t  = x_t  + nodes(i)%x(j,1) * element%size(i,j) * H_t (i,j,ms,mt)
+      x_g  = x_g  + nodes(i)%x(1,j,1) * element%size(i,j) * H   (i,j,ms,mt)
+      x_s  = x_s  + nodes(i)%x(1,j,1) * element%size(i,j) * H_s (i,j,ms,mt)
+      x_t  = x_t  + nodes(i)%x(1,j,1) * element%size(i,j) * H_t (i,j,ms,mt)
 
-      x_ss = x_ss + nodes(i)%x(j,1) * element%size(i,j) * H_ss(i,j,ms,mt)
-      x_st = x_st + nodes(i)%x(j,1) * element%size(i,j) * H_st(i,j,ms,mt)
-      x_tt = x_tt + nodes(i)%x(j,1) * element%size(i,j) * H_tt(i,j,ms,mt)
+      x_ss = x_ss + nodes(i)%x(1,j,1) * element%size(i,j) * H_ss(i,j,ms,mt)
+      x_st = x_st + nodes(i)%x(1,j,1) * element%size(i,j) * H_st(i,j,ms,mt)
+      x_tt = x_tt + nodes(i)%x(1,j,1) * element%size(i,j) * H_tt(i,j,ms,mt)
 
-      y_g  = y_g  + nodes(i)%x(j,2) * element%size(i,j) * H   (i,j,ms,mt)
-      y_s  = y_s  + nodes(i)%x(j,2) * element%size(i,j) * H_s (i,j,ms,mt)
-      y_t  = y_t  + nodes(i)%x(j,2) * element%size(i,j) * H_t (i,j,ms,mt)
+      y_g  = y_g  + nodes(i)%x(1,j,2) * element%size(i,j) * H   (i,j,ms,mt)
+      y_s  = y_s  + nodes(i)%x(1,j,2) * element%size(i,j) * H_s (i,j,ms,mt)
+      y_t  = y_t  + nodes(i)%x(1,j,2) * element%size(i,j) * H_t (i,j,ms,mt)
 
-      y_ss = y_ss + nodes(i)%x(j,2) * element%size(i,j) * H_ss(i,j,ms,mt)
-      y_st = y_st + nodes(i)%x(j,2) * element%size(i,j) * H_st(i,j,ms,mt)
-      y_tt = y_tt + nodes(i)%x(j,2) * element%size(i,j) * H_tt(i,j,ms,mt)
+      y_ss = y_ss + nodes(i)%x(1,j,2) * element%size(i,j) * H_ss(i,j,ms,mt)
+      y_st = y_st + nodes(i)%x(1,j,2) * element%size(i,j) * H_st(i,j,ms,mt)
+      y_tt = y_tt + nodes(i)%x(1,j,2) * element%size(i,j) * H_tt(i,j,ms,mt)
     
     enddo
   enddo

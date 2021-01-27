@@ -185,17 +185,17 @@ if (ES%axis_is_psi_minimum) then
     idir1 = bnd_elm_list%bnd_element(i_min)%direction(1,2) 
     idir2 = bnd_elm_list%bnd_element(i_min)%direction(2,2) 
 
-    RM  =  node_list%node(n1)%x(1,1)	 * bnd_elm_list%bnd_element(i_min)%size(1,1)		  
-    RMR =  node_list%node(n1)%x(idir1,1) * bnd_elm_list%bnd_element(i_min)%size(1,2) * 3.d0/2.d0  
-    RP  =  node_list%node(n2)%x(1,1)	 * bnd_elm_list%bnd_element(i_min)%size(2,1)		  
-    RPR =  - node_list%node(n2)%x(idir2,1) * bnd_elm_list%bnd_element(i_min)%size(2,2) * 3.d0/2.d0 
+    RM  =  node_list%node(n1)%x(1,1,1)	 * bnd_elm_list%bnd_element(i_min)%size(1,1)		  
+    RMR =  node_list%node(n1)%x(1,idir1,1) * bnd_elm_list%bnd_element(i_min)%size(1,2) * 3.d0/2.d0  
+    RP  =  node_list%node(n2)%x(1,1,1)	 * bnd_elm_list%bnd_element(i_min)%size(2,1)		  
+    RPR =  - node_list%node(n2)%x(1,idir2,1) * bnd_elm_list%bnd_element(i_min)%size(2,2) * 3.d0/2.d0 
 
     call CUB1D(RM,RMR,RP,RPR,r_min,R_lim,DUMMY)
 
-    ZM  =  node_list%node(n1)%x(1,2)	 * bnd_elm_list%bnd_element(i_min)%size(1,1)		  
-    ZMR =  node_list%node(n1)%x(idir1,2) * bnd_elm_list%bnd_element(i_min)%size(1,2) * 3.d0/2.d0  
-    ZP  =  node_list%node(n2)%x(1,2)	 * bnd_elm_list%bnd_element(i_min)%size(2,1)		  
-    ZPR =  - node_list%node(n2)%x(idir2,2) * bnd_elm_list%bnd_element(i_min)%size(2,2) * 3.d0/2.d0 
+    ZM  =  node_list%node(n1)%x(1,1,2)	 * bnd_elm_list%bnd_element(i_min)%size(1,1)		  
+    ZMR =  node_list%node(n1)%x(1,idir1,2) * bnd_elm_list%bnd_element(i_min)%size(1,2) * 3.d0/2.d0  
+    ZP  =  node_list%node(n2)%x(1,1,2)	 * bnd_elm_list%bnd_element(i_min)%size(2,1)		  
+    ZPR =  - node_list%node(n2)%x(1,idir2,2) * bnd_elm_list%bnd_element(i_min)%size(2,2) * 3.d0/2.d0 
     
     call CUB1D(ZM,ZMR,ZP,ZPR,r_min,Z_lim,DUMMY)
     
@@ -217,17 +217,17 @@ else
     idir1 = bnd_elm_list%bnd_element(i_max)%direction(1,2) 
     idir2 = bnd_elm_list%bnd_element(i_max)%direction(2,2) 
 
-    RM  =  node_list%node(n1)%x(1,1)	 * bnd_elm_list%bnd_element(i_max)%size(1,1)		  
-    RMR =  node_list%node(n1)%x(idir1,1) * bnd_elm_list%bnd_element(i_max)%size(1,2) * 3.d0/2.d0  
-    RP  =  node_list%node(n2)%x(1,1)	 * bnd_elm_list%bnd_element(i_max)%size(2,1)		  
-    RPR =  - node_list%node(n2)%x(idir2,1) * bnd_elm_list%bnd_element(i_max)%size(2,2) * 3.d0/2.d0 
+    RM  =  node_list%node(n1)%x(1,1,1)	 * bnd_elm_list%bnd_element(i_max)%size(1,1)		  
+    RMR =  node_list%node(n1)%x(1,idir1,1) * bnd_elm_list%bnd_element(i_max)%size(1,2) * 3.d0/2.d0  
+    RP  =  node_list%node(n2)%x(1,1,1)	 * bnd_elm_list%bnd_element(i_max)%size(2,1)		  
+    RPR =  - node_list%node(n2)%x(1,idir2,1) * bnd_elm_list%bnd_element(i_max)%size(2,2) * 3.d0/2.d0 
 
     call CUB1D(RM,RMR,RP,RPR,r_max,R_lim,DUMMY)
 
-    ZM  =  node_list%node(n1)%x(1,2)	 * bnd_elm_list%bnd_element(i_max)%size(1,1)		  
-    ZMR =  node_list%node(n1)%x(idir1,2) * bnd_elm_list%bnd_element(i_max)%size(1,2) * 3.d0/2.d0  
-    ZP  =  node_list%node(n2)%x(1,2)	 * bnd_elm_list%bnd_element(i_max)%size(2,1)		  
-    ZPR =  - node_list%node(n2)%x(idir2,2) * bnd_elm_list%bnd_element(i_max)%size(2,2) * 3.d0/2.d0 
+    ZM  =  node_list%node(n1)%x(1,1,2)	 * bnd_elm_list%bnd_element(i_max)%size(1,1)		  
+    ZMR =  node_list%node(n1)%x(1,idir1,2) * bnd_elm_list%bnd_element(i_max)%size(1,2) * 3.d0/2.d0  
+    ZP  =  node_list%node(n2)%x(1,1,2)	 * bnd_elm_list%bnd_element(i_max)%size(2,1)		  
+    ZPR =  - node_list%node(n2)%x(1,idir2,2) * bnd_elm_list%bnd_element(i_max)%size(2,2) * 3.d0/2.d0 
     
     call CUB1D(ZM,ZMR,ZP,ZPR,r_max,Z_lim,DUMMY)
     

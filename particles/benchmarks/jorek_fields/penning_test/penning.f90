@@ -97,14 +97,14 @@ do i=1,fields%node_list%n_nodes
   ! Get value and derivatives
   ! XXX we make a mistake here I think. Perhaps it is better to use the projection matrix approach here.
   ! at least node%size needs to be in here somewhere.
-  R    = fields%node_list%node(i)%x(1,1)
-  R_s  = fields%node_list%node(i)%x(2,1)
-  R_t  = fields%node_list%node(i)%x(3,1)
-  R_st = fields%node_list%node(i)%x(4,1)
-  Z    = fields%node_list%node(i)%x(1,2)
-  Z_s  = fields%node_list%node(i)%x(2,2)
-  Z_t  = fields%node_list%node(i)%x(3,2)
-  Z_st = fields%node_list%node(i)%x(4,2)
+  R    = fields%node_list%node(i)%x(1,1,1)
+  R_s  = fields%node_list%node(i)%x(1,2,1)
+  R_t  = fields%node_list%node(i)%x(1,3,1)
+  R_st = fields%node_list%node(i)%x(1,4,1)
+  Z    = fields%node_list%node(i)%x(1,1,2)
+  Z_s  = fields%node_list%node(i)%x(1,2,2)
+  Z_t  = fields%node_list%node(i)%x(1,3,2)
+  Z_st = fields%node_list%node(i)%x(1,4,2)
 
   ! B has only a z component, so F = 0, Psi(R) = -B0/2 R^2
   fields%node_list%node(i)%values(1,1,1) = -0.5d0*B0*R**2

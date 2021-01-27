@@ -1913,10 +1913,10 @@ module vacuum_response
         k_dir       = bndelem%direction(k_vertex,k_dof)
         k_size      = bndelem%size(k_vertex,k_dof)
         node_k      = node_list%node(k_node)
-        if ( present(R  ) ) R  (:)  = R  (:)  + node_k%x(k_dir,1) * k_size * H1  (k_vertex,k_dof,:)
-        if ( present(Z  ) ) Z  (:)  = Z  (:)  + node_k%x(k_dir,2) * k_size * H1  (k_vertex,k_dof,:)
-        if ( present(R_s) ) R_s(:)  = R_s(:)  + node_k%x(k_dir,1) * k_size * H1_s(k_vertex,k_dof,:)
-        if ( present(Z_s) ) Z_s(:)  = Z_s(:)  + node_k%x(k_dir,2) * k_size * H1_s(k_vertex,k_dof,:)
+        if ( present(R  ) ) R  (:)  = R  (:)  + node_k%x(1,k_dir,1) * k_size * H1  (k_vertex,k_dof,:)
+        if ( present(Z  ) ) Z  (:)  = Z  (:)  + node_k%x(1,k_dir,2) * k_size * H1  (k_vertex,k_dof,:)
+        if ( present(R_s) ) R_s(:)  = R_s(:)  + node_k%x(1,k_dir,1) * k_size * H1_s(k_vertex,k_dof,:)
+        if ( present(Z_s) ) Z_s(:)  = Z_s(:)  + node_k%x(1,k_dir,2) * k_size * H1_s(k_vertex,k_dof,:)
       end do
     end do
     

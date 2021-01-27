@@ -78,15 +78,15 @@ do k=1, newelement_list%n_elements   ! fill in the size of the elements
     node_ivp = newelement_list%element(k)%vertex(ivp) 
 
     if ((iv .eq. 1) .or. (iv .eq. 3)) then
-      R0 = newnode_list%node(node_iv )%X(1,1)  ; dR0 = newnode_list%node(node_iv )%X(2,1)
-      Z0 = newnode_list%node(node_iv )%X(1,2)  ; dZ0 = newnode_list%node(node_iv )%X(2,2)
-      RP = newnode_list%node(node_ivp)%X(1,1)  ; dRP = newnode_list%node(node_ivp)%X(2,1)
-      ZP = newnode_list%node(node_ivp)%X(1,2)  ; dZP = newnode_list%node(node_ivp)%X(2,2)
+      R0 = newnode_list%node(node_iv )%X(1,1,1)  ; dR0 = newnode_list%node(node_iv )%X(1,2,1)
+      Z0 = newnode_list%node(node_iv )%X(1,1,2)  ; dZ0 = newnode_list%node(node_iv )%X(1,2,2)
+      RP = newnode_list%node(node_ivp)%X(1,1,1)  ; dRP = newnode_list%node(node_ivp)%X(1,2,1)
+      ZP = newnode_list%node(node_ivp)%X(1,1,2)  ; dZP = newnode_list%node(node_ivp)%X(1,2,2)
     else
-      R0 = newnode_list%node(node_iv )%X(1,1)  ; dR0 = newnode_list%node(node_iv )%X(3,1)
-      Z0 = newnode_list%node(node_iv )%X(1,2)  ; dZ0 = newnode_list%node(node_iv )%X(3,2)
-      RP = newnode_list%node(node_ivp)%X(1,1)  ; dRP = newnode_list%node(node_ivp)%X(3,1)
-      ZP = newnode_list%node(node_ivp)%X(1,2)  ; dZP = newnode_list%node(node_ivp)%X(3,2)
+      R0 = newnode_list%node(node_iv )%X(1,1,1)  ; dR0 = newnode_list%node(node_iv )%X(1,3,1)
+      Z0 = newnode_list%node(node_iv )%X(1,1,2)  ; dZ0 = newnode_list%node(node_iv )%X(1,3,2)
+      RP = newnode_list%node(node_ivp)%X(1,1,1)  ; dRP = newnode_list%node(node_ivp)%X(1,3,1)
+      ZP = newnode_list%node(node_ivp)%X(1,1,2)  ; dZP = newnode_list%node(node_ivp)%X(1,3,2)
     endif
 
     size_0 = 1.d0
@@ -143,8 +143,8 @@ endif
 
 do i=1,newnode_list%n_nodes
 
-  R1 = newnode_list%node(i)%x(1,1)
-  Z1 = newnode_list%node(i)%x(1,2)
+  R1 = newnode_list%node(i)%x(1,1,1)
+  Z1 = newnode_list%node(i)%x(1,1,2)
 
   call find_RZ(node_list,element_list,R1,Z1,R_out,Z_out,ielm_out,s_out,t_out,ifail)
 
@@ -188,14 +188,14 @@ do i=1,newnode_list%n_nodes
   endif
 
   newnode_list%node(i)%values(1,1,1) = psi
-  newnode_list%node(i)%values(1,2,1) = PSI_R * newnode_list%node(i)%x(2,1) + PSI_Z * newnode_list%node(i)%x(2,2)
-  newnode_list%node(i)%values(1,3,1) = PSI_R * newnode_list%node(i)%x(3,1) + PSI_Z * newnode_list%node(i)%x(3,2)
-  newnode_list%node(i)%values(1,4,1) = PSI_RR * newnode_list%node(i)%x(2,1) * newnode_list%node(i)%x(3,1) &
-                                     + PSI_RZ * newnode_list%node(i)%x(2,1) * newnode_list%node(i)%x(3,2) &
-                                     + PSI_RZ * newnode_list%node(i)%x(3,1) * newnode_list%node(i)%x(2,2) &
-                                     + PSI_ZZ * newnode_list%node(i)%x(2,2) * newnode_list%node(i)%x(3,2) &
-                                     + PSI_R  * newnode_list%node(i)%x(4,1)                               &
-                                     + PSI_Z  * newnode_list%node(i)%x(4,2)
+  newnode_list%node(i)%values(1,2,1) = PSI_R * newnode_list%node(i)%x(1,2,1) + PSI_Z * newnode_list%node(i)%x(1,2,2)
+  newnode_list%node(i)%values(1,3,1) = PSI_R * newnode_list%node(i)%x(1,3,1) + PSI_Z * newnode_list%node(i)%x(1,3,2)
+  newnode_list%node(i)%values(1,4,1) = PSI_RR * newnode_list%node(i)%x(1,2,1) * newnode_list%node(i)%x(1,3,1) &
+                                     + PSI_RZ * newnode_list%node(i)%x(1,2,1) * newnode_list%node(i)%x(1,3,2) &
+                                     + PSI_RZ * newnode_list%node(i)%x(1,3,1) * newnode_list%node(i)%x(1,2,2) &
+                                     + PSI_ZZ * newnode_list%node(i)%x(1,2,2) * newnode_list%node(i)%x(1,3,2) &
+                                     + PSI_R  * newnode_list%node(i)%x(1,4,1)                               &
+                                     + PSI_Z  * newnode_list%node(i)%x(1,4,2)
 
   !if (newnode_list%node(i)%boundary .eq. 2) newnode_list%node(i)%values(1,3,1) = 0.d0 ! this is ok only if bnd 2 is aligned to surface!
 
@@ -444,11 +444,11 @@ if (plot_grid) then
     do j=1,n_tmp
       do i=1,2
         index = newelement_list%element(j)%vertex(i)
-        write(101,'(A,i6,A,f15.4)') ' r[',4*(j-1)+2*i-2,'] = ',newnode_list%node(index)%x(1,1)
-        write(101,'(A,i6,A,f15.4)') ' z[',4*(j-1)+2*i-2,'] = ',newnode_list%node(index)%x(1,2)
+        write(101,'(A,i6,A,f15.4)') ' r[',4*(j-1)+2*i-2,'] = ',newnode_list%node(index)%x(1,1,1)
+        write(101,'(A,i6,A,f15.4)') ' z[',4*(j-1)+2*i-2,'] = ',newnode_list%node(index)%x(1,1,2)
         index = newelement_list%element(j)%vertex(i+2)
-        write(101,'(A,i6,A,f15.4)') ' r[',4*(j-1)+2*i-1,'] = ',newnode_list%node(index)%x(1,1)
-        write(101,'(A,i6,A,f15.4)') ' z[',4*(j-1)+2*i-1,'] = ',newnode_list%node(index)%x(1,2)
+        write(101,'(A,i6,A,f15.4)') ' r[',4*(j-1)+2*i-1,'] = ',newnode_list%node(index)%x(1,1,1)
+        write(101,'(A,i6,A,f15.4)') ' z[',4*(j-1)+2*i-1,'] = ',newnode_list%node(index)%x(1,1,2)
       enddo
     enddo
     write(101,'(A,i6,A)')    ' for i in range (0,',n_tmp*2,'):'
@@ -459,8 +459,8 @@ if (plot_grid) then
     do j=1,n_tmp
       do i=1,4
         index = newelement_list%element(j)%vertex(i)
-        write(101,'(A,i6,A,f15.4)') ' r[',4*(j-1)+i-1,'] = ',newnode_list%node(index)%x(1,1)
-        write(101,'(A,i6,A,f15.4)') ' z[',4*(j-1)+i-1,'] = ',newnode_list%node(index)%x(1,2)
+        write(101,'(A,i6,A,f15.4)') ' r[',4*(j-1)+i-1,'] = ',newnode_list%node(index)%x(1,1,1)
+        write(101,'(A,i6,A,f15.4)') ' z[',4*(j-1)+i-1,'] = ',newnode_list%node(index)%x(1,1,2)
       enddo
     enddo
     write(101,'(A,i6,A)')    ' for i in range (0,',n_tmp,'):'

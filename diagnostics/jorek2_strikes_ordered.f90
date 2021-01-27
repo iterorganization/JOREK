@@ -203,7 +203,7 @@ end if
 !!$
 !!$   do j = 1, size(divnodes)
 !!$      if (divnodes(j) /= 0) then
-!!$         write(f_div, '(2f12.4)') node_list%node(divnodes(j))%x(1, 1:2)
+!!$         write(f_div, '(2f12.4)') node_list%node(divnodes(j))%x(1,1, 1:2)
 !!$      endif
 !!$   enddo
 !!$   close(f_div)
@@ -242,10 +242,10 @@ R_turn    = 0.d0; Z_turn    = 0.d0; C_turn    = 0.d0;  C_turn_tmp = 0.d0
 
 Rmin = 1.d20; Rmax = -1.d20; Zmin = 1.d20; Zmax=-1.d20
 do i=1,node_list%n_nodes
-  Rmin = min(Rmin,node_list%node(i)%x(1,1))
-  Rmax = max(Rmax,node_list%node(i)%x(1,1))
-  Zmin = min(Zmin,node_list%node(i)%x(1,2))
-  Zmax = max(Zmax,node_list%node(i)%x(1,2))
+  Rmin = min(Rmin,node_list%node(i)%x(1,1,1))
+  Rmax = max(Rmax,node_list%node(i)%x(1,1,1))
+  Zmin = min(Zmin,node_list%node(i)%x(1,1,2))
+  Zmax = max(Zmax,node_list%node(i)%x(1,1,2))
 enddo
 
 !------------------------------------------------- find x-point(s)
@@ -1382,7 +1382,7 @@ contains
     i_bnd = 0
 
     i_bnd_start = minloc(node_list%node(bnd_elm_list%bnd_element&
-         &(1:bnd_elm_list%n_bnd_elements)%vertex(1))%x(1,1), &
+         &(1:bnd_elm_list%n_bnd_elements)%vertex(1))%x(1,1,1), &
          &dim=1, mask=node_list%node(bnd_elm_list%bnd_element&
          &(1:bnd_elm_list%n_bnd_elements)%vertex(1))%boundary == 3 &
          & .and. node_list%node(bnd_elm_list%bnd_element&
@@ -1463,9 +1463,9 @@ contains
             if (i_div_part > n_div_parts) stop '# of divertor parts mismatch'
             allocate(rzpart(2, i_bnd - i_bnd_beg + 2))
 
-            rzpart(:, 1) = node_list%node(bnd_elements(i_bnd_beg)%vertex(1))%x(1, 1:2)
+            rzpart(:, 1) = node_list%node(bnd_elements(i_bnd_beg)%vertex(1))%x(1,1, 1:2)
             do i = i_bnd_beg, i_bnd
-               rzpart(:, i-i_bnd_beg+2) = node_list%node(bnd_elements(i)%vertex(2))%x(1, 1:2)
+               rzpart(:, i-i_bnd_beg+2) = node_list%node(bnd_elements(i)%vertex(2))%x(1,1, 1:2)
             end do
 
             call init_divpart_data(divertor%divparts(i_div_part), rzpart, startpos)

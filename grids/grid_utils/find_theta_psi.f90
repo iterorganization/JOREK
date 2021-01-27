@@ -72,8 +72,8 @@ do i=1,element_list%n_elements
     j1 = 0
     j2 = 0
     do j=1,n_vertex_max
-      x1 = node_list%node(element_list%element(i)%vertex(j))%x(1,:)
-      x2 = node_list%node(element_list%element(i)%vertex(mod(j,n_vertex_max)+1))%x(1,:)
+      x1 = node_list%node(element_list%element(i)%vertex(j))%x(1,1,:)
+      x2 = node_list%node(element_list%element(i)%vertex(mod(j,n_vertex_max)+1))%x(1,1,:)
       ! Intersection point in homogeneous coordinates
       ! (https://en.wikipedia.org/wiki/Line%E2%80%93line_intersection#Using_homogeneous_coordinates)
       ! See also http://robotics.stanford.edu/~birch/projective/node4.html

@@ -54,10 +54,10 @@ LABEL= 'Flux surfaces'
 
 R_min = 1.d20; R_max = -1.d20; Z_min  = 1.d20; Z_max = -1.d20
 do i=1,node_list%n_nodes
-  R_min = min(R_min,node_list%node(i)%x(1,1))
-  R_max = max(R_max,node_list%node(i)%x(1,1))
-  Z_min = min(Z_min,node_list%node(i)%x(1,2))
-  Z_max = max(Z_max,node_list%node(i)%x(1,2))
+  R_min = min(R_min,node_list%node(i)%x(1,1,1))
+  R_max = max(R_max,node_list%node(i)%x(1,1,1))
+  Z_min = min(Z_min,node_list%node(i)%x(1,1,2))
+  Z_max = max(Z_max,node_list%node(i)%x(1,1,2))
 enddo
 
 if (frame) CALL NFRAME(21,11,1,R_min,R_max,Z_min,Z_max,LABEL,13,'R [m]',5,'Z [m]',5)

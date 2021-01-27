@@ -58,7 +58,7 @@ pure function node_same_pos(node_list, i1, i2) result(same)
   if (i1 .eq. i2) then
     same = .true.
   else
-    if (norm2(node_list%node(i1)%x(1,1:2)-node_list%node(i2)%x(1,1:2)) .lt. tol) then
+    if (norm2(node_list%node(i1)%x(1,1,1:2)-node_list%node(i2)%x(1,1,1:2)) .lt. tol) then
       same = .true.
     else
       same = .false.
@@ -245,7 +245,7 @@ do i=1, element_list%n_elements
     i_node2 = element_list%element(i)%vertex(mod(j,4)+1)
 
     ! If the two nodes for this side are in the same position (degenerate element)
-    if (norm2(node_list%node(i_node1)%x(1,1:2) - node_list%node(i_node2)%x(1,1:2)) .lt. 1d-8) then
+    if (norm2(node_list%node(i_node1)%x(1,1,1:2) - node_list%node(i_node2)%x(1,1,1:2)) .lt. 1d-8) then
       ! Force search for the opposite side
       element_list%element(i)%neighbours(j) = -1
       do k=1,n_vertex_max

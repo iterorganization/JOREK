@@ -106,8 +106,8 @@ R_start = 1.d99
 Z_start = 1.d99
 do i_bnd_node = 1, bnd_node_list%n_bnd_nodes
   i_node = bnd_node_list%bnd_node(i_bnd_node)%index_jorek
-  R = node_list%node(i_node)%x(1,1)
-  Z = node_list%node(i_node)%x(1,2)
+  R = node_list%node(i_node)%x(1,1,1)
+  Z = node_list%node(i_node)%x(1,1,2)
   if ( ( node_list%node(i_node)%boundary == 3 ) .and. ( R > ES%R_xpoint(1) ) .and. ( Z < Z_start ) ) then
     R_start = R
     Z_start = Z
@@ -272,8 +272,8 @@ do m=1, n_plane
             else
               if ((m.eq.1) .and. (j.eq.1)) then
                 write(*,*) ' problem 4/9 : ',i,iv1,iv2,inode1,inode2
-                write(*,*) ' node1 R/Z   : ',node_list%node(inode1)%x(1,:),node_list%node(inode1)%boundary
-                write(*,*) ' node2 R/Z   : ',node_list%node(inode2)%x(1,:),node_list%node(inode2)%boundary
+                write(*,*) ' node1 R/Z   : ',node_list%node(inode1)%x(1,1,:),node_list%node(inode1)%boundary
+                write(*,*) ' node2 R/Z   : ',node_list%node(inode2)%x(1,1,:),node_list%node(inode2)%boundary
               endif
             endif
 

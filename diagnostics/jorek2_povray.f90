@@ -95,8 +95,8 @@ program jorek2_povray
     P = node_list%node(i_node)%values(1,1,1)
     if ( (P-psi_axis)/(psi_bnd-psi_axis) > psi_surf ) cycle
     
-    R = node_list%node(i_node)%x(1,1)
-    Z = node_list%node(i_node)%x(1,2)
+    R = node_list%node(i_node)%x(1,1,1)
+    Z = node_list%node(i_node)%x(1,1,2)
     P = variable_value(i_var, i_node, phi, no_zero)
     min_val = min( min_val, P )
     max_val = max( max_val, P )

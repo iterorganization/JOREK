@@ -354,6 +354,9 @@ required = 0
     write(*,*) 'FATAL : Hard-coded parameter n_tor has an illegal value', n_tor
     call MPI_Abort(MPI_COMM_WORLD, 23, ierr)
     stop
+  else if ( (n_coord_tor > 1) .and. (rst_hdf5_version .eq. 1) ) then
+    write(*,*) 'FATAL : Hard-coded parameter n_coord_tor > 1 is only possible with rst_hdf5_version > 1'
+    call MPI_Abort(MPI_COMM_WORLD, 23, ierr)
   else if ( n_period<1 ) then
     write(*,*) 'FATAL : Hard-coded parameter n_period has an illegal value', n_period
     call MPI_Abort(MPI_COMM_WORLD, 24, ierr)

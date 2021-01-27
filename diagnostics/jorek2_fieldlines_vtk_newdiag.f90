@@ -281,10 +281,10 @@ XfieldVTK   = 0.d0; YfieldVTK   = 0.d0; ZfieldVTK = 0.d0
 
 Rmin = 1.d20; Rmax = -1.d20; Zmin = 1.d20; Zmax=-1.d20
 do i=1,node_list%n_nodes
-  Rmin = min(Rmin,node_list%node(i)%x(1,1))
-  Rmax = max(Rmax,node_list%node(i)%x(1,1))
-  Zmin = min(Zmin,node_list%node(i)%x(1,2))
-  Zmax = max(Zmax,node_list%node(i)%x(1,2))
+  Rmin = min(Rmin,node_list%node(i)%x(1,1,1))
+  Rmax = max(Rmax,node_list%node(i)%x(1,1,1))
+  Zmin = min(Zmin,node_list%node(i)%x(1,1,2))
+  Zmax = max(Zmax,node_list%node(i)%x(1,1,2))
 enddo
 
 do i_tor=1, n_tor

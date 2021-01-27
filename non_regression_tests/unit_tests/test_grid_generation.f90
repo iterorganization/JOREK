@@ -23,18 +23,18 @@ subroutine test_square_grid
   call grid_bezier_square(n, n, R_geo-amin,R_geo+amin, Z_geo-amin, Z_geo+amin, .true., node_list, element_list)
 
   ! Verify all nodes are in box R_geo-amin, R_geo+amin, Z_geo-amin,Z_geo+amin
-  call assert_true(minval(node_list%node(1:node_list%n_nodes)%x(1,1)) .ge. R_geo-amin, 'All nodes r >= R-a')
-  call assert_true(maxval(node_list%node(1:node_list%n_nodes)%x(1,1)) .le. R_geo+amin, 'All nodes r <= R+a')
+  call assert_true(minval(node_list%node(1:node_list%n_nodes)%x(1,1,1)) .ge. R_geo-amin, 'All nodes r >= R-a')
+  call assert_true(maxval(node_list%node(1:node_list%n_nodes)%x(1,1,1)) .le. R_geo+amin, 'All nodes r <= R+a')
 
-  call assert_true(maxval(node_list%node(1:node_list%n_nodes)%x(1,2)) .ge. Z_geo-amin, 'All nodes z >= R-a')
-  call assert_true(maxval(node_list%node(1:node_list%n_nodes)%x(1,2)) .le. Z_geo+amin, 'All nodes z <= R+a')
+  call assert_true(maxval(node_list%node(1:node_list%n_nodes)%x(1,1,2)) .ge. Z_geo-amin, 'All nodes z >= R-a')
+  call assert_true(maxval(node_list%node(1:node_list%n_nodes)%x(1,1,2)) .le. Z_geo+amin, 'All nodes z <= R+a')
 
   ! Verify there are no duplicate node positions
   do i=1,node_list%n_nodes
     do j=1,node_list%n_nodes
       if (i .ne. j) then
         write(s,'(A,i3,A,i3,A)') '(', i, ',', j, ')'
-        call assert_false(norm2(node_list%node(i)%x(1,:) - node_list%node(j)%x(1,:)) .le. 1d-20, 'Node in same position ' // s)
+        call assert_false(norm2(node_list%node(i)%x(1,1,:) - node_list%node(j)%x(1,1,:)) .le. 1d-20, 'Node in same position ' // s)
       end if
     end do
   end do
@@ -62,8 +62,8 @@ subroutine test_square_grid
   ! Test there are no nodes inside the quadrilateral defined by the element vertices
   ! https://stackoverflow.com/questions/5922027/how-to-determine-if-a-point-is-within-a-quadrilateral
   do i=1,element_list%n_elements
-    x = node_list%node(element_list%element(i)%vertex(:))%x(1,1)
-    z = node_list%node(element_list%element(i)%vertex(:))%x(1,2)
+    x = node_list%node(element_list%element(i)%vertex(:))%x(1,1,1)
+    z = node_list%node(element_list%element(i)%vertex(:))%x(1,1,2)
 
     ! Calculate area of quad
     xt = [sum(x)/4, sum(z)/4] ! test point in quad
@@ -74,7 +74,7 @@ subroutine test_square_grid
 
     do j=1,node_list%n_nodes
       if (.not. any(element_list%element(i)%vertex .eq. j)) then
-        xt = node_list%node(j)%x(1,:)
+        xt = node_list%node(j)%x(1,1,:)
         ! Calculate sum of areas of triangles between point and consecutive pairs of vertices
         area = triangle_area([x(1),z(1)], [x(2),z(2)], xt) + &
                triangle_area([x(2),z(2)], [x(3),z(3)], xt) + &
