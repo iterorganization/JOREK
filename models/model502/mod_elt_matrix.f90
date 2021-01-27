@@ -128,6 +128,7 @@ real*8     :: m_i_over_m_imp, m_imp
 real*8     :: Z_imp, dZ_imp_dT, d2Z_imp_dT2, T0_Zimp, alpha_Zimp, Z_eff, dZ_eff_dT, eta_coef, deta_coef_dZeff
 real*8     :: dZ_eff_dr0, dZ_eff_drn0, Z_eff_imp, dZ_eff_imp_dT, n_imp
 real*8     :: Z_imp_s, Z_imp_t, Z_imp_p, Z_imp_x, Z_imp_y
+real*8     :: n_imp_s, n_imp_t, n_imp_p, n_imp_x, n_imp_y
 
 !   -Coefficients related to Z_imp
 real*8     :: alpha_i, dalpha_i_dT, d2alpha_i_dT2
@@ -806,6 +807,11 @@ do ms=1, n_gauss
      Z_imp_s  = 0.0
      Z_imp_t  = 0.0
 
+     n_imp_x  = 0.0
+     n_imp_y  = 0.0
+     n_imp_p  = 0.0
+     n_imp_s  = 0.0
+     n_imp_t  = 0.0
      n_imp = 0.
 
      Z_eff        = 0.
@@ -889,17 +895,25 @@ do ms=1, n_gauss
        Z_imp      = Z_imp / n_imp
        Z_eff      = Z_eff / n_imp
 
+       ! This is the total derivative of n_imp*Z_imp, need to separate the two
        Z_imp_x    = (   y_t(ms,mt) * eq_aux_s(mp,4,ms,mt) - y_s(ms,mt) * eq_aux_t(mp,4,ms,mt) ) / xjac
        Z_imp_y    = ( - x_t(ms,mt) * eq_aux_s(mp,4,ms,mt) + x_s(ms,mt) * eq_aux_t(mp,4,ms,mt) ) / xjac
        Z_imp_p    = eq_aux_p(mp,4,ms,mt)
        Z_imp_s    = eq_aux_s(mp,4,ms,mt)
        Z_imp_t    = eq_aux_t(mp,4,ms,mt)
 
-       Z_imp_x    = Z_imp_x / n_imp
-       Z_imp_y    = Z_imp_y / n_imp
-       Z_imp_p    = Z_imp_p / n_imp
-       Z_imp_s    = Z_imp_s / n_imp
-       Z_imp_t    = Z_imp_t / n_imp
+       n_imp_x    = (   y_t(ms,mt) * eq_aux_s(mp,5,ms,mt) - y_s(ms,mt) * eq_aux_t(mp,5,ms,mt) ) / xjac
+       n_imp_y    = ( - x_t(ms,mt) * eq_aux_s(mp,5,ms,mt) + x_s(ms,mt) * eq_aux_t(mp,5,ms,mt) ) / xjac
+       n_imp_p    = eq_aux_p(mp,5,ms,mt)
+       n_imp_s    = eq_aux_s(mp,5,ms,mt)
+       n_imp_t    = eq_aux_t(mp,5,ms,mt)
+
+       ! Separating the two derivatives
+       Z_imp_x    = (Z_imp_x - n_imp_x * Z_imp) / n_imp
+       Z_imp_y    = (Z_imp_y - n_imp_y * Z_imp) / n_imp
+       Z_imp_p    = (Z_imp_p - n_imp_p * Z_imp) / n_imp
+       Z_imp_s    = (Z_imp_s - n_imp_s * Z_imp) / n_imp
+       Z_imp_t    = (Z_imp_t - n_imp_t * Z_imp) / n_imp
      end if
 
      ! Convert gradient in T(K) in to gradient in T (eV)
