@@ -1632,13 +1632,15 @@ if (my_id .eq. 0) then
   write(*,'(A,1e14.6,A)') ' Radiation power SANITY   : ', sum(total_radiation_phi)/1.d6, ' [MW]'
   write(*,'(A,1e14.6,A)') ' Ionization power         : ', total_E_ion/1.d6, ' [MW]'
 
-  if (index_now > 1) then
+  ! If not use marker particles, obtain the ionization and radiation energy from fluid integrations
+  ! Otherwise, obtain the energy from particle modules
+  if (index_now > 1 .and. (.not. use_marker)) then
     xtime_radiation(index_now) = xtime_radiation(index_now-1) + t_norm * tstep * total_radiation
-  else if (index_now == 1) then
+  else if (index_now == 1 .and. (.not. use_marker)) then
     xtime_radiation(index_now) = t_norm * tstep * total_radiation
   end if
-  if (index_now > 0) then
-  xtime_rad_power(index_now) = total_radiation
+  if (index_now > 0 .and. (.not. use_marker)) then
+    xtime_rad_power(index_now) = total_radiation
   end if
 
   if (output_prad_phi) then
@@ -1649,13 +1651,13 @@ if (my_id .eq. 0) then
     close (20)
   end if
 
-  if (index_now > 1) then
+  if (index_now > 1 .and. (.not. use_marker)) then
     xtime_E_ion(index_now) = xtime_E_ion(index_now-1) + t_norm * tstep * total_E_ion
-  else if (index_now == 1) then
+  else if (index_now == 1 .and. (.not. use_marker)) then
     xtime_E_ion(index_now) = t_norm * tstep * total_E_ion
   end if
-  if (index_now > 0) then
-  xtime_E_ion_power(index_now) = total_E_ion
+  if (index_now > 0 .and. (.not. use_marker)) then
+    xtime_E_ion_power(index_now) = total_E_ion
   end if
 #endif
 

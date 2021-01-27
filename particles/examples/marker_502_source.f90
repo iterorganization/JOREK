@@ -607,6 +607,29 @@ do while (.not. sim%stop_now)
   
   if (sim%my_id .eq. 0) write(*,*) " Lost energy at t due to ionisation: ", sim%time, E_lost_ion_all
   if (sim%my_id .eq. 0) write(*,*) " Lost energy at t due to radiation: ",  sim%time, E_lost_rad_all
+
+  if (sim%my_id .eq. 0) then
+
+    if (index_now > 1 .and. use_marker) then
+      xtime_radiation(index_now) = xtime_radiation(index_now-1) + E_lost_rad_all
+    else if (index_now == 1 .and. use_marker) then
+      xtime_radiation(index_now) = E_lost_rad_all
+    end if
+    if (index_now > 0 .and. use_marker) then
+      xtime_rad_power(index_now) = E_lost_rad_all / particle_step_time
+    end if
+
+    if (index_now > 1 .and. use_marker) then
+      xtime_E_ion(index_now) = xtime_E_ion(index_now-1) + E_lost_ion_all
+    else if (index_now == 1 .and. use_marker) then
+      xtime_E_ion(index_now) = E_lost_ion_all
+    end if
+    if (index_now > 0 .and. use_marker) then
+      xtime_E_ion_power(index_now) = E_lost_ion_all / particle_step_time
+    end if
+
+  endif
+
   !$ w1 = omp_get_wtime()
   !$ mmm = mpi_minmeanmax(w1-w0)
   !$ if (sim%my_id .eq. 0) write(*,"(f10.7,A,3f9.4,A)") sim%time, " Particle stepping complete in ", mmm, "s"
