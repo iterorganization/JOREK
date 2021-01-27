@@ -894,6 +894,12 @@ do ms=1, n_gauss
        Z_imp_p    = eq_aux_p(mp,4,ms,mt)
        Z_imp_s    = eq_aux_s(mp,4,ms,mt)
        Z_imp_t    = eq_aux_t(mp,4,ms,mt)
+
+       Z_imp_x    = Z_imp_x / n_imp
+       Z_imp_y    = Z_imp_y / n_imp
+       Z_imp_p    = Z_imp_p / n_imp
+       Z_imp_s    = Z_imp_s / n_imp
+       Z_imp_t    = Z_imp_t / n_imp
      end if
 
      ! Convert gradient in T(K) in to gradient in T (eV)

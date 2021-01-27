@@ -399,11 +399,13 @@ subroutine do_jorek_timestep(this, sim, ev)
   end if
 
   index_now = index_now + 1 ! we started at 0
+  if ( index_now == 1 ) tstep_prev = tstep
 
   ! Set up the next start time to run this
   if (present(ev)) then
     ev%start = ev%start + dt
     if (sim%my_id .eq. 0) write(*,*) "INFO: scheduling next JOREK event for ", ev%start
+    if (sim%my_id .eq. 0) write(*,*) "INFO: previous JOREK time step: ", tstep_prev
   end if
 
   if (associated(this%extra_event)) then
@@ -524,6 +526,9 @@ subroutine do_jorek_timestep(this, sim, ev)
     call update_values(sim%my_id, sim%fields%element_list, sim%fields%node_list, deltas)         ! add solution to node values
     call update_deltas(sim%my_id, sim%fields%node_list)
     t_now = t_now + dt_jorek
+
+    ! save previous time step
+    tstep_prev = tstep
   else
     if ( sim%my_id == 0 ) then
       write(*,*)

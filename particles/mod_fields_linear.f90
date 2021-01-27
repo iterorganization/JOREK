@@ -362,6 +362,12 @@ subroutine do_read(this, sim, ev)
               sim%time = f%time_now
             end if
             if (my_id .eq. 0) write(*,"(A,f9.8,A)") "Read initial restart file, set t=", sim%time, " [s]"
+            ! for variable time step Gears method
+            if ( index_now==1) then
+              tstep_prev = tstep
+            else
+              tstep_prev = xtime(index_start) - xtime(index_start-1)
+            end if
           endif
         else
           if (my_id .eq. 0) write(*,*) "ERROR: file ", trim(restart_file), " does not exist"
