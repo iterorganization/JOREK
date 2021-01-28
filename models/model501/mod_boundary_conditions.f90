@@ -34,7 +34,7 @@ contains
     use phys_module, only: F0, GAMMA, freeboundary, tstep, RMP_on, psi_RMP_cos, dpsi_RMP_cos_dR, dpsi_RMP_cos_dZ, &
        psi_RMP_sin, dpsi_RMP_sin_dR, dpsi_RMP_sin_dZ, t_now, RMP_start_time, RMP_har_cos, RMP_har_sin,            &
        RMP_growth_rate, RMP_ramp_up_time, Number_RMP_harmonics, RMP_har_cos_spectrum, RMP_har_sin_spectrum, T_min,&
-       grid_to_wall, n_wall_blocks, keep_n0_const
+       grid_to_wall, n_wall_blocks, keep_n0_const, no_mach1_bc
     USE tr_module
     use mpi_mod
     use mod_locate_irn_jcn
@@ -307,7 +307,7 @@ contains
                          endif
 
 
-                         if (k .eq. 7) then
+                         if ( (k .eq. 7) .and. (.not. no_mach1_bc) ) then 
 
                             index_node  = node_list%node(inode)%index(1)             ! position of value
                             index_node2 = node_list%node(inode)%index(2)             ! position of first deriative
@@ -523,7 +523,7 @@ contains
                          endif
 
 
-                         if (k .eq. 7) then
+                         if ( (k .eq. 7) .and. (.not. no_mach1_bc) ) then 
 
                             index_node  = node_list%node(inode)%index(1)             ! position of value
                             index_node2 = node_list%node(inode)%index(3)             ! position of first deriative

@@ -66,8 +66,9 @@ namelist /in1/  tstep, nstep, tstep_n, nstep_n,                     &
                 R_boundary, Z_boundary, psi_boundary, n_boundary,   &
                 n_pfc, manipulate_psi_map,                          &
                 Rmin_pfc, Rmax_pfc, Zmin_pfc, Zmax_pfc, current_pfc,&
+                extend_existing_grid, no_mach1_bc,                  &
                 grid_to_wall, RZ_grid_inside_wall,                  &
-                n_wall_blocks, n_ext_block,                         &
+                n_wall_blocks, n_ext_block, corner_block,           &
                 n_block_points_left,  n_block_points_right,         &
                 R_block_points_left,  R_block_points_right,         &
                 Z_block_points_left,  Z_block_points_right,         &
@@ -139,7 +140,7 @@ namelist /in1/  tstep, nstep, tstep_n, nstep_n,                     &
                 ng_radius_ratio, ng_radius_min, spi_angle,          &
                 spi_L_inj, K_Dmv, A_Dmv, L_tube, V_Dmv, P_Dmv,      &
                 spi_Vel_diff, t_ns, JET_MGI, ASDEX_MGI,             &
-                gas_type, delta_n_convection, nimp_bg,              &
+                imp_type, delta_n_convection, nimp_bg,              &
                 adas_dir, output_prad_phi,                          &
                 RMP_on, RMP_har_cos,RMP_har_sin, spi_shard_file,    &
                 RMP_growth_rate, RMP_ramp_up_time,                  &
@@ -273,37 +274,7 @@ if ( my_id == 0 ) then
     end if
   end do
 
-  if (using_spi) then
-    n_spi_tot = 0
-    do i = 1, n_inj
-      n_spi_tot = n_spi_tot + n_spi(i)
-    end do
-
-    if (allocated(pellets)) then
-      deallocate(pellets)
-    end if
-
-    allocate (pellets(n_spi_tot),stat=err_alloc)  !< Dynamically allocate memeries for pellets
-
-    if (err_alloc /= 0) then
-      write(*,*) "Error when trying to dynamically allocate memeries for pellets, exiting."
-      stop
-    else
-      if (JET_MGI .or. ASDEX_MGI) then
-        write(*,*) "WARNING: Using SPI, conflicting with MGI settings"
-        write(*,*) "JET_MGI:", JET_MGI
-        write(*,*) "ASDEX_MGI:", ASDEX_MGI
-        stop
-      else      !< Do one initialization for each injection location
-        n_spi_begin = 1
-        do i = 1, n_inj
-          call init_spi(ns_R(i),ns_Z(i),ns_phi(i),ns_amplitude(i),spi_Vel_Rref(i),spi_Vel_Zref(i),spi_Vel_RxZref(i),&
-                        spi_quantity(i),spi_quantity_bg(i),spi_Vel_diff(i),spi_L_inj(i),n_spi(i),n_spi_begin)
-          n_spi_begin = n_spi_begin + n_spi(i)
-        end do
-      end if
-    end if
-  end if
+  if (using_spi) call init_spi_all()
 end if
 
   

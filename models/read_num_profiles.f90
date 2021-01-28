@@ -55,11 +55,9 @@ subroutine read_num_profiles(my_id)
     num_Ti_y0 = num_Ti_y0 - Ti_1
   end if
   
-  if ( (jorek_model .eq. 400) .or. (jorek_model .eq. 502) .or. (jorek_model .eq. 711) ) then
-    if ( my_id ==0 ) then
-      T_0 = Te_0 + Ti_0
-      T_1 = Te_1 + Ti_1
-    end if
+  if (( (jorek_model == 400).or.(jorek_model == 401).or.(jorek_model .eq. 502).or.(jorek_model == 711) ) .and. ( my_id ==0 )) then
+    T_0 = Te_0 + Ti_0
+    T_1 = Te_1 + Ti_1
   end if
   
   num_ffprime = ( ffprime_file /= 'none' )

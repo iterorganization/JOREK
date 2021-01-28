@@ -32,7 +32,7 @@ contains
                                   ijA_index, ijA_size, irn_jcn, irn, jcn, A_mat, i_tor_min, i_tor_max )
 
     use data_structure
-    use phys_module, only: F0, GAMMA, Mach1_openBC, bc_natural_open, keep_n0_const
+    use phys_module, only: F0, GAMMA, Mach1_openBC, bc_natural_open, keep_n0_const, no_mach1_bc
     use vacuum, only: is_freebound
     use mpi_mod
     use mod_locate_irn_jcn
@@ -139,7 +139,7 @@ contains
               !------------------------------------ the open field lines (in case of x-point grid)
               if ((node_list%node(inode)%boundary == 1) .or. (node_list%node(inode)%boundary == 3)) then
 
-                if ((k .eq. var_AR) .or. (k .eq. var_AZ) .or. (k .eq. var_A3)) then
+                if ((k .eq. var_AR) .or. (k .eq. var_AZ) .or. (k .eq. var_A3) .or. (no_mach1_bc)) then
 
                   index_node = node_list%node(inode)%index(1)
                   if ((index_node .ge. index_min) .and. (index_node .le. index_max)) then
@@ -170,7 +170,7 @@ contains
                 endif
 
                 ! --- Mach-1 BCs
-                if (.not. Mach1_openBC) then 
+                if ( (.not. Mach1_openBC) .and. (.not. no_mach1_bc) ) then 
                   if ( (k == var_uR) .or. (k == var_uZ) .or. (k == var_up) ) then 
                     
                     index_node  = node_list%node(inode)%index(1)             ! position of value
@@ -359,7 +359,7 @@ contains
                   
                   endif
                 else
-                  if (.not. bc_natural_open) then
+                  if ( (.not. bc_natural_open) .and. (.not. no_mach1_bc) ) then
                     write(*,*)'*** MODEL710 WARNING ***'
                     write(*,*)'*** YOU ARE NOT USING ANY DIVERTOR BOUNDARY CONDITIONS!!!'
                     write(*,*)'*** YOU NEED TO USE EITHER Mach1_openBC=.f. OR bc_natural_open=.t.'

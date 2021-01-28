@@ -222,6 +222,7 @@ end function coronal_equilibrium
 
 
 !> Linear interpolation of coronal model charge at specific density and temperature
+
 subroutine interpolate_coronal(cor, density, temperature, p_out, p_Te_out, &
                                z_avg, z_avg_Te, z_avg_TeTe, rad_out, rad_Te_out)
 class(coronal), intent(in)      :: cor !< Coronal equilibrium type
@@ -235,7 +236,7 @@ real*8, dimension(0:cor%n_Z)    :: p, dp_dT !< distribution of charge states (su
 real*8, dimension(0:cor%n_Z)    :: Z !< The charge number at each charge state
 integer                         :: iz
 
-p     = L2D2interp(cor%density,cor%temperature,cor%n_Z+1,cor%Z(:,:,:),density,temperature)
+p = L2D2interp(cor%density,cor%temperature,cor%n_Z+1,cor%Z(:,:,:),density,temperature)
 dp_dT = L2D2interp(cor%density,cor%temperature,cor%n_Z+1,cor%Z_1T(:,:,:),density,temperature)
 
 if (present(p_out)) p_out = p

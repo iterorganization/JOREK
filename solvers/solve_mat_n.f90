@@ -869,7 +869,7 @@ contains
     endif
 #ifndef USE_PASTIX6
     ! -- For PaStiX solver before version 6.x
-    call tr_set_precondmem(pastix_dparm(DPARM_MEM_MAX)) ! DPARM_MEM_MAX DEPRECATED IN PASTIX6: how to change this?
+    call tr_set_precondmem(pastix_dparm(2)) ! DPARM_MEM_MAX DEPRECATED IN PASTIX6: how to change this?
     ! ############### This should be looked at at some point
 #endif
     call tr_print_memsize("AfterSolveN")

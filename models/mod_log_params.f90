@@ -231,8 +231,6 @@ write(*,'(1x,a)',advance='no') ' USE_COMPLEX_PRECOND          : '
   write(*,INTG_FMT) 'nstep_n               ', nstep_n
   write(*,LOGI_FMT) 'eta_T_dependent       ', eta_T_dependent
   write(*,REAL_FMT) 'eta                   ', eta
-  write(*,REAL_FMT) 'T_max_eta             ', T_max_eta
-  write(*,REAL_FMT) 'T_max_eta_ohm         ', T_max_eta_ohm
   write(*,REAL_FMT) 'eta_ohmic             ', eta_ohmic
   write(*,REAL_FMT) 'T_max_eta             ', T_max_eta
   write(*,REAL_FMT) 'T_max_eta_ohm         ', T_max_eta_ohm  
@@ -297,11 +295,12 @@ write(*,'(1x,a)',advance='no') ' USE_COMPLEX_PRECOND          : '
     write(*,REAL_FMT) 'SDN_threshold         ', SDN_threshold
   end if
 
-  if ( (grid_to_wall) .and. (n_wall_blocks .gt. 0) ) then
+  if ( ( (grid_to_wall) .or. (extend_existing_grid) ) .and. (n_wall_blocks .gt. 0) ) then
     write(*,LOGI_FMT) 'RZ_grid_inside_wall   ', RZ_grid_inside_wall
     write(*,INTG_FMT) 'n_wall_blocks         ', n_wall_blocks
     do i=1,n_wall_blocks
       write(*,INTG_FMT) 'Wall Patch number:    ', i
+      write(*,INTG_FMT) 'corner block:         ', corner_block(i)
       write(*,INTG_FMT) 'resolution of block:  ', n_ext_block(i)
       write(*,INTG_FMT) 'n_block_points_left   ', n_block_points_left(i)
       do j=1,n_block_points_left(i)
@@ -380,7 +379,7 @@ write(*,'(1x,a)',advance='no') ' USE_COMPLEX_PRECOND          : '
     write(*,CHAR_FMT) 'T_file                ', trim(T_file)
   end if
 
-  if ( (jorek_model .eq. 400) .or. (jorek_model .eq. 502) .or. (jorek_model .eq. 711) ) then
+  if ( ( jorek_model == 400 ) .or. ( jorek_model == 401 ) .or. (jorek_model .eq. 502) .or. ( jorek_model == 711 ) ) then
     write(*,REAL_FMT) 'Te_0                   ', Te_0
     write(*,REAL_FMT) 'Te_1                   ', Te_1
     write(*,REAL_FMT) 'Te_coef                ', Te_coef(1:5)
@@ -401,6 +400,7 @@ write(*,'(1x,a)',advance='no') ' USE_COMPLEX_PRECOND          : '
     write(*,REAL_FMT) 'heatsource_i           ', heatsource_i
     write(*,REAL_FMT) 'ZK_e_par               ', ZK_e_par
     write(*,REAL_FMT) 'ZK_i_par               ', ZK_i_par
+    write(*,LOGI_FMT) 'thermalization         ', thermalization
   end if
 
   if ( .not. num_ffprime ) then
@@ -446,6 +446,8 @@ write(*,'(1x,a)',advance='no') ' USE_COMPLEX_PRECOND          : '
   write(*,REAL_FMT) 'particlesource_gauss_psin', particlesource_gauss_psin
   write(*,REAL_FMT) 'particlesource_gauss_sig ', particlesource_gauss_sig
   write(*,REAL_FMT) 'heatsource_gauss      ', heatsource_gauss
+  write(*,REAL_FMT) 'heatsource_gauss_e    ', heatsource_gauss_e
+  write(*,REAL_FMT) 'heatsource_gauss_i    ', heatsource_gauss_i
   write(*,REAL_FMT) 'heatsource_gauss_psin ', heatsource_gauss_psin
   write(*,REAL_FMT) 'heatsource_gauss_sig  ', heatsource_gauss_sig
   write(*,REAL_FMT) 'tauIC                 ', tauIC
@@ -468,7 +470,6 @@ write(*,'(1x,a)',advance='no') ' USE_COMPLEX_PRECOND          : '
   write(*,REAL_FMT) 'ZK_prof_neg_thresh    ', ZK_prof_neg_thresh
   write(*,REAL_FMT) 'ZK_par_neg_thresh     ', ZK_par_neg_thresh
   write(*,REAL_FMT) 'T_min                 ', T_min
-  write(*,REAL_FMT) 'rho_min               ', rho_min
   write(*,REAL_FMT) 'ne_SI_min             ', ne_SI_min
   write(*,REAL_FMT) 'Te_eV_min             ', Te_eV_min
   write(*,REAL_FMT) 'rn0_min               ', rn0_min
@@ -597,11 +598,11 @@ write(*,'(1x,a)',advance='no') ' USE_COMPLEX_PRECOND          : '
   write(*,REAL_FMT) 'central_mass          ', central_mass
   write(*,REAL_FMT) 'gamma_sheath          ', gamma_sheath
   write(*,REAL_FMT) 'gamma_stangeby        ', gamma_stangeby
+#if ( (JOREK_MODEL == 400) || (JOREK_MODEL == 401) || (JOREK_MODEL == 502) || (JOREK_MODEL == 711) )
   write(*,REAL_FMT) 'gamma_sheath_e        ', gamma_sheath_e
   write(*,REAL_FMT) 'gamma_sheath_i        ', gamma_sheath_i
-#if ( (JOREK_MODEL == 400) || (JOREK_MODEL == 500) || (JOREK_MODEL == 711) )
-  write(*,REAL_FMT) 'gamma_i_stangeby      ', gamma_i_stangeby
   write(*,REAL_FMT) 'gamma_e_stangeby      ', gamma_e_stangeby
+  write(*,REAL_FMT) 'gamma_i_stangeby      ', gamma_i_stangeby
 #endif
   write(*,LOGI_FMT) 'vpar_smoothing        ', vpar_smoothing
   if ( vpar_smoothing ) then
@@ -641,6 +642,7 @@ write(*,'(1x,a)',advance='no') ' USE_COMPLEX_PRECOND          : '
   write(*,LOGI_FMT) 'mach_one_bnd_integral ', mach_one_bnd_integral
   write(*,LOGI_FMT) 'deuterium_adas        ', deuterium_adas       
   write(*,LOGI_FMT) 'old_deuterium_atomic  ', old_deuterium_atomic
+  write(*,LOGI_FMT) 'no_mach1_bc           ', no_mach1_bc
 
   if ( (jorek_model .eq. 710) .or. (jorek_model .eq. 711) ) then
     write(*,LOGI_FMT) 'Mach1_openBC          ', Mach1_openBC
@@ -716,7 +718,6 @@ write(*,'(1x,a)',advance='no') ' USE_COMPLEX_PRECOND          : '
      write(*,LOGI_FMT) 'JET_MGI             ',  JET_MGI
      write(*,LOGI_FMT) 'ASDEX_MGI           ',  ASDEX_MGI
      write(*,LOGI_FMT) 'use_marker          ',  use_marker
-     write(*,CHAR_FMT) 'gas_type            ',  trim(gas_type)
      write(*,REAL_FMT) 'A_Dmv               ',  A_Dmv
      write(*,REAL_FMT) 'K_Dmv               ',  K_Dmv
      write(*,REAL_FMT) 'V_Dmv               ',  V_Dmv
@@ -724,6 +725,7 @@ write(*,'(1x,a)',advance='no') ' USE_COMPLEX_PRECOND          : '
      write(*,REAL_FMT) 't_ns                ',  t_ns
      write(*,REAL_FMT) 'delta_n_convection  ',  delta_n_convection
      write(*,REAL_FMT) 'nimp_bg             ',  nimp_bg
+     write(*,CHAR_FMT) 'imp_type            ',  trim(imp_type)
      write(*,REAL_FMT) 'neutral_line_source ', neutral_line_source
      write(*,REAL_FMT) 'neutral_line_R_start', neutral_line_R_start
      write(*,REAL_FMT) 'neutral_line_Z_start', neutral_line_Z_start
@@ -732,6 +734,9 @@ write(*,'(1x,a)',advance='no') ' USE_COMPLEX_PRECOND          : '
      write(*,REAL_FMT) 'neutral_reflection  ', neutral_reflection
      write(*,REAL_FMT) 'imp_reflection      ', imp_reflection
      write(*,LOGI_FMT) 'output_prad_phi     ', output_prad_phi
+     write(*,CHAR_FMT) 'adas_dir            ',  trim(adas_dir)
+     write(*,INTG_FMT) 'n_adas              ',  n_adas
+     write(*,LOGI_FMT) 'use_imp_adas        ',  use_imp_adas
 
      !< Additional log for SPI model
    if(using_spi) then

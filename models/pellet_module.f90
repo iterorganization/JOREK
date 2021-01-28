@@ -193,7 +193,7 @@ module pellet_module
   
   use constants
   use data_structure
-  use phys_module, only: pellets, gas_type, central_density, central_mass, spi_abl_model, spi_tor_rot,      &
+  use phys_module, only: pellets, imp_type, central_density, central_mass, spi_abl_model, spi_tor_rot,      &
                          ns_phi_rotate, tor_frequency, tstep, pellet_density, pellet_density_bg,            &
                          index_now, xtime_spi_ablation, xtime_spi_ablation_bg, xtime_spi_ablation_rate,&
                          xtime_spi_ablation_bg_rate, F0, R_geo, imp_cor
@@ -380,7 +380,7 @@ module pellet_module
             write(*,*) "Check Point, n_SI, T_eV = ", n_SI, T_eV
           end if
         else if (spi_abl_model == 2) then
-          select case ( trim(gas_type) )
+          select case ( trim(imp_type) )
             case('D2')
               ne_SI   = n_SI
               ! The scaling law is in gauss unit
@@ -431,7 +431,7 @@ module pellet_module
                                        * ((ne_SI*1.d-6)**0.455) * (T_eV**1.679)
               end if
             case default
-              write(*,*) '!! Gas type "', trim(gas_type), '" unknown !!'
+              write(*,*) '!! Gas type "', trim(imp_type), '" unknown !!'
               write(*,*) '=> We assume the gas is D2.'
               pellets(i_p)%spi_abl = 3.9d14 * ((pellets(i_p)%spi_radius*1.d2)**1.455) &
                                      * ((n_SI*1.d-6)**0.455) * (T_eV**1.679)
@@ -440,7 +440,7 @@ module pellet_module
             write(*,*) "Check Point, ne_SI, T_eV = ", ne_SI, T_eV
           end if
         else if (spi_abl_model == 3) then
-          select case ( trim(gas_type) )
+          select case ( trim(imp_type) )
             case('D2') ! We temporarily wusing D2 ablation rate for H2 ablation here
               pellets(i_p)%spi_abl = 39.0023 * 2. * MOLE_NUMBER * ((pellets(i_p)%spi_radius*1.d2 / 0.2)**(4./3.)) &
                                      * ((n_SI*1.d-20)**(1./3.)) * ((T_eV/2.d3)**(5./3.)) / 4.0282
@@ -483,7 +483,7 @@ module pellet_module
                                        * ((ne_SI*1.d-20)**(1./3.)) * ((T_eV/2.d3)**(5./3.)) &
                                        / (20.183*pellets(i_p)%spi_species + 2.0141*(1.-pellets(i_p)%spi_species)) 
             case default
-              write(*,*) '!! Gas type "', trim(gas_type), '" unknown !!'
+              write(*,*) '!! Gas type "', trim(imp_type), '" unknown !!'
               write(*,*) '=> We assume the gas is D2.'
               pellets(i_p)%spi_abl = 39.0023 * 2. * MOLE_NUMBER * ((pellets(i_p)%spi_radius*1.d2 / 0.2)**(4./3.)) &
                                      * ((n_SI*1.d-20)**(1./3.)) * ((T_eV/2.d3)**(5./3.)) / 4.0282
@@ -534,6 +534,53 @@ module pellet_module
   end subroutine update_spi
 
 
+  !> This is a blanket subroutine taking care of initialization of fragments for all injection locations
+  subroutine init_spi_all()
+  
+    use data_structure
+    use phys_module, only: pellets, n_spi, n_spi_tot, n_inj, JET_MGI, ASDEX_MGI, ns_R, ns_Z, ns_phi,&
+                           ns_amplitude, spi_Vel_Rref, spi_Vel_Zref, spi_Vel_RxZref,&
+                           spi_quantity, spi_quantity_bg, spi_Vel_diff, spi_L_inj
+    use mpi_mod
+    
+    implicit none
+    
+    integer             :: i, n_spi_begin
+    integer             :: err_alloc=0, err_alloc_rnd=0    
+    logical             :: ferr
+    
+    n_spi_tot = 0
+    do i = 1, n_inj
+      n_spi_tot = n_spi_tot + n_spi(i)
+    end do
+
+    if (allocated(pellets)) then
+      deallocate(pellets)
+    end if
+
+    allocate (pellets(n_spi_tot),stat=err_alloc)  !< Dynamically allocate memeries for pellets
+
+    if (err_alloc /= 0) then
+      write(*,*) "Error when trying to dynamically allocate memeries for pellets, exiting."
+      stop
+    else
+      if (JET_MGI .or. ASDEX_MGI) then
+        write(*,*) "WARNING: Using SPI, conflicting with MGI settings"
+        write(*,*) "JET_MGI:", JET_MGI
+        write(*,*) "ASDEX_MGI:", ASDEX_MGI
+        stop
+      else      !< Do one initialization for each injection location
+        n_spi_begin = 1
+        do i = 1, n_inj
+          call init_spi(ns_R(i),ns_Z(i),ns_phi(i),ns_amplitude(i),spi_Vel_Rref(i),spi_Vel_Zref(i),spi_Vel_RxZref(i),&
+                        spi_quantity(i),spi_quantity_bg(i),spi_Vel_diff(i),spi_L_inj(i),n_spi(i),n_spi_begin)
+          n_spi_begin = n_spi_begin + n_spi(i)
+        end do
+      end if
+    end if
+
+    return
+  end subroutine init_spi_all
 
   !> Initializes the shattered pellet position, velocity and size
   subroutine init_spi(ns_R,ns_Z,ns_phi,ns_amplitude,spi_Vel_Rref,spi_Vel_Zref,spi_Vel_RxZref,&
@@ -542,7 +589,7 @@ module pellet_module
     use constants
     use tr_module
     use data_structure
-    use phys_module, only: pellets, gas_type, central_density, central_mass, pellet_density, pellet_density_bg,&
+    use phys_module, only: pellets, imp_type, central_density, central_mass, pellet_density, pellet_density_bg,&
                            spi_rnd_seed, spi_angle, xtime_spi_ablation, xtime_spi_ablation_bg, xtime_spi_ablation_rate,&
                            xtime_spi_ablation_bg_rate, nstep, spi_shard_file, spi_abl_model, n_spi_tot
     use mpi_mod
@@ -643,7 +690,7 @@ module pellet_module
         stop
       end if
 
-      select case ( trim(gas_type) ) 
+      select case ( trim(imp_type) ) 
         case('D2')
           write(*,*) "Injection of D2 species should be done by spi_qiantity_bg, please revise input file accordingly."
           stop
@@ -695,7 +742,7 @@ module pellet_module
             N_shard_norm = N_shard_norm + (4./3.) * PI * (shard_size(i)**3) * spi_density_tmp *1.d20
           end do
         case default
-          write(*,*) '!! Gas type "', trim(gas_type), '" unknown !!'
+          write(*,*) '!! Gas type "', trim(imp_type), '" unknown !!'
           write(*,*) '=> We assume the gas is D2.'
           write(*,*) "Injection of D2 species should be done by spi_qiantity_bg, please revise input file accordingly."
           stop

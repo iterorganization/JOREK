@@ -42,8 +42,9 @@ namelist /in1/  tstep, nstep, tstep_n, nstep_n,                     &
                 R_boundary, Z_boundary, psi_boundary, n_boundary,   &
                 n_pfc, n_tor_fft_thresh, manipulate_psi_map,        &
                 Rmin_pfc, Rmax_pfc, Zmin_pfc, Zmax_pfc, current_pfc,&
+                extend_existing_grid, no_mach1_bc,                  &
                 grid_to_wall, RZ_grid_inside_wall,                  &
-                n_wall_blocks, n_ext_block,                         &
+                n_wall_blocks, n_ext_block, corner_block,           &
                 n_block_points_left,  n_block_points_right,         &
                 R_block_points_left,  R_block_points_right,         &
                 Z_block_points_left,  Z_block_points_right,         &

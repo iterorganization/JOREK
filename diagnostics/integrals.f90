@@ -193,7 +193,7 @@ do ife =1, element_list%n_elements
       ! Atomic physics parameters for Impurities
       !-------------------------------------------
 
-      select case ( trim(gas_type) )
+      select case ( trim(imp_type) )
         case('D2')
           m_i_over_m_imp = central_mass/2.  ! Deuterium mass = 2 u
         case('Ar')
@@ -201,7 +201,7 @@ do ife =1, element_list%n_elements
         case('Ne')
           m_i_over_m_imp = central_mass/20. ! Neon mass = 20 u
         case default
-          write(*,*) '!! Gas type "', trim(gas_type), '" unknown (in mod_injection_source.f90) !!'
+          write(*,*) '!! Gas type "', trim(imp_type), '" unknown (in mod_injection_source.f90) !!'
           write(*,*) '=> We assume the gas is D2.'
           m_i_over_m_imp = central_mass/2.
       end select
@@ -259,10 +259,10 @@ do ife =1, element_list%n_elements
       if ( in_plasma(node_list,element_list,x_g(ms,mt),y_g(ms,mt),eq_g(1,ms,mt),xpoint,&
         xcase,R_xpoint,Z_xpoint,psi_xpoint,psi_limit,R_axis,Z_axis,psi_axis) ) then
         
-#if ( (JOREK_MODEL == 400) || JOREK_MODEL == 502 || (JOREK_MODEL == 711) )
+#if ( (JOREK_MODEL == 400) || (JOREK_MODEL == 401) || (JOREK_MODEL == 502) || (JOREK_MODEL == 711) )
         call sources(xpoint, xcase, y_g(ms,mt), Z_xpoint, eq_g(var_psi,ms,mt), psi_axis, &
           psi_limit, part_src, heat_src_i, heat_src_e)
-          heat_src = heat_src_i + heat_src_e
+        heat_src = heat_src_i + heat_src_e
 #else
         call sources(xpoint, xcase, y_g(ms,mt), Z_xpoint, eq_g(var_psi,ms,mt), psi_axis, &
           psi_limit, part_src, heat_src)

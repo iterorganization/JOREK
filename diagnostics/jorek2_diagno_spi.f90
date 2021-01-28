@@ -149,7 +149,7 @@ if (using_spi) then
 
 endif
 
-#if (JOREK_MODEL == 501 || JOREK_MODEL == 502)
+#if (JOREK_MODEL == 500 || JOREK_MODEL == 501 || JOREK_MODEL == 502)
   ! --- Read ADAS data and generate coronal equilibrium is needed
   call init_imp_adas(0)
 #endif

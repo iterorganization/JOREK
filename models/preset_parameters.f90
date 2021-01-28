@@ -201,7 +201,6 @@ subroutine preset_parameters
   ne_SI_min          = 1.d18
   Te_eV_min          = 5.
   rn0_min            = 1.d-8
-
   T_min              =-1.0d20
   rho_min            =-1.0d20
   
@@ -214,6 +213,8 @@ subroutine preset_parameters
   D_perp_num    = 0.d0
   ZK_perp_num   = 0.d0
   Dn_perp_num   = 0.d0
+  eta_num_T_dependent   = .false.
+  visco_num_T_dependent = .false.
 
   heatsource          = 1.e-7
   heatsource_i        = 5.d-8
@@ -380,6 +381,8 @@ subroutine preset_parameters
   
   equil              = .true.               ! compute equilibrium
   
+  no_mach1_bc        = .false.              ! Never apply Mach-1 BCs
+
   Mach1_openBC       = .true.               ! Full-MHD: Apply Mach-1 BCs inside mod_boundary_matrix_open.f90 (or mod_boundary_conditions.f90)
 
   eta_ARAZ_on        = .true.               !< Full-MHD: to switch on/off resistive   terms for AR and AZ equations
@@ -422,7 +425,9 @@ subroutine preset_parameters
   R_limiter = 0.d0
   Z_limiter = 0.d0
   
+  extend_existing_grid = .false.
   n_wall_blocks        = 0
+  corner_block         = 0
   n_ext_block          = 0
   n_block_points_left  = 0
   R_block_points_left  = 0.d0
@@ -453,6 +458,11 @@ subroutine preset_parameters
   D_neutral_p = 1.d-5
   delta_n_convection = 0
   nimp_bg = 0.
+  n_adas = 0
+  adas_dir = ''
+  imp_type = ''
+  use_imp_adas = .true. ! Directly use adas for impurity radiation; hard-coded one exists for argon
+
   !====== JET DMV-2 parameters
   L_tube = 2.4d0
   K_Dmv = 4.d-2
@@ -481,9 +491,6 @@ subroutine preset_parameters
   spi_tor_rot     = .false.
   using_spi       = .false.
 
-  n_adas          = 0
-  adas_dir        = ''
-  gas_type        = ''
   output_prad_phi = .false.
 
 !==================Particle related presets==============
@@ -521,5 +528,9 @@ subroutine preset_parameters
   jw1=5.d-1 ! inner cut-off
   jw2=1.d0  ! outer cut-off
   jw3=1.d0  ! outer cut-off
+
+!===================== Thermalization flag========
+
+  thermalization = .false.
 
 end subroutine preset_parameters

@@ -1,0 +1,681 @@
+&in1
+
+ restart = .f.
+ regrid  = .f.
+ tstep   = 1000.
+ nstep   = 100
+
+ nout = 1
+ linear_run = .t.
+
+ fbnd(1)   = 2.
+ fbnd(2:4) = 0.
+ mf        = 0
+
+ xpoint = .f.
+
+ R_begin = 9.6
+ R_end   = 10.4
+ Z_begin =-0.4
+ Z_end   = 0.4
+
+ R_geo   = 10.0
+ Z_geo   = 0.
+ amin    = 1.
+
+ F0      = 10.0
+
+ FF_0        = 1.173
+ FF_1        = 0.
+ FF_coef(1)  = -1.0
+ FF_coef(2)  = 0.d0
+ FF_coef(3)  = 0.d0
+ FF_coef(4)  = 0.03d0
+ FF_coef(5)  = 5.0d0
+ FF_coef(6)  = 1.d0
+ FF_coef(7)  = 10.d0
+ FF_coef(8)  = 1.d0
+
+ rho_0       = 1.
+ rho_1       = 1.
+ rho_coef(1) =  0.0
+ rho_coef(2) =  0.0
+ rho_coef(3) =  0.0
+ rho_coef(4) =  1.d0
+ rho_coef(5) =  5.d0
+
+ T_0         = 1.d-6
+ T_1         = 1.d-8
+ T_coef(1)   = -0.8d0
+ T_coef(2)   = +0.0d0
+ T_coef(3)   = 0.d0
+ T_coef(4)   = 1.d0
+ T_coef(5)   = 5.d0
+
+ n_R      = 40
+ n_Z      = 40
+
+ n_radial = 0
+ n_pol    = 0
+ n_flux   = 0
+
+ !equil = .f.
+ no_mach1_bc = .t.
+ extend_existing_grid = .t.
+ n_wall_blocks               = 8
+ 
+ n_ext_block         ( 1)    = 20
+ n_block_points_left ( 1)    =  2
+ R_block_points_left ( 1,1)  = +10.4
+ Z_block_points_left ( 1,1)  = -0.4
+ R_block_points_left ( 1,2)  = +10.916
+ Z_block_points_left ( 1,2)  = -0.4
+ n_block_points_right( 1)    = 2
+ R_block_points_right( 1,1)  = +10.4
+ Z_block_points_right( 1,1)  = +0.4
+ R_block_points_right( 1,2)  = +10.916
+ Z_block_points_right( 1,2)  = +0.4
+ 
+ corner_block        ( 2)    = 1
+ n_ext_block         ( 2)    = 20
+ n_block_points_left ( 2)    =  2
+ R_block_points_left ( 2,1)  = +10.916
+ Z_block_points_left ( 2,1)  = +0.4
+ R_block_points_left ( 2,2)  = +10.717
+ Z_block_points_left ( 2,2)  = +0.696
+ n_block_points_right( 2)    = 2
+ R_block_points_right( 2,1)  = +10.4
+ Z_block_points_right( 2,1)  = +0.4
+ R_block_points_right( 2,2)  = +10.4
+ Z_block_points_right( 2,2)  = +0.916
+
+ n_ext_block         ( 3)    = 20
+ n_block_points_left ( 3)    =  2
+ R_block_points_left ( 3,1)  = +10.4
+ Z_block_points_left ( 3,1)  = +0.4
+ R_block_points_left ( 3,2)  = +10.4
+ Z_block_points_left ( 3,2)  = +0.916
+ n_block_points_right( 3)    = 2
+ R_block_points_right( 3,1)  = +9.6
+ Z_block_points_right( 3,1)  = +0.4
+ R_block_points_right( 3,2)  = +9.6
+ Z_block_points_right( 3,2)  = +0.916
+
+ corner_block        ( 4)    = 1
+ n_ext_block         ( 4)    = 20
+ n_block_points_left ( 4)    =  2
+ R_block_points_left ( 4,1)  = +9.6
+ Z_block_points_left ( 4,1)  = +0.916
+ R_block_points_left ( 4,2)  = +9.303
+ Z_block_points_left ( 4,2)  = +0.717
+ n_block_points_right( 4)    = 2
+ R_block_points_right( 4,1)  = +9.6
+ Z_block_points_right( 4,1)  = +0.4
+ R_block_points_right( 4,2)  = +9.083
+ Z_block_points_right( 4,2)  = +0.4
+
+ n_ext_block         ( 5)    = 20
+ n_block_points_left ( 5)    =  2
+ R_block_points_left ( 5,1)  = +9.6
+ Z_block_points_left ( 5,1)  = +0.4
+ R_block_points_left ( 5,2)  = +9.083
+ Z_block_points_left ( 5,2)  = +0.4
+ n_block_points_right( 5)    = 2
+ R_block_points_right( 5,1)  = +9.6
+ Z_block_points_right( 5,1)  = -0.4
+ R_block_points_right( 5,2)  = +9.083
+ Z_block_points_right( 5,2)  = -0.4
+
+ corner_block        ( 6)    = 1
+ n_ext_block         ( 6)    = 20
+ n_block_points_left ( 6)    =  2
+ R_block_points_left ( 6,1)  = +9.083
+ Z_block_points_left ( 6,1)  = -0.4
+ R_block_points_left ( 6,2)  = +9.279
+ Z_block_points_left ( 6,2)  = -0.693
+ n_block_points_right( 6)    = 2
+ R_block_points_right( 6,1)  = +9.6
+ Z_block_points_right( 6,1)  = -0.4
+ R_block_points_right( 6,2)  = +9.6
+ Z_block_points_right( 6,2)  = -0.916
+
+ n_ext_block         ( 7)    = 20
+ n_block_points_left ( 7)    =  2
+ R_block_points_left ( 7,1)  = +9.6
+ Z_block_points_left ( 7,1)  = -0.4
+ R_block_points_left ( 7,2)  = +9.6
+ Z_block_points_left ( 7,2)  = -0.916
+ n_block_points_right( 7)    = 2
+ R_block_points_right( 7,1)  = +10.4
+ Z_block_points_right( 7,1)  = -0.4
+ R_block_points_right( 7,2)  = +10.4
+ Z_block_points_right( 7,2)  = -0.916
+
+ corner_block        ( 8)    = 1
+ n_ext_block         ( 8)    = 20
+ n_block_points_left ( 8)    =  2
+ R_block_points_left ( 8,1)  = +10.4
+ Z_block_points_left ( 8,1)  = -0.916
+ R_block_points_left ( 8,2)  = +10.692
+ Z_block_points_left ( 8,2)  = -0.721
+ n_block_points_right( 8)    = 2
+ R_block_points_right( 8,1)  = +10.4
+ Z_block_points_right( 8,1)  = -0.4
+ R_block_points_right( 8,2)  = +10.916
+ Z_block_points_right( 8,2)  = -0.4
+
+
+ eta       = 1.d-6
+ visco     = 1.d-6
+ visco_par = 1.d-6
+ D_par     = 0.d0
+ D_perp    = 1.d-7
+ ZK_par    = 1.d0
+ ZK_perp   = 1.d-7
+
+ heatsource     = 0.d0
+ particlesource = 0.d0
+
+ n_limiter = 500
+ R_limiter(   1) = +11.000000, Z_limiter(   1) = +0.000000
+ R_limiter(   2) = +10.999921, Z_limiter(   2) = +0.012591
+ R_limiter(   3) = +10.999683, Z_limiter(   3) = +0.025180
+ R_limiter(   4) = +10.999287, Z_limiter(   4) = +0.037766
+ R_limiter(   5) = +10.998732, Z_limiter(   5) = +0.050345
+ R_limiter(   6) = +10.998019, Z_limiter(   6) = +0.062916
+ R_limiter(   7) = +10.997148, Z_limiter(   7) = +0.075477
+ R_limiter(   8) = +10.996118, Z_limiter(   8) = +0.088027
+ R_limiter(   9) = +10.994931, Z_limiter(   9) = +0.100562
+ R_limiter(  10) = +10.993586, Z_limiter(  10) = +0.113082
+ R_limiter(  11) = +10.992083, Z_limiter(  11) = +0.125583
+ R_limiter(  12) = +10.990423, Z_limiter(  12) = +0.138065
+ R_limiter(  13) = +10.988606, Z_limiter(  13) = +0.150524
+ R_limiter(  14) = +10.986633, Z_limiter(  14) = +0.162960
+ R_limiter(  15) = +10.984503, Z_limiter(  15) = +0.175370
+ R_limiter(  16) = +10.982216, Z_limiter(  16) = +0.187752
+ R_limiter(  17) = +10.979775, Z_limiter(  17) = +0.200105
+ R_limiter(  18) = +10.977177, Z_limiter(  18) = +0.212425
+ R_limiter(  19) = +10.974425, Z_limiter(  19) = +0.224712
+ R_limiter(  20) = +10.971518, Z_limiter(  20) = +0.236964
+ R_limiter(  21) = +10.968458, Z_limiter(  21) = +0.249178
+ R_limiter(  22) = +10.965244, Z_limiter(  22) = +0.261352
+ R_limiter(  23) = +10.961876, Z_limiter(  23) = +0.273485
+ R_limiter(  24) = +10.958357, Z_limiter(  24) = +0.285574
+ R_limiter(  25) = +10.954685, Z_limiter(  25) = +0.297619
+ R_limiter(  26) = +10.950862, Z_limiter(  26) = +0.309616
+ R_limiter(  27) = +10.946888, Z_limiter(  27) = +0.321564
+ R_limiter(  28) = +10.942764, Z_limiter(  28) = +0.333461
+ R_limiter(  29) = +10.938491, Z_limiter(  29) = +0.345305
+ R_limiter(  30) = +10.934068, Z_limiter(  30) = +0.357094
+ R_limiter(  31) = +10.929498, Z_limiter(  31) = +0.368827
+ R_limiter(  32) = +10.924780, Z_limiter(  32) = +0.380501
+ R_limiter(  33) = +10.919916, Z_limiter(  33) = +0.392115
+ R_limiter(  34) = +10.914906, Z_limiter(  34) = +0.403667
+ R_limiter(  35) = +10.909751, Z_limiter(  35) = +0.415155
+ R_limiter(  36) = +10.904451, Z_limiter(  36) = +0.426577
+ R_limiter(  37) = +10.899009, Z_limiter(  37) = +0.437931
+ R_limiter(  38) = +10.893423, Z_limiter(  38) = +0.449216
+ R_limiter(  39) = +10.887696, Z_limiter(  39) = +0.460430
+ R_limiter(  40) = +10.881829, Z_limiter(  40) = +0.471570
+ R_limiter(  41) = +10.875821, Z_limiter(  41) = +0.482636
+ R_limiter(  42) = +10.869675, Z_limiter(  42) = +0.493626
+ R_limiter(  43) = +10.863390, Z_limiter(  43) = +0.504537
+ R_limiter(  44) = +10.856969, Z_limiter(  44) = +0.515368
+ R_limiter(  45) = +10.850412, Z_limiter(  45) = +0.526117
+ R_limiter(  46) = +10.843720, Z_limiter(  46) = +0.536783
+ R_limiter(  47) = +10.836895, Z_limiter(  47) = +0.547364
+ R_limiter(  48) = +10.829936, Z_limiter(  48) = +0.557858
+ R_limiter(  49) = +10.822846, Z_limiter(  49) = +0.568264
+ R_limiter(  50) = +10.815626, Z_limiter(  50) = +0.578580
+ R_limiter(  51) = +10.808276, Z_limiter(  51) = +0.588803
+ R_limiter(  52) = +10.800798, Z_limiter(  52) = +0.598934
+ R_limiter(  53) = +10.793194, Z_limiter(  53) = +0.608970
+ R_limiter(  54) = +10.785463, Z_limiter(  54) = +0.618909
+ R_limiter(  55) = +10.777608, Z_limiter(  55) = +0.628749
+ R_limiter(  56) = +10.769630, Z_limiter(  56) = +0.638491
+ R_limiter(  57) = +10.761529, Z_limiter(  57) = +0.648131
+ R_limiter(  58) = +10.753308, Z_limiter(  58) = +0.657668
+ R_limiter(  59) = +10.744968, Z_limiter(  59) = +0.667101
+ R_limiter(  60) = +10.736509, Z_limiter(  60) = +0.676428
+ R_limiter(  61) = +10.727933, Z_limiter(  61) = +0.685648
+ R_limiter(  62) = +10.719243, Z_limiter(  62) = +0.694759
+ R_limiter(  63) = +10.710438, Z_limiter(  63) = +0.703760
+ R_limiter(  64) = +10.701520, Z_limiter(  64) = +0.712650
+ R_limiter(  65) = +10.692491, Z_limiter(  65) = +0.721426
+ R_limiter(  66) = +10.683353, Z_limiter(  66) = +0.730088
+ R_limiter(  67) = +10.674106, Z_limiter(  67) = +0.738635
+ R_limiter(  68) = +10.664752, Z_limiter(  68) = +0.747064
+ R_limiter(  69) = +10.655293, Z_limiter(  69) = +0.755375
+ R_limiter(  70) = +10.645730, Z_limiter(  70) = +0.763566
+ R_limiter(  71) = +10.636065, Z_limiter(  71) = +0.771636
+ R_limiter(  72) = +10.626298, Z_limiter(  72) = +0.779583
+ R_limiter(  73) = +10.616433, Z_limiter(  73) = +0.787407
+ R_limiter(  74) = +10.606470, Z_limiter(  74) = +0.795107
+ R_limiter(  75) = +10.596410, Z_limiter(  75) = +0.802680
+ R_limiter(  76) = +10.586256, Z_limiter(  76) = +0.810126
+ R_limiter(  77) = +10.576009, Z_limiter(  77) = +0.817443
+ R_limiter(  78) = +10.565671, Z_limiter(  78) = +0.824631
+ R_limiter(  79) = +10.555243, Z_limiter(  79) = +0.831688
+ R_limiter(  80) = +10.544727, Z_limiter(  80) = +0.838613
+ R_limiter(  81) = +10.534125, Z_limiter(  81) = +0.845406
+ R_limiter(  82) = +10.523438, Z_limiter(  82) = +0.852064
+ R_limiter(  83) = +10.512668, Z_limiter(  83) = +0.858587
+ R_limiter(  84) = +10.501816, Z_limiter(  84) = +0.864974
+ R_limiter(  85) = +10.490885, Z_limiter(  85) = +0.871224
+ R_limiter(  86) = +10.479877, Z_limiter(  86) = +0.877336
+ R_limiter(  87) = +10.468792, Z_limiter(  87) = +0.883309
+ R_limiter(  88) = +10.457633, Z_limiter(  88) = +0.889141
+ R_limiter(  89) = +10.446401, Z_limiter(  89) = +0.894833
+ R_limiter(  90) = +10.435099, Z_limiter(  90) = +0.900383
+ R_limiter(  91) = +10.423727, Z_limiter(  91) = +0.905790
+ R_limiter(  92) = +10.412289, Z_limiter(  92) = +0.911053
+ R_limiter(  93) = +10.400785, Z_limiter(  93) = +0.916172
+ R_limiter(  94) = +10.389217, Z_limiter(  94) = +0.921146
+ R_limiter(  95) = +10.377588, Z_limiter(  95) = +0.925974
+ R_limiter(  96) = +10.365899, Z_limiter(  96) = +0.930655
+ R_limiter(  97) = +10.354152, Z_limiter(  97) = +0.935188
+ R_limiter(  98) = +10.342349, Z_limiter(  98) = +0.939573
+ R_limiter(  99) = +10.330491, Z_limiter(  99) = +0.943809
+ R_limiter( 100) = +10.318581, Z_limiter( 100) = +0.947896
+ R_limiter( 101) = +10.306621, Z_limiter( 101) = +0.951832
+ R_limiter( 102) = +10.294612, Z_limiter( 102) = +0.955617
+ R_limiter( 103) = +10.282556, Z_limiter( 103) = +0.959251
+ R_limiter( 104) = +10.270456, Z_limiter( 104) = +0.962732
+ R_limiter( 105) = +10.258312, Z_limiter( 105) = +0.966061
+ R_limiter( 106) = +10.246128, Z_limiter( 106) = +0.969237
+ R_limiter( 107) = +10.233904, Z_limiter( 107) = +0.972260
+ R_limiter( 108) = +10.221644, Z_limiter( 108) = +0.975128
+ R_limiter( 109) = +10.209348, Z_limiter( 109) = +0.977841
+ R_limiter( 110) = +10.197020, Z_limiter( 110) = +0.980400
+ R_limiter( 111) = +10.184660, Z_limiter( 111) = +0.982803
+ R_limiter( 112) = +10.172270, Z_limiter( 112) = +0.985050
+ R_limiter( 113) = +10.159854, Z_limiter( 113) = +0.987141
+ R_limiter( 114) = +10.147412, Z_limiter( 114) = +0.989075
+ R_limiter( 115) = +10.134946, Z_limiter( 115) = +0.990853
+ R_limiter( 116) = +10.122459, Z_limiter( 116) = +0.992474
+ R_limiter( 117) = +10.109953, Z_limiter( 117) = +0.993937
+ R_limiter( 118) = +10.097430, Z_limiter( 118) = +0.995242
+ R_limiter( 119) = +10.084891, Z_limiter( 119) = +0.996390
+ R_limiter( 120) = +10.072338, Z_limiter( 120) = +0.997380
+ R_limiter( 121) = +10.059774, Z_limiter( 121) = +0.998212
+ R_limiter( 122) = +10.047201, Z_limiter( 122) = +0.998885
+ R_limiter( 123) = +10.034620, Z_limiter( 123) = +0.999401
+ R_limiter( 124) = +10.022033, Z_limiter( 124) = +0.999757
+ R_limiter( 125) = +10.009444, Z_limiter( 125) = +0.999955
+ R_limiter( 126) = +9.996852, Z_limiter( 126) = +0.999995
+ R_limiter( 127) = +9.984261, Z_limiter( 127) = +0.999876
+ R_limiter( 128) = +9.971673, Z_limiter( 128) = +0.999599
+ R_limiter( 129) = +9.959089, Z_limiter( 129) = +0.999163
+ R_limiter( 130) = +9.946511, Z_limiter( 130) = +0.998568
+ R_limiter( 131) = +9.933942, Z_limiter( 131) = +0.997816
+ R_limiter( 132) = +9.921384, Z_limiter( 132) = +0.996905
+ R_limiter( 133) = +9.908838, Z_limiter( 133) = +0.995836
+ R_limiter( 134) = +9.896306, Z_limiter( 134) = +0.994609
+ R_limiter( 135) = +9.883791, Z_limiter( 135) = +0.993225
+ R_limiter( 136) = +9.871295, Z_limiter( 136) = +0.991683
+ R_limiter( 137) = +9.858818, Z_limiter( 137) = +0.989984
+ R_limiter( 138) = +9.846364, Z_limiter( 138) = +0.988128
+ R_limiter( 139) = +9.833935, Z_limiter( 139) = +0.986115
+ R_limiter( 140) = +9.821532, Z_limiter( 140) = +0.983946
+ R_limiter( 141) = +9.809157, Z_limiter( 141) = +0.981621
+ R_limiter( 142) = +9.796812, Z_limiter( 142) = +0.979140
+ R_limiter( 143) = +9.784500, Z_limiter( 143) = +0.976504
+ R_limiter( 144) = +9.772221, Z_limiter( 144) = +0.973713
+ R_limiter( 145) = +9.759979, Z_limiter( 145) = +0.970768
+ R_limiter( 146) = +9.747775, Z_limiter( 146) = +0.967669
+ R_limiter( 147) = +9.735611, Z_limiter( 147) = +0.964416
+ R_limiter( 148) = +9.723489, Z_limiter( 148) = +0.961011
+ R_limiter( 149) = +9.711410, Z_limiter( 149) = +0.957453
+ R_limiter( 150) = +9.699378, Z_limiter( 150) = +0.953743
+ R_limiter( 151) = +9.687393, Z_limiter( 151) = +0.949882
+ R_limiter( 152) = +9.675457, Z_limiter( 152) = +0.945871
+ R_limiter( 153) = +9.663573, Z_limiter( 153) = +0.941710
+ R_limiter( 154) = +9.651743, Z_limiter( 154) = +0.937399
+ R_limiter( 155) = +9.639967, Z_limiter( 155) = +0.932940
+ R_limiter( 156) = +9.628249, Z_limiter( 156) = +0.928332
+ R_limiter( 157) = +9.616590, Z_limiter( 157) = +0.923578
+ R_limiter( 158) = +9.604991, Z_limiter( 158) = +0.918677
+ R_limiter( 159) = +9.593455, Z_limiter( 159) = +0.913631
+ R_limiter( 160) = +9.581984, Z_limiter( 160) = +0.908439
+ R_limiter( 161) = +9.570578, Z_limiter( 161) = +0.903104
+ R_limiter( 162) = +9.559241, Z_limiter( 162) = +0.897626
+ R_limiter( 163) = +9.547974, Z_limiter( 163) = +0.892005
+ R_limiter( 164) = +9.536778, Z_limiter( 164) = +0.886242
+ R_limiter( 165) = +9.525656, Z_limiter( 165) = +0.880340
+ R_limiter( 166) = +9.514609, Z_limiter( 166) = +0.874297
+ R_limiter( 167) = +9.503639, Z_limiter( 167) = +0.868116
+ R_limiter( 168) = +9.492748, Z_limiter( 168) = +0.861798
+ R_limiter( 169) = +9.481937, Z_limiter( 169) = +0.855343
+ R_limiter( 170) = +9.471208, Z_limiter( 170) = +0.848752
+ R_limiter( 171) = +9.460563, Z_limiter( 171) = +0.842026
+ R_limiter( 172) = +9.450004, Z_limiter( 172) = +0.835167
+ R_limiter( 173) = +9.439532, Z_limiter( 173) = +0.828176
+ R_limiter( 174) = +9.429149, Z_limiter( 174) = +0.821053
+ R_limiter( 175) = +9.418856, Z_limiter( 175) = +0.813801
+ R_limiter( 176) = +9.408655, Z_limiter( 176) = +0.806419
+ R_limiter( 177) = +9.398548, Z_limiter( 177) = +0.798909
+ R_limiter( 178) = +9.388537, Z_limiter( 178) = +0.791273
+ R_limiter( 179) = +9.378622, Z_limiter( 179) = +0.783511
+ R_limiter( 180) = +9.368806, Z_limiter( 180) = +0.775625
+ R_limiter( 181) = +9.359090, Z_limiter( 181) = +0.767616
+ R_limiter( 182) = +9.349475, Z_limiter( 182) = +0.759485
+ R_limiter( 183) = +9.339964, Z_limiter( 183) = +0.751234
+ R_limiter( 184) = +9.330558, Z_limiter( 184) = +0.742864
+ R_limiter( 185) = +9.321257, Z_limiter( 185) = +0.734376
+ R_limiter( 186) = +9.312064, Z_limiter( 186) = +0.725772
+ R_limiter( 187) = +9.302980, Z_limiter( 187) = +0.717052
+ R_limiter( 188) = +9.294007, Z_limiter( 188) = +0.708219
+ R_limiter( 189) = +9.285146, Z_limiter( 189) = +0.699273
+ R_limiter( 190) = +9.276398, Z_limiter( 190) = +0.690217
+ R_limiter( 191) = +9.267764, Z_limiter( 191) = +0.681051
+ R_limiter( 192) = +9.259247, Z_limiter( 192) = +0.671778
+ R_limiter( 193) = +9.250847, Z_limiter( 193) = +0.662397
+ R_limiter( 194) = +9.242566, Z_limiter( 194) = +0.652912
+ R_limiter( 195) = +9.234405, Z_limiter( 195) = +0.643323
+ R_limiter( 196) = +9.226366, Z_limiter( 196) = +0.633633
+ R_limiter( 197) = +9.218449, Z_limiter( 197) = +0.623841
+ R_limiter( 198) = +9.210656, Z_limiter( 198) = +0.613951
+ R_limiter( 199) = +9.202988, Z_limiter( 199) = +0.603964
+ R_limiter( 200) = +9.195447, Z_limiter( 200) = +0.593880
+ R_limiter( 201) = +9.188033, Z_limiter( 201) = +0.583703
+ R_limiter( 202) = +9.180748, Z_limiter( 202) = +0.573433
+ R_limiter( 203) = +9.173592, Z_limiter( 203) = +0.563072
+ R_limiter( 204) = +9.166568, Z_limiter( 204) = +0.552622
+ R_limiter( 205) = +9.159676, Z_limiter( 205) = +0.542084
+ R_limiter( 206) = +9.152917, Z_limiter( 206) = +0.531461
+ R_limiter( 207) = +9.146293, Z_limiter( 207) = +0.520753
+ R_limiter( 208) = +9.139803, Z_limiter( 208) = +0.509962
+ R_limiter( 209) = +9.133450, Z_limiter( 209) = +0.499091
+ R_limiter( 210) = +9.127235, Z_limiter( 210) = +0.488141
+ R_limiter( 211) = +9.121158, Z_limiter( 211) = +0.477113
+ R_limiter( 212) = +9.115220, Z_limiter( 212) = +0.466009
+ R_limiter( 213) = +9.109423, Z_limiter( 213) = +0.454832
+ R_limiter( 214) = +9.103766, Z_limiter( 214) = +0.443582
+ R_limiter( 215) = +9.098252, Z_limiter( 215) = +0.432262
+ R_limiter( 216) = +9.092881, Z_limiter( 216) = +0.420874
+ R_limiter( 217) = +9.087653, Z_limiter( 217) = +0.409419
+ R_limiter( 218) = +9.082571, Z_limiter( 218) = +0.397899
+ R_limiter( 219) = +9.077633, Z_limiter( 219) = +0.386316
+ R_limiter( 220) = +9.072842, Z_limiter( 220) = +0.374671
+ R_limiter( 221) = +9.068198, Z_limiter( 221) = +0.362968
+ R_limiter( 222) = +9.063702, Z_limiter( 222) = +0.351206
+ R_limiter( 223) = +9.059354, Z_limiter( 223) = +0.339389
+ R_limiter( 224) = +9.055155, Z_limiter( 224) = +0.327519
+ R_limiter( 225) = +9.051106, Z_limiter( 225) = +0.315596
+ R_limiter( 226) = +9.047208, Z_limiter( 226) = +0.303623
+ R_limiter( 227) = +9.043460, Z_limiter( 227) = +0.291602
+ R_limiter( 228) = +9.039865, Z_limiter( 228) = +0.279535
+ R_limiter( 229) = +9.036421, Z_limiter( 229) = +0.267424
+ R_limiter( 230) = +9.033130, Z_limiter( 230) = +0.255270
+ R_limiter( 231) = +9.029993, Z_limiter( 231) = +0.243076
+ R_limiter( 232) = +9.027009, Z_limiter( 232) = +0.230843
+ R_limiter( 233) = +9.024179, Z_limiter( 233) = +0.218573
+ R_limiter( 234) = +9.021505, Z_limiter( 234) = +0.206269
+ R_limiter( 235) = +9.018985, Z_limiter( 235) = +0.193932
+ R_limiter( 236) = +9.016621, Z_limiter( 236) = +0.181565
+ R_limiter( 237) = +9.014413, Z_limiter( 237) = +0.169169
+ R_limiter( 238) = +9.012361, Z_limiter( 238) = +0.156745
+ R_limiter( 239) = +9.010466, Z_limiter( 239) = +0.144297
+ R_limiter( 240) = +9.008727, Z_limiter( 240) = +0.131826
+ R_limiter( 241) = +9.007146, Z_limiter( 241) = +0.119335
+ R_limiter( 242) = +9.005722, Z_limiter( 242) = +0.106824
+ R_limiter( 243) = +9.004456, Z_limiter( 243) = +0.094296
+ R_limiter( 244) = +9.003347, Z_limiter( 244) = +0.081754
+ R_limiter( 245) = +9.002397, Z_limiter( 245) = +0.069198
+ R_limiter( 246) = +9.001605, Z_limiter( 246) = +0.056632
+ R_limiter( 247) = +9.000971, Z_limiter( 247) = +0.044056
+ R_limiter( 248) = +9.000495, Z_limiter( 248) = +0.031474
+ R_limiter( 249) = +9.000178, Z_limiter( 249) = +0.018886
+ R_limiter( 250) = +9.000020, Z_limiter( 250) = +0.006296
+ R_limiter( 251) = +9.000020, Z_limiter( 251) = -0.006296
+ R_limiter( 252) = +9.000178, Z_limiter( 252) = -0.018886
+ R_limiter( 253) = +9.000495, Z_limiter( 253) = -0.031474
+ R_limiter( 254) = +9.000971, Z_limiter( 254) = -0.044056
+ R_limiter( 255) = +9.001605, Z_limiter( 255) = -0.056632
+ R_limiter( 256) = +9.002397, Z_limiter( 256) = -0.069198
+ R_limiter( 257) = +9.003347, Z_limiter( 257) = -0.081754
+ R_limiter( 258) = +9.004456, Z_limiter( 258) = -0.094296
+ R_limiter( 259) = +9.005722, Z_limiter( 259) = -0.106824
+ R_limiter( 260) = +9.007146, Z_limiter( 260) = -0.119335
+ R_limiter( 261) = +9.008727, Z_limiter( 261) = -0.131826
+ R_limiter( 262) = +9.010466, Z_limiter( 262) = -0.144297
+ R_limiter( 263) = +9.012361, Z_limiter( 263) = -0.156745
+ R_limiter( 264) = +9.014413, Z_limiter( 264) = -0.169169
+ R_limiter( 265) = +9.016621, Z_limiter( 265) = -0.181565
+ R_limiter( 266) = +9.018985, Z_limiter( 266) = -0.193932
+ R_limiter( 267) = +9.021505, Z_limiter( 267) = -0.206269
+ R_limiter( 268) = +9.024179, Z_limiter( 268) = -0.218573
+ R_limiter( 269) = +9.027009, Z_limiter( 269) = -0.230843
+ R_limiter( 270) = +9.029993, Z_limiter( 270) = -0.243076
+ R_limiter( 271) = +9.033130, Z_limiter( 271) = -0.255270
+ R_limiter( 272) = +9.036421, Z_limiter( 272) = -0.267424
+ R_limiter( 273) = +9.039865, Z_limiter( 273) = -0.279535
+ R_limiter( 274) = +9.043460, Z_limiter( 274) = -0.291602
+ R_limiter( 275) = +9.047208, Z_limiter( 275) = -0.303623
+ R_limiter( 276) = +9.051106, Z_limiter( 276) = -0.315596
+ R_limiter( 277) = +9.055155, Z_limiter( 277) = -0.327519
+ R_limiter( 278) = +9.059354, Z_limiter( 278) = -0.339389
+ R_limiter( 279) = +9.063702, Z_limiter( 279) = -0.351206
+ R_limiter( 280) = +9.068198, Z_limiter( 280) = -0.362968
+ R_limiter( 281) = +9.072842, Z_limiter( 281) = -0.374671
+ R_limiter( 282) = +9.077633, Z_limiter( 282) = -0.386316
+ R_limiter( 283) = +9.082571, Z_limiter( 283) = -0.397899
+ R_limiter( 284) = +9.087653, Z_limiter( 284) = -0.409419
+ R_limiter( 285) = +9.092881, Z_limiter( 285) = -0.420874
+ R_limiter( 286) = +9.098252, Z_limiter( 286) = -0.432262
+ R_limiter( 287) = +9.103766, Z_limiter( 287) = -0.443582
+ R_limiter( 288) = +9.109423, Z_limiter( 288) = -0.454832
+ R_limiter( 289) = +9.115220, Z_limiter( 289) = -0.466009
+ R_limiter( 290) = +9.121158, Z_limiter( 290) = -0.477113
+ R_limiter( 291) = +9.127235, Z_limiter( 291) = -0.488141
+ R_limiter( 292) = +9.133450, Z_limiter( 292) = -0.499091
+ R_limiter( 293) = +9.139803, Z_limiter( 293) = -0.509962
+ R_limiter( 294) = +9.146293, Z_limiter( 294) = -0.520753
+ R_limiter( 295) = +9.152917, Z_limiter( 295) = -0.531461
+ R_limiter( 296) = +9.159676, Z_limiter( 296) = -0.542084
+ R_limiter( 297) = +9.166568, Z_limiter( 297) = -0.552622
+ R_limiter( 298) = +9.173592, Z_limiter( 298) = -0.563072
+ R_limiter( 299) = +9.180748, Z_limiter( 299) = -0.573433
+ R_limiter( 300) = +9.188033, Z_limiter( 300) = -0.583703
+ R_limiter( 301) = +9.195447, Z_limiter( 301) = -0.593880
+ R_limiter( 302) = +9.202988, Z_limiter( 302) = -0.603964
+ R_limiter( 303) = +9.210656, Z_limiter( 303) = -0.613951
+ R_limiter( 304) = +9.218449, Z_limiter( 304) = -0.623841
+ R_limiter( 305) = +9.226366, Z_limiter( 305) = -0.633633
+ R_limiter( 306) = +9.234405, Z_limiter( 306) = -0.643323
+ R_limiter( 307) = +9.242566, Z_limiter( 307) = -0.652912
+ R_limiter( 308) = +9.250847, Z_limiter( 308) = -0.662397
+ R_limiter( 309) = +9.259247, Z_limiter( 309) = -0.671778
+ R_limiter( 310) = +9.267764, Z_limiter( 310) = -0.681051
+ R_limiter( 311) = +9.276398, Z_limiter( 311) = -0.690217
+ R_limiter( 312) = +9.285146, Z_limiter( 312) = -0.699273
+ R_limiter( 313) = +9.294007, Z_limiter( 313) = -0.708219
+ R_limiter( 314) = +9.302980, Z_limiter( 314) = -0.717052
+ R_limiter( 315) = +9.312064, Z_limiter( 315) = -0.725772
+ R_limiter( 316) = +9.321257, Z_limiter( 316) = -0.734376
+ R_limiter( 317) = +9.330558, Z_limiter( 317) = -0.742864
+ R_limiter( 318) = +9.339964, Z_limiter( 318) = -0.751234
+ R_limiter( 319) = +9.349475, Z_limiter( 319) = -0.759485
+ R_limiter( 320) = +9.359090, Z_limiter( 320) = -0.767616
+ R_limiter( 321) = +9.368806, Z_limiter( 321) = -0.775625
+ R_limiter( 322) = +9.378622, Z_limiter( 322) = -0.783511
+ R_limiter( 323) = +9.388537, Z_limiter( 323) = -0.791273
+ R_limiter( 324) = +9.398548, Z_limiter( 324) = -0.798909
+ R_limiter( 325) = +9.408655, Z_limiter( 325) = -0.806419
+ R_limiter( 326) = +9.418856, Z_limiter( 326) = -0.813801
+ R_limiter( 327) = +9.429149, Z_limiter( 327) = -0.821053
+ R_limiter( 328) = +9.439532, Z_limiter( 328) = -0.828176
+ R_limiter( 329) = +9.450004, Z_limiter( 329) = -0.835167
+ R_limiter( 330) = +9.460563, Z_limiter( 330) = -0.842026
+ R_limiter( 331) = +9.471208, Z_limiter( 331) = -0.848752
+ R_limiter( 332) = +9.481937, Z_limiter( 332) = -0.855343
+ R_limiter( 333) = +9.492748, Z_limiter( 333) = -0.861798
+ R_limiter( 334) = +9.503639, Z_limiter( 334) = -0.868116
+ R_limiter( 335) = +9.514609, Z_limiter( 335) = -0.874297
+ R_limiter( 336) = +9.525656, Z_limiter( 336) = -0.880340
+ R_limiter( 337) = +9.536778, Z_limiter( 337) = -0.886242
+ R_limiter( 338) = +9.547974, Z_limiter( 338) = -0.892005
+ R_limiter( 339) = +9.559241, Z_limiter( 339) = -0.897626
+ R_limiter( 340) = +9.570578, Z_limiter( 340) = -0.903104
+ R_limiter( 341) = +9.581984, Z_limiter( 341) = -0.908439
+ R_limiter( 342) = +9.593455, Z_limiter( 342) = -0.913631
+ R_limiter( 343) = +9.604991, Z_limiter( 343) = -0.918677
+ R_limiter( 344) = +9.616590, Z_limiter( 344) = -0.923578
+ R_limiter( 345) = +9.628249, Z_limiter( 345) = -0.928332
+ R_limiter( 346) = +9.639967, Z_limiter( 346) = -0.932940
+ R_limiter( 347) = +9.651743, Z_limiter( 347) = -0.937399
+ R_limiter( 348) = +9.663573, Z_limiter( 348) = -0.941710
+ R_limiter( 349) = +9.675457, Z_limiter( 349) = -0.945871
+ R_limiter( 350) = +9.687393, Z_limiter( 350) = -0.949882
+ R_limiter( 351) = +9.699378, Z_limiter( 351) = -0.953743
+ R_limiter( 352) = +9.711410, Z_limiter( 352) = -0.957453
+ R_limiter( 353) = +9.723489, Z_limiter( 353) = -0.961011
+ R_limiter( 354) = +9.735611, Z_limiter( 354) = -0.964416
+ R_limiter( 355) = +9.747775, Z_limiter( 355) = -0.967669
+ R_limiter( 356) = +9.759979, Z_limiter( 356) = -0.970768
+ R_limiter( 357) = +9.772221, Z_limiter( 357) = -0.973713
+ R_limiter( 358) = +9.784500, Z_limiter( 358) = -0.976504
+ R_limiter( 359) = +9.796812, Z_limiter( 359) = -0.979140
+ R_limiter( 360) = +9.809157, Z_limiter( 360) = -0.981621
+ R_limiter( 361) = +9.821532, Z_limiter( 361) = -0.983946
+ R_limiter( 362) = +9.833935, Z_limiter( 362) = -0.986115
+ R_limiter( 363) = +9.846364, Z_limiter( 363) = -0.988128
+ R_limiter( 364) = +9.858818, Z_limiter( 364) = -0.989984
+ R_limiter( 365) = +9.871295, Z_limiter( 365) = -0.991683
+ R_limiter( 366) = +9.883791, Z_limiter( 366) = -0.993225
+ R_limiter( 367) = +9.896306, Z_limiter( 367) = -0.994609
+ R_limiter( 368) = +9.908838, Z_limiter( 368) = -0.995836
+ R_limiter( 369) = +9.921384, Z_limiter( 369) = -0.996905
+ R_limiter( 370) = +9.933942, Z_limiter( 370) = -0.997816
+ R_limiter( 371) = +9.946511, Z_limiter( 371) = -0.998568
+ R_limiter( 372) = +9.959089, Z_limiter( 372) = -0.999163
+ R_limiter( 373) = +9.971673, Z_limiter( 373) = -0.999599
+ R_limiter( 374) = +9.984261, Z_limiter( 374) = -0.999876
+ R_limiter( 375) = +9.996852, Z_limiter( 375) = -0.999995
+ R_limiter( 376) = +10.009444, Z_limiter( 376) = -0.999955
+ R_limiter( 377) = +10.022033, Z_limiter( 377) = -0.999757
+ R_limiter( 378) = +10.034620, Z_limiter( 378) = -0.999401
+ R_limiter( 379) = +10.047201, Z_limiter( 379) = -0.998885
+ R_limiter( 380) = +10.059774, Z_limiter( 380) = -0.998212
+ R_limiter( 381) = +10.072338, Z_limiter( 381) = -0.997380
+ R_limiter( 382) = +10.084891, Z_limiter( 382) = -0.996390
+ R_limiter( 383) = +10.097430, Z_limiter( 383) = -0.995242
+ R_limiter( 384) = +10.109953, Z_limiter( 384) = -0.993937
+ R_limiter( 385) = +10.122459, Z_limiter( 385) = -0.992474
+ R_limiter( 386) = +10.134946, Z_limiter( 386) = -0.990853
+ R_limiter( 387) = +10.147412, Z_limiter( 387) = -0.989075
+ R_limiter( 388) = +10.159854, Z_limiter( 388) = -0.987141
+ R_limiter( 389) = +10.172270, Z_limiter( 389) = -0.985050
+ R_limiter( 390) = +10.184660, Z_limiter( 390) = -0.982803
+ R_limiter( 391) = +10.197020, Z_limiter( 391) = -0.980400
+ R_limiter( 392) = +10.209348, Z_limiter( 392) = -0.977841
+ R_limiter( 393) = +10.221644, Z_limiter( 393) = -0.975128
+ R_limiter( 394) = +10.233904, Z_limiter( 394) = -0.972260
+ R_limiter( 395) = +10.246128, Z_limiter( 395) = -0.969237
+ R_limiter( 396) = +10.258312, Z_limiter( 396) = -0.966061
+ R_limiter( 397) = +10.270456, Z_limiter( 397) = -0.962732
+ R_limiter( 398) = +10.282556, Z_limiter( 398) = -0.959251
+ R_limiter( 399) = +10.294612, Z_limiter( 399) = -0.955617
+ R_limiter( 400) = +10.306621, Z_limiter( 400) = -0.951832
+ R_limiter( 401) = +10.318581, Z_limiter( 401) = -0.947896
+ R_limiter( 402) = +10.330491, Z_limiter( 402) = -0.943809
+ R_limiter( 403) = +10.342349, Z_limiter( 403) = -0.939573
+ R_limiter( 404) = +10.354152, Z_limiter( 404) = -0.935188
+ R_limiter( 405) = +10.365899, Z_limiter( 405) = -0.930655
+ R_limiter( 406) = +10.377588, Z_limiter( 406) = -0.925974
+ R_limiter( 407) = +10.389217, Z_limiter( 407) = -0.921146
+ R_limiter( 408) = +10.400785, Z_limiter( 408) = -0.916172
+ R_limiter( 409) = +10.412289, Z_limiter( 409) = -0.911053
+ R_limiter( 410) = +10.423727, Z_limiter( 410) = -0.905790
+ R_limiter( 411) = +10.435099, Z_limiter( 411) = -0.900383
+ R_limiter( 412) = +10.446401, Z_limiter( 412) = -0.894833
+ R_limiter( 413) = +10.457633, Z_limiter( 413) = -0.889141
+ R_limiter( 414) = +10.468792, Z_limiter( 414) = -0.883309
+ R_limiter( 415) = +10.479877, Z_limiter( 415) = -0.877336
+ R_limiter( 416) = +10.490885, Z_limiter( 416) = -0.871224
+ R_limiter( 417) = +10.501816, Z_limiter( 417) = -0.864974
+ R_limiter( 418) = +10.512668, Z_limiter( 418) = -0.858587
+ R_limiter( 419) = +10.523438, Z_limiter( 419) = -0.852064
+ R_limiter( 420) = +10.534125, Z_limiter( 420) = -0.845406
+ R_limiter( 421) = +10.544727, Z_limiter( 421) = -0.838613
+ R_limiter( 422) = +10.555243, Z_limiter( 422) = -0.831688
+ R_limiter( 423) = +10.565671, Z_limiter( 423) = -0.824631
+ R_limiter( 424) = +10.576009, Z_limiter( 424) = -0.817443
+ R_limiter( 425) = +10.586256, Z_limiter( 425) = -0.810126
+ R_limiter( 426) = +10.596410, Z_limiter( 426) = -0.802680
+ R_limiter( 427) = +10.606470, Z_limiter( 427) = -0.795107
+ R_limiter( 428) = +10.616433, Z_limiter( 428) = -0.787407
+ R_limiter( 429) = +10.626298, Z_limiter( 429) = -0.779583
+ R_limiter( 430) = +10.636065, Z_limiter( 430) = -0.771636
+ R_limiter( 431) = +10.645730, Z_limiter( 431) = -0.763566
+ R_limiter( 432) = +10.655293, Z_limiter( 432) = -0.755375
+ R_limiter( 433) = +10.664752, Z_limiter( 433) = -0.747064
+ R_limiter( 434) = +10.674106, Z_limiter( 434) = -0.738635
+ R_limiter( 435) = +10.683353, Z_limiter( 435) = -0.730088
+ R_limiter( 436) = +10.692491, Z_limiter( 436) = -0.721426
+ R_limiter( 437) = +10.701520, Z_limiter( 437) = -0.712650
+ R_limiter( 438) = +10.710438, Z_limiter( 438) = -0.703760
+ R_limiter( 439) = +10.719243, Z_limiter( 439) = -0.694759
+ R_limiter( 440) = +10.727933, Z_limiter( 440) = -0.685648
+ R_limiter( 441) = +10.736509, Z_limiter( 441) = -0.676428
+ R_limiter( 442) = +10.744968, Z_limiter( 442) = -0.667101
+ R_limiter( 443) = +10.753308, Z_limiter( 443) = -0.657668
+ R_limiter( 444) = +10.761529, Z_limiter( 444) = -0.648131
+ R_limiter( 445) = +10.769630, Z_limiter( 445) = -0.638491
+ R_limiter( 446) = +10.777608, Z_limiter( 446) = -0.628749
+ R_limiter( 447) = +10.785463, Z_limiter( 447) = -0.618909
+ R_limiter( 448) = +10.793194, Z_limiter( 448) = -0.608970
+ R_limiter( 449) = +10.800798, Z_limiter( 449) = -0.598934
+ R_limiter( 450) = +10.808276, Z_limiter( 450) = -0.588803
+ R_limiter( 451) = +10.815626, Z_limiter( 451) = -0.578580
+ R_limiter( 452) = +10.822846, Z_limiter( 452) = -0.568264
+ R_limiter( 453) = +10.829936, Z_limiter( 453) = -0.557858
+ R_limiter( 454) = +10.836895, Z_limiter( 454) = -0.547364
+ R_limiter( 455) = +10.843720, Z_limiter( 455) = -0.536783
+ R_limiter( 456) = +10.850412, Z_limiter( 456) = -0.526117
+ R_limiter( 457) = +10.856969, Z_limiter( 457) = -0.515368
+ R_limiter( 458) = +10.863390, Z_limiter( 458) = -0.504537
+ R_limiter( 459) = +10.869675, Z_limiter( 459) = -0.493626
+ R_limiter( 460) = +10.875821, Z_limiter( 460) = -0.482636
+ R_limiter( 461) = +10.881829, Z_limiter( 461) = -0.471570
+ R_limiter( 462) = +10.887696, Z_limiter( 462) = -0.460430
+ R_limiter( 463) = +10.893423, Z_limiter( 463) = -0.449216
+ R_limiter( 464) = +10.899009, Z_limiter( 464) = -0.437931
+ R_limiter( 465) = +10.904451, Z_limiter( 465) = -0.426577
+ R_limiter( 466) = +10.909751, Z_limiter( 466) = -0.415155
+ R_limiter( 467) = +10.914906, Z_limiter( 467) = -0.403667
+ R_limiter( 468) = +10.919916, Z_limiter( 468) = -0.392115
+ R_limiter( 469) = +10.924780, Z_limiter( 469) = -0.380501
+ R_limiter( 470) = +10.929498, Z_limiter( 470) = -0.368827
+ R_limiter( 471) = +10.934068, Z_limiter( 471) = -0.357094
+ R_limiter( 472) = +10.938491, Z_limiter( 472) = -0.345305
+ R_limiter( 473) = +10.942764, Z_limiter( 473) = -0.333461
+ R_limiter( 474) = +10.946888, Z_limiter( 474) = -0.321564
+ R_limiter( 475) = +10.950862, Z_limiter( 475) = -0.309616
+ R_limiter( 476) = +10.954685, Z_limiter( 476) = -0.297619
+ R_limiter( 477) = +10.958357, Z_limiter( 477) = -0.285574
+ R_limiter( 478) = +10.961876, Z_limiter( 478) = -0.273485
+ R_limiter( 479) = +10.965244, Z_limiter( 479) = -0.261352
+ R_limiter( 480) = +10.968458, Z_limiter( 480) = -0.249178
+ R_limiter( 481) = +10.971518, Z_limiter( 481) = -0.236964
+ R_limiter( 482) = +10.974425, Z_limiter( 482) = -0.224712
+ R_limiter( 483) = +10.977177, Z_limiter( 483) = -0.212425
+ R_limiter( 484) = +10.979775, Z_limiter( 484) = -0.200105
+ R_limiter( 485) = +10.982216, Z_limiter( 485) = -0.187752
+ R_limiter( 486) = +10.984503, Z_limiter( 486) = -0.175370
+ R_limiter( 487) = +10.986633, Z_limiter( 487) = -0.162960
+ R_limiter( 488) = +10.988606, Z_limiter( 488) = -0.150524
+ R_limiter( 489) = +10.990423, Z_limiter( 489) = -0.138065
+ R_limiter( 490) = +10.992083, Z_limiter( 490) = -0.125583
+ R_limiter( 491) = +10.993586, Z_limiter( 491) = -0.113082
+ R_limiter( 492) = +10.994931, Z_limiter( 492) = -0.100562
+ R_limiter( 493) = +10.996118, Z_limiter( 493) = -0.088027
+ R_limiter( 494) = +10.997148, Z_limiter( 494) = -0.075477
+ R_limiter( 495) = +10.998019, Z_limiter( 495) = -0.062916
+ R_limiter( 496) = +10.998732, Z_limiter( 496) = -0.050345
+ R_limiter( 497) = +10.999287, Z_limiter( 497) = -0.037766
+ R_limiter( 498) = +10.999683, Z_limiter( 498) = -0.025180
+ R_limiter( 499) = +10.999921, Z_limiter( 499) = -0.012591
+ R_limiter( 500) = +11.000000, Z_limiter( 500) = -0.000000
+
+/

@@ -270,14 +270,9 @@ required = 0
     gmres     = .false. 
   end if
 
-#if (JOREK_MODEL == 501 || JOREK_MODEL == 502)
-  ! --- Read ADAS data and generate coronal equilibrium is needed
+#if (JOREK_MODEL == 500 || JOREK_MODEL == 501 || JOREK_MODEL == 502)
+  ! --- Read ADAS data and generate coronal equilibrium if needed
   call init_imp_adas(my_id)
-#endif
-  
-  ! --- Initialize time-traces of radiation and ionization energy/power
-#if (JOREK_MODEL == 500)
-  call init_xtime_rad_ionization(my_id)
 #endif
 
   ! --- Write out all parameters defined in parameters and the namelist input file.
@@ -582,6 +577,11 @@ required = 0
         call MPI_Abort(MPI_COMM_WORLD, 1, ierr)
         stop
       end if 
+
+      ! --- Optional: Add patches to an existing grid imported from restart file
+      if ( extend_existing_grid .and. (n_flux .le. 0) ) &
+          call grid_patches_on_existing_grid(node_list, element_list)
+
       if ( freeboundary .and. freeb_change_indices ) call exchange_indices_for_vacuum(node_list, my_id, n_cpu)
       
       ! --- Determine boundary information from the grid
@@ -681,6 +681,10 @@ required = 0
           end if
              
         end if ! (if xpoint)
+
+        ! --- Optional: Add patches to an existing grid imported from restart file
+        if (extend_existing_grid) &
+            call grid_patches_on_existing_grid(node_list, element_list)
 
         if ( freeboundary .and. freeb_change_indices .and. (my_id == 0)) call exchange_indices_for_vacuum(node_list, my_id, n_cpu)
 
@@ -1515,7 +1519,7 @@ required = 0
 
     	  call density(    xpoint,xcase, Zp, ES%Z_xpoint, psi,ES%psi_axis,ES%psi_bnd,	       &
     	     zn,dn_dpsi,dn_dz,dn_dpsi2,dn_dz2,dn_dpsi_dz,dn_dpsi3,dn_dpsi_dz2,dn_dpsi2_dz)
-    	  if ( (jorek_model .eq. 400) .or. (jorek_model .eq. 502) .or. (jorek_model .eq. 711) ) then	     
+    	  if ( (jorek_model .eq. 400) .or. (jorek_model .eq. 401) .or. (jorek_model .eq. 502) .or. (jorek_model .eq. 711) ) then	     
     	    call temperature_i(xpoint,xcase, Zp, ES%Z_xpoint, psi,ES%psi_axis,ES%psi_bnd, &
     	      zTi,dTi_dpsi,dTi_dz,dTi_dpsi2,dTi_dz2,dTi_dpsi_dz,dTi_dpsi3,dTi_dpsi_dz2,dTi_dpsi2_dz)			   
     	    call temperature_e(xpoint,xcase, Zp, ES%Z_xpoint, psi,ES%psi_axis,ES%psi_bnd, &

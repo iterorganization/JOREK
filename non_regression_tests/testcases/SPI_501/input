@@ -22,7 +22,7 @@
  quad_u = -0.
  quad_l = -0.4
 
- gas_type = 'Ne'
+ imp_type = 'Ne'
  t_ns  = 510.0
 
  ns_R        =  3.5d0

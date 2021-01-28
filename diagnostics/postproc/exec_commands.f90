@@ -23,8 +23,9 @@ module exec_commands
 #if (JOREK_MODEL == 501 || JOREK_MODEL == 502)
   use mod_impurity 
 #endif
-
-  
+#if (JOREK_MODEL == 500)
+   use mod_neutral_source
+#endif
   
   implicit none
   
@@ -191,7 +192,7 @@ module exec_commands
           call set_postproc_dir(command, ierr)
         case ( 'namelist' )
           call load_namelist(command, ierr)
-#if (JOREK_MODEL == 501 || JOREK_MODEL == 502)
+#if (JOREK_MODEL == 500 || JOREK_MODEL == 501 || JOREK_MODEL == 502)
           ! --- Read ADAS data and generate coronal equilibrium is needed
           call init_imp_adas(0)
 #endif
@@ -1920,7 +1921,7 @@ module exec_commands
     
     units = get_int_setting('units', ierr)
     
-    write(filename,'(4a)') DIR, 'shards', trim(step_range_string(index_start,index_start)), '.txt'
+    write(filename,'(4a)') trim(DIR), 'shards', trim(step_range_string(index_start,index_start)), '.txt'
 
     i_file = 133
 

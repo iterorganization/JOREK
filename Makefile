@@ -149,7 +149,7 @@ objs: $(foreach file,$(foreach dir,$(DIRS), $(find_files)), $(OBJDIR)/$(notdir $
 INCLUDES += -Itools # for r3_info.h
 INCLUDES += -Imodels
 # C++ support
-LIBS += -lstdc++
+LIBS += -lstdc++ 
 CXXFLAGS += -pedantic -Wall
 
 # Rule-specific includes: an example

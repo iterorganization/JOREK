@@ -45,7 +45,7 @@ module mod_impurity
         stop
       else
         do i=1, n_adas
-          select case ( trim(gas_type) )
+          select case ( trim(imp_type) )
             case('D2')
               write(*,*) "Deuterium adas calculation unsupported for now, terminating."
               adas_suffix = 'none'

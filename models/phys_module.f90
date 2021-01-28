@@ -3,10 +3,10 @@ module phys_module
   
   use mod_parameters
   use constants
-  use data_structure              !< Added in order to dynamically allocate pellets 
+  use data_structure              !< Added in order to dynamically allocate pellets
   use mod_openadas
   use mod_coronal
- 
+
   implicit none
   
   !> @name Various parameters
@@ -20,8 +20,6 @@ module phys_module
   real*8  :: visco_rst            !< visco value from restart file
   real*8  :: visco_par_rst        !< visco_par value from restart file
   real*8  :: eta_rst              !< eta value from restart file
-  logical :: eta_num_T_dependent  !< Hyper-resistivity dependent on temperature? Otherwise constant.
-  logical :: visco_num_T_dependent!< Hyper-visocsity dependent on temperature? Otherwise constant.
   logical :: visco_T_dependent    !< Viscosity dependent on temperature? Otherwise constant.
   real*8  :: visco_par            !< Parallel viscosity (normalized)
   real*8  :: F0                   !< Determines fixed toroidal magnetic field: \f$ B_\phi = F_0/R \f$
@@ -72,6 +70,7 @@ module phys_module
   real*8  :: manipulate_psi_map(5,5) !< Option to manipulate Psi_boundary for the initial grid
   logical :: adaptive_time        !< (presently not useful)
   logical :: equil                !< compute equilibrium
+  logical :: no_mach1_bc          !< Never apply Mach-1 BCs
   logical :: Mach1_openBC         !< Full-MHD: Apply Mach-1 BCs inside mod_boundary_matrix_open.f90 (or mod_boundary_conditions.f90)
   logical :: eta_ARAZ_on          !< Full-MHD: to switch on/off resistive   terms for AR and AZ equations
   logical :: tauIC_ARAZ_on        !< Full-MHD: to switch on/off diamagnetic terms for AR and AZ equations
@@ -117,10 +116,12 @@ module phys_module
   integer :: first_target_point		   !< index of the first target point on the limiter (for xpoint_grid_wall)
   integer :: last_target_point		   !< index of the last  target point on the limiter (does NOT need to be > first_target_point)
   
-  !> Points used as blocks to extend grid into complex wall structures
+  !> Points used as blocks to extend grid into complex wall structures, see https://www.jorek.eu/wiki/doku.php?id=wallgrid_tutorial
+  logical :: extend_existing_grid                                               !< Add patches to existing grid from restart file
   integer, parameter :: n_wall_blocks_max = 30                                  !< Maximum number of blocks (30 should be enough)
   integer :: n_wall_blocks                                                      !< Number of blocks
   integer, parameter :: n_wall_block_points_max = 20                            !< Max number of blocks points
+  integer :: corner_block(n_wall_blocks_max)                                    !< =1 for a corner block ("left" side will also be wall-aligned)
   integer :: n_ext_block(n_wall_blocks_max)                                     !< Number of 'radial' grid points from the outermost flux surface to wall)
   integer :: n_block_points_left (n_wall_blocks_max)                            !< Number of points on left side of block
   real*8  :: R_block_points_left (n_wall_blocks_max,n_wall_block_points_max)    !< R-positions of points on left side of block
@@ -177,13 +178,15 @@ module phys_module
   real*8  :: heatsource_i              !< Ion heat source amplitude
   real*8  :: heatsource_e              !< Electron heat source amplitude
   real*8  :: heatsource_gauss          !< Additional Gaussian heat source amplitude
+  real*8  :: heatsource_gauss_e        !< Gaussian heat source for electrons
+  real*8  :: heatsource_gauss_i        !< Gaussiam heat source for ions
   real*8  :: heatsource_gauss_psin     !< Position around which Gaussian source is located
   real*8  :: heatsource_gauss_sig      !< Width over which Gaussian source extends
-  real*8  :: heatsource_gauss_i        !< Additional Gaussian heat source amplitude
-  real*8  :: heatsource_gauss_e        !< Additional Gaussian heat source amplitude
   
   !> @name Hyper-resistivity, -viscosity and -diffusivities
   real*8  :: eta_num, visco_num, visco_par_num, D_perp_num, Zk_perp_num, Dn_perp_num
+  logical :: eta_num_T_dependent  !< Hyper-resistivity dependent on temperature? Otherwise constant.
+  logical :: visco_num_T_dependent!< Hyper-visocsity dependent on temperature? Otherwise constant.
   
   !> @name Timestepping parameters
   real*8  :: tstep             		!< Size of the timesteps (\f$ \Delta t \f$)
@@ -288,10 +291,9 @@ module phys_module
   real*8  :: ksi_ion            !< Energy cost of each ionization
   real*8  :: delta_n_convection !< Switch to activate the convection term for neutrals (at the plasma velocity)
   real*8  :: nimp_bg            !< Density of background impurity (in \f$m^{-3}\f$)
-
-
-  character(len=80) :: gas_type !< Type of gas used in material injection (MGI, SPI, ...): Argon, D2, ...
-
+  character(len=80) :: imp_type !< Type of injected material or background impurity species: Argon, neon, ...
+  logical :: use_imp_adas       !< Use open adas to calculate ionization, recombination and radiation coeffients for impurities
+ 
   !> @name Shattered Pellet Injection related input parameters
   ! Note that the SPI share many of the MGI parameters. The code should return to simple MGI upon using_spi = false
   ! The reference spatial coordinate for shattered pellets are calculated using ns_R etc. 
@@ -675,6 +677,9 @@ module phys_module
   real*8  :: mod_jec            ! extra parameters for ECCD
   real*8  :: JJ_par             ! velocity of resonent electrons
   real*8  :: jw1,jw2,jw3        ! parameters to determine current source
+
+  !> @name Flag for thermalization term
+  logical             :: thermalization ! If true turns on the ion-electron thermalization term
 
   !> @name (Currently unused)
   real*8  :: zjz_0, zjz_1,  zj_coef(10)

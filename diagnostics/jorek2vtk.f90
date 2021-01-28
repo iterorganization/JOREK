@@ -25,6 +25,10 @@ use mod_poloidal_currents
 use mod_atomic_coeff_deuterium, only : atomic_coeff_deuterium
 use mod_openadas , only : read_adf11
 use mod_atomic_coeff_deuterium, only : ad_deuterium , atomic_coeff_deuterium
+#if (JOREK_MODEL == 500)
+   use mod_neutral_source
+#endif
+
 implicit none
 
 type (type_node_list)   ,     pointer :: node_list
@@ -106,8 +110,9 @@ real*8                :: angle, source_volume, local_density, local_temperature,
 
 logical               :: include_radiation
 integer               :: n_radiation,s_radiation
-real*8                :: Arad_bg, Brad_bg, Crad_bg, frad_bg, dfrad_bg_dT
-real*8                :: T_corr, Te_corr_eV, Te_eV, coef_rad_1, Sion_T, eta_Sp, ksiion, Tion, LradDcont_T
+real*8                :: Arad_bg, Brad_bg, Crad_bg, frad_bg
+real*8                :: Te_eV, ne_SI, Lrad_imp, m_i_over_m_imp_bg, r_imp, coef_rad_imp
+real*8                :: T_corr, Te_corr_eV, coef_rad_1, Sion_T, eta_Sp, ksiion, Tion, LradDcont_T
 real*8                :: LradDrays_T, coef_ion_1, coef_ion_2, coef_ion_3, S_ion_puiss
 real*8                :: r0_real8, rn0_real8
 real*8                :: T0_corr, r0_corr, rn0_corr
@@ -126,7 +131,6 @@ real*8     :: beta_imp
 real*8     :: Z_eff, eta_coef
 !   -Radiation from injected impurities
 real*8     :: Lrad
-real*8     :: ne_SI                              ! Electron density used in radiation rate
 real*8     :: A0_rad, A1_rad, T1_rad, sig1_rad    ! Radiation rate parameters
 real*8     :: A2_rad, T2_rad, sig2_rad
 !   -Temporary variable for charge state distribution
@@ -206,9 +210,7 @@ RphiZ_coords           = .false. ! use xyz transformation (R,0,Z) instead of (R,
 #if (JOREK_MODEL == 500 || JOREK_MODEL == 501 || JOREK_MODEL == 502)
 include_radiation = .true.
 include_neutral_dens = .true.
-#endif
-#if (JOREK_MODEL == 501 || JOREK_MODEL == 502)
-! --- Read ADAS data and generate coronal equilibrium is needed
+! --- Read ADAS data and generate coronal equilibrium if needed
 call init_imp_adas(my_id)
 #endif
 
@@ -454,6 +456,7 @@ if (include_electric_field)  vector_names(s_Efield+1:s_Efield+n_Efield) = 'E_fie
 do k_tor=1, n_tor
   mode(k_tor) = + int(k_tor / 2) * n_period
 enddo
+
 
 call import_restart(node_list, element_list, 'jorek_restart', rst_format, ierr, .true.)
 
@@ -1217,14 +1220,6 @@ enddo  ! n_elements
       call atomic_coeff_deuterium(0.5d0*T_real8, Sion_T, dSion_dT, Srec_T, dSrec_dT,        &
                                   LradDcont_T, dLradDcont_dT, LradDrays_T, dLradDrays_dT ) !< add scalars(i,5) as last optional parameter for density dependence
 
-      coef_rad_1 = 2.d0/(3.d0)*MU_ZERO**1.5d0*(central_mass*MASS_PROTON)**0.5d0*(central_density*1.d20)**2.5d0
-
-      LradDcont_T = coef_rad_1*5.37d-37*(1.d1)**(-1.5d0)*(1.d0)**2*sqrt(Te_corr_eV) ! Only Bremsstrahlung contribution
-
-      LradDrays_T = coef_rad_1*(1.d1)**(-29.44d0*exp(-(log10(Te_corr_eV)-4.4283d0)**2.d0/(2.d0*(2.8428d0)**2.d0)) &
-                                       -60.947d0*exp(-(log10(Te_corr_eV)+2.0835d0)**2.d0/(2.d0*(0.9048d0)**2.d0)) &
-                                       -24.067d0*exp(-(log10(Te_corr_eV)+0.7363d0)**2.d0/(2.d0*(2.1700d0)**2.d0)))
-
       eta_Sp = 1.65d-9*17*(1.d-3*Te_corr_eV)**(-1.5d0) &
                               *(central_mass*MASS_PROTON*central_density * 1.d20/MU_ZERO)**(0.5d0)
 
@@ -1235,19 +1230,61 @@ enddo  ! n_elements
 
       !--------------------------------------------------------
       ! --- Radiation from background impurity
-      !--------------------------------------------------------
+      !--------------------------------------------------------   
+      r0_real8  = scalars(i,5)
+      r0_corr   = corr_neg_dens(r0_real8)
 
-      Arad_bg = 2.4d-31
-      Brad_bg = 20.
-      Crad_bg = 0.8
+      ne_SI = r0_corr * 1.d20 * central_density !electron density (SI)
+      
+      if (use_imp_adas) then  ! use open adas by default
+        r_imp = nimp_bg / (1.d20 * central_density)  ! Background impurity density in JU
 
-      frad_bg = (2./3.)*(1./(central_mass*MASS_PROTON))                               &
-                 *((MU_ZERO*central_mass*MASS_PROTON*central_density*1.d20)**(1.5d0)) &
-                 *nimp_bg*Arad_bg*exp(-((log(Te_corr_eV)-log(Brad_bg))**2.)/Crad_bg**2.)
+        select case ( trim(imp_type) )
+          case('C')
+            m_i_over_m_imp_bg = central_mass/12.  ! Carbon mass = 12 u
+          case('Ar')
+            m_i_over_m_imp_bg = central_mass/40.  ! Argon mass = 40 u
+          case('Ne')
+            m_i_over_m_imp_bg = central_mass/20.  ! Neon mass = 20 u
+          case('W')
+            m_i_over_m_imp_bg = central_mass/184. ! Tungsten mass = 184 u
+          case default
+            if (nimp_bg > 0) then
+              write(*,*) 'Background impurity"', trim(imp_type), '" unknown (in mod_neutral_source.f90), terminating.'
+              stop
+            end if
+        end select      
 
-      dfrad_bg_dT = -(1./3.)*((MU_ZERO*central_mass*MASS_PROTON*central_density*1.d20)**(0.5d0)) &
-                     *(1./EL_CHG)*2.*(nimp_bg*Arad_bg/Crad_bg**2.)*(log(Te_corr_eV)-log(Brad_bg))     &
-                     *(1./Te_corr_eV)*exp(-((log(Te_corr_eV)-log(Brad_bg))**2.)/Crad_bg**2.)
+        if (ne_SI > ne_SI_min .and. Te_corr_eV > Te_eV_min .and. nimp_bg > 0) then
+          ! Normalization coefficient for radiation rate from SI units (W.m^3) to JOREK units:
+          coef_rad_imp = 2.d0/3.d0*MU_ZERO**1.5d0*(central_mass*MASS_PROTON)**0.5d0&
+                       *(central_density*1.d20)**2.5d0*m_i_over_m_imp_bg
+
+          Lrad_imp = 0.0
+          call radiation_function_linear(imp_adas(1),imp_cor(1),log10(ne_SI),log10(Te_corr_eV*EL_CHG/K_BOLTZ),Lrad_imp)
+          Lrad_imp = Lrad_imp * coef_rad_imp          
+          if (Lrad_imp < 0.) then
+            Lrad_imp = 0.
+          end if
+        else     
+          Lrad_imp = 0.
+        end if  
+        frad_bg = r_imp * Lrad_imp
+      else
+        if ( trim(imp_type) == 'Ar') then ! Hard-coded fitting exists for argon
+
+          Arad_bg = 2.4d-31
+          Brad_bg = 20.
+          Crad_bg = 0.8
+
+          frad_bg = (2./3.)*(1./(central_mass*MASS_PROTON))                               &
+                     *((MU_ZERO*central_mass*MASS_PROTON*central_density*1.d20)**(1.5d0)) &
+                     *nimp_bg*Arad_bg*exp(-((log(Te_corr_eV)-log(Brad_bg))**2.)/Crad_bg**2.)
+        else
+          write(*,*) "WARNING: hard-coded fitting doesn't exist for  ", trim(imp_type), ",use open adas instead!"
+          stop
+        end if
+      end if   
 
       scalars(i,s_radiation+5) = scalars(i,5) * frad_bg
 
@@ -1262,15 +1299,15 @@ enddo  ! n_elements
   ! Atomic physics parameters for Impurities
   !-------------------------------------------
 
-   select case ( trim(gas_type) )
+   select case ( trim(imp_type) )
      case('D2')
-       m_i_over_m_imp = central_mass/2.
+       m_i_over_m_imp = central_mass/2.  ! Deuterium mass = 2 u
      case('Ar')
-       m_i_over_m_imp = central_mass/40. ! Argon mass = 40 u and main ion (D) mass = 2 u
+       m_i_over_m_imp = central_mass/40. ! Argon mass = 40 u
      case('Ne')
-       m_i_over_m_imp = central_mass/20. ! Neon mass = 20 u and main ion (D) mass = 2 u
+       m_i_over_m_imp = central_mass/20. ! Neon mass = 20 u
      case default
-       write(*,*) '!! Gas type "', trim(gas_type), '" unknown (in mod_injection_source.f90) !!'
+       write(*,*) '!! Gas type "', trim(imp_type), '" unknown (in mod_injection_source.f90) !!'
        write(*,*) '=> We assume the gas is D2.'
        m_i_over_m_imp = central_mass/2.
    end select
@@ -1354,7 +1391,7 @@ enddo  ! n_elements
        Lrad = 0.0
        
        ! Here we are temperarily only considering one impurity species, in the
-       ! future maybe a do loop will is needed
+       ! future maybe a do loop will be needed
        !call radiation_function(imp_adas(1),imp_cor(1),log10(ne_SI),log10(Te_corr_eV*EL_CHG/K_BOLTZ),Lrad)
        call radiation_function_linear(imp_adas(1),imp_cor(1),log10(ne_SI),log10(Te_corr_eV*EL_CHG/K_BOLTZ),Lrad)
 
@@ -1515,7 +1552,6 @@ if (SI_units) then
 
 #if (JOREK_MODEL == 500)
     if (include_radiation) then
-
       coef_ion_1 = (MU_ZERO*central_mass*MASS_PROTON)**(0.5d0)*(central_density*1.d20)**(1.5d0)
       coef_rad_1 = (gamma-1.d0)*MU_ZERO**1.5d0*(central_mass*MASS_PROTON)**0.5d0*(central_density*1.d20)**2.5d0
 
@@ -1541,25 +1577,55 @@ if (SI_units) then
       scalars(i,s_radiation+3) = LradDcont_T * (scalars(i,5)*1.d20)**2.d0 / coef_rad_1
 
       scalars(i,s_radiation+4) = eta_Sp * (1.d6*scalars(i,3))**2.d0
-  
-   !--------------------------------------------------------
-     ! --- Radiation from background impurity
-     !--------------------------------------------------------
-  
-      Arad_bg = 2.4d-31
-      Brad_bg = 20.
-      Crad_bg = 0.8
-  
-      frad_bg = nimp_bg * Arad_bg*exp(-((log(Te_corr_eV)-log(Brad_bg))**2.)/Crad_bg**2.)
-  
-      dfrad_bg_dT = -(1./3.)*((MU_ZERO*central_mass*MASS_PROTON*central_density*1.d20)**(0.5d0)) &
-                     *(1./EL_CHG)*2.*(nimp_bg*Arad_bg/Crad_bg**2.)*(log(Te_corr_eV)-log(Brad_bg))     &
-                     *(1./Te_corr_eV)*exp(-((log(Te_corr_eV)-log(Brad_bg))**2.)/Crad_bg**2.)
-  
+
+      !--------------------------------------------------------
+      ! --- Radiation from background impurity
+      !--------------------------------------------------------
+      r0_real8  = scalars(i,5) / central_density ! Back to JU first
+      r0_corr   = corr_neg_dens(r0_real8)
+      ne_SI = r0_corr * 1.d20 * central_density !electron density (SI)
+
+      if (use_imp_adas) then  ! use open adas by default
+        select case ( trim(imp_type) )
+          case('C')
+            m_i_over_m_imp_bg = central_mass/12.  ! Carbon mass = 12 u
+          case('Ar')
+            m_i_over_m_imp_bg = central_mass/40.  ! Argon mass = 40 u
+          case('Ne')
+            m_i_over_m_imp_bg = central_mass/20.  ! Neon mass = 20 u
+          case('W')
+            m_i_over_m_imp_bg = central_mass/184. ! Tungsten mass = 184 u
+          case default
+            if (nimp_bg > 0) then
+              write(*,*) 'Background impurity"', trim(imp_type), '" unknown (in mod_neutral_source.f90), terminating.'
+              stop
+            end if 
+        end select
+
+        ! Use radiation coefficients from ADAS
+        if (ne_SI > ne_SI_min .and. Te_corr_eV > Te_eV_min .and. nimp_bg > 0) then
+          Lrad_imp = 0.0
+          call radiation_function_linear(imp_adas(1),imp_cor(1),log10(ne_SI),log10(Te_corr_eV*EL_CHG/K_BOLTZ),Lrad_imp)
+          if (Lrad_imp < 0.) Lrad_imp = 0.
+          Lrad_imp = Lrad_imp * m_i_over_m_imp_bg
+        else
+          Lrad_imp = 0.
+        end if
+        frad_bg = nimp_bg * Lrad_imp
+      else
+        if ( trim(imp_type) == 'Ar') then ! Hard-coded fitting exists for argon
+          Arad_bg = 2.4d-31
+          Brad_bg = 20.
+          Crad_bg = 0.8
+          frad_bg = nimp_bg * Arad_bg*exp(-((log(Te_corr_eV)-log(Brad_bg))**2.)/Crad_bg**2.)
+        else 
+          write(*,*) "WARNING: hard-coded fitting doesn't exist for  ", trim(imp_type), ",use open adas instead!"
+          stop
+        end if
+      end if
       scalars(i,s_radiation+5) = scalars(i,5)*1.d20 * frad_bg
-  
     endif
-#endif
+#endif /*(JOREK_MODEL == 500)*/
 
 #if (JOREK_MODEL == 501 || JOREK_MODEL == 502)
     if (include_radiation) then

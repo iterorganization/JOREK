@@ -781,7 +781,7 @@ do ms=1, n_gauss
   ! Atomic physics parameters for Argon
   !-------------------------------------------
 
-     select case ( trim(gas_type) )
+     select case ( trim(imp_type) )
        case('D2')
          m_i_over_m_imp = central_mass/2.
          m_imp          = 2.
@@ -792,7 +792,7 @@ do ms=1, n_gauss
          m_i_over_m_imp = central_mass/20. ! Neon mass = 20 u and main ion (D) mass = 2 u
          m_imp          = 20.
        case default
-         write(*,*) '!! Gas type "', trim(gas_type), '" unknown (in inj_source.f90) !!'
+         write(*,*) '!! Gas type "', trim(imp_type), '" unknown (in inj_source.f90) !!'
          write(*,*) '=> We assume the gas is D2.'
          m_i_over_m_imp = central_mass/2.
          m_imp          = 2.

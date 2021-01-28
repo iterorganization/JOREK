@@ -223,53 +223,55 @@ do in=2,n_tor
 enddo
 
 !----------------------------------- fill in parallel velocity at boundary (on open field lines)
-do i=1,node_list%n_nodes
+if (.not. no_mach1_bc) then
+  do i=1,node_list%n_nodes
 
 #ifdef altcs
     node_list%node(i)%psi_eq(:) = node_list%node(i)%values(1,:,1)
 #endif
 
-  if ((node_list%node(i)%boundary .eq. 1) .or. (node_list%node(i)%boundary .eq. 3)) then
-
-    ps0_s     = node_list%node(i)%values(1,2,1)
-    ps0_t     = node_list%node(i)%values(1,3,1)
-    R_s       = node_list%node(i)%x(1,2,1)
-    R_t       = node_list%node(i)%x(1,3,1)
-    Z_s       = node_list%node(i)%x(1,2,2)
-    Z_t       = node_list%node(i)%x(1,3,2)
-
-    xjac  =  R_s*Z_t - R_t*Z_s
-    ps0_x = (	Z_t * ps0_s - Z_s * ps0_t ) / xjac
-    ps0_y = ( - R_t * ps0_s + R_s * ps0_t ) / xjac
-
-    direction = + ps0_x / abs(ps0_x)		 ! temporary solution for lower x-point only
-    if (xcase2 .eq. 2) direction = -direction
-    if ( (xcase2 .eq. 3) .and. (node_list%node(i)%x(1,1,2) .gt. (ES%Z_xpoint(1)+ES%Z_xpoint(2))/2.d0) ) direction = -direction
-!    if ( (grid_to_wall) .and. (n_wall_blocks .ne. 0) ) direction = 0.d0 !everything to zero for grid with patches
-    if (grid_to_wall) direction = 0.d0 ! everything to zero for grid with patches
-
-    BigR = node_list%node(i)%x(1,1,1)
-    Btot = sqrt(F0**2 + ps0_x**2 + ps0_y**2) / BigR
-    BigR_s = node_list%node(i)%x(1,2,1)
-
-    T0   = node_list%node(i)%values(1,1,6)
-    node_list%node(i)%values(1,1,n_var) = direction / Btot * sqrt(GAMMA * T0)
-
-    T0_s   = node_list%node(i)%values(1,2,6)
-    node_list%node(i)%values(1,2,n_var) = BigR_s / (BigR*Btot) * sqrt(GAMMA * T0) + 0.5d0 / Btot * sqrt(GAMMA / T0) * T0_s
-    node_list%node(i)%values(1,2,n_var) = direction *  node_list%node(i)%values(1,2,n_var)
-
-    if(xcase2 .eq. 1) then
-      write(*,'(A,8e14.6)') ' Boundary condition (eq): ',BigR,ES%psi_xpoint(1),node_list%node(i)%values(1,1,1),ps0_x,ps0_y, &
-      		    node_list%node(i)%values(1,1,n_var),BigR/F0 * sqrt(GAMMA*T0)
+    if ((node_list%node(i)%boundary .eq. 1) .or. (node_list%node(i)%boundary .eq. 3)) then
+ 
+      ps0_s     = node_list%node(i)%values(1,2,1)
+      ps0_t     = node_list%node(i)%values(1,3,1)
+      R_s       = node_list%node(i)%x(1,2,1)
+      R_t       = node_list%node(i)%x(1,3,1)
+      Z_s       = node_list%node(i)%x(1,2,2)
+      Z_t       = node_list%node(i)%x(1,3,2)
+ 
+      xjac  =  R_s*Z_t - R_t*Z_s
+      ps0_x = (	Z_t * ps0_s - Z_s * ps0_t ) / xjac
+      ps0_y = ( - R_t * ps0_s + R_s * ps0_t ) / xjac
+ 
+      direction = + ps0_x / abs(ps0_x)		 ! temporary solution for lower x-point only
+      if (xcase2 .eq. 2) direction = -direction
+      if ( (xcase2 .eq. 3) .and. (node_list%node(i)%x(1,1,2) .gt. (ES%Z_xpoint(1)+ES%Z_xpoint(2))/2.d0) ) direction = -direction
+!      if ( (grid_to_wall) .and. (n_wall_blocks .ne. 0) ) direction = 0.d0 !everything to zero for grid with patches
+      if (grid_to_wall) direction = 0.d0 ! everything to zero for grid with patches
+ 
+      BigR = node_list%node(i)%x(1,1,1)
+      Btot = sqrt(F0**2 + ps0_x**2 + ps0_y**2) / BigR
+      BigR_s = node_list%node(i)%x(1,2,1)
+ 
+      T0   = node_list%node(i)%values(1,1,6)
+      node_list%node(i)%values(1,1,n_var) = direction / Btot * sqrt(GAMMA * T0)
+ 
+      T0_s   = node_list%node(i)%values(1,2,6)
+      node_list%node(i)%values(1,2,n_var) = BigR_s / (BigR*Btot) * sqrt(GAMMA * T0) + 0.5d0 / Btot * sqrt(GAMMA / T0) * T0_s
+      node_list%node(i)%values(1,2,n_var) = direction *  node_list%node(i)%values(1,2,n_var)
+ 
+      if(xcase2 .eq. 1) then
+        write(*,'(A,8e14.6)') ' Boundary condition (eq): ',BigR,ES%psi_xpoint(1),node_list%node(i)%values(1,1,1),ps0_x,ps0_y, &
+        		    node_list%node(i)%values(1,1,n_var),BigR/F0 * sqrt(GAMMA*T0)
+      endif
+      if( (xcase2 .eq. 2) .or. ((xcase2 .eq. 3) .and. (ES%psi_xpoint(2) .lt. ES%psi_xpoint(1))) ) then
+        write(*,'(A,8e14.6)') ' Boundary condition (eq): ',BigR,ES%psi_xpoint(2),node_list%node(i)%values(1,1,1),ps0_x,ps0_y, &
+        		    node_list%node(i)%values(1,1,n_var),BigR/F0 * sqrt(GAMMA*T0)
+      endif
+ 
     endif
-    if( (xcase2 .eq. 2) .or. ((xcase2 .eq. 3) .and. (ES%psi_xpoint(2) .lt. ES%psi_xpoint(1))) ) then
-      write(*,'(A,8e14.6)') ' Boundary condition (eq): ',BigR,ES%psi_xpoint(2),node_list%node(i)%values(1,1,1),ps0_x,ps0_y, &
-      		    node_list%node(i)%values(1,1,n_var),BigR/F0 * sqrt(GAMMA*T0)
-    endif
-
-  endif
-enddo
+  enddo
+endif
 
 !call add_pellet(node_list,element_list,5.,0.08,0.03,R_geo-0.78,Z_geo)
 !call add_pellet(node_list,element_list,25.,0.08,0.03,R_geo+0.85,Z_geo)

@@ -28,10 +28,10 @@ module mod_parameters
   integer, parameter :: n_var          = 7         !< number of variables
   integer, parameter :: n_dim          = 2         !< number of dimensions
   integer, parameter :: n_order        = 3         !< order of the polynomial basis
-  integer, parameter :: n_tor          = 3         !< number of toroidal harmonics in physics variables
+  integer, parameter :: n_tor          = 9         !< number of toroidal harmonicsin physics variables
   integer, parameter :: n_coord_tor    = 1         !< number of toroidal harmonics in (R, Z) coordinates
-  integer, parameter :: n_period       = 1         !< periodicity in toroidal direction
-  integer, parameter :: n_plane        = 4         !< number of toroidal angles
+  integer, parameter :: n_period       = 3         !< periodicity in toroidal direction
+  integer, parameter :: n_plane        = 32        !< number of toroidal angles
   integer, parameter :: n_vertex_max   = 4         !< maximum number of corners of an element
   integer, parameter :: n_nodes_max    = 60001     !< maximum number of nodes
   integer, parameter :: n_elements_max = 60001     !< maximum number of elements
