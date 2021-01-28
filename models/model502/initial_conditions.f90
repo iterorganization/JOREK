@@ -153,7 +153,7 @@ if (my_id .eq. 0) then
         node_list%node(i)%values(1,4,var_Vpar) = 2.d0 *     node_list%node(i)%x(1,2,1)**2  * Omega &
                                                + 2.d0 * R * node_list%node(i)%x(1,4,1)     * Omega &
                                                + 2.d0 * R * node_list%node(i)%x(1,2,1)     * dOmega_dpsi * node_list%node(i)%values(1,3,var_psi) &
-                                               + 2.d0 * R * node_list%node(i)%x(1,2,1)     * dOmega_dz   * node_list%node(i)%x(3,2) 
+                                               + 2.d0 * R * node_list%node(i)%x(1,2,1)     * dOmega_dz   * node_list%node(i)%x(1,3,2) 
     
         node_list%node(i)%values(1,4,var_Vpar) = node_list%node(i)%values(1,4,var_Vpar) &
                                                + 2.d0 * R * node_list%node(i)%x(1,3,1) * dOmega_dpsi             * node_list%node(i)%values(1,2,var_psi) &
