@@ -234,7 +234,7 @@ subroutine initialise_particles_marker(particles, node_list, element_list, field
   use mod_interp
   use mod_fields
   use constants
-  use phys_module, only: central_density, central_mass, gas_type
+  use phys_module, only: central_density, central_mass, imp_type
 #if (JOREK_MODEL == 500 || JOREK_MODEL == 555)
   use mod_neutral_source, only: get_source
 #endif
@@ -292,7 +292,7 @@ subroutine initialise_particles_marker(particles, node_list, element_list, field
   t_norm = sqrt(MU_ZERO * central_mass * MASS_PROTON * central_density * 1.d20)
   n_norm = central_density * 1.d20
 
-  select case (trim(gas_type))
+  select case (trim(imp_type))
     case('D2')
       m_i_over_m_imp = central_mass/2.
     case('Ar')
@@ -300,7 +300,7 @@ subroutine initialise_particles_marker(particles, node_list, element_list, field
     case('Ne')
       m_i_over_m_imp = central_mass/20. ! Neon mass = 20 u and main ion (D) mass = 2 u
     case default
-      write(*,*) '!! Gas type "', trim(gas_type), '" unknown (in mod_initialise_particles.f90) !!'
+      write(*,*) '!! Impurity type "', trim(imp_type), '" unknown (in mod_initialise_particles.f90) !!'
       write(*,*) '=> EXITING!!!'
       call exit(1)
   end select

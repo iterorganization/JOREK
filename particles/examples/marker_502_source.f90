@@ -15,7 +15,7 @@ use mod_basisfunctions
 use nodes_elements
 use phys_module, only: n_particles, nstep_particles, nsubstep_particles, tstep_particles, use_ncs, use_pcs, use_ccs
 use phys_module, only: filter_perp, filter_hyper, filter_par, filter_perp_n0, filter_hyper_n0, filter_par_n0
-use phys_module, only: tstep, gas_type, imp_adas, imp_cor, adas_dir, use_marker, restart_particles, index_now
+use phys_module, only: tstep, imp_type, imp_adas, imp_cor, adas_dir, use_marker, restart_particles, index_now
 use phys_module, only: nout, R_geo, using_spi, spi_quantity, xtime_radiation, xtime_rad_power
 use phys_module, only: xtime_e_ion, xtime_e_ion_power
 use phys_module, only: CENTRAL_MASS, CENTRAL_DENSITY
@@ -98,7 +98,7 @@ if (restart_particles) then
 else
 ! Set up particles
 
-  select case ( trim(gas_type) )
+  select case ( trim(imp_type) )
     case('D2')
       sim%groups(1)%Z    = -2
       sim%groups(1)%mass = atomic_weights(-2) !< atomic mass units
@@ -115,7 +115,7 @@ else
       sim%groups(1)%ad   = imp_adas(1)
       sim%groups(1)%cor  = imp_cor(1)
     case default
-      write(*,*) '!! Gas type "', trim(gas_type), '" unknown (in marker_502) !!'
+      write(*,*) '!! Impurity type "', trim(imp_type), '" unknown (in marker_502) !!'
       write(*,*) 'Exiting NOW!!!'
       stop
   end select

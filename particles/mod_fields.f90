@@ -228,7 +228,7 @@ end if
 end subroutine calc_NeTe
 
 pure subroutine calc_NeTe_imp(fields, time, i_elm, st, phi, n_bg, n_imp, T_e, grad_T_e)
-use phys_module, only: central_density, gas_type, central_mass
+use phys_module, only: central_density, imp_type, central_mass
 use constants
 use mod_parameters
 class(fields_base), intent(in)                    :: fields
@@ -251,7 +251,7 @@ call fields%interp_PRZ(time,i_elm,&
 #endif
           3,st(1),st(2),phi,P,P_s,P_t,P_phi,P_time,R,R_s,R_t,Z,Z_s,Z_t)
 
-select case ( trim(gas_type) )
+select case ( trim(imp_type) )
   case('D2')
     m_i_over_m_imp = central_mass/2.
   case('Ar')
