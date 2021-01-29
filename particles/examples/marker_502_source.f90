@@ -680,6 +680,7 @@ do while (.not. sim%stop_now)
                                         mom_par_tot+all_momentum, mom_par_tot, all_momentum, &
                                         pressure+kin_par_tot+all_energy, pressure, all_energy, kin_par_tot
   endif
+
 ! --- Write a restart file every nout timesteps
   if (mod(index_now,nout) == 0) then
     write(part_fileout,'(A4,i5.5,A3)') 'part',index_now,'.h5'
@@ -687,7 +688,7 @@ do while (.not. sim%stop_now)
   endif
 end do
 
-
+return
 end subroutine
 
 pure function f_source_imp(P, P_norm) result(f)
