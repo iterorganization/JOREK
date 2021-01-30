@@ -284,6 +284,28 @@ end do
 ! Call events at sim%time once to help event scheduler, before entering particle loop
 step_rest_time = 0.d0
 
+! This is to fill in the first time step after restart, should find a better way.
+if (sim%my_id .eq. 0) then
+
+  if (index_now > 1 .and. use_marker) then
+    xtime_radiation(index_now) = xtime_radiation(index_now-1)
+  else if (index_now == 1 .and. use_marker) then
+    xtime_radiation(index_now) = 0.
+  end if
+  if (index_now > 0 .and. use_marker) then
+    xtime_rad_power(index_now) = 0.
+  end if
+
+  if (index_now > 1 .and. use_marker) then
+    xtime_E_ion(index_now) = xtime_E_ion(index_now-1)
+  else if (index_now == 1 .and. use_marker) then
+    xtime_E_ion(index_now) = 0.
+  end if
+  if (index_now > 0 .and. use_marker) then
+    xtime_E_ion_power(index_now) = 0.
+  end if
+
+endif
 call with(sim, events, at=sim%time)
 
 do while (.not. sim%stop_now)
@@ -606,16 +628,6 @@ do while (.not. sim%stop_now)
   call MPI_AllReduce(E_lost_ion,E_lost_ion_all,1,MPI_DOUBLE_PRECISION,MPI_SUM,MPI_COMM_WORLD,ierr)
   call MPI_AllReduce(E_lost_rad,E_lost_rad_all,1,MPI_DOUBLE_PRECISION,MPI_SUM,MPI_COMM_WORLD,ierr)
 
-  !$ w1 = omp_get_wtime()
-  !$ mmm = mpi_minmeanmax(w1-w0)
-  !$ if (sim%my_id .eq. 0) write(*,"(f10.7,A,3f9.4,A)") sim%time, " Particle stepping complete in ", mmm, "s"
-
-!===================================================  
-  sim%time = target_time 
-
-  call with(sim, events, at=sim%time)
-!===================================================
-
 !==============Diagnostics!========================
   if (sim%my_id .eq. 0) write(*,*) " Lost energy at t due to ionisation: ", sim%time, E_lost_ion_all
   if (sim%my_id .eq. 0) write(*,*) " Lost energy at t due to radiation: ",  sim%time, E_lost_rad_all
@@ -642,6 +654,16 @@ do while (.not. sim%stop_now)
 
   endif
 !==================================================
+
+  !$ w1 = omp_get_wtime()
+  !$ mmm = mpi_minmeanmax(w1-w0)
+  !$ if (sim%my_id .eq. 0) write(*,"(f10.7,A,3f9.4,A)") sim%time, " Particle stepping complete in ", mmm, "s"
+
+!===================================================  
+  sim%time = target_time 
+
+  call with(sim, events, at=sim%time)
+!===================================================
 
 !  call Integrals_3D(sim%my_id, sim%fields%node_list, sim%fields%element_list, density_tot, density_in, density_out, &
 !                    pressure, pressure_in, pressure_out, kin_par_tot, kin_par_in, kin_par_out, mom_par_tot, mom_par_in, mom_par_out)
