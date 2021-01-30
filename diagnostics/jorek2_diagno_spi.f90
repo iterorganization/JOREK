@@ -111,10 +111,19 @@ endif
 
 open(20,file="rad_history.dat")
 
-write(20,'(2A20)') 'time', 'total_radiation (MJ)'
+write(20,'(2A20)') 'time', 'radiation power (MW)', 'total_radiation (MJ)'
 
 do i=1,index_start
-  write(20,'(i7,f12.3,1e14.6)') i,xtime(i), xtime_radiation(i)/1.d6
+  write(20,'(i7,f12.3,2e14.6)') i,xtime(i), xtime_rad_power(i)/1.d6, xtime_radiation(i)/1.d6
+enddo
+close(20)
+
+open(20,file="ion_history.dat")
+
+write(20,'(2A20)') 'time', 'ionization power (MW)', 'total_ionization (MJ)'
+
+do i=1,index_start
+  write(20,'(i7,f12.3,2e14.6)') i,xtime(i), xtime_E_ion_power(i)/1.d6, xtime_E_ion(i)/1.d6
 enddo
 close(20)
 
