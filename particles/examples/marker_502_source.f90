@@ -605,7 +605,18 @@ do while (.not. sim%stop_now)
 
   call MPI_AllReduce(E_lost_ion,E_lost_ion_all,1,MPI_DOUBLE_PRECISION,MPI_SUM,MPI_COMM_WORLD,ierr)
   call MPI_AllReduce(E_lost_rad,E_lost_rad_all,1,MPI_DOUBLE_PRECISION,MPI_SUM,MPI_COMM_WORLD,ierr)
-  
+
+  !$ w1 = omp_get_wtime()
+  !$ mmm = mpi_minmeanmax(w1-w0)
+  !$ if (sim%my_id .eq. 0) write(*,"(f10.7,A,3f9.4,A)") sim%time, " Particle stepping complete in ", mmm, "s"
+
+!===================================================  
+  sim%time = target_time 
+
+  call with(sim, events, at=sim%time)
+!===================================================
+
+!==============Diagnostics!========================
   if (sim%my_id .eq. 0) write(*,*) " Lost energy at t due to ionisation: ", sim%time, E_lost_ion_all
   if (sim%my_id .eq. 0) write(*,*) " Lost energy at t due to radiation: ",  sim%time, E_lost_rad_all
 
@@ -630,16 +641,7 @@ do while (.not. sim%stop_now)
     end if
 
   endif
-
-  !$ w1 = omp_get_wtime()
-  !$ mmm = mpi_minmeanmax(w1-w0)
-  !$ if (sim%my_id .eq. 0) write(*,"(f10.7,A,3f9.4,A)") sim%time, " Particle stepping complete in ", mmm, "s"
-
-!===================================================  
-  sim%time = target_time 
-
-  call with(sim, events, at=sim%time)
-!===================================================
+!==================================================
 
 !  call Integrals_3D(sim%my_id, sim%fields%node_list, sim%fields%element_list, density_tot, density_in, density_out, &
 !                    pressure, pressure_in, pressure_out, kin_par_tot, kin_par_in, kin_par_out, mom_par_tot, mom_par_in, mom_par_out)
