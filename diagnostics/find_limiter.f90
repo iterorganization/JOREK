@@ -270,7 +270,7 @@ do i_limiter = 1, n_limiter
 end do
 
 if ( my_id == 0 ) then
-  121 format(1x,a,' =',f12.7)
+  121 format(1x,a,' =',f15.7)
   write(*,121) 'R_lim  ', R_lim
   write(*,121) 'Z_lim  ', Z_lim
   write(*,121) 'Psi_lim', Psi_lim

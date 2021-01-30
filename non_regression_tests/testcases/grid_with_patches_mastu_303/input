@@ -249,28 +249,28 @@
  
  !!! IMPORTANT NOTE!!! : The topological patches should be at least width of 2
  !!! IMPORTANT NOTE!!! : ie. do not use, for example, n_inner = 1
- n_R          =50!  140 ! 100 !120
- n_Z          =120!  260 ! 280 ! 180 !210
- n_radial     =   -1 !  -1 ! -1
- n_pol        =    0 !   0 !  0
+ n_R          =   45
+ n_Z          =  125!90!120
+ n_radial     =   -1
+ n_pol        =    0
 
- n_flux       =   10 !  50 ! 50
- n_tht        =  055 ! 142 ! 70
- n_open       =    1 !   1 !  1
- n_outer      =   08 !  15 ! 15
- n_inner      =    2 !   2 !  2
- n_leg        =    3 !   7 !  7
- n_leg_out    =   20 !  30 ! 25
- n_private    =    2 !   4 !  3
- n_up_leg     =    3 !   7 !  7
- n_up_leg_out =   20 !  30 ! 25
- n_up_priv    =    2 !   4 !  3
+ n_flux       =   10
+ n_tht        =  055
+ n_open       =    1
+ n_outer      =   08
+ n_inner      =    2
+ n_leg        =    3
+ n_leg_out    =   20
+ n_private    =    2
+ n_up_leg     =    3
+ n_up_leg_out =   20
+ n_up_priv    =    2
 
  !-------------------- Control the localisation of grid resolution
  SIG_closed  = 0.03d0
- SIG_open    = 0.4d0!0.2d0
- SIG_outer   = 0.15d0!0.2d0
- SIG_inner   = 0.3d0!0.2d0
+ SIG_open    = 0.4d0
+ SIG_outer   = 0.15d0
+ SIG_inner   = 0.3d0
  SIG_private = 0.55d0
  SIG_up_priv = 0.55d0
  SIG_theta   = 0.04d0
@@ -281,10 +281,10 @@
 
  !-------------------- Control distance between plasma and open flux surface boundaries     
  dPSI_open   = 0.4  
- dPSI_outer  = 0.05 !0.028
+ dPSI_outer  = 0.05
  dPSI_inner  = 0.002
- dPSI_private= 0.005 !0.004 
- dPSI_up_priv= 0.005 !0.004
+ dPSI_private= 0.008
+ dPSI_up_priv= 0.008
 
  n_wall_blocks               = 11
 
@@ -354,61 +354,61 @@
  
  n_ext_block         ( 6)    = 10
  n_block_points_left ( 6)    =  2
- R_block_points_left ( 6,1)  = +1.3893
- Z_block_points_left ( 6,1)  = -2.0195
+ R_block_points_left ( 6,1)  = +1.3700
+ Z_block_points_left ( 6,1)  = -2.0387
  R_block_points_left ( 6,2)  = +1.3500
  Z_block_points_left ( 6,2)  = -2.0600
  n_block_points_right( 6)    = 2
- R_block_points_right( 6,1)  = +1.1803
- Z_block_points_right( 6,1)  = -1.8880
+ R_block_points_right( 6,1)  = +1.1750
+ Z_block_points_right( 6,1)  = -1.8956
  R_block_points_right( 6,2)  = +1.0902
  Z_block_points_right( 6,2)  = -2.0600
  
  n_ext_block         ( 7)    = 10
  n_block_points_left ( 7)    =  2
- R_block_points_left ( 7,1)  = +1.1803
- Z_block_points_left ( 7,1)  = -1.8880
+ R_block_points_left ( 7,1)  = +1.1750
+ Z_block_points_left ( 7,1)  = -1.8956
  R_block_points_left ( 7,2)  = +1.0902
  Z_block_points_left ( 7,2)  = -2.0600
  n_block_points_right( 7)    = 2
- R_block_points_right( 7,1)  = +0.7174
- Z_block_points_right( 7,1)  = -1.6015
+ R_block_points_right( 7,1)  = +0.7153
+ Z_block_points_right( 7,1)  = -1.6060
  R_block_points_right( 7,2)  = +0.6769
  Z_block_points_right( 7,2)  = -1.6458
  
  n_ext_block         ( 8)    = 10
  n_block_points_left ( 8)    =  2
- R_block_points_left ( 8,1)  = +0.7174
- Z_block_points_left ( 8,1)  = -1.6015
+ R_block_points_left ( 8,1)  = +0.7153
+ Z_block_points_left ( 8,1)  = -1.6060
  R_block_points_left ( 8,2)  = +0.6769
  Z_block_points_left ( 8,2)  = -1.6458
  n_block_points_right( 8)    = 2
- R_block_points_right( 8,1)  = +0.4214
- Z_block_points_right( 8,1)  = -1.3435
+ R_block_points_right( 8,1)  = +0.4252
+ Z_block_points_right( 8,1)  = -1.3645
  R_block_points_right( 8,2)  = +0.4196
  Z_block_points_right( 8,2)  = -1.3877
  
  n_ext_block         ( 9)    = 10
  n_block_points_left ( 9)    =  2
- R_block_points_left ( 9,1)  = +1.3893
- Z_block_points_left ( 9,1)  = +2.0195
+ R_block_points_left ( 9,1)  = +1.3700
+ Z_block_points_left ( 9,1)  = +2.0387
  R_block_points_left ( 9,2)  = +1.3500
  Z_block_points_left ( 9,2)  = +2.0600
  n_block_points_right( 9)    = 2
- R_block_points_right( 9,1)  = +1.1810
- Z_block_points_right( 9,1)  = +1.8885
+ R_block_points_right( 9,1)  = +1.1733
+ Z_block_points_right( 9,1)  = +1.8942
  R_block_points_right( 9,2)  = +1.0900
  Z_block_points_right( 9,2)  = +2.0599
  
  n_ext_block         (10)    = 10
  n_block_points_left (10)    =  2
- R_block_points_left (10,1)  = +1.1810
- Z_block_points_left (10,1)  = +1.8885
+ R_block_points_left (10,1)  = +1.1733
+ Z_block_points_left (10,1)  = +1.8942
  R_block_points_left (10,2)  = +1.0900
  Z_block_points_left (10,2)  = +2.0599
  n_block_points_right(10)    = 2
- R_block_points_right(10,1)  = +0.4214
- Z_block_points_right(10,1)  = +1.3435
+ R_block_points_right(10,1)  = +0.4252
+ Z_block_points_right(10,1)  = +1.3645
  R_block_points_right(10,2)  = +0.4195
  Z_block_points_right(10,2)  = +1.3879
  
@@ -423,6 +423,7 @@
  Z_block_points_right(11,1)  = -1.3264
  R_block_points_right(11,2)  = +0.3330
  Z_block_points_right(11,2)  = -1.3030
-  
+ 
+ 
  
  /

@@ -13,7 +13,7 @@ outfile="parameter-overview.txt"
 models=""
 for i in `ls -1d models/model*/initialise_parameters.f90`; do
   model=`echo $i | sed -e 's|models/model||' -e 's|/.*||'`
-  if [ $model = "001" ] || [ $model = "305" ] || [ $model = "306" ] || [ $model = "701" ]; then
+  if [ $model = "001" ] || [ $model = "305" ] || [ $model = "306" ]; then
     continue
   fi
   models="$models $model"

@@ -527,10 +527,10 @@ required = 0
                                sig1, xr2, sig2, refinement)
       end if
       if ( freeboundary .and. freeb_change_indices ) call exchange_indices_for_vacuum(node_list, my_id, n_cpu)
+      
     end if
     
   end if !   if ( restart .and. (my_id == 0) ) then
-
 
   ! This is necessary for the parallel vacuum version during the code restart 
   if(restart) then
@@ -618,6 +618,9 @@ required = 0
       call plot_grid(node_list,element_list,bnd_elm_list,bnd_node_list,.true.,.false.,'initial')
     end if
     
+    ! --- Check sanity of grid
+    call check_grid(my_id, node_list, element_list)
+
 #ifdef USE_MUMPS
     ! --- Initialize MUMPS solver (used for equilibrium)
     call MPI_COMM_GROUP(MPI_COMM_WORLD,MPI_GROUP_WORLD,ierr)
@@ -693,6 +696,9 @@ required = 0
         call export_boundary(node_list, bnd_elm_list, bnd_node_list)
 
       endif ! if (my_id == 0) then        
+
+      ! --- Check sanity of grid
+      call check_grid(my_id, node_list, element_list)
 
       call broadcast_boundary(my_id,bnd_elm_list,bnd_node_list) 
       if ( freeb_equil2) then
