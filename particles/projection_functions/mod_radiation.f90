@@ -125,7 +125,7 @@ function get_Lz(sim, group, iz, n_e, T_e, n_n)
   get_Lz      = (prb + plt) * n_e
 #if (JOREK_MODEL == 500) || (JOREK_MODEL == 555)
   call sim%groups(group)%ad%PRC%interp_linear(iz, log_n_e, log_T_e, prc)
-  get_Lz      = proj_Lz + prc * n_n
+  get_Lz      = get_Lz + prc * n_n
 #endif
 end function get_Lz
 
