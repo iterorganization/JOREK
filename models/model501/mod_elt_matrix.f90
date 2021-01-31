@@ -102,6 +102,9 @@ real*8     :: rn0, rn0_x, rn0_y, rn0_p, rn0_s, rn0_t, rn0_ss, rn0_st, rn0_tt, rn
 real*8     :: rhon, rhon_x, rhon_y, rhon_s, rhon_t, rhon_p, rhon_ss, rhon_st, rhon_tt, rhon_hat, rhon_x_hat, rhon_y_hat
 real*8     :: rn0_xx, rn0_yy, rn0_xy, rhon_xx, rhon_yy
 
+real*8     :: aux_rho0, aux_T0, aux_Vpar0, aux_dEion_dt, aux_rad
+real*8     :: aux_P0, aux_P0_s,  aux_P0_t, aux_P0_p, aux_q0, aux_jx0, aux_jy0, aux_jz0, aux_jz0_pcs
+
 ! Impurity and background source
 real*8     :: source_imp, source_bg
 
@@ -113,10 +116,13 @@ real*8     :: t_norm
 real*8     :: m_i_over_m_imp
 !   -Mean impurity ionization state
 real*8     :: Z_imp, dZ_imp_dT, d2Z_imp_dT2, T0_Zimp, alpha_Zimp, Z_eff, dZ_eff_dT, eta_coef, deta_coef_dZeff
-real*8     :: dZ_eff_dr0, dZ_eff_drn0
+real*8     :: dZ_eff_dr0, dZ_eff_drn0, , n_imp
+real*8     :: Z_imp_s, Z_imp_t, Z_imp_p, Z_imp_x, Z_imp_y
+real*8     :: n_imp_s, n_imp_t, n_imp_p, n_imp_x, n_imp_y
 
 !   -Coefficients related to Z_imp
 real*8     :: alpha_imp, dalpha_imp_dT, d2alpha_imp_dT2, alpha_imp_bis, alpha_imp_tri
+real*8     :: alpha_imp_s, alpha_imp_t, alpha_imp_p, alpha_imp_x, alpha_imp_y
 real*8     :: beta_imp, dbeta_imp_dT
 
 !   -Radiation from injected impurities
@@ -149,18 +155,22 @@ real*8, dimension(:,:,:,:) , pointer :: eq_g, eq_s, eq_t
 real*8, dimension(:,:,:,:) , pointer :: eq_p
 real*8, dimension(:,:,:,:) , pointer :: eq_ss, eq_st, eq_tt   
 real*8, dimension(:,:,:,:) , pointer :: delta_g, delta_s, delta_t
+real*8, dimension(:,:,:,:) , pointer :: eq_aux_g, eq_aux_s, eq_aux_t, eq_aux_p
 
-
-eq_g    => thread_struct(tid)%eq_g   
-eq_s    => thread_struct(tid)%eq_s   
-eq_t    => thread_struct(tid)%eq_t   
-eq_p    => thread_struct(tid)%eq_p   
-eq_ss   => thread_struct(tid)%eq_ss  
-eq_st   => thread_struct(tid)%eq_st  
-eq_tt   => thread_struct(tid)%eq_tt  
-delta_g => thread_struct(tid)%delta_g
-delta_s => thread_struct(tid)%delta_s
-delta_t => thread_struct(tid)%delta_t
+eq_g     => thread_struct(tid)%eq_g   
+eq_s     => thread_struct(tid)%eq_s   
+eq_t     => thread_struct(tid)%eq_t   
+eq_p     => thread_struct(tid)%eq_p   
+eq_ss    => thread_struct(tid)%eq_ss  
+eq_st    => thread_struct(tid)%eq_st  
+eq_tt    => thread_struct(tid)%eq_tt  
+delta_g  => thread_struct(tid)%delta_g
+delta_s  => thread_struct(tid)%delta_s
+delta_t  => thread_struct(tid)%delta_t
+eq_aux_g => thread_struct(tid)%eq_aux_g   
+eq_aux_s => thread_struct(tid)%eq_aux_s   
+eq_aux_t => thread_struct(tid)%eq_aux_t   
+eq_aux_p => thread_struct(tid)%eq_aux_p   
 
 ELM = 0.d0
 RHS = 0.d0
@@ -180,6 +190,7 @@ zeta  = time_evol_zeta
 x_g  = 0.d0; x_s  = 0.d0; x_t  = 0.d0; x_st  = 0.d0; x_ss  = 0.d0; x_tt  = 0.d0;
 y_g  = 0.d0; y_s  = 0.d0; y_t  = 0.d0; y_st  = 0.d0; y_ss  = 0.d0; y_tt  = 0.d0;
 eq_g = 0.d0; eq_s = 0.d0; eq_t = 0.d0; eq_st = 0.d0; eq_ss = 0.d0; eq_tt = 0.d0; eq_p = 0.d0;
+eq_aux_g = 0.d0; eq_aux_s = 0.d0; eq_aux_t = 0.d0; eq_aux_p = 0.d0;
 
 delta_g = 0.d0; delta_s = 0.d0; delta_t = 0.d0
 
@@ -192,7 +203,9 @@ dV_dz_source=0.d0
 eq_zne          = 0.d0
 eq_zTe          = 0.d0         
 
-
+aux_rho0  = 0.d0; aux_T0    = 0.d0; aux_Vpar0 = 0.d0; aux_dEion_dT = 0.0; aux_rad = 0.0
+aux_P0    = 0.d0; aux_P0_s  = 0.d0; aux_P0_t  = 0.d0; aux_P0_p  = 0.d0
+aux_q0    = 0.d0; aux_jx0   = 0.d0; aux_jy0   = 0.d0; aux_jz0   = 0.d0; aux_jz0_pcs = 0.d0
 
 do i=1,n_vertex_max
  do j=1,n_order+1
@@ -230,6 +243,13 @@ do i=1,n_vertex_max
              eq_ss(mp,k,ms,mt) = eq_ss(mp,k,ms,mt) + nodes(i)%values(in,j,k) * element%size(i,j) * H_ss(i,j,ms,mt)* HZ(in,mp)
              eq_st(mp,k,ms,mt) = eq_st(mp,k,ms,mt) + nodes(i)%values(in,j,k) * element%size(i,j) * H_st(i,j,ms,mt)* HZ(in,mp)
              eq_tt(mp,k,ms,mt) = eq_tt(mp,k,ms,mt) + nodes(i)%values(in,j,k) * element%size(i,j) * H_tt(i,j,ms,mt)* HZ(in,mp)
+
+             if (present(aux_nodes)) then
+               eq_aux_g(mp,k,ms,mt) =  eq_aux_g(mp,k,ms,mt) + aux_nodes(i)%values(in,j,k) * element%size(i,j) * H(i,j,ms,mt)   * HZ(in,mp)
+               eq_aux_s(mp,k,ms,mt) =  eq_aux_s(mp,k,ms,mt) + aux_nodes(i)%values(in,j,k) * element%size(i,j) * H_s(i,j,ms,mt) * HZ(in,mp)
+               eq_aux_t(mp,k,ms,mt) =  eq_aux_t(mp,k,ms,mt) + aux_nodes(i)%values(in,j,k) * element%size(i,j) * H_t(i,j,ms,mt) * HZ(in,mp)
+               eq_aux_p(mp,k,ms,mt) =  eq_aux_p(mp,k,ms,mt) + aux_nodes(i)%values(in,j,k) * element%size(i,j) * H(i,j,ms,mt)   * HZ_p(in,mp)
+             endif
 
              delta_g(mp,k,ms,mt) = delta_g(mp,k,ms,mt) + nodes(i)%deltas(in,j,k) * element%size(i,j) * H(i,j,ms,mt)   * HZ(in,mp)
              delta_s(mp,k,ms,mt) = delta_s(mp,k,ms,mt) + nodes(i)%deltas(in,j,k) * element%size(i,j) * H_s(i,j,ms,mt) * HZ(in,mp)
@@ -693,6 +713,24 @@ do ms=1, n_gauss
      dZ_imp_dT = 0.
      d2Z_imp_dT2 = 0.
 
+     Z_imp_x  = 0.0
+     Z_imp_y  = 0.0
+     Z_imp_p  = 0.0
+     Z_imp_s  = 0.0
+     Z_imp_t  = 0.0
+
+     n_imp_x  = 0.0
+     n_imp_y  = 0.0
+     n_imp_p  = 0.0
+     n_imp_s  = 0.0
+     n_imp_t  = 0.0
+     n_imp = 0.
+
+     Z_eff        = 0.
+     dZ_eff_dT    = 0.
+     dZ_eff_dr0   = 0.
+     dZ_eff_drn0  = 0.
+
      ! Te in eV:
      Te_corr_eV      = T0_corr/(2.d0*EL_CHG*MU_ZERO*central_density*1.d20)
      dTe_corr_eV_dT  = dT0_corr_dT/(2.d0*EL_CHG*MU_ZERO*central_density*1.d20)
@@ -701,7 +739,7 @@ do ms=1, n_gauss
      ! We get the charge state distribution assuming n_e=10^20/m^3.
      ! Later maybe we should implement an iterative method.
 
-     if (allocated(imp_adas(1)%ionisation_energy)) then
+     if (allocated(imp_adas(1)%ionisation_energy) .and. (.not. use_marker)) then
 
        if (allocated(P_imp)) deallocate(P_imp)
        if (allocated(dP_imp_dT)) deallocate(dP_imp_dT)
@@ -738,7 +776,7 @@ do ms=1, n_gauss
        ! Convert E_ion gradient wrt. T from 1/K into 1/(JOREK units)       
        dE_ion_dT = dE_ion_dT * dTe_corr_eV_dT * EL_CHG / K_BOLTZ
 
-     else
+     else if (.not. use_marker) then
 
        if (allocated(P_imp)) deallocate(P_imp)
        if (allocated(dP_imp_dT)) deallocate(dP_imp_dT)
@@ -754,6 +792,41 @@ do ms=1, n_gauss
        E_ion     = 0.
        dE_ion_dT = 0.
        E_ion_bg  = 0.
+     else
+       E_ion     = 0.
+       dE_ion_dT = 0.
+       E_ion_bg  = 13.6
+       E_ion_bg  = E_ion_bg * EL_CHG*MU_ZERO*central_density*1.d20
+       Z_imp     = 0.
+       dZ_imp_dT = 0.
+       aux_dEion_dt = eq_aux_g(mp,1,ms,mt) ! Accumulated ionization energy change
+       aux_rad    = max(eq_aux_g(mp,2,ms,mt),0.0)   ! The radiation power density divided by the electron density
+       Z_eff      = max(eq_aux_g(mp,3,ms,mt),0.0)   ! The sum (q^2) divided by the impurity number density
+       Z_imp      = max(eq_aux_g(mp,4,ms,mt),0.0)   ! The sum (q) divided by the impurity number density
+       n_imp      = eq_aux_g(mp,5,ms,mt)            ! The time averaged impurity number density
+       n_imp      = corr_neg_dens(n_imp, (/ 1.d-1, 1.d-1 /),1.d-3)
+       Z_imp      = Z_imp / n_imp
+       Z_eff      = Z_eff / n_imp
+
+       ! This is the total derivative of n_imp*Z_imp, need to separate the two
+       Z_imp_x    = (   y_t(ms,mt) * eq_aux_s(mp,4,ms,mt) - y_s(ms,mt) * eq_aux_t(mp,4,ms,mt) ) / xjac
+       Z_imp_y    = ( - x_t(ms,mt) * eq_aux_s(mp,4,ms,mt) + x_s(ms,mt) * eq_aux_t(mp,4,ms,mt) ) / xjac
+       Z_imp_p    = eq_aux_p(mp,4,ms,mt)
+       Z_imp_s    = eq_aux_s(mp,4,ms,mt)
+       Z_imp_t    = eq_aux_t(mp,4,ms,mt)
+
+       n_imp_x    = (   y_t(ms,mt) * eq_aux_s(mp,5,ms,mt) - y_s(ms,mt) * eq_aux_t(mp,5,ms,mt) ) / xjac
+       n_imp_y    = ( - x_t(ms,mt) * eq_aux_s(mp,5,ms,mt) + x_s(ms,mt) * eq_aux_t(mp,5,ms,mt) ) / xjac
+       n_imp_p    = eq_aux_p(mp,5,ms,mt)
+       n_imp_s    = eq_aux_s(mp,5,ms,mt)
+       n_imp_t    = eq_aux_t(mp,5,ms,mt)
+
+       ! Separating the two derivatives
+       Z_imp_x    = (Z_imp_x - n_imp_x * Z_imp) / n_imp
+       Z_imp_y    = (Z_imp_y - n_imp_y * Z_imp) / n_imp
+       Z_imp_p    = (Z_imp_p - n_imp_p * Z_imp) / n_imp
+       Z_imp_s    = (Z_imp_s - n_imp_s * Z_imp) / n_imp
+       Z_imp_t    = (Z_imp_t - n_imp_t * Z_imp) / n_imp
      end if
 
      ! Convert Z_imp gradient wrt. T from 1/K into 1/eV
@@ -783,43 +856,54 @@ do ms=1, n_gauss
      beta_imp     = m_i_over_m_imp*Z_imp - 1.
      dbeta_imp_dT = m_i_over_m_imp*dZ_imp_dT
 
+     alpha_imp_s     = 0.5*m_i_over_m_imp*Z_imp_s
+     alpha_imp_t     = 0.5*m_i_over_m_imp*Z_imp_t
+     alpha_imp_p     = 0.5*m_i_over_m_imp*Z_imp_p
+     alpha_imp_x     = 0.5*m_i_over_m_imp*Z_imp_x
+     alpha_imp_y     = 0.5*m_i_over_m_imp*Z_imp_y
+
      ne_SI       = (r0_corr + beta_imp * rn0_corr) * 1.d20 * central_density ! electron density (SI)
      ne_JOREK     = r0_corr + beta_imp * rn0_corr ! Electron density in JOREK unit
      ne_JOREK     = corr_neg_dens(ne_JOREK,(/1.d-1,1.d-1/),1.d-3) ! Correction for negative electron density
                                                             ! Too small rho_1 will cause a problem
-
-     ! Calculate the effective charge of all species
-     Z_eff        = 0.
-     dZ_eff_dT    = 0.
-     dZ_eff_dr0   = 0.
-     dZ_eff_drn0  = 0.
-
-     ! First get the value of Z_eff
-     Z_eff        = r0_corr - rn0_corr
-     do ion_i=1, imp_adas(1)%n_Z
-       Z_eff      = Z_eff + m_i_over_m_imp * rn0_corr * P_imp(ion_i) * real(ion_i,8)**2
-     end do
-     Z_eff        = Z_eff / ne_JOREK
-     
-     ! Then three(!) gradients
-     if (Z_eff >= 1.) then
-       do ion_i=1, imp_adas(1)%n_Z
-         dZ_eff_dT  = dZ_eff_dT + m_i_over_m_imp * rn0_corr * dP_imp_dT(ion_i) * real(ion_i,8)**2
-       end do
-       dZ_eff_dT    = dZ_eff_dT / ne_JOREK
-       dZ_eff_dT    = dZ_eff_dT - Z_eff * dbeta_imp_dT * rn0_corr / ne_JOREK
-    
-       dZ_eff_dr0   = (1. - Z_eff)/ne_JOREK
+     if (.not. use_marker) then
+       ! Calculate the effective charge of all species
+       Z_eff        = 0.
+       dZ_eff_dT    = 0.
+       dZ_eff_dr0   = 0.
+       dZ_eff_drn0  = 0.
   
-       dZ_eff_drn0  = dZ_eff_drn0 - 1.
+       ! First get the value of Z_eff
+       Z_eff        = r0_corr - rn0_corr
        do ion_i=1, imp_adas(1)%n_Z
-         dZ_eff_drn0= dZ_eff_drn0 + m_i_over_m_imp * P_imp(ion_i) * real(ion_i,8)**2
+         Z_eff      = Z_eff + m_i_over_m_imp * rn0_corr * P_imp(ion_i) * real(ion_i,8)**2
        end do
-       dZ_eff_drn0  = dZ_eff_drn0 / ne_JOREK
-       dZ_eff_drn0  = dZ_eff_drn0 - Z_eff * beta_imp / ne_JOREK
+       Z_eff        = Z_eff / ne_JOREK
+       
+       ! Then three(!) gradients
+       if (Z_eff >= 1.) then
+         do ion_i=1, imp_adas(1)%n_Z
+           dZ_eff_dT  = dZ_eff_dT + m_i_over_m_imp * rn0_corr * dP_imp_dT(ion_i) * real(ion_i,8)**2
+         end do
+         dZ_eff_dT    = dZ_eff_dT / ne_JOREK
+         dZ_eff_dT    = dZ_eff_dT - Z_eff * dbeta_imp_dT * rn0_corr / ne_JOREK
+      
+         dZ_eff_dr0   = (1. - Z_eff)/ne_JOREK
+    
+         dZ_eff_drn0  = dZ_eff_drn0 - 1.
+         do ion_i=1, imp_adas(1)%n_Z
+           dZ_eff_drn0= dZ_eff_drn0 + m_i_over_m_imp * P_imp(ion_i) * real(ion_i,8)**2
+         end do
+         dZ_eff_drn0  = dZ_eff_drn0 / ne_JOREK
+         dZ_eff_drn0  = dZ_eff_drn0 - Z_eff * beta_imp / ne_JOREK
+       else
+         Z_eff        = 1.
+       end if
      else
-       Z_eff        = 1.
-     end if
+       Z_eff     = Z_eff * n_imp
+       Z_eff     = Z_eff + max((r0_corr - rn0_corr),0.)
+       Z_eff     = max(Z_eff / ne_JOREK, 1.)
+     endif
 
      ! This is to represent the dependence on Z_eff in resistivity
      eta_coef     = Z_eff*(1.+1.198*Z_eff+0.222*Z_eff**2)/(1.+2.966*Z_eff+0.753*Z_eff**2)
@@ -852,33 +936,38 @@ do ms=1, n_gauss
      coef_rad_1 = 2.d0/3.d0*MU_ZERO**1.5d0*(central_mass*MASS_PROTON)**0.5d0&
                   *(central_density*1.d20)**2.5d0*m_i_over_m_imp
 
-     if (ne_SI > ne_SI_min .and. Te_eV > Te_eV_min .and. rn0 > rn0_min) then
-
-       Lrad = 0.0
-       dLrad_dT = 0.0
-
-       !call radiation_function(imp_adas(1),imp_cor(1),log10(ne_SI),log10(Te_corr_eV*EL_CHG/K_BOLTZ),Lrad,dLrad_dT)
-       call radiation_function_linear(imp_adas(1),imp_cor(1),log10(ne_SI),log10(Te_corr_eV*EL_CHG/K_BOLTZ),Lrad,dLrad_dT)
-
-       Lrad = Lrad * coef_rad_1
-
-       ! Convert gradient wrt. to T from 1/K into 1/eV
-       dLrad_dT = dLrad_dT * coef_rad_1 * EL_CHG / K_BOLTZ
-       ! ...and now from 1/eV into 1/(JOREK units)
-       dLrad_dT = dLrad_dT / (2.d0*EL_CHG*MU_ZERO*central_density*1.d20)
-       dLrad_dT = dLrad_dT * dT0_corr_dT
-
-       if (Lrad < 0.) then
+     if (.not. use_marker) then
+       if (ne_SI > ne_SI_min .and. Te_eV > Te_eV_min .and. rn0 > rn0_min) then
+  
+         Lrad = 0.0
+         dLrad_dT = 0.0
+  
+         !call radiation_function(imp_adas(1),imp_cor(1),log10(ne_SI),log10(Te_corr_eV*EL_CHG/K_BOLTZ),Lrad,dLrad_dT)
+         call radiation_function_linear(imp_adas(1),imp_cor(1),log10(ne_SI),log10(Te_corr_eV*EL_CHG/K_BOLTZ),Lrad,dLrad_dT)
+  
+         Lrad = Lrad * coef_rad_1
+  
+         ! Convert gradient wrt. to T from 1/K into 1/eV
+         dLrad_dT = dLrad_dT * coef_rad_1 * EL_CHG / K_BOLTZ
+         ! ...and now from 1/eV into 1/(JOREK units)
+         dLrad_dT = dLrad_dT / (2.d0*EL_CHG*MU_ZERO*central_density*1.d20)
+         dLrad_dT = dLrad_dT * dT0_corr_dT
+  
+         if (Lrad < 0.) then
+           Lrad = 0.
+           dLrad_dT = 0.
+         end if
+  
+       else
+  
          Lrad = 0.
          dLrad_dT = 0.
+  
        end if
-
      else
-
        Lrad = 0.
        dLrad_dT = 0.
-
-     end if
+     endif
 
      ! This is to detect N/A
      if (Lrad/=Lrad .or. dLrad_dT/=dLrad_dT .or. E_ion/=E_ion .or. dE_ion_dT/=dE_ion_dT) then
@@ -930,11 +1019,11 @@ do ms=1, n_gauss
 !--------------------------------------------------------
 
      P0    = (r0+rn0*alpha_imp) * T0
-     P0_x  = (r0_x+rn0_x*alpha_imp) * T0 + (r0+rn0*alpha_imp_bis) * T0_x
-     P0_y  = (r0_y+rn0_y*alpha_imp) * T0 + (r0+rn0*alpha_imp_bis) * T0_y
-     P0_s  = (r0_s+rn0_s*alpha_imp) * T0 + (r0+rn0*alpha_imp_bis) * T0_s
-     P0_t  = (r0_t+rn0_t*alpha_imp) * T0 + (r0+rn0*alpha_imp_bis) * T0_t
-     P0_p  = (r0_p+rn0_p*alpha_imp) * T0 + (r0+rn0*alpha_imp_bis) * T0_p
+     P0_x  = (r0_x+rn0_x*alpha_imp+rn0*alpha_imp_x) * T0 + (r0+rn0*alpha_imp_bis) * T0_x
+     P0_y  = (r0_y+rn0_y*alpha_imp+rn0*alpha_imp_y) * T0 + (r0+rn0*alpha_imp_bis) * T0_y
+     P0_s  = (r0_s+rn0_s*alpha_imp+rn0*alpha_imp_s) * T0 + (r0+rn0*alpha_imp_bis) * T0_s
+     P0_t  = (r0_t+rn0_t*alpha_imp+rn0*alpha_imp_t) * T0 + (r0+rn0*alpha_imp_bis) * T0_t
+     P0_p  = (r0_p+rn0_p*alpha_imp+rn0*alpha_imp_p) * T0 + (r0+rn0*alpha_imp_bis) * T0_p
      P0_ss = (r0_ss+rn0_ss*alpha_imp) * T0 + 2.d0 * (r0_s+rn0_s*alpha_imp_bis) * T0_s + (r0+rn0*alpha_imp_bis) * T0_ss &
              + rn0 * (2.d0*dalpha_imp_dT + d2alpha_imp_dT2*T0) * (T0_s)**2.d0
      P0_tt = (r0_tt+rn0_tt*alpha_imp) * T0 + 2.d0 * (r0_t+rn0_t*alpha_imp_bis) * T0_t + (r0+rn0*alpha_imp_bis) * T0_tt &
@@ -1106,20 +1195,26 @@ do ms=1, n_gauss
 !#  equation 6 (energy  equation)                                                                  #
 !###################################################################################################
 
-         rhs_ij_6 =   v * BigR * heat_source(ms,mt)                                    * xjac * tstep &
+         rhs_ij_6 =   v * BigR * (heat_source(ms,mt) - aux_dEion_dt - aux_rad)         * xjac * tstep &
  
                     + v * (r0 + rn0*alpha_imp_bis) * BigR**2 * ( T0_s * u0_t - T0_t * u0_s)   * tstep &
                     + v * T0 * BigR**2 * ( r0_s * u0_t - r0_t * u0_s)                         * tstep &
                     + v * alpha_imp * T0 * BigR**2 * (rn0_s * u0_t - rn0_t * u0_s)            * tstep &
+                    ! This is for the projected Z_imp, which do NOT depend on temperature
+                    + v * rn0 * T0 * BigR**2 * (alpha_imp_s * u0_t - alpha_imp_t * u0_s)      * tstep &
 
                     + v * (r0 + rn0*alpha_imp) * T0 * 2.d0* GAMMA * BigR * u0_y        * xjac * tstep &
 
                     - v * (r0 + rn0*alpha_imp_bis) * F0 / BigR * Vpar0 * T0_p          * xjac * tstep &
                     - v * T0 * F0 / BigR * Vpar0 * (r0_p + alpha_imp * rn0_p)          * xjac * tstep &
+                    ! This is for the projected Z_imp, which do NOT depend on temperature
+                    - v * T0 * F0 / BigR * Vpar0 * (       alpha_imp_p * rn0)          * xjac * tstep &
 
                     - v * (r0 + rn0*alpha_imp_bis) * Vpar0 * (T0_s * ps0_t - T0_t * ps0_s)    * tstep &
                     - v * T0 * Vpar0 * (r0_s * ps0_t - r0_t * ps0_s)                          * tstep &
                     - v * T0 * Vpar0 * alpha_imp * (rn0_s * ps0_t - rn0_t * ps0_s)            * tstep &
+                    ! This is for the projected Z_imp, which do NOT depend on temperature
+                    - v * T0 * Vpar0 * rn0 * (alpha_imp_s * ps0_t - alpha_imp_t * ps0_s)      * tstep &
 
                     - v * (r0 + rn0*alpha_imp) * T0 * GAMMA * (vpar0_s * ps0_t - vpar0_t * ps0_s)        * tstep &
                     - v * (r0 + rn0*alpha_imp) * T0 * GAMMA * F0 / BigR * vpar0_p                 * xjac * tstep &
@@ -1134,12 +1229,20 @@ do ms=1, n_gauss
 
                     - TG_num6 * 0.25d0 * BigR**3 * T0 * ((r0_x+alpha_imp*rn0_x) * u0_y - ((r0_y+alpha_imp*rn0_y)) * u0_x) &
                                        * ( v_x * u0_y - v_y * u0_x) * xjac * tstep * tstep  &
+                    ! This is for the projected Z_imp, which do NOT depend on temperature
+                    - TG_num6 * 0.25d0 * BigR**3 * T0 * ((    +alpha_imp_x*rn0) * u0_y - ((    +alpha_imp_y*rn0)) * u0_x) &
+                                       * ( v_x * u0_y - v_y * u0_x) * xjac * tstep * tstep  &
                     - TG_num6 * 0.25d0 * BigR**3 * (r0+alpha_imp_bis*rn0) * (T0_x * u0_y - T0_y * u0_x) &
                                        * ( v_x * u0_y - v_y * u0_x) * xjac * tstep * tstep  &
 
                     - TG_num6 * 0.25d0 / BigR * vpar0**2 &
                               * T0 * ((r0_x+alpha_imp*rn0_x) * ps0_y - (r0_y+alpha_imp*rn0_y) * ps0_x &
                                       + F0 / BigR * (r0_p+alpha_imp*rn0_p))                           &
+                              * ( v_x * ps0_y -  v_y * ps0_x + F0 / BigR * v_p) * xjac * tstep * tstep        &
+                    ! This is for the projected Z_imp, which do NOT depend on temperature
+                    - TG_num6 * 0.25d0 / BigR * vpar0**2 &
+                              * T0 * ((    +alpha_imp_x*rn0) * ps0_y - (    +alpha_imp_y*rn0) * ps0_x &
+                                      + F0 / BigR * (    +alpha_imp_p*rn0))                        &
                               * ( v_x * ps0_y -  v_y * ps0_x + F0 / BigR * v_p) * xjac * tstep * tstep        &
 
                     - TG_num6 * 0.25d0 / BigR * vpar0**2 &
@@ -1548,7 +1651,9 @@ do ms=1, n_gauss
                            - BigR**2 * r0 * (vpar_x * ps0_y - vpar_y * ps0_x) * (v_x * u0_x + v_y * u0_y) * xjac * theta * tstep &
                            - BigR**2 * vpar * (r0_x * ps0_y - r0_y * ps0_x)   * (v_x * u0_x + v_y * u0_y) * xjac * theta * tstep
 
-		 amat_28 = - BigR**2 * (v_s * rhon_t * alpha_imp * T0     - v_t * rhon_s * alpha_imp * T0  )   * theta * tstep &
+                 amat_28 = - BigR**2 * (v_s * rhon_t * alpha_imp * T0     - v_t * rhon_s * alpha_imp * T0  )   * theta * tstep &
+                           ! This is for the projected Z_imp, which do NOT depend on temperature
+                           - BigR**2 * (v_s * rhon * alpha_imp_t * T0     - v_t * rhon * alpha_imp_s * T0)     * theta * tstep &
                            - BigR**2 * (v_s * rhon * alpha_imp_bis * T0_t - v_t * rhon * alpha_imp_bis * T0_s) * theta * tstep
 
 !###################################################################################################
@@ -1669,6 +1774,8 @@ do ms=1, n_gauss
                            + (ZKpar_T-ZK_prof) * BigR / BB2     * Bgrad_T_star          * Bgrad_T_psi * xjac * theta * tstep &
                            + v * (r0 + rn0 * alpha_imp_bis) * Vpar0 * (T0_s * psi_t - T0_t * psi_s)          * theta * tstep &
                            + v * T0 * Vpar0 * ((r0_s+rn0_s*alpha_imp)*psi_t - (r0_t+rn0_t*alpha_imp)*psi_s)  * theta * tstep &
+                           ! This is for the projected Z_imp, which do NOT depend on temperature
+                           + v * T0 * Vpar0 * ((    +rn0*alpha_imp_s)*psi_t - (    +rn0*alpha_imp_t)*psi_s)  * theta * tstep &
                            + v * (r0 + rn0 * alpha_imp) * GAMMA * T0 * (vpar0_s * psi_t - vpar0_t * psi_s)   * theta * tstep &
 !=============== The ionization potential energy term=========================
                            + (GAMMA - 1.) * v * rn0 * dE_ion_dT * Vpar0 * (T0_s * psi_t - T0_t * psi_s)           * theta * tstep &
@@ -1700,6 +1807,10 @@ do ms=1, n_gauss
                            + TG_num6 * 0.25d0 / BigR * vpar0**2                                                       &
                                      * T0 * ((r0_x+alpha_imp*rn0_x) * psi_y - (r0_y+alpha_imp*rn0_y) * psi_x)         &
                                      * ( v_x * ps0_y -  v_y * ps0_x + F0 / BigR * v_p) * xjac * theta * tstep * tstep &
+                           ! This is for the projected Z_imp, which do NOT depend on temperature
+                           + TG_num6 * 0.25d0 / BigR * vpar0**2                                                       &
+                                     * T0 * ((    +alpha_imp_x*rn0) * psi_y - (    +alpha_imp_y*rn0) * psi_x)         &
+                                     * ( v_x * ps0_y -  v_y * ps0_x + F0 / BigR * v_p) * xjac * theta * tstep * tstep &
                      
                            + TG_num6 * 0.25d0 / BigR * vpar0**2                                                       &
                                      * (r0+alpha_imp_bis*rn0) * (T0_x * psi_y - T0_y * psi_x)                         &
@@ -1709,6 +1820,11 @@ do ms=1, n_gauss
                                      * T0 * ((r0_x+alpha_imp*rn0_x) * ps0_y - (r0_y+alpha_imp*rn0_y) * ps0_x          &
                                              + F0 / BigR * (r0_p+alpha_imp*rn0_p))                                    &
                                      * ( v_x * psi_y -  v_y * psi_x ) * xjac * theta * tstep * tstep                  &
+                           ! This is for the projected Z_imp, which do NOT depend on temperature
+                           + TG_num6 * 0.25d0 / BigR * vpar0**2                                                       &
+                                     * T0 * ((    +alpha_imp_x*rn0) * ps0_y - (    +alpha_imp_y*rn0) * ps0_x          &
+                                             + F0 / BigR * (    +alpha_imp_p*rn0))                                    &
+                                     * ( v_x * psi_y -  v_y * psi_x ) * xjac * theta * tstep * tstep                  &
 
                            + TG_num6 * 0.25d0 / BigR * vpar0**2                                                       &
                                      * (r0+alpha_imp_bis*rn0) * (T0_x * ps0_y - T0_y * ps0_x + F0 / BigR * T0_p)      &
@@ -1716,7 +1832,9 @@ do ms=1, n_gauss
 
 
                  amat_62 = - v * (r0 + rn0 * alpha_imp_bis) * BigR**2 * ( T0_s * u_t - T0_t * u_s)         * theta * tstep &
-		           - v * T0 * BigR**2 * ((r0_s+rn0_s*alpha_imp)*u_t - (r0_t+rn0_t*alpha_imp)*u_s)  * theta * tstep &
+                           - v * T0 * BigR**2 * ((r0_s+rn0_s*alpha_imp)*u_t - (r0_t+rn0_t*alpha_imp)*u_s)  * theta * tstep &
+                           ! This is for the projected Z_imp, which do NOT depend on temperature
+                           - v * T0 * BigR**2 * ((    +rn0*alpha_imp_s)*u_t - (    +rn0*alpha_imp_t)*u_s)  * theta * tstep &
                            - v * (r0 + rn0 * alpha_imp) * 2.d0* GAMMA * BigR * T0 * u_y             * xjac * theta * tstep &
 !=============== The ionization potential energy term=========================
                            - (GAMMA - 1.) * v * rn0 * dE_ion_dT * BigR**2 * ( T0_s * u_t - T0_t * u_s)          * theta * tstep &
@@ -1734,11 +1852,17 @@ do ms=1, n_gauss
 
                            + TG_num6 * 0.25d0 * BigR**2 * T0* ((r0_x+alpha_imp*rn0_x) * u_y - (r0_y+alpha_imp*rn0_y) * u_x)&
                                      * ( v_x * u0_y - v_y * u0_x) * xjac * theta*tstep*tstep  &
+                           ! This is for the projected Z_imp, which do NOT depend on temperature
+                           + TG_num6 * 0.25d0 * BigR**2 * T0* ((    +alpha_imp_x*rn0) * u_y - (    +alpha_imp_y*rn0) * u_x)&
+                                     * ( v_x * u0_y - v_y * u0_x) * xjac * theta*tstep*tstep  &
 
                            + TG_num6 * 0.25d0 * BigR**2 * (r0+alpha_imp_bis*rn0)* (T0_x * u_y - T0_y * u_x)       &
                                      * ( v_x * u0_y - v_y * u0_x) * xjac * theta*tstep*tstep  &
 
                            + TG_num6 * 0.25d0 * BigR**2 * T0* ((r0_x+alpha_imp*rn0_x)*u0_y - (r0_y+alpha_imp*rn0_y)*u0_x)  &
+                                     * ( v_x * u_y - v_y * u_x) * xjac * theta*tstep*tstep    &
+                           ! This is for the projected Z_imp, which do NOT depend on temperature
+                           + TG_num6 * 0.25d0 * BigR**2 * T0* ((    +alpha_imp_x*rn0)*u0_y - (    +alpha_imp_y*rn0)*u0_x)  &
                                      * ( v_x * u_y - v_y * u_x) * xjac * theta*tstep*tstep    &
 
                            + TG_num6 * 0.25d0 * BigR**2 * (r0+alpha_imp_bis*rn0)* (T0_x * u0_y - T0_y * u0_x)     &
@@ -1816,17 +1940,23 @@ do ms=1, n_gauss
                            - v * (rn0 * alpha_imp_tri) * T  * BigR**2 * ( T0_s * u0_t - T0_t * u0_s) * theta * tstep &
                            - v * T  * BigR**2 * ( r0_s * u0_t - r0_t * u0_s)                       * theta * tstep &
                            - v * alpha_imp_bis * T * BigR**2 * (rn0_s * u0_t - rn0_t * u0_s)       * theta * tstep &
+                           ! This is for the projected Z_imp, which do NOT depend on temperature
+                           - v * rn0 * T * BigR**2 * (alpha_imp_s * u0_t - alpha_imp_t * u0_s)     * theta * tstep &
 
                            - v * (r0 + rn0 * alpha_imp_bis) * 2.d0* GAMMA * BigR * T * u0_y * xjac * theta * tstep &
 
                            + v * (r0 + rn0 * alpha_imp_bis) * F0 / BigR * Vpar0 * T_p       * xjac * theta * tstep &
                            + v * (rn0 * alpha_imp_tri) * T  * F0 / BigR * Vpar0 * T0_p      * xjac * theta * tstep &
                            + v * T * F0  / BigR * Vpar0 * (r0_p + rn0_p * alpha_imp_bis)    * xjac * theta * tstep &
+                           ! This is for the projected Z_imp, which do NOT depend on temperature
+                           + v * T * F0  / BigR * Vpar0 * (     + rn0   * alpha_imp_p  )    * xjac * theta * tstep &
 
                            + v * (r0 + rn0 * alpha_imp_bis) * Vpar0 * (T_s  * ps0_t - T_t  * ps0_s)* theta * tstep &
                            + v * (rn0 * alpha_imp_tri) * T  * Vpar0 * (T0_s * ps0_t - T0_t * ps0_s)* theta * tstep &
                            + v * T  * Vpar0 * (r0_s * ps0_t - r0_t * ps0_s)                        * theta * tstep &
                            + v * alpha_imp_bis * T * Vpar0 * (rn0_s * ps0_t - rn0_t * ps0_s)       * theta * tstep &
+                           ! This is for the projected Z_imp, which do NOT depend on temperature
+                           + v * rn0 * T * Vpar0 * (alpha_imp_s * ps0_t - alpha_imp_t * ps0_s)     * theta * tstep &
 
                            + v * (r0 + rn0 * alpha_imp_bis) * GAMMA * T * (vpar0_s*ps0_t - vpar0_t*ps0_s) * theta * tstep &
                            + v * (r0 + rn0 * alpha_imp_bis) * GAMMA * T * F0 / BigR * vpar0_p      * xjac * theta * tstep &
@@ -1841,6 +1971,10 @@ do ms=1, n_gauss
                            + TG_num6 * 0.25d0 * BigR**2 &
                                      * T * ((r0_x+alpha_imp_bis*rn0_x)*u0_y - (r0_y+alpha_imp_bis*rn0_y)*u0_x) &
                                      * ( v_x * u0_y - v_y * u0_x) * xjac * theta * tstep * tstep &
+                           ! This is for the projected Z_imp, which do NOT depend on temperature
+                           + TG_num6 * 0.25d0 * BigR**2 &
+                                     * T * ((    +alpha_imp_x  *rn0  )*u0_y - (    +alpha_imp_y  *rn0  )*u0_x) &
+                                     * ( v_x * u0_y - v_y * u0_x) * xjac * theta * tstep * tstep &
 
                            + TG_num6 * 0.25d0 * BigR**2 * (r0+alpha_imp_bis*rn0)* (T_x * u0_y - T_y * u0_x)          &
                                      * ( v_x * u0_y - v_y * u0_x) * xjac * theta * tstep * tstep &
@@ -1851,6 +1985,11 @@ do ms=1, n_gauss
                            + TG_num6 * 0.25d0 / BigR * vpar0**2 &
                               * T * ((r0_x+alpha_imp_bis*rn0_x)*ps0_y - (r0_y+alpha_imp_bis*rn0_y)*ps0_x     &
                                      + F0/BigR*(r0_p+alpha_imp_bis*rn0_p))                                   &
+                              * ( v_x * ps0_y -  v_y * ps0_x + F0 / BigR * v_p) * xjac * theta * tstep * tstep&
+                           ! This is for the projected Z_imp, which do NOT depend on temperature
+                           + TG_num6 * 0.25d0 / BigR * vpar0**2 &
+                              * T * ((    +alpha_imp_x  *rn0  )*ps0_y - (    +alpha_imp_y  *rn0  )*ps0_x     &
+                                     + F0/BigR*(    +alpha_imp_p  *rn0  ))                                   &
                               * ( v_x * ps0_y -  v_y * ps0_x + F0 / BigR * v_p) * xjac * theta * tstep * tstep&
 
                            + TG_num6 * 0.25d0 / BigR * vpar0**2 &
@@ -1869,9 +2008,13 @@ do ms=1, n_gauss
 
                  amat_67 = + v * (r0 + rn0 * alpha_imp_bis) * F0 / BigR * Vpar * T0_p       * xjac * theta * tstep &
                            + v * T0 * F0 / BigR * Vpar * (r0_p + rn0_p * alpha_imp)         * xjac * theta * tstep &
+                           ! This is for the projected Z_imp, which do NOT depend on temperature
+                           + v * T0 * F0 / BigR * Vpar * (     + rn0 * alpha_imp_p)         * xjac * theta * tstep &
 
                            + v * (r0 + rn0 * alpha_imp_bis) * Vpar * (T0_s * ps0_t - T0_t * ps0_s)         * theta * tstep &
                            + v * T0 * Vpar * ((r0_s+rn0_s*alpha_imp)*ps0_t - (r0_t+rn0_t*alpha_imp)*ps0_s) * theta * tstep &
+                           ! This is for the projected Z_imp, which do NOT depend on temperature
+                           + v * T0 * Vpar * ((    +rn0*alpha_imp_s)*ps0_t - (    +rn0*alpha_imp_t)*ps0_s) * theta * tstep &
 
                            + v * (r0 + rn0 * alpha_imp) * GAMMA * T0 * (vpar_s * ps0_t - vpar_t * ps0_s)   * theta * tstep &
                            + v * (r0 + rn0 * alpha_imp) * GAMMA * T0 * F0 / BigR * vpar_p           * xjac * theta * tstep &
@@ -1902,6 +2045,11 @@ do ms=1, n_gauss
                            + TG_num6 * 0.25d0 / BigR * 2.d0 * vpar0*vpar &
                               * T0 * ((r0_x+alpha_imp*rn0_x)*ps0_y - (r0_y+alpha_imp*rn0_y)*ps0_x              &
                                       + F0 / BigR * (r0_p+alpha_imp*rn0_p))                                    &
+                              * ( v_x * ps0_y -  v_y * ps0_x + F0 / BigR * v_p) * xjac * theta * tstep * tstep &
+                           ! This is for the projected Z_imp, which do NOT depend on temperature
+                           + TG_num6 * 0.25d0 / BigR * 2.d0 * vpar0*vpar &
+                              * T0 * ((    +alpha_imp_x*rn0)*ps0_y - (    +alpha_imp_y*rn0)*ps0_x              &
+                                      + F0 / BigR * (    +alpha_imp_p*rn0))                                    &
                               * ( v_x * ps0_y -  v_y * ps0_x + F0 / BigR * v_p) * xjac * theta * tstep * tstep &
 
                            + TG_num6 * 0.25d0 / BigR * 2.d0 * vpar0*vpar &
@@ -1935,6 +2083,9 @@ do ms=1, n_gauss
 !=========================New TG_num terms====================================
                            + TG_num6 * 0.25d0 * BigR**2 * T0 * alpha_imp * (rhon_x * u0_y - rhon_y * u0_x)        &
                                      * ( v_x * u0_y - v_y * u0_x) * xjac * theta*tstep*tstep     &
+                           ! This is for the projected Z_imp, which do NOT depend on temperature
+                           + TG_num6 * 0.25d0 * BigR**2 * T0 * rhon * (alpha_imp_x * u0_y - alpha_imp_y * u0_x)   &
+                                     * ( v_x * u0_y - v_y * u0_x) * xjac * theta*tstep*tstep     &
 
                            + TG_num6 * 0.25d0 * BigR**2 * alpha_imp_bis * rhon * (T0_x * u0_y - T0_y * u0_x)      &
                                      * ( v_x * u0_y - v_y * u0_x) * xjac* theta*tstep*tstep      &
@@ -1942,6 +2093,10 @@ do ms=1, n_gauss
                            + TG_num6 * 0.25d0 / BigR * vpar0**2 &
                               * T0 * alpha_imp * (rhon_x * ps0_y - rhon_y * ps0_x + F0 / BigR * rhon_p)           &
                               * ( v_x * ps0_y -  v_y * ps0_x + F0 / BigR * v_p) * xjac * theta * tstep * tstep&
+                           ! This is for the projected Z_imp, which do NOT depend on temperature
+                           + TG_num6 * 0.25d0 / BigR * vpar0**2 &
+                              * T0 * rhon * (alpha_imp_x * ps0_y - alpha_imp_y * ps0_x + F0 / BigR * alpha_imp_p) &
+                              * ( v_x * ps0_y -  v_y * ps0_x + F0 / BigR * v_p) * xjac * theta * tstep * tstep   &
 
                            + TG_num6 * 0.25d0 / BigR * vpar0**2 &
                               * alpha_imp_bis * rhon * (T0_x * ps0_y - T0_y * ps0_x + F0 / BigR * T0_p)           &
@@ -1952,10 +2107,16 @@ do ms=1, n_gauss
                            - v * BigR * rhon * (GAMMA - 1.) * deta_drn0_ohm * (zj0/BigR)**2 * xjac * theta * tstep &
                            - v * rhon * BigR**2 * alpha_imp_bis * (T0_s * u0_t - T0_t * u0_s)     * theta * tstep &
                            - v * alpha_imp * T0 * BigR**2 * (rhon_s * u0_t - rhon_t * u0_s)       * theta * tstep &
+                           ! This is for the projected Z_imp, which do NOT depend on temperature
+                           - v * rhon * T0 * BigR**2 * (alpha_imp_s * u0_t - alpha_imp_t * u0_s)  * theta * tstep &
                            + v * rhon * F0 / BigR * Vpar0 * alpha_imp_bis * T0_p           * xjac * theta * tstep &
                            + v * alpha_imp * T0 * F0 / BigR * Vpar0 * rhon_p               * xjac * theta * tstep &
+                           ! This is for the projected Z_imp, which do NOT depend on temperature
+                           + v * rhon * T0 * F0 / BigR * Vpar0 * alpha_imp_p               * xjac * theta * tstep &
                            + v * rhon * Vpar0 * alpha_imp_bis * (T0_s * ps0_t - T0_t * ps0_s)     * theta * tstep &
                            + v * alpha_imp * T0 * Vpar0 * (rhon_s * ps0_t - rhon_t * ps0_s)       * theta * tstep &
+                           ! This is for the projected Z_imp, which do NOT depend on temperature
+                           + v * rhon * T0 * Vpar0 * (alpha_imp_s * ps0_t - alpha_imp_t * ps0_s)  * theta * tstep &
 
                            - v * alpha_imp * rhon * 2.d0* GAMMA * BigR * T0 * u0_y                   * xjac * theta * tstep &
                            + v * alpha_imp * rhon * GAMMA * T0 * (vpar0_s * ps0_t - vpar0_t * ps0_s)        * theta * tstep &
@@ -2104,9 +2265,13 @@ do ms=1, n_gauss
 
 !===============================End of new TG_num terms============================
 
-		amat_78 = + v * (rhon_s * alpha_imp * T0 * ps0_t - rhon_t * alpha_imp * T0 * ps0_s)         * theta * tstep &
+                amat_78 = + v * (rhon_s * alpha_imp * T0 * ps0_t - rhon_t * alpha_imp * T0 * ps0_s)         * theta * tstep &
+                          ! This is for the projected Z_imp, which do NOT depend on temperature
+                          + v * (rhon * alpha_imp_s * T0 * ps0_t - rhon * alpha_imp_t * T0 * ps0_s)         * theta * tstep &
                           + v * (rhon * alpha_imp_bis * T0_s * ps0_t - rhon * alpha_imp_bis * T0_t * ps0_s) * theta * tstep &
-                          + v * F0 / BigR * (rhon_p * alpha_imp * T0 + rhon * alpha_imp_bis * T0_p)         * xjac * theta * tstep
+                          + v * F0 / BigR * (rhon_p * alpha_imp * T0 + rhon * alpha_imp_bis * T0_p)  * xjac * theta * tstep &
+                          ! This is for the projected Z_imp, which do NOT depend on temperature
+                          + v * F0 / BigR * (rhon * alpha_imp_p * T0                              )  * xjac * theta * tstep
 
 !################################################################################################### 
 !#  equation 8   impurity density equation                                                          # 

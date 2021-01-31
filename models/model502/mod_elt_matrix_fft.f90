@@ -1068,7 +1068,7 @@ do ms=1, n_gauss
          !dE_ion_dT = 0.
        end if
      else
-       aux_rad = aux_rad * ne_JOREK ! The radiation power density in JOREK unit
+       !aux_rad = aux_rad * ne_JOREK ! The radiation power density in JOREK unit
        Lrad = 0.
        dLrad_dT = 0.
      endif
