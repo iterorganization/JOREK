@@ -489,6 +489,10 @@ do while (.not. sim%stop_now)
         if (allocated(P_tmp)) deallocate(P_tmp)
         allocate(P_tmp(0:sim%groups(1)%ad%n_Z))
         do iZ = 0,sim%groups(1)%ad%n_Z
+
+          Lrad     = get_Lz(sim, 1, iZ, n_e, T_e)
+          rad_sink = rad_sink + particles(j)%P_imp(iZ) * real(particles(j)%weight,8) * Lrad * timesteps
+
           if (iZ .eq. 0) then
             call sim%groups(1)%ad%SCD%interp_linear(iZ,   log10(n_e), log10(T_e), P_ion(1))
             call sim%groups(1)%ad%ACD%interp_linear(iZ+1, log10(n_e), log10(T_e), P_rcb(2))
@@ -522,9 +526,6 @@ do while (.not. sim%stop_now)
                         + real(particles(j)%weight,8)*n_e*timesteps*sim%groups(1)%ad%ionisation_energy(iZ)&
                             * (-particles(j)%P_imp(iZ)*P_rcb(1) + particles(j)%P_imp(iZ-1)*P_ion(2))
           endif
-
-          Lrad     = get_Lz(sim, 1, iZ, n_e, T_e)
-          rad_sink = rad_sink + particles(j)%P_imp(iZ) * real(particles(j)%weight,8) * Lrad * timesteps
 
         enddo !iZ
         P_tmp = P_tmp / sum(P_tmp)
