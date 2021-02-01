@@ -116,7 +116,7 @@ real*8     :: t_norm
 real*8     :: m_i_over_m_imp
 !   -Mean impurity ionization state
 real*8     :: Z_imp, dZ_imp_dT, d2Z_imp_dT2, T0_Zimp, alpha_Zimp, Z_eff, dZ_eff_dT, eta_coef, deta_coef_dZeff
-real*8     :: dZ_eff_dr0, dZ_eff_drn0, , n_imp
+real*8     :: dZ_eff_dr0, dZ_eff_drn0, n_imp
 real*8     :: Z_imp_s, Z_imp_t, Z_imp_p, Z_imp_x, Z_imp_y
 real*8     :: n_imp_s, n_imp_t, n_imp_p, n_imp_x, n_imp_y
 
