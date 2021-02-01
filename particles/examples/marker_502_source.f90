@@ -284,6 +284,8 @@ end do
 ! Call events at sim%time once to help event scheduler, before entering particle loop
 step_rest_time = 0.d0
 
+call with(sim, events, at=sim%time)
+
 ! This is to fill in the first time step after restart, should find a better way.
 if (sim%my_id .eq. 0) then
 
@@ -306,7 +308,6 @@ if (sim%my_id .eq. 0) then
   end if
 
 endif
-call with(sim, events, at=sim%time)
 
 do while (.not. sim%stop_now)
 
@@ -632,28 +633,26 @@ do while (.not. sim%stop_now)
   call MPI_AllReduce(E_lost_rad,E_lost_rad_all,1,MPI_DOUBLE_PRECISION,MPI_SUM,MPI_COMM_WORLD,ierr)
 
 !==============Diagnostics!========================
-  if (sim%my_id .eq. 0) write(*,*) " Lost energy at t due to ionisation: ", sim%time, E_lost_ion_all
-  if (sim%my_id .eq. 0) write(*,*) " Lost energy at t due to radiation: ",  sim%time, E_lost_rad_all
+  if (sim%my_id .eq. 0) write(*,*) " Lost energy at t due to ionisation: ", index_now+1, sim%time, E_lost_ion_all
+  if (sim%my_id .eq. 0) write(*,*) " Lost energy at t due to radiation: ", index_now+1, sim%time, E_lost_rad_all
 
   if (sim%my_id .eq. 0) then
 
-    if (index_now > 1 .and. use_marker) then
-      xtime_radiation(index_now) = xtime_radiation(index_now-1) + E_lost_rad_all
-    else if (index_now == 1 .and. use_marker) then
-      xtime_radiation(index_now) = E_lost_rad_all
-    end if
     if (index_now > 0 .and. use_marker) then
-      xtime_rad_power(index_now) = E_lost_rad_all / particle_step_time
+      xtime_radiation(index_now+1) = xtime_radiation(index_now) + E_lost_rad_all
+    else if (index_now == 0 .and. use_marker) then
+      write(*,*) "SOMETHING WRONG in the time-stepping, EXITING!"
+      call exit(1)
     end if
+    if (use_marker) xtime_rad_power(index_now) = E_lost_rad_all / particle_step_time
 
-    if (index_now > 1 .and. use_marker) then
-      xtime_E_ion(index_now) = xtime_E_ion(index_now-1) + E_lost_ion_all
-    else if (index_now == 1 .and. use_marker) then
-      xtime_E_ion(index_now) = E_lost_ion_all
-    end if
     if (index_now > 0 .and. use_marker) then
-      xtime_E_ion_power(index_now) = E_lost_ion_all / particle_step_time
+      xtime_E_ion(index_now+1) = xtime_E_ion(index_now) + E_lost_ion_all
+    else if (index_now == 0 .and. use_marker) then
+      write(*,*) "SOMETHING WRONG in the time-stepping, EXITING!"
+      call exit(1)
     end if
+    if (use_marker) xtime_E_ion_power(index_now) = E_lost_ion_all / particle_step_time
 
   endif
 !==================================================

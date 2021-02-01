@@ -593,8 +593,8 @@ do while (.not. sim%stop_now)
   call MPI_AllReduce(E_lost_ion,E_lost_ion_all,1,MPI_DOUBLE_PRECISION,MPI_SUM,MPI_COMM_WORLD,ierr)
   call MPI_AllReduce(E_lost_rad,E_lost_rad_all,1,MPI_DOUBLE_PRECISION,MPI_SUM,MPI_COMM_WORLD,ierr)
   
-  if (sim%my_id .eq. 0) write(*,*) " Lost energy at t due to ionisation: ", sim%time, E_lost_ion_all
-  if (sim%my_id .eq. 0) write(*,*) " Lost energy at t due to radiation: ",  sim%time, E_lost_rad_all
+  if (sim%my_id .eq. 0) write(*,*) " Lost energy at t due to ionisation: ", index_now, sim%time, E_lost_ion_all
+  if (sim%my_id .eq. 0) write(*,*) " Lost energy at t due to radiation: ", index_now, sim%time, E_lost_rad_all
   !$ w1 = omp_get_wtime()
   !$ mmm = mpi_minmeanmax(w1-w0)
   !$ if (sim%my_id .eq. 0) write(*,"(f10.7,A,3f9.4,A)") sim%time, " Particle stepping complete in ", mmm, "s"
