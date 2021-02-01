@@ -644,7 +644,7 @@ do while (.not. sim%stop_now)
       write(*,*) "SOMETHING WRONG in the time-stepping, EXITING!"
       call exit(1)
     end if
-    if (use_marker) xtime_rad_power(index_now) = E_lost_rad_all / particle_step_time
+    if (use_marker) xtime_rad_power(index_now+1) = E_lost_rad_all / particle_step_time
 
     if (index_now > 0 .and. use_marker) then
       xtime_E_ion(index_now+1) = xtime_E_ion(index_now) + E_lost_ion_all
@@ -652,7 +652,7 @@ do while (.not. sim%stop_now)
       write(*,*) "SOMETHING WRONG in the time-stepping, EXITING!"
       call exit(1)
     end if
-    if (use_marker) xtime_E_ion_power(index_now) = E_lost_ion_all / particle_step_time
+    if (use_marker) xtime_E_ion_power(index_now+1) = E_lost_ion_all / particle_step_time
 
   endif
 !==================================================
