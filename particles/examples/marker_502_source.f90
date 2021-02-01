@@ -321,7 +321,7 @@ do while (.not. sim%stop_now)
   ! i.e. (sim%time - step_rest_time(i)) is the 'real' particle time before the next loop
   particle_start_time = (sim%time - step_rest_time)
   particle_step_time  = target_time - particle_start_time
-  n_steps             = particle_step_time/timesteps
+  n_steps             = int(particle_step_time/timesteps)
   step_rest_time      = particle_step_time - real(n_steps,8) * timesteps
 
   if (sim%my_id .eq. 0) then
