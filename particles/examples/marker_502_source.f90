@@ -335,6 +335,11 @@ do while (.not. sim%stop_now)
     write(*,*) "PARTICLE : step_rest_time      : ",step_rest_time
   endif
 
+  if (step_rest_time > timesteps) then
+    write(*,*) "SOMETHING WRONG in setting the particle timestep, EXITING!!!", step_rest_time, timesteps
+    call exit(1)
+  endif
+
   E_lost_ion = 0.d0
   E_lost_ion_all = 0.d0
   E_lost_rad = 0.d0
