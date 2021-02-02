@@ -800,7 +800,7 @@ do ms=1, n_gauss
        Z_imp     = 0.
        dZ_imp_dT = 0.
        aux_dEion_dt = eq_aux_g(mp,1,ms,mt) ! Accumulated ionization energy change
-       aux_rad    = max(eq_aux_g(mp,2,ms,mt),0.0)   ! The radiation power density divided by the electron density
+       aux_rad    = max(eq_aux_g(mp,2,ms,mt),0.0)   ! The radiation power density 
        Z_eff      = max(eq_aux_g(mp,3,ms,mt),0.0)   ! The sum (q^2) divided by the impurity number density
        Z_imp      = max(eq_aux_g(mp,4,ms,mt),0.0)   ! The sum (q) divided by the impurity number density
        n_imp      = eq_aux_g(mp,5,ms,mt)            ! The time averaged impurity number density
@@ -1195,7 +1195,8 @@ do ms=1, n_gauss
 !#  equation 6 (energy  equation)                                                                  #
 !###################################################################################################
 
-         rhs_ij_6 =   v * BigR * (heat_source(ms,mt) - aux_dEion_dt - aux_rad)         * xjac * tstep &
+         rhs_ij_6 =   v * BigR * heat_source(ms,mt)                                    * xjac * tstep &
+                    - v * BigR * (aux_dEion_dt + aux_rad)                              * xjac * tstep &
  
                     + v * (r0 + rn0*alpha_imp_bis) * BigR**2 * ( T0_s * u0_t - T0_t * u0_s)   * tstep &
                     + v * T0 * BigR**2 * ( r0_s * u0_t - r0_t * u0_s)                         * tstep &

@@ -347,8 +347,8 @@ do while (.not. sim%stop_now)
 
   ! Get the total ablation amount within each time step for rejection sampling, then the probability at
   ! each position with source_imp density source is simply:
-  ! source_imp * particle_step_time * xjac * BigR * wst * delta_phi divided by
-  ! spi_source_imp *  particle_step_time
+  ! source_imp * (real(n_steps,8) * timesteps) * xjac * BigR * wst * delta_phi divided by
+  ! spi_source_imp * (real(n_steps,8) * timesteps)
   spi_source_imp = 0.0
   spi_source_imp_local = 0.0
   if (using_spi) then
@@ -361,7 +361,7 @@ do while (.not. sim%stop_now)
     enddo
   endif
   spi_source_imp_local = spi_source_imp / sim%n_cpu
-  n_particles_add_local =  int(spi_source_imp_local * particle_step_time / weight) 
+  n_particles_add_local =  int(spi_source_imp_local * (real(n_steps,8) * timesteps) / weight) 
 
   ! Start assigning particles for this particle time step
   if (n_particles_add_local .gt. 0) then ! Otherwise no need to do anything
@@ -370,8 +370,8 @@ do while (.not. sim%stop_now)
       
       call initialise_particles_marker(sim%groups(1)%particles, sim%fields%node_list, sim%fields%element_list, &
                                         sim%fields, sim%time, pcg32_rng(), n_particles_add_local, &
-                                        particle_step_time, uniform=.false., fluid_source=spi_source_imp_local,&
-                                        transform_rej_f=f_source_imp)
+                                        (real(n_steps,8) * timesteps), uniform=.false., &
+                                        fluid_source=spi_source_imp_local, transform_rej_f=f_source_imp)
     
     end select
   endif
@@ -650,7 +650,7 @@ do while (.not. sim%stop_now)
       write(*,*) "SOMETHING WRONG in the time-stepping, EXITING!"
       call exit(1)
     end if
-    if (use_marker) xtime_rad_power(index_now+1) = E_lost_rad_all / particle_step_time
+    if (use_marker) xtime_rad_power(index_now+1) = E_lost_rad_all / (real(n_steps,8) * timesteps)
 
     if (index_now > 0 .and. use_marker) then
       xtime_E_ion(index_now+1) = xtime_E_ion(index_now) + E_lost_ion_all
@@ -658,7 +658,7 @@ do while (.not. sim%stop_now)
       write(*,*) "SOMETHING WRONG in the time-stepping, EXITING!"
       call exit(1)
     end if
-    if (use_marker) xtime_E_ion_power(index_now+1) = E_lost_ion_all / particle_step_time
+    if (use_marker) xtime_E_ion_power(index_now+1) = E_lost_ion_all / (real(n_steps,8) * timesteps)
 
   endif
 !==================================================

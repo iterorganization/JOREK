@@ -262,9 +262,10 @@ select case ( trim(imp_type) )
     m_i_over_m_imp = central_mass/2.
 end select
 
-n_bg = central_density * (P(1) - P(3))
-n_imp = central_density * P(3) * m_i_over_m_imp
-n_bg = max(central_density * n_bg * 1d20,1d16)        ! plasma density [1/m^3], capped against negative
+n_bg  = P(1) - P(3)
+n_imp = P(3) * m_i_over_m_imp
+n_bg  = max(central_density * n_bg * 1d20,1d16)        ! plasma density [1/m^3], capped against negative
+n_imp = max(central_density * n_imp * 1d20,0.0)        ! plasma density [1/m^3], capped against negative
 T_norm = (1.d0/K_BOLTZ/(2.d0*MU_ZERO*central_density*1.d20))
 #if (JOREK_MODEL == 400 || JOREK_MODEL == 502)
 T_norm = T_norm*2.d0 ! P(1) contains the electron temperature, reverse previous correction
