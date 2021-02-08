@@ -10,10 +10,10 @@ use basis_at_gaussian
 use phys_module
 use domains
 use corr_neg
-#if (JOREK_MODEL == 500 || JOREK_MODEL == 555)
+#if (defined WITH_Neutrals) && (!defined WITH_Impurities)
   use mod_neutral_source, only: neutral_source, total_n_particles, total_n_particles_inj, total_n_particles_inj_all
 #endif
-#if (JOREK_MODEL == 501 || JOREK_MODEL == 502)
+#ifdef WITH_Impurities
   use mod_injection_source, only: inj_source, total_n_particles, total_n_particles_inj, total_n_particles_inj_all
   use mod_impurity, only: radiation_function, radiation_function_linear
 #endif
@@ -63,7 +63,7 @@ real*8     :: part_src, heat_src, heat_src_i, heat_src_e
 real*8     :: r0_corr, T0_corr, rn0_corr
 ! Additional diagnostic variables for impurity model
 ! See https://www.jorek.eu/wiki/doku.php?id=model500_501_555 for details
-#if (JOREK_MODEL == 501)
+#ifdef WITH_Impurities
 real*8  :: local_radiation, local_E_ion, total_radiation, total_E_ion
 real*8  :: local_radiation_phi(n_plane), total_radiation_phi(n_plane)
 ! Atomic physics coefficients:
@@ -166,7 +166,7 @@ do ife =1, element_list%n_elements
       BigR = x_g(ms,mt)
 
       rho_00 = eq_g(var_rho,ms,mt)
-      if ( (jorek_model .eq. 400) .or. (jorek_model .eq. 502) .or. (jorek_model .eq. 711) ) then
+      if (with_TiTe) then
         Ti_00 = eq_g(var_Ti,ms,mt)
         Te_00 = eq_g(var_Te,ms,mt)
         T_00  = Ti_00 + Te_00
@@ -176,12 +176,12 @@ do ife =1, element_list%n_elements
       ZJ_0  = eq_g(var_zj,ms,mt)
       PS_0  = eq_g(var_psi,ms,mt) 
       
-#if (JOREK_MODEL == 500) || (JOREK_MODEL == 501) || (JOREK_MODEL == 555)
+#if (defined WITH_Neutrals) || (defined WITH_Impurities)
       rhon_00 = eq_g(var_rhon,ms,mt)
       rn0_corr = corr_neg_dens1(rhon_00)
 #endif
 
-#if (JOREK_MODEL == 501)
+#ifdef WITH_Impurities
       r0_corr = corr_neg_dens1(rho_00)
       if (T_min > T_1) then
         T0_corr = corr_neg_temp(T_00,(/5.d-1,5.d-1/),2.*T_min) ! For use in eta(T), visco(T), ...
@@ -245,12 +245,12 @@ do ife =1, element_list%n_elements
 
 #endif
 
-#if (JOREK_MODEL == 501)
+#ifdef WITH_Impurities
       density  = density  + ((rho_00-rhon_00) + rhon_00*m_i_over_m_imp) * xjac * 2.d0 * PI * BigR * wst
 #else
       density  = density  + rho_00       * xjac * 2.d0 * PI * BigR * wst
 #endif
-#if (JOREK_MODEL == 501)
+#ifdef WITH_Impurities
       pressure = pressure + (rho_00 + alpha_imp*rhon_00) * T_00 * xjac * 2.d0 * PI * BigR * wst
 #else
       pressure = pressure + rho_00 * T_00 * xjac * 2.d0 * PI * BigR * wst
@@ -259,7 +259,7 @@ do ife =1, element_list%n_elements
       if ( in_plasma(node_list,element_list,x_g(ms,mt),y_g(ms,mt),eq_g(1,ms,mt),xpoint,&
         xcase,R_xpoint,Z_xpoint,psi_xpoint,psi_limit,R_axis,Z_axis,psi_axis) ) then
         
-#if ( (JOREK_MODEL == 400) || (JOREK_MODEL == 401) || (JOREK_MODEL == 502) || (JOREK_MODEL == 711) )
+#ifdef WITH_TiTe
         call sources(xpoint, xcase, y_g(ms,mt), Z_xpoint, eq_g(var_psi,ms,mt), psi_axis, &
           psi_limit, part_src, heat_src_i, heat_src_e)
         heat_src = heat_src_i + heat_src_e
@@ -268,7 +268,7 @@ do ife =1, element_list%n_elements
           psi_limit, part_src, heat_src)
 #endif
         
-#if (JOREK_MODEL == 501)
+#ifdef WITH_Impurities
         ! --- 3D integrals
         D_int = D_int + ((rho_00-rhon_00) + rhon_00*m_i_over_m_imp) * xjac * 2.d0 * PI * BigR * wst
         P_int = P_int + (rho_00+alpha_imp*rhon_00) * T_00 * xjac * 2.d0 * PI * BigR * wst
@@ -292,7 +292,7 @@ do ife =1, element_list%n_elements
         
       else
 
-#if (JOREK_MODEL == 501)
+#ifdef WITH_Impurities
         D_ext = D_ext + ((rho_00-rhon_00) + rhon_00*m_i_over_m_imp) * xjac * 2.d0 * PI * BigR * wst
         P_ext = P_ext + (rho_00+alpha_imp*rhon_00) * T_00 * xjac * 2.d0 * PI * BigR * wst
 #else

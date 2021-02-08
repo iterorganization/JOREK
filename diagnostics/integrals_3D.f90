@@ -13,11 +13,11 @@ use domains
 use corr_neg
 use equil_info, only : get_psi_n, ES
 !$ use omp_lib
-#if (JOREK_MODEL == 500 || JOREK_MODEL == 555)
+#ifdef WITH_Neutrals
   use mod_neutral_source
 #endif
-#if (JOREK_MODEL == 501 || JOREK_MODEL == 555)
-  use mod_injection_source
+#ifdef WITH_Impurities
+  use mod_impurity
 #endif
 
 implicit none
@@ -106,7 +106,7 @@ local_pellet_particles = 0.d0
 local_plasma_particles = 0.d0
 local_pellet_volume    = 0.d0
 
-#if (JOREK_MODEL == 500)
+#if (defined WITH_Neutrals) && (!defined WITH_Impurities)
 local_n_particles_inj = 0.d0
 local_n_particles     = 0.d0
 #endif
@@ -136,7 +136,7 @@ ife_max   = min((my_id +1) * ife_delta, element_list%n_elements)
 !$omp          pellet_radius, pellet_delta_psi, pellet_sig, pellet_length, pellet_ellipse, pellet_theta,  &
 !$omp          central_density, pellet_particles,pellet_density, pellet_volume,                &
 !$omp          local_pellet_particles, local_plasma_particles, local_pellet_volume,            &
-#if (JOREK_MODEL == 500) || (JOREK_MODEL == 555)
+#if (defined WITH_Neutrals) && (!defined WITH_Impurities)
 !$omp          local_n_particles_inj, local_n_particles, ns_amplitude, ns_R, ns_Z,             &
 !$omp          ns_phi, ns_radius, ns_sig, ns_deltaphi, ns_tor_norm, spi_tor_rot,               &
 !$omp          t_now, A_Dmv, K_Dmv, V_Dmv, P_Dmv, t_ns, L_tube, JET_MGI,ASDEX_MGI,             &
@@ -153,7 +153,7 @@ ife_max   = min((my_id +1) * ife_delta, element_list%n_elements)
 !$omp           dn_dpsi,dn_dz,dn_dpsi2,dn_dz2,dn_dpsi_dz,dn_dpsi3,dn_dpsi_dz2, dn_dpsi2_dz,    &
 !$omp           dT_dpsi,dT_dz,dT_dpsi2,dT_dz2,dT_dpsi_dz,dT_dpsi3,dT_dpsi_dz2, dT_dpsi2_dz,    &
 !$omp           r0_corr, T0_corr,                                                              &
-#if (JOREK_MODEL == 500) || (JOREK_MODEL == 555)
+#if (defined WITH_Neutrals) && (!defined WITH_Impurities)
 !$omp           rn0, source_neutral,                                                           &
 #endif
 !$omp           omp_nthreads,omp_tid)
@@ -168,7 +168,7 @@ omp_tid      = 0
 #endif
 
 !$omp do reduction(+:local_pellet_particles, local_plasma_particles, local_pellet_volume,     &
-#if (JOREK_MODEL == 500) || (JOREK_MODEL == 555)
+#ifdef WITH_Neutrals
 !$omp                local_n_particles_inj,  local_n_particles,                               &
 #endif
 !$omp                D_int, D_ext, P_int, H_int, S_int, H_ext, S_ext, P_ext, C_intern, C_ext, &
@@ -237,7 +237,7 @@ do ife = ife_min, ife_max
       call density(xpoint, xcase, y_g(ms,mt), ES%Z_xpoint, eq_g(1,1,ms,mt),ES%psi_axis,ES%psi_bnd,eq_zne(ms,mt), &
                    dn_dpsi,dn_dz,dn_dpsi2,dn_dz2,dn_dpsi_dz,dn_dpsi3,dn_dpsi_dz2, dn_dpsi2_dz)
 
-#if (JOREK_MODEL == 400) || (JOREK_MODEL == 711)
+#ifdef WITH_TiTe
       call temperature_e(xpoint, xcase, y_g(ms,mt), ES%Z_xpoint, eq_g(1,1,ms,mt),ES%psi_axis,ES%psi_bnd,eq_zTe(ms,mt), &
                        dT_dpsi,dT_dz,dT_dpsi2,dT_dz2,dT_dpsi_dz,dT_dpsi3,dT_dpsi_dz2, dT_dpsi2_dz)
 #else
@@ -248,8 +248,7 @@ do ife = ife_min, ife_max
     enddo
   enddo
 
-#if (JOREK_MODEL == 400) || (JOREK_MODEL == 711)
-#else
+#ifndef WITH_TiTe
   eq_zTe = eq_zTe / 2.d0	! electron temperature
 #endif
 !--------------------------------------------------- sum over the Gaussian integration points
@@ -267,22 +266,28 @@ do ife = ife_min, ife_max
         xjac = x_s(ms,mt)*y_t(ms,mt) - x_t(ms,mt)*y_s(ms,mt)
         BigR = x_g(ms,mt)
 
-        r0     = eq_g(mp,5,ms,mt)
+        r0      = eq_g(mp,var_rho,ms,mt)
         r0_corr = corr_neg_dens1(r0)
-        T0     = eq_g(mp,6,ms,mt)
+#ifdef WITH_TiTe
+        T0      = eq_g(mp,var_Ti,ms,mt)
         T0_corr = corr_neg_temp1(T0)
-        T0e    = eq_g(mp,6,ms,mt) /2.d0
-        zj0    = eq_g(mp,3,ms,mt)
-        ps0    = eq_g(mp,1,ms,mt)
+        T0e     = corr_neg_temp1(eq_g(mp,var_Te,ms,mt))
+#else
+        T0      = eq_g(mp,var_T,ms,mt)
+        T0_corr = corr_neg_temp1(T0)
+        T0e     = eq_g(mp,var_T,ms,mt) /2.d0
+#endif
+        zj0    = eq_g(mp,var_zj,ms,mt)
+        ps0    = eq_g(mp,var_psi,ms,mt)
 
-#if (JOREK_MODEL > 299)
-        vpar0 = eq_g(mp,7,ms,mt)
+#ifdef WITH_Vpar
+        vpar0 = eq_g(mp,var_Vpar,ms,mt)
 #else
         vpar0 = 0.d0
 #endif
 
-#if (JOREK_MODEL == 500) || (JOREK_MODEL == 555)
-        rn0    = eq_g(mp,8,ms,mt)
+#if (defined WITH_Neutrals) && (!defined WITH_Impurities)
+        rn0    = eq_g(mp,var_rhon,ms,mt)
 #endif
 
         ! --- Eta for ohmic heating
@@ -315,7 +320,7 @@ do ife = ife_min, ife_max
 
         grad_P_psi = (dPdx * dpsidx + dPdy * dpsidy)/grad_psi
 
-#if ( (JOREK_MODEL == 400) || (JOREK_MODEL == 401) || (JOREK_MODEL == 711) )
+#ifdef WITH_TiTe
         call sources(xpoint, xcase, y_g(ms,mt), ES%Z_xpoint, ps0, ES%psi_axis, psi_limit, &
                      particle_source,heat_source_i,heat_source_e)
         heat_source = heat_source_i + heat_source_e
@@ -349,7 +354,7 @@ do ife = ife_min, ife_max
 
         endif
 
-#if (JOREK_MODEL == 500) || (JOREK_MODEL == 555)
+#if (defined WITH_Neutrals) && (!defined WITH_Impurities)
         !--- Calculate the neutral injection rate and the number of neutrals in the plasma
 
         source_neutral = 0.d0
@@ -428,7 +433,7 @@ if (use_pellet) then
   call MPI_AllReduce(local_pellet_volume,total_pellet_volume,1,MPI_DOUBLE_PRECISION,MPI_SUM,MPI_COMM_WORLD,ierr)
 endif
 
-#if (JOREK_MODEL == 500) || (JOREK_MODEL == 555)
+#if (defined WITH_Neutrals) && (!defined WITH_Impurities)
   call MPI_AllReduce(local_n_particles_inj, total_n_particles_inj,1,MPI_DOUBLE_PRECISION,MPI_SUM,MPI_COMM_WORLD,ierr)
   call MPI_AllReduce(local_n_particles, total_n_particles,1,MPI_DOUBLE_PRECISION,MPI_SUM,MPI_COMM_WORLD,ierr)
 #endif
@@ -494,7 +499,7 @@ if (my_id .eq. 0) then
   write(*,'(A,20e14.6)') 'sum ',xt,density_tot,pressure/1.d6,kin_par_tot/1.d6,kin_perp_tot/1.d6,mag_tot/1.d6, &
                                  Ohm_tot/1.d6,heating_in/1d6+heating_out/1.d6 ,source_in+source_out
 
-#if (JOREK_MODEL == 500) || (JOREK_MODEL == 555)
+#if (defined WITH_Neutrals) && (!defined WITH_Impurities)
   write(*,'(A,4e14.6)')   ' Integrals_3D, MGI : ', total_n_particles_inj, total_n_particles
 #endif
 

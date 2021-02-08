@@ -4,6 +4,12 @@ module mod_parameters
 
   integer, parameter :: jorek_model    = 001       !< JOREK physics model
 
+  logical, parameter :: with_TiTe       = .false.
+  logical, parameter :: with_neutrals   = .false.
+  logical, parameter :: with_impurities = .false.
+  logical, parameter :: with_Vpar       = .false.
+  logical, parameter :: with_etaOhm     = .false.
+
   integer, parameter :: var_A3   = 0                       ! place of variable psi/mag pot 3               (ps or A3)
   integer, parameter :: var_AR   = 0                       ! place of variable mag pot  1                  (AR)
   integer, parameter :: var_AZ   = 0                       ! place of variable mag pot  2                  (AZ)

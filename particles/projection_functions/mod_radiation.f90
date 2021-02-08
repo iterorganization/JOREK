@@ -23,7 +23,7 @@ function proj_Lz(sim, group, particle)
   real*8 :: n_e, T_e, log_T_e, log_n_e
   real*8 :: prb, plt, prc
   integer :: q
-#if (JOREK_MODEL == 500) || (JOREK_MODEL == 555)
+#ifdef WITH_Neutrals
   real*8 :: n_n
   real*8, dimension(1) :: P, P_s, P_t, P_phi, P_time
   real*8 :: R, R_s, R_t, Z, Z_s, Z_t
@@ -35,7 +35,7 @@ function proj_Lz(sim, group, particle)
   log_T_e = log10(T_e)
   log_n_e = log10(n_e)
 
-#if (JOREK_MODEL == 500) || (JOREK_MODEL == 555)
+#ifdef WITH_Neutrals
   ! Calculate neutral_density if model5XX (model501 has n_imp in 8)
   call sim%fields%interp_PRZ(sim%time,particle%i_elm,[var_rhon],1,particle%st(1), &
       particle%st(2),particle%x(3),P,P_s,P_t,P_phi,P_time,R,R_s,R_t,Z,Z_s,Z_t)
@@ -47,7 +47,7 @@ function proj_Lz(sim, group, particle)
   call sim%groups(group)%ad%PRB%interp_linear(q, log_n_e, log_T_e, prb)
   call sim%groups(group)%ad%PLT%interp_linear(q, log_n_e, log_T_e, plt)
   proj_Lz      = (prb + plt) * n_e
-#if (JOREK_MODEL == 500) || (JOREK_MODEL == 555)
+#ifdef WITH_Neutrals
   call sim%groups(group)%ad%PRC%interp_linear(q, log_n_e, log_T_e, prc)
   proj_Lz      = proj_Lz + prc * n_n
 #endif
@@ -123,7 +123,7 @@ function get_Lz(sim, group, iz, n_e, T_e, n_n)
   call sim%groups(group)%ad%PRB%interp_linear(iz, log_n_e, log_T_e, prb)
   call sim%groups(group)%ad%PLT%interp_linear(iz, log_n_e, log_T_e, plt)
   get_Lz      = (prb + plt) * n_e
-#if (JOREK_MODEL == 500) || (JOREK_MODEL == 555)
+#ifdef WITH_Neutrals
   call sim%groups(group)%ad%PRC%interp_linear(iz, log_n_e, log_T_e, prc)
   get_Lz      = get_Lz + prc * n_n
 #endif

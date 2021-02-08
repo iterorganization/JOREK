@@ -349,7 +349,7 @@ write(*,'(1x,a)',advance='no') ' USE_COMPLEX_PRECOND          : '
     write(*,CHAR_FMT) 'rho_file              ', trim(rho_file)
   end if
 
-  if (jorek_model .eq. 500) then
+  if (with_neutrals) then
     if ( .not. num_rhon ) then
       write(*,REAL_FMT) 'rhon_0                ', rhon_0
       write(*,REAL_FMT) 'rhon_1                ', rhon_1
@@ -379,7 +379,7 @@ write(*,'(1x,a)',advance='no') ' USE_COMPLEX_PRECOND          : '
     write(*,CHAR_FMT) 'T_file                ', trim(T_file)
   end if
 
-  if ( ( jorek_model == 400 ) .or. ( jorek_model == 401 ) .or. (jorek_model .eq. 502) .or. ( jorek_model == 711 ) ) then
+  if (with_TiTe) then
     write(*,REAL_FMT) 'Te_0                   ', Te_0
     write(*,REAL_FMT) 'Te_1                   ', Te_1
     write(*,REAL_FMT) 'Te_coef                ', Te_coef(1:5)
@@ -425,7 +425,7 @@ write(*,'(1x,a)',advance='no') ' USE_COMPLEX_PRECOND          : '
   else
     write(*,CHAR_FMT) 'D_perp_file           ', trim(D_perp_file)
   end if
-#if (JOREK_MODEL == 501 || JOREK_MODEL == 502)
+#ifdef WITH_Impurities
   write(*,REAL_FMT) 'D_par_imp               ', D_par_imp
   if ( .not. num_d_perp_imp ) then
     write(*,REAL_FMT) 'D_perp_imp            ', D_perp_imp(1:6)
@@ -450,6 +450,7 @@ write(*,'(1x,a)',advance='no') ' USE_COMPLEX_PRECOND          : '
   write(*,REAL_FMT) 'heatsource_gauss_i    ', heatsource_gauss_i
   write(*,REAL_FMT) 'heatsource_gauss_psin ', heatsource_gauss_psin
   write(*,REAL_FMT) 'heatsource_gauss_sig  ', heatsource_gauss_sig
+  write(*,REAL_FMT) 'gamma                 ', gamma
   write(*,REAL_FMT) 'tauIC                 ', tauIC
   write(*,LOGI_FMT) 'Wdia                  ', Wdia
   write(*,REAL_FMT) 'eta_num               ', eta_num
@@ -598,7 +599,7 @@ write(*,'(1x,a)',advance='no') ' USE_COMPLEX_PRECOND          : '
   write(*,REAL_FMT) 'central_mass          ', central_mass
   write(*,REAL_FMT) 'gamma_sheath          ', gamma_sheath
   write(*,REAL_FMT) 'gamma_stangeby        ', gamma_stangeby
-#if ( (JOREK_MODEL == 400) || (JOREK_MODEL == 401) || (JOREK_MODEL == 502) || (JOREK_MODEL == 711) )
+#ifdef WITH_TiTe
   write(*,REAL_FMT) 'gamma_sheath_e        ', gamma_sheath_e
   write(*,REAL_FMT) 'gamma_sheath_i        ', gamma_sheath_i
   write(*,REAL_FMT) 'gamma_e_stangeby      ', gamma_e_stangeby
@@ -644,11 +645,11 @@ write(*,'(1x,a)',advance='no') ' USE_COMPLEX_PRECOND          : '
   write(*,LOGI_FMT) 'old_deuterium_atomic  ', old_deuterium_atomic
   write(*,LOGI_FMT) 'no_mach1_bc           ', no_mach1_bc
 
-  if ( (jorek_model .eq. 710) .or. (jorek_model .eq. 711) ) then
+#ifdef fullmhd
     write(*,LOGI_FMT) 'Mach1_openBC          ', Mach1_openBC
     write(*,LOGI_FMT) 'eta_ARAZ_on           ', eta_ARAZ_on
     write(*,LOGI_FMT) 'tauIC_ARAZ_on         ', tauIC_ARAZ_on
-  endif
+#endif
 
   write(*,LOGI_FMT) 'fix_axis_nodes        ',fix_axis_nodes 
 
@@ -704,7 +705,7 @@ write(*,'(1x,a)',advance='no') ' USE_COMPLEX_PRECOND          : '
      write(*,REAL_FMT) 'jecamp              ',  jecamp
   endif
 
-#if (JOREK_MODEL == 500) || (JOREK_MODEL == 501) || (JOREK_MODEL == 502) || (JOREK_MODEL == 555)
+#if (defined WITH_Neutrals) || (defined WITH_Impurities)
      write(*,REAL_FMT) 'ns_amplitude        ',  ns_amplitude
      write(*,REAL_FMT) 'ns_R                ',  ns_R
      write(*,REAL_FMT) 'ns_Z                ',  ns_Z

@@ -729,13 +729,12 @@ endif
       do i=1,node_list%n_nodes
         node_list%node(i)%values(n_tor_tmp+1:n_tor,:,:)= 0.d0
         do j=n_tor_tmp+1, n_tor
-          node_list%node(i)%values(j,:,5)= amplitude * node_list%node(i)%values(1,:,5)
-          node_list%node(i)%values(j,:,6)= amplitude * node_list%node(i)%values(1,:,6)
-#if (JOREK_MODEL == 400) || (JOREK_MODEL == 401)
-          node_list%node(i)%values(j,:,8)= amplitude * node_list%node(i)%values(1,:,8)
-#endif
-#if (JOREK_MODEL == 502)
-          node_list%node(i)%values(j,:,9)= amplitude * node_list%node(i)%values(1,:,9)
+          node_list%node(i)%values(j,:,var_rho)= amplitude * node_list%node(i)%values(1,:,var_rho)
+#ifdef WITH_TiTe
+          node_list%node(i)%values(j,:,var_Ti)= amplitude * node_list%node(i)%values(1,:,var_Ti)
+          node_list%node(i)%values(j,:,var_Te)= amplitude * node_list%node(i)%values(1,:,var_Te)
+#else
+          node_list%node(i)%values(j,:,var_T)  = amplitude * node_list%node(i)%values(1,:,var_T)
 #endif
 #ifdef fullmhd
           node_list%node(i)%values(j,:,var_AR)= amplitude * node_list%node(i)%values(1,:,var_AR)
@@ -1668,11 +1667,11 @@ subroutine import_hdf5_restart(node_list, element_list, filename, format_rst, er
           stop
         end if
       else
-#if (JOREK_MODEL == 501 || JOREK_MODEL == 502)
+#ifdef WITH_Impurities
         spi_species_arr = 1.0
         write(*,*)"Backward Compatibility: No species information found, assuming full impurity."
 #endif
-#if (JOREK_MODEL == 500 || JOREK_MODEL == 555)
+#ifdef WITH_Neutrals
         spi_species_arr = 0.0
         write(*,*)"Backward Compatibility: No species information found, assuming pure deuterium."
 #endif
@@ -1752,13 +1751,10 @@ subroutine import_hdf5_restart(node_list, element_list, filename, format_rst, er
         do m=2,n_tor
           if ( new_mode(m) .eq. 1 ) then
           node_list%node(i)%values(m,:,:) = 0.d0
-          node_list%node(i)%values(m,:,5) = amplitude * node_list%node(i)%values(1,:,5)
-          node_list%node(i)%values(m,:,6) = amplitude * node_list%node(i)%values(1,:,6)
-#if (JOREK_MODEL == 400 || JOREK_MODEL == 401)
-          node_list%node(i)%values(m,:,8) = amplitude * node_list%node(i)%values(1,:,8)
-#endif
-#if (JOREK_MODEL == 502)
-          node_list%node(i)%values(m,:,9) = amplitude * node_list%node(i)%values(1,:,9)
+          node_list%node(i)%values(m,:,5)   = amplitude * node_list%node(i)%values(1,:,5)
+          node_list%node(i)%values(m,:,6)   = amplitude * node_list%node(i)%values(1,:,6)
+#ifdef WITH_TiTe
+          node_list%node(i)%values(m,:,var_Te)= amplitude * node_list%node(i)%values(1,:,var_Te)
 #endif
 #ifdef fullmhd
           node_list%node(i)%values(m,:,var_AR)= amplitude * node_list%node(i)%values(1,:,var_AR)

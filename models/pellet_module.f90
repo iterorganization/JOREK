@@ -337,13 +337,15 @@ module pellet_module
           stop
         end if
 
-#if (JOREK_MODEL == 502)
-        call interp_PRZ(node_list,element_list,i_elm,[5,9,8],3,s_out,t_out,pellets(i_p)%spi_phi,&
+#if ((defined WITH_Impurities) || (defined WITH_Neutrals))
+#ifdef WITH_TiTe
+        call interp_PRZ(node_list,element_list,i_elm,[var_rho,var_Te,var_rhon],3,s_out,t_out,pellets(i_p)%spi_phi,&
                         P,P_s,P_t,P_phi,R,R_s,R_t,Z,Z_s,Z_t)
-#else
-        call interp_PRZ(node_list,element_list,i_elm,[5,6,8],3,s_out,t_out,pellets(i_p)%spi_phi,&
+#else /* WITH_TiTe */
+        call interp_PRZ(node_list,element_list,i_elm,[var_rho,var_T,var_rhon],3,s_out,t_out,pellets(i_p)%spi_phi,&
                         P,P_s,P_t,P_phi,R,R_s,R_t,Z,Z_s,Z_t)
-#endif
+#endif /* WITH_TiTe */
+#endif /* ((defined WITH_Impurities) || (defined WITH_Neutrals)) */
 
         ! Now, P(1) represents mass density and P(2) represents temperature, P(3)
         ! is the impurity density
@@ -360,7 +362,7 @@ module pellet_module
         n_SI           = P(1) * 1.d20 * central_density
         if (n_SI < 0.) n_SI = 0.
   
-#if (JOREK_MODEL == 502)
+#ifdef WITH_TiTe
         T_eV           = P(2) / (EL_CHG * MU_ZERO * central_density * 1.d20)
 #else
         T_eV           = P(2) / (2.d0* EL_CHG * MU_ZERO * central_density * 1.d20)
@@ -664,7 +666,7 @@ module pellet_module
         shard_size = 1.
       end if
 
-#if (JOREK_MODEL == 500 || JOREK_MODEL == 555)
+#ifdef WITH_Neutrals
       do i = 1, n_spi
         pellets(i)%spi_species = 0.
         N_shard_norm = N_shard_norm + (4./3.) * PI * (shard_size(i)**3) * pellet_density * 1.d20
@@ -673,7 +675,7 @@ module pellet_module
       size_beta    = (spi_quantity / N_shard_norm) ** (-1./3.)
       write(*,*) "Characteristic shard size (m):", 1./size_beta
 #endif
-#if (JOREK_MODEL == 501 || JOREK_MODEL == 502) 
+#ifdef WITH_Impurities
       ! Determine approximately how many fragments are of the impurity, how
       ! much are of the background species. 
 

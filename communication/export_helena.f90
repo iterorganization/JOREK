@@ -229,7 +229,7 @@ do i=2, surface_list%n_psi
 
       call interp(node_list,element_list,i_elm,1,1,ri,si,PSgi,dPSgi_dr,dPSgi_ds,dPSgi_drs,dPSgi_drr,dPSgi_dss)
       call interp(node_list,element_list,i_elm,5,1,ri,si,R0gi,dR0gi_dr,dR0gi_ds,dR0gi_drs,dR0gi_drr,dR0gi_dss)
-      if (jorek_model .eq. 400 .or. jorek_model .eq. 502) then
+      if (with_TiTe) then
         call interp(node_list,element_list,i_elm,6,1,ri,si,Ti0gi,dTi0gi_dr,dTi0gi_ds,dTi0gi_drs,dTi0gi_drr,dTi0gi_dss)
         call interp(node_list,element_list,i_elm,n_var,1,ri,si,Te0gi,dTe0gi_dr,dTe0gi_ds,dTe0gi_drs,dTe0gi_drr,dTe0gi_dss) !WARNING, here we always assume the electron temperature is the last variable
         T0gi     = Ti0gi + Te0gi

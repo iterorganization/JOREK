@@ -213,7 +213,13 @@ contains
     if (ife .eq. n_local_elms/2) then
 
       ! --- Call both routines
-      if ( (jorek_model .eq. 303) .or. (jorek_model .eq. 333) .or. (jorek_model .eq. 710) .or. (jorek_model .eq. 711) ) n_tor_fft_thresh = 1
+      if (     (jorek_model .eq. 303) &
+          .or. (jorek_model .eq. 333) &
+          .or. (jorek_model .eq. 500) &
+          .or. (jorek_model .eq. 710) &
+          .or. (jorek_model .eq. 711) &
+          .or. (jorek_model .eq. 712) &
+         ) n_tor_fft_thresh = 1
       call element_matrix_fft(element,nodes, xpoint2, xcase2, R_axis, Z_axis, psi_axis, psi_bnd, R_xpoint, Z_xpoint, &
         thread_struct(omp_tid)%ELM2, thread_struct(omp_tid)%RHS2, omp_tid, &
         thread_struct(omp_tid)%ELM_p, thread_struct(omp_tid)%ELM_n, thread_struct(omp_tid)%ELM_k, thread_struct(omp_tid)%ELM_kn, &
@@ -221,7 +227,13 @@ contains
         thread_struct(omp_tid)%eq_t, thread_struct(omp_tid)%eq_p, thread_struct(omp_tid)%eq_ss, thread_struct(omp_tid)%eq_st, &
         thread_struct(omp_tid)%eq_tt, thread_struct(omp_tid)%delta_g, thread_struct(omp_tid)%delta_s, &
         thread_struct(omp_tid)%delta_t, i_tor_min, i_tor_max)
-      if ( (jorek_model .eq. 303) .or. (jorek_model .eq. 333) .or. (jorek_model .eq. 710) .or. (jorek_model .eq. 711) ) n_tor_fft_thresh = 300
+      if (     (jorek_model .eq. 303) &
+          .or. (jorek_model .eq. 333) &
+          .or. (jorek_model .eq. 500) &
+          .or. (jorek_model .eq. 710) &
+          .or. (jorek_model .eq. 711) &
+          .or. (jorek_model .eq. 712) &
+         ) n_tor_fft_thresh = 300
       call element_matrix    (element,nodes, xpoint2, xcase2, R_axis, Z_axis, psi_axis, psi_bnd, R_xpoint, Z_xpoint, &
         thread_struct(omp_tid)%ELM,  thread_struct(omp_tid)%RHS,  omp_tid, i_tor_min, i_tor_max)
       
@@ -493,7 +505,7 @@ subroutine construct_matrix(my_id, MPI_COMM_N, my_id_n, MPI_COMM_MASTER, my_id_m
         write(388, "( '#', A17, 4A4)" ), 'RHS', 'v1', 'i', 'j', 'im'
       
         n_var_reduced = n_var
-#if ( (JOREK_MODEL == 400) || (JOREK_MODEL == 401) || (JOREK_MODEL == 711) )
+#ifdef WITH_TiTe
         n_var_reduced = n_var - 1
 #endif
       
@@ -532,7 +544,7 @@ subroutine construct_matrix(my_id, MPI_COMM_N, my_id_n, MPI_COMM_MASTER, my_id_m
                         
                           tmp_rhs = thread_struct(omp_tid)%RHS(index_ij)
                         
-#if ( (JOREK_MODEL == 400) || (JOREK_MODEL == 401) || (JOREK_MODEL == 711) )
+#ifdef WITH_TiTe
                           !--- RHS: for model400, add T_e (v1=8) to T_i (v1=6)
                           if (v1 == var_Ti) tmp_rhs = tmp_rhs + thread_struct(omp_tid)%RHS(index_ij_model400_e)
 #endif
@@ -552,7 +564,7 @@ subroutine construct_matrix(my_id, MPI_COMM_N, my_id_n, MPI_COMM_MASTER, my_id_m
 
                         ! --- for model400, when v1==6, add the ELM(v1=8, v2) contribution to ELM(v1=6, v2), for both tmp_elm and tmp_elm_v2_8
 
-#if ( (JOREK_MODEL == 400) || (JOREK_MODEL == 401) || (JOREK_MODEL == 711) )
+#ifdef WITH_TiTe
                         if (v2 == var_Ti ) then
                           tmp_elm_v2_8 = thread_struct(omp_tid)%ELM(index_ij, index_kl_model400_e) 
                           if (v1 == var_Ti) then

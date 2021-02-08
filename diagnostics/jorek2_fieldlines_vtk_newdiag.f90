@@ -25,7 +25,7 @@ use mod_import_restart
 use equil_info, only : get_psi_n, ES
 use mod_interp
 use mod_new_diag
-#if (JOREK_MODEL == 501 || JOREK_MODEL == 502)
+#ifdef WITH_Impurities
 use mod_impurity, only : init_imp_adas
 #endif
 
@@ -220,7 +220,7 @@ expr_list = exprs(scalar_exprs, n_scalars)
 
 ! --- Read ADAS data and generate coronal equilibrium is needed
 ! additional to jorek2_fieldlines_vtk
-#if JOREK_MODEL == 501
+#ifdef WITH_Impurities
   call init_imp_adas(0)
 #endif
 

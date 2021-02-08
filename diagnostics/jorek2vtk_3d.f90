@@ -154,10 +154,10 @@ do m=1, n_toroidal
           if ( ( i_tor == 1 ) .and. ( without_n0_mode ) ) cycle ! Do not include the n=0 mode
          
           if(density_only) then
-            call interp(node_list,element_list,i,5,i_tor,s,t,P,P_s,P_t,P_st,P_ss,P_tt)
+            call interp(node_list,element_list,i,var_rho,i_tor,s,t,P,P_s,P_t,P_st,P_ss,P_tt)
             scalars(inode,1) = scalars(inode,1) + P * HZ(i_tor,m)
 	  else
-            call interp(node_list,element_list,i,1,i_tor,s,t,P,P_s,P_t,P_st,P_ss,P_tt)
+            call interp(node_list,element_list,i,var_psi,i_tor,s,t,P,P_s,P_t,P_st,P_ss,P_tt)
             scalars(inode,1) = scalars(inode,1) + P * HZ(i_tor,m)
 
             ps_x  = (	Z_t * P_s - Z_s * P_t ) / xjac
@@ -170,27 +170,27 @@ do m=1, n_toroidal
               vectors(inode,1:3,1) = vectors(inode,1:3,1) + (/ - F0/R * sin(angle), -0.d0, F0/R *cos(angle)/)
             endif
 
-            call interp(node_list,element_list,i,2,i_tor,s,t,P,P_s,P_t,P_st,P_ss,P_tt)
+            call interp(node_list,element_list,i,var_u,i_tor,s,t,P,P_s,P_t,P_st,P_ss,P_tt)
             scalars(inode,2) = scalars(inode,2) + P * HZ(i_tor,m)
 
-            call interp(node_list,element_list,i,3,i_tor,s,t,P,P_s,P_t,P_st,P_ss,P_tt)
+            call interp(node_list,element_list,i,var_zj,i_tor,s,t,P,P_s,P_t,P_st,P_ss,P_tt)
             scalars(inode,3) = scalars(inode,3) + P * HZ(i_tor,m)
 
-            call interp(node_list,element_list,i,4,i_tor,s,t,P,P_s,P_t,P_st,P_ss,P_tt)
+            call interp(node_list,element_list,i,var_w,i_tor,s,t,P,P_s,P_t,P_st,P_ss,P_tt)
             scalars(inode,4) = scalars(inode,4) + P * HZ(i_tor,m)
 
-            call interp(node_list,element_list,i,5,i_tor,s,t,P,P_s,P_t,P_st,P_ss,P_tt)
+            call interp(node_list,element_list,i,var_rho,i_tor,s,t,P,P_s,P_t,P_st,P_ss,P_tt)
             scalars(inode,5) = scalars(inode,5) + P * HZ(i_tor,m)
 
-            call interp(node_list,element_list,i,6,i_tor,s,t,P,P_s,P_t,P_st,P_ss,P_tt)
+            call interp(node_list,element_list,i,var_T,i_tor,s,t,P,P_s,P_t,P_st,P_ss,P_tt)
             scalars(inode,6) = scalars(inode,6) + P * HZ(i_tor,m)
             
-            if ( jorek_model > 199 ) then
-              call interp(node_list,element_list,i,7,i_tor,s,t,P,P_s,P_t,P_st,P_ss,P_tt)
+            if (with_Vpar) then
+              call interp(node_list,element_list,i,var_Vpar,i_tor,s,t,P,P_s,P_t,P_st,P_ss,P_tt)
             else
               P = 0.d0
             end if
-            scalars(inode,7) = scalars(inode,7) + P * HZ(i_tor,m)
+            scalars(inode,var_Vpar) = scalars(inode,var_Vpar) + P * HZ(i_tor,m)
 	  endif
 
 	enddo

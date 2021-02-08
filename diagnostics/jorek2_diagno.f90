@@ -16,7 +16,7 @@ use basis_at_gaussian
 use pellet_module
 use mpi_mod
 use mod_import_restart
-#if (JOREK_MODEL == 500)
+#if (defined WITH_Neutrals) && (!defined WITH_Impurities)
    use mod_neutral_source
 #endif
 
@@ -91,7 +91,7 @@ if (use_pellet) then
 
 endif
 
-#if (JOREK_MODEL == 500)
+#if (defined WITH_Neutrals) && (!defined WITH_Impurities)
   ! --- Read ADAS data and generate coronal equilibrium if needed
   call init_imp_adas(my_id)
 #endif

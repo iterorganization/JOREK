@@ -235,10 +235,10 @@ subroutine initialise_particles_marker(particles, node_list, element_list, field
   use mod_fields
   use constants
   use phys_module, only: central_density, central_mass, imp_type
-#if (JOREK_MODEL == 500 || JOREK_MODEL == 555)
+#ifdef WITH_Neutrals
   use mod_neutral_source, only: get_source
 #endif
-#if (JOREK_MODEL == 501 || JOREK_MODEL == 502)
+#ifdef WITH_Impurities
   use mod_injection_source, only: get_source
 #endif
   !$ use omp_lib
@@ -431,10 +431,10 @@ subroutine initialise_particles_marker(particles, node_list, element_list, field
       if (ifail .eq. 0) then
         if (.not. uniform_sampling) then
           ! Obtain the source term value at randomly generated particle position
-#if (JOREK_MODEL == 501 || JOREK_MODEL == 502)
+#ifdef WITH_Impurities
           call get_source(R,Z,phi,source_bg_tmp,source_tmp,m_i_over_m_imp) 
 #endif 
-#if (JOREK_MODEL == 500)
+#ifdef WITH_Neutrals
           call get_source(R,Z,phi,source_tmp) 
 #endif 
           if (present(transform_rej_f)) then
@@ -560,7 +560,7 @@ subroutine initialise_particles_H_mu_psi(particles, fields, rng_base, mass, T_ma
   my_include_vpar = .false.
   if (present(include_vpar)) my_include_vpar = include_vpar
   ! Check if we are in the 3,4,5 series of models
-  if (my_include_vpar .and. .not. (jorek_model .ge. 300 .and. jorek_model .lt. 700)) then
+  if (my_include_vpar .and. .not. with_Vpar) then
     write(*,*) "WARNING: This model, ", jorek_model, "does not support parallel flows, disabling"
     my_include_vpar = .false.
   end if
@@ -773,7 +773,7 @@ subroutine initialise_particles_H_mu_psi(particles, fields, rng_base, mass, T_ma
           temp = T_Maxwell
         else
           temp = P(1)/(2.d0*MU_ZERO*central_density*1.d20*EL_CHG) ! [eV]
-#if (JOREK_MODEL == 400 || JOREK_MODEL == 502)
+#ifdef WITH_TiTe
           temp = temp*2d0 ! P(1) contains the ion temperature in this model, reverse previous correction
 #endif
         endif
@@ -937,7 +937,7 @@ subroutine set_particle_weights_canonical_maxwellian(particles, node_list, eleme
       ! P(1)/(kb mu_zero n_zero) is in [K], multiply by kb/el_chg to go to eV
       T = P(1)/(2.d0*MU_ZERO*central_density*1.d20*EL_CHG) ! [eV] factor 2 is due to
       ! definition of P(1) as ion + electron temperature
-#if (JOREK_MODEL == 400 || JOREK_MODEL == 502)
+#ifdef WITH_TiTe
       T = T*2d0 ! P(1) contains the ion temperature in this model, reverse previous correction
 #endif
       ! Workaround for low-temperature regions
@@ -1144,15 +1144,15 @@ function q_coronal(node_list, element_list, s, t, phi, i_elm, cor, u)
   real*8 :: local_Te, local_Ne, DUMMY_REAL
   real*8 :: q(0:cor%n_Z)
 
-#if (JOREK_MODEL == 400 || JOREK_MODEL == 502)
-   call interp_PRZ(node_list,element_list,i_elm,[5,8],2,s,t,phi,P,P_s,P_t,P_phi,R,R_s,R_t,Z,Z_s,Z_t) ! electron temperature
+#ifdef WITH_TiTe
+   call interp_PRZ(node_list,element_list,i_elm,[var_rho,var_Te],2,s,t,phi,P,P_s,P_t,P_phi,R,R_s,R_t,Z,Z_s,Z_t) ! electron temperature
 #else
-   call interp_PRZ(node_list,element_list,i_elm,[5,6],2,s,t,phi,P,P_s,P_t,P_phi,R,R_s,R_t,Z,Z_s,Z_t) ! electron temperature + ion temperature (assumed equal)
+   call interp_PRZ(node_list,element_list,i_elm,[var_rho,var_T],2,s,t,phi,P,P_s,P_t,P_phi,R,R_s,R_t,Z,Z_s,Z_t) ! electron temperature + ion temperature (assumed equal)
 #endif
 
   local_Ne = P(1) * 1d20                           ! plasma density [1/m^3]
   local_Te = P(2)/(2.d0*MU_ZERO*central_density*1.d20)/K_BOLTZ
-#if (JOREK_MODEL == 400 || JOREK_MODEL == 502)
+#ifdef WITH_TiTe
   local_Te = local_Te*2d0 ! P(1) contains the electron temperature, reverse previous correction
 #endif
 
@@ -1201,7 +1201,7 @@ call MPI_COMM_SIZE(MPI_COMM_WORLD, n_cpu, ifail)
 if (my_id .eq. 0) seed = random_seed()
 call MPI_Bcast(seed, 1, MPI_INTEGER, 0, MPI_COMM_WORLD, ifail)
 
-#if (JOREK_MODEL < 300)
+#ifndef WITH_Vpar
 if (present(v_par) .and. v_par) then
   write(*,*) "ERROR: initialization with v// not possible with this model"
   call MPI_ABORT(-1, MPI_COMM_WORLD, ifail)
@@ -1210,17 +1210,17 @@ end if
 
 do i=1,size(particles)
   if (particles(i)%i_elm .eq. 0) cycle
-#if (JOREK_MODEL == 400 || JOREK_MODEL == 502)
-  call interp_PRZ(node_list,element_list,particles(i)%i_elm,[1,5,n_var,7],4,particles(i)%st(1),particles(i)%st(2),particles(i)%x(3),&
+#ifdef WITH_TiTe
+  call interp_PRZ(node_list,element_list,particles(i)%i_elm,[1,5,var_Te,7],4,particles(i)%st(1),particles(i)%st(2),particles(i)%x(3),&
       P,P_s,P_t,P_phi,R,R_s,R_t,Z,Z_s,Z_t)
 #else
-  call interp_PRZ(node_list,element_list,particles(i)%i_elm,[1,5,6,7],4,particles(i)%st(1),particles(i)%st(2),particles(i)%x(3),&
+  call interp_PRZ(node_list,element_list,particles(i)%i_elm,[1,5,var_T,7],4,particles(i)%st(1),particles(i)%st(2),particles(i)%x(3),&
       P,P_s,P_t,P_phi,R,R_s,R_t,Z,Z_s,Z_t)
 #endif
 
   background_density = P(2) * 1d20                           ! plasma density [1/m^3]
   ! Assume that the particles have the same temperature as the electrons
-#if (JOREK_MODEL == 400 || JOREK_MODEL == 502)
+#ifdef WITH_TiTe
   background_kbT = P(3)/(MU_ZERO*central_density*1.d20)      ! P(1) contains the electron temperature
 #else
   background_kbT = P(3)/(2.d0*MU_ZERO*central_density*1.d20) ! P(1) contains the total plasma temperature in J/kB = T = Te + Ti

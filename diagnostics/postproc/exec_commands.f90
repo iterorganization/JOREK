@@ -20,10 +20,10 @@ module exec_commands
   use mod_interp
   use mod_poloidal_currents 
   use mod_bootstrap_functions
-#if (JOREK_MODEL == 501 || JOREK_MODEL == 502)
+#ifdef WITH_Impurities
   use mod_impurity 
 #endif
-#if (JOREK_MODEL == 500)
+#if (defined WITH_Neutrals) && (!defined WITH_Impurities)
    use mod_neutral_source
 #endif
   
@@ -58,7 +58,7 @@ module exec_commands
   logical,             private, save :: verbose
   logical,             private, save :: debug
   type(t_expr_list),   private, save :: expr_list
-  real*8, allocatable, private, save :: result(:,:,:,:), res2d(:,:,:), res1d(:,:), res0d(:), sum(:)
+  real*8, allocatable, private, save :: result(:,:,:,:), res2d(:,:,:), res1d(:,:), res0d(:), the_sum(:)
   complex*16, allocatable, private, save :: cp(:,:,:,:)
   real*8,              private, save :: time_now !< Time of current restart file in selected units
   
@@ -192,7 +192,7 @@ module exec_commands
           call set_postproc_dir(command, ierr)
         case ( 'namelist' )
           call load_namelist(command, ierr)
-#if (JOREK_MODEL == 500 || JOREK_MODEL == 501 || JOREK_MODEL == 502)
+#if (defined WITH_Neutrals) || (defined WITH_Impurities)
           ! --- Read ADAS data and generate coronal equilibrium is needed
           call init_imp_adas(0)
 #endif
@@ -1492,7 +1492,7 @@ module exec_commands
 
     write(comment,'(a,i6.6)') 'time step #', index_now
 
-    call int_along_pol_lineout(node_list, element_list, ES, units, expr_list, sum, phi, Rstart, Zstart,    &
+    call int_along_pol_lineout(node_list, element_list, ES, units, expr_list, the_sum, phi, Rstart, Zstart,    &
       Rend, Zend, npts, ierr, filename, append=(.not.first_step), comment=trim(comment) )
 
   end subroutine int_along_pol_line
