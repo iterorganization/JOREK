@@ -31,7 +31,7 @@ use mod_impurity, only: init_imp_adas
 
 implicit none
 
-type(event)                                       :: fieldreader, partreader
+type(event)                                       :: fieldreader, partreader, partwriter
 type(pcg32_rng), dimension(:), allocatable        :: rng
 type(count_action)                                :: counter
 type(projection), target                          :: jorek_feedback, project_density
@@ -716,7 +716,9 @@ do while (.not. sim%stop_now)
 ! --- Write a restart file every nout timesteps
   if (mod(index_now,nout) == 0) then
     write(part_fileout,'(A4,i5.5,A3)') 'part',index_now,'.h5'
-    call write_simulation_hdf5(sim, trim(part_fileout))
+    partwriter = event(write_action(filename=trim(part_fileout)))
+    call with(sim, partwriter) 
+    !call write_simulation_hdf5(sim, trim(part_fileout))
   endif
 end do
 
