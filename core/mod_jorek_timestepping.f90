@@ -508,7 +508,7 @@ subroutine do_jorek_timestep(this, sim, ev)
   if ( (gmres .and. (this%iter_gmres .lt. gmres_max_iter)) .or. (.not. gmres) ) then
 
     ! TODO add if use_pellet
-#if (defined WITH Neutrals) || (defined WITH Impurities)
+#if (defined WITH_Neutrals) || (defined WITH_Impurities)
     if (using_spi) then
       n_spi_begin = 1
       do i = 1, n_inj !< Do one update for each injection location
