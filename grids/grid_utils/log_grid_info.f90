@@ -114,4 +114,19 @@ if ( verbose ) then
   write(*,*)
 end if
 
+! --- Write out all nodes
+if ( verbose ) then
+  write(*,*)
+  write(*,*) 'Writing out all node indices to:'
+  write(*,*) trim(DIR) // '/nodes_*' // trim(filename_appendix)
+  write(filename,'(3a)') trim(DIR), '/indices', trim(filename_appendix)
+  open(400, file=filename, status='replace', form='formatted', action='write')
+  do i = 1, node_list%n_nodes
+      write(400,*) node_list%node(i)%index(:)
+      write(400,*)
+      write(400,*)
+  end do
+  close(400)
+end if
+
 end subroutine log_grid_info

@@ -100,6 +100,10 @@ else
   call finish_grid_no_xpoint_no_axis(node_list, element_list, node_list_new, element_list_new, n_grids)
 endif
 
+do i=1,node_list%n_nodes
+  if (node_list%node(i)%boundary .ne. 0) node_list%node(i)%values = 0.d0
+enddo
+
 call export_restart(node_list, element_list, 'jorek_restart')
 
 

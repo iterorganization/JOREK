@@ -31,7 +31,7 @@ real*8              :: R_polar_right(n_wall_block_points_max,4),Z_polar_right(n_
 real*8              :: R_polar_bnd  (n_nodes_max/4,          4),Z_polar_bnd  (n_nodes_max/4,          4)
 real*8              :: R_polar_wall (n_wall_max,             4),Z_polar_wall (n_wall_max,             4)
 integer             :: i, j, k, l, index, i_sep, pieces, i_node, i_node2, count, i_wall
-integer             :: n_tmp, n_start, i_start
+integer             :: n_tmp, n_start, i_start, i_end
 integer             :: i_refine, n_refine, i_save
 real*8              :: s_refine_min, s_refine_max
 real*8              :: s_refine_min_next, s_refine_max_next
@@ -364,7 +364,6 @@ if (attached_side) then
     n_nodes_side = count
   endif
 endif
-
 
 
 
@@ -1002,8 +1001,8 @@ if (attached_side) then
   call create_polar_lines_simple(n_nodes_side, R_seg(1:n_nodes_side,n_nodes), Z_seg(1:n_nodes_side,n_nodes), R_polar_right(1:n_nodes_side-1,1:4) , Z_polar_right(1:n_nodes_side-1,1:4) )
   length_right = 0.d0
   do i=1,n_nodes_side-1
-    call from_polar_to_cubic(R_polar_bnd(i,1:4),R_cub1d)
-    call from_polar_to_cubic(Z_polar_bnd(i,1:4),Z_cub1d)
+    call from_polar_to_cubic(R_polar_right(i,1:4),R_cub1d)
+    call from_polar_to_cubic(Z_polar_right(i,1:4),Z_cub1d)
     call curve_length(R_cub1d(1), R_cub1d(2), R_cub1d(3), R_cub1d(4), &
                       Z_cub1d(1), Z_cub1d(2), Z_cub1d(3), Z_cub1d(4), -1.d0, 1.d0, length)
     length_right = length_right + length
@@ -1289,7 +1288,9 @@ enddo
 ! --- Now we want to get a smooth transition of radial segmentation between the grid and the new extension patch
 i_start = 1
 if (attached) i_start = 2
-do i = i_start,n_nodes
+i_end = n_nodes
+if (attached_side) i_end = n_nodes-1
+do i = i_start,i_end
   ! --- First get the element we have at the bnd
   if (i .le. 2) then
     i_elm = i_elm_save

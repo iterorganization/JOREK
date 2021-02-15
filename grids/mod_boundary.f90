@@ -337,6 +337,15 @@ module mod_boundary
       end do
       close(42)
       
+      write(*,*)
+      write(*,*) 'Writing boundary node indices to the following file:'
+      write(*,*) trim(DIR) // '/boundary_indices' // trim(filename_appendix)
+      open(42, file=trim(DIR) // '/boundary_indices' // trim(filename_appendix), status='replace', action='write')
+      do i = 1, bnd_node_list%n_bnd_nodes
+        write(42,*) node_list%node( bnd_node_list%bnd_node(i)%index_jorek )%index(:)
+      end do
+      close(42)
+      
     end if
 
     write(*,*)
