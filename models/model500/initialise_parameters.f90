@@ -116,7 +116,7 @@ namelist /in1/  tstep, nstep, tstep_n, nstep_n,                     &
                 neutral_reflection, rho_min,                        &
                 ns_sig, ns_deltaphi, ksi_ion, spi_rnd_seed,         &
                 ns_amplitude, ns_R, ns_Z, ns_phi, ns_radius,        &
-                spi_Vel_Rref,spi_Vel_Zref, using_spi, n_spi,        &
+                spi_Vel_Rref,spi_Vel_Zref, using_spi, n_spi, n_inj, &
                 spi_Vel_RxZref, spi_quantity, spi_abl_model,        &
                 ng_radius_ratio, ng_radius_min, spi_angle,          &
                 spi_L_inj, K_Dmv, A_Dmv, L_tube, V_Dmv, P_Dmv,      &
@@ -240,6 +240,19 @@ if ( my_id == 0 ) then
       stop
     end if
   end if
+
+
+  if (n_inj > 10 .or. n_inj < 1) then
+    write(*,*) "ERROR! Do not support n_inj larger than 10 or smaller than 1, EXITING!"
+    stop
+  end if  
+
+  do i = 1, 10
+    if (n_spi(i)/=0 .and. i > n_inj) then
+      write(*,*) "ERROR! Something wrong with n_inj, double check, EXITING!", n_spi, n_inj
+      stop
+    end if
+  end do 
 
   if (using_spi) call init_spi_all()
 

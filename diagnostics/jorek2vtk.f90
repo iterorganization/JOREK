@@ -1309,12 +1309,12 @@ enddo  ! n_elements
    end select
 
    do i=1,nnos
-     if (jorek_model .eq. 502 ) then
-       T_real8 = scalars(i,n_var)
+     if ( with_TiTe ) then
+       T_real8 = scalars(i,var_Te)
        Te_corr_eV = corr_neg_temp(T_real8,(/5.d-1,5.d-1/),max(T_min,Te_1))/(EL_CHG*MU_ZERO*central_density*1.d20)
        Te_eV = T_real8/(EL_CHG*MU_ZERO*central_density*1.d20)
      else
-       T_real8 = scalars(i,6)
+       T_real8 = scalars(i,var_T)
        Te_corr_eV = corr_neg_temp(T_real8,(/5.d-1,5.d-1/),max(2.*T_min,2.*T_1))/(2.d0*EL_CHG*MU_ZERO*central_density*1.d20)
        Te_eV = T_real8/(2.d0*EL_CHG*MU_ZERO*central_density*1.d20)
      endif

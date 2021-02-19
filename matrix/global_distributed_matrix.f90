@@ -75,27 +75,27 @@ module global_distributed_matrix
   
   !> Determine the position of a matrix entry given by its row and column positions (::i_row and
   !! ::j_col) in the sparse matrix structure.
-  integer pure function det_sparse_pos(i_row, j_col, index_min, n_matrix_block_size, ijA_index, ijA_size, irn_jcn)
+  integer(kind=int_all) pure function det_sparse_pos(i_row, j_col, index_min, n_matrix_block_size, ijA_index, ijA_size, irn_jcn)
     
     use mod_integer_types
 
     implicit none
     
     ! --- Routine parameters
-    integer,              intent(in)    :: i_row                   !< Matrix row
-    integer,              intent(in)    :: j_col                   !< Matrix column
-    integer,              intent(in)    :: index_min               !< Smallest block index dealt with by current MPI proc
-    integer,              intent(in)    :: n_matrix_block_size     !< Matrix column
-    integer, allocatable, intent(in)    :: ijA_index(:,:)
-    integer, allocatable, intent(in)    :: ijA_size(:)
-    integer, allocatable, intent(in)    :: irn_jcn(:,:)
+    integer,                            intent(in)    :: i_row                   !< Matrix row
+    integer,                            intent(in)    :: j_col                   !< Matrix column
+    integer,                            intent(in)    :: index_min               !< Smallest block index dealt with by current MPI proc
+    integer(kind=int_all),              intent(in)    :: n_matrix_block_size     !< Matrix column
+    integer(kind=int_all), allocatable, intent(in)    :: ijA_index(:,:)
+    integer(kind=int_all), allocatable, intent(in)    :: ijA_size(:)
+    integer(kind=int_all), allocatable, intent(in)    :: irn_jcn(:,:)
     
     ! --- Local variables
     integer :: i_block, j_block           ! Block indices
     integer :: i_row_block, j_col_block   ! Row and column in the block
     integer :: ij_sparse_block            ! Position of the block in the sparse matrix structure
     integer :: i_block_local              ! Block index at local MPI proc
-    integer :: i
+    integer(kind=int_all) :: i
     
     i_block       = (i_row-1) / n_matrix_block_size + 1
     i_block_local = i_block - index_min + 1
@@ -123,7 +123,7 @@ module global_distributed_matrix
   
   !> Determine the position of a matrix block given by its row and column positions
   !! in the sparse matrix structure.
-  integer pure function det_sparse_pos_block(i_row, j_col, index_min)
+  integer(kind=int_all) pure function det_sparse_pos_block(i_row, j_col, index_min)
     
     implicit none
     
@@ -168,15 +168,15 @@ module global_distributed_matrix
     implicit none
     
     ! --- Routine parameters
-    type(type_node_list),        intent(in)    :: node_list            !< List of grid nodes
-    type(type_bnd_node_list),    intent(in)    :: bnd_node_list        !< List of boundary grid nodes
-    integer,                     intent(in)    :: index_min, index_max !< Responsibility of MPI proc
-    integer,                     intent(in)    :: i_tor_min, i_tor_max !< Toroidal mode numbers 
-    integer, allocatable,        intent(inout) :: irn(:), jcn(:) 
-    integer,                     intent(in)    :: n_matrix_block_size  
-    integer, allocatable,        intent(in)    :: ijA_index(:,:)
-    integer, allocatable,        intent(in)    :: ijA_size(:)
-    integer, allocatable,        intent(in)    :: irn_jcn(:,:)
+    type(type_node_list),               intent(in)    :: node_list            !< List of grid nodes
+    type(type_bnd_node_list),           intent(in)    :: bnd_node_list        !< List of boundary grid nodes
+    integer,                            intent(in)    :: index_min, index_max !< Responsibility of MPI proc
+    integer,                            intent(in)    :: i_tor_min, i_tor_max !< Toroidal mode numbers 
+    integer(kind=int_all), allocatable, intent(inout) :: irn(:), jcn(:) 
+    integer(kind=int_all),              intent(in)    :: n_matrix_block_size  
+    integer(kind=int_all), allocatable, intent(in)    :: ijA_index(:,:)
+    integer(kind=int_all), allocatable, intent(in)    :: ijA_size(:)
+    integer(kind=int_all), allocatable, intent(in)    :: irn_jcn(:,:)
     ! --- Local variables
     integer :: l_node_bnd, l_dof, l_node, l_dir, l_index, l_tor, l_var, l_row
     integer :: j_node_bnd, j_dof, j_node, j_dir, j_index, j_tor, j_var, j_col

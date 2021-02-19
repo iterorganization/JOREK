@@ -476,6 +476,7 @@ endif
     write(*,'(A,e12.4,2f10.5)') ' *** PELLET PARAMETERS : ',pellet_particles, pellet_R, pellet_Z
   endif
 
+#if (defined WITH_Neutrals) || (defined WITH_Impurities)
   if (index_start >= 1) then
     if (allocated(xtime_radiation)) &
       call tr_deallocate(xtime_radiation,"xtime_radiation",CAT_UNKNOWN)
@@ -494,6 +495,7 @@ endif
     call tr_allocate(xtime_E_ion_power,1,index_start+nstep,"xtime_E_ion_power",CAT_UNKNOWN)
     read(21)  xtime_E_ion_power(1:index_start)
   end if
+#endif
 
   if (using_spi) then
     if (n_spi_tot >= 1) then
@@ -1550,6 +1552,7 @@ subroutine import_hdf5_restart(node_list, element_list, filename, format_rst, er
      call HDF5_real_reading(file_id,pellet_particles,"pellet_particles")
   endif
 
+#if (defined WITH_Neutrals) || (defined WITH_Impurities)
   if (index_start >= 1) then
     if (allocated(xtime_radiation)) &
       call tr_deallocate(xtime_radiation,"xtime_radiation",CAT_UNKNOWN)
@@ -1568,6 +1571,7 @@ subroutine import_hdf5_restart(node_list, element_list, filename, format_rst, er
     call tr_allocate(xtime_E_ion_power,1,index_start+nstep,"xtime_E_ion_power",CAT_UNKNOWN)
     call HDF5_array1D_reading(file_id,xtime_E_ion_power,"xtime_E_ion_power")
   end if
+#endif
 
   if (using_spi) then
     if (n_spi_tot >= 1) then

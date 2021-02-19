@@ -344,7 +344,7 @@ subroutine construct_matrix(my_id, MPI_COMM_N, my_id_n, MPI_COMM_MASTER, my_id_m
   integer(kind=int_all), intent(in) :: n
   integer(kind=int_all), intent(in) :: nz
   integer(kind=int_all), intent(in) :: ndof
-  integer,               intent(in) :: n_matrix_block_size
+  integer(kind=int_all), intent(in) :: n_matrix_block_size
   logical,               intent(in) :: harmonic_matrix
   real*8,                intent(inout), allocatable :: A_mat(:)
   real*8,                intent(inout), allocatable :: rhs(:)

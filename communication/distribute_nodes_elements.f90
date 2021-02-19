@@ -1,5 +1,5 @@
 subroutine distribute_nodes_elements(my_id,m_cpu,n_cpu,node_list,element_list, direct_construction, &
-                                    local_elms, n_local_elms, n_dof, index_min, index_max)
+                                    local_elms, n_local_elms, n_dof, index_min, index_max, restart, freeboundary)
 !---------------------------------------------------------------------------------------------
 ! subroutine divides the nodes (not their individual dof) over n_cpu equal parts
 !            builds local_elms, contain all elements with at least one node with 
@@ -20,10 +20,12 @@ integer(kind=int_all) :: n_dof
 integer               :: index_total
 integer               :: inext, i,j, k, iv,index1
 integer               :: index_min(*), index_max(*)
+logical               :: restart, freeboundary
 
 logical :: elm_is_local, direct_construction
 !integer, dimension(node_list%n_nodes) :: active_node
 !integer                               :: n_active_nodes
+integer :: mpi_distr_count, ib, l_index, ik
 
 if (my_id .eq. 0) then 
   if (.not. direct_construction) then
@@ -124,6 +126,26 @@ enddo
 n_local_ELMs = inext
 
 !write(*,'(i4,A,20i8)') my_id,' n_local_elms  : ',n_local_elms,element_list%n_elements
+
+!--------------------- check distribution of boundary nodes 
+mpi_distr_count=0
+if (restart .and. freeboundary) then 
+  do ib = 1, node_list%n_nodes	
+    if ( node_list%node(ib)%boundary > 0 ) then
+      do ik=1, n_order+1
+        l_index = node_list%node(ib)%index(ik)
+          if ((l_index .ge. index_min(my_id+1)) .and. (l_index .le. index_max(my_id+1))) then ! This MPI proc responsible?
+            mpi_distr_count=mpi_distr_count+1
+          end if
+      end do
+    end if
+  end do
+  !write(*,*) 'task ', my_id, 'is responsible for ', mpi_distr_count, 'boundary nodes.'
+  if (mpi_distr_count == 0) then 
+    write(*,*) 'WARNING: boundary node indices seem to be unevenly distributed among the MPI tasks. To avoid this, use freeb_change_indices=.true. from the very beginning of your simulation."'
+  end if 
+end if
+     
 
 
 return
