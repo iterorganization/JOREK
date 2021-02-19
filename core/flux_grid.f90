@@ -49,7 +49,7 @@ subroutine flux_grid(node_list,element_list,bnd_node_list,bnd_elm_list,my_id,fre
          
     end if ! (if xpoint)
 
-    if ( freeboundary .and. freeb_change_indices .and. (my_id == 0)) call exchange_indices_for_vacuum(node_list, my_id)
+    if ( freeboundary .or. freeb_change_indices .and. (my_id == 0)) call exchange_indices_for_vacuum(node_list, my_id)
 
     ! --- Determine boundary information from the grid
     call boundary_from_grid(node_list, element_list, bnd_node_list, bnd_elm_list, .false.) 

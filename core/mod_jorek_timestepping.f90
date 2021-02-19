@@ -248,8 +248,9 @@ subroutine setup_solvers(this, sim)
   !
   ! Construct index_min, index_max and local_elems
   !
-  call distribute_nodes_elements(id_elements,this%n_cpu_n,index_size,sim%fields%node_list,sim%fields%element_list, .false., &
-                                 this%local_elms, this%n_local_elms, ndof_glob, this%index_min, this%index_max)
+  call distribute_nodes_elements(id_elements,this%n_cpu_n,index_size,sim%fields%node_list,sim%fields%element_list,&
+                                 .false., this%local_elms, this%n_local_elms, ndof_glob, this%index_min,          &
+                                 this%index_max, restart, freeboundary)
                         
   sim%fields%node_list%n_dof = ndof_glob
   

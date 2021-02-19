@@ -38,7 +38,7 @@ subroutine initial_grid(node_list,element_list,bnd_node_list,bnd_elm_list)
     stop
   end if 
   
-  if ( freeboundary .and. freeb_change_indices ) call exchange_indices_for_vacuum(node_list, 0) ! typically call this
+  if ( freeboundary .or. freeb_change_indices ) call exchange_indices_for_vacuum(node_list, 0) ! typically call this
   ! routine from my_id 0 only
   
   ! --- Determine boundary information from the grid
