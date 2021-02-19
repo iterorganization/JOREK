@@ -652,8 +652,8 @@ do ms=1, n_gauss
        deta_dT_ohm   = ( - eta_ohmic   * (1.5d0)  * Te0_corr**(-2.5d0) * Te_0**(1.5d0) ) * dTe0_corr_dT
        deta_dr0_ohm  = 0.
        deta_drn0_ohm = 0.
-     else if (eta_T_dependent .and. T0_corr > T_max_eta_ohm) then
-       eta_T_ohm     = eta_ohmic   * (T_max_eta_ohm/T_0)**(-1.5d0)
+     else if (eta_T_dependent .and. Te0_corr > T_max_eta_ohm) then
+       eta_T_ohm     = eta_ohmic   * (T_max_eta_ohm/Te_0)**(-1.5d0)
        deta_dT_ohm   = 0.
        deta_dr0_ohm  = 0.
        deta_drn0_ohm = 0.
