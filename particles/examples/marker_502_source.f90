@@ -495,7 +495,8 @@ do while (.not. sim%stop_now)
         allocate(P_tmp(0:sim%groups(1)%ad%n_Z))
         do iZ = 0,sim%groups(1)%ad%n_Z
 
-          Lrad     = get_Lz(sim, 1, iZ, n_e, T_e)
+          Lrad = 0.d0
+          if (T_eV > 1.) Lrad     = get_Lz(sim, 1, iZ, n_e, T_e)
           rad_sink = rad_sink + particles(j)%P_imp(iZ) * real(particles(j)%weight,8) * Lrad * timesteps
 
           if (iZ .eq. 0) then

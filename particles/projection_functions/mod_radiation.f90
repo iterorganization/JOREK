@@ -129,6 +129,44 @@ function get_Lz(sim, group, iz, n_e, T_e, n_n)
 #endif
 end function get_Lz
 
+function get_PRB(sim, group, iz, n_e, T_e, n_n)
+  type(particle_sim), intent(in) :: sim
+  integer, intent(in) :: group
+  integer, intent(in) :: iz
+  real*8, intent(in)  :: n_e, T_e
+  real*8, intent(in), optional :: n_n
+  real*8 :: get_PRB
+  real*8 :: log_T_e, log_n_e
+  real*8 :: prb
+  integer :: q
+
+  log_T_e = log10(T_e)
+  log_n_e = log10(n_e)
+
+  ! From here on out we have a q
+  call sim%groups(group)%ad%PRB%interp_linear(iz, log_n_e, log_T_e, prb)
+  get_PRB     = prb * n_e
+end function get_PRB
+
+function get_PLT(sim, group, iz, n_e, T_e, n_n)
+  type(particle_sim), intent(in) :: sim
+  integer, intent(in) :: group
+  integer, intent(in) :: iz
+  real*8, intent(in)  :: n_e, T_e
+  real*8, intent(in), optional :: n_n
+  real*8 :: get_PRB
+  real*8 :: log_T_e, log_n_e
+  real*8 :: plt
+  integer :: q
+
+  log_T_e = log10(T_e)
+  log_n_e = log10(n_e)
+
+  ! From here on out we have a q
+  call sim%groups(group)%ad%PLT%interp_linear(iz, log_n_e, log_T_e, plt)
+  get_PLT     = plt * n_e
+end function get_PLT
+
 !> Project the particle radiated power density L_z (W/atom) in the equilibrium
 !> calculation without neutrals
 function proj_Lz_equil(sim, group, particle) result(P_rad)
