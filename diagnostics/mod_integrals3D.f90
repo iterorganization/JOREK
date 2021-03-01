@@ -1136,6 +1136,23 @@ do m_bndelem = 1, bnd_elm_list%n_bnd_elements
 #endif
 
 #ifdef WITH_Impurities
+      !-------------------------------------------
+      ! Atomic physics parameters for Impurities
+      !-------------------------------------------
+
+      select case ( trim(imp_type) )
+        case('D2')
+          m_i_over_m_imp = central_mass/2.  ! Deuterium mass = 2 u
+        case('Ar')
+          m_i_over_m_imp = central_mass/40. ! Argon mass = 40 u
+        case('Ne')
+          m_i_over_m_imp = central_mass/20. ! Neon mass = 20 u
+        case default
+          write(*,*) '!! Gas type "', trim(imp_type), '" unknown (in mod_injection_source.f90) !!'
+          write(*,*) '=> We assume the gas is D2.'
+          m_i_over_m_imp = central_mass/2.
+      end select
+
       T0e_corr = corr_neg_temp1(T0e)
       dT0e_corr_dT = dcorr_neg_temp_dT(T0e,(/5.d-1,5.d-1/),T_min)
       Te_corr_eV = T0e_corr/(EL_CHG*MU_ZERO*central_density*1.d20)
