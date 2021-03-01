@@ -441,54 +441,6 @@ do while (.not. sim%stop_now)
         Z_eff = real(particles(j)%weight,8) * dot_product(particles(j)%P_imp,(P_Z**2)) * timesteps
         N_imp = real(particles(j)%weight,8) * timesteps 
 
-!        ! Do the particle radiation
-!        ! We take away the n_rho here since it is not really the electron density
-!        Lrad = proj_Lz(sim ,1, particles(j))
-!        rad_sink = real(particles(j)%weight,8) * Lrad * timesteps / n_rho
-!        E_lost_rad = E_lost_rad + real(particles(j)%weight,8) * Lrad * timesteps
-!
-        ! Do the ionization and recombination
-!        if (particles(j)%q .eq. 0) then
-!          call sim%groups(1)%ad%SCD%interp_linear(int(particles(j)%q), log10(n_rho), log10(T_e), ion_rate) ! [m^3/s]
-!          rec_rate = 0.
-!        elseif(particles(j)%q .eq. sim%groups(1)%ad%n_Z) then
-!          call sim%groups(1)%ad%ACD%interp_linear(int(particles(j)%q), log10(n_rho), log10(T_e), rec_rate) ! [m^3/s]
-!          ion_rate = 0.
-!        else             
-!          call sim%groups(1)%ad%SCD%interp_linear(int(particles(j)%q), log10(n_rho), log10(T_e), ion_rate) ! [m^3/s]
-!          call sim%groups(1)%ad%ACD%interp_linear(int(particles(j)%q), log10(n_rho), log10(T_e), rec_rate) ! [m^3/s]
-!        endif
-
-!        ion_prob = 1.d0 - exp(-(ion_rate+rec_rate) * n_rho * timesteps) ! [0] poisson point process, exponential 
-!
-!        ! If the weight is small ionize the particle with the probability, else stop the code
-!
-!        if (particles(j)%weight .le. 1.0d7) then
-!
-!          call rng(i_rng)%next(ion_rec_ran)
-!
-!          ! Take ionization energy from the electron when ionizing, give the ionization energy back to be
-!          ! cancelled with the recombination radiation power density to avoid double counting.
-!          if (ion_rec_ran(1) .le. ion_prob) then
-!            if ((ion_rec_ran(2) .le. (ion_rate/(ion_rate+rec_rate))) .and. (ion_rec_ran(2) .ne. 0.d0)) then
-!              particles(j)%q  = particles(j)%q + 1
-!              ion_source = real(particles(j)%weight,8)
-!              dEion_dt = ion_source * sim%groups(1)%ad%ionisation_energy(int(particles(j)%q))
-!            else
-!              particles(j)%q  = particles(j)%q - 1
-!              ion_source = -real(particles(j)%weight,8)
-!              dEion_dt = ion_source * sim%groups(1)%ad%ionisation_energy(int(particles(j)%q+1))
-!            endif
-!          endif
-!          
-!          dEion_dt = dEion_dt * EL_CHG ! Convert from eV to Joule
-!          E_lost_ion = E_lost_ion + dEion_dt ! Accumulated ionization energy
-!
-!        else 
-!          write(*,*) "The particle weight is too large! Not supported for now, EXITING!!!"
-!          stop
-!        endif 
-
         dEion_dt = 0.0
         rad_sink = 0.0
         if (allocated(P_tmp)) deallocate(P_tmp)
@@ -514,9 +466,9 @@ do while (.not. sim%stop_now)
             P_tmp(iZ) = particles(j)%P_imp(iZ) * (1.-P_rcb(1)*n_e*timesteps) &
                         + particles(j)%P_imp(iZ-1) * P_ion(2)*n_e*timesteps
             P_tmp(iZ) = max(P_tmp(iZ), 0.0)
-            dEion_dt  = dEion_dt &
-                        + real(particles(j)%weight,8)*n_e*timesteps*sim%groups(1)%ad%ionisation_energy(iZ)&
-                            * (-particles(j)%P_imp(iZ)*P_rcb(1) + particles(j)%P_imp(iZ-1)*P_ion(2))
+            !dEion_dt  = dEion_dt &
+            !            + real(particles(j)%weight,8)*n_e*timesteps*sim%groups(1)%ad%ionisation_energy(iZ)&
+            !                * (-particles(j)%P_imp(iZ)*P_rcb(1) + particles(j)%P_imp(iZ-1)*P_ion(2))
           else
             call sim%groups(1)%ad%SCD%interp_linear(iZ,   log10(n_e), log10(T_e), P_ion(1))
             call sim%groups(1)%ad%ACD%interp_linear(iZ,   log10(n_e), log10(T_e), P_rcb(1))
@@ -528,9 +480,9 @@ do while (.not. sim%stop_now)
             P_tmp(iZ) = max(P_tmp(iZ), 0.0)
             dEion_dt  = dEion_dt &
                         + real(particles(j)%weight,8)*n_e*timesteps*sim%groups(1)%ad%ionisation_energy(iZ+1)&
-                            * (particles(j)%P_imp(iZ)*P_ion(1) - particles(j)%P_imp(iZ+1)*P_rcb(2))           &
-                        + real(particles(j)%weight,8)*n_e*timesteps*sim%groups(1)%ad%ionisation_energy(iZ)&
-                            * (-particles(j)%P_imp(iZ)*P_rcb(1) + particles(j)%P_imp(iZ-1)*P_ion(2))
+                            * (particles(j)%P_imp(iZ)*P_ion(1) - particles(j)%P_imp(iZ+1)*P_rcb(2))           !&
+            !            + real(particles(j)%weight,8)*n_e*timesteps*sim%groups(1)%ad%ionisation_energy(iZ)&
+            !                * (-particles(j)%P_imp(iZ)*P_rcb(1) + particles(j)%P_imp(iZ-1)*P_ion(2))
           endif
 
         enddo !iZ
