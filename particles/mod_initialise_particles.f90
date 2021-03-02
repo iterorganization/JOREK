@@ -447,6 +447,8 @@ subroutine initialise_particles_marker(particles, node_list, element_list, field
                 call fields%calc_VBpsiU(time, pa%i_elm, pa%st, pa%x(3), V, B, psi, U)
                 pa%V_prev   = V
                 pa%weight   = real(phys_source*timesteps/real(n_particle_asn,8),4)
+                pa%P_imp    = 0.
+                pa%P_imp(0) = 1.
               end select
               not_found(i) = .false.
               particles(j)%i_life = particles(j)%i_life +1
@@ -464,6 +466,8 @@ subroutine initialise_particles_marker(particles, node_list, element_list, field
             call fields%calc_VBpsiU(time, pa%i_elm, pa%st, pa%x(3), V, B, psi, U)
             pa%V_prev   = V
             pa%weight   = real(phys_source*timesteps/real(n_particle_asn,8),4)
+            pa%P_imp    = 0.
+            pa%P_imp(0) = 1.
           end select
           not_found(i) = .false.
           particles(j)%i_life = particles(j)%i_life +1
