@@ -473,9 +473,9 @@ do while (.not. sim%stop_now)
             call sim%groups(1)%ad%ACD%interp_linear(iZ+1, log10(n_e), log10(T_e), P_rcb(2))
             P_tmp(iZ) = particles(j)%P_imp(iZ) * (1.- P_ion(1)*n_e*timesteps) &
                         + particles(j)%P_imp(iZ+1) *  P_rcb(2)*n_e*timesteps
-            !dEion_dt  = dEion_dt &
-            !            + real(particles(j)%weight,8)*n_e*timesteps*sim%groups(1)%ad%ionisation_energy(iZ+1)&
-            !                * (particles(j)%P_imp(iZ)*P_ion(1) - particles(j)%P_imp(iZ+1)*P_rcb(2))
+            dEion_dt  = dEion_dt &
+                        + real(particles(j)%weight,8)*n_e*timesteps*sim%groups(1)%ad%ionisation_energy(iZ+1)&
+                            * (particles(j)%P_imp(iZ)*P_ion(1) - particles(j)%P_imp(iZ+1)*P_rcb(2))
             P_tmp(iZ) = max(P_tmp(iZ), 0.0)
           elseif (iZ .eq. sim%groups(1)%ad%n_Z) then
             call sim%groups(1)%ad%SCD%interp_linear(iZ-1, log10(n_e), log10(T_e), P_ion(2))
@@ -495,19 +495,12 @@ do while (.not. sim%stop_now)
                         + particles(j)%P_imp(iZ+1) * P_rcb(2)*n_e*timesteps           &
                         + particles(j)%P_imp(iZ-1) * P_ion(2)*n_e*timesteps
             P_tmp(iZ) = max(P_tmp(iZ), 0.0)
-            !dEion_dt  = dEion_dt &
-            !            + real(particles(j)%weight,8)*n_e*timesteps*sim%groups(1)%ad%ionisation_energy(iZ+1)&
-            !                * (particles(j)%P_imp(iZ)*P_ion(1) - particles(j)%P_imp(iZ+1)*P_rcb(2))           !&
+            dEion_dt  = dEion_dt &
+                        + real(particles(j)%weight,8)*n_e*timesteps*sim%groups(1)%ad%ionisation_energy(iZ+1)&
+                            * (particles(j)%P_imp(iZ)*P_ion(1) - particles(j)%P_imp(iZ+1)*P_rcb(2))           !&
             !            + real(particles(j)%weight,8)*n_e*timesteps*sim%groups(1)%ad%ionisation_energy(iZ)&
             !                * (-particles(j)%P_imp(iZ)*P_rcb(1) + particles(j)%P_imp(iZ-1)*P_ion(2))
           endif
-
-          if (iZ > 0) then
-            dEion_dt  = dEion_dt &
-                        + real(particles(j)%weight,8) * sim%groups(1)%ad%ionisation_energy(iZ) &
-                          * (P_tmp(iZ) - particles(j)%P_imp(iZ))
-          endif
-
         enddo !iZ
         P_tmp = P_tmp / sum(P_tmp)
         particles(j)%P_imp = P_tmp
