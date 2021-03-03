@@ -637,6 +637,8 @@ do while (.not. sim%stop_now)
     end if
     if (use_marker) xtime_E_ion_power(index_now+1) = E_lost_ion_all / (real(n_steps,8) * timesteps)
 
+    if (use_marker) xtime_Ne_imp(index_now+1) = Ne_tot_all / (real(n_steps,8) * timesteps)
+
   endif
 !==================================================
 

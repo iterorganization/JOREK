@@ -84,6 +84,10 @@ module mod_impurity
     if (nstep .gt. 0) call tr_allocate(xtime_E_ion,1,nstep,"xtime_E_ion")
     if (allocated(xtime_E_ion_power)) call tr_deallocate(xtime_E_ion_power,"xtime_E_ion_power",CAT_GRID)
     if (nstep .gt. 0) call tr_allocate(xtime_E_ion_power,1,nstep,"xtime_E_ion_power")
+    if (use_marker) then
+      if (allocated(xtime_Ne_imp)) call tr_deallocate(xtime_Ne_imp,"xtime_Ne_imp",CAT_GRID)
+      if (nstep .gt. 0) call tr_allocate(xtime_Ne_imp,1,nstep,"xtime_Ne_imp")
+    endif
 
   end subroutine init_imp_adas
 
