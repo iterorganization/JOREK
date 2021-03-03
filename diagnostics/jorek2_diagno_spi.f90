@@ -130,7 +130,7 @@ close(20)
 if (use_marker) then
   open(20,file="Ne_imp_history.dat")
   
-  write(20,'(2A20)') 'time', 'Electron number'
+  write(20,'(A20)') 'time', 'Electron number'
 
   do i=1,index_start
     write(20,'(i7,f12.3,e14.6)') i,xtime(i), xtime_Ne_imp
