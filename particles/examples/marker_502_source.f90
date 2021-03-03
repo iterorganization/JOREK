@@ -234,6 +234,8 @@ real*8    :: particles_remaining, momentum_remaining, energy_remaining, all_part
 
 real*8, dimension(3) :: P, P_s, P_t, P_phi
 
+real*8    :: Ne_tot, Ne_tot_all
+
 real*8, allocatable :: P_Z(:), P_tmp(:) ! Real for purpose
 real*8    :: P_ion(2), P_rcb(2)
 integer   :: n_particles_add_local
@@ -348,6 +350,9 @@ do while (.not. sim%stop_now)
   E_lost_rad = 0.d0
   E_lost_rad_all = 0.d0
 
+  Ne_tot     = 0.0
+  Ne_tot_all = 0.0
+
   ! Get the total ablation amount within each time step for rejection sampling, then the probability at
   ! each position with source_imp density source is simply:
   ! source_imp * (real(n_steps,8) * timesteps) * xjac * BigR * wst * delta_phi divided by
@@ -413,7 +418,7 @@ do while (.not. sim%stop_now)
     !$omp P, P_s, P_t, P_phi, n_imp_tmp, Z_imp_tmp,                                         &
     !$omp ifail, CX_rate, CX_prob, CX_source, CX_energy, v_1, v_2, v_3, v_4, v_5,           &
     !$omp particle_source, velocity_par_source, energy_source, v_temp, K_eV, T_eV, cx_ran)  &
-    !$omp reduction(+:feedback_rhs, E_lost_ion, E_lost_rad)
+    !$omp reduction(+:feedback_rhs, E_lost_ion, E_lost_rad, Ne_tot)
     do j=1,size(particles,1)
 
 !      i_rng = 1
@@ -508,6 +513,7 @@ do while (.not. sim%stop_now)
         E_lost_ion = E_lost_ion + dEion_dt
         E_lost_rad = E_lost_rad + rad_sink
         !rad_sink   = rad_sink / n_e
+        Ne_tot     = Ne_tot + Z_imp
 
         kinetic_energy = dot_product(particles(j)%V_prev,particles(j)%V_prev) *sim%groups(1)%mass * ATOMIC_MASS_UNIT /2.d0
 
@@ -606,10 +612,12 @@ do while (.not. sim%stop_now)
 
   call MPI_AllReduce(E_lost_ion,E_lost_ion_all,1,MPI_DOUBLE_PRECISION,MPI_SUM,MPI_COMM_WORLD,ierr)
   call MPI_AllReduce(E_lost_rad,E_lost_rad_all,1,MPI_DOUBLE_PRECISION,MPI_SUM,MPI_COMM_WORLD,ierr)
+  call MPI_AllReduce(    Ne_tot,    Ne_tot_all,1,MPI_DOUBLE_PRECISION,MPI_SUM,MPI_COMM_WORLD,ierr)
 
 !==============Diagnostics!========================
   if (sim%my_id .eq. 0) write(*,*) " Lost energy at t due to ionisation: ", index_now+1, sim%time, E_lost_ion_all
   if (sim%my_id .eq. 0) write(*,*) " Lost energy at t due to radiation: ", index_now+1, sim%time, E_lost_rad_all
+  if (sim%my_id .eq. 0) write(*,*) " Total generated electrons: ", index_now+1, sim%time, Ne_tot_all / (real(n_steps,8) * timesteps)
 
   if (sim%my_id .eq. 0) then
 
