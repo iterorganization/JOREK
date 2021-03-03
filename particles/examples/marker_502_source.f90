@@ -17,7 +17,7 @@ use phys_module, only: n_particles, nstep_particles, nsubstep_particles, tstep_p
 use phys_module, only: filter_perp, filter_hyper, filter_par, filter_perp_n0, filter_hyper_n0, filter_par_n0
 use phys_module, only: tstep, imp_type, imp_adas, imp_cor, adas_dir, use_marker, restart_particles, index_now
 use phys_module, only: nout, R_geo, using_spi, spi_quantity, xtime_radiation, xtime_rad_power
-use phys_module, only: xtime_e_ion, xtime_e_ion_power
+use phys_module, only: xtime_E_ion, xtime_E_ion_power, xtime_Ne_imp
 use phys_module, only: CENTRAL_MASS, CENTRAL_DENSITY
 use mod_parameters, only: n_plane
 use constants,   only: MU_ZERO, MASS_PROTON, ATOMIC_MASS_UNIT, K_BOLTZ, EL_CHG, PI, TWOPI
@@ -311,6 +311,9 @@ if (sim%my_id .eq. 0) then
   if (index_now > 0 .and. use_marker) then
     xtime_E_ion_power(index_now) = 0.
   end if
+  if (index_now > 0 .and. use_marker) then
+    xtime_Ne_imp(index_now) = 0.
+  end if
 
 endif
 
@@ -440,7 +443,7 @@ do while (.not. sim%stop_now)
 
         call interp_PRZ(aux_node_list,element_list,particles(j)%i_elm,[4,5],2,particles(j)%st(1),&
                         particles(j)%st(2), particles(j)%x(3), P,P_s,P_t,P_phi,R_g,R_s,R_t,Z_g,Z_s,Z_t)
-•••••••••
+
         Z_imp_tmp = P(1)
         n_imp_tmp = P(2)
         n_imp_tmp = corr_neg_dens(n_imp_tmp, (/ 1.d-1, 1.d-1 /),1.d-3)
