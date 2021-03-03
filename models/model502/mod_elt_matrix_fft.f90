@@ -992,6 +992,8 @@ do ms=1, n_gauss
          dZ_eff_imp_dT = dZ_eff_imp_dT + dP_imp_dT(ion_i) * real(ion_i,8)**2 ! Its temperature gradient
        end do
        Z_eff        = Z_eff / ne_JOREK
+       if (Z_eff < 1.) Z_eff = 1.
+       if (Z_eff > (imp_adas(1)%n_Z)**2) Z_eff = (imp_adas(1)%n_Z)**2
   
        ! Then three(!) gradients
        if (Z_eff >= 1.) then
