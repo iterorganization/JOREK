@@ -133,7 +133,7 @@ if (use_marker) then
   write(20,'(A20)') 'time', 'Electron number'
 
   do i=1,index_start
-    write(20,'(i7,f12.3,e14.6)') i,xtime(i), xtime_Ne_imp
+    write(20,'(i7,f12.3,e14.6)') i,xtime(i), xtime_Ne_imp(i)
   enddo
   close(20)
 endif
