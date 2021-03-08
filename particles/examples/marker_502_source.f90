@@ -237,6 +237,7 @@ real*8, dimension(3) :: P, P_s, P_t, P_phi
 real*8    :: Ne_tot, Ne_tot_all
 
 real*8, allocatable :: P_Z(:), P_tmp(:) ! Real for purpose
+real*8, allocatable :: E_ion_tot(:)
 real*8    :: P_ion(2), P_rcb(2)
 integer   :: n_particles_add_local
 
@@ -256,6 +257,12 @@ do iZ=0,sim%groups(1)%ad%n_Z
   P_Z(iZ) = real(iZ,8)
 end do
 P_ion = 0.; P_rcb = 0.
+
+if (.not.(allocated(E_ion_tot))) allocate(E_ion_tot(0:sim%groups(1)%ad%n_Z))
+E_ion_tot = 0.0
+do iZ=1,sim%groups(1)%ad%n_Z
+  E_ion_tot(iZ) = E_ion_tot(iZ-1) + sim%groups(1)%ad%ionisation_energy(iZ) 
+end do
 
 particle_source = 0.0
 velocity_par_source = 0.0
@@ -411,7 +418,7 @@ do while (.not. sim%stop_now)
 #else
     !$omp shared(sim, particles, n_particles, n_steps, timesteps, rng, particle_start_time, &
 #endif
-    !$omp rho_norm, t_norm, v_norm, E_norm, M_norm, N_norm, P_Z, &
+    !$omp rho_norm, t_norm, v_norm, E_norm, M_norm, N_norm, P_Z, E_ion_tot,                 &
     !$omp use_ncs, use_marker, n_particles_add_local,                                       &
     !$omp CENTRAL_DENSITY, CENTRAL_MASS)                    &
     !$omp private(i_rng, i,j,k,l,m, t, E, B, psi, U, rz_old, st_old, P_ion, P_rcb, iZ, P_tmp,&
@@ -481,9 +488,9 @@ do while (.not. sim%stop_now)
             call sim%groups(1)%ad%ACD%interp_linear(iZ+1, log10(n_e), log10(T_e), P_rcb(2))
             P_tmp(iZ) = particles(j)%P_imp(iZ) * (1.- P_ion(1)*n_e*timesteps) &
                         + particles(j)%P_imp(iZ+1) *  P_rcb(2)*n_e*timesteps
-            dEion_dt  = dEion_dt &
-                        + real(particles(j)%weight,8)*n_e*timesteps*sim%groups(1)%ad%ionisation_energy(iZ+1)&
-                            * (particles(j)%P_imp(iZ)*P_ion(1) - particles(j)%P_imp(iZ+1)*P_rcb(2))
+            !dEion_dt  = dEion_dt &
+            !            + real(particles(j)%weight,8)*n_e*timesteps*sim%groups(1)%ad%ionisation_energy(iZ+1)&
+            !                * (particles(j)%P_imp(iZ)*P_ion(1) - particles(j)%P_imp(iZ+1)*P_rcb(2))
             P_tmp(iZ) = max(P_tmp(iZ), 0.0)
           elseif (iZ .eq. sim%groups(1)%ad%n_Z) then
             call sim%groups(1)%ad%SCD%interp_linear(iZ-1, log10(n_e), log10(T_e), P_ion(2))
@@ -503,12 +510,15 @@ do while (.not. sim%stop_now)
                         + particles(j)%P_imp(iZ+1) * P_rcb(2)*n_e*timesteps           &
                         + particles(j)%P_imp(iZ-1) * P_ion(2)*n_e*timesteps
             P_tmp(iZ) = max(P_tmp(iZ), 0.0)
-            dEion_dt  = dEion_dt &
-                        + real(particles(j)%weight,8)*n_e*timesteps*sim%groups(1)%ad%ionisation_energy(iZ+1)&
-                            * (particles(j)%P_imp(iZ)*P_ion(1) - particles(j)%P_imp(iZ+1)*P_rcb(2))           !&
+            !dEion_dt  = dEion_dt &
+            !            + real(particles(j)%weight,8)*n_e*timesteps*sim%groups(1)%ad%ionisation_energy(iZ+1)&
+            !                * (particles(j)%P_imp(iZ)*P_ion(1) - particles(j)%P_imp(iZ+1)*P_rcb(2))           !&
             !            + real(particles(j)%weight,8)*n_e*timesteps*sim%groups(1)%ad%ionisation_energy(iZ)&
             !                * (-particles(j)%P_imp(iZ)*P_rcb(1) + particles(j)%P_imp(iZ-1)*P_ion(2))
           endif
+
+          dEion_dt = dEion_dt + (P_tmp(iZ) - particles(j)%P_imp(iZ)) * E_ion_tot(iZ)
+
         enddo !iZ
         P_tmp = P_tmp / sum(P_tmp)
         particles(j)%P_imp = P_tmp
