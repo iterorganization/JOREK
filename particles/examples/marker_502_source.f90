@@ -517,7 +517,7 @@ do while (.not. sim%stop_now)
             !                * (-particles(j)%P_imp(iZ)*P_rcb(1) + particles(j)%P_imp(iZ-1)*P_ion(2))
           endif
 
-          dEion_dt = dEion_dt + (P_tmp(iZ) - particles(j)%P_imp(iZ)) * E_ion_tot(iZ)
+          dEion_dt = dEion_dt + (P_tmp(iZ) - particles(j)%P_imp(iZ)) * E_ion_tot(iZ) * real(particles(j)%weight,8)
 
         enddo !iZ
         P_tmp = P_tmp / sum(P_tmp)
