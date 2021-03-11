@@ -42,7 +42,7 @@ psi_n = max( min(psi_n, 2.), 0. )
 !endif
 
 ! --- Profile as a function of Psi_N.
-if ( .not. num_rho ) then ! use analytical representation
+if ( .not. num_rhon ) then ! use analytical representation
   
   prof0        = (rhon_0-rhon_1)*(1.d0 + rhon_coef(1) * psi_n + rhon_coef(2) * psi_n**2 + rhon_coef(3) * psi_n**3)
   dprof0_dpsi  = (rhon_0-rhon_1)*(rhon_coef(1) + 2.d0 * rhon_coef(2) * psi_n + 3.d0 * rhon_coef(3) * psi_n**2) / delta_psi

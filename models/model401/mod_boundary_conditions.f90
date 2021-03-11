@@ -477,7 +477,7 @@ do i=1, n_local_elms !=== do elements
 
           cs0      =   sqrt(gamma*(T0i+T0e))
           cs0_T    =   0.5d0  * gamma    / cs0
-          cs0_TT   = - 0.25d0 * gamma**2 / cs0**2 
+          cs0_TT   = - 0.25d0 * gamma**2 / cs0**3 
 
           bn     = dot_product( (/ps0_y,-ps0_x/), normal ) /  (BigR*Btot)  ! B�n/Btot
           bn_b   = 1.d0 / (Btot*dl*BigR) * (ps0_bb - ps0_b * dl_b /dl )
@@ -542,7 +542,7 @@ do i=1, n_local_elms !=== do elements
 
           call boundary_conditions_add_one_entry(             &
                index_node,  kv, in, index_node2, ku, in,      &
-               - zbig * factor * BigR**2 * element_size_0 / ps0_b,   &
+               - zbig * factor * BigR**2 * element_size_0 / ps0_b / Btot,   &
                solve_only, gmres, index_min, index_max,       & 
                ijA_index, ijA_size, irn_jcn, irn, jcn, A_mat, i_tor_min, i_tor_max)
 
