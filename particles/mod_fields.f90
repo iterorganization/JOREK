@@ -270,7 +270,7 @@ T_norm = (1.d0/K_BOLTZ/(2.d0*MU_ZERO*central_density*1.d20))
 #ifdef WITH_TiTe
 T_norm = T_norm*2.d0 ! P(1) contains the electron temperature, reverse previous correction
 #endif
-T_e = max(P(2)*T_norm, 1.d0) ! temperature capped against going negative
+T_e = max(P(2)*T_norm, 1.d4) ! temperature capped against going negative
 
 if (present(grad_T_e)) then
 
