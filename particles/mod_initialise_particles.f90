@@ -419,10 +419,10 @@ subroutine initialise_particles_marker(particles, node_list, element_list, field
     !$omp do
     do i=1,size(i_to_find,1)
       j = i_to_find(i)
-      if ((particles(j)%i_life .ne. 0) .and. not_found(i)) then
-        write(*,*) "ERROR: SOMETHING WRONG when assigning the particles", particles(j)%i_life, not_found(i)
-        call exit(1)
-      endif
+      !if ((particles(j)%i_life .ne. 0) .and. not_found(i)) then
+      !  write(*,*) "ERROR: SOMETHING WRONG when assigning the particles", particles(j)%i_life, not_found(i)
+      !  call exit(1)
+      !endif
       ! Generate a random position to put this particle
       call rngs(i_thread)%next(ran)
       call transform_uniform_cylindrical(ran(1:3), Rbox, Zbox, PhiBox, R, Z, phi)
