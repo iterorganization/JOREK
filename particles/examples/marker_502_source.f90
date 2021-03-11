@@ -516,11 +516,12 @@ do while (.not. sim%stop_now)
             !            + real(particles(j)%weight,8)*n_e*timesteps*sim%groups(1)%ad%ionisation_energy(iZ)&
             !                * (-particles(j)%P_imp(iZ)*P_rcb(1) + particles(j)%P_imp(iZ-1)*P_ion(2))
           endif
-
-          dEion_dt = dEion_dt + (P_tmp(iZ) - particles(j)%P_imp(iZ)) * E_ion_tot(iZ) * real(particles(j)%weight,8)
-
         enddo !iZ
+
         P_tmp = P_tmp / sum(P_tmp)
+        do iZ = 0,sim%groups(1)%ad%n_Z
+          dEion_dt = dEion_dt + (P_tmp(iZ) - particles(j)%P_imp(iZ)) * E_ion_tot(iZ) * real(particles(j)%weight,8)
+        enddo
         particles(j)%P_imp = P_tmp
         dEion_dt = dEion_dt * EL_CHG ! Turn from eV to Joule
         E_lost_ion = E_lost_ion + dEion_dt
