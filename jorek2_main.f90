@@ -1013,7 +1013,7 @@ required = 0
       ! ... in the first step of a simulation (also when restarting)
       ! ... when tstep changes
       ! ... when the previous time steps took too many iterations
-      solve_only = (istep > 1) .and. ((iter_gmres+iter_prev <= 2*iter_precon) .or. (n_since_update > max_steps_noUpdate))
+      solve_only = (istep > 1) .and. ((iter_gmres+iter_prev <= 2*iter_precon) .and. (n_since_update < max_steps_noUpdate))
       if (solve_only) then 
         n_since_update = n_since_update + 1
       else
