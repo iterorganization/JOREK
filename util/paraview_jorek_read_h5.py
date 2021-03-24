@@ -112,6 +112,8 @@ def RequestData(self):
         if (T_e): to_read.append(7)
     if self.model >= 500 and self.model < 600:
         if (rho_n): to_read.append(7)
+    if self.model == 712:
+        if (rho_n): to_read.append(7)
 
 
 

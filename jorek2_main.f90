@@ -76,13 +76,7 @@ program JOREK2
   use matio_module, only: timestamp
 #endif
   use mpi_mod
-
-#if (defined WITH_Neutrals) && (!defined WITH_Impurities)
-  use mod_neutral_source
-#endif
-#ifdef WITH_Impurities
-  use mod_impurity
-#endif
+  use mod_impurity, only: init_imp_adas
 
 
   use, intrinsic :: iso_c_binding

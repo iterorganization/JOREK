@@ -5,6 +5,7 @@ use data_structure
 use mod_particle_sim
 use mod_particle_types, only: particle_get_q, particle_base
 use mod_ionisation_recombination, only: fields_interp_ne_Te
+use mod_parameters
 implicit none
 private
 public proj_Lz

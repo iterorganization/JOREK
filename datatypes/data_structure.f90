@@ -122,6 +122,7 @@ module data_structure
     real*8  :: spi_R                 !< R coordinate of shard (m)
     real*8  :: spi_Z                 !< Z coordinate of shard (m)
     real*8  :: spi_phi               !< Phi coordinate of shard (radian)
+    real*8  :: spi_phi_init          !< The initial phi coordinate of shard (radian) for trajectory calculation.
     real*8  :: spi_Vel_R             !< Velocity in R direction (m/s)
     real*8  :: spi_Vel_Z             !< Velocity in Z direction (m/s)
     real*8  :: spi_Vel_RxZ           !< Velocity in RxZ direction (m/s)

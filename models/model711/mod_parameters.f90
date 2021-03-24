@@ -8,7 +8,7 @@ module mod_parameters
   logical, parameter :: with_TiTe       = .true.
   logical, parameter :: with_neutrals   = .false.
   logical, parameter :: with_impurities = .false.
-  logical, parameter :: with_Vpar       = .true.
+  logical, parameter :: with_Vpar       = .false.
   logical, parameter :: with_etaOhm     = .false.
 
   integer, parameter :: var_A3   = 1                       ! place of variable psi/mag pot 3               (ps or A3)

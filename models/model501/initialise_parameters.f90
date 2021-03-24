@@ -3,10 +3,6 @@ subroutine initialise_parameters(my_id, filename)
 
 use tr_module
 use phys_module
-use data_structure
-use constants
-use mpi_mod
-use corr_neg
 use mumps_module,  only: no_zeros_mumps, mumps_ordering
 use pastix_module, only: no_zeros_pastix, pastix_smp_only, pastix_pivot, &
     pastix_maxthrd
@@ -22,29 +18,9 @@ character(len=*),             intent(in) :: filename
 real*8 :: vacuum_fraction, b_over_a, a_over_b
 
 ! --- Local variables
+integer :: ierr,err,i
 
-type (type_node_list)    :: node_list
-type (type_element_list) :: element_list
-
-integer :: ierr,err,ferr,i,ifail,i_elm,i_surface, err_alloc, n_spi_begin
-
-real*8, dimension(2) :: P, P_s, P_t, P_phi
-real*8  :: R, R_s, R_t, Z, Z_s, Z_t
-real*8  :: s_out,t_out,R_out,Z_out
-
-real*8  :: n_SI, T_eV, n_corr, T_corr
-real*8  :: spi_gd_angle_01, spi_gd_angle_02        ! The dispersion angles for each shard
-real*8  :: spi_rotation_01, spi_rotation_02        ! The rotation angle from shard coordinates to (R,Z,phi) coordinates
-real*8  :: spi_Vel_totref, spi_Vel_i, spi_Vel_R_tmp, spi_Vel_Z_tmp, spi_Vel_RxZ_tmp
-real*8  :: spi_Vel_x, spi_Vel_y, spi_Vel_z         ! Shard velocity in injection coordinates
-real*8  :: spi_R_inj, spi_Z_inj, spi_phi_inj       ! Injection position of SPI 
-real*8  :: spi_R_tmp, spi_Z_tmp, spi_phi_tmp, spi_radius_tmp
-real*8  :: sign_corr, real_total_quantity
-real*8, allocatable :: rnd(:)                      ! The random number array 
-real*8, allocatable :: shard_size(:)               ! The shard size array
-
-
-! --- Namelist with input parameters.                                                                                                                        
+! --- Namelist with input parameters.
 namelist /in1/  tstep, nstep, tstep_n, nstep_n,                     &
                 rst_hdf5, rst_hdf5_version, keep_current_prof,      &
                 eta, visco, visco_par,                              &
@@ -167,7 +143,8 @@ namelist /in1/  tstep, nstep, tstep_n, nstep_n,                     &
                 vert_FB_amp_ts, vert_FB_gain, vert_pos_file,        & 
                 vert_FB_tact, start_VFB_ts, I_coils_max
 
- if (my_id .eq. 0) then
+if (my_id .eq. 0) then
+
   ! --- Preset input parameters to reasonable default values.
   call preset_parameters()
 
@@ -186,7 +163,6 @@ namelist /in1/  tstep, nstep, tstep_n, nstep_n,                     &
     read(42,in1)
     close(42)
   else
-
     read(5,in1)
   endif
 
@@ -194,7 +170,6 @@ namelist /in1/  tstep, nstep, tstep_n, nstep_n,                     &
   ns_tor_norm = ns_deltaphi * PI**0.5 * ERF(PI/ns_deltaphi)
 
   if (trim(R_Z_psi_bnd_file) .ne. 'none') then
-
     ! --- Open the file.
     OPEN(UNIT=243, FILE=R_Z_psi_bnd_file, FORM='FORMATTED', STATUS='OLD', ACTION='READ', IOSTAT=err)
     if ( err /= 0 ) then
@@ -202,7 +177,6 @@ namelist /in1/  tstep, nstep, tstep_n, nstep_n,                     &
       stop
     endif
     write(*,'(A)') ' boundary info from R_Z_psi_bnd_file: R_boundary, Z_boundary, psi_boundary '
-
     do i=1,n_boundary
       read(243,*) R_boundary(i),Z_boundary(i),psi_boundary(i)
       write(*,*) R_boundary(i),Z_boundary(i),psi_boundary(i)
@@ -243,23 +217,20 @@ namelist /in1/  tstep, nstep, tstep_n, nstep_n,                     &
   endif
 
   call allocate_live_data()
+  
+  keep_n0_const  = ( keep_n0_const .or. linear_run )
+  ! --- Read numerical profiles for rho, T, and ff'.
+  call read_num_profiles(my_id)
+  
+  ! --- Determine the derivatives of the numerical input profiles.
+  call derive_num_profiles(my_id)
+  
+  ! --- For now the diamagnetic term has not been implemented properly
+  if (tauIC /= 0.d0) then
+    tauIC = 0.d0
+    write(*,*) "WARNING! The diamagnetic term has not been implemented properly for model 501, setting tauIC = 0 now."
+  endif
 
-endif
-
-keep_n0_const  = ( keep_n0_const .or. linear_run )
-! --- Read numerical profiles for rho, T, and ff'.
-call read_num_profiles(my_id)
-
-! --- Determine the derivatives of the numerical input profiles.
-call derive_num_profiles(my_id)
-
-! --- For now the diamagnetic term has not been implemented properly
-if (tauIC .ne. 0.0) then
-  tauIC = 0.0
-  write(*,*) "WARNING! The diamagnetic term has not been implemented properly for model 501, setting tauIC = 0 now."
-endif
-
-if ( my_id == 0 ) then
   if (2*PI/(n_tor*n_period) >= ns_deltaphi) then
     write(*,*) "WARNING! ns_deltaphi too small for the n_tor, BEWARE!"
     if (t_now > minval(t_ns)) then
@@ -283,6 +254,5 @@ if ( my_id == 0 ) then
   if (using_spi) call init_spi_all()
 end if
 
-  
 return
 end subroutine initialise_parameters

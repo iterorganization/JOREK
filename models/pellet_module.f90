@@ -186,22 +186,22 @@ module pellet_module
   subroutine update_spi(my_id,node_List,element_list,&
                         ns_R,ns_Z,ns_phi,ns_amplitude,spi_Vel_Rref,spi_Vel_Zref,spi_Vel_RxZref,&
                         spi_quantity,spi_quantity_bg,spi_Vel_diff,spi_L_inj,n_spi,n_spi_begin)
-  !******************************************************************************
-  ! routine updates the shattered pellet position and the size of the simulated *
-  ! and physical pellet sizes (from the integral of the pellet particle source) *
-  !******************************************************************************
-  
-  use constants
-  use data_structure
-  use phys_module, only: pellets, imp_type, central_density, central_mass, spi_abl_model, spi_tor_rot,      &
-                         ns_phi_rotate, tor_frequency, tstep, pellet_density, pellet_density_bg,            &
-                         index_now, xtime_spi_ablation, xtime_spi_ablation_bg, xtime_spi_ablation_rate,&
-                         xtime_spi_ablation_bg_rate, F0, R_geo, imp_cor
-  use mpi_mod
-  use corr_neg
-  
-  implicit none
-  
+    !******************************************************************************
+    ! routine updates the shattered pellet position and the size of the simulated *
+    ! and physical pellet sizes (from the integral of the pellet particle source) *
+    !******************************************************************************
+    
+    use constants
+    use data_structure
+    use phys_module, only: pellets, imp_type, central_density, central_mass, spi_abl_model, spi_tor_rot,      &
+                           ns_phi_rotate, tor_frequency, tstep, pellet_density, pellet_density_bg,            &
+                           index_now, xtime_spi_ablation, xtime_spi_ablation_bg, xtime_spi_ablation_rate,&
+                           xtime_spi_ablation_bg_rate, F0, R_geo, imp_cor
+    use mpi_mod
+    use corr_neg
+    
+    implicit none
+    
     integer,                  intent(in) :: my_id
     type (type_node_list),    intent(in) :: node_list
     type (type_element_list), intent(in) :: element_list
@@ -257,7 +257,7 @@ module pellet_module
       spi_phi_inj   = mod(spi_phi_inj,2.*PI) + 2.*PI
     end if
   
-    do i=1, n_spi
+    loop_over_shards: do i=1, n_spi
   
       i_p = i - 1 + n_spi_begin
       
@@ -511,7 +511,7 @@ module pellet_module
         xtime_spi_ablation_bg_rate(i_p,index_now) = pellets(i_p)%spi_abl * (1. - pellets(i_p)%spi_species)
       end if
   
-    end do
+    end do loop_over_shards
   
     if (spi_tor_rot) then
       ns_phi_rotate  = ns_phi_rotate + tor_frequency * 2. * PI * tstep / V_normalisation
@@ -848,6 +848,7 @@ module pellet_module
         pellets(i_p)%spi_R       = spi_R_tmp
         pellets(i_p)%spi_Z       = spi_Z_tmp
         pellets(i_p)%spi_phi     = spi_phi_tmp
+        pellets(i_p)%spi_phi_init= spi_phi_inj
         pellets(i_p)%spi_Vel_R   = spi_Vel_R_tmp
         pellets(i_p)%spi_Vel_Z   = spi_Vel_Z_tmp
         pellets(i_p)%spi_Vel_RxZ = spi_Vel_RxZ_tmp
@@ -895,11 +896,11 @@ module pellet_module
     integer, save         :: dtype
     logical, save         :: dtype_set = .false.
   
-    integer :: len(9) = (/1,1,1,1,1,1,1,1,1/), t(9) = (/ &
+    integer :: len(10) = (/1,1,1,1,1,1,1,1,1,1/), t(10) = (/ &
       MPI_REAL8,MPI_REAL8,MPI_REAL8,MPI_REAL8,MPI_REAL8, &
-      MPI_REAL8,MPI_REAL8,MPI_REAL8,MPI_REAL8/) ! MPI_INTEGER1 == MPI_LOGICAL1
+      MPI_REAL8,MPI_REAL8,MPI_REAL8,MPI_REAL8,MPI_REAL8/) ! MPI_INTEGER1 == MPI_LOGICAL1
   
-    integer(kind=MPI_ADDRESS_KIND) :: base, disp(9)
+    integer(kind=MPI_ADDRESS_KIND) :: base, disp(10)
     type(type_SPI) :: sample_pellet
   
     dtype_out = dtype
@@ -910,18 +911,19 @@ module pellet_module
     call MPI_Get_address(sample_pellet%spi_R,       disp(1), ierr)
     call MPI_Get_address(sample_pellet%spi_Z,       disp(2), ierr)
     call MPI_Get_address(sample_pellet%spi_phi,     disp(3), ierr)
-    call MPI_Get_address(sample_pellet%spi_Vel_R,   disp(4), ierr)
-    call MPI_Get_address(sample_pellet%spi_Vel_Z,   disp(5), ierr)
-    call MPI_Get_address(sample_pellet%spi_Vel_RxZ, disp(6), ierr)
-    call MPI_Get_address(sample_pellet%spi_radius,  disp(7), ierr)
-    call MPI_Get_address(sample_pellet%spi_abl,     disp(8), ierr)
-    call MPI_Get_address(sample_pellet%spi_species, disp(9), ierr)
+    call MPI_Get_address(sample_pellet%spi_phi_init,disp(4), ierr)
+    call MPI_Get_address(sample_pellet%spi_Vel_R,   disp(5), ierr)
+    call MPI_Get_address(sample_pellet%spi_Vel_Z,   disp(6), ierr)
+    call MPI_Get_address(sample_pellet%spi_Vel_RxZ, disp(7), ierr)
+    call MPI_Get_address(sample_pellet%spi_radius,  disp(8), ierr)
+    call MPI_Get_address(sample_pellet%spi_abl,     disp(9), ierr)
+    call MPI_Get_address(sample_pellet%spi_species, disp(10),ierr)
   
     ! Rebase to particle memory beginning
     disp = disp - base
   
     ! Commit the structured type
-    call MPI_Type_create_struct(9, len, disp, t, dtype, ierr)
+    call MPI_Type_create_struct(10, len, disp, t, dtype, ierr)
     call MPI_Type_commit(dtype, ierr)
   
     ! Set the save bit

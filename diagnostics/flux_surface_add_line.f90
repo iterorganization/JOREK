@@ -77,7 +77,7 @@ do iter=1, n_iter
 !  write(*,'(A,i3,12e16.8)') ' CHECK IMPROVEMENT : ',iter,dl1,dl2,surface_list%psi_values(j), &
 !                         surface_list%psi_values(j)-psi_test,surface_list%psi_values(j)-psi_test2
 
-  error_psi = abs(surface_list%psi_values(j)-psi_test2)/(abs(surface_list%psi_values(j))+abs(psi_test2))
+  error_psi = abs(surface_list%psi_values(j)-psi_test2)/(abs(surface_list%psi_values(j))+abs(psi_test2)+1.d-8)
 
   if (error_psi .lt. 1.d-9) exit
 

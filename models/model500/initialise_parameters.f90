@@ -141,7 +141,6 @@ namelist /in1/  tstep, nstep, tstep_n, nstep_n,                     &
                 vert_FB_amp_ts, vert_FB_gain, vert_pos_file,        & 
                 vert_FB_tact, start_VFB_ts, I_coils_max
 
-
 if (my_id .eq. 0) then
 
   ! --- Preset input parameters to reasonable default values.
@@ -151,7 +150,7 @@ if (my_id .eq. 0) then
   
   ! --- Model-specific presets
   particlesource_psin = 100.d0
-  
+
   ! --- Read input parameters from namelist.
   if (trim(filename) .ne. "__NO_FILENAME__" ) then
     open(42, file=filename, status='old', action='read', iostat=ierr)

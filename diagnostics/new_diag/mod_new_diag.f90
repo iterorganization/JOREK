@@ -36,17 +36,6 @@ module mod_new_diag
   integer,           parameter          :: LOWFIELD_SIDE      = 1
   integer,           parameter          :: BOTH_SIDES         = 2
   
-  !   --- Used by routine fourier_analysis
-  integer,           parameter          :: OUTP_ABS_VALUE     = 0
-  integer,           parameter          :: OUTP_REALPART      = 1
-  integer,           parameter          :: OUTP_IMAGINARYPART = 2
-  integer,           parameter          :: OUTP_PHASE         = 3
-  character(len=33), parameter, private :: OUTP_NAMES(0:3) = (/ 'absolute_value', 'real_part     ',&
-    'imaginary_part', 'complex_phase ' /)
-  
-  
-  
-  
   
   
   contains
@@ -428,28 +417,29 @@ module mod_new_diag
   
   !> Perform a 2D Fourier analysis of the given expressions in straight field line coordinates.
   subroutine fourier_analysis(node_list, element_list, eq, units, expr_list, cp, nPsiN, ierr,      &
-    filename_start, output_type2, nsmallsteps, nmaxsteps, deltaphi, rad_range, nTht)
+    filename_start, expr_list_four, nsmallsteps, nmaxsteps, deltaphi, rad_range, nTht)
     
     character(len=64), parameter :: THIS_ROUTINE_NAME = trim(THIS_MOD_NAME) // ':fourier_analysis'
     
-    type(type_node_list),           intent(in)    :: node_list    !< List of grid nodes
-    type(type_element_list),        intent(in)    :: element_list !< List of grid elements
-    type(t_equil_state),            intent(in)    :: eq           !< Plasma equilibrium information
-    integer,                        intent(in)    :: units        !< Output in which units?
-    type(t_expr_list),              intent(in)    :: expr_list    !< List of expressions to evaluate
-    complex*16, allocatable,        intent(inout) :: cp(:,:,:,:)  !< Complex Fourier coefficients
-    integer,                        intent(in)    :: nPsiN        !< Number of points for profiles
-    integer,                        intent(out)   :: ierr         !< Error code
+    type(type_node_list),           intent(in)    :: node_list      !< List of grid nodes
+    type(type_element_list),        intent(in)    :: element_list   !< List of grid elements
+    type(t_equil_state),            intent(in)    :: eq             !< Plasma equilibrium information
+    integer,                        intent(in)    :: units          !< Output in which units?
+    type(t_expr_list),              intent(in)    :: expr_list      !< List of expressions to evaluate
+    type(t_expr_list),              intent(in)    :: expr_list_four !< List of expressions to evaluate
+    complex*16, allocatable,        intent(inout) :: cp(:,:,:,:)    !< Complex Fourier coefficients
+    integer,                        intent(in)    :: nPsiN          !< Number of points for profiles
+    integer,                        intent(out)   :: ierr           !< Error code
     character(len=*), optional,     intent(in)    :: filename_start !< Start of filename [optional]
-    integer,          optional,     intent(in)    :: output_type2 !< Output what? [optional]
-    integer,          optional,     intent(in)    :: nsmallsteps  !< Parameter for pol_pos [opt.]
-    integer,          optional,     intent(in)    :: nmaxsteps    !< Parameter for pol_pos [opt.]
-    real*8,           optional,     intent(in)    :: deltaphi     !< Parameter for pol_pos [opt.]
-    real*8,           optional,     intent(in)    :: rad_range(2) !< Parameter for pol_pos [opt.]
-    integer,          optional,     intent(in)    :: nTht         !< Parameter for pol_pos [opt.]
+    integer,          optional,     intent(in)    :: nsmallsteps    !< Parameter for pol_pos [opt.]
+    integer,          optional,     intent(in)    :: nmaxsteps      !< Parameter for pol_pos [opt.]
+    real*8,           optional,     intent(in)    :: deltaphi       !< Parameter for pol_pos [opt.]
+    real*8,           optional,     intent(in)    :: rad_range(2)   !< Parameter for pol_pos [opt.]
+    integer,          optional,     intent(in)    :: nTht           !< Parameter for pol_pos [opt.]
+    character(len=14)                             :: output_name    !< Part of the file name
     
     ! --- Local variables
-    integer :: nn(4), output_type, m, n, m_max, n_max, i, j, nTht2
+    integer :: nn(4), output_type, m, n, m_max, n_max, i, j, k, nTht2
     real*8, allocatable  :: result(:,:,:,:), outp(:,:,:,:), out1d(:,:)
     character(len=256)   :: comment, filename
     type(t_pol_pos_list) :: pol_pos_list
@@ -487,69 +477,69 @@ module mod_new_diag
     
     ! --- Output to files if parameter filename_start is present, otherwise just return cp array.
     if ( present(filename_start) ) then
-      
-      output_type = OUTP_ABS_VALUE ! preset
-      if ( present(output_type2) ) output_type = output_type2
-      
+
       nn(:) = (/ size(cp,1), size(cp,2), size(cp,3), size(cp,4) /)
       n_max = nn(1) - 1
       m_max = nn(2) / 2
-      
       allocate( outp(nn(1),nn(2),nn(3),nn(4)) )
       allocate( out1d(nn(3),nn(4)) )
-      
-      ! --- Output absolute value/real part/imaginary part/phase of complex Fourier components?
-      if ( output_type == OUTP_ABS_VALUE ) then
-        
-        outp(:,:,:,:) = abs(cp(:,:,:,:))
-        
-      else if ( output_type == OUTP_REALPART ) then
-        
-        outp(:,:,:,:) = real(cp(:,:,:,:))
-        
-      else if ( output_type == OUTP_IMAGINARYPART ) then
-        
-        outp(:,:,:,:) = aimag(cp(:,:,:,:))
-        
-      else if ( output_type == OUTP_PHASE ) then
-        
-        outp(:,:,:,:) = atan2( real(cp(:,:,:,:)), aimag(cp(:,:,:,:)) ) !#########correct?
-        
-      else
-        
-        ierr = 100
-        write(*,*) 'ERROR in '//trim(THIS_ROUTINE_NAME)//': parameter output_type has illegal value'
-        return
-        
-      end if
-      
-      ! --- Always take the 0/0 component for coordinate expressions!
-      do i = 1, expr_list%n_coord
-        do j = 1, nn(3)
-          outp(:,:,j,i) = real( cp(1,1,j,i) )
+
+      do k = 1, expr_list_four%n_expr
+
+        ! --- Output absolute value/real part/imaginary part/phase of complex Fourier components?
+        select case ( trim(expr_list_four%expr(k)%name) )
+
+          case ( 'absolute' ) 
+            outp(:,:,:,:) = abs(cp(:,:,:,:))
+            output_name   = 'absolute_value'
+
+          case ( 'real' )
+            outp(:,:,:,:) = real(cp(:,:,:,:))
+            output_name   = 'real_part     '
+
+          case ( 'imaginary' )
+            outp(:,:,:,:) = aimag(cp(:,:,:,:))
+            output_name   = 'imaginary_part'
+
+          case ( 'phase' )        
+            outp(:,:,:,:) = atan2( aimag(cp(:,:,:,:)), real(cp(:,:,:,:)) ) 
+            output_name   = 'complex_phase '
+
+          case default
+            ierr = 100
+            write(*,*) 'ERROR in '//trim(THIS_ROUTINE_NAME)//': Illegal expression ("' //      &
+                    trim(expr_list_four%expr(k)%name) // '")'
+            return
+
+        end select
+
+        ! --- Always take the 0/0 component for coordinate expressions!
+        do i = 1, expr_list%n_coord
+          do j = 1, nn(3)
+            outp(:,:,j,i) = real( cp(1,1,j,i) )
+          end do
+        end do
+
+        ! --- Output the Fourier components to ascii files
+        do n = 0, (n_tor-1)/2 ! toroidal mode number (needs to be multiplied by n_period!)
+          write(filename,'(4a,i3.3,a)') trim(filename_start), '_', trim(output_name),    &
+            '_n', n*n_period, '.dat'
+          do m = -m_max, m_max ! poloidal mode number
+
+            if ( m >= 0 ) then
+              out1d(:,:) = outp(n+1,m+1,:,:)
+            else
+              out1d(:,:) = outp(n+1,nn(2)-abs(m)+1,:,:)
+            end if
+
+            write(comment,'(a,sp,i4.3,a,i4.3)') trim(output_name)//'s for m/n=', m, '/', &
+              n*n_period
+            call write_ascii_1d(ierr, eq, expr_list, out1d, FORM_TABLE, .true., filename,            &
+              append=(m/=-m_max), comment=trim(comment), blanks=.true.)
+
+          end do
         end do
       end do
-      
-      ! --- Output the Fourier components to ascii files
-      do n = 0, (n_tor-1)/2 ! toroidal mode number (needs to be multiplied by n_period!)
-        write(filename,'(4a,i3.3,a)') trim(filename_start), '_', trim(OUTP_NAMES(output_type)),    &
-          '_n', n*n_period, '.dat'
-        do m = -m_max, m_max ! poloidal mode number
-          
-          if ( m >= 0 ) then
-            out1d(:,:) = outp(n+1,m+1,:,:)
-          else
-            out1d(:,:) = outp(n+1,nn(2)-abs(m)+1,:,:)
-          end if
-          
-          write(comment,'(a,sp,i4.3,a,i4.3)') trim(OUTP_NAMES(output_type))//'s for m/n=', m, '/', &
-            n*n_period
-          call write_ascii_1d(ierr, eq, expr_list, out1d, FORM_TABLE, .true., filename,            &
-            append=(m/=-m_max), comment=trim(comment), blanks=.true.)
-          
-        end do
-      end do
-      
     end if
     
     if ( allocated(result) ) deallocate(result)

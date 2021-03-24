@@ -23,14 +23,8 @@ module mod_expression
   use mod_basisfunctions
   use mod_bootstrap_functions
   use mod_poloidal_currents
-#ifdef WITH_Impurities
-  use mod_impurity, only: radiation_function
-#endif
+  use mod_impurity, only: radiation_function, radiation_function_linear
   use mod_atomic_coeff_deuterium, only : atomic_coeff_deuterium
-      
-#if (defined WITH_Neutrals) && (!defined WITH_Impurities)
-  use mod_neutral_source
-#endif
   
   implicit none
   
@@ -90,7 +84,7 @@ module mod_expression
   
   
   ! --- Standard lists of expressions (require init_expr call first!).
-  type(t_expr_list), save :: exprs_all, exprs_all_int     !< All available expressions.
+  type(t_expr_list), save :: exprs_all, exprs_all_int, exprs_all_four     !< All available expressions.
   
   
   
@@ -107,6 +101,7 @@ module mod_expression
     
     exprs_all%n_expr     = 0
     exprs_all_int%n_expr = 0
+    exprs_all_four%n_expr = 0
     call add(exprs_all, 'index_now   ', 'Restart file index (or number of run tsteps)          ')
     call add(exprs_all, 'R           ', 'Cylindrical Coordinate R (== Major Radius)            ')
     call add(exprs_all, 'Z           ', 'Cylindrical Coordinate Z                              ')
@@ -290,6 +285,11 @@ module mod_expression
     call add(exprs_all_int, 'I_halo      ', 'Total poloidal halo currents                          ')
     call add(exprs_all_int, 'TPF_halo    ', 'Toroidal peaking factor of the poloidal halos         ')
 
+    call add(exprs_all_four, 'absolute    ', 'Absolute value of 2D Fourier analysis                 ')
+    call add(exprs_all_four, 'real        ', 'Real part      of 2D Fourier analysis                 ')
+    call add(exprs_all_four, 'imaginary   ', 'Imaginary part of 2D Fourier analysis                 ')
+    call add(exprs_all_four, 'phase       ', 'Complex phase  of 2D Fourier analysis                 ')
+
   end subroutine init_expr
   
   
@@ -315,33 +315,35 @@ module mod_expression
   end subroutine add
   
   
-  
-  
-  
   !> Creates a subset of all available expressions.
-  function exprs(name, n_expr, n_coord) result(expr_list)
+  function exprs(name, n_expr, n_coord, exprs_all_local) result(expr_list)
     type(t_expr_list) :: expr_list
     
     character(len=64), parameter :: THIS_ROUTINE_NAME = trim(THIS_MOD_NAME) // ':exprs'
     
     ! --- Routine parameters
-    character(len=*),  intent(in) :: name(n_expr)
-    integer,           intent(in) :: n_expr
-    integer, optional, intent(in) :: n_coord
+    character(len=*),            intent(in) :: name(n_expr)
+    integer,                     intent(in) :: n_expr
+    integer, optional,           intent(in) :: n_coord
+    type(t_expr_list), optional, intent(in) :: exprs_all_local
+    type(t_expr_list)                       :: exprs_all_local0
     
     ! --- Local variables
     integer :: i, j, k
     
+    exprs_all_local0 = exprs_all
+    if ( present(exprs_all_local) ) exprs_all_local0 = exprs_all_local
+
     k = 0
     do i = 1, n_expr
-      j = get_expr_num(exprs_all, trim(name(i)))
+      j = get_expr_num(exprs_all_local0, trim(name(i)))
       if ( j < 1 ) then
         write(*,*) 'WARNING in '//trim(THIS_ROUTINE_NAME)//': Unknown expression "'//trim(name(i)) &
           //'" ignored.'
         cycle
       end if
       k = k + 1
-      expr_list%expr(k) = exprs_all%expr(j)
+      expr_list%expr(k) = exprs_all_local0%expr(j)
     end do
     expr_list%n_expr = k
     
@@ -349,40 +351,7 @@ module mod_expression
     if ( present(n_coord) ) expr_list%n_coord = n_coord
     
   end function exprs
-  
-  
-  !> Creates a subset of all available expressions.
-  function exprs_int(name, n_expr, n_coord) result(expr_list)
-    type(t_expr_list) :: expr_list
-    
-    character(len=64), parameter :: THIS_ROUTINE_NAME = trim(THIS_MOD_NAME) // ':exprs'
-    
-    ! --- Routine parameters
-    character(len=*),  intent(in) :: name(n_expr)
-    integer,           intent(in) :: n_expr
-    integer, optional, intent(in) :: n_coord
-    
-    ! --- Local variables
-    integer :: i, j, k
-    
-    k = 0
-    do i = 1, n_expr
-      j = get_expr_num_int(exprs_all_int, trim(name(i)))
-      if ( j < 1 ) then
-        write(*,*) 'WARNING in '//trim(THIS_ROUTINE_NAME)//': Unknown expression "'//trim(name(i)) &
-          //'" ignored.'
-        cycle
-      end if
-      k = k + 1
-      expr_list%expr(k) = exprs_all_int%expr(j)
-    end do
-    expr_list%n_expr = k
-    
-    expr_list%n_coord = 0
-    if ( present(n_coord) ) expr_list%n_coord = n_coord
-    
-  end function exprs_int
-  
+
   
   
   !> Merge several expression lists.    ### NOT USED AT PRESENT
@@ -489,37 +458,13 @@ module mod_expression
     
     num = -99
     do i = 1, exprs_all%n_expr
-      if ( trim(exprs_all%expr(i)%name) == trim(name) ) then
+      if ( trim(expr_list%expr(i)%name) == trim(name) ) then
         num = i
         exit
       end if
     end do
     
   end function get_expr_num
-  
-  
-  
-  
-  
-   !> Find out expression number in an expression list.
-  integer function get_expr_num_int(expr_list, name) result(num)
-    
-    ! --- Routine parameters
-    type(t_expr_list),       intent(in) :: expr_list
-    character(len=*), intent(in) :: name
-    
-    ! --- Local variables
-    integer :: i
-    
-    num = -99
-    do i = 1, exprs_all_int%n_expr
-      if ( trim(exprs_all_int%expr(i)%name) == trim(name) ) then
-        num = i
-        exit
-      end if
-    end do
-    
-  end function get_expr_num_int
   
   
   
@@ -1374,7 +1319,7 @@ module mod_expression
           ! --- Coulomb logarithms calculated according to Ref. [L. Hesselow et al, J Plasma Phys 84,
           !     p. 905840605 (2018); doi:10.1017/S0022377818001113] Eq. (2.7) and (2.9):
           Te0_eV     = Te0 / ( EL_CHG * MU_ZERO * central_density * 1.d20 )
-          ne0_20     = r0 * central_density
+          ne0_20     = max(1.d-8, r0) * central_density
           ln_Lambda0 = 14.9 - 0.5 * log( ne0_20 ) + log( Te0_eV / 1000.d0 ) ! Eq. (2.7) at thermal speeds
           ln_Lambda  = 14.6 + 0.5 * log( Te0_eV / ne0_20 )                  ! Eq. (2.9) at relativistic energies
           

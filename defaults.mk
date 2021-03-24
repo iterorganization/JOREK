@@ -154,6 +154,9 @@ endif
 ifeq (model711, $(MODEL))
   DEFINES  := $(DEFINES) -Dfullmhd
 endif
+ifeq (model712, $(MODEL))
+  DEFINES  := $(DEFINES) -Dfullmhd
+endif
 
 # Generic models flags
 ifeq (model303, $(MODEL))

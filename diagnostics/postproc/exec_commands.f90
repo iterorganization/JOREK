@@ -20,12 +20,7 @@ module exec_commands
   use mod_interp
   use mod_poloidal_currents 
   use mod_bootstrap_functions
-#ifdef WITH_Impurities
-  use mod_impurity 
-#endif
-#if (defined WITH_Neutrals) && (!defined WITH_Impurities)
-   use mod_neutral_source
-#endif
+  use mod_impurity, only: init_imp_adas 
   
   implicit none
   
@@ -57,7 +52,7 @@ module exec_commands
   logical,             private, save :: dir_created   = .false. !< Postproc directory created?
   logical,             private, save :: verbose
   logical,             private, save :: debug
-  type(t_expr_list),   private, save :: expr_list
+  type(t_expr_list),   private, save :: expr_list, expr_list_four
   real*8, allocatable, private, save :: result(:,:,:,:), res2d(:,:,:), res1d(:,:), res0d(:), the_sum(:)
   complex*16, allocatable, private, save :: cp(:,:,:,:)
   real*8,              private, save :: time_now !< Time of current restart file in selected units
@@ -150,6 +145,8 @@ module exec_commands
           call expressions(command, ierr)
         case ( 'expressions_int' )
           call expressions_int(command, ierr)
+        case ( 'expressions_four' )
+          call expressions_four(command, ierr)
         case ( 'fluxsurfaces' )
           call fluxsurfaces(command, ierr)
         case ( 'for' )
@@ -234,7 +231,8 @@ module exec_commands
           'qprofile', 'q_at_psin', 'fluxsurfaces', 'separatrix', 'set', 'four2d', 'gourdon',       &
           'jorek-units', 'jnorm_bnd_curr', 'si-units', 'grid', 'grid_diagnostics', 'rectangle',    &
           'rectangular_torus', 'energy_spectrum', 'average_h5', 'I_halo_TPF', 'spi-state',         &
-          'shards', 'zeroD_quantities', 'boundary_quantities', 'find_q_surface', 'midplane2d')
+          'shards', 'zeroD_quantities', 'boundary_quantities', 'find_q_surface', 'midplane2d',     &
+          'expressions_four')
           call add_to_command_queue(command, ierr)
         case ( 'help' )
           call help(command, ierr)
@@ -333,7 +331,7 @@ module exec_commands
     step_imported = .true.
     
     ! (not elegant, admittedly... but guarantees consistent time normalization:)
-    call eval_expr(ES, get_int_setting('units', ierr), exprs('t',1),                               &
+    call eval_expr(ES, get_int_setting('units', ierr), exprs('t',1),                  &
       pol_pos(node_list,element_list,ES,R=ES%R_axis,Z=ES%Z_axis), tor_pos(phi=0.d0), result, ierr)
     time_now = result(1,1,1,1)
     
@@ -1012,6 +1010,28 @@ module exec_commands
 
 
   !> List or Select Available Expressions.
+  subroutine expressions_four(command, ierr)
+    
+    ! --- Routine parameters
+    type(type_command), intent(in)  :: command     !< Command to be executed
+    integer,            intent(out) :: ierr        !< Error flag
+    
+    ierr = 0
+    
+    if ( command%n_args == 0 ) then
+      
+      call print_exprs(exprs_all_four)
+      
+    else
+      
+      expr_list_four = exprs(command%args(1:command%n_args), command%n_args, exprs_all_local=exprs_all_four)
+      call print_exprs(expr_list_four,.true.)
+       
+    end if
+    
+  end subroutine expressions_four
+ 
+   !> List or Select Available Expressions.
   subroutine expressions_int(command, ierr)
     
     ! --- Routine parameters
@@ -1026,13 +1046,12 @@ module exec_commands
       
     else
       
-    expr_list = exprs_int(command%args(1:command%n_args), command%n_args)
-    call print_exprs(expr_list,.true.)
+      expr_list = exprs(command%args(1:command%n_args), command%n_args, exprs_all_local=exprs_all_int)
+      call print_exprs(expr_list,.true.)
        
     end if
     
   end subroutine expressions_int
- 
   
   
   !> Mark some expressions as coordinates.
@@ -2749,8 +2768,14 @@ module exec_commands
     write(*,*) 'rad_range    =', radial_range
     write(*,*) 'n_thetastar  =', n_thetastar
     
+    ! --- If no fourier expressions are given, output absolute values by default
+    if ( expr_list_four%n_expr .eq. 0 ) then
+      write(*,*) 'WARNING: No expressions for 2D Fourier analysis given. Output all components by default.'
+      expr_list_four = exprs_all_four
+    end if
+
     call fourier_analysis(node_list, element_list, ES, units, expr_list, cp, npts, ierr,           &
-      filename_start, OUTP_ABS_VALUE, nsmallsteps=nsmall, nmaxsteps=nmaxstep, deltaphi=delta_phi,  &
+      filename_start, expr_list_four, nsmallsteps=nsmall, nmaxsteps=nmaxstep, deltaphi=delta_phi,  &
       rad_range=radial_range, nTht=n_thetastar)
     
   end subroutine four2d

@@ -59,7 +59,7 @@ namelist /in1/  tstep, nstep, tstep_n, nstep_n,                     &
                 ZK_par, ZK_i_par, ZK_e_par, ZK_par_max,             &
                 ZK_perp, ZK_i_perp, ZK_e_perp, D_par, D_perp,       &
                 heatsource_e, heatsource_i,                         &
-                eta, visco, visco_par,                              &
+                eta, visco, visco_par, ZK_i_perp_num, ZK_e_perp_num,&
                 eta_num, visco_num, visco_par_num, D_perp_num,      &
                 heatsource_psin, heatsource_sig,                    &
                 particlesource_psin, particlesource_sig,            &

@@ -337,7 +337,9 @@ subroutine integrate_F_profile()
     write(*,*)'                    FFprime, or use a numerical FFprime !!!'
     write(*,*)'                    ie. FF_coef(9) should be set to 1.d0, and FF_coef(6)'
     write(*,*)'                    should be denormalised as '
-    write(*,*)'                    FF_coef(6) = FF_coef(6) * (psi_bnd-psi_axis)...'
+    write(*,*)'                    FF_coef(6) = FF_coef(6) / (psi_bnd-psi_axis)...'
+    write(*,*)'                    where psi_axis and psi_bnd have been calculated from'
+    write(*,*)'                    the Grad-Shafranov with Reduced-MHD'
     write(*,*)'                    Aborting...'
     stop
   endif
@@ -521,6 +523,8 @@ subroutine check_F_profile_accuracy()
   accumulated_error   = 0.d0
   accumulated_profile = 0.d0
   n_prof_core         = 0
+  ff1                 = 0.d0
+  iff1                = 0.d0
   do i_prof = 1,n_Fprofile_internal
     psi_n(i_prof) = Fprofile_psi_max * real(i_prof-1)/real(n_Fprofile_internal-1)
     if (psi_n(i_prof) .gt. 1.01) cycle ! count just the core (outside, FFprime should be zero)

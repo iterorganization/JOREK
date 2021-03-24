@@ -77,6 +77,7 @@ subroutine import_binary_restart(node_list, element_list, filename, format_rst, 
   real*8,  allocatable :: spi_R_arr (:)
   real*8,  allocatable :: spi_Z_arr (:)
   real*8,  allocatable :: spi_phi_arr (:)
+  real*8,  allocatable :: spi_phi_init_arr (:)
   real*8,  allocatable :: spi_Vel_R_arr (:)
   real*8,  allocatable :: spi_Vel_Z_arr (:)
   real*8,  allocatable :: spi_Vel_RxZ_arr (:)
@@ -544,6 +545,7 @@ endif
       allocate (spi_R_arr(n_spi_tot),stat=err_alloc)
       allocate (spi_Z_arr(n_spi_tot),stat=err_alloc)
       allocate (spi_phi_arr(n_spi_tot),stat=err_alloc)
+      allocate (spi_phi_init_arr(n_spi_tot),stat=err_alloc)
       allocate (spi_Vel_R_arr(n_spi_tot),stat=err_alloc)
       allocate (spi_Vel_Z_arr(n_spi_tot),stat=err_alloc)
       allocate (spi_Vel_RxZ_arr(n_spi_tot),stat=err_alloc)
@@ -554,6 +556,7 @@ endif
       read(21,err=999, end=999)  spi_R_arr(1:n_spi_tot)
       read(21,err=999, end=999)  spi_Z_arr(1:n_spi_tot)
       read(21,err=999, end=999)  spi_phi_arr(1:n_spi_tot)
+      read(21,err=999, end=999)  spi_phi_init_arr(1:n_spi_tot)
       read(21,err=999, end=999)  spi_Vel_R_arr(1:n_spi_tot)
       read(21,err=999, end=999)  spi_Vel_Z_arr(1:n_spi_tot)
       read(21,err=999, end=999)  spi_Vel_RxZ_arr(1:n_spi_tot)
@@ -565,6 +568,7 @@ endif
         pellets(i)%spi_R       = spi_R_arr(i)
         pellets(i)%spi_Z       = spi_Z_arr(i)
         pellets(i)%spi_phi     = spi_phi_arr(i)
+        pellets(i)%spi_phi_init= spi_phi_init_arr(i)
         pellets(i)%spi_Vel_R   = spi_Vel_R_arr(i)
         pellets(i)%spi_Vel_Z   = spi_Vel_Z_arr(i)
         pellets(i)%spi_Vel_RxZ = spi_Vel_RxZ_arr(i)
@@ -579,6 +583,7 @@ endif
       deallocate (spi_R_arr)
       deallocate (spi_Z_arr)
       deallocate (spi_phi_arr)
+      deallocate (spi_phi_init_arr)
       deallocate (spi_Vel_R_arr)
       deallocate (spi_Vel_Z_arr)
       deallocate (spi_Vel_RxZ_arr)
@@ -851,6 +856,7 @@ subroutine import_hdf5_restart(node_list, element_list, filename, format_rst, er
   real*8, allocatable :: spi_R_arr (:)
   real*8, allocatable :: spi_Z_arr (:)
   real*8, allocatable :: spi_phi_arr (:)
+  real*8, allocatable :: spi_phi_init_arr (:)
   real*8, allocatable :: spi_Vel_R_arr (:)
   real*8, allocatable :: spi_Vel_Z_arr (:)
   real*8, allocatable :: spi_Vel_RxZ_arr (:)
@@ -859,7 +865,7 @@ subroutine import_hdf5_restart(node_list, element_list, filename, format_rst, er
   real*8, allocatable :: spi_species_arr (:)
   integer, allocatable :: spi_species_arr_old (:)  !< For backward compatibility only
 
-  integer :: err_alloc, err_exists, dterr
+  integer :: err_alloc, err_exists, dterr, n_spi_begin, i_inj
   logical :: flag_exists, type_match
 
   real*8, allocatable :: t_energies(:,:,:)   !< Magnetic and kinetic mode energies at previous timesteps.
@@ -1643,11 +1649,11 @@ subroutine import_hdf5_restart(node_list, element_list, filename, format_rst, er
         write(*,*)"Backward Compatibility: No n_inj information found, but n_inj larger than 1, aborting."
         stop
       end if
-      
 
       allocate (spi_R_arr(n_spi_tot),stat=err_alloc)
       allocate (spi_Z_arr(n_spi_tot),stat=err_alloc)
       allocate (spi_phi_arr(n_spi_tot),stat=err_alloc)
+      allocate (spi_phi_init_arr(n_spi_tot),stat=err_alloc)
       allocate (spi_Vel_R_arr(n_spi_tot),stat=err_alloc)
       allocate (spi_Vel_Z_arr(n_spi_tot),stat=err_alloc)
       allocate (spi_Vel_RxZ_arr(n_spi_tot),stat=err_alloc)
@@ -1658,6 +1664,19 @@ subroutine import_hdf5_restart(node_list, element_list, filename, format_rst, er
       call HDF5_array1D_reading(file_id,spi_R_arr,"spi_R_arr")
       call HDF5_array1D_reading(file_id,spi_Z_arr,"spi_Z_arr")
       call HDF5_array1D_reading(file_id,spi_phi_arr,"spi_phi_arr")
+
+      call H5Lexists_f(file_id,"spi_phi_init_arr",flag_exists,err_exists)
+      if (flag_exists .and. err_exists == 0) then
+        call HDF5_array1D_reading(file_id,spi_phi_init_arr,"spi_phi_init_arr")
+      else
+        n_spi_begin = 1
+        do i_inj = 1, n_inj
+          if(n_spi(i_inj)>0) spi_phi_init_arr(n_spi_begin:(n_spi_begin+n_spi(i_inj)-1)) = ns_phi(i_inj)
+          n_spi_begin = n_spi_begin + n_spi(i_inj)
+        end do
+        write(*,*)"Backward Compatibility: No spi_phi_init location found, assuming to be ns_phi."
+      end if
+
       call HDF5_array1D_reading(file_id,spi_Vel_R_arr,"spi_Vel_R_arr")
       call HDF5_array1D_reading(file_id,spi_Vel_Z_arr,"spi_Vel_Z_arr")
       call HDF5_array1D_reading(file_id,spi_Vel_RxZ_arr,"spi_Vel_RxZ_arr")
@@ -1697,6 +1716,7 @@ subroutine import_hdf5_restart(node_list, element_list, filename, format_rst, er
         pellets(i)%spi_R       = spi_R_arr(i)
         pellets(i)%spi_Z       = spi_Z_arr(i)
         pellets(i)%spi_phi     = spi_phi_arr(i)
+        pellets(i)%spi_phi_init= spi_phi_init_arr(i)
         pellets(i)%spi_Vel_R   = spi_Vel_R_arr(i)
         pellets(i)%spi_Vel_Z   = spi_Vel_Z_arr(i)
         pellets(i)%spi_Vel_RxZ = spi_Vel_RxZ_arr(i)
@@ -1711,6 +1731,7 @@ subroutine import_hdf5_restart(node_list, element_list, filename, format_rst, er
       deallocate (spi_R_arr)
       deallocate (spi_Z_arr)
       deallocate (spi_phi_arr)
+      deallocate (spi_phi_init_arr)
       deallocate (spi_Vel_R_arr)
       deallocate (spi_Vel_Z_arr)
       deallocate (spi_Vel_RxZ_arr)
