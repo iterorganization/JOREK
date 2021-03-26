@@ -246,7 +246,7 @@ module live_data
   !> Open file, write out headers and some parameters.
   subroutine init_live_data()
     
-    use mod_parameters,    only: n_tor, n_plane, n_period, jorek_model, variable_names
+    use mod_parameters,    only: n_tor, n_plane, n_period, jorek_model, variable_names, n_var
     use phys_module,   only: produce_live_data, mode, mode_type, xpoint, xcase, central_density, sqrt_mu0_rho0, sqrt_mu0_over_rho0, mu_zero
     
     implicit none
@@ -281,8 +281,8 @@ module live_data
                                     bnd_fluxes dEdt helicity dissipative_terms work_terms mag_energy_balance                   &
                                     Xpoint_up Xpoint_low bnd_point                                                             &
                                     area volume li3 energy_conservation net_tor_wall_curr dparticles_dt bnd_particle_fluxes    & 
-                                     vert_FB_response vert_FB_axis'   
-    write(LIVE_DATA_HANDLE,'(A,15(A11,1X))') '@variable_names: ', variable_names
+                                     vert_FB_response vert_FB_axis'
+    write(LIVE_DATA_HANDLE,'(A,15(A11,1X))') '@variable_names: ', variable_names((/(i, i=1,n_var)/))
     
     ! --- Write file headers indicating what data is in the files.
     write(LIVE_DATA_HANDLE,'(A,I5)') '@n_times: ', 1

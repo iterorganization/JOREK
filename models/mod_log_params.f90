@@ -169,6 +169,11 @@ write(*,'(1x,a)',advance='no') ' USE_COMPLEX_PRECOND          : '
   write(*,200)
   write(*,  112) ' jorek_model    =  ', jorek_model       
   write(*,  112) ' n_var          =  ', n_var             
+  write(*,112, advance='no') ' variable_names ='
+  do i = 1, n_var
+    write(*,'(" ",a)', advance='no') trim(variable_names(i))
+  end do
+  write(*,*)
   write(*,  112) ' n_dim          =  ', n_dim             
   write(*,  112) ' n_order        =  ', n_order           
   write(*,  112) ' n_tor          =  ', n_tor             
@@ -182,34 +187,6 @@ write(*,'(1x,a)',advance='no') ' USE_COMPLEX_PRECOND          : '
   write(*,  112) ' n_degrees      =  ', n_degrees         
   write(*,  112) ' nref_max       =  ', nref_max          
   write(*,  112) ' n_ref_list     =  ', n_ref_list        
-
-  write(*,*)
-  write(*,200)
-  write(*,*) '* Simulation variables:                                                       *'
-  write(*,200)
-
-  ! determine number of rows needed to show all variable_names
-  n_rows = ceiling(n_var/4.0)
-
-  ! The first loop loops through the row needed. The the left eastectics is
-  ! written followed by a loop that print out the variable_name of white space
-  ! depending on it this variable_name exist. The last write is the eastectics
-  ! on the right.
-  do i = 0,n_rows-1
-    write(*,'(A)',advance='no') ' *      '
-    do j = (i*4) + 1, (i*4) + 4
-      if ( j .gt. n_var) then
-        write(*,'(11x)',advance='no')
-      else
-        write(*,'(A11)',advance='no') variable_names(j)
-      end if
-      if ( j .lt. (i*4 + 4)) then
-        write(*,'(7x)',advance='no')
-      end if
-    end do
-    write(*,'(A)') '      *'
-  end do
-  write(*,200)
 
   ! stop function when case this log function is called from command line function
   if ( short2 ) return

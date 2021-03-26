@@ -334,7 +334,7 @@ allocate(scalar_names(n_scalars), vector_names(n_vectors))
 
 grad_psi = 0.d0
 
-scalar_names(1:n_var) = variable_names(1:n_var)
+scalar_names(1:n_var) = variable_names((/(i, i=1,n_var)/))
 if ( SI_units ) then
 #ifdef fullmhd
    scalar_names(var_rho)='n_e20m-3    '

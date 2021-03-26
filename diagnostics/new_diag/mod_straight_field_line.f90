@@ -7,7 +7,7 @@ module mod_straight_field_line
   
   use constants
   use tr_module 
-  use mod_parameters,      only: n_vertex_max, n_order, n_plane, n_tor, n_var, variable_names
+  use mod_parameters, only: n_vertex_max, n_order, n_plane, n_tor, n_var
   use phys_module,     only: F0, xpoint, xcase
   use equil_info
   use mod_interp

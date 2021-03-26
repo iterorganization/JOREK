@@ -182,7 +182,7 @@ n_scalars = n_var + n_terms
 
 allocate(scalar_names(n_scalars))
 
-scalar_names(1:n_var) = variable_names(1:n_var)
+scalar_names(1:n_var) = variable_names((/(i, i=1,n_var)/))
 
 scalar_names(n_var+1:n_var+n_terms) = (/                                   &
     'Er          ' , 'Vtheta      ' , 'Vsound      ' , 'Btot_T      '      &

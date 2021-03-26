@@ -49,6 +49,8 @@ contains
     integer(kind=int_all)                             :: ija_position, ilarge_vp
     integer                                           :: n_tor_local
 
+    if ( (k==0) .or. (k2==0) ) return ! ignore calls for model family extensions not in use (variable number zero)
+
     n_tor_local = i_tor_max - i_tor_min +1
     if ((index_node .ge. index_min) .and. (index_node .le. index_max)) then
 
@@ -98,6 +100,8 @@ contains
     real*8,                intent(inOUT) :: rhs_loc(*) 
     integer                              :: n_tor_local 
     logical                              :: is_local
+
+    if ( (k==0) ) return ! ignore calls for model family extensions not in use (variable number zero)
 
     n_tor_local = i_tor_max - i_tor_min +1
     if ((index_node .ge. index_min) .and. (index_node .le. index_max)) then

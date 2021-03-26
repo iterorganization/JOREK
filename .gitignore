@@ -68,3 +68,5 @@ shard_size.dat
 non_regression_tests_*
 /test_*
 mpiversion.mk
+new_diag_demo
+jorek2_get_new_extension_patch_connections

@@ -115,11 +115,6 @@ do ife =1,  element_list%n_elements
         xjac = x_s(ms,mt)*y_t(ms,mt) - x_t(ms,mt)*y_s(ms,mt)
         BigR = x_g(ms,mt)
 
-        ps0_x = (   y_t(ms,mt) * eq_s(1,ms,mt) - y_s(ms,mt) * eq_t(1,ms,mt) ) / xjac
-        ps0_y = ( - x_t(ms,mt) * eq_s(1,ms,mt) + x_s(ms,mt) * eq_t(1,ms,mt) ) / xjac
-        u0_x  = (   y_t(ms,mt) * eq_s(2,ms,mt) - y_s(ms,mt) * eq_t(2,ms,mt) ) / xjac
-        u0_y  = ( - x_t(ms,mt) * eq_s(2,ms,mt) + x_s(ms,mt) * eq_t(2,ms,mt) ) / xjac
-
 #ifdef fullmhd
         AR0_Z = ( - x_t(ms,mt) * eq_s(var_AR,ms,mt)  + x_s(ms,mt) * eq_t(var_AR,ms,mt) ) / xjac
         AZ0_R = (   y_t(ms,mt) * eq_s(var_AZ,ms,mt)  - y_s(ms,mt) * eq_t(var_AZ,ms,mt) ) / xjac
@@ -144,6 +139,11 @@ do ife =1,  element_list%n_elements
         endif
 
 #else
+        ps0_x = (   y_t(ms,mt) * eq_s(var_psi,ms,mt) - y_s(ms,mt) * eq_t(var_psi,ms,mt) ) / xjac
+        ps0_y = ( - x_t(ms,mt) * eq_s(var_psi,ms,mt) + x_s(ms,mt) * eq_t(var_psi,ms,mt) ) / xjac
+        u0_x  = (   y_t(ms,mt) * eq_s(var_u,  ms,mt) - y_s(ms,mt) * eq_t(var_u,ms,mt) ) / xjac
+        u0_y  = ( - x_t(ms,mt) * eq_s(var_u,  ms,mt) + x_s(ms,mt) * eq_t(var_u,ms,mt) ) / xjac
+
         W_mag(in) = W_mag(in) +                     (ps0_x*ps0_x + ps0_y*ps0_y ) / BigR    * xjac * wst
         W_kin(in) = W_kin(in) + density_eq(ms,mt) * (u0_x*u0_x   + u0_y*u0_y)    * BigR**3 * xjac * wst
 #endif

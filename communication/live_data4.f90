@@ -30,7 +30,7 @@ module live_data4
   !> Open file, write out headers and some parameters.
   subroutine init_live_data4()
     
-    use mod_parameters,    only: n_tor, n_plane, n_period, jorek_model, variable_names
+    use mod_parameters,    only: n_tor, n_plane, n_period, jorek_model, variable_names, n_var
     use phys_module,   only: produce_live_data, mode, mode_type, xpoint, xcase
     
     implicit none
@@ -57,7 +57,7 @@ module live_data4
     write(LIVE_DATA_HANDLE4,'(A,I5)') '@n_plane: ', n_plane
     write(LIVE_DATA_HANDLE4,'(A,I5)') '@n_period: ', n_period
     write(LIVE_DATA_HANDLE4,'(A)') '@plottable: energies growth_rates times input_profiles'
-    write(LIVE_DATA_HANDLE4,'(A,15(A11,1X))') '@variable_names: ', variable_names
+    write(LIVE_DATA_HANDLE4,'(A,15(A11,1X))') '@variable_names: ', variable_names((/(i, i=1,n_var)/))
     
     ! --- Write file headers indicating what data is in the files.
     write(LIVE_DATA_HANDLE4,'(A,I5)') '@n_times: ', 1

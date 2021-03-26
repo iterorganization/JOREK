@@ -158,38 +158,29 @@ ifeq (model712, $(MODEL))
   DEFINES  := $(DEFINES) -Dfullmhd
 endif
 
-# Generic models flags
-ifeq (model303, $(MODEL))
+ifeq (.true., $(shell ./util/config.sh -p with_vpar))
   DEFINES  := $(DEFINES) -DWITH_Vpar
-endif
-ifeq (model305, $(MODEL))
-  DEFINES  := $(DEFINES) -DWITH_Vpar
-endif
-ifeq (model306, $(MODEL))
-  DEFINES  := $(DEFINES) -DWITH_Vpar
-endif
-ifeq (model333, $(MODEL))
-  DEFINES  := $(DEFINES) -DWITH_Vpar
-endif
-ifeq (model401, $(MODEL))
-  DEFINES  := $(DEFINES) -DWITH_TiTe
-endif
-ifeq (model500, $(MODEL))
-  DEFINES  := $(DEFINES) -DWITH_Neutrals
-endif
-ifeq (model501, $(MODEL))
-  DEFINES  := $(DEFINES) -DWITH_Impurities
-endif
-ifeq (model502, $(MODEL))
-  DEFINES  := $(DEFINES) -DWITH_Impurities -DWITH_TiTe
-endif
-ifeq (model711, $(MODEL))
-  DEFINES  := $(DEFINES) -DWITH_TiTe
-endif
-ifeq (model712, $(MODEL))
-  DEFINES  := $(DEFINES) -DWITH_TiTe -DWITH_Neutrals
 endif
 
+ifeq (.true., $(shell ./util/config.sh -p with_TiTe))
+  DEFINES  := $(DEFINES) -DWITH_TiTe
+endif
+
+ifeq (.true., $(shell ./util/config.sh -p with_neutrals))
+  DEFINES  := $(DEFINES) -DWITH_Neutrals
+endif
+
+ifeq (.true., $(shell ./util/config.sh -p with_impurities))
+  DEFINES  := $(DEFINES) -DWITH_Impurities
+endif
+
+ifeq (.true., $(shell ./util/config.sh -p with_refluid))
+  DEFINES  := $(DEFINES) -DWITH_REFluid
+endif
+
+ifneq (0, $(shell ./util/config.sh -p n_mod_ext))
+  DEFINES  := $(DEFINES) -DMODEL_FAMILY
+endif
 
 ifeq (1, $(USE_FFTW))
   LIBS     := $(LIBS) $(LIBFFTW)

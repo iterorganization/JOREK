@@ -426,12 +426,10 @@ required = 0
     write(*,*) '  Consider testing, whether you get better performance by increasing the number'
     write(*,*) '  of MPI tasks and reducing the number of OpenMP threads in the jobscript.'
   end if
-  if (with_etaOhm) then
-    if (abs(eta-eta_ohmic)/(eta+eta_ohmic+1.d-12) > 1.d-6) then
-      write(*,*) 'WARNING: The resistivity eta and the resistivity used for Ohmic heating '
-      write(*,*) '  eta_ohm are not the same. No problem if you know what you are doing,  ' 
-      write(*,*) '  but with this setup you are not conserving energy.   '
-    endif
+  if (abs(eta-eta_ohmic)/(eta+eta_ohmic+1.d-12) > 1.d-6) then
+    write(*,*) 'WARNING: The resistivity eta and the resistivity used for Ohmic heating '
+    write(*,*) '  eta_ohm are not the same. No problem if you know what you are doing,  ' 
+    write(*,*) '  but with this setup you are not conserving energy.   '
   endif
   if (abs(T_max_eta-T_max_eta_ohm)/(T_max_eta+T_max_eta_ohm) > 1.d-6) then
     write(*,*) 'WARNING: T_max_eta and T_max_eta_ohm are not the same, which breaks  &
@@ -1217,8 +1215,7 @@ required = 0
 
     !--------------------------------------------------------- energies
     if ( (my_id == 0) .and. (.not. bench_without_plot) ) then
-
-       call energy(W_mag,W_kin)
+       call energy(node_list,element_list,W_mag,W_kin)
 
        R_axis_t(index_now)       = ES%R_axis
        Z_axis_t(index_now)       = ES%Z_axis
@@ -1255,7 +1252,7 @@ required = 0
 
        write(*,*) ' exiting current energies '
 #endif
-       
+
        ! --- Output some information about the current timestep
        130 format(1x,a,i5.5,a,es10.3,a)
        131 format(1x,a,2(2(es10.2,' ...',es10.2,',')))

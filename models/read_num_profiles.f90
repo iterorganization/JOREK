@@ -88,6 +88,7 @@ subroutine read_num_profiles(my_id)
     write(*,*)'*** Aborting...'
     stop
   endif
+
 #ifdef fullmhd
   if (my_id == 0) then
     if ( .not. num_Fprofile ) then

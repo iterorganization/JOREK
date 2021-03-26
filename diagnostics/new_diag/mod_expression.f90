@@ -758,7 +758,7 @@ module mod_expression
                 hhz_p  = HZ_p (i_tor)
                 hhz_pp = HZ_pp(i_tor)
                 vv(:)  = 0.d0
-                vv(1:)  = nodes(i)%values(i_tor,j,:)
+                vv(1:n_var)  = nodes(i)%values(i_tor,j,:)
                 
                 ! --- Poloidal Flux
                 ps0      = ps0      + vv(var_psi) * sz * hh    * hhz

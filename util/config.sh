@@ -2,16 +2,16 @@
 
 #
 # Purpose: Set the model in the makefile and/or certain parameters in the respective
-#   parameters file.
+#   settings files.
 #
-# Date: 2011-04-07
+# Date: 2011-2021
 # Author: Matthias Hoelzl, IPP Garching
 #
 
 function usage() {
   echo ""
-  echo "Purpose: Modify or print physics model in config.in and/or Makefile.inc and"
-  echo "  parameters like n_tor in the corresponding mod_parameters file."
+  echo "Purpose: Modify or print physics model in Makefile.inc and further"
+  echo " parameters in the corresponding mod_settings and mod_model_settings files."
   echo ""
   echo "Usage: `basename $0` [<key1>=<value1> [...]]   Modify model and/or parameters"
   echo "       `basename $0` -p <key>                  Print the value for <key> and exit"
@@ -23,13 +23,11 @@ function usage() {
 }
 
 SCRIPTDIR=`dirname $0`; SCRIPTDIR=`readlink -f $SCRIPTDIR`
-make_config_files=`ls config.in Makefile.inc 2>/dev/null`
-params="n_tor n_period n_plane n_vertex_max n_nodes_max n_elements_max n_boundary_max n_pieces_max"
 
 if [ "$1" == "-h" ] || [ "$1" == "--help" ]; then
   usage && exit
-elif [ -z "$make_config_files" ]; then
-  echo "Could not find a make configuration file. Are you in the JOREK trunk?" >&2
+elif [ -z "Makefile.inc" ]; then
+  echo "Could not find a ./Makefile.inc. Are you in the JOREK trunk?" >&2
   exit 1
 fi
 
@@ -51,75 +49,80 @@ function setmodel() {
     exit 1
   fi
   # --- Set model in makefile configuration files
-  for file in $make_config_files; do
-    sed -i -e "s/\(^ *MODEL *= *\)[^ ]*\(.*$\)/\1$model\2/" $file
-  done
+  sed -i -e "s/\(^ *MODEL *= *\)[^ ]*\(.*$\)/\1$model\2/" Makefile.inc
   # --- Clean up .d/.o/.mod files because of the model change
   make cleanall
 }
 
 function getmodel() {
-  model=""
-  for file in $make_config_files; do
-    model2=`egrep "MODEL *= *model[0-9]*" $file | sed -e "s/^ *MODEL *= *\(model[0-9]*\).*$/\1/"`
-    if [ "$model" != "" ]; then
-      if [ "$model" != "$model2" ]; then
-        echo "ERROR: Models in makefile configuration files do not agree. Call 'config.sh model=modelXXX' to fix that." >&2
-        exit 1
-      fi
-    else
-      model=$model2
-    fi
-  done
-  echo $model
+  egrep "MODEL *= *model[0-9]*" Makefile.inc | sed -e "s/^ *MODEL *= *\(model[0-9]*\).*$/\1/"
 }
 
 function setparam() {
   key=$1
   val=$2
-  matches=`grep -c ":: *$key" $param_file`
-  if [ "$matches" -ne 1 ]; then
-    echo "ERROR: Could not set parameter $key in $param_file." >&2
+  matches1=`grep -c ":: *$key" $paramfile1`
+  matches2=`grep -c ":: *$key" $paramfile2`
+  if [ "$matches1" -ne 1 ] && [ "$matches2" -ne 1 ]; then
+    echo "ERROR: Could not set parameter $key." >&2
     exit 1
   else
-    sed -i -e "s/\(^.*:: *$key *= *\)[^ !\t]*\(.*$\)/\1$val\2/" $param_file
+    for paramfile in $paramfiles; do
+      sed -i -e "s/\(^.*:: *$key *= *\)[^ !\t]*\(.*$\)/\1$val\2/" $paramfile
+    done
   fi
 }
 
 function getparam() {
   key=$1
-  grep ":: *$key[ =]" $param_file | sed -e "s/^.*:: *$key *= *\([^ !\t]*\).*$/\1/"
+  for i in $paramfiles; do
+    grep ":: *$key[ =]" $i | sed -e "s/^.*:: *$key *= *\([^ !\t]*\).*$/\1/"
+  done
+}
+
+function whichparams() {
+  for i in $@; do
+    grep '#SETTINGS#' $@ | sed -e 's/^.*#//'
+  done
 }
 
 function print_info() {
-  file="$1"
   echo ""
-  echo "======================="
-  echo "$file:"
+  echo "=============================="
   
-  if [ -f "$file" ]; then
-    echo "-----------------------"
-    echo "  `getmodel`"
-    for param in $params; do
-      echo "  $param = `getparam $param`"
+  params1=`whichparams $paramfile1`
+  params2=`whichparams $paramfile2`
+  
+  echo "  `getmodel`"
+  echo "------------------------------"
+  for param in $params1; do
+    printf "  %-16s = %s\n" "$param" "`getparam $param`"
+  done
+  if [ "$params2" != "" ]; then
+    echo "------------------------------"
+    for param in $params2; do
+      printf "  %-16s = %s\n" "$param" "`getparam $param`"
     done
-  else
-    echo "  (file not found)"
   fi
-  echo "======================="
+  echo "=============================="
   echo ""
 }
 
-function check_param_file() {
-  param_file="models/$model/mod_parameters.f90"
-  if [ ! -f $param_file ]; then
-    echo "ERROR: File '$param_file' does not exist." >&2
-    exit 1
-  fi
+function check_param_files() {
+  for i in $paramfiles; do
+    if [ ! -f $i ]; then
+      echo "ERROR: File '$i' does not exist." >&2
+      exit 1
+    fi
+  done
 }
 
 # --- Determine the model
-model=`getmodel` && check_param_file
+model=`getmodel`
+paramfile1="models/mod_settings.f90"
+paramfile2="models/$model/mod_model_settings.f90"
+paramfiles="$paramfile1 $paramfile2"
+check_param_files
 
 # --- If argument -p is given, just print the requested parameter value and exit
 if [ "$1" == "-p" ]; then
@@ -128,8 +131,8 @@ if [ "$1" == "-p" ]; then
   else
     value=`getparam $2`
     if [ -z "$value" ]; then
-      echo "ERROR: Could not find parameter '$2'." >&2
-      exit 1
+      echo "Could not find parameter '$2'."
+      exit
     fi
     echo "$value"
   fi
@@ -142,7 +145,11 @@ for arg in $@; do
     setmodel `val $arg`
   fi
 done
-model=`getmodel` && check_param_file
+model=`getmodel`
+paramfile1="models/mod_settings.f90"
+paramfile2="models/$model/mod_model_settings.f90"
+paramfiles="$paramfile1 $paramfile2"
+check_param_files
 
 # --- Set the parameters
 for arg in $@; do
@@ -152,7 +159,6 @@ for arg in $@; do
 done
 
 # --- Print the configuration
-for file in $make_config_files; do
-  print_info $file
-done
+model=`getmodel`
+print_info $file
 echo "('`basename $0` -h' for help)"

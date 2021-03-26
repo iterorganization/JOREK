@@ -1,15 +1,28 @@
-module mod_parameters
+!> Basic model-dependend hard-coded run parameters.
+module mod_model_settings
 
   implicit none
 
-  integer, parameter :: jorek_model    = 001       !< JOREK physics model
+! ##################################################################################################
+! ####  @USERS: This file should not be modified ###################################################
+! ##################################################################################################
 
+  integer, parameter :: jorek_model    = 001       !< JOREK physics model
+  
+  logical, parameter :: hydrodynamics   = .true.
+  logical, parameter :: reduced_MHD     = .false.
+  logical, parameter :: full_MHD        = .false.
+  
   logical, parameter :: with_TiTe       = .false.
   logical, parameter :: with_neutrals   = .false.
   logical, parameter :: with_impurities = .false.
   logical, parameter :: with_Vpar       = .false.
-  logical, parameter :: with_etaOhm     = .false.
+  logical, parameter :: with_refluid    = .false.
 
+  integer, parameter :: n_mod_ext            = 0 !< this model is not a model family => no extensions
+
+  integer, parameter :: n_var    = 2
+  
   integer, parameter :: var_A3   = 0                       ! place of variable psi/mag pot 3               (ps or A3)
   integer, parameter :: var_AR   = 0                       ! place of variable mag pot  1                  (AR)
   integer, parameter :: var_AZ   = 0                       ! place of variable mag pot  2                  (AZ)
@@ -29,28 +42,9 @@ module mod_parameters
   integer, parameter :: var_jec  = 0                       ! place of variable ECCD current                (jec)
   integer, parameter :: var_jec1 = 0                       ! place of variable ECCD current #1             (jec1)
   integer, parameter :: var_jec2 = 0                       ! place of variable ECCD current #2             (jec2)
-
-  integer, parameter :: n_var          = 2         !< number of variables
-  integer, parameter :: n_dim          = 2         !< number of dimensions
-  integer, parameter :: n_order        = 3         !< order of the polynomial basis
-  integer, parameter :: n_tor          = 1         !< number of toroidal harmonics in physics variables
-  integer, parameter :: n_coord_tor    = 1         !< number of toroidal harmonics in (R, Z) coordinates
-  integer, parameter :: n_period       = 1         !< periodicity in toroidal direction
-  integer, parameter :: n_plane        = 1         !< number of toroidal angles
-  integer, parameter :: n_vertex_max   = 4         !< maximum number of corners of an element
-  integer, parameter :: n_nodes_max    = 80001     !< maximum number of nodes
-  integer, parameter :: n_elements_max = 80001     !< maximum number of elements
-  integer, parameter :: n_boundary_max = 1001      !< maximum number of boundary elements
-  integer, parameter :: n_pieces_max   = 6001      !< maximum number of line pieces describing a flux surface
-  integer, parameter :: n_degrees      = n_order+1 !< degrees of freedom per variable per node
-  integer, parameter :: nref_max       = 10000     !< (refinement)
-  integer, parameter :: n_ref_list     = 10000     !< (refinement)
-  character*11 :: variable_names(n_var)
- 
-  !> Names of the physical variables
-  parameter (variable_names = (/ 'Potential  ','Vorticity  ' /))
+  integer, parameter :: var_nre  = 0                       ! place of variable for RE number density       (nre)
   
   !> element_matrix and element_matrix_fft combined into a single one?
   logical, parameter :: unified_element_matrix = .false.
 
-endmodule
+end module mod_model_settings

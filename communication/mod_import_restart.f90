@@ -1090,10 +1090,10 @@ subroutine import_hdf5_restart(node_list, element_list, filename, format_rst, er
 
     ! --- Split "total" temperature into electron and ion temperature
     if ( import_3xx_4xx ) then
-      node_list%node(i)%values(:,:,8) = node_list%node(i)%values(:,:,6) / 2.d0
-      node_list%node(i)%deltas(:,:,8) = node_list%node(i)%deltas(:,:,6) / 2.d0
-      node_list%node(i)%values(:,:,6) = node_list%node(i)%values(:,:,6) / 2.d0
-      node_list%node(i)%deltas(:,:,6) = node_list%node(i)%deltas(:,:,6) / 2.d0
+      node_list%node(i)%values(:,:,var_Te) = node_list%node(i)%values(:,:,6) / 2.d0
+      node_list%node(i)%deltas(:,:,var_Te) = node_list%node(i)%deltas(:,:,6) / 2.d0
+      node_list%node(i)%values(:,:,var_Ti) = node_list%node(i)%values(:,:,6) / 2.d0
+      node_list%node(i)%deltas(:,:,var_Ti) = node_list%node(i)%deltas(:,:,6) / 2.d0
     end if
 
 
@@ -1788,10 +1788,12 @@ subroutine import_hdf5_restart(node_list, element_list, filename, format_rst, er
         do m=2,n_tor
           if ( new_mode(m) .eq. 1 ) then
           node_list%node(i)%values(m,:,:) = 0.d0
-          node_list%node(i)%values(m,:,5)   = amplitude * node_list%node(i)%values(1,:,5)
-          node_list%node(i)%values(m,:,6)   = amplitude * node_list%node(i)%values(1,:,6)
+          node_list%node(i)%values(m,:,var_rho)   = amplitude * node_list%node(i)%values(1,:,var_rho)
 #ifdef WITH_TiTe
-          node_list%node(i)%values(m,:,var_Te)= amplitude * node_list%node(i)%values(1,:,var_Te)
+          node_list%node(i)%values(m,:,var_Ti)   = amplitude * node_list%node(i)%values(1,:,var_Ti)
+          node_list%node(i)%values(m,:,var_Te)   = amplitude * node_list%node(i)%values(1,:,var_Te)
+#else
+          node_list%node(i)%values(m,:,var_T)    = amplitude * node_list%node(i)%values(1,:,var_T)
 #endif
 #ifdef fullmhd
           node_list%node(i)%values(m,:,var_AR)= amplitude * node_list%node(i)%values(1,:,var_AR)

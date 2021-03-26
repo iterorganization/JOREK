@@ -6,7 +6,7 @@ program jorek_diagnostics
 !-----------------------------------------------------------------------
 !
 !-----------------------------------------------------------------------
-use mod_parameters, only: n_var, variable_names
+use mod_parameters, only: n_var
 use data_structure
 use phys_module
 use basis_at_gaussian
