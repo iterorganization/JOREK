@@ -572,7 +572,7 @@ module mod_expression
 #endif
 #if (defined WITH_Neutrals) && (!defined WITH_Impurities)
     real*8  :: Arad_bg, Brad_bg, Crad_bg, frad_bg
-    real*8  :: Lrad_imp, m_i_over_m_imp_bg, r_imp, coef_rad_imp
+    real*8  :: Lrad_imp, r_imp, coef_rad_imp
 #endif
 #ifdef WITH_Impurities
     ! See https://www.jorek.eu/wiki/doku.php?id=model500_501_555 for details
@@ -1352,35 +1352,19 @@ module mod_expression
     ! --- Radiation from background impurity
     !--------------------------------------------------------
       ne_SI = corr_neg_dens(r0) * 1.d20 * central_density !electron density (SI)
-      r_imp = nimp_bg / (1.d20 * central_density)  ! Background impurity density in JU
-
-      select case ( trim(imp_type) )
-        case('C')
-          m_i_over_m_imp_bg = central_mass/12.  ! Carbon mass = 12 u
-        case('Ar')
-          m_i_over_m_imp_bg = central_mass/40.  ! Argon mass = 40 u
-        case('Ne')
-          m_i_over_m_imp_bg = central_mass/20.  ! Neon mass = 20 u
-        case('W')
-          m_i_over_m_imp_bg = central_mass/184. ! Tungsten mass = 184 u
-        case default
-          if (nimp_bg > 0) then
-            write(*,*) 'Background impurity"', trim(imp_type), '" unknown (in mod_neutral_source.f90), terminating.'
-            stop
-          end if 
-      end select      
+      r_imp = nimp_bg / (1.d20 * central_density)  ! Background impurity density in JU     
 
       if (ne_SI > ne_SI_min .and. Te_corr_eV > Te_eV_min .and. nimp_bg > 0) then
         ! Normalization coefficient for radiation rate from SI units (W.m^3) to JOREK units:
         coef_rad_imp = 2.d0/3.d0*MU_ZERO**1.5d0*(central_mass*MASS_PROTON)**0.5d0&
-                     *(central_density*1.d20)**2.5d0*m_i_over_m_imp_bg
+                     *(central_density*1.d20)**2.5d0
         Lrad_imp = 0.0
         call radiation_function_linear(imp_adas(1),imp_cor(1),log10(ne_SI),log10(Te_corr_eV*EL_CHG/K_BOLTZ),Lrad_imp)         
         if (Lrad_imp < 0.) then
           Lrad_imp = 0.
         end if
         if ( units == SI_UNITS ) then
-          frad_bg = nimp_bg * Lrad_imp * m_i_over_m_imp_bg
+          frad_bg = nimp_bg * Lrad_imp
         else if ( units == JOREK_UNITS ) then
           frad_bg = r_imp * Lrad_imp * coef_rad_imp 
         endif

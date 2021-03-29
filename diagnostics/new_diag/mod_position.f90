@@ -340,7 +340,7 @@ module mod_position
           ax = pos_list%pos(j,i)%R - eq%R_axis
           ay = pos_list%pos(j,i)%Z - eq%Z_axis
           hh = ( gy * ax - gx * ay ) / gg
-          surface(i) = surface(i) + hh * gg / 2.d0
+          surface(i) = surface(i) + abs(hh * gg / 2.d0)
         end do
       end do
       

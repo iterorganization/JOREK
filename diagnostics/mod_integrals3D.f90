@@ -184,7 +184,6 @@ real*8     :: LradDcont_T, dLradDcont_dT                      ! Continuum (Brem.
 !   -Radiation from background impurities
 real*8     :: Arad_bg, Brad_bg, Crad_bg, frad_bg              ! Retain hard-coded fitting for argon
 real*8     :: Lrad_imp
-real*8     :: m_i_over_m_imp_bg                               ! Mass ratio between main ions and background impurity
 integer*8  :: i_phi
 real*8     :: coef_prad_si                                    ! Prad,SI = coef_prad_si * Prad,jorek
 
@@ -340,7 +339,7 @@ ife_max   = min((my_id +1) * ife_delta, element_list%n_elements)
 !$omp           Sion_T, dSion_dT, Srec_T, dSrec_dT, ksiion, source_neutral,                    &
 !$omp           Te_eV, ne_SI, LradDrays_T, LradDcont_T, dLradDrays_dT, dLradDcont_dT,          &
 !$omp           Arad_bg, Brad_bg, Crad_bg, frad_bg,                                            &
-!$omp           Lrad_imp, m_i_over_m_imp_bg, coef_prad_si,                                     &
+!$omp           Lrad_imp, coef_prad_si,                                                        &
 #endif
 !$omp           omp_nthreads,omp_tid)
 
@@ -617,29 +616,12 @@ do ife = ife_min, ife_max
   ne_SI = r0_corr * 1.d20 * central_density !electron density (SI)
   Te_eV = T0_corr/(2.d0*EL_CHG*MU_ZERO*central_density*1.d20) ! Te in eV
 
-  if (use_imp_adas) then  ! use open adas by default
-    select case ( trim(imp_type) )
-      case('C')
-        m_i_over_m_imp_bg = central_mass/12.  ! Carbon mass = 12 u
-      case('Ar')
-        m_i_over_m_imp_bg = central_mass/40.  ! Argon mass = 40 u
-      case('Ne')
-        m_i_over_m_imp_bg = central_mass/20.  ! Neon mass = 20 u
-      case('W')
-        m_i_over_m_imp_bg = central_mass/184.  ! Tungsten mass = 184 u
-      case default
-        if (nimp_bg > 0) then
-          write(*,*) 'Background impurity"', trim(imp_type), '" unknown (in mod_neutral_source.f90), terminating.'
-          stop
-        end if 
-      end select  
-
+  if (use_imp_adas) then  ! use open adas by default  
     ! Use radiation coefficients from ADAS
     if (ne_SI > ne_SI_min .and. Te_eV > Te_eV_min .and. nimp_bg > 0) then
       Lrad_imp = 0.0
       call radiation_function_linear(imp_adas(1),imp_cor(1),log10(ne_SI),log10(Te_eV*EL_CHG/K_BOLTZ),Lrad_imp)
       if (Lrad_imp < 0.) Lrad_imp = 0.
-      Lrad_imp = Lrad_imp * m_i_over_m_imp_bg
     else
       Lrad_imp = 0.
     end if

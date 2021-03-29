@@ -103,7 +103,7 @@ real*8                :: angle, source_volume, local_density, local_temperature,
 logical               :: include_radiation
 integer               :: n_radiation,s_radiation
 real*8                :: Arad_bg, Brad_bg, Crad_bg, frad_bg
-real*8                :: Te_eV, ne_SI, Lrad_imp, m_i_over_m_imp_bg, r_imp, coef_rad_imp
+real*8                :: Te_eV, ne_SI, Lrad_imp, r_imp, coef_rad_imp
 real*8                :: T_corr, Te_corr_eV, coef_rad_1, Sion_T, eta_Sp, ksiion, Tion, LradDcont_T
 real*8                :: LradDrays_T, coef_ion_1, coef_ion_2, coef_ion_3, S_ion_puiss
 real*8                :: r0_real8, rn0_real8
@@ -1227,29 +1227,11 @@ enddo  ! n_elements
       ne_SI = r0_corr * 1.d20 * central_density !electron density (SI)
       
       if (use_imp_adas) then  ! use open adas by default
-        r_imp = nimp_bg / (1.d20 * central_density)  ! Background impurity density in JU
-
-        select case ( trim(imp_type) )
-          case('C')
-            m_i_over_m_imp_bg = central_mass/12.  ! Carbon mass = 12 u
-          case('Ar')
-            m_i_over_m_imp_bg = central_mass/40.  ! Argon mass = 40 u
-          case('Ne')
-            m_i_over_m_imp_bg = central_mass/20.  ! Neon mass = 20 u
-          case('W')
-            m_i_over_m_imp_bg = central_mass/184. ! Tungsten mass = 184 u
-          case default
-            if (nimp_bg > 0) then
-              write(*,*) 'Background impurity"', trim(imp_type), '" unknown (in mod_neutral_source.f90), terminating.'
-              stop
-            end if
-        end select      
-
+        r_imp = nimp_bg / (1.d20 * central_density)  ! Background impurity density in JU    
         if (ne_SI > ne_SI_min .and. Te_corr_eV > Te_eV_min .and. nimp_bg > 0) then
           ! Normalization coefficient for radiation rate from SI units (W.m^3) to JOREK units:
           coef_rad_imp = 2.d0/3.d0*MU_ZERO**1.5d0*(central_mass*MASS_PROTON)**0.5d0&
-                       *(central_density*1.d20)**2.5d0*m_i_over_m_imp_bg
-
+                       *(central_density*1.d20)**2.5d0
           Lrad_imp = 0.0
           call radiation_function_linear(imp_adas(1),imp_cor(1),log10(ne_SI),log10(Te_corr_eV*EL_CHG/K_BOLTZ),Lrad_imp)
           Lrad_imp = Lrad_imp * coef_rad_imp          
@@ -1578,28 +1560,12 @@ if (SI_units) then
       ne_SI = r0_corr * 1.d20 * central_density !electron density (SI)
 
       if (use_imp_adas) then  ! use open adas by default
-        select case ( trim(imp_type) )
-          case('C')
-            m_i_over_m_imp_bg = central_mass/12.  ! Carbon mass = 12 u
-          case('Ar')
-            m_i_over_m_imp_bg = central_mass/40.  ! Argon mass = 40 u
-          case('Ne')
-            m_i_over_m_imp_bg = central_mass/20.  ! Neon mass = 20 u
-          case('W')
-            m_i_over_m_imp_bg = central_mass/184. ! Tungsten mass = 184 u
-          case default
-            if (nimp_bg > 0) then
-              write(*,*) 'Background impurity"', trim(imp_type), '" unknown (in mod_neutral_source.f90), terminating.'
-              stop
-            end if 
-        end select
-
         ! Use radiation coefficients from ADAS
         if (ne_SI > ne_SI_min .and. Te_corr_eV > Te_eV_min .and. nimp_bg > 0) then
           Lrad_imp = 0.0
           call radiation_function_linear(imp_adas(1),imp_cor(1),log10(ne_SI),log10(Te_corr_eV*EL_CHG/K_BOLTZ),Lrad_imp)
           if (Lrad_imp < 0.) Lrad_imp = 0.
-          Lrad_imp = Lrad_imp * m_i_over_m_imp_bg
+          Lrad_imp = Lrad_imp 
         else
           Lrad_imp = 0.
         end if
