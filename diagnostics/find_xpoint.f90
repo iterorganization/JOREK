@@ -218,7 +218,7 @@ if(xcase .ne. 2) then
   if (my_id .eq. 0) then
     write(*,'(A,i6,4f14.8)') ' Lower X-point : ',i_elm_xpoint(1),R_xpoint(1),Z_xpoint(1),psi_xpoint(1),sqrt(ps_x**2+ps_y**2)
   endif
-  if ((.not. found_lower )) write(*,*) 'WARNING: lower X-point not properly found after ', n_tries, ' attempts', my_id
+  if ((.not. found_lower )) write(*,*) 'WARNING: lower X-point not properly found after ', n_tries, ' attempts'
 endif
 
 if(xcase .ne. 1) then 

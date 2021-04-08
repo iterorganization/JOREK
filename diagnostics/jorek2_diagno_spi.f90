@@ -6,7 +6,7 @@
 !* https://www.jorek.eu/wiki/doku.php?id=diagnostics#diagnostics      *
 !**********************************************************************
 
-program jorek2_diagno
+program jorek2_diagno_spi
 !-----------------------------------------------------------------------
 !
 !-----------------------------------------------------------------------
@@ -230,4 +230,4 @@ endif
 
 !call finplt
 
-end program jorek2_diagno
+end program jorek2_diagno_spi

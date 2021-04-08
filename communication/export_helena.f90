@@ -230,13 +230,13 @@ do i=2, surface_list%n_psi
       call interp(node_list,element_list,i_elm,1,1,ri,si,PSgi,dPSgi_dr,dPSgi_ds,dPSgi_drs,dPSgi_drr,dPSgi_dss)
       call interp(node_list,element_list,i_elm,5,1,ri,si,R0gi,dR0gi_dr,dR0gi_ds,dR0gi_drs,dR0gi_drr,dR0gi_dss)
       if (with_TiTe) then
-        call interp(node_list,element_list,i_elm,6,1,ri,si,Ti0gi,dTi0gi_dr,dTi0gi_ds,dTi0gi_drs,dTi0gi_drr,dTi0gi_dss)
-        call interp(node_list,element_list,i_elm,n_var,1,ri,si,Te0gi,dTe0gi_dr,dTe0gi_ds,dTe0gi_drs,dTe0gi_drr,dTe0gi_dss) !WARNING, here we always assume the electron temperature is the last variable
+        call interp(node_list,element_list,i_elm,var_Ti,1,ri,si,Ti0gi,dTi0gi_dr,dTi0gi_ds,dTi0gi_drs,dTi0gi_drr,dTi0gi_dss)
+        call interp(node_list,element_list,i_elm,var_Te,1,ri,si,Te0gi,dTe0gi_dr,dTe0gi_ds,dTe0gi_drs,dTe0gi_drr,dTe0gi_dss)
         T0gi     = Ti0gi + Te0gi
         dT0gi_dr = dTi0gi_dr + dTe0gi_dr
         dT0gi_ds = dTi0gi_ds + dTe0gi_ds
       else
-        call interp(node_list,element_list,i_elm,6,1,ri,si,T0gi,dT0gi_dr,dT0gi_ds,dT0gi_drs,dT0gi_drr,dT0gi_dss)
+        call interp(node_list,element_list,i_elm,var_T,1,ri,si,T0gi,dT0gi_dr,dT0gi_ds,dT0gi_drs,dT0gi_drr,dT0gi_dss)
       endif      
       call interp(node_list,element_list,i_elm,3,1,ri,si,ZJgi,dZJgi_dr,dZJgi_ds,dZJgi_drs,dZJgi_drr,dZJgi_dss)
 

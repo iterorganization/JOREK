@@ -425,7 +425,7 @@ endif
 #ifdef WITH_Impurities
  if (include_radiation) then
      scalar_names(s_radiation+1:s_radiation+n_radiation) &
-                  = (/ 'Ionis_Wm-3  ', 'Cor_radWm-3 ', 'Joule_Wm-3  ', 'Z_imp       ', 'Z_eff       '/)
+                  = (/ 'Ionis_Jm-3  ', 'Coronal_radWm-3 ', 'Joule_Wm-3  ', 'Z_imp   ', 'Z_eff       '/)
  endif
 #endif
 

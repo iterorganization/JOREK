@@ -267,7 +267,7 @@ contains
     	do j = 1, n_tor_local*n_vertex_max*(n_order+1)*n_var
     	  
     	  if (abs(thread_struct(omp_tid)%ELM(i,j)-thread_struct(omp_tid)%ELM2(i,j))/  &
-    	      (abs(thread_struct(omp_tid)%ELM(i,j))+abs(thread_struct(omp_tid)%ELM2(i,j))+1.d0) .gt. 1.d-8) then
+    	      (abs(thread_struct(omp_tid)%ELM(i,j))+abs(thread_struct(omp_tid)%ELM2(i,j))+1.d0) .gt. 1.d-10) then
     	    call decrypt_index(i, ivertex, iorder, ivar, itor)
     	    call decrypt_index(j, jvertex, jorder, jvar, jtor)
     	    write(*,'(4x,3i8,4x,3i4,4x,1i8,7x,3i4,4x,1i8,7x,3es16.8)') my_id, i, j, ivertex, iorder, itor, ivar, &

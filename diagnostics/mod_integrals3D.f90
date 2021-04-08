@@ -105,6 +105,7 @@ real*8  :: kin_par_in, kin_par_out, kin_par_tot, kin_perp_in, kin_perp_out, kin_
 real*8  :: VM_int, VM_ext, VM_tot, mag_in, mag_out, mag_tot, J2_int, J2_ext, J2_tot, ohm_in, ohm_tot, ohm_out
 real*8  :: heli_tot, thm_wk, thm_wk_tot, mag_wk, mag_wk_tot, thermal_work_tot
 real*8  :: vpar_disp_tot, vpar_disp, viscopar_dissip_tot, source_tot, heating_tot
+real*8  :: fric_disp_tot, fric_disp, friction_dissip_tot
 real*8  :: H_int, H_ext, S_int, S_ext, heating_in, heating_out, source_in, source_out
 real*8  :: psi_xpoint(2),R_xpoint(2),Z_xpoint(2),s_xpoint(2),t_xpoint(2)
 real*8  :: dTdx, dTdy, drhodx, drhody, dPdx, dPdy, dpsidx, dpsidy, dudx, dudy, drhondx, drhondy
@@ -129,6 +130,7 @@ real*8  :: vp,vp_s,vp_t,vp_st,vp_ss,vp_tt
 real*8  :: rn,rn_s,rn_t,rn_st,rn_ss,rn_tt 
 real*8  :: psi_s, psi_t, rho_s, rho_t, T_s, T_t, Ti, Ti_s, Ti_t, Te, Te_s, Te_t, p0_s, p0_t, u0_s, u0_t, ps0_s, ps0_t, p0_p, rhon_s, rhon_t
 real*8  :: u0_p, u_s, u_t, u_p
+real*8  :: u0_x, u0_y
 real*8  :: viscopar_flux, viscopar_f, vpar_s, vpar_t, vpar_x, vpar_y, li3_tot, li3
 real*8  :: varmin(n_var), varmax(n_var), V_min(n_var), V_max(n_var)
 
@@ -242,6 +244,7 @@ kinpar_flux  = 0.d0
 poynting_flux= 0.d0
 viscopar_flux= 0.d0
 vpar_disp_tot= 0.d0
+fric_disp_tot= 0.d0
 psi_off      = 0.d0
 thm_wk_tot   = 0.d0
 mag_wk_tot   = 0.d0
@@ -291,7 +294,7 @@ ife_max   = min((my_id +1) * ife_delta, element_list%n_elements)
 !$omp          central_density, pellet_particles,pellet_density, pellet_volume,                &
 !$omp          local_pellet_particles, local_plasma_particles, local_pellet_volume,            &
 !$omp          heli_tot,  keep_current_prof, psi_off, visco_par, thm_wk_tot,                   &
-!$omp          mag_wk_tot, vpar_disp_tot, area1, mag_src_tot,                                  &
+!$omp          mag_wk_tot, vpar_disp_tot, fric_disp_tot, area1, mag_src_tot,                   &
 !$omp          eta_ohmic, central_mass,                                                        &
 #if (defined WITH_Neutrals) || (defined WITH_Impurities)
 !$omp          local_n_particles_inj, local_n_particles, ns_amplitude, ns_R, ns_Z,             &
@@ -315,7 +318,8 @@ ife_max   = min((my_id +1) * ife_delta, element_list%n_elements)
 !$omp           dn_dpsi,dn_dz,dn_dpsi2,dn_dz2,dn_dpsi_dz,dn_dpsi3,dn_dpsi_dz2, dn_dpsi2_dz,    &
 !$omp           dT_dpsi,dT_dz,dT_dpsi2,dT_dz2,dT_dpsi_dz,dT_dpsi3,dT_dpsi_dz2, dT_dpsi2_dz,    &
 !$omp           hel1, vpar_x, vpar_y, ps0_s, ps0_t, u0_s, u0_t, p0_s, p0_t, vpar_s, vpar_t,    &
-!$omp           thm_wk, mag_wk, eta_T, vpar_disp, p0_p, T0_corr, T0e_corr, r0_corr, u0_p,      &
+!$omp           u0_x, u0_y, T0e_corr,                                                          &
+!$omp           thm_wk, mag_wk, eta_T, vpar_disp, fric_disp, p0_p, T0_corr, r0_corr, u0_p,     &
 !$omp           AR0, AR0_p, AR0_s, AR0_t, AR0_sp, AR0_tp, AR0_Rp, AZ0, AZ0_p, AZ0_s, AZ0_t, AZ0_sp, AZ0_tp, AZ0_Zp, A30, &
 !$omp           A30_p, A30_s, A30_t, A30_ss, A30_tt, A30_st, A30_R, A30_RR, A30_ZZ, BR_Z, BZ_R,&
 !$omp           eta_T_ohm,                                                              &
@@ -360,7 +364,8 @@ omp_tid      = 0
 !$omp                D_int, D_ext, P_int, H_int, S_int, H_ext, S_ext, P_ext, C_intern, C_ext, &
 !$omp                VP_int, VP_ext, VP_tot, VK_tot, VK_int, VK_ext, VM_ext,                  &
 !$omp                VM_int, VM_tot, Vol, P_tot, D_tot,J2_tot, J2_int, J2_ext,                &
-!$omp                heli_tot, mag_wk_tot, vpar_disp_tot, thm_wk_tot, area1, mag_src_tot )
+!$omp                heli_tot, mag_wk_tot, vpar_disp_tot, thm_wk_tot, area1, mag_src_tot,     &
+!$omp                fric_disp_tot)
 
 do ife = ife_min, ife_max
 
@@ -498,6 +503,8 @@ do ife = ife_min, ife_max
         u0_s   = eq_s(mp,var_u,ms,mt) 
         u0_t   = eq_t(mp,var_u,ms,mt)
         u0_p   = eq_p(mp,var_u,ms,mt)
+        u0_x   = (   y_t(ms,mt) * eq_s(mp,var_u,ms,mt) - y_s(ms,mt) * eq_t(mp,var_u,ms,mt) ) / xjac
+        u0_y   = ( - x_t(ms,mt) * eq_s(mp,var_u,ms,mt) + x_s(ms,mt) * eq_t(mp,var_u,ms,mt) ) / xjac
         p0_s   = r0*eq_s(mp,var_T,ms,mt) + T0 * eq_s(mp,var_rho,ms,mt) 
         p0_t   = r0*eq_t(mp,var_T,ms,mt) + T0 * eq_t(mp,var_rho,ms,mt) 
         p0_p   = r0*eq_p(mp,var_T,ms,mt) + T0 * eq_p(mp,var_rho,ms,mt) 
@@ -822,6 +829,11 @@ do ife = ife_min, ife_max
         source_bg  = 0.d0
 
         call get_source(x_g(ms,mt),y_g(ms,mt),phi,source_bg,source_imp,m_i_over_m_imp)
+
+        ! Frictional heat source
+        fric_disp     =   0.5 * BigR**2 * (u0_x**2.0 + u0_y**2.0) * (source_bg + source_imp)&
+                        + 0.5 * vpar0**2 * BB2 * (source_bg + source_imp)
+        fric_disp_tot = fric_disp_tot + fric_disp * BigR * xjac * wst * delta_phi 
 
         ! Neutral injection rate in particles/s
         local_n_particles_inj = local_n_particles_inj + 0.5d0 * central_density * 1.d20 * source_imp * m_i_over_m_imp * bigR &
@@ -1292,6 +1304,7 @@ call MPI_AllReduce(heli_tot, helicity_tot,1,MPI_DOUBLE_PRECISION,MPI_SUM,MPI_COM
 call MPI_AllReduce(thm_wk_tot, thermal_work_tot,1,MPI_DOUBLE_PRECISION,MPI_SUM,MPI_COMM_WORLD,ierr)
 call MPI_AllReduce(mag_wk_tot, mag_work_tot,1,MPI_DOUBLE_PRECISION,MPI_SUM,MPI_COMM_WORLD,ierr)
 call MPI_AllReduce(vpar_disp_tot, viscopar_dissip_tot,1,MPI_DOUBLE_PRECISION,MPI_SUM,MPI_COMM_WORLD,ierr)
+call MPI_AllReduce(fric_disp_tot, friction_dissip_tot,1,MPI_DOUBLE_PRECISION,MPI_SUM,MPI_COMM_WORLD,ierr)
 call MPI_AllReduce(mag_src_tot, mag_source_tot,1,MPI_DOUBLE_PRECISION,MPI_SUM,MPI_COMM_WORLD,ierr)
 call MPI_AllReduce(varmin,V_min,n_var,MPI_DOUBLE_PRECISION,MPI_MIN,MPI_COMM_WORLD,ierr)
 call MPI_AllReduce(varmax,V_max,n_var,MPI_DOUBLE_PRECISION,MPI_MAX,MPI_COMM_WORLD,ierr)
@@ -1326,6 +1339,7 @@ helicity_tot         = heli_tot
 thermal_work_tot     = thm_wk_tot
 mag_work_tot         = mag_wk_tot
 viscopar_dissip_tot  = vpar_disp_tot
+friction_dissip_tot  = fric_disp_tot
 mag_source_tot       = mag_src_tot
 V_min                = varmin
 V_max                = varmax
@@ -1409,6 +1423,7 @@ helicity_tot         = n_period * helicity_tot
 thermal_work_tot     = n_period * thermal_work_tot    * fact_flux 
 mag_work_tot         = n_period * mag_work_tot        * fact_flux
 viscopar_dissip_tot  = n_period * viscopar_dissip_tot * fact_flux
+friction_dissip_tot  = n_period * friction_dissip_tot * fact_flux
 mag_source_tot       = n_period * mag_source_tot      * fact_flux
 volume               = n_period * volume
 area                 = n_period * area / (2.d0 * PI)
@@ -1593,6 +1608,9 @@ if (my_id .eq. 0) then
       case ( 'Viscpar_diss' )
         res(iexpr+1) = viscopar_dissip_tot
 
+      case ( 'Friction_diss' )
+        res(iexpr+1) = friction_dissip_tot
+
       case ( 'Wmag_src_tot' )
         res(iexpr+1) = mag_source_tot 
 
@@ -1716,10 +1734,14 @@ if (my_id .eq. 0) then
                                  Ohm_tot/1.d6,heating_in/1d6+heating_out/1.d6 ,source_in+source_out
 
 #if (defined WITH_Neutrals) || (defined WITH_Impurities)
-  write(*,'(A,4es14.6)')  ' Integrals_3D, MGI               : ', total_n_particles_inj, total_n_particles
-  write(*,'(A,1e14.6,A)') ' Radiation power                 : ', total_radiation/1.d6, ' [MW]'
-  write(*,'(A,1e14.6,A)') ' Radiation power SANITY          : ', sum(total_radiation_phi)/1.d6, ' [MW]'
-  write(*,'(A,1e14.6,A)') ' Ionization power                : ', total_E_ion/1.d6, ' [MW]'
+  write(*,'(A,4es14.6)')   ' Integrals_3D, MGI              : ', total_n_particles_inj, total_n_particles
+  write(*,'(A,1e14.6,A)')  ' Radiation power                : ', total_radiation/1.d6, ' [MW]'
+  write(*,'(A,1e14.6,A)')  ' Radiation power SANITY         : ', sum(total_radiation_phi)/1.d6, ' [MW]'
+  if (with_neutrals) then
+    write(*,'(A,1e14.6,A)') ' Ionization power               : ', total_E_ion/1.d6, ' [MW]'
+  else if (with_impurities) then ! With CE assumption, it's easier to obtain the total ionization energy then get the ionization power by finite difference
+    write(*,'(A,1e14.6,A)') ' Ionization energy              : ', total_E_ion/1.d6, ' [MJ]'
+  endif
 
   ! If not use marker particles, obtain the ionization and radiation energy from fluid integrations
   ! Otherwise, obtain the energy from particle modules
@@ -1740,14 +1762,20 @@ if (my_id .eq. 0) then
     close (20)
   end if
 
-  if (index_now > 1 .and. (.not. use_marker)) then
-    xtime_E_ion(index_now) = xtime_E_ion(index_now-1) + t_norm * tstep * total_E_ion
-  else if (index_now == 1 .and. (.not. use_marker)) then
-    xtime_E_ion(index_now) = t_norm * tstep * total_E_ion
-  end if
-  if (index_now > 0 .and. (.not. use_marker)) then
-    xtime_E_ion_power(index_now) = total_E_ion
-  end if
+  if (with_neutrals .and. (.not. use_marker)) then
+    if (index_now > 1) then
+      xtime_E_ion(index_now) = xtime_E_ion(index_now-1) + t_norm * tstep * total_E_ion
+    else if (index_now == 1) then
+      xtime_E_ion(index_now) = t_norm * tstep * total_E_ion
+    end if
+    if (index_now > 0) then
+      xtime_E_ion_power(index_now) = total_E_ion
+    end if
+  else if (with_impurities .and. (.not. use_marker)) then ! For CE assumption, we directly give the total ionization energy
+    if (index_now > 0) then
+      xtime_E_ion(index_now) = total_E_ion
+    end if
+  endif
 #endif
 
   do k = 1, n_var
@@ -1761,6 +1789,7 @@ if (my_id .eq. 0) then
     Wmag_tot_t(index_now)            = mag_tot 
     Ohmic_tot_t(index_now)           = ohm_tot
     viscopar_dissip_tot_t(index_now) = viscopar_dissip_tot
+    friction_dissip_tot_t(index_now) = friction_dissip_tot
     thmwork_tot_t(index_now)         = thermal_work_tot 
     magwork_tot_t(index_now)         = mag_work_tot 
     Thermal_tot_t(index_now)         = pressure 
@@ -1828,6 +1857,11 @@ if (my_id .eq. 0) then
       dnpart_tot_dt(index_now-1) = (npart_tot_t(index_now) - r_dt2*npart_tot_t(index_now-2) &
         -(1.d0-r_dt2)*npart_tot_t(index_now-1))  / (dt_now + dt_back*r_dt2) / t_norm
 
+      if (with_impurities) then ! Calculate the ionization energy change
+        xtime_E_ion_power(index_now-1) = (xtime_E_ion(index_now) - r_dt2*xtime_E_ion(index_now-2) &
+        -(1.d0-r_dt2)*xtime_E_ion(index_now-1))  / (dt_now + dt_back*r_dt2) / t_norm
+      endif
+
     endif
 
     !--- Estimate time derivatives for 1st tstep (1st order accuracy)
@@ -1847,6 +1881,10 @@ if (my_id .eq. 0) then
       dpart_tot_dt(index_now-1)    = (density_tot_t(index_now)-density_tot_t(index_now-1))   / dt_now / t_norm
 
       dnpart_tot_dt(index_now-1)   = (npart_tot_t(index_now)-npart_tot_t(index_now-1))       / dt_now / t_norm
+
+      if (with_impurities) then ! Calculate the ionization energy change
+        xtime_E_ion_power(index_now-1) = (xtime_E_ion(index_now)-xtime_E_ion(index_now-1))   / dt_now / t_norm
+      endif
 
     endif
 
