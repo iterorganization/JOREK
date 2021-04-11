@@ -719,7 +719,7 @@ required = 0
 !      call remove_centre(node_list,element_list,n_tht,67*(n_tht-1))
 
       ! --- Determine initial energies
-      call energy(W_mag,W_kin)
+      call energy(node_list,element_list,W_mag,W_kin)
       write(*,'(A,12e16.8)') ' initial energies : ', W_mag, W_kin
 
     end if ! (my_id == 0)
