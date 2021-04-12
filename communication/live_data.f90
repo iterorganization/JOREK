@@ -560,10 +560,10 @@ module live_data
     write(LIVE_DATA_HANDLE,*)
  
 #if (defined WITH_Neutrals) || (defined WITH_Impurities)
-    write(LIVE_DATA_HANDLE,'(A,I5)') '@n_dissipative_terms: ', 4
+    write(LIVE_DATA_HANDLE,'(A,I5)') '@n_dissipative_terms: ', 5
 #else
-    write(LIVE_DATA_HANDLE,'(A,I5)') '@n_dissipative_terms: ', 2
-#endif 
+    write(LIVE_DATA_HANDLE,'(A,I5)') '@n_dissipative_terms: ', 3
+#endif
     write(LIVE_DATA_HANDLE,'(A)') '@dissipative_terms_xlabel: normalized time'
     write(LIVE_DATA_HANDLE,'(A)') '@dissipative_terms_xlabel_si: time [ms]'
     write(LIVE_DATA_HANDLE,'(A)') '@dissipative_terms_ylabel: Dissipative powers [W]'
@@ -572,10 +572,10 @@ module live_data
     write(LIVE_DATA_HANDLE,'(A,5ES17.9)') '@dissipative_terms_y2si: ', 1.0
     write(LIVE_DATA_HANDLE,'(A)') '@dissipative_terms_logy: 0'
 #if (defined WITH_Neutrals) || (defined WITH_Impurities)
-    write(LIVE_DATA_HANDLE,'(A)') '@dissipative_terms: %"time"         "Ohmic power"   "Parallel viscosity power"  &
+    write(LIVE_DATA_HANDLE,'(A)') '@dissipative_terms: %"time"         "Ohmic power"   "Frictional heating"   "Parallel viscosity power"  &
                                                         "Radiated power"  "Ionization power"'
 #else
-    write(LIVE_DATA_HANDLE,'(A)') '@dissipative_terms: %"time"         "Ohmic power"   "Parallel viscosity power" '
+    write(LIVE_DATA_HANDLE,'(A)') '@dissipative_terms: %"time"         "Ohmic power"   "Frictional heating"   "Parallel viscosity power" '
 #endif
     write(LIVE_DATA_HANDLE,*)
 

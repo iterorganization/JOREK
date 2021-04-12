@@ -74,6 +74,7 @@ Z_xpoint(1)  = -99.d0
 Z_xpoint(2)  = +99.d0
 vertical_FB  = 0.d0
 i_elm_xpoint = 0 
+current_tot  = 0.
 
 if (my_id == 0) then
 

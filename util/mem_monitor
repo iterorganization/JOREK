@@ -1,0 +1,78 @@
+#!/usr/bin/env python2.7
+
+# The MIT License (MIT)
+#
+# Copyright (c) 2016  Klaus Reuter, Max Planck Computing and Data Facility
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+
+"""Memory usage (RSS) logger.
+
+Launch and watch the resident memory footprint of a child process, write the
+result periodically into the file <mem_rank_{RANK}.log>, or, as a fallback,
+<mem_pid_{CHILD_PID}.log>, in case the MPI rank cannot be determined.
+
+I. Holod: Modyfied to record absolute time for possible synchronization with JOREK's timeline
+"""
+
+import os
+import sys
+import time
+import subprocess
+from datetime import datetime
+
+# watch process every  t_sleep  seconds
+t_sleep = 0.5
+# flush output, may cause problems with large numbers of parallel processes
+do_flush = True
+
+if (len(sys.argv) == 1):
+    print("Usage: {} executable executable_args".format(sys.argv[0]))
+    sys.exit(1)
+
+child_cmd = sys.argv[1:]
+p = subprocess.Popen(child_cmd)
+
+#if "SLURM_PROCID" in os.environ:
+#    pid=os.environ["SLURM_PROCID"]
+#    nid=os.environ["SLURM_NODEID"]
+#else:
+#    pid=p.pid
+#    nid=0
+pid = p.pid
+nid = 0
+
+log_name = "mem_pid_{}.log".format(pid)
+
+watch_cmd = ["ps", "--no-header", "-o", "rss", "-p", str(p.pid)]
+
+t0 = time.time()
+
+with open(log_name, 'w') as fp:
+    headr = "# {} {} run_time_[s] resident_memory_[kb]\n".format(pid,nid)
+    fp.write(headr)
+    while p.poll() is None:
+        rss_kb = int(subprocess.check_output(watch_cmd).rstrip())
+        #t = time.time() - t0
+        tst = datetime.now()
+        t = tst.hour*3600000 + tst.minute*60000 + tst.second*1000 + tst.microsecond/1000
+        fp.write("%f %d\n" % (t, rss_kb))
+        if (do_flush):
+            fp.flush()
+        time.sleep(t_sleep)
