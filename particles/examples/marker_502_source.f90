@@ -232,7 +232,7 @@ real*8    :: density_tot, density_in, density_out,  pressure, pressure_in, press
 real*8    :: mom_par_tot, mom_par_in, mom_par_out, kin_par_tot, kin_par_out, kin_par_in
 real*8    :: particles_remaining, momentum_remaining, energy_remaining, all_particles, all_momentum, all_energy
 
-real*8, dimension(3) :: P, P_s, P_t, P_phi
+real*8, dimension(2) :: P, P_s, P_t, P_phi
 
 real*8    :: Ne_tot, Ne_tot_all
 
