@@ -18,7 +18,7 @@ character(len=*),             intent(in) :: filename
 real*8 :: vacuum_fraction, b_over_a, a_over_b
 
 ! --- Local variables
-integer :: ierr,err,i, err_alloc, n_spi_begin
+integer :: ierr,err,i, n_spi_begin
 
 ! --- Namelist with input parameters.
 namelist /in1/  tstep, nstep, tstep_n, nstep_n,                     &
@@ -241,12 +241,12 @@ if ( my_id == 0 ) then
   end if
 
 
-  if (n_inj > 10 .or. n_inj < 1) then
-    write(*,*) "ERROR! Do not support n_inj larger than 10 or smaller than 1, EXITING!"
+  if (n_inj > n_inj_max .or. n_inj < 1) then
+    write(*,*) "ERROR! Do not support n_inj larger than n_inj_max or smaller than 1, EXITING!"
     stop
   end if  
 
-  do i = 1, 10
+  do i = 1, n_inj_max
     if (n_spi(i)/=0 .and. i > n_inj) then
       write(*,*) "ERROR! Something wrong with n_inj, double check, EXITING!", n_spi, n_inj
       stop

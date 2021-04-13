@@ -14,7 +14,7 @@ module mod_impurity
     implicit none
 
     integer, intent(in) :: my_id
-    integer             :: err_alloc, i
+    integer             :: i
 
     character(len=512)  :: adas_suffix     !The suffix of adas data file to be read
 
@@ -29,56 +29,44 @@ module mod_impurity
       deallocate(imp_adas)
     end if
 
-    allocate (imp_adas(n_adas),stat=err_alloc)  !< Dynamically allocate memeries for adas data
+    allocate (imp_adas(n_adas))  !< Dynamically allocate memeries for adas data
 
-    if (err_alloc /= 0) then
-      write(*,*) "Error when trying to dynamically allocate memeries for adas data.", my_id
-      stop
-    else
-      if (allocated(imp_cor)) then
-        deallocate(imp_cor)
-      end if
+    if (allocated(imp_cor)) then
+      deallocate(imp_cor)
+    end if
 
-      allocate (imp_cor(n_adas),stat=err_alloc)  !< Dynamically allocate memeries for adas data
-      if (err_alloc /= 0) then
-        write(*,*) "Error when trying to dynamically allocate memeries for CE vector.", my_id
-        deallocate(imp_adas)
-        stop
-      else
-        if (nimp_bg .gt. 0 .or. with_impurities) then
-          do i=1, n_adas
-            select case ( trim(imp_type) )
-              case('C')
-                adas_suffix = '96_c'
-              case('H')
-                adas_suffix = '12_h'
-              case('D')
-                adas_suffix = '12_h' ! We are using the hydrogen data here, in want of deuterium data
-              case('Ar')
-                adas_suffix = '89_ar'
-              case('Ne')
-                adas_suffix = '96_ne'
-              case('W')
-                adas_suffix = '50_w'
-              case default
-                write(*,*) "Unrecognized species, terminating."
-                adas_suffix = 'none'
-                deallocate(imp_cor)
-                deallocate(imp_adas)
-                stop
-            end select
+    allocate (imp_cor(n_adas))  !< Dynamically allocate memeries for adas data
+    if (nimp_bg .gt. 0 .or. with_impurities) then
+      do i=1, n_adas
+        select case ( trim(imp_type) )
+          case('C')
+            adas_suffix = '96_c'
+          case('H')
+            adas_suffix = '12_h'
+          case('D')
+            adas_suffix = '12_h' ! We are using the hydrogen data here, in want of deuterium data
+          case('Ar')
+            adas_suffix = '89_ar'
+          case('Ne')
+            adas_suffix = '96_ne'
+          case('W')
+            adas_suffix = '50_w'
+          case default
+            write(*,*) "Unrecognized species, terminating."
+            adas_suffix = 'none'
+            deallocate(imp_cor)
+            deallocate(imp_adas)
+            stop
+        end select
 
-            imp_adas(i) = read_adf11(my_id, trim(adas_suffix),trim(adas_dir))
-            imp_cor(i)  = coronal(imp_adas(i))
+        imp_adas(i) = read_adf11(my_id, trim(adas_suffix),trim(adas_dir))
+        imp_cor(i)  = coronal(imp_adas(i))
 
-            
-            ! This is to output a coronal equilibrium charge distribution as a
-            ! function of temperature assuming constant density
-            if (my_id == 0) call output_coronal(imp_cor(i))
-          end do
-        endif
-      end if
-
+        
+        ! This is to output a coronal equilibrium charge distribution as a
+        ! function of temperature assuming constant density
+        if (my_id == 0) call output_coronal(imp_cor(i))
+      end do
     end if
 
     if (allocated(xtime_radiation)) call tr_deallocate(xtime_radiation,"xtime_radiation",CAT_GRID)

@@ -586,11 +586,11 @@ do ife = ife_min, ife_max
         psi_as_coord = ps0
 #endif
 #ifdef WITH_TiTe
-        eta_T         = resistivity(eta, T0e_corr, T_max_eta)  
-        eta_T_ohm     = resistivity(eta_ohmic, T0e_corr, T_max_eta_ohm)
+        eta_T         = resistivity(eta, T0e_corr, T_max_eta, Te_0)  
+        eta_T_ohm     = resistivity(eta_ohmic, T0e_corr, T_max_eta_ohm, Te_0)
 #else
-        eta_T         = resistivity(eta, T0_corr, T_max_eta)  
-        eta_T_ohm     = resistivity(eta_ohmic, T0_corr, T_max_eta_ohm)
+        eta_T         = resistivity(eta, T0_corr, T_max_eta, T_0)  
+        eta_T_ohm     = resistivity(eta_ohmic, T0_corr, T_max_eta_ohm, T_0)
 #endif
         ! This is currently broken for two temperature models !
         ! Some of these do not seem to be doing anything so I'm commenting them off !
@@ -1195,8 +1195,8 @@ do m_bndelem = 1, bnd_elm_list%n_bnd_elements
  
 #ifdef WITH_TiTe
       T0e_corr      = corr_neg_temp1(T0e)
-      eta_T         = resistivity(eta, T0e_corr, T_max_eta)  
-      eta_T_ohm     = resistivity(eta_ohmic, T0e_corr, T_max_eta_ohm)
+      eta_T         = resistivity(eta, T0e_corr, T_max_eta, Te_0)  
+      eta_T_ohm     = resistivity(eta_ohmic, T0e_corr, T_max_eta_ohm, Te_0)
 
       ZK_e_prof     = get_zk_eperp(psi_n)
       ZK_i_prof     = get_zk_iperp(psi_n)
@@ -1210,8 +1210,8 @@ do m_bndelem = 1, bnd_elm_list%n_bnd_elements
       endif
 #else
       T0_corr       = corr_neg_temp1(T0)
-      eta_T         = resistivity(eta, T0_corr, T_max_eta)  
-      eta_T_ohm     = resistivity(eta_ohmic, T0_corr, T_max_eta_ohm)
+      eta_T         = resistivity(eta, T0_corr, T_max_eta, T_0)  
+      eta_T_ohm     = resistivity(eta_ohmic, T0_corr, T_max_eta_ohm, T_0)
 
       ZK_prof = get_zkperp(psi_n)
  

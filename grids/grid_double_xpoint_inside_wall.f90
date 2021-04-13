@@ -308,7 +308,7 @@ enddo
 
 
 !-------------------------------- Finalise grid (element size, nodes index etc.)
-call finish_grid(node_list, element_list, node_list_new, element_list_new, n_grids)
+call finish_grid(node_list, element_list, node_list_new, element_list_new, n_grids, .true., .true., .true.)
 call export_restart(node_list, element_list, 'jorek_restart')
 
 

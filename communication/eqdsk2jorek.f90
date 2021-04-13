@@ -30,7 +30,6 @@ integer            :: nr, nz, n_psi, nbbs, limitr, i,j, nc, n_tht, n_sol, n_ext,
 character          :: AA*52, tokamak_name*50
 character          :: buffer*80, lf*1, str1*12, str2*24
 
-integer            :: err_alloc
 logical            :: ferr
 real*8,allocatable :: ne_spline(:)
 
@@ -321,19 +320,15 @@ write(*,*) ' n_psi, n_sol, n_ext : ',n_psi, n_sol, n_ext
 if (allocated(ne_spline)) then
   deallocate(ne_spline)
 end if
-allocate (ne_spline(n_ext),stat=err_alloc)  !< Dynamically allocate memeries forshard sizes
-if (err_alloc /= 0) then
-  write(*,*) "Error when trying to dynamically allocate memeries for ne_spline."
+allocate (ne_spline(n_ext))  !< Dynamically allocate memeries for the spline fitted density profile
+inquire(file="ne_spline_only.dat", exist=ferr) ! Check if the file exist
+if (ferr) then
+  open(42,file="ne_spline_only.dat",status="OLD",action="READ")
+  read(42,*)  ne_spline(1:n_ext)
+  close(42)
 else
-  inquire(file="ne_spline_only.dat", exist=ferr) ! Check if the file exist
-  if (ferr) then
-    open(42,file="ne_spline_only.dat",status="OLD",action="READ")
-    read(42,*)  ne_spline(1:n_ext)
-    close(42)
-  else
-    write(*,*) "WARNING!!! ne_spline file does not exist!"
-    deallocate(ne_spline)
-  end if
+  write(*,*) "WARNING!!! ne_spline file does not exist!"
+  deallocate(ne_spline)
 end if
 
 !=====================End of Ne profile===========================
@@ -494,6 +489,7 @@ else
 end if
 write(21,*) ' amin  = 1.d0 ! scale factor for plasma size only'
 write(21,*)
+write(21,*) ' psi_axis_init  = ', ssimag 
 write(21,*)
 write(21,*) ' !_____________________________________grid parameters'
 

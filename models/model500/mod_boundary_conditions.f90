@@ -245,6 +245,7 @@ do i=1, n_local_elms !=== do elements
         apply_cs = .true.
       endif
       if (no_mach1_bc) apply_cs = .false.
+      if (no_mach1_bc) apply_dirichlet_all = .true.
 
 
       do in=i_tor_min, i_tor_max  ! === do n_tor

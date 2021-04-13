@@ -13,7 +13,7 @@ use mod_eqdsk_tools
 use mod_element_rtree
 
 ! --- Input parameters
-use phys_module, only:     n_wall_blocks, xpoint
+use phys_module, only:     n_wall_blocks, xpoint, n_flux, n_tht, n_radial
 
 implicit none
 
@@ -31,7 +31,9 @@ integer             :: my_id, i_ext
 integer             :: n_grids(12)
 integer             :: n_seg_prev
 real*8              :: seg_prev(n_seg_max)
-integer             :: n_loop, i, j, k, index
+integer             :: n_loop, i, j, k, index, ier
+logical             :: include_axis, include_xpoint, include_psi
+logical             :: normal_eqdsk, normal_eqdsk_wall
 logical, parameter  :: plot_grid = .true.
 
 my_id  = 1 ! Just don't want the printout...
@@ -54,6 +56,8 @@ write(*,*) ' '
 !-------------------------------------------------------------------------------------------!
 
 
+n_grids(1) = n_flux
+n_grids(2) = n_tht
 
 
 
@@ -94,15 +98,14 @@ enddo
 
 
 ! --- Finalise grid (element size, nodes index etc.)
-if (xpoint) then
-  call finish_grid(node_list, element_list, node_list_new, element_list_new, n_grids)
-else
-  call finish_grid_no_xpoint_no_axis(node_list, element_list, node_list_new, element_list_new, n_grids)
-endif
-
-do i=1,node_list%n_nodes
-  if (node_list%node(i)%boundary .ne. 0) node_list%node(i)%values = 0.d0
-enddo
+include_axis   = .true.
+include_xpoint = .true.
+include_psi    = .true.
+if ( (n_flux .eq. 0) .and. (n_radial .eq. 0) ) include_axis   = .false.
+if (n_flux .eq. 0) include_xpoint = .false.
+call get_eqdsk_style(normal_eqdsk, normal_eqdsk_wall, ier)
+if ( (ier .ne. 0) .and. (n_flux .eq. 0) ) include_psi = .false.
+call finish_grid(node_list, element_list, node_list_new, element_list_new, n_grids, include_axis, include_xpoint, include_psi)
 
 call export_restart(node_list, element_list, 'jorek_restart')
 

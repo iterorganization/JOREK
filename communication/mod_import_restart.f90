@@ -85,7 +85,7 @@ subroutine import_binary_restart(node_list, element_list, filename, format_rst, 
   real*8,  allocatable :: spi_abl_arr (:)
   real*8, allocatable  :: spi_species_arr (:)
 
-  integer              :: err_alloc, n_spi_check, n_inj_check
+  integer              :: n_spi_check, n_inj_check
   logical              :: modes_changed
  
   real*8, allocatable :: t_energies(:,:,:)   !< Magnetic and kinetic mode energies at previous timesteps.
@@ -554,16 +554,16 @@ endif
         stop
       end if      
 
-      allocate (spi_R_arr(n_spi_tot),stat=err_alloc)
-      allocate (spi_Z_arr(n_spi_tot),stat=err_alloc)
-      allocate (spi_phi_arr(n_spi_tot),stat=err_alloc)
-      allocate (spi_phi_init_arr(n_spi_tot),stat=err_alloc)
-      allocate (spi_Vel_R_arr(n_spi_tot),stat=err_alloc)
-      allocate (spi_Vel_Z_arr(n_spi_tot),stat=err_alloc)
-      allocate (spi_Vel_RxZ_arr(n_spi_tot),stat=err_alloc)
-      allocate (spi_radius_arr(n_spi_tot),stat=err_alloc)
-      allocate (spi_abl_arr(n_spi_tot),stat=err_alloc)
-      allocate (spi_species_arr(n_spi_tot),stat=err_alloc)
+      allocate (spi_R_arr(n_spi_tot))
+      allocate (spi_Z_arr(n_spi_tot))
+      allocate (spi_phi_arr(n_spi_tot))
+      allocate (spi_phi_init_arr(n_spi_tot))
+      allocate (spi_Vel_R_arr(n_spi_tot))
+      allocate (spi_Vel_Z_arr(n_spi_tot))
+      allocate (spi_Vel_RxZ_arr(n_spi_tot))
+      allocate (spi_radius_arr(n_spi_tot))
+      allocate (spi_abl_arr(n_spi_tot))
+      allocate (spi_species_arr(n_spi_tot))
     
       read(21,err=999, end=999)  spi_R_arr(1:n_spi_tot)
       read(21,err=999, end=999)  spi_Z_arr(1:n_spi_tot)
@@ -877,7 +877,7 @@ subroutine import_hdf5_restart(node_list, element_list, filename, format_rst, er
   real*8, allocatable :: spi_species_arr (:)
   integer, allocatable :: spi_species_arr_old (:)  !< For backward compatibility only
 
-  integer :: err_alloc, err_exists, dterr, n_spi_begin, i_inj
+  integer :: err_exists, dterr, n_spi_begin, i_inj
   logical :: flag_exists, type_match
 
   real*8, allocatable :: t_energies(:,:,:)   !< Magnetic and kinetic mode energies at previous timesteps.
@@ -1677,16 +1677,16 @@ subroutine import_hdf5_restart(node_list, element_list, filename, format_rst, er
         stop
       end if
 
-      allocate (spi_R_arr(n_spi_tot),stat=err_alloc)
-      allocate (spi_Z_arr(n_spi_tot),stat=err_alloc)
-      allocate (spi_phi_arr(n_spi_tot),stat=err_alloc)
-      allocate (spi_phi_init_arr(n_spi_tot),stat=err_alloc)
-      allocate (spi_Vel_R_arr(n_spi_tot),stat=err_alloc)
-      allocate (spi_Vel_Z_arr(n_spi_tot),stat=err_alloc)
-      allocate (spi_Vel_RxZ_arr(n_spi_tot),stat=err_alloc)
-      allocate (spi_radius_arr(n_spi_tot),stat=err_alloc)
-      allocate (spi_abl_arr(n_spi_tot),stat=err_alloc)
-      allocate (spi_species_arr(n_spi_tot),stat=err_alloc)
+      allocate (spi_R_arr(n_spi_tot))
+      allocate (spi_Z_arr(n_spi_tot))
+      allocate (spi_phi_arr(n_spi_tot))
+      allocate (spi_phi_init_arr(n_spi_tot))
+      allocate (spi_Vel_R_arr(n_spi_tot))
+      allocate (spi_Vel_Z_arr(n_spi_tot))
+      allocate (spi_Vel_RxZ_arr(n_spi_tot))
+      allocate (spi_radius_arr(n_spi_tot))
+      allocate (spi_abl_arr(n_spi_tot))
+      allocate (spi_species_arr(n_spi_tot))
 
       call HDF5_array1D_reading(file_id,spi_R_arr,"spi_R_arr")
       call HDF5_array1D_reading(file_id,spi_Z_arr,"spi_Z_arr")
@@ -1719,7 +1719,7 @@ subroutine import_hdf5_restart(node_list, element_list, filename, format_rst, er
         call H5Dclose_f(dataset,dterr)
         if (type_match .and. dterr == 0) then
           write(*,*) "Backward Compatibility: Converting integer spi_species into double precision"
-          allocate (spi_species_arr_old(n_spi_tot),stat=err_alloc)
+          allocate (spi_species_arr_old(n_spi_tot))
           call HDF5_array1D_reading_int(file_id,spi_species_arr_old,"spi_species_arr")
           spi_species_arr = REAL(spi_species_arr_old,8)
         else if (dterr == 0) then
