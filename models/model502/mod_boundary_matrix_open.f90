@@ -282,9 +282,9 @@ do ms=1, n_gauss
                      - v * r0_corr * cs0 * BigR * dl * c_angle * tstep                          & ! particle flux at 1 degree angle  
                      - v * r0_corr * BigR**2.d0 * u0_s * normal_sign3 * tstep                     ! reflect v_perp particle flow
            
-          rhs_ij_6 = - v * (gamma_sheath -1.d0) * r0_corr * Ti0_corr * vpar0 * ps0_s * normal_sign3 * tstep  & ! right hand side equation 6
-                     - v * (gamma_sheath -1.d0) * r0_corr * Ti0_corr * cs0   * BigR  * dl * c_angle * tstep  &
-                     - v *                        r0_corr * Ti0_corr * BigR**2.d0    * u0_s  * normal_sign3 * tstep  
+          rhs_ij_6 = - v * (gamma_sheath_i -1.d0) * r0_corr * Ti0_corr * vpar0 * ps0_s * normal_sign3 * tstep  & ! right hand side equation 6
+                     - v * (gamma_sheath_i -1.d0) * r0_corr * Ti0_corr * cs0   * BigR  * dl * c_angle * tstep  &
+                     - v *                          r0_corr * Ti0_corr * BigR**2.d0    * u0_s  * normal_sign3 * tstep  
 
           rhs_ij_7 = - v * (vpar0 * Btot * normal_sign - cs0 * factor) * dl * Zbig                ! right hand side equation 7
 
@@ -292,8 +292,8 @@ do ms=1, n_gauss
                      - v * rn0_corr * cs0 * BigR * dl * c_angle * tstep                      & ! particle flux at 1 degree angle  
                      - v * rn0_corr * BigR**2.d0 * u0_s * normal_sign3 * tstep
 
-          rhs_ij_9 = - v * (gamma_sheath -1.d0) * r0_corr * Te0_corr * vpar0 * ps0_s * normal_sign3 * tstep  & ! right hand side equation 6
-                     - v * (gamma_sheath -1.d0) * r0_corr * Te0_corr * cs0   * BigR  * dl * c_angle * tstep  &
+          rhs_ij_9 = - v * (gamma_sheath_e -1.d0) * r0_corr * Te0_corr * vpar0 * ps0_s * normal_sign3 * tstep  & ! right hand side equation 6
+                     - v * (gamma_sheath_e -1.d0) * r0_corr * Te0_corr * cs0   * BigR  * dl * c_angle * tstep  &
                      - v *                        r0_corr * Te0_corr * BigR**2.d0    * u0_s  * normal_sign3 * tstep  
 
           index_ij = n_tor_local*n_var*(n_order+1)*(vertex(i)-1) + n_tor_local * n_var * (j2-1) + im - i_tor_min +1  ! index in the ELM matrix
@@ -356,18 +356,18 @@ do ms=1, n_gauss
                 amat_56 = + v                      * r0_corr  * cs_T  * BigR * dl * c_angle  * theta * tstep
                 amat_57 = - v * density_reflection * r0_corr  * vpar  * ps0_s * normal_sign3 * theta * tstep 
 
-                amat_61 = + v * (gamma_sheath-1.d0) * r0_corr * Ti0_corr * vpar0 * psi_s * normal_sign3 * theta * tstep 
+                amat_61 = + v * (gamma_sheath_i-1.d0) * r0_corr * Ti0_corr * vpar0 * psi_s * normal_sign3 * theta * tstep 
                 
                 amat_62 = + v * r0_corr * BigR**2.d0 * u_s * normal_sign3                               * theta * tstep
 
-                amat_65 = + v * (gamma_sheath-1.d0) * rho     * Ti0_corr * vpar0 * ps0_s * normal_sign3 * theta * tstep &
-                          + v * (gamma_sheath-1.d0) * rho     * Ti0_corr * cs0   * BigR  * dl * c_angle * theta * tstep 
+                amat_65 = + v * (gamma_sheath_i-1.d0) * rho     * Ti0_corr * vpar0 * ps0_s * normal_sign3 * theta * tstep &
+                          + v * (gamma_sheath_i-1.d0) * rho     * Ti0_corr * cs0   * BigR  * dl * c_angle * theta * tstep 
 
-                amat_66 = + v * (gamma_sheath-1.d0) * r0_corr * Ti       * vpar0 * ps0_s * normal_sign3 * theta * tstep &
-                          + v * (gamma_sheath-1.d0) * r0_corr * Ti       * cs0   * BigR  * dl * c_angle * theta * tstep &
-                          + v * (gamma_sheath-1.d0) * r0_corr * Ti0_corr * cs_T  * BigR  * dl * c_angle * theta * tstep
+                amat_66 = + v * (gamma_sheath_i-1.d0) * r0_corr * Ti       * vpar0 * ps0_s * normal_sign3 * theta * tstep &
+                          + v * (gamma_sheath_i-1.d0) * r0_corr * Ti       * cs0   * BigR  * dl * c_angle * theta * tstep &
+                          + v * (gamma_sheath_i-1.d0) * r0_corr * Ti0_corr * cs_T  * BigR  * dl * c_angle * theta * tstep
 
-                amat_67 = + v * (gamma_sheath-1.d0) * r0_corr  * Ti0_corr * vpar  * ps0_s * normal_sign3 * theta * tstep 
+                amat_67 = + v * (gamma_sheath_i-1.d0) * r0_corr  * Ti0_corr * vpar  * ps0_s * normal_sign3 * theta * tstep 
 
            
                 amat_76 =   v * ( - cs_T) * factor          * dl * Zbig
@@ -384,19 +384,19 @@ do ms=1, n_gauss
                           + v                  * rhon      * cs0   * BigR * dl * c_angle  * theta * tstep &
                           + v * rhon * BigR**2.d0 * u0_s                   * normal_sign3 * theta * tstep  
 
-                amat_91 = + v * (gamma_sheath-1.d0) * r0_corr * Te0_corr * vpar0 * psi_s * normal_sign3 * theta * tstep 
+                amat_91 = + v * (gamma_sheath_e-1.d0) * r0_corr * Te0_corr * vpar0 * psi_s * normal_sign3 * theta * tstep 
                 
                 amat_92 = + v * r0_corr * BigR**2.d0 * u_s * normal_sign3                               * theta * tstep
 
-                amat_95 = + v * (gamma_sheath-1.d0) * rho     * Te0_corr * vpar0 * ps0_s * normal_sign3 * theta * tstep &
-                          + v * (gamma_sheath-1.d0) * rho     * Te0_corr * cs0   * BigR  * dl * c_angle * theta * tstep 
+                amat_95 = + v * (gamma_sheath_e-1.d0) * rho     * Te0_corr * vpar0 * ps0_s * normal_sign3 * theta * tstep &
+                          + v * (gamma_sheath_e-1.d0) * rho     * Te0_corr * cs0   * BigR  * dl * c_angle * theta * tstep 
 
-                amat_96 = + v * (gamma_sheath-1.d0) * r0_corr * Te0_corr * cs_T  * BigR  * dl * c_angle * theta * tstep
+                amat_96 = + v * (gamma_sheath_e-1.d0) * r0_corr * Te0_corr * cs_T  * BigR  * dl * c_angle * theta * tstep
 
-                amat_97 = + v * (gamma_sheath-1.d0) * r0_corr * Te0_corr * vpar  * ps0_s * normal_sign3 * theta * tstep 
+                amat_97 = + v * (gamma_sheath_e-1.d0) * r0_corr * Te0_corr * vpar  * ps0_s * normal_sign3 * theta * tstep 
 
-                amat_99 = + v * (gamma_sheath-1.d0) * r0_corr * Te       * vpar0 * ps0_s * normal_sign3 * theta * tstep &
-                          + v * (gamma_sheath-1.d0) * r0_corr * Te       * cs0   * BigR  * dl * c_angle * theta * tstep 
+                amat_99 = + v * (gamma_sheath_e-1.d0) * r0_corr * Te       * vpar0 * ps0_s * normal_sign3 * theta * tstep &
+                          + v * (gamma_sheath_e-1.d0) * r0_corr * Te       * cs0   * BigR  * dl * c_angle * theta * tstep 
 
                 index_kl = n_tor_local*n_var*(n_order+1)*(vertex(k)-1) + n_tor_local * n_var * (l2-1) + in - i_tor_min +1  ! index in the ELM matrix
                  
