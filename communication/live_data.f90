@@ -791,8 +791,10 @@ module live_data
     write(LIVE_DATA_HANDLE,'(A,5ES17.9)') '@li3: ', xtime(index), li3_t(index), li3_tot_t(index)
 
 #if (defined WITH_Neutrals) || (defined WITH_Impurities)
-    write(LIVE_DATA_HANDLE,'(A,6ES17.9)') '@dissipative_terms: ', xtime(index), ohmic_tot_t(index), friction_dissip_tot_t(index), viscopar_dissip_tot_t(index), &
-                                                                  xtime_rad_power(index), xtime_E_ion_power(index-1)
+    if (index>1) then
+      write(LIVE_DATA_HANDLE,'(A,6ES17.9)') '@dissipative_terms: ', xtime(index-1), ohmic_tot_t(index-1), friction_dissip_tot_t(index-1), viscopar_dissip_tot_t(index-1), &
+                                                                    xtime_rad_power(index-1), xtime_E_ion_power(index-1)
+    endif
 #else
     write(LIVE_DATA_HANDLE,'(A,4ES17.9)') '@dissipative_terms: ', xtime(index), ohmic_tot_t(index), friction_dissip_tot_t(index), viscopar_dissip_tot_t(index)
 #endif
