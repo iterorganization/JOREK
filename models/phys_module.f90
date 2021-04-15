@@ -328,6 +328,7 @@ module phys_module
 
   real*8, allocatable  :: xtime_E_ion(:)        !< The time history of the ionization potential energy in SI unit
   real*8, allocatable  :: xtime_E_ion_power(:)  !< Time derivative of xtime_E_ion
+  real*8, allocatable  :: xtime_P_ei(:)         !< The time history of electron-ion energy exchange power
 
   real*8, allocatable  :: xtime_Ne_imp(:)       !< The total amount of electron released by impurities
 

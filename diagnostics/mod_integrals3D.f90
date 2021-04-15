@@ -104,7 +104,7 @@ real*8  :: psi_as_coord
 real*8  :: AR0, AR0_p, AR0_s, AR0_t, AR0_sp, AR0_tp, AR0_Rp, AZ0, AZ0_p, AZ0_s, AZ0_t, AZ0_sp, AZ0_tp, AZ0_Zp, A30
 real*8  :: A30_p, A30_s, A30_t, A30_ss, A30_tt, A30_st, A30_R, A30_RR, A30_ZZ
 real*8  :: BR_Z, BZ_R
-real*8  :: r0_corr, T0_corr, T0e_corr
+real*8  :: r0_corr, T0_corr, T0e_corr, T0i_corr
 real*8  :: density_tot, density_in, density_out,  pressure, pressure_in, pressure_out
 real*8  :: pressure_e, pressure_e_in, pressure_e_out, pressure_i, pressure_i_in, pressure_i_out
 real*8  :: current_in, current_out, D_int, D_ext, P_ext, C_ext, delta_phi, phi, P_tot, D_tot
@@ -154,9 +154,10 @@ real*8  :: source_neutral
 real*8  :: source_bg, source_imp
 #endif
 #if (defined WITH_Neutrals) || (defined WITH_Impurities)
-real*8  :: local_radiation, local_E_ion, total_radiation, total_E_ion
+real*8  :: local_radiation, local_E_ion, total_radiation, total_E_ion, local_P_ei, total_P_ei
+real*8  :: local_P_ion, total_P_ion
 real*8  :: local_radiation_phi(n_plane), total_radiation_phi(n_plane)
-real*8  :: ne_SI, Te_eV
+real*8  :: ne_SI, Te_eV, Ti_eV
 #endif
 
 ! Additional diagnostic variables for impurity model
@@ -164,11 +165,12 @@ real*8  :: ne_SI, Te_eV
 #ifdef WITH_Impurities
 ! Atomic physics coefficients:
 !   -Mass ratio between main ions and impurites (m_i/m_imp)
-real*8  :: m_i_over_m_imp
+real*8  :: m_i_over_m_imp, m_imp
 !   -Mean impurity ionization state
 real*8  :: Z_imp, dZ_imp_dT, T0_Zimp, alpha_Zimp, Z_eff, eta_coef, ne_JOREK, dne_JOREK_dx, dne_JOREK_dy
+real*8  :: Z_eff_imp
 !   -Corrected plasma temperature and density for radiation calculation
-real*8  :: Te_corr_eV,  dT0e_corr_dT
+real*8  :: Te_corr_eV,  dT0e_corr_dT, Ti_corr_eV
 !   -Temporary variable for charge state distribution
 real*8, allocatable  :: P_imp(:)
 real*8     :: E_ion, Lrad, E_ion_bg
@@ -178,6 +180,9 @@ integer*8  :: ion_i, ion_k, i_phi
 #ifdef WITH_TiTe
 !   -Coefficients related to Z_imp
 real*8  :: alpha_i, alpha_e, dalpha_e_dT, dalpha_e_dx, dalpha_e_dy
+
+!   -Ion-electron energy transfer
+real*8     :: nu_e_imp, nu_e_bg, lambda_e_imp, lambda_e_bg, dTi_e, dTe_i
 #else /* WITH_TiTe */
 !   -Coefficients related to Z_imp
 real*8  :: alpha_imp, beta_imp, dbeta_imp_dT, dbeta_imp_dx, dbeta_imp_dy
@@ -289,6 +294,8 @@ local_n_particles     = 0.d0
 local_radiation       = 0.d0
 local_radiation_phi   = 0.d0
 local_E_ion           = 0.d0
+local_P_ei            = 0.d0
+local_P_ion           = 0.d0
 #endif
 
 delta_phi     = 2.d0 * PI / float(n_plane) / float(n_period)
@@ -319,8 +326,8 @@ ife_max   = min((my_id +1) * ife_delta, element_list%n_elements)
 #if (defined WITH_Neutrals) || (defined WITH_Impurities)
 !$omp          local_n_particles_inj, local_n_particles, ns_amplitude, ns_R, ns_Z,             &
 !$omp          ns_phi, ns_radius, ns_sig, ns_deltaphi, ns_tor_norm, spi_tor_rot, local_E_ion,  &
-!$omp          t_now, A_Dmv, K_Dmv, V_Dmv, P_Dmv, t_ns, L_tube, JET_MGI,ASDEX_MGI,             &
-!$omp          local_radiation, local_radiation_phi, imp_cor, imp_adas, imp_type,              &
+!$omp          t_now, A_Dmv, K_Dmv, V_Dmv, P_Dmv, t_ns, L_tube, JET_MGI,ASDEX_MGI, local_P_ion,&
+!$omp          local_radiation, local_radiation_phi, imp_cor, imp_adas, imp_type, local_P_ei,  &
 #endif
 #if (defined WITH_Neutrals) && (!defined WITH_Impurities)
 !$omp          nimp_bg, ksi_ion, GAMMA, use_imp_adas,                                          &
@@ -338,7 +345,7 @@ ife_max   = min((my_id +1) * ife_delta, element_list%n_elements)
 !$omp           dn_dpsi,dn_dz,dn_dpsi2,dn_dz2,dn_dpsi_dz,dn_dpsi3,dn_dpsi_dz2, dn_dpsi2_dz,    &
 !$omp           dT_dpsi,dT_dz,dT_dpsi2,dT_dz2,dT_dpsi_dz,dT_dpsi3,dT_dpsi_dz2, dT_dpsi2_dz,    &
 !$omp           hel1, vpar_x, vpar_y, ps0_s, ps0_t, u0_s, u0_t, p0_s, p0_t, vpar_s, vpar_t,    &
-!$omp           u0_x, u0_y, T0e_corr,                                                          &
+!$omp           u0_x, u0_y, T0e_corr, T0i_corr,                                                &
 !$omp           thm_wk, mag_wk, eta_T, vpar_disp, fric_disp, p0_p, T0_corr, r0_corr, u0_p,     &
 !$omp           AR0, AR0_p, AR0_s, AR0_t, AR0_sp, AR0_tp, AR0_Rp, AZ0, AZ0_p, AZ0_s, AZ0_t, AZ0_sp, AZ0_tp, AZ0_Zp, A30, &
 !$omp           A30_p, A30_s, A30_t, A30_ss, A30_tt, A30_st, A30_R, A30_RR, A30_ZZ, BR_Z, BZ_R,&
@@ -349,12 +356,12 @@ ife_max   = min((my_id +1) * ife_delta, element_list%n_elements)
 #endif
 #ifdef WITH_Impurities
 !$omp           source_bg, source_imp,                                                         &
-!$omp           m_i_over_m_imp, Z_imp, T0_Zimp, alpha_Zimp, n_imp,                             &
+!$omp           m_i_over_m_imp, m_imp, Z_imp, T0_Zimp, alpha_Zimp, n_imp,                      &
 !$omp           Te_corr_eV, Te_eV, ne_SI, ne_JOREK, P_imp, Lrad, E_ion, E_ion_bg, ion_i,       &
-!$omp           ion_k, Z_eff, eta_coef,                                                        &
+!$omp           ion_k, Z_eff, Z_eff_imp, eta_coef, Ti_corr_eV, Ti_eV,                          &
 #endif
 #if (defined WITH_Impurities) && (defined WITH_TiTe)
-!$omp           alpha_i, alpha_e,                                                              &
+!$omp           alpha_i, alpha_e, nu_e_imp, nu_e_bg, lambda_e_imp, lambda_e_bg, dTi_e, dTe_i,  &
 #endif
 #if (defined WITH_Impurities) && (!defined WITH_TiTe) 
 !$omp           alpha_imp, beta_imp,                                                           &
@@ -379,7 +386,7 @@ omp_tid      = 0
 !$omp do reduction(+:local_pellet_particles, local_plasma_particles, local_pellet_volume,     &
 #if (defined WITH_Neutrals) || (defined WITH_Impurities)
 !$omp                local_n_particles_inj,  local_n_particles,                               &
-!$omp                local_radiation, local_radiation_phi, local_E_ion,                       &
+!$omp                local_radiation, local_radiation_phi, local_E_ion, local_P_ei, local_P_ion, &
 #endif
 !$omp                D_int, D_ext, P_int, H_int, S_int, H_ext, S_ext, P_ext, C_intern, C_ext, &
 !$omp                P_e_int, P_i_int, P_e_ext, P_i_ext, P_e_tot, P_i_tot,                    &
@@ -518,12 +525,14 @@ do ife = ife_min, ife_max
         T0i    = eq_g(mp,var_Ti,ms,mt)
         T0e    = eq_g(mp,var_Te,ms,mt)
         T0e_corr = corr_neg_temp1(T0e)
+        T0i_corr = corr_neg_temp1(T0i)
 #else
         T0     = eq_g(mp,var_T,ms,mt)
         T0i    = eq_g(mp,var_T,ms,mt) /2.d0
         T0e    = eq_g(mp,var_T,ms,mt) /2.d0
         T0_corr = corr_neg_temp1(T0)
         T0e_corr = corr_neg_temp1(T0e)
+        T0i_corr = corr_neg_temp1(T0i)
 #endif
         zj0    = eq_g(mp,var_zj,ms,mt)
         ps0    = eq_g(mp,var_psi,ms,mt)
@@ -672,7 +681,7 @@ do ife = ife_min, ife_max
           local_radiation         = local_radiation + ( (r0_corr * rn0_corr  * LradDrays_T            &
                                      + r0_corr ** 2 * LradDcont_T) * coef_prad_si                     & 
                                      + ne_SI * nimp_bg * Lrad_imp) * bigR * xjac * wst * delta_phi 
-          local_E_ion             = local_E_ion + ksiion * r0_corr * rn0_corr * Sion_T * coef_prad_si &
+          local_P_ion             = local_P_ion + ksiion * r0_corr * rn0_corr * Sion_T * coef_prad_si &
                                    * bigR * xjac * wst * delta_phi
         else
           if ( trim(imp_type) == 'Ar') then ! Hard-coded fitting exists for argon
@@ -688,7 +697,7 @@ do ife = ife_min, ife_max
             local_radiation         = local_radiation + (r0_corr * rn0_corr  * LradDrays_T &
                                        + r0_corr ** 2 * LradDcont_T + r0_corr * frad_bg) * coef_prad_si & 
                                        * bigR * xjac * wst * delta_phi 
-            local_E_ion             = local_E_ion + ksiion * r0_corr * rn0_corr * Sion_T * coef_prad_si &
+            local_P_ion             = local_P_ion + ksiion * r0_corr * rn0_corr * Sion_T * coef_prad_si &
                                        * bigR * xjac * wst * delta_phi
           else
             write(*,*) "WARNING: hard-coded fitting doesn't exist for  ", trim(imp_type), ",use open adas instead!"
@@ -706,19 +715,27 @@ do ife = ife_min, ife_max
         select case ( trim(imp_type) )
           case('D2')
             m_i_over_m_imp = central_mass/2.  ! Deuterium mass = 2 u
+            m_imp          = 2.
           case('Ar')
             m_i_over_m_imp = central_mass/40. ! Argon mass = 40 u
+            m_imp          = 40.
           case('Ne')
             m_i_over_m_imp = central_mass/20. ! Neon mass = 20 u
+            m_imp          = 20.
           case default
             write(*,*) '!! Gas type "', trim(imp_type), '" unknown (in mod_injection_source.f90) !!'
             write(*,*) '=> We assume the gas is D2.'
             m_i_over_m_imp = central_mass/2.
+            m_imp          = 2.
         end select
 
         ! Te in eV:
         Te_corr_eV = T0e_corr/(EL_CHG*MU_ZERO*central_density*1.d20)
         Te_eV = T0e/(EL_CHG*MU_ZERO*central_density*1.d20)
+   
+        ! Ti in eV:
+        Ti_corr_eV = T0i_corr/(EL_CHG*MU_ZERO*central_density*1.d20)
+        Ti_eV = T0i/(EL_CHG*MU_ZERO*central_density*1.d20)
 
         if (.not. use_marker) then   
           if (allocated(P_imp)) deallocate(P_imp)
@@ -774,11 +791,13 @@ do ife = ife_min, ife_max
         if (.not. use_marker) then
           ! Calculate the effective charge of all species
           Z_eff        = 0.
+          Z_eff_imp    = 0.
      
           ! First get the value of Z_eff
           Z_eff        = r0_corr - rn0_corr
           do ion_i=1, imp_adas(1)%n_Z
             Z_eff      = Z_eff + m_i_over_m_imp * rn0_corr * P_imp(ion_i) * real(ion_i,8)**2
+            Z_eff_imp  = Z_eff_imp + P_imp(ion_i) * real(ion_i,8)**2 ! The summation of normalized nZ**2 for impurity
           end do
           Z_eff        = Z_eff / ne_JOREK
         endif
@@ -811,8 +830,36 @@ do ife = ife_min, ife_max
                           * bigR * xjac * wst * delta_phi
         local_E_ion     = local_E_ion + (r0 - rn0) * central_density * 1.d20 * E_ion_bg   &
                           * bigR * xjac * wst * delta_phi
+#ifdef WITH_TiTe
+       !--------------------------------------------------------
+       ! --- Ion-electron energy transfer
+       !--------------------------------------------------------
+        if (Te_corr_eV < 10.*Z_imp**2) then
+          lambda_e_imp = 23. - log((ne_SI*1.d-6)**0.5*Z_imp*Te_corr_eV**(-1.5))
+        else
+          lambda_e_imp = 24. - log((ne_SI*1.d-6)**0.5*Te_corr_eV**(-1.0))
+        endif
+        if (Te_corr_eV < 10.) then
+          lambda_e_bg  = 23. - log((ne_SI*1.d-6)**0.5*Te_corr_eV**(-1.5)) ! Assuming bg_charge is 1! 
+        else
+          lambda_e_bg  = 24. - log((ne_SI*1.d-6)**0.5*Te_corr_eV**(-1.0))
+        endif
+        nu_e_imp     = 1.8d-19*(1.d6*MASS_ELECTRON*MASS_PROTON*m_imp) ** 0.5&
+                       * Z_eff_imp * (1.d14*central_density*rn0_corr*m_i_over_m_imp) * lambda_e_imp &
+                       / (1.d3*(MASS_ELECTRON*T0i_corr+T0e_corr*MASS_PROTON*m_imp)&
+                       / (EL_CHG * MU_ZERO * central_density * 1.d20)) ** 1.5
+        nu_e_bg      = 1.8d-19*(1.d6*MASS_ELECTRON*MASS_PROTON*central_mass) ** 0.5&
+                       * (1.d14*central_density*(r0_corr-rn0_corr)) * lambda_e_bg &
+                       / (1.d3*(MASS_ELECTRON*T0i_corr+T0e_corr*MASS_PROTON*central_mass)&
+                       / (EL_CHG * MU_ZERO * central_density * 1.d20)) ** 1.5 ! Assuming bg_charge is 1!
+    
+        if (nu_e_imp < 0.) nu_e_imp = 0.
+        if (nu_e_bg < 0.)  nu_e_bg  = 0.
+    
+        dTe_i    = (nu_e_imp + nu_e_bg) * (Ti_corr_eV - Te_corr_eV) * EL_CHG ! To SI unit
+        local_P_ei = local_P_ei + ne_SI * dTe_i * bigR * xjac * wst * delta_phi 
+#endif /* WITH_TiTe */
 #endif /* WITH_Impurities */
-
 #ifdef WITH_Impurities
 #ifdef WITH_TiTe
         P_e_tot = P_e_tot + (r0+alpha_e*rn0) * T0e * xjac * BigR * wst * delta_phi
@@ -1437,6 +1484,14 @@ call MPI_AllReduce(fric_disp_tot, friction_dissip_tot,1,MPI_DOUBLE_PRECISION,MPI
 call MPI_AllReduce(mag_src_tot, mag_source_tot,1,MPI_DOUBLE_PRECISION,MPI_SUM,MPI_COMM_WORLD,ierr)
 call MPI_AllReduce(varmin,V_min,n_var,MPI_DOUBLE_PRECISION,MPI_MIN,MPI_COMM_WORLD,ierr)
 call MPI_AllReduce(varmax,V_max,n_var,MPI_DOUBLE_PRECISION,MPI_MAX,MPI_COMM_WORLD,ierr)
+#if (defined WITH_Neutrals) || (defined WITH_Impurities)
+call MPI_AllReduce(local_radiation, total_radiation,1,MPI_DOUBLE_PRECISION,MPI_SUM,MPI_COMM_WORLD,ierr)
+call MPI_AllReduce(local_E_ion, total_E_ion,1,MPI_DOUBLE_PRECISION,MPI_SUM,MPI_COMM_WORLD,ierr)
+call MPI_AllReduce(local_P_ei, total_P_ei,1,MPI_DOUBLE_PRECISION,MPI_SUM,MPI_COMM_WORLD,ierr)
+call MPI_AllReduce(local_P_ion, total_P_ion,1,MPI_DOUBLE_PRECISION,MPI_SUM,MPI_COMM_WORLD,ierr)
+call MPI_AllReduce(local_radiation_phi, total_radiation_phi,n_plane,&
+                   MPI_DOUBLE_PRECISION,MPI_SUM,MPI_COMM_WORLD,ierr)
+#endif /* (defined WITH_Neutrals) || (defined WITH_Impurities) */
 #else /* NOMPIVERSION */
 density_in           = D_int
 density_out          = D_ext
@@ -1478,14 +1533,15 @@ friction_dissip_tot  = fric_disp_tot
 mag_source_tot       = mag_src_tot
 V_min                = varmin
 V_max                = varmax
-#endif /* NOMPIVERSION */
 
 #if (defined WITH_Neutrals) || (defined WITH_Impurities)
-call MPI_AllReduce(local_radiation, total_radiation,1,MPI_DOUBLE_PRECISION,MPI_SUM,MPI_COMM_WORLD,ierr)
-call MPI_AllReduce(local_E_ion, total_E_ion,1,MPI_DOUBLE_PRECISION,MPI_SUM,MPI_COMM_WORLD,ierr)
-call MPI_AllReduce(local_radiation_phi, total_radiation_phi,n_plane,&
-                   MPI_DOUBLE_PRECISION,MPI_SUM,MPI_COMM_WORLD,ierr)
-#endif
+total_radiation      = local_radiation
+total_E_ion          = local_E_ion
+total_P_ei           = local_P_ei
+total_P_ion          = local_P_ion
+total_radiation_phi  = local_radiation_phi
+#endif /* (defined WITH_Neutrals) || (defined WITH_Impurities) */
+#endif /* NOMPIVERSION */
 
 if (use_pellet) then
 #ifndef NOMPIVERSION
@@ -1573,6 +1629,8 @@ area                 = n_period * area / (2.d0 * PI)
 total_radiation     = n_period * total_radiation
 total_radiation_phi = n_period * total_radiation_phi
 total_E_ion         = n_period * total_E_ion
+total_P_ei          = n_period * total_P_ei
+total_P_ion         = n_period * total_P_ion
 #endif
 
 ! --- Boundary integrals
@@ -1897,10 +1955,11 @@ if (my_id .eq. 0) then
   write(*,'(A,1e14.6,A)')  ' Radiation power                : ', total_radiation/1.d6, ' [MW]'
   write(*,'(A,1e14.6,A)')  ' Radiation power SANITY         : ', sum(total_radiation_phi)/1.d6, ' [MW]'
   if (with_neutrals) then
-    write(*,'(A,1e14.6,A)') ' Ionization power               : ', total_E_ion/1.d6, ' [MW]'
+    write(*,'(A,1e14.6,A)') ' Ionization power              : ', total_P_ion/1.d6, ' [MW]'
   else if (with_impurities) then ! With CE assumption, it's easier to obtain the total ionization energy then get the ionization power by finite difference
     write(*,'(A,1e14.6,A)') ' Ionization energy              : ', total_E_ion/1.d6, ' [MJ]'
   endif
+  if (with_TiTe)  write(*,'(A,1e14.6,A)') ' Electron-ion energy exchange    : ', total_P_ei/1.d6, ' [MW]'
 
   ! If not use marker particles, obtain the ionization and radiation energy from fluid integrations
   ! Otherwise, obtain the energy from particle modules
@@ -1923,17 +1982,20 @@ if (my_id .eq. 0) then
 
   if (with_neutrals .and. (.not. use_marker)) then
     if (index_now > 1) then
-      xtime_E_ion(index_now) = xtime_E_ion(index_now-1) + t_norm * tstep * total_E_ion
+      xtime_E_ion(index_now) = xtime_E_ion(index_now-1) + t_norm * tstep * total_P_ion
     else if (index_now == 1) then
-      xtime_E_ion(index_now) = t_norm * tstep * total_E_ion
+      xtime_E_ion(index_now) = t_norm * tstep * total_P_ion
     end if
     if (index_now > 0) then
-      xtime_E_ion_power(index_now) = total_E_ion
+      xtime_E_ion_power(index_now) = total_P_ion
     end if
   else if (with_impurities .and. (.not. use_marker)) then ! For CE assumption, we directly give the total ionization energy
     if (index_now > 0) then
       xtime_E_ion(index_now) = total_E_ion
     end if
+  endif
+  if (with_TiTe) then
+    if (index_now > 0) xtime_P_ei(index_now) = total_P_ei
   endif
 #endif
 
