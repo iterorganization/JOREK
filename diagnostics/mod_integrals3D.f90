@@ -800,6 +800,10 @@ do ife = ife_min, ife_max
             Z_eff_imp  = Z_eff_imp + P_imp(ion_i) * real(ion_i,8)**2 ! The summation of normalized nZ**2 for impurity
           end do
           Z_eff        = Z_eff / ne_JOREK
+        else
+          Z_eff_imp    = Z_eff  ! The summation of normalized nZ**2 for impurity
+          Z_eff        = r0_corr - rn0_corr + Z_eff * n_imp ! Total summation of nZ**2
+          Z_eff        = Z_eff / ne_JOREK
         endif
     
         if (Z_eff < 1) Z_eff = 1.
@@ -1367,6 +1371,9 @@ do m_bndelem = 1, bnd_elm_list%n_bnd_elements
         do ion_i=1, imp_adas(1)%n_Z
           Z_eff      = Z_eff + m_i_over_m_imp * rn0_corr * P_imp(ion_i) * real(ion_i,8)**2
         end do
+        Z_eff        = Z_eff / ne_JOREK
+      else
+        Z_eff        = r0_corr - rn0_corr + Z_eff * n_imp ! Total summation of nZ**2
         Z_eff        = Z_eff / ne_JOREK
       endif
 
