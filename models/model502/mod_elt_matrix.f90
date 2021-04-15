@@ -121,6 +121,8 @@ real*8     :: source_imp, source_bg
 ! time normalization
 real*8     :: t_norm
 
+real*8     :: Dn0x, Dn0y, Dn0p
+
 ! Atomic physics coefficients:
 !   -Mass ratio between main ions and impurites (m_i/m_imp)
 real*8     :: m_i_over_m_imp, m_imp
@@ -794,6 +796,18 @@ do ms=1, n_gauss
 
      source_pellet = 0.d0
      source_volume = 0.d0
+
+     Dn0x = D_imp_extra_R      
+     Dn0y = D_imp_extra_Z      
+     Dn0p = D_imp_extra_p      
+
+     if (xpoint2) then
+       if (rn0 .lt. D_imp_extra_neg_thresh)  then
+        Dn0x = D_imp_extra_neg
+        Dn0y = D_imp_extra_neg
+        Dn0p = D_imp_extra_neg
+       endif
+     endif
    
   !-------------------------------------------
   ! Atomic physics parameters for Argon
@@ -1390,6 +1404,7 @@ do ms=1, n_gauss
                     - D_prof_imp * BigR  * (v_x*(rn0_x) + v_y*(rn0_y) + v_p*rn0_p * eps_cyl**2 /BigR**2)               * xjac * tstep &
                     ! The old diffusion scheme for the impurities
                     !- D_prof * BigR  * (v_x*(r0_x) + v_y*(r0_y) + v_p*(r0_p) * eps_cyl**2 /BigR**2 )                   * xjac * tstep &
+                    + BigR* (- Dn0x * rn0_x * v_x - Dn0y * rn0_y * v_y - Dn0p * rn0_p * v_p*eps_cyl**2/BigR**2)        * xjac * tstep & 
                     - v * F0 / BigR * Vpar0 * r0_p                                                                     * xjac * tstep &
                     - v * Vpar0 * (r0_s * ps0_t - r0_t * ps0_s)                                                               * tstep &
                     - v * F0 / BigR * r0 * vpar0_p                                                                     * xjac * tstep &
@@ -1531,7 +1546,7 @@ do ms=1, n_gauss
 !################################################################################################### 
 
 
-	   rhs_ij_8 =     &        
+         rhs_ij_8 =   BigR* (- Dn0x * rn0_x * v_x - Dn0y * rn0_y * v_y - Dn0p * rn0_p * v_p*eps_cyl**2/BigR**2) * xjac * tstep          &        
                       ! New diffusion scheme for impurities
                       - (D_par_imp-D_prof_imp) * BigR / BB2 * Bgrad_rho_star * (Bgrad_rhon)                                      * xjac * tstep & 
                       - D_prof_imp * BigR  * (v_x*(rn0_x) + v_y*(rn0_y) + v_p*(rn0_p) * eps_cyl**2 /BigR**2 )                * xjac * tstep & 
@@ -2024,6 +2039,7 @@ do ms=1, n_gauss
                               * ( v_x * ps0_y -  v_y * ps0_x + F0 / BigR * v_p) * xjac * theta * tstep * tstep 
 
                  amat_58 = &
+                           + BigR * (Dn0x * rhon_x * v_x + Dn0y * rhon_y * v_y + Dn0p * rhon_p * v_p*eps_cyl**2/BigR) * xjac * theta * tstep &
                            ! New diffusion scheme for impurities
                            - (D_par-D_prof) * BigR / BB2 * Bgrad_rho_star * Bgrad_rho_rhon                  * xjac * theta * tstep &
                            + (D_par_imp-D_prof_imp) * BigR / BB2 * Bgrad_rho_star * Bgrad_rho_rhon                  * xjac * theta * tstep &
@@ -2467,7 +2483,7 @@ do ms=1, n_gauss
                           !New diffusion scheme for impurities
                          + (D_par_imp-D_prof_imp) * BigR / BB2 * Bgrad_rho_star * Bgrad_rho_rhon                  * xjac * theta * tstep &
                          + D_prof_imp * BigR  * (v_x*rhon_x + v_y*rhon_y + v_p*rhon_p * eps_cyl**2 /BigR**2 ) * xjac * theta * tstep &
-         
+                          + BigR * (Dn0x * rhon_x * v_x + Dn0y * rhon_y * v_y + Dn0p * rhon_p * v_p*eps_cyl**2/BigR) * xjac * theta * tstep  &         
                           + Dn_perp_num     * (v_xx + v_x/BigR + v_yy)*(rhon_xx + rhon_x/BigR + rhon_yy)   * BigR * xjac * theta * tstep 
 
 

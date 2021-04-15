@@ -662,6 +662,11 @@ module phys_module
   real*8              :: ZK_par_neg         !< Parallel diffusion coefficient in regions with negative temperature
   real*8              :: ZK_prof_neg_thresh !< ZK_prof_neg becomes effective if T < ZK_prof_neg_thresh
   real*8              :: ZK_par_neg_thresh  !< ZK_par_neg becomes effective if T < ZK_par_neg_thresh
+  real*8              :: D_imp_extra_R           !< Additional impurity diffusivity in R-direction
+  real*8              :: D_imp_extra_Z           !< Additional impurity diffusivity in Z-direction
+  real*8              :: D_imp_extra_p           !< Additional impurity diffusivity in phi-direction
+  real*8              :: D_imp_extra_neg         !< Additional impurity diffusion coefficient in regions with negative impurity density
+  real*8              :: D_imp_extra_neg_thresh  !< D_imp_extra_neg becomes effective if rho_imp < D_imp_extra_neg_thresh
   real*8              :: T_min              !< minimum temperature (limits on the temperature dependence of resistivity etc.)
   real*8              :: rho_min            !< minimum density
 
