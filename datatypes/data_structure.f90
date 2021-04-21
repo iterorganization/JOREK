@@ -113,6 +113,7 @@ module data_structure
      real*8, dimension(:,:,:,:) , allocatable :: delta_g, delta_s, delta_t
 
      real*8, dimension(:,:,:,:) , allocatable :: eq_aux_g, eq_aux_s, eq_aux_t, eq_aux_p
+     real*8, dimension(:,:,:,:) , allocatable :: delta_aux_g, delta_aux_s, delta_aux_t, delta_aux_p
 
      real*8, dimension(:), allocatable  :: synch_buff
   END TYPE type_thread_buffer
