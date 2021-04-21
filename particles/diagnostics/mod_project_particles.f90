@@ -678,15 +678,22 @@ subroutine project_only(this, sim)
           index = this%node_list%node(i)%index(k)
 
           if (this%do_zonal) then
+             this%node_list%node(i)%deltas(1,k,i_var) = y_tmp(2*(index-1) + 1 + 2*this%n_dof*(i_var-1)) + y_tmp(2*(index-1) + 2 + 2*this%n_dof*(i_var-1)) - this%node_list%node(i)%values(1,k,i_var)
+             this%node_list%node(i)%deltas(1,k,2)     = y_tmp(2*(index-1) + 2 + 2*this%n_dof*(i_var-1)) - this%node_list%node(i)%values(1,k,2)
+
              this%node_list%node(i)%values(1,k,i_var) = y_tmp(2*(index-1) + 1 + 2*this%n_dof*(i_var-1)) + y_tmp(2*(index-1) + 2 + 2*this%n_dof*(i_var-1))
              this%node_list%node(i)%values(1,k,2)     = y_tmp(2*(index-1) + 2 + 2*this%n_dof*(i_var-1))
           else
+             this%node_list%node(i)%deltas(1,k,i_var) = y_tmp(2*(index-1) + 1 + 2*this%n_dof*(i_var-1)) - this%node_list%node(i)%values(1,k,i_var)
              this%node_list%node(i)%values(1,k,i_var) = y_tmp(2*(index-1) + 1 + 2*this%n_dof*(i_var-1))
           endif
 
           offset = 2*this%n_dof * this%mumps_par%nrhs
           
           do i_tor=2,n_tor,2
+
+            this%node_list%node(i)%deltas(i_tor,  k,i_var) = y_tmp(2*(index-1) + 1 + offset + 2*this%n_dof*(i_var-1) + (i_tor-2)*this%n_dof * this%mumps_par%nrhs) - this%node_list%node(i)%values(i_tor,  k,i_var)
+            this%node_list%node(i)%deltas(i_tor+1,k,i_var) = y_tmp(2*(index-1) + 2 + offset + 2*this%n_dof*(i_var-1) + (i_tor-2)*this%n_dof * this%mumps_par%nrhs) - this%node_list%node(i)%values(i_tor+1,k,i_var)
 
             this%node_list%node(i)%values(i_tor,  k,i_var) = y_tmp(2*(index-1) + 1 + offset + 2*this%n_dof*(i_var-1) + (i_tor-2)*this%n_dof * this%mumps_par%nrhs)
             this%node_list%node(i)%values(i_tor+1,k,i_var) = y_tmp(2*(index-1) + 2 + offset + 2*this%n_dof*(i_var-1) + (i_tor-2)*this%n_dof * this%mumps_par%nrhs)
@@ -697,6 +704,10 @@ subroutine project_only(this, sim)
         
         ! Check for NaNs in the projection
         if (any(ieee_is_nan(this%node_list%node(i)%values(:,:,i_var)))) then
+          found_nan = .true.
+        end if
+        ! Check for NaNs in the projection
+        if (any(ieee_is_nan(this%node_list%node(i)%deltas(:,:,i_var)))) then
           found_nan = .true.
         end if
       
