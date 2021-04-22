@@ -2733,7 +2733,7 @@ do ms=1, n_gauss
 
 
                  amat_98 =   v * rhon * alpha_e * Te0 * BigR * xjac * (1.d0 + zeta)                              &
-                           + v * rhon * delta_alpha_e * Te0 * rhon * BigR                      * xjac * theta &
+                           + v * rhon * delta_alpha_e * Te0  * BigR                             * xjac * theta &
 !=============== The ionization potential energy term=========================
                            + (GAMMA-1.) * v * rhon * (E_ion - E_ion_bg) * BigR * xjac * (1.d0 + zeta)                &
 

@@ -280,6 +280,9 @@ enddo
 delta_g = delta_g * tstep / tstep_prev
 delta_s = delta_s * tstep / tstep_prev
 delta_t = delta_t * tstep / tstep_prev
+delta_aux_g = delta_aux_g * tstep / tstep_prev
+delta_aux_s = delta_aux_s * tstep / tstep_prev
+delta_aux_t = delta_aux_t * tstep / tstep_prev
 
 do ms=1, n_gauss
   do mt=1, n_gauss
@@ -746,6 +749,7 @@ do ms=1, n_gauss
      Z_imp_p  = 0.0
      Z_imp_s  = 0.0
      Z_imp_t  = 0.0
+     delta_Z_imp = 0.0
 
      n_imp_x  = 0.0
      n_imp_y  = 0.0
@@ -753,6 +757,7 @@ do ms=1, n_gauss
      n_imp_s  = 0.0
      n_imp_t  = 0.0
      n_imp = 0.
+     delta_n_imp = 0.0
 
      Z_eff        = 0.
      dZ_eff_dT    = 0.
@@ -843,6 +848,10 @@ do ms=1, n_gauss
        Z_imp_s    = eq_aux_s(mp,4,ms,mt)
        Z_imp_t    = eq_aux_t(mp,4,ms,mt)
 
+       delta_Z_imp = delta_aux_g(mp,4,ms,mt)
+       delta_n_imp = delta_aux_g(mp,5,ms,mt)
+       delta_Z_imp = (delta_Z_imp - Z_imp * delta_n_imp) / n_imp
+
        n_imp_x    = (   y_t(ms,mt) * eq_aux_s(mp,5,ms,mt) - y_s(ms,mt) * eq_aux_t(mp,5,ms,mt) ) / xjac
        n_imp_y    = ( - x_t(ms,mt) * eq_aux_s(mp,5,ms,mt) + x_s(ms,mt) * eq_aux_t(mp,5,ms,mt) ) / xjac
        n_imp_p    = eq_aux_p(mp,5,ms,mt)
@@ -889,6 +898,9 @@ do ms=1, n_gauss
      alpha_imp_p     = 0.5*m_i_over_m_imp*Z_imp_p
      alpha_imp_x     = 0.5*m_i_over_m_imp*Z_imp_x
      alpha_imp_y     = 0.5*m_i_over_m_imp*Z_imp_y
+
+     delta_alpha_imp = 0.
+     if (use_marker) delta_alpha_imp = 0.5*m_i_over_m_imp * delta_Z_imp
 
      ne_SI       = (r0_corr + beta_imp * rn0_corr) * 1.d20 * central_density ! electron density (SI)
      ne_JOREK     = r0_corr + beta_imp * rn0_corr ! Electron density in JOREK unit
@@ -1284,6 +1296,7 @@ do ms=1, n_gauss
                     + zeta * v * (r0 + rn0 * alpha_imp_bis) * delta_g(mp,6,ms,mt) * BigR               * xjac &
                     + zeta * v * T0 * delta_g(mp,5,ms,mt) * BigR                                       * xjac &
                     + zeta * v * alpha_imp * T0 * delta_g(mp,8,ms,mt) * BigR                           * xjac &   
+                    -        v * delta_alpha_imp * T0 * rn0 * BigR                                     * xjac &   
 
 !===================== Additional terms from ionization energy terms============
                     + (GAMMA - 1.) * zeta * v * E_ion * delta_g(mp,8,ms,mt) *BigR                           * xjac &
@@ -1958,6 +1971,7 @@ do ms=1, n_gauss
 
 
                  amat_66 =   v * (r0 + rn0 * alpha_imp_bis) * T * BigR * xjac * (1.d0 + zeta)                     &
+                           + v * rn0 * delta_alpha_imp      * T * BigR * xjac * theta                             &
 !=============== The ionization potential energy term=========================
                            + (GAMMA - 1.) * v * rn0 * dE_ion_dT  * T * BigR * xjac * (1.d0 + zeta)                     &
                            - (GAMMA - 1.) * v * rn0 * dE_ion_dT * BigR**2 * (T_s*u0_t - T_t*u0_s)    * theta * tstep &
@@ -2091,6 +2105,7 @@ do ms=1, n_gauss
                               * ( v_x * ps0_y -  v_y * ps0_x + F0 / BigR * v_p) * xjac * theta * tstep * tstep
 
                  amat_68 =   v * rhon * alpha_imp * T0 * BigR * xjac * (1.d0 + zeta)                              &
+                           + v * rhon * delta_alpha_imp * T0  * BigR                             * xjac * theta &
 !=============== The ionization potential energy term=========================
                            + (GAMMA - 1.) * v * rhon * (E_ion - E_ion_bg) * BigR * xjac * (1.d0 + zeta)                &
 
