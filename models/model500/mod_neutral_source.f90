@@ -14,7 +14,7 @@ module mod_neutral_source
 
 
   !> Calculates the neutral source
-  subroutine neutral_source(ns_amplitude,ns_R,ns_Z,ns_phi,ns_radius,ns_sig,ns_deltaphi,ns_tor_norm, &
+  subroutine neutral_source(ns_amplitude,ns_R,ns_Z,ns_phi,ns_radius,ns_deltaphi,ns_tor_norm, &
                               A_Dmv,K_Dmv,V_Dmv,P_Dmv,t_ns,L_tube,R,Z,phi,rhon_source,t_now,               &
                               JET_MGI,ASDEX_MGI,central_density,central_mass)
 
@@ -22,7 +22,7 @@ module mod_neutral_source
 
     ! --- Routine parameters
     real*8,  intent(in)  :: R, Z, phi, A_Dmv, K_Dmv, V_Dmv, P_Dmv, t_now, t_ns, ns_amplitude
-    real*8,  intent(in)  :: ns_R, ns_Z, ns_phi, ns_radius, ns_sig, ns_deltaphi, L_tube
+    real*8,  intent(in)  :: ns_R, ns_Z, ns_phi, ns_radius, ns_deltaphi, L_tube
     real*8,  intent(in)  :: central_density, central_mass, ns_tor_norm
     logical, intent(in)  :: JET_MGI, ASDEX_MGI
     real*8,  intent(out) :: rhon_source
@@ -147,7 +147,7 @@ module mod_neutral_source
   subroutine get_source(R,Z,phi,source_neutral) 
 
     use phys_module, only: using_spi, JET_MGI, ASDEX_MGI, n_spi_tot, pellets, ng_radius_ratio, ns_radius
-    use phys_module, only: ng_radius_min, n_inj, n_spi, n_spi_tot, ns_sig, ns_deltaphi, L_tube
+    use phys_module, only: ng_radius_min, n_inj, n_spi, n_spi_tot, ns_deltaphi, L_tube
     use phys_module, only: ns_tor_norm, A_Dmv,K_Dmv,V_Dmv,P_Dmv,t_ns, t_now, central_density, central_mass
     use phys_module, only: ns_amplitude, ns_R, ns_Z, ns_phi
 
@@ -189,8 +189,7 @@ module mod_neutral_source
           end do
 
           call neutral_source(pellets(spi_i)%spi_abl,pellets(spi_i)%spi_R,pellets(spi_i)%spi_Z,pellets(spi_i)%spi_phi,&
-                        ng_radius,ns_sig,ns_deltaphi,&
-                        ns_tor_norm, A_Dmv,K_Dmv,V_Dmv,P_Dmv,t_ns(i_inj),0.,R,Z,     &
+                        ng_radius,ns_deltaphi, ns_tor_norm, A_Dmv,K_Dmv,V_Dmv,P_Dmv,t_ns(i_inj),0.,R,Z,     &
                         phi,source_neutral_tmp,t_now,JET_MGI,ASDEX_MGI,central_density,central_mass)
 
         end if
@@ -204,7 +203,7 @@ module mod_neutral_source
       do i_inj = 1, n_inj
         source_neutral_tmp = 0.d0
         call neutral_source(ns_amplitude(i_inj),ns_R(i_inj),ns_Z(i_inj),ns_phi(i_inj), &
-                      ns_radius,ns_sig,ns_deltaphi,ns_tor_norm, &
+                      ns_radius,ns_deltaphi,ns_tor_norm, &
                       A_Dmv,K_Dmv,V_Dmv,P_Dmv,t_ns(i_inj),L_tube,R,Z,phi,source_neutral,t_now, &
                       JET_MGI,ASDEX_MGI,central_density,central_mass)
         source_neutral = source_neutral + source_neutral_tmp

@@ -271,8 +271,7 @@ module phys_module
   real*8  :: pellet_particles  !< the number of particles in the pellet (in units of \f$10^{20}\f$)
   logical :: use_pellet
 
-  !> @name Massive gas injection-related input parameters
-  
+  !> @name shared between MGI and SPI applications
   integer, parameter :: n_inj_max = 10 ! The hard coded maximum number of injections
 
   real*8  :: t_ns(n_inj_max)   !< MGI onset time (JOREK units)
@@ -281,9 +280,14 @@ module phys_module
   real*8  :: ns_Z(n_inj_max)   !< Z position of gas source
   real*8  :: ns_phi(n_inj_max) !< Phi position of gas source
   real*8  :: ns_radius         !< Poloidal radius of gas source
-  real*8  :: ns_sig            !< Obsolete (still in the code but not used)
   real*8  :: ns_deltaphi       !< Toroidal extension of gas source
   real*8  :: ns_tor_norm       !< Gas source normalization factor related to its toroidal shape
+
+  character(len=80) :: imp_type !< Type of injected material or background impurity species: Argon, neon, ...
+  logical :: use_imp_adas       !< Use open adas to calculate ionization, recombination and radiation coeffients for impurities
+
+  !> @name Massive gas injection-related input parameters
+  
   logical :: JET_MGI           !< Switch to use a JET-like MGI
   logical :: ASDEX_MGI         !< Switch to use an ASDEX-like MGI
   real*8  :: V_Dmv             !< Volume of the DMV reservoir
@@ -294,8 +298,6 @@ module phys_module
   real*8  :: ksi_ion            !< Energy cost of each ionization
   real*8  :: delta_n_convection !< Switch to activate the convection term for neutrals (at the plasma velocity)
   real*8  :: nimp_bg            !< Density of background impurity (in \f$m^{-3}\f$)
-  character(len=80) :: imp_type !< Type of injected material or background impurity species: Argon, neon, ...
-  logical :: use_imp_adas       !< Use open adas to calculate ionization, recombination and radiation coeffients for impurities
  
   !> @name Shattered Pellet Injection related input parameters
   ! Note that the SPI share many of the MGI parameters. The code should return to simple MGI upon using_spi = false
@@ -310,7 +312,7 @@ module phys_module
   real*8  :: ng_radius_ratio           !< We are assuming a constant ratio between the radius of NG clouds
                                        !< and that of shattered pellets
 
-  real*8  :: spi_Vel_diff(n_inj_max)   !< The reference veolocity difference from the reference velocity
+  real*8  :: spi_Vel_diff(n_inj_max)   !< The veolocity difference from the reference velocity
   real*8  :: spi_angle                 !< The vertex angle of spi spreading in terms of rad
   real*8  :: spi_L_inj(n_inj_max)      !< Distance between SPI nozzle and ns_R, ns_Z, ns_phi
   real*8  :: ns_phi_rotate             !< The toroidal position of rotated injection point
@@ -332,12 +334,14 @@ module phys_module
 
   real*8, allocatable  :: xtime_Ne_imp(:)       !< The total amount of electron released by impurities
 
-  integer :: n_spi(n_inj_max)   !< Number of shattered pellets injected
-  integer :: n_spi_tot          !< Total number of shattered pellets injected
-  integer :: n_inj              !< Number of injection locations
-  integer :: spi_abl_model      !< Determine which type of ablation model is using.
+  integer :: n_spi(n_inj_max)   !< Number of shattered fragment injected for each injection
+  integer :: n_spi_tot          !< Total number of shattered fragments injected
+  integer :: n_inj              !< Number of injections
+  integer :: spi_abl_model      !< Determine which type of ablation model is used.
                                 !< 0 for constant release rate, 1 for NGS model,
                                 !< 2 for Sergeev formula, 3 for Parks formula.
+                                !< For details see Nucl. Fusion 61 (2021) 026015 (23pp), 
+                                !< https://iopscience.iop.org/article/10.1088/1741-4326/abcbcb
   integer :: spi_rnd_seed(40)   !< Random seed array used for the generation of the SPI velocity spread
 
   character(len=256) :: spi_shard_file !< The name of the shard size file

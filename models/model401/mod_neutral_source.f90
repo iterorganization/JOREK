@@ -14,7 +14,7 @@ module mod_neutral_source
 
 
   !> Calculates the neutral source
-  subroutine neutral_source(ns_amplitude,ns_R,ns_Z,ns_phi,ns_radius,ns_sig,ns_deltaphi,ns_tor_norm, &
+  subroutine neutral_source(ns_amplitude,ns_R,ns_Z,ns_phi,ns_radius,ns_deltaphi,ns_tor_norm, &
                               A_Dmv,K_Dmv,V_Dmv,P_Dmv,t_ns,L_tube,R,Z,phi,rhon_source,t_now,               &
                               JET_MGI,ASDEX_MGI,central_density,central_mass)
 
@@ -22,7 +22,7 @@ module mod_neutral_source
 
     ! --- Routine parameters
     real*8,  intent(in)  :: R, Z, phi, A_Dmv, K_Dmv, V_Dmv, P_Dmv, t_now, t_ns, ns_amplitude
-    real*8,  intent(in)  :: ns_R, ns_Z, ns_phi, ns_radius, ns_sig, ns_deltaphi, L_tube
+    real*8,  intent(in)  :: ns_R, ns_Z, ns_phi, ns_radius, ns_deltaphi, L_tube
     real*8,  intent(in)  :: central_density, central_mass, ns_tor_norm
     logical, intent(in)  :: JET_MGI, ASDEX_MGI
     real*8,  intent(out) :: rhon_source

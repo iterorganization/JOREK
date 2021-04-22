@@ -30,9 +30,6 @@ integer            :: nr, nz, n_psi, nbbs, limitr, i,j, nc, n_tht, n_sol, n_ext,
 character          :: AA*52, tokamak_name*50
 character          :: buffer*80, lf*1, str1*12, str2*24
 
-logical            :: ferr
-real*8,allocatable :: ne_spline(:)
-
 !----------------------------- read eqdsk file -----------
 
 B_scale = 1.d0/1.d0  ! scaling factor for the vacuum toroidal field 
@@ -315,24 +312,6 @@ n_ext = n_psi + n_sol
 
 write(*,*) ' n_psi, n_sol, n_ext : ',n_psi, n_sol, n_ext
 
-!===================== Read Spline Fitted Ne profile==============
-
-if (allocated(ne_spline)) then
-  deallocate(ne_spline)
-end if
-allocate (ne_spline(n_ext))  !< Dynamically allocate memeries for the spline fitted density profile
-inquire(file="ne_spline_only.dat", exist=ferr) ! Check if the file exist
-if (ferr) then
-  open(42,file="ne_spline_only.dat",status="OLD",action="READ")
-  read(42,*)  ne_spline(1:n_ext)
-  close(42)
-else
-  write(*,*) "WARNING!!! ne_spline file does not exist!"
-  deallocate(ne_spline)
-end if
-
-!=====================End of Ne profile===========================
-
 allocate(df2_ext(n_ext),rho_ext(n_ext),T_ext(n_ext),psi_ext(n_ext),p_ext(n_ext))
 
 df2_ext(1:n_psi) = df2(1:n_psi)
@@ -358,25 +337,11 @@ zmu0 = 4.d-7 * PI
 do i=1,n_ext
   tanh1 = tanh((psi_ext(i) - psi_sep)/sig_sep)
   df2_ext(i) = df2_ext(i) * (0.5d0 - 0.5d0*tanh1)
-  !rho_ext(i) = rho_ext(i) * (0.5d0 - 0.5d0*tanh1)
-  if (allocated(ne_spline)) then
-    rho_ext(i) = rho_ext(i) * ne_spline(i)
-    !rho_ext(i) = rho_ext(i) * ne_spline(i) * (0.5d0 - 0.5d0*tanh1) + 1.d-2 * (0.5 + 0.5*tanh1)
-  else
-    rho_ext(i) = (rho_ext(i) - rho_bnd) * (0.5d0 - 0.5d0*tanh1) + rho_bnd
-  end if
-  !T_ext(i)   = T_ext(i)   * (0.5d0 - 0.5d0*tanh1) * zmu0 
-  if (allocated(ne_spline)) then
-    T_ext(i)   = T_ext(i) * zmu0 * (0.5d0 - 0.5d0*tanh1) / rho_ext(i) + 1.d-4 * (0.5 + 0.5*tanh1)
-  else
-    T_ext(i)   = T_ext(i) * zmu0 * (0.5d0 - 0.5d0*tanh1) + T_bnd
-  end if
+  rho_ext(i) = (rho_ext(i) - rho_bnd) * (0.5d0 - 0.5d0*tanh1) + rho_bnd
+  T_ext(i)   = T_ext(i)   * (0.5d0 - 0.5d0*tanh1) * zmu0 +T_bnd 
+!   T_ext(i)   = T_ext(i) / rho_ext(i) * zmu0 + T_bnd 
   p_ext(i)   = rho_ext(i) * T_ext(i)
 enddo
-
-if (allocated(ne_spline)) then
-  deallocate(ne_spline)
-end if
 
 call lplot6(2,2,psi_ext,df2_ext,n_ext,'df2')
 call lplot6(3,2,psi_ext,p_ext,n_ext,'pressure')

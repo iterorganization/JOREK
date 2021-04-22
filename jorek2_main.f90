@@ -1159,12 +1159,7 @@ required = 0
        if (using_spi) then
          n_spi_begin = 1
          do i = 1, n_inj !< Do one update for each injection location
-           if (t_now >= t_ns(i)) then
-             call update_spi(my_id,node_list,element_list,&
-                             ns_R(i),ns_Z(i),ns_phi(i),ns_amplitude(i),&
-                             spi_Vel_Rref(i),spi_Vel_Zref(i),spi_Vel_RxZref(i),&
-                             spi_quantity(i),spi_quantity_bg(i),spi_Vel_diff(i),spi_L_inj(i),n_spi(i),n_spi_begin)
-           end if
+           if (t_now >= t_ns(i)) call update_spi(my_id,node_list,element_list,i,n_spi_begin)
            n_spi_begin = n_spi_begin + n_spi(i)
          end do
        end if

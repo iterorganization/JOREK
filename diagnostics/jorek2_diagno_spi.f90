@@ -185,7 +185,7 @@ endif
 #endif
 !if (use_pellet) then
 !   pellet_volume = total_pellet_volume
-!   call update_pellet(0d,node_list,element_list)
+!   call update_pellet(0,node_list,element_list)
 !end if
 !------------------lowshape3bis outside
 !Rplot(1) = 3.0
