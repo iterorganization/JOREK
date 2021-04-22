@@ -292,6 +292,11 @@ do i=1,n_vertex_max
  enddo
 enddo
 
+! changes deltas for variable time steps
+delta_g = delta_g * tstep / tstep_prev
+delta_s = delta_s * tstep / tstep_prev
+delta_t = delta_t * tstep / tstep_prev
+
 do ms=1, n_gauss
   do mt=1, n_gauss
 
