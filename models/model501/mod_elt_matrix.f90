@@ -119,12 +119,12 @@ real*8     :: m_i_over_m_imp
 !   -Mean impurity ionization state
 real*8     :: Z_imp, dZ_imp_dT, d2Z_imp_dT2, T0_Zimp, alpha_Zimp, Z_eff, dZ_eff_dT, eta_coef, deta_coef_dZeff
 real*8     :: dZ_eff_dr0, dZ_eff_drn0, n_imp
-real*8     :: Z_imp_s, Z_imp_t, Z_imp_p, Z_imp_x, Z_imp_y
-real*8     :: n_imp_s, n_imp_t, n_imp_p, n_imp_x, n_imp_y
+real*8     :: Z_imp_s, Z_imp_t, Z_imp_p, Z_imp_x, Z_imp_y, delta_Z_imp
+real*8     :: n_imp_s, n_imp_t, n_imp_p, n_imp_x, n_imp_y, delta_n_imp
 
 !   -Coefficients related to Z_imp
 real*8     :: alpha_imp, dalpha_imp_dT, d2alpha_imp_dT2, alpha_imp_bis, alpha_imp_tri
-real*8     :: alpha_imp_s, alpha_imp_t, alpha_imp_p, alpha_imp_x, alpha_imp_y
+real*8     :: alpha_imp_s, alpha_imp_t, alpha_imp_p, alpha_imp_x, alpha_imp_y, delta_alpha_imp
 real*8     :: beta_imp, dbeta_imp_dT
 
 !   -Radiation from injected impurities
@@ -158,6 +158,7 @@ real*8, dimension(:,:,:,:) , pointer :: eq_p
 real*8, dimension(:,:,:,:) , pointer :: eq_ss, eq_st, eq_tt   
 real*8, dimension(:,:,:,:) , pointer :: delta_g, delta_s, delta_t
 real*8, dimension(:,:,:,:) , pointer :: eq_aux_g, eq_aux_s, eq_aux_t, eq_aux_p
+real*8, dimension(:,:,:,:) , pointer :: delta_aux_g, delta_aux_s, delta_aux_t, delta_aux_p
 
 eq_g     => thread_struct(tid)%eq_g   
 eq_s     => thread_struct(tid)%eq_s   
@@ -173,6 +174,10 @@ eq_aux_g => thread_struct(tid)%eq_aux_g
 eq_aux_s => thread_struct(tid)%eq_aux_s   
 eq_aux_t => thread_struct(tid)%eq_aux_t   
 eq_aux_p => thread_struct(tid)%eq_aux_p   
+delta_aux_g => thread_struct(tid)%delta_aux_g   
+delta_aux_s => thread_struct(tid)%delta_aux_s   
+delta_aux_t => thread_struct(tid)%delta_aux_t   
+delta_aux_p => thread_struct(tid)%delta_aux_p   
 
 ELM = 0.d0
 RHS = 0.d0
@@ -195,6 +200,7 @@ eq_g = 0.d0; eq_s = 0.d0; eq_t = 0.d0; eq_st = 0.d0; eq_ss = 0.d0; eq_tt = 0.d0;
 eq_aux_g = 0.d0; eq_aux_s = 0.d0; eq_aux_t = 0.d0; eq_aux_p = 0.d0;
 
 delta_g = 0.d0; delta_s = 0.d0; delta_t = 0.d0
+delta_aux_g = 0.d0; delta_aux_s = 0.d0; delta_aux_t = 0.d0
 
 current_source  = 0.d0
 particle_source = 0.d0
@@ -251,6 +257,9 @@ do i=1,n_vertex_max
                eq_aux_s(mp,k,ms,mt) =  eq_aux_s(mp,k,ms,mt) + aux_nodes(i)%values(in,j,k) * element%size(i,j) * H_s(i,j,ms,mt) * HZ(in,mp)
                eq_aux_t(mp,k,ms,mt) =  eq_aux_t(mp,k,ms,mt) + aux_nodes(i)%values(in,j,k) * element%size(i,j) * H_t(i,j,ms,mt) * HZ(in,mp)
                eq_aux_p(mp,k,ms,mt) =  eq_aux_p(mp,k,ms,mt) + aux_nodes(i)%values(in,j,k) * element%size(i,j) * H(i,j,ms,mt)   * HZ_p(in,mp)
+               delta_aux_g(mp,k,ms,mt) = delta_aux_g(mp,k,ms,mt) + aux_nodes(i)%deltas(in,j,k) * element%size(i,j) * H(i,j,ms,mt)   * HZ(in,mp)
+               delta_aux_s(mp,k,ms,mt) = delta_aux_s(mp,k,ms,mt) + aux_nodes(i)%deltas(in,j,k) * element%size(i,j) * H_s(i,j,ms,mt) * HZ(in,mp)
+               delta_aux_t(mp,k,ms,mt) = delta_aux_t(mp,k,ms,mt) + aux_nodes(i)%deltas(in,j,k) * element%size(i,j) * H_t(i,j,ms,mt) * HZ(in,mp)
              endif
 
              delta_g(mp,k,ms,mt) = delta_g(mp,k,ms,mt) + nodes(i)%deltas(in,j,k) * element%size(i,j) * H(i,j,ms,mt)   * HZ(in,mp)
