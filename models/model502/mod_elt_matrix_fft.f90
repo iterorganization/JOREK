@@ -146,12 +146,12 @@ real*8     :: m_i_over_m_imp, m_imp
 !   -Mean impurity ionization state
 real*8     :: Z_imp, dZ_imp_dT, d2Z_imp_dT2, T0_Zimp, alpha_Zimp, Z_eff, dZ_eff_dT, eta_coef, deta_coef_dZeff
 real*8     :: dZ_eff_dr0, dZ_eff_drn0, Z_eff_imp, dZ_eff_imp_dT, n_imp
-real*8     :: Z_imp_s, Z_imp_t, Z_imp_p, Z_imp_x, Z_imp_y
-real*8     :: n_imp_s, n_imp_t, n_imp_p, n_imp_x, n_imp_y
+real*8     :: Z_imp_s, Z_imp_t, Z_imp_p, Z_imp_x, Z_imp_y, delta_Z_imp
+real*8     :: n_imp_s, n_imp_t, n_imp_p, n_imp_x, n_imp_y, delta_n_imp
 !   -Coefficients related to Z_imp
 real*8     :: alpha_i, dalpha_i_dT, d2alpha_i_dT2
 real*8     :: alpha_e, dalpha_e_dT, d2alpha_e_dT2, alpha_e_bis, alpha_e_tri
-real*8     :: alpha_e_s, alpha_e_t, alpha_e_p, alpha_e_x, alpha_e_y
+real*8     :: alpha_e_s, alpha_e_t, alpha_e_p, alpha_e_x, alpha_e_y, delta_alpha_e
 !   -Radiation from injected impurities
 real*8     :: Lrad, dLrad_dT                                  ! Radiation rate and its derivative wrt. temperature
 real*8     :: Te_corr_eV, dTe_corr_eV_dT                      ! Temperature used in radiation rate
@@ -204,6 +204,7 @@ real*8, dimension(n_plane,n_var,n_gauss,n_gauss) :: eq_p
 real*8, dimension(n_plane,n_var,n_gauss,n_gauss) :: eq_ss, eq_st, eq_tt
 real*8, dimension(n_plane,n_var,n_gauss,n_gauss) :: delta_g, delta_s, delta_t
 real*8, dimension(n_plane,n_var,n_gauss,n_gauss) :: eq_aux_g, eq_aux_s, eq_aux_t, eq_aux_p
+real*8, dimension(n_plane,n_var,n_gauss,n_gauss) :: delta_aux_g, delta_aux_s, delta_aux_t, delta_aux_p
 
 ELM_p = 0.d0
 ELM_n = 0.d0
@@ -238,6 +239,7 @@ eq_g = 0.d0; eq_s = 0.d0; eq_t = 0.d0; eq_st = 0.d0; eq_ss = 0.d0; eq_tt = 0.d0;
 eq_aux_g = 0.d0; eq_aux_s = 0.d0; eq_aux_t = 0.d0; eq_aux_p = 0.d0;
 
 delta_g = 0.d0; delta_s = 0.d0; delta_t = 0.d0
+delta_aux_g = 0.d0; delta_aux_s = 0.d0; delta_aux_t = 0.d0
 
 current_source  = 0.d0
 particle_source = 0.d0
@@ -302,6 +304,10 @@ do i=1,n_vertex_max
                eq_aux_s(mp,k,ms,mt) =  eq_aux_s(mp,k,ms,mt) + aux_nodes(i)%values(in,j,k) * element%size(i,j) * H_s(i,j,ms,mt) * HZ(in,mp)
                eq_aux_t(mp,k,ms,mt) =  eq_aux_t(mp,k,ms,mt) + aux_nodes(i)%values(in,j,k) * element%size(i,j) * H_t(i,j,ms,mt) * HZ(in,mp)
                eq_aux_p(mp,k,ms,mt) =  eq_aux_p(mp,k,ms,mt) + aux_nodes(i)%values(in,j,k) * element%size(i,j) * H(i,j,ms,mt)   * HZ_p(in,mp)
+
+               delta_aux_g(mp,k,ms,mt) = delta_aux_g(mp,k,ms,mt) + aux_nodes(i)%deltas(in,j,k) * element%size(i,j) * H(i,j,ms,mt)   * HZ(in,mp)
+               delta_aux_s(mp,k,ms,mt) = delta_aux_s(mp,k,ms,mt) + aux_nodes(i)%deltas(in,j,k) * element%size(i,j) * H_s(i,j,ms,mt) * HZ(in,mp)
+               delta_aux_t(mp,k,ms,mt) = delta_aux_t(mp,k,ms,mt) + aux_nodes(i)%deltas(in,j,k) * element%size(i,j) * H_t(i,j,ms,mt) * HZ(in,mp)
              endif
 
              delta_g(mp,k,ms,mt) = delta_g(mp,k,ms,mt) + nodes(i)%deltas(in,j,k) * element%size(i,j) * H(i,j,ms,mt)   * HZ(in,mp)
@@ -322,6 +328,9 @@ enddo
 delta_g = delta_g * tstep / tstep_prev
 delta_s = delta_s * tstep / tstep_prev
 delta_t = delta_t * tstep / tstep_prev
+delta_aux_g = delta_aux_g * tstep / tstep_prev
+delta_aux_s = delta_aux_s * tstep / tstep_prev
+delta_aux_t = delta_aux_t * tstep / tstep_prev
 
 do ms=1, n_gauss
   do mt=1, n_gauss
@@ -843,6 +852,7 @@ do ms=1, n_gauss
      Z_imp_p  = 0.0
      Z_imp_s  = 0.0
      Z_imp_t  = 0.0
+     delta_Z_imp = 0.0
 
      n_imp_x  = 0.0
      n_imp_y  = 0.0
@@ -850,6 +860,7 @@ do ms=1, n_gauss
      n_imp_s  = 0.0
      n_imp_t  = 0.0
      n_imp = 0.
+     delta_n_imp = 0.0
 
      Z_eff        = 0.
      dZ_eff_dT    = 0.
@@ -941,6 +952,10 @@ do ms=1, n_gauss
        Z_imp_s    = eq_aux_s(mp,4,ms,mt)
        Z_imp_t    = eq_aux_t(mp,4,ms,mt)
 
+       delta_Z_imp = delta_aux_g(mp,4,ms,mt)
+       delta_n_imp = delta_aux_g(mp,5,ms,mt)
+       delta_Z_imp = (delta_Z_imp - Z_imp * delta_n_imp) / n_imp
+
        n_imp_x    = (   y_t(ms,mt) * eq_aux_s(mp,5,ms,mt) - y_s(ms,mt) * eq_aux_t(mp,5,ms,mt) ) / xjac
        n_imp_y    = ( - x_t(ms,mt) * eq_aux_s(mp,5,ms,mt) + x_s(ms,mt) * eq_aux_t(mp,5,ms,mt) ) / xjac
        n_imp_p    = eq_aux_p(mp,5,ms,mt)
@@ -989,6 +1004,9 @@ do ms=1, n_gauss
      alpha_e_p     = m_i_over_m_imp*Z_imp_p
      alpha_e_s     = m_i_over_m_imp*Z_imp_s
      alpha_e_t     = m_i_over_m_imp*Z_imp_t
+
+     delta_alpha_e = 0.
+     if (use_marker) delta_alpha_e = m_i_over_m_imp * delta_Z_imp
 
      ne_SI       = (r0_corr + alpha_e * rn0_corr) * 1.d20 * central_density ! electron density (SI)
      ne_JOREK     = r0_corr + alpha_e * rn0_corr ! Electron density in JOREK unit
