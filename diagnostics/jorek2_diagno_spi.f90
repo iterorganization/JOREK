@@ -138,7 +138,7 @@ open(20,file="ohm_history.dat")
 write(20,'(2A20)') 'time', 'ohmic power (MW)', 'magnetic energy (MJ)'
 
 do i=1,index_start
-  write(20,'(i7,f12.3,2e14.6)') i,xtime(i), dWmag_tot_dt(i)/1.d6, Wmag_tot_t(i)/1.d6
+  write(20,'(i7,f12.3,2e14.6)') i,xtime(i), ohmic_tot_t(i)/1.d6, Wmag_tot_t(i)/1.d6
 enddo
 close(20)
 
