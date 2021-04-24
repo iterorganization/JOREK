@@ -76,7 +76,7 @@ function setparam() {
 function getparam() {
   key=$1
   for i in $paramfiles; do
-    grep ":: *$key[ =]" $i | sed -e "s/^.*:: *$key *= *\([^ !\t]*\).*$/\1/"
+    grep -i ":: *$key[ =]" $i | sed -e "s/^.*:: *$key *= *\([^ !\t]*\).*$/\1/i"
   done
 }
 

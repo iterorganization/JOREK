@@ -255,10 +255,6 @@ module pellet_module
         pellets(i_p)%spi_phi   = pellets(i_p)%spi_phi + tor_frequency * 2. * PI * tstep / V_normalisation
       end if
      
-      pellets(i_p)%spi_Vel_R   = pellets(i_p)%spi_Vel_R
-      pellets(i_p)%spi_Vel_Z   = pellets(i_p)%spi_Vel_Z
-      pellets(i_p)%spi_Vel_RxZ = pellets(i_p)%spi_Vel_RxZ
-  
       if (pellets(i_p)%spi_phi >= 2.*PI) then
         pellets(i_p)%spi_phi   = mod(pellets(i_p)%spi_phi,2.*PI)
       else if (pellets(i_p)%spi_phi < 0.) then

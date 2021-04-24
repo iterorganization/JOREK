@@ -721,7 +721,7 @@ do i=1,n_vertex_max
             t_norm   = sqrt(MU_ZERO * central_mass * MASS_PROTON * central_density * 1.d20)
             nu_e_bg  = nu_e_bg * t_norm    
         
-            dTe_i    = nu_e_bg * (Ti0_corr - Te0_corr)
+            dTe_i    = nu_e_bg * (Ti0_corr - Te0_corr) * r0_corr
             dTi_e    = -dTe_i
         
             !Calculating the density and temperature derivative for amats
@@ -733,9 +733,10 @@ do i=1,n_vertex_max
   
             dnu_e_bg_drho   = nu_e_bg * dr0_corr_dn / r0_corr
   
-            ddTe_i_dTi      = dnu_e_bg_dTi * (Ti0_corr - Te0_corr) + nu_e_bg
-            ddTe_i_dTe      = dnu_e_bg_dTe * (Ti0_corr - Te0_corr) - nu_e_bg
-            ddTe_i_drho     = dnu_e_bg_drho * (Ti0_corr - Te0_corr)
+            ddTe_i_dTi      = dnu_e_bg_dTi * (Ti0_corr - Te0_corr) * r0_corr + nu_e_bg * dTi0_corr_dT * r0_corr
+            ddTe_i_dTe      = dnu_e_bg_dTe * (Ti0_corr - Te0_corr) * r0_corr - nu_e_bg * dTe0_corr_dT * r0_corr
+            ddTe_i_drho     = dnu_e_bg_drho * (Ti0_corr - Te0_corr) * r0_corr &
+                              + nu_e_bg * (Ti0_corr - Te0_corr) * dr0_corr_dn
         
             ddTi_e_dTi      = -ddTe_i_dTi
             ddTi_e_dTe      = -ddTe_i_dTe
