@@ -55,6 +55,8 @@ program JOREK2
 #ifdef USE_STRUMPACK
   use strumpack_module
 #endif
+  use preconditioner_module
+  use mod_distribute_preconditioner
   use direct_construction_mod
   use centralization_mod
 
@@ -73,7 +75,6 @@ program JOREK2
 #ifdef USE_HDF5
   use hdf5
   use hdf5_io_module
-  use matio_module, only: timestamp
 #endif
   use mpi_mod
   use mod_impurity, only: init_imp_adas
@@ -94,19 +95,9 @@ program JOREK2
   
   interface
 
-    subroutine distribute_vector(my_id,rhs,rhs_dis,again)
-      real*8               :: rhs(:), rhs_dis(:)
-      integer              :: my_id
-      logical              :: again
-    end subroutine distribute_vector
-
-    subroutine distribute_harmonics(my_id,my_id_n,n_cpu)
-      integer              :: my_id, my_id_n,n_cpu
-    end subroutine distribute_harmonics
-
-    subroutine gmres_driver(my_id,my_id_n,i_tor,n_tor,MPI_COMM_N,MPI_COMM_MASTER,iter_gmres)
-      integer :: i_tor(:), my_id, my_id_n, MPI_COMM_N, MPI_COMM_MASTER
-      integer :: iter_gmres, n_tor
+    subroutine gmres_driver(my_id,my_id_n,MPI_COMM_N,MPI_COMM_MASTER,iter_gmres)
+      integer :: my_id, my_id_n, MPI_COMM_N, MPI_COMM_MASTER
+      integer :: iter_gmres
     end subroutine gmres_driver
     
     subroutine equilibrium(my_id,node_list,element_list,bnd_node_list,bnd_elm_list,xpoint2,xcase2, nice_q)
@@ -144,7 +135,7 @@ program JOREK2
   character*8              :: label, itlabel
   character*14             :: fileout
   integer                  :: required,provided,StatInfo
-  integer, allocatable     :: local_elms(:), i_tor(:), index_min(:), index_max(:)
+  integer, allocatable     :: local_elms(:), index_min(:), index_max(:)
   real*8                   :: zjz, E_min, E_max
   logical                  :: solve_only, to_quit, freeb_equil2
   integer*4                :: rank, comm_size 
@@ -393,11 +384,6 @@ required = 0
     write(*,*) ' FATAL: n_tor_fft_thresh < 2 presently not allowed. Will cause problems for n_tor=1.'
     call MPI_Abort(MPI_COMM_WORLD, 5, ierr)
     stop
-  else if ( gmres .and. (nstep > 0) .and. (mod(n_cpu,(n_tor-1)/2+1) /= 0) ) then
-    write(*,'(A,i4,A,i4,A)') ' FATAL : need a multiple of ',(n_tor-1)/2+1,' cpus for ',            &
-      (n_tor-1)/2+1,' harmonics'
-    call MPI_Abort(MPI_COMM_WORLD, 6, ierr)
-    stop
   else if ( use_pastix ) then
 #ifdef USE_PASTIX6
     if (n_cpu /= ((n_tor-1)/2+1)) then
@@ -451,6 +437,7 @@ required = 0
     write(*,*) '  No compression will be used in this run.'
   endif
 #endif
+  call check_preconditioner_consistency
   
   ! --- Initialize live data file which will be filled during the code run
   if ( my_id == 0 ) call init_live_data()
@@ -622,7 +609,6 @@ required = 0
 #endif
 
     ! --- Compute the plasma equilibrium
-    !if (my_id.eq.0) call timestamp("Equilibrium")
     if (equil) then
       call equilibrium(my_id,node_list,element_list,bnd_node_list,bnd_elm_list,xpoint,xcase, .true.) 
       if (export_for_nemec) then
@@ -828,45 +814,14 @@ required = 0
     !*  		 (i.e id=0 from each MPI_COMM_N)   *
     !*******************************************************
     if (gmres) then
+    
+       call create_communicators(my_id_n, n_cpu_n, MPI_COMM_N, my_id_master, n_masters, &
+                                 MPI_COMM_MASTER, MPI_COMM_TRANS)
+       m_cpu = n_cpu_n
+       write(*,*) "my_id, my_id_n", my_id, my_id_n
 
-       N_masters = (n_tor+1)/2
-       if (MOD(n_cpu, N_masters) == 0) then
-    	  M_cpu = n_cpu / (N_masters)
-       else
-    	  M_cpu = (n_cpu - MOD(n_cpu, N_masters))/N_masters +1
-       end if
-
-       call tr_allocate(i_tor,1,n_cpu,"i_tor",CAT_UNKNOWN)
+       call distribute_modes
        
-       do i = 1, n_cpu 
-    	  i_tor(i) =  MOD(i-1, M_cpu)+1
-       end do
-       call MPI_COMM_SPLIT(MPI_COMM_WORLD,i_tor(my_id+1),my_id,MPI_COMM_TRANS,ierr)
-
-       do i=1,n_cpu
-    	  i_tor(i) = ((i-1) - MOD(i-1, M_cpu))/ M_cpu  + 1
-       enddo
-
-       call MPI_COMM_SPLIT(MPI_COMM_WORLD,i_tor(my_id+1),my_id,MPI_COMM_N,ierr)
-       
-       do i=1,N_masters
-    	  i_rank(i) = (i-1) * M_cpu
-       enddo
- 
-       call MPI_COMM_GROUP(MPI_COMM_WORLD,MPI_GROUP_WORLD,ierr)
-       call MPI_GROUP_INCL(MPI_GROUP_WORLD,N_masters,i_rank,MPI_GROUP_MASTER,ierr)
-
-       call MPI_COMM_CREATE(MPI_COMM_WORLD,MPI_GROUP_MASTER,MPI_COMM_MASTER,ierr)
-
-       call MPI_COMM_RANK(MPI_COMM_N, my_id_n, ierr)		     ! the id of each cpu
-       call MPI_COMM_SIZE(MPI_COMM_N, n_cpu_n, ierr)		     ! the number of cpus
-       call MPI_COMM_RANK(MPI_COMM_TRANS, my_id_trans, ierr)	     ! the id of each cpu
-       call MPI_COMM_SIZE(MPI_COMM_TRANS, n_cpu_trans, ierr)	     ! the number of cpus
-       ! TODO : MPI_COMM_MASTER = MPI_COMM_TRANS
-       if (my_id_n .eq. 0) then
-    	  call MPI_COMM_RANK(MPI_COMM_MASTER, my_id_master, ierr)     ! the id of each cpu
-    	  call MPI_COMM_SIZE(MPI_COMM_MASTER, n_cpu_master, ierr)     ! the number of cpus
-       endif
     else
        my_id_n = my_id
        MPI_COMM_N = MPI_COMM_WORLD
@@ -908,11 +863,12 @@ required = 0
            1, n_tor, irn_glob, jcn_glob, n_matrix_block_size, ijA_index, ijA_size, irn_jcn) 
     endif
 
+    if ((gmres).and.(my_id_n.eq.0)) call map_row_index(ndof_glob)
     if (use_mumps) then
        if (.not. gmres) then
-    	  call initialise_mumps(MPI_COMM_WORLD)    ! start MUMPS sparse matrix solver all cpus
+         call initialise_mumps(MPI_COMM_WORLD)    ! start MUMPS sparse matrix solver all cpus
        else
-    	  call initialise_mumps(MPI_COMM_N)	   ! start MUMPS sparse matrix solver on local groups
+         call initialise_mumps(MPI_COMM_N)        ! start MUMPS sparse matrix solver on local groups
        endif
     endif
 
@@ -1036,101 +992,104 @@ required = 0
          n_local_ELms, index_min(my_id+1), index_max(my_id+1), xpoint, xcase, ES%R_axis, ES%Z_axis,&
          ES%psi_axis, ES%psi_bnd, ES%R_xpoint, ES%Z_xpoint, ES%psi_xpoint, 1, n_tor,   &
          n_glob, nz_glob, ndof_glob, n_matrix_block_size, A_glob, rhs_glob, irn_glob, jcn_glob, ijA_index, ijA_size,    &
-         irn_jcn, .false.)
+         irn_jcn, harmonic_matrix=.false.)
+
 
     call clck_time_barrier(t1)
     if (my_id .eq. 0) then
-       call clck_ldiff(t0,t1,tsecond)
+      call clck_ldiff(t0,t1,tsecond)
       write(*,FMT_TIMING) my_id, '# Elapsed time in construct global matrix :',tsecond
     endif     
 
     if (.not. gmres) then
 
-       if (use_mumps) then
+      if (use_mumps) then
 #ifdef USE_MUMPS
-         call solve_mumps_all(my_id)
+        call solve_mumps_all(my_id)
 #endif
-       elseif (use_strumpack) then
+      elseif (use_strumpack) then
 #ifdef USE_STRUMPACK
-         call solve_strumpack_all(n_cpu,my_id,index_min(my_id+1),index_max(my_id+1))
+        call solve_strumpack_all(n_cpu,my_id,index_min(my_id+1),index_max(my_id+1))
 #endif
-       elseif (use_pastix) then
-          call solve_pastix_all(n_cpu,my_id,index_min(my_id+1),index_max(my_id+1))
-       endif
+      elseif (use_pastix) then
+         call solve_pastix_all(n_cpu,my_id,index_min(my_id+1),index_max(my_id+1))
+      endif
 
     else
 
-       if (.not. solve_only) then
+      if (.not. solve_only) then
 
 #ifndef DIRECT_CONSTRUCTION
-         call clck_time(t0)
+        call clck_time(t0)
          ! --- Extract harmonic matrix from global matrix via MPI communication
-         call distribute_harmonics(my_id,my_id_n,n_cpu)
-         call MPI_Barrier(MPI_COMM_WORLD,ierr)
-         call clck_time_barrier(t1)
-         call clck_ldiff(t0,t1,tsecond)
-         if (my_id .eq. 0) then
-           write(*,FMT_TIMING) my_id, '# Elapsed time distribute :',tsecond
-         end if
+        call distribute_harmonics(my_id,my_id_n,n_cpu)
+        if(my_id_n.eq.0) call distribute_vector(rhs_glob,mumps_par%rhs,MPI_COMM_MASTER)
+        call MPI_Barrier(MPI_COMM_WORLD,ierr)
+        call clck_time_barrier(t1)
+        call clck_ldiff(t0,t1,tsecond)
+        if (my_id .eq. 0) then
+          write(*,FMT_TIMING) my_id, '# Elapsed time distribute :',tsecond
+        end if
 #else 
 
          call clck_time_barrier(t0) 
          ! --- Direct construction of harmonic matrix
          call direct_construction_harmonic(my_id, my_id_n, m_cpu, n_cpu, MPI_COMM_N, MPI_COMM_MASTER, my_id_master, & 
               node_list, element_list, bnd_elm_list, bnd_node_list, xpoint, xcase, freeboundary, .true.)
-         call MPI_Barrier(MPI_COMM_WORLD,ierr)
-         call clck_time_barrier(t1) 
+        call MPI_Barrier(MPI_COMM_WORLD,ierr)
+        call clck_time_barrier(t1) 
 
-         if (my_id .eq. 0) then
-           call clck_ldiff(t0,t1,tsecond)
-           write(*,FMT_TIMING) my_id, '# Elapsed time in construct harmonic matrix :',tsecond
-         endif     
+        if (my_id .eq. 0) then
+          call clck_ldiff(t0,t1,tsecond)
+          write(*,FMT_TIMING) my_id, '# Elapsed time in construct harmonic matrix :',tsecond
+        endif     
 
-         call clck_time_barrier(t0) 
-         ! --- Centralize the harmonic matrix on the master task of the MPI group (if needed)
-         call centralization_harmonic(my_id, my_id_n, n_cpu_n, MPI_COMM_N)
-         call MPI_Barrier(MPI_COMM_WORLD,ierr)
+        call clck_time_barrier(t0) 
+        ! --- Centralize the harmonic matrix on the master task of the MPI group (if needed)
+        call centralization_harmonic(my_id, my_id_n, n_cpu_n, MPI_COMM_N)
+        call MPI_Barrier(MPI_COMM_WORLD,ierr)
   
-         call clck_time_barrier(t1) 
+        call clck_time_barrier(t1) 
 
-         if (my_id .eq. 0) then
-           call clck_ldiff(t0,t1,tsecond)
-           write(*,FMT_TIMING) my_id, '# Elapsed time in centralizing the matrix:',tsecond
-         endif     
+        if (my_id .eq. 0) then
+          call clck_ldiff(t0,t1,tsecond)
+          write(*,FMT_TIMING) my_id, '# Elapsed time in centralizing the matrix:',tsecond
+        endif     
 
 #endif
 
-       else
-         call distribute_vector(my_id,rhs_glob,mumps_par%rhs,.true.)	       
-       endif
+      else
+
+        if(my_id_n.eq.0) call distribute_vector(rhs_glob,mumps_par%rhs,MPI_COMM_MASTER)
+      endif
 
        ! --- Free the buffers needed by OpenMP threads (ELM-RHS etc.)
        call del_thread_buffers()
 
        call clck_time(t0)
-      !if (my_id.eq.0) call timestamp("solve_mat_n")
       if (use_strumpack) then 
 #ifdef USE_STRUMPACK
-        call solve_matrix_n_spk(my_id,i_tor,MPI_COMM_N,MPI_COMM_MASTER,solve_only)
+        call solve_matrix_n_spk(my_id,MPI_COMM_N,MPI_COMM_MASTER,solve_only)
 #endif
       else
-        call solve_matrix_n(my_id,i_tor,MPI_COMM_N,MPI_COMM_MASTER,solve_only) ! factorise preconditioning matrices
+        call solve_matrix_n(my_id,MPI_COMM_N,MPI_COMM_MASTER,solve_only) ! factorise preconditioning matrices
       endif
 
 
-       call clck_time_barrier(t1)
-       call clck_ldiff(t0,t1,tsecond)
-       if (my_id .eq. 0) then
-         write(*,FMT_TIMING) my_id, '# Elapsed time first solve :',tsecond
-       end if
+      call clck_time_barrier(t1)
+      call clck_ldiff(t0,t1,tsecond)
+      if (my_id .eq. 0) then
+        write(*,FMT_TIMING) my_id, '# Elapsed time first solve :',tsecond
+      end if
     endif
 
     call clck_time(t0)
     if (gmres) then
       iter_prev = iter_gmres
       iter_gmres = gmres_max_iter
-      !if (my_id.eq.0) call timestamp("gmres")
-      call gmres_driver(my_id,my_id_n,i_tor, n_tor,MPI_COMM_N,MPI_COMM_MASTER,iter_gmres)
+
+      call gmres_driver(my_id,my_id_n,MPI_COMM_N,MPI_COMM_MASTER,iter_gmres)
+
     endif
     call clck_time_barrier(t1)
     call clck_ldiff(t0,t1,tsecond)

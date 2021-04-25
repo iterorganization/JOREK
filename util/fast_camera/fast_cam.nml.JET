@@ -1,0 +1,76 @@
+&user_params
+
+  ! --------------------------------------------------
+  ! --- FAST CAMERA INPUT FILE FOR JET ---------------
+  ! --------------------------------------------------
+
+
+  ! --- Number of horizontal and vertical pixels
+  n_pixels_hor = 300!600
+  n_pixels_ver = 400!800
+  ! --- Pixel dimension (assumed to be a square)
+  pixel_dim    = 34.d-6 !17.d-6
+
+  ! --- Location of camera focus
+  X_cam = 4.1!3.9
+  Y_cam = 0.2
+  Z_cam = 0.0
+
+  ! --- Toroidal angular position of camera (easier so that Z_cam can always be zero)
+  toroidal_angle_location = 0.d0 ! 0.5 * 3.1415
+
+  ! --- Orientation of camera (horizontal and vertical angles)
+  angle_hor = +1.1 !-0.25 * 3.1415
+  angle_ver = 0.d0!-0.25 * 3.1415
+
+  ! --- Focal length of camera lens
+  focus = 4.8d-3
+
+  ! --- Artificial saturation of the camera: 1.0 = no saturation, 10.0 = 10x lower saturation, 0.1 = 10x higher saturation 
+  light_saturation = 1.d0
+
+  ! --- Colormap of output image
+  ! --- =0  : From black to white (default, ie. natural BnW)
+  ! --- =-1 : From white to black (reversed photons...)
+  ! --- =1  : Heat colorbar from white to yellow to red to black
+  ! --- =2  : Rainbow colorbar from blue to green to white to yellow to red to black
+  colormap = 0
+
+  ! --- The step size for integration and number of steps to get to the other side of plasma
+  step   = 1.d-3 ! 1.d-2
+
+  ! --- Increase integration step in the core (eg. on MAST, most light comes from the edge)
+  go_faster_in_core = .false.
+
+  ! --- Include reflections on first-wall contour
+  include_reflections = .true.
+  ! --- Reflective coefficient of wall [0.0, 1.0]
+  reflective_coefficient = 0.3
+
+  ! --- Do we stop on the solenoid? (=0 if not)
+  solenoid = 0.d0 !0.195
+
+  ! --- Artificial neutrals density (if not using neutrals model500)
+  rhon_prof(1) = 1.d-4  ! Core value [10^20 m^(-3)]
+  rhon_prof(2) = 1.d-1  ! SOL value [10^20 m^(-3)]
+  rhon_prof(3) = 3.d-1  ! Lower-divertor value [10^20 m^(-3)]
+  rhon_prof(4) = 3.d-1  ! Upper-divertor value [10^20 m^(-3)]
+  rhon_prof(5) = 0.03   ! Edge-psi tanh width [psi_norm]
+  rhon_prof(6) = 0.90   ! Edge-psi tanh position [psi_norm]
+  rhon_prof(7) = 0.20   ! Lower-divertor tanh width [m]
+  rhon_prof(8) = -0.05  ! Lower-divertor tanh position relative to Z_xpoint(1) [m]
+  rhon_prof(9) = 0.20   ! Upper-divertor tanh width [m]
+  rhon_prof(10)= +0.05  ! Upper-divertor tanh position relative to Z_xpoint(2) [m]
+
+  ! --- Location of emission data file
+  PEC_file = "./my_pec.dat"
+  ! --- Minimal temperature allowed for emission.
+  ! --- This is very important for very non-linear cases with Te <= 0
+  ! --- Because the emission spikes at very low Te.
+  ! --- For neutrals simulations, where Te can be very low, maybe this can be lowered.
+  Te_PEC_min = 10.0 !eV
+
+  ! --- Artificial light instead of emission (user defined, hard-coded! default is edge gaussian)
+  artificial_light = .false.
+
+/

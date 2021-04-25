@@ -720,7 +720,17 @@ module phys_module
   real*8  :: filter_perp_n0   ! particle projection smoothing parameter, poloidal plane (n=0)
   real*8  :: filter_hyper_n0  ! particle projection smoothing parameter, poloidal plane (n=0)
   real*8  :: filter_par_n0    ! particle projection smoothing parameter, parallel direction (n=0)
-
+  
+  !> @name Mode families preconditioner parameters
+  integer, parameter :: n_fam_max = 100               !< maximum number of families
+  integer :: n_mode_families                          !< number of families
+  logical :: autodistribute_modes                     !< use automatic or manual mode distribution
+  integer :: modes_per_family(n_fam_max)              !< Number of modes in families
+  integer :: mode_families_modes(n_fam_max,n_fam_max) !< Mode numbers (i_tor) belonging to each family; first index: family number
+  real*8  :: weights_per_family(n_fam_max)            !< Multiplication factor of family's contribution to the full solution
+  logical :: autodistribute_ranks                     !< use automatic or manual rank distribution
+  integer :: ranks_per_family(n_fam_max)              !< Number of MPI ranks per mode families
+  
   contains
   
 end module phys_module

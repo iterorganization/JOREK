@@ -1,4 +1,4 @@
-subroutine gmres_matrix_vector(size_x,x,size_y,y,my_id,my_id_n, i_tor, MPI_COMM_MASTER)
+subroutine gmres_matrix_vector(size_x,x,size_y,y,my_id)
 !-----------------------------------------------------------------------
 ! sparse matrix vector product using coordinate scheme
 ! to be called only on all of MPI_COMM_WORLD
@@ -12,7 +12,6 @@ use mpi_mod
 use mod_integer_types
 implicit none
 
-integer               :: i_tor(:), MPI_COMM_MASTER
 integer(kind=int_all) :: size_x,size_y
 real*8                :: x(size_x), y(size_y), t1, t2, t3, t4, t5
 real*8, allocatable   :: y_tmp(:), y_tmp2(:), x_tmp(:)
@@ -28,7 +27,6 @@ logical found_value
 integer(kind=int_all) :: Int1
 Int1=1
 
-!write(*,*) my_id,my_id_n,' GMRES matrix_vector ',ndof_glob
 call cpu_time(t1)
 
 call MPI_Barrier(MPI_COMM_WORLD,ierr)

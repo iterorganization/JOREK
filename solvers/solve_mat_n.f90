@@ -13,8 +13,10 @@
 !!   - Typical choices for production are PaStiX 5.x or STRUMPACK
 module solve_mat_n
   use phys_module, only: use_mumps, use_pastix, use_strumpack, use_wsmp
+  use preconditioner_module, only : my_row_index, my_row_factor, my_mode_set_n
   use matio_module, only: timestamp
   use mod_integer_types
+
   implicit none        
 
 
@@ -68,7 +70,7 @@ contains
   
   
   !> Solves the system of equation for each harmonic using mumps, pastix, or wsmp
-  subroutine solve_matrix_n(my_id,i_tor,MPI_COMM_N,MPI_COMM_MASTER,solve_only)
+  subroutine solve_matrix_n(my_id,MPI_COMM_N,MPI_COMM_MASTER,solve_only)
 
 #ifdef USE_COMPLEX_PRECOND
     use real2complex_mod
@@ -83,7 +85,9 @@ contains
     use mod_clock
     use phys_module, only : index_now, use_BLR_compression, epsilon_BLR, just_in_time_BLR, pastix_blr_abs_tol
     use mod_coicsr
+
     use mod_integer_types
+
  
 #ifdef USE_PASTIX6
     use iso_c_binding
@@ -106,18 +110,16 @@ contains
     
     ! --- Routine parameters
     integer, intent(in) :: my_id
-    integer, dimension(:), intent(in) :: i_tor(:)
     integer, intent(in) :: MPI_COMM_N, MPI_COMM_MASTER
     logical, intent(in) :: solve_only
-    
+   
     ! --- Local variables
-    integer               :: my_id_n, n_cpu_n, ierr, my_id_master, n_cpu_master
+    integer               :: my_id_n, n_cpu_n, ierr
     integer(kind=int_all) :: i, j, k
-    integer(kind=int_all) :: i_reduced, j_reduced, index, index1, index2
-    integer               :: n_i, n_j
     type(clcktype)        :: t_itstart, t0, t1, t2, t3
     real*8                :: tsecond
     real*8, allocatable   :: RHS_tmp(:)
+
     !Split broadcast
     character*8           :: type
     real*8                :: DUMMY_REAL(1:1)
@@ -155,12 +157,6 @@ contains
 
     call MPI_COMM_RANK(MPI_COMM_N, my_id_n, ierr)     ! the id of each cpu
     call MPI_COMM_SIZE(MPI_COMM_N, n_cpu_n, ierr)     ! the number of cpus
-
-    if (my_id_n .eq. 0) then
-      call MPI_COMM_RANK(MPI_COMM_MASTER, my_id_master, ierr)     ! the id of each cpu
-      call MPI_COMM_SIZE(MPI_COMM_MASTER, n_cpu_master, ierr)     ! the number of cpus
-    endif
-
 
     NOTSOLVEONLY: if (.not. solve_only) then
       ! This part of the code is needed when the preconditioning matrix is updated. Otherwise, the
@@ -226,8 +222,7 @@ contains
           ! - convert matrix and rhs to complex if necessary
           ! - convert row/column sparse matrix to CSR format
 #ifndef USE_COMPLEX_PRECOND
-          block_size  = n_var
-          if (my_id .ne. 0) block_size = 2*n_var
+          block_size = n_var*my_mode_set_n
           block_size2 = block_size**2
           n_block   = mumps_par%n  / block_size
           nnz_block = mumps_par%nz / block_size2
@@ -818,7 +813,7 @@ contains
 
 #ifdef USE_COMPLEX_PRECOND
    do i = 1, n_cmplx
-     if(my_id_master .eq. 0) then
+     if(my_id .eq. 0) then
        mumps_par%rhs(i) = REAL(rhs_cmplx_guess(i)) 
      else
        mumps_par%rhs(2*i-1) = real(rhs_cmplx_guess(i))
@@ -843,20 +838,10 @@ contains
 
       rhs_tmp = 0.d0
 
-      if (my_id .eq. 0 ) then
-        !        rhs_tmp(1:ndof_glob:n_tor) = mumps_par%rhs(1:mumps_par%n)
-        do i=0, mumps_par%n-1
-          rhs_tmp(1+i*n_tor)=mumps_par%rhs(1+i)
-        end do
-      else
-        !        rhs_tmp(2*i_tor(my_id+1)-2:ndof_glob:n_tor) = mumps_par%rhs(1:mumps_par%n:2)
-        !        rhs_tmp(2*i_tor(my_id+1)-1:ndof_glob:n_tor) = mumps_par%rhs(2:mumps_par%n:2)
-        do i=0, mumps_par%n/2-1
-          rhs_tmp(2*i_tor(my_id+1)-2+i*n_tor) = mumps_par%rhs(1+i*2)
-          rhs_tmp(2*i_tor(my_id+1)-1+i*n_tor) = mumps_par%rhs(2+i*2)
-        end do
+      do i = 1, mumps_par%n
+        rhs_tmp(my_row_index(i)) = mumps_par%rhs(i)*my_row_factor
+      enddo
 
-      endif
       ! --- End undo the column scaling ------------------------------------------------------------
       
       ! --- Collect the RHSs from all harmonic matrices --------------------------------------------
@@ -877,11 +862,9 @@ contains
     return
   end subroutine solve_matrix_n
 
-
-
 ! > Solve the harmonic matrix system using STRUMPACK
 #ifdef USE_STRUMPACK  
-  subroutine solve_matrix_n_spk(my_id,i_tor,MPI_COMM_N,MPI_COMM_MASTER,solve_only)
+subroutine solve_matrix_n_spk(my_id,MPI_COMM_N,MPI_COMM_MASTER,solve_only)
     use tr_module
     use iso_c_binding
     use mod_parameters
@@ -900,17 +883,15 @@ contains
 #include "r3_info.h"
 
     integer, intent(in) :: my_id
-    integer, dimension(:), intent(in) :: i_tor(:)
     integer, intent(in) :: MPI_COMM_N, MPI_COMM_MASTER
     logical, intent(in) :: solve_only
 
-    integer               :: my_id_n, n_cpu_n, ierr, my_id_master, n_cpu_master
-    integer               :: n_i, n_j
+    integer               :: my_id_n, n_cpu_n, ierr, block_size
     integer(kind=int_all) :: i, j, k
-    integer(kind=int_all) :: i_reduced, j_reduced
     type(clcktype)        :: t_itstart, t0, t1, t2, t3
     real*8                :: tsecond
     real*8, allocatable   :: RHS_tmp(:)
+
     !Split broadcast
     character*8 :: type
 
@@ -933,18 +914,14 @@ contains
     call MPI_COMM_RANK(MPI_COMM_N, my_id_n, ierr)     ! the id of each cpu
     call MPI_COMM_SIZE(MPI_COMM_N, n_cpu_n, ierr)     ! the number of cpus
 
-    if (my_id_n .eq. 0) then
-      call MPI_COMM_RANK(MPI_COMM_MASTER, my_id_master, ierr)     ! the id of each cpu
-      call MPI_COMM_SIZE(MPI_COMM_MASTER, n_cpu_master, ierr)     ! the number of cpus
-    endif
-
     if (centralize_harm_mat) then 
-    call MPI_BCAST(mumps_par%n,1,MPI_INTEGER_ALL,0,MPI_COMM_N,ierr)
-    call MPI_BCAST(mumps_par%nz,1,MPI_INTEGER_ALL,0,MPI_COMM_N,ierr)
+      call MPI_BCAST(mumps_par%n,1,MPI_INTEGER_ALL,0,MPI_COMM_N,ierr)
+      call MPI_BCAST(mumps_par%nz,1,MPI_INTEGER_ALL,0,MPI_COMM_N,ierr)
     endif
     
     n = mumps_par%n
     nnz = mumps_par%nz
+    block_size = n_var*my_mode_set_n
     
     if (.not. solve_only) then
       
@@ -972,30 +949,26 @@ contains
         type='double'
         call split_broadcast(type,MPI_COMM_N)
 
-        call strumpack_set_mat(n,nnz,mumps_par%irn,mumps_par%jcn,mumps_par%a,MPI_COMM_N,&
-                UPDATE=spss_analyzed,DISTRIBUTED=.false.)
+        call strumpack_set_mat(n,nnz,mumps_par%irn,mumps_par%jcn,mumps_par%a,block_size,MPI_COMM_N,&
+                UPDATE=spss_analyzed,DISTRIBUTED=.false.,EQUILIBRIUM=.false.)
         !if (my_id_n.eq.0) call save_mat_h5(my_id,n,nnz,mumps_par%irn,mumps_par%jcn,mumps_par%a,mumps_par%rhs)
         
-        if (n_cpu_n>1) then
-          call tr_deallocatep(mumps_par%irn,"mumps_par%irn",CAT_DMATRIX)
-          call tr_deallocatep(mumps_par%jcn,"mumps_par%jcn",CAT_DMATRIX)
-          call tr_deallocatep(mumps_par%a,"mumps_par%A",CAT_DMATRIX)
-        else
-          mumps_par%irn=>null()
-          mumps_par%jcn=>null()
-          mumps_par%a=>null()
-        endif
-
       else
 
-        call strumpack_set_mat(mumps_par%n,mumps_par%nz,mumps_par%irn,mumps_par%jcn,mumps_par%a,MPI_COMM_N,&
-                UPDATE=spss_analyzed,DISTRIBUTED=.true.)
+        call strumpack_set_mat(mumps_par%n,mumps_par%nz,mumps_par%irn,mumps_par%jcn,mumps_par%a,block_size,&
+                MPI_COMM_N,UPDATE=spss_analyzed,DISTRIBUTED=.true.,EQUILIBRIUM=.false.)
 
+      endif
+
+      if (n_cpu_n>1) then
+        call tr_deallocatep(mumps_par%irn,"mumps_par%irn",CAT_DMATRIX)
+        call tr_deallocatep(mumps_par%jcn,"mumps_par%jcn",CAT_DMATRIX)
+        call tr_deallocatep(mumps_par%a,"mumps_par%A",CAT_DMATRIX)
+      else
         mumps_par%irn=>null()
         mumps_par%jcn=>null()
         mumps_par%a=>null()
-
-      endif ! centralize_harm_mat
+      endif
 
       if (.not. spss_analyzed) then
         if (my_id_n.eq. 0) then                  ! elapsed time reorder start
@@ -1063,17 +1036,10 @@ contains
       call tr_allocate(rhs_tmp,Int1,ndof_glob,"rhs_tmp",CAT_PRECOND)
 
       rhs_tmp = 0.d0
+      do i = 1, mumps_par%n
+        rhs_tmp(my_row_index(i)) = mumps_par%rhs(i)*my_row_factor
+      enddo
 
-      if (my_id .eq. 0 ) then
-        do i=0, n-1
-          rhs_tmp(1+i*n_tor)=mumps_par%rhs(1+i)
-        enddo
-      else
-        do i=0, n/2-1
-          rhs_tmp(2*i_tor(my_id+1)-2+i*n_tor) = mumps_par%rhs(1+i*2)
-          rhs_tmp(2*i_tor(my_id+1)-1+i*n_tor) = mumps_par%rhs(2+i*2)
-        enddo
-      endif
 
       call MPI_AllReduce(RHS_tmp,deltas,ndof_glob,MPI_DOUBLE_PRECISION,MPI_SUM,MPI_COMM_MASTER,ierr)
       call tr_deallocate(rhs_tmp,"rhs_tmp",CAT_PRECOND)

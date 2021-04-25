@@ -1,0 +1,130 @@
+&in1
+
+ restart = .f.
+ regrid  = .f.
+ tstep_n   = 0.1,1,5,10,20
+ nstep_n   = 5,5,5,5,5
+ 
+ freeboundary = .f.
+ wall_resistivity_fact = 1.
+
+ nout = 10
+
+ fbnd(1)   = 2.
+ fbnd(2:4) = 0.
+ mf        = 0
+
+ ellip  = 1.7
+ tria_u = 0.
+ tria_l = 0.
+ quad_u = -0.
+ quad_l = -0.4
+
+
+ xampl  = +0.22
+ xsig   = 0.6
+ xwidth = 1.5
+ xtheta = 4.7
+ xleft  = -0.01
+ xshift = 0.02
+ xpoint = .t.
+
+ R_begin = 2.9
+ R_end   = 3.1
+ Z_begin = -0.1
+ Z_end   = 0.1
+
+ R_geo = 3.0
+ Z_geo = 0.
+
+ F0    = 3.0
+
+ amin     = 1.
+
+ n_R      = 0
+ n_Z      = 0
+ n_radial = 31
+ n_pol    = 61
+
+ n_flux   = 11
+ n_tht    = 41
+ n_open   = 4
+ n_leg    = 6
+ n_private = 3
+
+ eta   = 2.d-6
+ visco = 4.d-6
+ visco_par = 1.d-4
+
+ eta_num = 3.d-10
+
+ D_par     = 0.d0
+ D_perp(1) = 1.d-5
+ D_perp(2) = 0.85d0
+ D_perp(3) = 0.d0
+ D_perp(4) = 0.01d0
+ D_perp(5) = 0.92d0
+
+ ZK_par     = 10.d0
+ ZK_perp(1) = 1.d-5
+ ZK_perp(2) = 0.85d0
+ ZK_perp(3) = 0.d0
+ ZK_perp(4) = 0.01d0
+ ZK_perp(5) = 0.92d0
+
+ FF_0 = 1.6
+ FF_1 = 0.
+ FF_coef(1)  = -1.0
+ FF_coef(2)  = 0.d0
+ FF_coef(3)  = 0.d0
+ FF_coef(4)  = 0.03d0
+ FF_coef(5)  = 1.0d0
+ FF_coef(6)  = -0.06d0
+ FF_coef(7)  = 0.90d0
+ FF_coef(8)  = 0.07d0
+
+ heatsource     = 1.d-7
+ particlesource = 5.d-6
+
+ T_0 = 1.5d-2
+ T_1 = 3.d-4
+ T_coef(1) = -0.66d0
+ T_coef(2) = +0.0d0
+ T_coef(3) = 0.d0
+ T_coef(4) = 0.08d0
+ T_coef(5) = 0.94d0
+
+ rho_0 = 1.
+ rho_1 = 0.01
+ rho_coef(1)  =  0.0
+ rho_coef(2)  =  0.0
+ rho_coef(3)  =  0.0
+ rho_coef(4)  =  0.08
+ rho_coef(5)  =  0.94d0
+
+ iter_precon = 40
+ gmres_m = 20
+ gmres_4 = 1.d0
+ gmres_max_iter = 200
+ gmres_tol = 1.d-8
+
+ use_pastix = .f.
+ use_strumpack = .t.
+
+ centralize_harm_mat = .t.
+
+ autodistribute_modes = .t.
+ autodistribute_ranks = .t.
+ 
+ n_mode_families = 5
+ modes_per_family = 4,4,3,2,1
+ mode_families_modes(1,:) = 2,3,6,7
+ mode_families_modes(2,:) = 2,3,4,5
+ mode_families_modes(3,:) = 1,6,7
+ mode_families_modes(4,:) = 4,5
+ mode_families_modes(5,:) = 1
+ weights_per_family(:) = 0.5,0.5,0.5,0.5,0.5
+
+ ranks_per_family = 2,2,2,1,1
+
+/
