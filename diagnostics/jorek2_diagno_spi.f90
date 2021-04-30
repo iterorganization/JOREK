@@ -106,7 +106,7 @@ endif
 
 open(20,file="rad_history.dat")
 
-write(20,'(3A20)') 'time', 'tot_rad_power (MW)' 'total_radiation (MJ)'
+write(20,'(3A20)') 'time', 'tot_rad_power (MW)', 'total_radiation (MJ)'
 
 do i=1,index_start
   write(20,'(i7,f12.3,2e14.6)') i,xtime(i), xtime_rad_power(i)/1.d6, xtime_radiation(i)/1.d6
