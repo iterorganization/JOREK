@@ -1182,7 +1182,7 @@ do i=1,n_vertex_max
 
           ! --- Source of neutrals, e.g. from MGI/SPI
           source_neutral = 0.d0
-          call get_source(x_g(ms,mt),y_g(ms,mt),phi,source_neutral)
+          call total_neutral_source(x_g(ms,mt),y_g(ms,mt),phi,source_neutral)
           source_neutral = max(source_neutral,0.) + source_pellet
 
           !--------------------------------------------------------

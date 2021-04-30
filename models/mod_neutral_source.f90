@@ -140,11 +140,8 @@ module mod_neutral_source
     return
   end subroutine neutral_source
 
-!============================================================!
-! Important note: in order to implementing more complicated  !
-!    model, we should add more arguments to inj_source       !
-!============================================================!
-  subroutine get_source(R,Z,phi,source_neutral) 
+
+  subroutine total_neutral_source(R,Z,phi,source_neutral) 
 
     use phys_module, only: using_spi, JET_MGI, ASDEX_MGI, n_spi_tot, pellets, ng_radius_ratio, ns_radius
     use phys_module, only: ng_radius_min, n_inj, n_spi, n_spi_tot, ns_deltaphi, L_tube
@@ -189,7 +186,7 @@ module mod_neutral_source
           end do
 
           call neutral_source(pellets(spi_i)%spi_abl,pellets(spi_i)%spi_R,pellets(spi_i)%spi_Z,pellets(spi_i)%spi_phi,&
-                        ng_radius,ns_deltaphi, ns_tor_norm, A_Dmv,K_Dmv,V_Dmv,P_Dmv,t_ns(i_inj),0.,R,Z,     &
+                        ng_radius,ns_deltaphi,ns_tor_norm, A_Dmv,K_Dmv,V_Dmv,P_Dmv,t_ns(i_inj),0.,R,Z,     &
                         phi,source_neutral_tmp,t_now,JET_MGI,ASDEX_MGI,central_density,central_mass)
 
         end if
@@ -210,9 +207,38 @@ module mod_neutral_source
       end do
     end if
 
-  end subroutine get_source
+  end subroutine total_neutral_source
 
   !> Calculates the total number of neutral particles injected from the start of the simulation and for each timestep.
+  subroutine total_neutrals(my_id,node_list,element_list)
+
+    use data_structure
+    use phys_module
+    use mpi_mod
+
+    implicit none
+
+    ! --- Routine parameters
+    type (type_node_list),    intent(in) :: node_list
+    type (type_element_list), intent(in) :: element_list
+    integer,                  intent(in) :: my_id 
+
+    ! --- Local variables
+    integer :: ierr
+    real*8  :: density, density_in, density_out, pressure, pressure_in,pressure_out
+
+    call Integrals_3D(my_id,node_list,element_list,density,density_in,density_out,pressure,pressure_in,pressure_out)
+
+    total_n_particles_inj_all = total_n_particles_inj_all + total_n_particles_inj*tstep*sqrt(MU_ZERO*central_mass*MASS_PROTON*central_density*1.d20)
+
+    if (my_id .eq. 0) then
+      write(*,'(A,e14.6)') 'total neutrals particles injected per second = '                       , total_n_particles_inj
+      write(*,'(A,e14.6)') 'total neutrals particles in the plasma       = '                       , total_n_particles
+      write(*,'(A,e14.6)') 'total neutrals particles injected since the start of the simulation = ', total_n_particles_inj_all
+    endif
+
+  end subroutine total_neutrals
+
   !> Calculates the factorial of a number (which appears in gas dynamics formulae!)
   integer function factorial(n)
 

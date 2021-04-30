@@ -106,7 +106,7 @@ endif
 
 open(20,file="rad_history.dat")
 
-write(20,'(2A20)') 'time', 'radiation power (MW)', 'total_radiation (MJ)'
+write(20,'(3A20)') 'time', 'tot_rad_power (MW)' 'total_radiation (MJ)'
 
 do i=1,index_start
   write(20,'(i7,f12.3,2e14.6)') i,xtime(i), xtime_rad_power(i)/1.d6, xtime_radiation(i)/1.d6
@@ -135,10 +135,19 @@ endif
 
 open(20,file="ohm_history.dat")
 
-write(20,'(2A20)') 'time', 'ohmic power (MW)', 'E_mag change (MW)', 'magnetic energy (MJ)'
+write(20,'(3A20)') 'time', 'ohmic power (MW)', 'E_mag change (MW)', 'magnetic energy (MJ)'
 
 do i=1,index_start
   write(20,'(i7,f12.3,3e14.6)') i,xtime(i), ohmic_tot_t(i)/1.d6, dWmag_tot_dt(i)/1.d6, Wmag_tot_t(i)/1.d6
+enddo
+close(20)
+
+open(20,file="thermal_history.dat")
+
+write(20,'(3A20)') 'time', 'e_th_energy (MJ)', 'i_th_energy (MJ)'
+
+do i=1,index_start
+  write(20,'(i7,f12.3,2e14.6)') i,xtime(i), thermal_e_tot_t(i)/1.d6, thermal_i_tot_t(i)/1.d6
 enddo
 close(20)
 

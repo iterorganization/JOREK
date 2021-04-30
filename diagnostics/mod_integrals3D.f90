@@ -20,10 +20,10 @@ module mod_integrals3D
   use corr_neg
   use pellet_module
 #if (defined WITH_Neutrals) && (!defined WITH_Impurities)
-  use mod_neutral_source, only: get_source, total_n_particles, total_n_particles_inj, total_n_particles_inj_all 
+  use mod_neutral_source, only: total_neutral_source, total_n_particles, total_n_particles_inj, total_n_particles_inj_all 
 #endif
 #ifdef WITH_Impurities
-  use mod_injection_source, only: get_source, total_n_particles, total_n_particles_inj, total_n_particles_inj_all
+  use mod_injection_source, only: total_imp_source, total_n_particles, total_n_particles_inj, total_n_particles_inj_all
   use nodes_elements, only: aux_node_list
 #endif
   use mod_impurity, only: radiation_function, radiation_function_linear
@@ -916,7 +916,7 @@ do ife = ife_min, ife_max
 
         source_neutral = 0.d0
 
-        call get_source(x_g(ms,mt),y_g(ms,mt),phi,source_neutral)
+        call total_neutral_source(x_g(ms,mt),y_g(ms,mt),phi,source_neutral)
 
         ! Neutral injection rate in particles/s
         local_n_particles_inj = local_n_particles_inj + 0.5d0 * central_density * 1.d20 * source_neutral * bigR *&
@@ -930,7 +930,7 @@ do ife = ife_min, ife_max
         source_imp = 0.d0
         source_bg  = 0.d0
 
-        call get_source(x_g(ms,mt),y_g(ms,mt),phi,source_bg,source_imp,m_i_over_m_imp)
+        call total_imp_source(x_g(ms,mt),y_g(ms,mt),phi,source_bg,source_imp,m_i_over_m_imp)
 
         ! Frictional heat source
         fric_disp     =   0.5 * BigR**2 * (u0_x**2.0 + u0_y**2.0) * (source_bg + source_imp)&

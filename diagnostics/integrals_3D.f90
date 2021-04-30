@@ -359,7 +359,7 @@ do ife = ife_min, ife_max
 
         source_neutral = 0.d0
 
-        call get_source(x_g(ms,mt),y_g(ms,mt),phi,source_neutral)
+        call total_neutral_source(x_g(ms,mt),y_g(ms,mt),phi,source_neutral)
 
         local_n_particles_inj = local_n_particles_inj + 0.5d0 * central_density * 1.d20 * source_neutral * bigR * xjac * wst * delta_phi / sqrt(MU_ZERO*central_mass*MASS_PROTON*central_density*1.d20)
         local_n_particles     = local_n_particles     + central_density * 1.d20 * rn0 * bigR * xjac * wst * delta_phi
