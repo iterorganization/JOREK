@@ -151,6 +151,15 @@ do i=1,index_start
 enddo
 close(20)
 
+open(20,file="Pei_history.dat")
+
+write(20,'(2A20)') 'time', 'E_th exchange e-i (MW)'
+
+do i=1,index_start
+  write(20,'(i7,f12.3,1e14.6)') i,xtime(i), xtime_P_ei(i)/1.d6
+enddo
+close(20)
+
 if (using_spi) then
 
   open(20,file="abl_history.dat")
