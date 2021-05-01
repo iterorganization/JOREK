@@ -16,15 +16,19 @@ implicit none
 
 interface
 
-  subroutine distribute_vector(my_id,rhs,rhs_dis,again)
-    real*8  :: rhs(:), rhs_dis(:)
-    integer :: my_id
-    logical :: again
+  subroutine distribute_harmonics(my_id,my_id_n,n_cpu)
+    integer :: my_id, my_id_n, n_cpu
+  end subroutine distribute_harmonics
+
+  subroutine distribute_vector(rhs,rhs_dis,comm)
+    real*8                :: rhs(:), rhs_dis(:)
+    integer               :: comm
   end subroutine distribute_vector
 
-  subroutine distribute_harmonics(my_id,my_id_n,n_cpu)
-    integer :: my_id, my_id_n,n_cpu
-  end subroutine distribute_harmonics
+  subroutine gmres_driver(my_id,my_id_n,MPI_COMM_N,MPI_COMM_MASTER,iter_gmres)
+    integer :: my_id, my_id_n, MPI_COMM_N, MPI_COMM_MASTER
+    integer :: iter_gmres
+  end subroutine gmres_driver
 
 end interface
 
@@ -59,7 +63,6 @@ type, extends(action) :: jorek_timestep_action
   integer :: MPI_COMM_MASTER !< Every first of MPI_COMM_N (see [[gmres_setup]])
   integer :: MPI_GROUP_WORLD
   integer :: MPI_GROUP_MASTER !< subset of MPI_COMM_WORLD corresponding to MPI_COMM_MASTER
-  integer, allocatable :: i_tor(:) !< toroidal harmonic solved by this process
   integer, allocatable :: local_elms(:), index_min(:), index_max(:) !< division of work across processes
   integer :: n_local_elms
   integer :: n_AA !< number of nonzeros
@@ -112,6 +115,7 @@ subroutine setup_solvers(this, sim)
   use vacuum_equilibrium,   only: import_external_fields
   use mod_startup_teardown, only: sanity_checks
   use mod_log_params,       only: log_parameters
+  use preconditioner_module,only: map_row_index
 
   implicit none
 
@@ -225,7 +229,7 @@ subroutine setup_solvers(this, sim)
 
   if (gmres) then
     ! setup per-harmonic and transverse communicators
-    call gmres_setup_jorek(sim%my_id, sim%n_cpu, this%i_tor, this%my_id_n, this%n_cpu_n, &
+    call gmres_setup_jorek(sim%my_id, sim%n_cpu, this%my_id_n, this%n_cpu_n, &
                            this%my_id_trans, this%n_cpu_trans, this%my_id_master,        &
                            this%MPI_COMM_N, this%MPI_COMM_TRANS, this%MPI_COMM_MASTER,   &
                            this%MPI_GROUP_MASTER, this%MPI_GROUP_WORLD)
@@ -276,6 +280,7 @@ subroutine setup_solvers(this, sim)
   endif
   call MPI_Barrier(MPI_COMM_WORLD,ierr)
 
+  if ((gmres).and.(my_id_n.eq.0)) call map_row_index(ndof_glob)
   if (use_mumps) then
     if (.not. gmres) then
       call initialise_mumps(MPI_COMM_WORLD) ! start MUMPS sparse matrix solver all cpus
@@ -358,6 +363,7 @@ subroutine do_jorek_timestep(this, sim, ev)
   use mod_expression,          only: exprs_all_int, init_expr
   use mod_integrals3D
   use pellet_module,           only: update_spi
+  use mod_distribute_preconditioner, only: distribute_vector, distribute_harmonics
 
   class(jorek_timestep_action), intent(inout) :: this
   type(particle_sim), intent(inout)           :: sim
@@ -460,7 +466,7 @@ subroutine do_jorek_timestep(this, sim, ev)
                         this%index_max(sim%my_id+1), xpoint, xcase, this%eq%R_axis, this%eq%Z_axis, this%eq%psi_axis,    &
                         this%eq%psi_bnd, this%eq%R_xpoint, this%eq%Z_xpoint, this%eq%psi_xpoint,                         &
                         1, n_tor, n_glob, nz_glob, ndof_glob, block_size, A_glob, rhs_glob, irn_glob, jcn_glob,          &
-                        ijA_index, ijA_size, irn_jcn, .false.)
+                        ijA_index, ijA_size, irn_jcn, harmonic_matrix=.false.)
   
   ! --- Free the buffers needed by OpenMP threads (ELM-RHS etc.)
   call del_thread_buffers()
@@ -481,15 +487,16 @@ subroutine do_jorek_timestep(this, sim, ev)
     call clck_time(t0)
     if (.not. solve_only) then
       call distribute_harmonics(sim%my_id,this%my_id_n,sim%n_cpu)
+      if(this%my_id_n.eq.0) call distribute_vector(rhs_glob,mumps_par%rhs,this%MPI_COMM_MASTER)
     else
-      call distribute_vector(sim%my_id,rhs_glob,mumps_par%rhs,.true.)          
+      if(this%my_id_n.eq.0) call distribute_vector(rhs_glob,mumps_par%rhs,this%MPI_COMM_MASTER)
     endif
     call clck_time_barrier(t1)
     call clck_ldiff(t0,t1,tsecond)
     if (sim%my_id .eq. 0) write(*,FMT_TIMING) sim%my_id, '# Elapsed time distribute :',tsecond
 
     call clck_time(t0)
-    call solve_matrix_n(sim%my_id,this%i_tor,this%MPI_COMM_N,this%MPI_COMM_MASTER,solve_only)    ! factorise preconditioning matrices
+    call solve_matrix_n(sim%my_id,this%MPI_COMM_N,this%MPI_COMM_MASTER,solve_only) ! factorise preconditioning matrices
     call clck_time_barrier(t1)
     call clck_ldiff(t0,t1,tsecond)
     if (sim%my_id .eq. 0) write(*,FMT_TIMING) sim%my_id, '# Elapsed time first solve :',tsecond
@@ -499,7 +506,7 @@ subroutine do_jorek_timestep(this, sim, ev)
   if (gmres) then
     this%iter_prev = this%iter_gmres
     this%iter_gmres = gmres_max_iter
-    call gmres_driver(sim%my_id,this%my_id_n,this%i_tor, n_tor,this%MPI_COMM_N,this%MPI_COMM_MASTER,this%iter_gmres)
+    call gmres_driver(sim%my_id,this%my_id_n,this%MPI_COMM_N,this%MPI_COMM_MASTER,this%iter_gmres)
   endif
   call clck_time_barrier(t1)
   call clck_ldiff(t0,t1,tsecond)

@@ -103,6 +103,7 @@ subroutine sanity_checks(my_id, n_cpu)
   use wsmp_module
   use mod_parameters, only: n_tor, n_plane
   use phys_module
+  use preconditioner_module, only: check_preconditioner_consistency
 
   integer :: ierr
   integer, intent(in) :: my_id, n_cpu
@@ -178,6 +179,8 @@ subroutine sanity_checks(my_id, n_cpu)
   write(*,*) 'WARNING: You are not using USE_FFTW=1 which might be inefficient.'
   write(*,*) '  Consider setting USE_FFTW=1 in your Makefile.inc'
 #endif
+
+  call check_preconditioner_consistency
 end subroutine sanity_checks
 
 

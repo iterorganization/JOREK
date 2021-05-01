@@ -236,10 +236,10 @@ subroutine initialise_particles_marker(particles, node_list, element_list, field
   use constants
   use phys_module, only: central_density, central_mass, imp_type
 #ifdef WITH_Neutrals
-  use mod_neutral_source, only: get_source
+  use mod_neutral_source, only: total_neutral_source
 #endif
 #ifdef WITH_Impurities
-  use mod_injection_source, only: get_source
+  use mod_injection_source, only: total_imp_source
 #endif
   !$ use omp_lib
   implicit none
@@ -432,10 +432,10 @@ subroutine initialise_particles_marker(particles, node_list, element_list, field
         if (.not. uniform_sampling) then
           ! Obtain the source term value at randomly generated particle position
 #ifdef WITH_Impurities
-          call get_source(R,Z,phi,source_bg_tmp,source_tmp,m_i_over_m_imp) 
+          call total_imp_source(R,Z,phi,source_bg_tmp,source_tmp,m_i_over_m_imp) 
 #endif 
 #ifdef WITH_Neutrals
-          call get_source(R,Z,phi,source_tmp) 
+          call total_neutral_source(R,Z,phi,source_tmp) 
 #endif 
           if (present(transform_rej_f)) then
             if (ran(4) .lt. transform_rej_f(source_tmp,(phys_source*t_norm/n_norm))) then
