@@ -19,7 +19,6 @@ implicit none
 interface 
    subroutine gmres_matrix_vector(size_x,x,size_y,y,my_id)      
      use mod_integer_types
-     integer               :: i_tor(:), MPI_COMM_MASTER
      integer(kind=int_all) :: size_x,size_y
      real*8                :: x(size_x), y(size_y)
      integer               :: my_id, my_id_n
