@@ -280,7 +280,7 @@ subroutine setup_solvers(this, sim)
   endif
   call MPI_Barrier(MPI_COMM_WORLD,ierr)
 
-  if ((gmres).and.(my_id_n.eq.0)) call map_row_index(ndof_glob)
+  if ((gmres).and.(this%my_id_n.eq.0)) call map_row_index(ndof_glob)
   if (use_mumps) then
     if (.not. gmres) then
       call initialise_mumps(MPI_COMM_WORLD) ! start MUMPS sparse matrix solver all cpus
