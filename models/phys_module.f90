@@ -45,6 +45,7 @@ module phys_module
   real*8  :: imp_reflection       !< impurity reflection coefficient on open fieldlines
   logical :: old_deuterium_atomic !< use old fit to calculate atomic coefficients for D (ionization, recombination, radiation), otherwise a better fit is used
   logical :: deuterium_adas       !< use OPEN ADAS to calculate ionization, recombination and radiation coeffients for deuterium                        
+  logical :: deuterium_adas_1e20  !< use OPEN ADAS with fixed density=1e20 to calculate ionization, recombination and radiation coeffients for deuterium
   logical :: mach_one_bnd_integral!< use a boundary integral (boundary_matrix_open) to implement Mach=one boundary condition
   logical :: vpar_smoothing       !< apply a smoothing function to smooth jumps in Vpar at B.n=0
   real*8  :: vpar_smoothing_coef(3) !< coefficients for the smoothing profile of the parallel velocity
@@ -67,6 +68,7 @@ module phys_module
   logical :: produce_live_data    !< Write data 'macroscopic_vars.dat' during the code run allowing to use plot_live_data.sh?
   logical :: grid_to_wall         !< extend the grid to a physical wall
   logical :: RZ_grid_inside_wall  !< build the rectangular grid inside first wall
+  real*8  :: RZ_grid_jump_thres   !< threshold to change R-resolution as RZ-grid gets sqeezed by limiter contour
   real*8  :: manipulate_psi_map(5,5) !< Option to manipulate Psi_boundary for the initial grid
   logical :: adaptive_time        !< (presently not useful)
   logical :: equil                !< compute equilibrium
@@ -117,18 +119,21 @@ module phys_module
   integer :: last_target_point		   !< index of the last  target point on the limiter (does NOT need to be > first_target_point)
   
   !> Points used as blocks to extend grid into complex wall structures, see https://www.jorek.eu/wiki/doku.php?id=wallgrid_tutorial
+  real*8  :: eqdsk_psi_fact                                                     !< multiply eqdsk psi by factor for grid_inside_wall
   logical :: extend_existing_grid                                               !< Add patches to existing grid from restart file
   integer, parameter :: n_wall_blocks_max = 30                                  !< Maximum number of blocks (30 should be enough)
   integer :: n_wall_blocks                                                      !< Number of blocks
   integer, parameter :: n_wall_block_points_max = 20                            !< Max number of blocks points
   integer :: corner_block(n_wall_blocks_max)                                    !< =1 for a corner block ("left" side will also be wall-aligned)
   integer :: n_ext_block(n_wall_blocks_max)                                     !< Number of 'radial' grid points from the outermost flux surface to wall)
+  logical :: n_ext_equidistant(n_wall_blocks_max)                               !< if true, radial spacing of grid points will be equidistant (not adapted)
   integer :: n_block_points_left (n_wall_blocks_max)                            !< Number of points on left side of block
   real*8  :: R_block_points_left (n_wall_blocks_max,n_wall_block_points_max)    !< R-positions of points on left side of block
   real*8  :: Z_block_points_left (n_wall_blocks_max,n_wall_block_points_max)    !< Z-positions of points on left side of block
   integer :: n_block_points_right(n_wall_blocks_max)                            !< Number of points on left side of block
   real*8  :: R_block_points_right(n_wall_blocks_max,n_wall_block_points_max)    !< R-positions of points on left side of block
   real*8  :: Z_block_points_right(n_wall_blocks_max,n_wall_block_points_max)    !< Z-positions of points on left side of block
+  logical :: use_simple_bnd_types                                               !< convert Stan's bnd_types to Guido's bnd_types
   
   !> @name Define X-point geometry by geometrical properties
   !!

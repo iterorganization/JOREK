@@ -632,9 +632,9 @@ do ms=1, n_gauss
        dZKpar_dT = 0.d0
      endif
 
-     ! --- Temperature dependent hyper-resistivity resistivity, there is no
-     ! physical reason for this dependence whatsoever, just to keep a constant
-     ! ratio between the resistivity and hyper-resistivity
+     ! --- Temperature dependent hyper-resistivity. There is no physical
+     ! reason for this dependence whatsoever, this is just to keep a constant
+     ! ratio between the resistivity and hyper-resistivity.
      if ( eta_num_T_dependent .and. T0_corr <= T_max_eta) then
        eta_num_T = eta_num * (T0_corr/T_0)**(-1.5d0)
        deta_num_dT = ( - eta_num * (1.5d0)  * T0_corr**(-2.5d0) * T_0**(1.5d0) ) * dT0_corr_dT

@@ -3,7 +3,7 @@ module mod_atomic_coeff_deuterium
 
 use mod_openadas
 use constants
-use phys_module, only: central_density, central_mass, gamma, deuterium_adas, old_deuterium_atomic
+use phys_module, only: central_density, central_mass, gamma, deuterium_adas, deuterium_adas_1e20, old_deuterium_atomic
 
 implicit none
 
@@ -213,7 +213,7 @@ subroutine atomic_coeff_deuterium(Te0, Sion_T, dSion_dT, Srec_T, dSrec_dT, LradD
     Te_si_log10= log10( Te_eV_lim / K_BOLTZ * EL_CHG )
 
     ne_si      = 1.d20
-    if (present(ne0)) then
+    if (present(ne0) .and. (.not. deuterium_adas_1e20) ) then
       ne_si = ne0 * central_density * 1.d20
       ne_si = max(ne_si,  1.d14)    ! ADAS density is bewteen 1.d14 and 1.21 m^-3
       ne_si = min(ne_si,  1.d21) 
@@ -221,10 +221,10 @@ subroutine atomic_coeff_deuterium(Te0, Sion_T, dSion_dT, Srec_T, dSrec_dT, LradD
 
     ne_si_log10= log10(ne_si)
 
-    call ad_deuterium%scd%interp( 1, ne_si_log10, Te_si_log10, Sion_T, dSion_dT)
+    call ad_deuterium%scd%interp( 0, ne_si_log10, Te_si_log10, Sion_T, dSion_dT)
     call ad_deuterium%acd%interp( 1, ne_si_log10, Te_si_log10, Srec_T, dSrec_dT)
     call ad_deuterium%prb%interp( 1, ne_si_log10, Te_si_log10, LradDcont_T, dLradDCont_dT)
-    call ad_deuterium%plt%interp( 1, ne_si_log10, Te_si_log10, LradDrays_T, dLradDrays_dT)
+    call ad_deuterium%plt%interp( 0, ne_si_log10, Te_si_log10, LradDrays_T, dLradDrays_dT)
 
     if ( Te_eV < 0.2d0) then  ! --- Don't radiate or ionize below 0.2 eV, recombination allowed
       LradDcont_T   = 0.d0

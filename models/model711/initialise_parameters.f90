@@ -41,11 +41,13 @@ namelist /in1/  tstep, nstep, tstep_n, nstep_n,                     &
                 R_Z_psi_bnd_file,                                   &
                 R_boundary, Z_boundary, psi_boundary, n_boundary,   &
                 extend_existing_grid, no_mach1_bc,                  &
-                grid_to_wall, RZ_grid_inside_wall,                  &
+                grid_to_wall, RZ_grid_inside_wall, eqdsk_psi_fact,  &
+                RZ_grid_jump_thres,                                 &
                 n_wall_blocks, n_ext_block, corner_block,           &
                 n_block_points_left,  n_block_points_right,         &
                 R_block_points_left,  R_block_points_right,         &
                 Z_block_points_left,  Z_block_points_right,         &
+                use_simple_bnd_types,                               &
                 tokamak_device, manipulate_psi_map,                 &
                 F0, gamma, gamma_stangeby,                          &
                 gamma_sheath_i, gamma_sheath_e,                     &

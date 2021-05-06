@@ -68,54 +68,72 @@ i_min = 0
 r_max = 0.d0
 i_max = 0
 
-do ibnd=1,bnd_elm_list%n_bnd_elements
-        
-  n1    = bnd_elm_list%bnd_element(ibnd)%vertex(1)
-  n2    = bnd_elm_list%bnd_element(ibnd)%vertex(2)
-  mv1   = bnd_elm_list%bnd_element(ibnd)%side
-  m_elm = bnd_elm_list%bnd_element(ibnd)%element
+! --- Go around boundary and around limiter points from the namelist input file
+do ibnd=1,bnd_elm_list%n_bnd_elements + n_limiter
+      
+  ! --- In case of limiter points  
+  if (ibnd .gt. bnd_elm_list%n_bnd_elements) then
+    Rp = R_limiter(ibnd)
+    Zp = Z_limiter(ibnd)
+    call find_RZ(node_list, element_list, Rp, Zp, R_out, Z_out, m_elm, s_pt, t_pt, ifail)
+    if (ifail .ne. 0) cycle
+    DET = 1.0
+    R   = 0.0
+  ! --- In case of boundary point
+  else
+    n1    = bnd_elm_list%bnd_element(ibnd)%vertex(1)
+    n2    = bnd_elm_list%bnd_element(ibnd)%vertex(2)
+    mv1   = bnd_elm_list%bnd_element(ibnd)%side
+    m_elm = bnd_elm_list%bnd_element(ibnd)%element
+      
+    idir1 = bnd_elm_list%bnd_element(ibnd)%direction(1,2) 
+    idir2 = bnd_elm_list%bnd_element(ibnd)%direction(2,2) 
+ 
+    ! --- Map Bezier coefficients into the Hermite 1D representation 
+    PSIM  =  node_list%node(n1)%values(1,1,1)     * bnd_elm_list%bnd_element(ibnd)%size(1,1)              ! PSI(1,n1)
+    PSIMR =  node_list%node(n1)%values(1,idir1,1) * bnd_elm_list%bnd_element(ibnd)%size(1,2) * 3.d0/2.d0  ! PSI(3,n1)
+    PSIP  =  node_list%node(n2)%values(1,1,1)     * bnd_elm_list%bnd_element(ibnd)%size(2,1)              ! PSI(1,n2)
+    PSIPR =  - node_list%node(n2)%values(1,idir2,1) * bnd_elm_list%bnd_element(ibnd)%size(2,2) * 3.d0/2.d0  ! PSI(3,n2)
     
-  idir1 = bnd_elm_list%bnd_element(ibnd)%direction(1,2) 
-  idir2 = bnd_elm_list%bnd_element(ibnd)%direction(2,2) 
-
-  ! --- Map Bezier coefficients into the Hermite 1D representation 
-  PSIM  =  node_list%node(n1)%values(1,1,1)     * bnd_elm_list%bnd_element(ibnd)%size(1,1)              ! PSI(1,n1)
-  PSIMR =  node_list%node(n1)%values(1,idir1,1) * bnd_elm_list%bnd_element(ibnd)%size(1,2) * 3.d0/2.d0  ! PSI(3,n1)
-  PSIP  =  node_list%node(n2)%values(1,1,1)     * bnd_elm_list%bnd_element(ibnd)%size(2,1)              ! PSI(1,n2)
-  PSIPR =  - node_list%node(n2)%values(1,idir2,1) * bnd_elm_list%bnd_element(ibnd)%size(2,2) * 3.d0/2.d0  ! PSI(3,n2)
-  
-  PSMA = MAX(PSIM,PSIP)
-  PSMI = MIN(PSIM,PSIP)
-  
-  ! --- Solve Hermite 2nd order polynomial equation (find root of \grad\psi = 0)
-  AA =  3.d0 * (PSIM + PSIMR - PSIP + PSIPR ) / 4.d0
-  BB =  ( - PSIMR + PSIPR ) / 2.d0
-  CC =  ( - 3.d0*PSIM - PSIMR + 3.d0*PSIP - PSIPR) / 4.d0
-  DET = BB**2 - 4.d0*AA*CC
+    PSMA = MAX(PSIM,PSIP)
+    PSMI = MIN(PSIM,PSIP)
+    
+    ! --- Solve Hermite 2nd order polynomial equation (find root of \grad\psi = 0)
+    AA =  3.d0 * (PSIM + PSIMR - PSIP + PSIPR ) / 4.d0
+    BB =  ( - PSIMR + PSIPR ) / 2.d0
+    CC =  ( - 3.d0*PSIM - PSIMR + 3.d0*PSIP - PSIPR) / 4.d0
+    DET = BB**2 - 4.d0*AA*CC
+  endif
 
   if (DET .GE. 0.d0) then
-    R = ROOT(AA,BB,CC,DET,1.d0)
-    if (ABS(R) .GT. 1.d0) then
-      R = ROOT(AA,BB,CC,DET,-1.d0)
+    ! --- Only check for boundary points
+    if (ibnd .le. bnd_elm_list%n_bnd_elements) then
+      R = ROOT(AA,BB,CC,DET,1.d0)
+      if (ABS(R) .GT. 1.d0) then
+        R = ROOT(AA,BB,CC,DET,-1.d0)
+      endif
     endif
     if (ABS(R) .LE. 1.d0) then
-      ! --- interpolate psi value at the found minimum/maximum
-      call CUB1D(PSIM,PSIMR,PSIP,PSIPR,R,PSMIMA,DUMMY)
-      
-      !--- Is the found limiter inside a private flux region?  True if \grad_psi \cdot (r_lim - r_axis) < 0  (for Ip > 0)
-      s_or_t = (R + 1.d0)*0.5d0  ! --- map Hermite local coordinate root into Bezier local coordinate
-      
-      !--- check if the bnd element is a "s" or "t" surface
-      select case (mv1)
-      case (1)
-        s_pt = s_or_t;  t_pt = 0.d0;    s_const = .false.
-      case (2)
-        s_pt = 1.d0;    t_pt = s_or_t;  s_const = .true.
-      case (3)
-        s_pt = s_or_t;  t_pt = 1.d0;    s_const = .false.
-      case (4)
-        s_pt = 0.d0;    t_pt = s_or_t;  s_const = .true.
-      end select
+      ! --- Only check for boundary points
+      if (ibnd .le. bnd_elm_list%n_bnd_elements) then
+        ! --- interpolate psi value at the found minimum/maximum
+        call CUB1D(PSIM,PSIMR,PSIP,PSIPR,R,PSMIMA,DUMMY)
+        
+        !--- Is the found limiter inside a private flux region?  True if \grad_psi \cdot (r_lim - r_axis) < 0  (for Ip > 0)
+        s_or_t = (R + 1.d0)*0.5d0  ! --- map Hermite local coordinate root into Bezier local coordinate
+        
+        !--- check if the bnd element is a "s" or "t" surface
+        select case (mv1)
+        case (1)
+          s_pt = s_or_t;  t_pt = 0.d0;    s_const = .false.
+        case (2)
+          s_pt = 1.d0;    t_pt = s_or_t;  s_const = .true.
+        case (3)
+          s_pt = s_or_t;  t_pt = 1.d0;    s_const = .false.
+        case (4)
+          s_pt = 0.d0;    t_pt = s_or_t;  s_const = .true.
+        end select
+      endif
       
       ! --- Determine coordinate values (plus derivatives)
       call interp_RZ(node_list, element_list, m_elm, s_pt, t_pt, RR, R_s, R_t, R_st, R_ss, R_tt, Z, Z_s, Z_t, Z_st, Z_ss, Z_tt)
@@ -179,25 +197,30 @@ enddo
 if (ES%axis_is_psi_minimum) then
   if ((i_min .gt. 0) .and. (r_min .le. 1.d0)) then
 
-    n1 = bnd_elm_list%bnd_element(i_min)%vertex(1)
-    n2 = bnd_elm_list%bnd_element(i_min)%vertex(2)
-    
-    idir1 = bnd_elm_list%bnd_element(i_min)%direction(1,2) 
-    idir2 = bnd_elm_list%bnd_element(i_min)%direction(2,2) 
-
-    RM  =  node_list%node(n1)%x(1,1,1)	 * bnd_elm_list%bnd_element(i_min)%size(1,1)		  
-    RMR =  node_list%node(n1)%x(1,idir1,1) * bnd_elm_list%bnd_element(i_min)%size(1,2) * 3.d0/2.d0  
-    RP  =  node_list%node(n2)%x(1,1,1)	 * bnd_elm_list%bnd_element(i_min)%size(2,1)		  
-    RPR =  - node_list%node(n2)%x(1,idir2,1) * bnd_elm_list%bnd_element(i_min)%size(2,2) * 3.d0/2.d0 
-
-    call CUB1D(RM,RMR,RP,RPR,r_min,R_lim,DUMMY)
-
-    ZM  =  node_list%node(n1)%x(1,1,2)	 * bnd_elm_list%bnd_element(i_min)%size(1,1)		  
-    ZMR =  node_list%node(n1)%x(1,idir1,2) * bnd_elm_list%bnd_element(i_min)%size(1,2) * 3.d0/2.d0  
-    ZP  =  node_list%node(n2)%x(1,1,2)	 * bnd_elm_list%bnd_element(i_min)%size(2,1)		  
-    ZPR =  - node_list%node(n2)%x(1,idir2,2) * bnd_elm_list%bnd_element(i_min)%size(2,2) * 3.d0/2.d0 
-    
-    call CUB1D(ZM,ZMR,ZP,ZPR,r_min,Z_lim,DUMMY)
+    if (i_min .gt. bnd_elm_list%n_bnd_elements) then
+      R_lim = R_limiter(i_min)
+      Z_lim = Z_limiter(i_min)
+    else
+      n1 = bnd_elm_list%bnd_element(i_min)%vertex(1)
+      n2 = bnd_elm_list%bnd_element(i_min)%vertex(2)
+      
+      idir1 = bnd_elm_list%bnd_element(i_min)%direction(1,2) 
+      idir2 = bnd_elm_list%bnd_element(i_min)%direction(2,2) 
+     
+      RM  =  node_list%node(n1)%x(1,1,1)	 * bnd_elm_list%bnd_element(i_min)%size(1,1)		  
+      RMR =  node_list%node(n1)%x(1,idir1,1) * bnd_elm_list%bnd_element(i_min)%size(1,2) * 3.d0/2.d0  
+      RP  =  node_list%node(n2)%x(1,1,1)	 * bnd_elm_list%bnd_element(i_min)%size(2,1)		  
+      RPR =  - node_list%node(n2)%x(1,idir2,1) * bnd_elm_list%bnd_element(i_min)%size(2,2) * 3.d0/2.d0 
+     
+      call CUB1D(RM,RMR,RP,RPR,r_min,R_lim,DUMMY)
+     
+      ZM  =  node_list%node(n1)%x(1,1,2)	 * bnd_elm_list%bnd_element(i_min)%size(1,1)		  
+      ZMR =  node_list%node(n1)%x(1,idir1,2) * bnd_elm_list%bnd_element(i_min)%size(1,2) * 3.d0/2.d0  
+      ZP  =  node_list%node(n2)%x(1,1,2)	 * bnd_elm_list%bnd_element(i_min)%size(2,1)		  
+      ZPR =  - node_list%node(n2)%x(1,idir2,2) * bnd_elm_list%bnd_element(i_min)%size(2,2) * 3.d0/2.d0 
+      
+      call CUB1D(ZM,ZMR,ZP,ZPR,r_min,Z_lim,DUMMY)
+    endif
     
     psi_lim = psi_min
     ifail   = 0
@@ -211,25 +234,30 @@ if (ES%axis_is_psi_minimum) then
 else
   if ((i_max .gt. 0) .and. (r_max .le. 1.d0)) then
 
-    n1 = bnd_elm_list%bnd_element(i_max)%vertex(1)
-    n2 = bnd_elm_list%bnd_element(i_max)%vertex(2)
-    
-    idir1 = bnd_elm_list%bnd_element(i_max)%direction(1,2) 
-    idir2 = bnd_elm_list%bnd_element(i_max)%direction(2,2) 
-
-    RM  =  node_list%node(n1)%x(1,1,1)	 * bnd_elm_list%bnd_element(i_max)%size(1,1)		  
-    RMR =  node_list%node(n1)%x(1,idir1,1) * bnd_elm_list%bnd_element(i_max)%size(1,2) * 3.d0/2.d0  
-    RP  =  node_list%node(n2)%x(1,1,1)	 * bnd_elm_list%bnd_element(i_max)%size(2,1)		  
-    RPR =  - node_list%node(n2)%x(1,idir2,1) * bnd_elm_list%bnd_element(i_max)%size(2,2) * 3.d0/2.d0 
-
-    call CUB1D(RM,RMR,RP,RPR,r_max,R_lim,DUMMY)
-
-    ZM  =  node_list%node(n1)%x(1,1,2)	 * bnd_elm_list%bnd_element(i_max)%size(1,1)		  
-    ZMR =  node_list%node(n1)%x(1,idir1,2) * bnd_elm_list%bnd_element(i_max)%size(1,2) * 3.d0/2.d0  
-    ZP  =  node_list%node(n2)%x(1,1,2)	 * bnd_elm_list%bnd_element(i_max)%size(2,1)		  
-    ZPR =  - node_list%node(n2)%x(1,idir2,2) * bnd_elm_list%bnd_element(i_max)%size(2,2) * 3.d0/2.d0 
-    
-    call CUB1D(ZM,ZMR,ZP,ZPR,r_max,Z_lim,DUMMY)
+    if (i_max .gt. bnd_elm_list%n_bnd_elements) then
+      R_lim = R_limiter(i_max)
+      Z_lim = Z_limiter(i_max)
+    else
+      n1 = bnd_elm_list%bnd_element(i_max)%vertex(1)
+      n2 = bnd_elm_list%bnd_element(i_max)%vertex(2)
+      
+      idir1 = bnd_elm_list%bnd_element(i_max)%direction(1,2) 
+      idir2 = bnd_elm_list%bnd_element(i_max)%direction(2,2) 
+      
+      RM  =  node_list%node(n1)%x(1,1,1)	 * bnd_elm_list%bnd_element(i_max)%size(1,1)		  
+      RMR =  node_list%node(n1)%x(1,idir1,1) * bnd_elm_list%bnd_element(i_max)%size(1,2) * 3.d0/2.d0  
+      RP  =  node_list%node(n2)%x(1,1,1)	 * bnd_elm_list%bnd_element(i_max)%size(2,1)		  
+      RPR =  - node_list%node(n2)%x(1,idir2,1) * bnd_elm_list%bnd_element(i_max)%size(2,2) * 3.d0/2.d0 
+      
+      call CUB1D(RM,RMR,RP,RPR,r_max,R_lim,DUMMY)
+      
+      ZM  =  node_list%node(n1)%x(1,1,2)	 * bnd_elm_list%bnd_element(i_max)%size(1,1)		  
+      ZMR =  node_list%node(n1)%x(1,idir1,2) * bnd_elm_list%bnd_element(i_max)%size(1,2) * 3.d0/2.d0  
+      ZP  =  node_list%node(n2)%x(1,1,2)	 * bnd_elm_list%bnd_element(i_max)%size(2,1)		  
+      ZPR =  - node_list%node(n2)%x(1,idir2,2) * bnd_elm_list%bnd_element(i_max)%size(2,2) * 3.d0/2.d0 
+      
+      call CUB1D(ZM,ZMR,ZP,ZPR,r_max,Z_lim,DUMMY)
+    endif
     
     psi_lim = psi_max
     ifail   = 0
@@ -241,33 +269,6 @@ else
     ifail   = 1
   endif
 endif
-
-! --- Take into account additional limiter points from the namelist input file
-do i_limiter = 1, n_limiter
-  Rp = R_limiter(i_limiter)
-  Zp = Z_limiter(i_limiter)
-  
-  call find_RZ(node_list, element_list, Rp, Zp, R_out, Z_out, i_elm, s_out, t_out, ifail)
-  if (ifail .ne. 0) cycle
-  call interp(node_list, element_list, i_elm, 1, 1, s_out, t_out, psi, psi_s, psi_t, psi_st,       &
-    psi_ss, psi_tt)
-  
-  if (ES%axis_is_psi_minimum) then
-    if (psi .lt. psi_lim) then
-      psi_lim = psi
-      R_lim   = Rp
-      Z_lim   = Zp
-      ifail   = 0
-    end if
-  else
-    if (psi .gt. psi_lim) then
-      psi_lim = psi
-      R_lim   = Rp
-      Z_lim   = Zp
-      ifail   = 0
-    end if
-  endif
-end do
 
 if ( my_id == 0 ) then
   121 format(1x,a,' =',f15.7)

@@ -273,10 +273,13 @@ write(*,'(1x,a)',advance='no') ' USE_COMPLEX_PRECOND          : '
   end if
 
   if ( ( (grid_to_wall) .or. (extend_existing_grid) ) .and. (n_wall_blocks .gt. 0) ) then
+    write(*,REAL_FMT) 'eqdsk_psi_fact        ', eqdsk_psi_fact
     write(*,LOGI_FMT) 'RZ_grid_inside_wall   ', RZ_grid_inside_wall
+    write(*,REAL_FMT) 'RZ_grid_jump_thres    ', RZ_grid_jump_thres
     write(*,INTG_FMT) 'n_wall_blocks         ', n_wall_blocks
     do i=1,n_wall_blocks
       write(*,INTG_FMT) 'Wall Patch number:    ', i
+      write(*,LOGI_FMT) 'n_ext_equidistant:    ', n_ext_equidistant(i)
       write(*,INTG_FMT) 'corner block:         ', corner_block(i)
       write(*,INTG_FMT) 'resolution of block:  ', n_ext_block(i)
       write(*,INTG_FMT) 'n_block_points_left   ', n_block_points_left(i)
@@ -292,6 +295,7 @@ write(*,'(1x,a)',advance='no') ' USE_COMPLEX_PRECOND          : '
         write(*,REAL_FMT) 'Z_block_points_right  ', Z_block_points_right(i,j)
       enddo
     enddo
+    write(*,LOGI_FMT) 'use_simple_bnd_types  ', use_simple_bnd_types
   endif
 
   write(*,INTG_FMT) 'nout                  ', nout
@@ -629,6 +633,7 @@ write(*,'(1x,a)',advance='no') ' USE_COMPLEX_PRECOND          : '
   write(*,LOGI_FMT) 'no_zeros_pastix       ', no_zeros_pastix
   write(*,LOGI_FMT) 'mach_one_bnd_integral ', mach_one_bnd_integral
   write(*,LOGI_FMT) 'deuterium_adas        ', deuterium_adas       
+  write(*,LOGI_FMT) 'deuterium_adas_1e20   ', deuterium_adas_1e20
   write(*,LOGI_FMT) 'old_deuterium_atomic  ', old_deuterium_atomic
   write(*,LOGI_FMT) 'no_mach1_bc           ', no_mach1_bc
 

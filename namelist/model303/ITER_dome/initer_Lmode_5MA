@@ -1,0 +1,495 @@
+ ***************************************************************
+ *  namelist produced by Stan based on Sven input from SOLPS   *
+ ***************************************************************
+ * DINA 15MA scenario,      t=300 s; Ip=15 MA;        0
+ * magnetic field :    5.285 T
+ * current        :   14.994 MA
+ * THIS IS AN ARTIFICIAL INPUT FILE PRODUCED FOR 5MA SCENARIO
+ * BASED ON A 15MA EQDSK, IT REQUIRES CHANGES IN THE CODE AS WELL!!!
+ * NAMELY PSI/3 and FFprime/3/3 and F0/3
+ ***************************************
+ 
+ &in1
+ restart = .f.
+ regrid  = .f.
+ tstep_n = 1.0
+ nstep_n = 000
+ nout    = 1
+
+ time_evol_scheme= 'Gears'
+
+ n_limiter = 51
+ R_limiter( 1) = 4.2    ,Z_limiter( 1) =  -2.4    
+ R_limiter( 2) = 4.3257 ,Z_limiter( 2) =  -2.6514 
+ R_limiter( 3) = 4.4408 ,Z_limiter( 3) =  -2.7808 
+ R_limiter( 4) = 4.5066 ,Z_limiter( 4) =  -2.941  
+ R_limiter( 5) = 4.5157 ,Z_limiter( 5) =  -3.1139 
+ R_limiter( 6) = 4.467  ,Z_limiter( 6) =  -3.2801 
+ R_limiter( 7) = 4.3773 ,Z_limiter( 7) =  -3.4689 
+ R_limiter( 8) = 4.3115 ,Z_limiter( 8) =  -3.6075 
+ R_limiter( 9) = 4.2457 ,Z_limiter( 9) =  -3.7461 
+ R_limiter(10) = 4.1799 ,Z_limiter(10) =  -3.8847 
+ R_limiter(11) = 4.4918 ,Z_limiter(11) =  -3.9092 
+ R_limiter(12) = 4.5687 ,Z_limiter(12) =  -3.8276 
+ R_limiter(13) = 4.6456 ,Z_limiter(13) =  -3.7460 
+ R_limiter(14) = 4.8215 ,Z_limiter(14) =  -3.7090 
+ R_limiter(15) = 4.9982 ,Z_limiter(15) =  -3.7414 
+ R_limiter(16) = 5.1496 ,Z_limiter(16) =  -3.8382 
+ R_limiter(17) = 5.2529 ,Z_limiter(17) =  -3.9852 
+ R_limiter(18) = 5.2628 ,Z_limiter(18) =  -4.1244 
+ R_limiter(19) = 5.2727 ,Z_limiter(19) =  -4.2636 
+ R_limiter(20) = 5.565  ,Z_limiter(20) =  -4.5559 
+ R_limiter(21) = 5.565  ,Z_limiter(21) =  -4.4026 
+ R_limiter(22) = 5.565  ,Z_limiter(22) =  -4.2494 
+ R_limiter(23) = 5.565  ,Z_limiter(23) =  -4.0962 
+ R_limiter(24) = 5.565  ,Z_limiter(24) =  -3.9961 
+ R_limiter(25) = 5.572  ,Z_limiter(25) =  -3.896  
+ R_limiter(26) = 5.6008 ,Z_limiter(26) =  -3.7024 
+ R_limiter(27) = 5.6842 ,Z_limiter(27) =  -3.5265 
+ R_limiter(28) = 5.815  ,Z_limiter(28) =  -3.3823 
+ R_limiter(29) = 5.9821 ,Z_limiter(29) =  -3.2822 
+ R_limiter(30) = 6.2176 ,Z_limiter(30) =  -3.2288
+ R_limiter(31) = 6.267  ,Z_limiter(31) =  -3.046  
+ R_limiter(32) = 7.283  ,Z_limiter(32) =  -2.257  
+ R_limiter(33) = 7.899  ,Z_limiter(33) =  -1.342  
+ R_limiter(34) = 8.28   ,Z_limiter(34) =  -0.421  
+ R_limiter(35) = 8.395  ,Z_limiter(35) =   0.58   
+ R_limiter(36) = 8.395  ,Z_limiter(36) =   0.72   
+ R_limiter(37) = 8.27   ,Z_limiter(37) =   1.681  
+ R_limiter(38) = 7.904  ,Z_limiter(38) =   2.464  
+ R_limiter(39) = 7.4    ,Z_limiter(39) =   3.179  
+ R_limiter(40) = 6.587  ,Z_limiter(40) =   3.894  
+ R_limiter(41) = 5.753  ,Z_limiter(41) =   4.532  
+ R_limiter(42) = 4.904  ,Z_limiter(42) =   4.712  
+ R_limiter(43) = 4.311  ,Z_limiter(43) =   4.324  
+ R_limiter(44) = 4.126  ,Z_limiter(44) =   3.582  
+ R_limiter(45) = 4.076  ,Z_limiter(45) =   2.566  
+ R_limiter(46) = 4.046  ,Z_limiter(46) =   1.549  
+ R_limiter(47) = 4.046  ,Z_limiter(47) =   0.533  
+ R_limiter(48) = 4.067  ,Z_limiter(48) =   -0.484 
+ R_limiter(49) = 4.097  ,Z_limiter(49) =   -1.5   
+ R_limiter(50) = 4.15   ,Z_limiter(50) =   -2.1   
+ R_limiter(51) = 4.2    ,Z_limiter(51) =   -2.4   
+ 
+ R_geo =  6.2
+ Z_geo = -0.05
+ F0    = -10.9
+
+ FF_0         = -2.75 
+ FF_1         =  0.0  
+ FF_coef(1)   = -0.5  
+ FF_coef(2)   = -0.5  
+ FF_coef(3)   =  0.0  
+ FF_coef(4)   =  0.01 
+ FF_coef(5)   =  1.0  
+ FF_coef(6)   =  +0.08
+ FF_coef(7)   =  0.93 
+ FF_coef(8)   =  0.05 
+ FF_coef(9)   =  1.d0 
+
+ central_density = 0.7
+ rho_0        = 1.0
+ rho_1        = 0.01
+ rho_coef(1)  = -0.01
+ rho_coef(2)  = 0.00
+ rho_coef(3)  = 0.00
+ rho_coef(4)  = 0.04
+ rho_coef(5)  = 0.99
+
+ T_file       = "jorek_temperature"
+
+ !_____________________________________grid parameters
+ RZ_grid_inside_wall = .t.
+ RZ_grid_jump_thres  = 0.95
+ grid_to_wall = .t.
+ eqdsk_psi_fact = -0.3333333333333333
+ n_tht_equidistant = .t.
+ fix_axis_nodes = .t.
+
+ n_R      = 150
+ n_Z      = 300
+ n_radial = 0
+ n_pol    = 0
+ 
+ n_flux   = 81
+ n_tht    = 123
+ n_open   =  2
+ n_leg    = 11
+ n_leg    = 15
+ n_private = 2
+ 
+ dPSI_open    = 0.003
+ dPSI_private = 0.003
+
+ SIG_open  = 0.9 
+ SIG_leg_1 = 0.9
+ SIG_theta = 0.03
+ 
+ n_wall_blocks              = 23
+
+ n_ext_block         ( 1)    = 15
+ n_ext_equidistant   ( 1)    = .t.
+ n_block_points_left ( 1)    =  4
+ R_block_points_left ( 1,1)  = +5.5646
+ Z_block_points_left ( 1,1)  = -4.3522
+ R_block_points_left ( 1,2)  = +5.5649
+ Z_block_points_left ( 1,2)  = -3.9961
+ R_block_points_left ( 1,3)  = +5.6007
+ Z_block_points_left ( 1,3)  = -3.7024
+ R_block_points_left ( 1,4)  = +5.6842
+ Z_block_points_left ( 1,4)  = -3.5264
+ n_block_points_right( 1)    = 3
+ R_block_points_right( 1,1)  = +5.2971
+ Z_block_points_right( 1,1)  = -3.6301
+ R_block_points_right( 1,2)  = +5.4653
+ Z_block_points_right( 1,2)  = -3.5333
+ R_block_points_right( 1,3)  = +5.6543
+ Z_block_points_right( 1,3)  = -3.4195
+
+ n_ext_block         ( 2)    = 15
+ n_ext_equidistant   ( 2)    = .t.
+ n_block_points_left ( 2)    =  4
+ R_block_points_left ( 2,1)  = +5.6842
+ Z_block_points_left ( 2,1)  = -3.5264
+ R_block_points_left ( 2,2)  = +5.8149
+ Z_block_points_left ( 2,2)  = -3.3823
+ R_block_points_left ( 2,3)  = +5.9820
+ Z_block_points_left ( 2,3)  = -3.2822
+ R_block_points_left ( 2,4)  = +6.2175
+ Z_block_points_left ( 2,4)  = -3.2288
+ n_block_points_right( 2)    = 3
+ R_block_points_right( 2,1)  = +5.6734
+ Z_block_points_right( 2,1)  = -3.4076
+ R_block_points_right( 2,2)  = +5.9046
+ Z_block_points_right( 2,2)  = -3.2542
+ R_block_points_right( 2,3)  = +6.2355
+ Z_block_points_right( 2,3)  = -3.1620
+
+ n_ext_block         ( 3)    = 11
+ n_ext_equidistant   ( 3)    = .t.
+ n_block_points_left ( 3)    =  2
+ R_block_points_left ( 3,1)  = +5.2971
+ Z_block_points_left ( 3,1)  = -3.6301
+ R_block_points_left ( 3,2)  = +5.6301
+ Z_block_points_left ( 3,2)  = -3.4340
+ n_block_points_right( 3)    = 2
+ R_block_points_right( 3,1)  = +5.5957
+ Z_block_points_right( 3,1)  = -3.2219
+ R_block_points_right( 3,2)  = +5.7549
+ Z_block_points_right( 3,2)  = -3.2257
+
+ n_ext_block         ( 4)    = 11
+ n_ext_equidistant   ( 4)    = .t.
+ n_block_points_left ( 4)    =  2
+ R_block_points_left ( 4,1)  = +5.6301
+ Z_block_points_left ( 4,1)  = -3.4340
+ R_block_points_left ( 4,2)  = +5.8459
+ Z_block_points_left ( 4,2)  = -3.2929
+ n_block_points_right( 4)    = 2
+ R_block_points_right( 4,1)  = +5.7549
+ Z_block_points_right( 4,1)  = -3.2257
+ R_block_points_right( 4,2)  = +5.9105
+ Z_block_points_right( 4,2)  = -3.1921
+
+ n_ext_block         ( 5)    = 11
+ n_ext_equidistant   ( 5)    = .t.
+ n_block_points_left ( 5)    =  2
+ R_block_points_left ( 5,1)  = +5.8459
+ Z_block_points_left ( 5,1)  = -3.2929
+ R_block_points_left ( 5,2)  = +6.2354
+ Z_block_points_left ( 5,2)  = -3.1620
+ n_block_points_right( 5)    = 2
+ R_block_points_right( 5,1)  = +5.9105
+ Z_block_points_right( 5,1)  = -3.1921
+ R_block_points_right( 5,2)  = +6.2491
+ Z_block_points_right( 5,2)  = -3.1117
+
+ n_ext_block         ( 6)    = 11
+ n_ext_equidistant   ( 6)    = .t.
+ n_block_points_left ( 6)    =  2
+ R_block_points_left ( 6,1)  = +5.5957
+ Z_block_points_left ( 6,1)  = -3.2219
+ R_block_points_left ( 6,2)  = +5.7549
+ Z_block_points_left ( 6,2)  = -3.2257
+ n_block_points_right( 6)    = 2
+ R_block_points_right( 6,1)  = +5.9415
+ Z_block_points_right( 6,1)  = -3.0131
+ R_block_points_right( 6,2)  = +6.0565
+ Z_block_points_right( 6,2)  = -3.0247
+
+ n_ext_block         ( 7)    = 11
+ n_ext_equidistant   ( 7)    = .t.
+ n_block_points_left ( 7)    =  2
+ R_block_points_left ( 7,1)  = +5.7549
+ Z_block_points_left ( 7,1)  = -3.2257
+ R_block_points_left ( 7,2)  = +5.9105
+ Z_block_points_left ( 7,2)  = -3.1921
+ n_block_points_right( 7)    = 2
+ R_block_points_right( 7,1)  = +6.0565
+ Z_block_points_right( 7,1)  = -3.0247
+ R_block_points_right( 7,2)  = +6.1248
+ Z_block_points_right( 7,2)  = -3.0316
+
+ n_ext_block         ( 8)    = 11
+ n_ext_equidistant   ( 8)    = .t.
+ n_block_points_left ( 8)    =  2
+ R_block_points_left ( 8,1)  = +5.9105
+ Z_block_points_left ( 8,1)  = -3.1921
+ R_block_points_left ( 8,2)  = +6.2491
+ Z_block_points_left ( 8,2)  = -3.1117
+ n_block_points_right( 8)    = 2
+ R_block_points_right( 8,1)  = +6.1248
+ Z_block_points_right( 8,1)  = -3.0316
+ R_block_points_right( 8,2)  = +6.2670
+ Z_block_points_right( 8,2)  = -3.0460
+
+ n_ext_block         ( 9)    = 11
+ n_ext_equidistant   ( 9)    = .f.
+ n_block_points_left ( 9)    =  2
+ R_block_points_left ( 9,1)  = +5.9415
+ Z_block_points_left ( 9,1)  = -3.0131
+ R_block_points_left ( 9,2)  = +6.2670
+ Z_block_points_left ( 9,2)  = -3.0460
+ n_block_points_right( 9)    = 2
+ R_block_points_right( 9,1)  = +7.0724
+ Z_block_points_right( 9,1)  = -2.1377
+ R_block_points_right( 9,2)  = +7.2829
+ Z_block_points_right( 9,2)  = -2.2570
+
+ n_ext_block         (10)    = 11
+ n_ext_equidistant   (10)    = .f.
+ n_block_points_left (10)    =  2
+ R_block_points_left (10,1)  = +7.0724
+ Z_block_points_left (10,1)  = -2.1377
+ R_block_points_left (10,2)  = +7.2829
+ Z_block_points_left (10,2)  = -2.2570
+ n_block_points_right(10)    = 2
+ R_block_points_right(10,1)  = +8.0092
+ Z_block_points_right(10,1)  = +1.6182
+ R_block_points_right(10,2)  = +8.2700
+ Z_block_points_right(10,2)  = +1.6804
+
+ n_ext_block         (11)    = 11
+ n_ext_equidistant   (11)    = .f.
+ n_block_points_left (11)    =  2
+ R_block_points_left (11,1)  = +8.0092
+ Z_block_points_left (11,1)  = +1.6182
+ R_block_points_left (11,2)  = +8.2700
+ Z_block_points_left (11,2)  = +1.6804
+ n_block_points_right(11)    = 2
+ R_block_points_right(11,1)  = +5.0689
+ Z_block_points_right(11,1)  = +3.9784
+ R_block_points_right(11,2)  = +4.9040
+ Z_block_points_right(11,2)  = +4.7119
+
+ n_ext_block         (12)    = 11
+ n_ext_equidistant   (12)    = .f.
+ n_block_points_left (12)    =  2
+ R_block_points_left (12,1)  = +5.0689
+ Z_block_points_left (12,1)  = +3.9784
+ R_block_points_left (12,2)  = +4.9040
+ Z_block_points_left (12,2)  = +4.7119
+ n_block_points_right(12)    = 2
+ R_block_points_right(12,1)  = +4.7785
+ Z_block_points_right(12,1)  = -2.6481
+ R_block_points_right(12,2)  = +4.3251
+ Z_block_points_right(12,2)  = -2.6515
+
+ n_ext_block         (13)    = 11
+ n_ext_equidistant   (13)    = .t.
+ n_block_points_left (13)    =  2
+ R_block_points_left (13,1)  = +4.7785
+ Z_block_points_left (13,1)  = -2.6481
+ R_block_points_left (13,2)  = +4.3251
+ Z_block_points_left (13,2)  = -2.6515
+ n_block_points_right(13)    = 2
+ R_block_points_right(13,1)  = +4.8306
+ Z_block_points_right(13,1)  = -2.8162
+ R_block_points_right(13,2)  = +4.4411
+ Z_block_points_right(13,2)  = -2.7810
+
+ n_ext_block         (14)    = 11
+ n_ext_equidistant   (14)    = .t.
+ n_block_points_left (14)    =  2
+ R_block_points_left (14,1)  = +4.8306
+ Z_block_points_left (14,1)  = -2.8162
+ R_block_points_left (14,2)  = +4.4411
+ Z_block_points_left (14,2)  = -2.7810
+ n_block_points_right(14)    = 2
+ R_block_points_right(14,1)  = +4.8985
+ Z_block_points_right(14,1)  = -3.0581
+ R_block_points_right(14,2)  = +4.5065
+ Z_block_points_right(14,2)  = -2.9409
+
+ n_ext_block         (15)    = 11
+ n_ext_equidistant   (15)    = .t.
+ n_block_points_left (15)    =  2
+ R_block_points_left (15,1)  = +4.8985
+ Z_block_points_left (15,1)  = -3.0581
+ R_block_points_left (15,2)  = +4.5065
+ Z_block_points_left (15,2)  = -2.9409
+ n_block_points_right(15)    = 2
+ R_block_points_right(15,1)  = +4.7537
+ Z_block_points_right(15,1)  = -3.4856
+ R_block_points_right(15,2)  = +4.4669
+ Z_block_points_right(15,2)  = -3.2801
+
+ n_ext_block         (16)    = 11
+ n_ext_equidistant   (16)    = .t.
+ n_block_points_left (16)    =  2
+ R_block_points_left (16,1)  = +4.7537
+ Z_block_points_left (16,1)  = -3.4856
+ R_block_points_left (16,2)  = +4.4669
+ Z_block_points_left (16,2)  = -3.2801
+ n_block_points_right(16)    = 2
+ R_block_points_right(16,1)  = +4.2444
+ Z_block_points_right(16,1)  = -3.7502
+ R_block_points_right(16,2)  = +4.3657
+ Z_block_points_right(16,2)  = -3.4623
+
+ n_ext_block         (17)    = 13
+ n_ext_equidistant   (17)    = .t.
+ n_block_points_left (17)    =  2
+ R_block_points_left (17,1)  = +5.5647
+ Z_block_points_left (17,1)  = -4.4524
+ R_block_points_left (17,2)  = +5.5649
+ Z_block_points_left (17,2)  = -4.4946
+ n_block_points_right(17)    = 2
+ R_block_points_right(17,1)  = +5.2721
+ Z_block_points_right(17,1)  = -3.8786
+ R_block_points_right(17,2)  = +5.2529
+ Z_block_points_right(17,2)  = -3.9854
+
+ n_ext_block         (18)    = 13
+ n_ext_equidistant   (18)    = .t.
+ n_block_points_left (18)    =  2
+ R_block_points_left (18,1)  = +5.2721
+ Z_block_points_left (18,1)  = -3.8786
+ R_block_points_left (18,2)  = +5.2529
+ Z_block_points_left (18,2)  = -3.9854
+ n_block_points_right(18)    = 2
+ R_block_points_right(18,1)  = +4.6675
+ Z_block_points_right(18,1)  = -3.6529
+ R_block_points_right(18,2)  = +4.6456
+ Z_block_points_right(18,2)  = -3.7460
+
+ n_ext_block         (19)    = 13
+ n_ext_equidistant   (19)    = .t.
+ n_block_points_left (19)    =  2
+ R_block_points_left (19,1)  = +4.6675
+ Z_block_points_left (19,1)  = -3.6529
+ R_block_points_left (19,2)  = +4.6456
+ Z_block_points_left (19,2)  = -3.7460
+ n_block_points_right(19)    = 2
+ R_block_points_right(19,1)  = +4.2064
+ Z_block_points_right(19,1)  = -3.8302
+ R_block_points_right(19,2)  = +4.1953
+ Z_block_points_right(19,2)  = -3.8530
+
+ n_ext_block         (20)    = 13
+ n_ext_equidistant   (20)    = .t.
+ n_block_points_left (20)    =  2
+ R_block_points_left (20,1)  = +5.5649
+ Z_block_points_left (20,1)  = -4.4946
+ R_block_points_left (20,2)  = +5.5650
+ Z_block_points_left (20,2)  = -4.5559
+ n_block_points_right(20)    = 2
+ R_block_points_right(20,1)  = +5.2529
+ Z_block_points_right(20,1)  = -3.9854
+ R_block_points_right(20,2)  = +5.2728
+ Z_block_points_right(20,2)  = -4.2637
+
+ n_ext_block         (21)    = 13
+ n_ext_equidistant   (21)    = .t.
+ n_block_points_left (21)    =  2
+ R_block_points_left (21,1)  = +4.1953
+ Z_block_points_left (21,1)  = -3.8530
+ R_block_points_left (21,2)  = +4.1799
+ Z_block_points_left (21,2)  = -3.8847
+ n_block_points_right(21)    = 2
+ R_block_points_right(21,1)  = +4.6456
+ Z_block_points_right(21,1)  = -3.7460
+ R_block_points_right(21,2)  = +4.4918
+ Z_block_points_right(21,2)  = -3.9092
+
+ n_ext_block         (22)    = 15
+ n_ext_equidistant   (22)    = .t.
+ n_block_points_left (22)    =  2
+ R_block_points_left (22,1)  = +4.4918
+ Z_block_points_left (22,1)  = -3.9092
+ R_block_points_left (22,2)  = +5.2728
+ Z_block_points_left (22,2)  = -4.2637
+ n_block_points_right(22)    = 2
+ R_block_points_right(22,1)  = +4.5948
+ Z_block_points_right(22,1)  = -3.8004
+ R_block_points_right(22,2)  = +5.2594
+ Z_block_points_right(22,2)  = -4.0782
+
+ n_ext_block         (23)    = 8
+ n_ext_equidistant   (23)    = .t.
+ n_block_points_left (23)    =  2
+ R_block_points_left (23,1)  = +4.4918
+ Z_block_points_left (23,1)  = -3.9092
+ R_block_points_left (23,2)  = +4.4348
+ Z_block_points_left (23,2)  = -4.0744
+ n_block_points_right(23)    = 2
+ R_block_points_right(23,1)  = +5.2728
+ Z_block_points_right(23,1)  = -4.2637
+ R_block_points_right(23,2)  = +5.2400
+ Z_block_points_right(23,2)  = -4.4293
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ !_____________________________________physics parameters
+ eta       = 1.d-5
+ visco     = 1.d-6
+ visco_par = 1.d-5
+
+ visco_num = 1.d-12
+ eta_num   = 1.d-12
+
+ D_par     = 0.d0
+ D_perp(1) = 1.d-6
+ D_perp(2) = 0.85d0
+ D_perp(3) = 0.d0
+ D_perp(4) = 0.01d0
+ D_perp(5) = 0.92d0
+
+ ZK_par     = 1.d3
+ ZK_perp(1) = 1.d-6
+ ZK_perp(2) = 0.85d0
+ ZK_perp(3) = 0.d0
+ ZK_perp(4) = 0.01d0
+ ZK_perp(5) = 0.92d0
+
+ heatsource     = 0.d-7
+ particlesource = 0.d-6
+  
+ !_____________________________________other stuff
+ mf = 0
+ ellip  =    2.10000000000000     
+ tria_u =   0.580000000000000     
+ tria_l =   0.650000000000000     
+ quad_u =  -0.120000000000000     
+ quad_l =   0.000000000000000E+000
+ xampl  = +0.
+ xpoint = .t.
+ amin  = 1.d0 ! scale factor for plasma size only
+ freeboundary = .f.
+ resistive_wall = .f.
+
+ &end

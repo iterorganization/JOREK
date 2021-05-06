@@ -37,7 +37,7 @@ use vacuum, ONLY: is_freebound
 use phys_module, only: F0, GAMMA, freeboundary, RMP_on, psi_RMP_cos, dpsi_RMP_cos_dR, dpsi_RMP_cos_dZ, &
        psi_RMP_sin, dpsi_RMP_sin_dR, dpsi_RMP_sin_dZ, t_now, RMP_growth_rate, RMP_ramp_up_time,            &
        RMP_start_time, tstep, RMP_har_cos, RMP_har_sin, T_min,                                             &
-       mach_one_bnd_integral, Vpar_smoothing, vpar_smoothing_coef,                                         &
+       mach_one_bnd_integral, Vpar_smoothing, vpar_smoothing_coef, no_mach1_bc,                            &
        Number_RMP_harmonics, RMP_har_cos_spectrum,RMP_har_sin_spectrum, grid_to_wall, n_wall_blocks, keep_n0_const
 use tr_module
 use mpi_mod
@@ -244,6 +244,8 @@ do i=1, n_local_elms !=== do elements
       then
         apply_cs = .true.
       endif
+      if (no_mach1_bc) apply_cs = .false.
+      if (no_mach1_bc) apply_dirichlet_all = .true.
 
 
       do in=i_tor_min, i_tor_max  ! === do n_tor

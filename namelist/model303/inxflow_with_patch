@@ -1,0 +1,135 @@
+&in1
+
+ restart = .f.
+ regrid  = .f.
+ tstep_n   = 5. 
+ nstep_n   = 0 
+ 
+ freeboundary = .f.
+ wall_resistivity_fact = 1.
+
+ nout = 2
+
+ fbnd(1)   = 2.
+ fbnd(2:4) = 0.
+ mf        = 0
+
+ ellip  = 1.7
+ tria_u = 0.
+ tria_l = 0.
+ quad_u = -0.
+ quad_l = -0.4
+
+
+ xampl  = +0.22
+ xsig   = 0.6
+ xwidth = 1.5
+ xtheta = 4.7
+ xleft  = -0.01
+ xshift = 0.02
+ xpoint = .t.
+
+ R_begin = 2.9
+ R_end   = 3.1
+ Z_begin = -0.1
+ Z_end   = 0.1
+
+ R_geo = 3.0
+ Z_geo = 0.
+
+ F0    = 3.0
+
+ amin     = 1.
+
+ n_R      = 0
+ n_Z      = 0
+ n_radial = 81
+ n_pol    = 128
+
+ n_flux   = 40
+ n_tht    = 64
+ n_open   = 15
+ n_leg    = 15
+ n_private = 9
+
+ ! --- wall extension blocks
+ extend_existing_grid        = .t.
+ n_wall_blocks               = 1
+
+ n_ext_block         ( 1)    = 12
+ n_ext_equidistant   ( 1)    = .f.
+ n_block_points_left ( 1)    =  2
+ R_block_points_left ( 1,1)  = +3.4807
+ Z_block_points_left ( 1,1)  = -1.6311
+ R_block_points_left ( 1,2)  = +3.9141
+ Z_block_points_left ( 1,2)  = -1.4510
+ n_block_points_right( 1)    = 2
+ R_block_points_right( 1,1)  = +3.5260
+ Z_block_points_right( 1,1)  = -1.0800
+ R_block_points_right( 1,2)  = +3.8493
+ Z_block_points_right( 1,2)  = -1.0906
+
+ ! --- Arbitrary wall data
+ n_limiter = 5
+ R_limiter(1) = -20.0 , Z_limiter(1) = -20.0
+ R_limiter(2) = +20.0 , Z_limiter(2) = -20.0
+ R_limiter(3) = +20.0 , Z_limiter(3) = +20.0
+ R_limiter(4) = -20.0 , Z_limiter(4) = +20.0
+ R_limiter(5) = -20.0 , Z_limiter(5) = -20.0
+
+ eta   = 2.d-6
+ visco = 4.d-6
+ visco_par = 1.d-4
+
+ eta_num = 3.d-10
+
+ D_par     = 0.d0
+ D_perp(1) = 1.d-5
+ D_perp(2) = 0.85d0
+ D_perp(3) = 0.d0
+ D_perp(4) = 0.01d0
+ D_perp(5) = 0.92d0
+
+ ZK_par     = 10.d0
+ ZK_perp(1) = 1.d-5
+ ZK_perp(2) = 0.85d0
+ ZK_perp(3) = 0.d0
+ ZK_perp(4) = 0.01d0
+ ZK_perp(5) = 0.92d0
+
+ FF_0 = 1.6
+ FF_1 = 0.
+ FF_coef(1)  = -1.0
+ FF_coef(2)  = 0.d0
+ FF_coef(3)  = 0.d0
+ FF_coef(4)  = 0.03d0
+ FF_coef(5)  = 1.0d0
+ FF_coef(6)  = -0.06d0
+ FF_coef(7)  = 0.90d0
+ FF_coef(8)  = 0.07d0
+
+ heatsource     = 1.d-7
+ particlesource = 5.d-6
+
+ T_0 = 1.5d-2
+ T_1 = 3.d-4
+ T_coef(1) = -0.66d0
+ T_coef(2) = +0.0d0
+ T_coef(3) = 0.d0
+ T_coef(4) = 0.08d0
+ T_coef(5) = 0.94d0
+
+ rho_0 = 1.
+ rho_1 = 0.01
+ rho_coef(1)  =  0.0
+ rho_coef(2)  =  0.0
+ rho_coef(3)  =  0.0
+ rho_coef(4)  =  0.08
+ rho_coef(5)  =  0.94d0
+
+ iter_precon = 22
+ gmres_m = 20
+ gmres_4 = 1.d0
+ gmres_max_iter = 200
+ gmres_tol = 1.d-8
+/

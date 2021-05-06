@@ -365,6 +365,7 @@ end subroutine get_data_from_eqdsk
 
 subroutine interpolate_psi_from_eqdsk_grid(nr_eqdsk, nz_eqdsk, xx, yy, psirz, R_find, Z_find, psi, psi_R, psi_Z)
 
+  use phys_module, only: eqdsk_psi_fact
   implicit none
   
   ! --- Input variables
@@ -445,9 +446,9 @@ subroutine interpolate_psi_from_eqdsk_grid(nr_eqdsk, nz_eqdsk, xx, yy, psirz, R_
   endif
 
   ! --- min sign because of JOREK definition of psi
-  psi   = - psi  
-  psi_R = - psi_R
-  psi_Z = - psi_Z
+  psi   = - eqdsk_psi_fact * psi  
+  psi_R = - eqdsk_psi_fact * psi_R
+  psi_Z = - eqdsk_psi_fact * psi_Z
 
   return
 

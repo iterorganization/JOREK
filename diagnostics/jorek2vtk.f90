@@ -351,7 +351,9 @@ if ( SI_units ) then
    else
       scalar_names(var_T)='Te_keV      '
    endif
-   scalar_names(var_Vpar)='Vpar_km/s   '
+   if (with_Vpar) then
+      scalar_names(var_Vpar)='Vpar_km/s   '
+   endif
 #endif
 
 #if (defined WITH_Neutrals) || (defined WITH_Impurities)
@@ -1390,11 +1392,12 @@ enddo  ! n_elements
       T_real8 = scalars(i,6)
       T_corr  = corr_neg_temp(T_real8)
       Tion    = corr_neg_temp(T_real8,(/1.d-5,0.3/))/(2.d0)
+      
+      r0_real8  = scalars(i,5)
 
       call atomic_coeff_deuterium(0.5d0*T_real8, Sion_T, dSion_dT, Srec_T, dSrec_dT,        &
-                                  LradDcont_T, dLradDcont_dT, LradDrays_T, dLradDrays_dT ) 
+                                  LradDcont_T, dLradDcont_dT, LradDrays_T, dLradDrays_dT, r0_real8 )
 
-      r0_real8  = scalars(i,5)
       rn0_real8 = scalars(i,8)
 
       r0_corr   = corr_neg_dens(r0_real8)
@@ -1477,7 +1480,9 @@ if (SI_units) then
       scalars(i,var_T) = scalars(i,var_T) / MU_zero / (central_density * 1d20) / EL_CHG /2./1.e3 !(assumes Te=Ti=T/2)
     endif
     !=====================================Vparal in km/s *Btot!!!
-    scalars(i,var_Vpar) = scalars(i,var_Vpar) /t_norm/1.e3
+    if (with_Vpar) then
+       scalars(i,var_Vpar) = scalars(i,var_Vpar) /t_norm/1.e3
+    endif
 #if (defined WITH_Neutrals) && (!defined WITH_Impurities)
     !===================================== Neutral density in 1e20m-3
     scalars(i,var_rhon) = scalars(i,var_rhon) * central_density

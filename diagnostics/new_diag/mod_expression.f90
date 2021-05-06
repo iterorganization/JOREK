@@ -1352,7 +1352,7 @@ module mod_expression
 
    if (use_imp_adas) then
      call atomic_coeff_deuterium(Te0, Sion_T, dSion_dT, Srec_T, dSrec_dT,        &
-                                LradDcont_T, dLradDcont_dT, LradDrays_T, dLradDrays_dT ) 
+                                LradDcont_T, dLradDcont_dT, LradDrays_T, dLradDrays_dT, r0 ) 
      ! Note the input Te0 for atomic_coeff_deuterium should be in JOREK units!!!
 
     !--------------------------------------------------------

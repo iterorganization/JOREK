@@ -299,10 +299,10 @@
  
  n_R       = 000   
  n_Z       = 000   
- n_radial  = 020   
- n_pol     = 045   
+ n_radial  = 30
+ n_pol     = 40
 
- n_flux    = 20 !044   
+ n_flux    = 20   
  n_tht     = 061   
  n_open    = 002   
  n_leg     = 003   

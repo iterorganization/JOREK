@@ -731,7 +731,7 @@ do i=1,n_vertex_max
           endif
 
           call atomic_coeff_deuterium(0.5d0*T0, Sion_T, dSion_dT, Srec_T, dSrec_dT,        &
-                                      LradDcont_T, dLradDcont_dT, LradDrays_T, dLradDrays_dT ) 
+                                      LradDcont_T, dLradDcont_dT, LradDrays_T, dLradDrays_dT, r0 )
 
           ! --- Transform derivatives on Te to derivatives in total T
           dSion_dT      = dSion_dT      / 2.d0

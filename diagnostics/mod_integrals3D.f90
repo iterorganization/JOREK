@@ -649,7 +649,7 @@ do ife = ife_min, ife_max
 #if ( (defined WITH_Neutrals) && (! defined WITH_Impurities) )
         ! --- Get ionization, recombination and radiation coefficients for Deuterium 
         call atomic_coeff_deuterium(0.5d0*T0_corr, Sion_T, dSion_dT, Srec_T, dSrec_dT,        &
-                                            LradDcont_T, dLradDcont_dT, LradDrays_T, dLradDrays_dT ) 
+                                            LradDcont_T, dLradDcont_dT, LradDrays_T, dLradDrays_dT, r0 ) 
       
       
         ! Get coefficient:  Prad,SI = coef_prad_si * Prad,jorek
@@ -865,6 +865,7 @@ do ife = ife_min, ife_max
 #endif /* WITH_TiTe */
 #endif /* WITH_Impurities */
 #ifdef WITH_Impurities
+        D_tot  = D_tot  + (r0-rn0) * xjac * BigR * wst * delta_phi 
 #ifdef WITH_TiTe
         P_e_tot = P_e_tot + (r0+alpha_e*rn0) * T0e * xjac * BigR * wst * delta_phi
         P_i_tot = P_i_tot + (r0+alpha_i*rn0) * T0i * xjac * BigR * wst * delta_phi
@@ -875,6 +876,7 @@ do ife = ife_min, ife_max
         P_i_tot = P_e_tot
 #endif /* WITH_TiTe */
 #else /* WITH_Impurities */
+        D_tot  = D_tot  + r0       * xjac * BigR * wst * delta_phi
 #ifdef WITH_TiTe
         P_e_tot = P_e_tot + r0 * T0e * xjac * BigR * wst * delta_phi
         P_i_tot = P_i_tot + r0 * T0i * xjac * BigR * wst * delta_phi
@@ -886,7 +888,6 @@ do ife = ife_min, ife_max
 #endif /* WITH_TiTe */
 #endif /* WITH_Impurities */
 
-        D_tot  = D_tot  + r0      * xjac * BigR * wst * delta_phi
         VP_tot = VP_tot + r0 * vpar0**2 * BB2 * xjac * BigR * wst * delta_phi
         VK_tot = VK_tot + r0 * (dudx**2 + dudy**2) * BigR**2 * xjac * BigR * wst * delta_phi
         VM_tot = VM_tot + (dpsidx**2+dpsidy**2)/BigR**2 * xjac * BigR * wst * delta_phi

@@ -49,6 +49,8 @@ integer             :: n_seg_prev
 real*8              :: seg_prev(n_seg_max)
 integer             :: n_loop, i, j, index
 logical, parameter  :: plot_grid = .true.
+character*2         :: char_patch
+character*256       :: filename
 
 my_id  = 1 ! Just don't want the printout...
 
@@ -291,12 +293,21 @@ if (xcase .ne. 1) then
   call update_neighbours_basic(element_list_new,node_list_new)
   call update_boundary_types  (element_list_new,node_list_new, 1)
 endif
+call temporary_element_sizes(node_list_new, element_list_new)
+call export_restart(node_list_new, element_list_new, 'grid_no_patch')
 
 !-------------------------------- Now the wall extension
 do i_ext = 1,n_wall_blocks
   call define_extension_patch(node_list_new, element_list_new, node_list_tmp, element_list_tmp, n_seg_prev, seg_prev, i_ext)
   call update_neighbours_basic(element_list_tmp,node_list_tmp)
   call update_boundary_types  (element_list_tmp,node_list_tmp, 0)
+  ! --- create restart file for vtk plots BEG
+  if (i_ext .lt. 10) write(char_patch,'(i1)') i_ext
+  if (i_ext .ge. 10) write(char_patch,'(i2)') i_ext
+  write(filename,'(A10,A)')'grid_patch',trim(char_patch)
+  call temporary_element_sizes(node_list_tmp, element_list_tmp)
+  call export_restart(node_list_tmp, element_list_tmp, filename)
+  ! --- create restart file for vtk plots END
   call join_grid_patches(node_list_new,  element_list_new, &
                          node_list_tmp,  element_list_tmp, &
                          node_list_tmp2, element_list_tmp2, xcase)
@@ -309,7 +320,7 @@ enddo
 
 !-------------------------------- Finalise grid (element size, nodes index etc.)
 call finish_grid(node_list, element_list, node_list_new, element_list_new, n_grids, .true., .true., .true.)
-call export_restart(node_list, element_list, 'jorek_restart')
+call export_restart(node_list, element_list, 'jorek_grid')
 
 
 

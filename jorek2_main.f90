@@ -598,7 +598,7 @@ required = 0
     end if
     
     ! --- Check sanity of grid
-    call check_grid(my_id, node_list, element_list)
+    if (.not. RZ_grid_inside_wall) call check_grid(my_id, node_list, element_list)
 
 #ifdef USE_MUMPS
     ! --- Initialize MUMPS solver (used for equilibrium)
@@ -625,7 +625,7 @@ required = 0
         
         if (xpoint)  then
 
-          if ( (xcase .ge. 2) .or. (grid_to_wall .and. (n_wall_blocks .gt. 0)) ) then
+          if ( (xcase .ge. 2) .or. (grid_to_wall .and. (n_wall_blocks .gt. 0)) .or. RZ_grid_inside_wall ) then
             if (grid_to_wall) then
               call grid_double_xpoint_inside_wall(node_list, element_list)
             else

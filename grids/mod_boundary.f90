@@ -361,6 +361,7 @@ module mod_boundary
   subroutine sort_bnd_elements( bnd_elm_list )
 
     use data_structure
+    use phys_module, only: n_wall_blocks
 
     implicit none
 
@@ -399,6 +400,12 @@ module mod_boundary
           found_neighbour = .true.
           exit
         end if
+
+        ! --- When using patches, there may be multiple boundary contours (eg. ITER with dome)
+        if ( (ibnd_elem .eq. bnd_elm_list%n_bnd_elements) .and. (n_wall_blocks .gt. 0) .and. (.not. found_neighbour) ) then
+          current_vertex = bnd_elm_list%bnd_element(1)%vertex(1)
+          found_neighbour = .true.
+        endif
 
       end do
 
