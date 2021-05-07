@@ -136,6 +136,7 @@ namelist /in1/  tstep, nstep, tstep_n, nstep_n,                     &
                 starwall_equil_coils, freeb_equil_iterate_area,     &
                 psi_offset_freeb, diag_coils, rmp_coils,            &
                 voltage_coils, vert_FB_amp, find_pf_coil_currents,  &
+                delta_psi_GS, newton_GS_fixbnd, newton_GS_freebnd,  &
                 pastix_maxthrd, eta_ohmic, centralize_harm_mat,     &
                 autodistribute_modes, modes_per_family,             &
                 mode_families_modes, n_mode_families,               &
@@ -184,14 +185,14 @@ if (my_id .eq. 0) then
 
   ! --- Calculate JOREK gamma_sheath from gamma_stangeby if provided (otherwise the other way around)
   if (gamma_e_stangeby > -1.d89) then
-    gamma_sheath_e = (gamma-1.d0) * (0.5d0*gamma_e_stangeby - 1.d0)
+    gamma_sheath_e = (gamma-1.d0) * (gamma_e_stangeby - 1.d0)
   else
-    gamma_e_stangeby = 2.d0 * ( gamma_sheath_e / (gamma-1.d0) + 1.d0 )
+    gamma_e_stangeby = gamma_sheath_e / (gamma-1.d0) + 1.d0
   end if
   if (gamma_i_stangeby > -1.d89) then
-    gamma_sheath_i = (gamma-1.d0) * (0.5d0*gamma_i_stangeby - 1.d0)
+    gamma_sheath_i = (gamma-1.d0) * (gamma_i_stangeby - 1.d0 - gamma)
   else
-    gamma_i_stangeby = 2.d0 * ( gamma_sheath_i / (gamma-1.d0) + 1.d0 )
+    gamma_i_stangeby = gamma_sheath_i / (gamma-1.d0) + 1.d0 + gamma
   end if
 
 

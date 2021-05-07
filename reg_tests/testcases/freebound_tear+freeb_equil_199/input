@@ -19,7 +19,9 @@
  freeboundary_equil = .t.
  resistive_wall = .t.
  wall_resistivity_fact=0.d0
- 
+
+ newton_GS_freebnd    = .f. 
+
  pf_coils( 1)%current    =  2.63d+4       
  pf_coils( 2)%current    =  2.63d+4        
  pf_coils( 3)%current    =  2.63d+4       

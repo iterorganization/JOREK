@@ -23,7 +23,9 @@
  freeboundary = .f.
  freeboundary_equil = .t.
  resistive_wall      = .t.
- 
+
+ newton_GS_freebnd    = .f. 
+
  amix                 = 0.d0
  amix_freeb           = 0.85d0
  FB_Ip_position       = 0.5d0

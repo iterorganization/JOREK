@@ -62,6 +62,28 @@ if (my_id .eq. 0) then
   write(*,*) '   freeboundary_equil : ',freeboundary_equil
   write(*,*) '   X-point      : ',xpoint2
   write(*,*) '   Xcase        : ',xcase2
+
+  if ((newton_GS_fixbnd .or. newton_GS_freebnd) .and. (use_pastix_eq)) then
+#ifndef USE_PASTIX6
+    write(*,*) ' '
+    write(*,*) ' WARNING: PASTIX 5 IS NOT EFFICIENT FOR THE GRAD-SHAFRANOV SOLVER'
+    write(*,*) '           WITH THE NEWTON METHOD. PLEASE USE PASTIX 6,          '
+    write(*,*) '           MUMPS OR STRUMPACK INSTEAD. For example               '
+    write(*,*) '           (add use_mumps_eq=.t. to namelist and  USE_MUMPS = 1  '
+    write(*,*) '           in Makefile.inc)                                      '
+    write(*,*) ' '
+#endif
+  endif
+
+  if ((newton_GS_fixbnd .or. newton_GS_freebnd) .and. (.not. xpoint2)) then
+    write(*,*) ' '
+    write(*,*) ' WARNING: THE NEWTON METHOD FOR THE GRAD-SHAFRANOV SOLVER DOES   '
+    write(*,*) '           NOT TAKE EFFECT FOR LIMITER PLASMAS (XPOINT=.F.)      '
+    write(*,*) '           AND PICARD ITERATIONS ARE RECOVERED                   '
+    write(*,*) '           FURTHER DEVELOPMENTS ARE NEEDED FOR LIMITER PLASMAS   '
+    write(*,*) ' '
+  endif
+
 endif
 
 freeboundary_equil2 = freeboundary_equil
@@ -70,8 +92,10 @@ freeboundary_equil  = .false.
 !------------------------------------ fixed boundary equilibrium
 n_iter       = 200
 psi_bnd      = 0.d0
+ES%psi_bnd   = 0.d0
 Z_xpoint(1)  = -99.d0
 Z_xpoint(2)  = +99.d0
+R_xpoint(:)  = R_geo
 vertical_FB  = 0.d0
 i_elm_xpoint = 0 
 current_tot  = 0.
@@ -80,51 +104,61 @@ if (my_id == 0) then
 
   do iter = 1, n_iter
   
-    call find_axis(my_id,node_list,element_list,psi_axis,R_axis,Z_axis,i_elm_axis,s_axis,t_axis,ifail)
   
-    if ((ifail .ne. 0) .and. (iter .le. 5)) then
+    call update_equil_state(my_id,node_list, element_list, bnd_elm_list, xpoint, xcase)
+    call print_equil_state(.true.)
+
+    if ((ES%ifail_axis .ne. 0) .and. (iter .le. 5)) then
       call find_RZ(node_list,element_list,R_geo,Z_geo,R_out,Z_out,i_elm,s_out,t_out,ifail)
       call interp(node_list,element_list,i_elm,1,1,s_out,t_out,psi_axis,P_s,P_t,P_st,P_ss,P_tt)
       write(*,'(A,3f10.5)')  ' changed magnetic axis to :  ', R_out,Z_out,psi_axis
+      ES%R_axis     = R_out;    ES%Z_axis = Z_out;  ES%psi_axis   = psi_axis;   
+      ES%s_axis     = s_out;    ES%t_axis = t_out;  ES%i_elm_axis = i_elm;
+      ES%ifail_axis = ifail   
     endif
     
     if (xpoint2) then
-      call find_xpoint(my_id,node_list,element_list,psi_xpoint,R_xpoint2,Z_xpoint2,i_elm_xpoint,s_xpoint,t_xpoint,xcase2,ifail)
-      if (ifail == 0) then ! (otherwise, keep the values of the previous iteration as a reasonable guess)
-        psi_bnd  = psi_xpoint(1)
-        if( (xcase2 .eq. 2) .or. ((xcase2 .eq. 3) .and. (psi_xpoint(2) .lt. psi_xpoint(1))) ) then
-          psi_bnd = psi_xpoint(2)
+      if (ES%ifail_xpoint == 0) then ! (otherwise, keep the values of the previous iteration as a reasonable guess)
+        ES%psi_bnd  = ES%psi_xpoint(1)
+        if( (xcase2 .eq. 2) .or. ((xcase2 .eq. 3) .and. (ES%psi_xpoint(2) .lt. ES%psi_xpoint(1))) ) then
+          ES%psi_bnd = ES%psi_xpoint(2)
         endif
-        R_xpoint(1) = R_xpoint2(1)
-        Z_xpoint(1) = Z_xpoint2(1)
-        R_xpoint(2) = R_xpoint2(2)
-        Z_xpoint(2) = Z_xpoint2(2)
-        if(xcase2 .eq. 1) Z_xpoint(2) = +99.d0
-        if(xcase2 .eq. 2) Z_xpoint(1) = -99.d0
+        psi_bnd     = ES%psi_bnd
+        R_xpoint(1) = ES%R_xpoint(1)
+        Z_xpoint(1) = ES%Z_xpoint(1)
+        R_xpoint(2) = ES%R_xpoint(2)
+        Z_xpoint(2) = ES%Z_xpoint(2)
+        if(xcase2 .eq. 1) ES%Z_xpoint(2) = +99.d0
+        if(xcase2 .eq. 2) ES%Z_xpoint(1) = -99.d0
       else
+        ES%R_xpoint = R_xpoint
+        ES%Z_xpoint = Z_xpoint
+        ES%psi_bnd  = psi_bnd
         if (freeboundary_equil) then
-          Z_xpoint(1) = -99.d0
-          Z_xpoint(2) = +99.d0
+          ES%Z_xpoint(1) = -99.d0
+          ES%Z_xpoint(2) = +99.d0
         endif
       endif
     else
-      psi_bnd = 0.d0
+      ES%psi_bnd = 0.d0
     endif
+
     if (.not. xpoint) then
-      call find_limiter(my_id,node_list,element_list,bnd_elm_list,psi_lim,R_lim,Z_lim)
-      if ( (Z_lim .gt. Z_xpoint(1)) .and. (Z_lim .lt. Z_xpoint(2)) ) then
+      if ( (ES%Z_lim .gt. ES%Z_xpoint(1)) .and. (ES%Z_lim .lt. ES%Z_xpoint(2)) ) then
         if (n_limiter /= 0) then   ! else n_limiter = 0 and psi_bnd is set to 0
-          psi_bnd = psi_lim
+          ES%psi_bnd = ES%psi_lim
           write(*,'(A,3f8.3)') ' LIMITER PLASMA ',psi_lim,R_lim,Z_lim
         endif
       endif
     endif
   
-    if(xcase2 .eq. 1) write(*,'(A,3es14.6,i3)') ' PSI_AXIS, PSI_BND : ',psi_axis,psi_bnd,Z_xpoint(1),ifail
-    if(xcase2 .eq. 2) write(*,'(A,3es14.6,i3)') ' PSI_AXIS, PSI_BND : ',psi_axis,psi_bnd,Z_xpoint(2),ifail
+    if(xcase2 .eq. 1) write(*,'(A,3es14.6,i3)') ' PSI_AXIS, PSI_BND  : ',ES%psi_axis,ES%psi_bnd,ES%Z_xpoint(1),ES%ifail_xpoint
+    if(xcase2 .eq. 2) write(*,'(A,3es14.6,i3)') ' PSI_AXIS, PSI_BND  : ',ES%psi_axis,ES%psi_bnd,ES%Z_xpoint(2),ES%ifail_xpoint
+
+    write(*,'(A,1f14.8)')                       ' PSI_BND - PSI_AXIS : ', ES%psi_bnd-ES%psi_axis 
   
     call poisson(my_id,-1,node_list,element_list,bnd_node_list,bnd_elm_list,3,1,1, &
-                 psi_axis,psi_bnd,xpoint2,xcase2,Z_xpoint,freeboundary_equil,refinement,iter)   !----------- for GS use -1
+                 ES%psi_axis,ES%psi_bnd,xpoint2,xcase2,ES%Z_xpoint,freeboundary_equil,refinement,iter)   !----------- for GS use -1
   
     diff = 0.d0
     do i=1, node_list%n_nodes
@@ -163,19 +197,28 @@ if (freeboundary_equil) then
     write(*,*) '------------------------------------------------------'
     write(*,*)
 
-    ! Target current and axis
+    ! Take target delta_psi from fixed boundary if not specified
+    if ((delta_psi_GS >= 10000.d0) .and. newton_GS_freebnd) then
+      write(*,*) ' '
+      write(*,*) ' Taking target delta_psi_GS=psi_bnd-psi_axis from fixed boundary equilibrium'
+      write(*,*) ' as it has not been specified in the input file'
+      write(*,*) ' '
+      delta_psi_GS = ES%psi_bnd - ES%psi_axis
+    endif
+    
+    ! Target current and axis for Picard iterations
     if (current_ref .gt. 1.d20) then    !choose fix bnd equilibrium final current in case of non specification of target current
-      call integral_current(node_list,element_list,psi_axis, psi_bnd, xpoint2, xcase2, Z_xpoint, current_ref)
+      call integral_current(node_list,element_list,ES%psi_axis,ES%psi_bnd, xpoint2, xcase2, ES%Z_xpoint, current_ref)
     endif
    
     if (Z_axis_ref .gt. 1.d20) then     !choose fix bnd equilibrium final Zaxis in case of non specification of target Zaxis
-      Z_axis_ref = Z_axis
+      Z_axis_ref = ES%Z_axis
     endif
     
     ! Target poloidal cross section area for limiter plasmas
     if (freeb_equil_iterate_area .and. (.not. xpoint2)) then
       n_limiter = 0    ! Use the full domain to search psibnd enclosing given area
-      call area_inside_flux_contour(node_list,element_list, xpoint2, xcase2, psi_bnd, area_ref, R_lim, Z_lim)
+      call area_inside_flux_contour(node_list,element_list, xpoint2, xcase2, ES%psi_bnd, area_ref, ES%R_lim, ES%Z_lim)
       write(*,*) ' The reference area from fixed boundaray is = ', area_ref
     endif
   
@@ -187,60 +230,61 @@ if (freeboundary_equil) then
       
       write(*,*)
       write(*,'(1x,a,i5,a)') '>>> ITERATION', iter, ' <<<'
-                     
-      ! Update axis annd boundary values
-      call find_axis(my_id,node_list,element_list,psi_axis,R_axis,Z_axis,i_elm_axis,s_axis,t_axis,ifail)
-      
-      write(10,'(i6,9e20.12)') iter, current_tot, R_axis, Z_axis, psi_bnd-psi_axis
-  
-      if ((ifail .ne. 0) .and. (iter .le. 5)) then
+ 
+      call update_equil_state(my_id,node_list, element_list, bnd_elm_list, xpoint, xcase)
+      call print_equil_state(.true.)
+
+      if ((ES%ifail_axis .ne. 0) .and. (iter .le. 5)) then
         call find_RZ(node_list,element_list,R_geo,Z_geo,R_out,Z_out,i_elm,s_out,t_out,ifail)
         call interp(node_list,element_list,i_elm,1,1,s_out,t_out,psi_axis,P_s,P_t,P_st,P_ss,P_tt)
-        write(*,*)  ' changed magnetic axis to :  ', R_out,Z_out,psi_axis
+        write(*,'(A,3f10.5)')  ' changed magnetic axis to :  ', R_out,Z_out,psi_axis
+        ES%R_axis     = R_out;    ES%Z_axis = Z_out;  ES%psi_axis   = psi_axis;   
+        ES%s_axis     = s_out;    ES%t_axis = t_out;  ES%i_elm_axis = i_elm;
+        ES%ifail_axis = ifail   
       endif
       
-      psi_bnd = 0.d0
+      write(10,'(i6,9e20.12)') iter, current_tot, R_axis, Z_axis, ES%psi_bnd-ES%psi_axis
+      
+      ES%psi_bnd = 0.d0
    
       if (xpoint2) then
-        call find_xpoint(my_id,node_list,element_list,psi_xpoint,R_xpoint,Z_xpoint,i_elm_xpoint,s_xpoint,t_xpoint,xcase2,ifail)
-        if (ifail .ne. 1) then      
-          psi_bnd  = psi_xpoint(1)
-          if( (xcase2 .eq. 2) .or. ((xcase2 .eq. 3) .and. (psi_xpoint(2) .lt. psi_xpoint(1))) ) then
-            psi_bnd = psi_xpoint(2)
+        if (ES%ifail_xpoint .ne. 1) then      
+          ES%psi_bnd  = ES%psi_xpoint(1)
+          if( (xcase2 .eq. 2) .or. ((xcase2 .eq. 3) .and. (ES%psi_xpoint(2) .lt. ES%psi_xpoint(1))) ) then
+            ES%psi_bnd = ES%psi_xpoint(2)
           endif
-          if(xcase2 .eq. 1) Z_xpoint(2) = +99.d0
-          if(xcase2 .eq. 2) Z_xpoint(1) = -99.d0
+          if(xcase2 .eq. 1) ES%Z_xpoint(2) = +99.d0
+          if(xcase2 .eq. 2) ES%Z_xpoint(1) = -99.d0
         else
-          Z_xpoint(1) = -99.d0 
-          Z_xpoint(2) = +99.d0
+          ES%Z_xpoint(1) = -99.d0 
+          ES%Z_xpoint(2) = +99.d0
         endif
       endif
   
       if (.not. xpoint2) then
-        call find_limiter(my_id,node_list,element_list,bnd_elm_list,psi_lim,R_lim,Z_lim)
-        if ( (Z_lim .gt. Z_xpoint(1)) .and. (Z_lim .lt. Z_xpoint(2)) ) then
+        if ( (ES%Z_lim .gt. ES%Z_xpoint(1)) .and. (ES%Z_lim .lt. ES%Z_xpoint(2)) ) then
           call is_axis_psi_mininum(node_list, element_list, bnd_elm_list)
           if (ES%axis_is_psi_minimum) then
-            psi_bnd = min(psi_lim,psi_bnd)
+            ES%psi_bnd = min(ES%psi_lim,ES%psi_bnd)
           else
-            psi_bnd = max(psi_lim,psi_bnd)
+            ES%psi_bnd = max(ES%psi_lim,ES%psi_bnd)
           endif
-          write(*,'(A,4f8.3)') ' LIMITER PLASMA ',psi_lim, psi_bnd, R_lim,Z_lim
+          write(*,'(A,4f8.3)') ' LIMITER PLASMA ',ES%psi_lim, ES%psi_bnd, ES%R_lim,ES%Z_lim
         endif
       endif
 
       if (freeb_equil_iterate_area .and. (.not. xpoint2)) then
-        call iterate2area(node_list,element_list, psi_axis, psi_lim, xpoint2, xcase2, area_ref, psi_bnd)
+        call iterate2area(node_list,element_list, ES%psi_axis, ES%psi_lim, xpoint2, xcase2, area_ref, ES%psi_bnd)
       endif
       
-      write(*,'(A,1f8.3)') ' Psi_bnd = ', psi_bnd   
+      write(*,'(A,1f8.3)') ' Psi_bnd = ', ES%psi_bnd   
       
       ! Calculate current feedback
-      call integral_current(node_list,element_list,psi_axis, psi_bnd, xpoint2, xcase2, Z_xpoint, current_tot)
+      call integral_current(node_list,element_list,ES%psi_axis, ES%psi_bnd, xpoint2, xcase2, ES%Z_xpoint, current_tot)
   
       current_int = current_int + (current_tot-current_ref)
       
-      if (mod(iter,n_feedback_current) .eq. 0) then
+      if ((mod(iter,n_feedback_current) .eq. 0) .and. (.not. newton_GS_freebnd)) then
         current_FB_fact  = current_FB_fact * (1. - FB_Ip_position * (current_tot-current_ref)/current_ref &
                                                  - FB_Ip_integral *  current_int/current_ref   )
       endif
@@ -256,20 +300,20 @@ if (freeboundary_equil) then
       write(*,'(A,1e12.4)') 'Current Feedback factor = ',  current_FB_fact
       
       !Vertical feedback - needed for vertically unstable plasmas        
-      Z_axis_int = Z_axis_int + (Z_axis - Z_axis_ref)
+      Z_axis_int = Z_axis_int + (ES%Z_axis - Z_axis_ref)
       if (iter .eq. 1) then
         dZ_axis = 0.d0
       else
-        dZ_axis = Z_axis - Z_axis_old
+        dZ_axis = ES%Z_axis - Z_axis_old
       end if
-      
-      if ((mod(iter,n_feedback_vertical) .eq. 0) .and. (iter .ge. start_VFB) ) then
-        vertical_FB = FB_Zaxis_position   * (Z_axis-Z_axis_ref) &   ! vertical_FB is used in vacuum_equilibrium.f90 to modify the coils current
+    
+      if ((mod(iter,n_feedback_vertical) .eq. 0) .and. (iter .ge. start_VFB) .and. (.not. newton_GS_freebnd) ) then
+        vertical_FB = FB_Zaxis_position   * (ES%Z_axis-Z_axis_ref) &   ! vertical_FB is used in vacuum_equilibrium.f90 to modify the coils current
                     + FB_Zaxis_integral   * Z_axis_int          &   
                     + FB_Zaxis_derivative * dZ_axis
       endif
         
-        Z_axis_old = Z_axis
+        Z_axis_old = ES%Z_axis
        
     end if ! my_id == 0
     
@@ -277,7 +321,7 @@ if (freeboundary_equil) then
   
     ! --- Iterate equation
     call poisson(my_id,-1,node_list,element_list,bnd_node_list,bnd_elm_list,3,1,1, &
-                 psi_axis,psi_bnd,xpoint2,xcase2,Z_xpoint,freeboundary_equil,refinement,iter)   !----------- for GS use -1
+                 ES%psi_axis,ES%psi_bnd,xpoint2,xcase2,ES%Z_xpoint,freeboundary_equil,refinement,iter)   !----------- for GS use -1
   
   !  call boundary_check
    

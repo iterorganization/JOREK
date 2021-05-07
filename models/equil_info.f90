@@ -176,6 +176,9 @@ module equil_info
       
       ES%limiter_plasma = .true.
       ES%active_xpoint  = 0
+      ES%R_xpoint(:)    = R_geo
+      ES%Z_xpoint(1)    = -99.d0
+      ES%Z_xpoint(2)    =  99.d0
 
       !--- If there are no X-points and find_limiter has failed, assume that the grid's boundary is a flux-surface and a limiter
       if (ES%ifail_lim /= 0) then
@@ -303,8 +306,9 @@ module equil_info
     
     ! --- Get coordinates of the magnetic axis
     if (ES%initialized) then
-      R_axis = ES%R_axis
-      Z_axis = ES%Z_axis
+      R_axis   = ES%R_axis
+      Z_axis   = ES%Z_axis
+      psi_axis = ES%psi_axis
     else
       call find_axis(99, node_list, element_list, psi_axis, R_axis, Z_axis,              &
         i_elm_axis, s_axis, t_axis, ifail)
@@ -319,7 +323,7 @@ module equil_info
     Z2 = Z_axis + 0.25d0*(Z1-Z_axis)
     call find_RZ(node_list, element_list, R2, Z2, R_out, Z_out, i_elm_out, s_out, t_out, ifail)    
     call interp(node_list, element_list, i_elm_out, 1, 1, s_out, t_out, P, P_s, P_t, P_st, P_ss, P_tt)
-    
+
     ! --- Decide whether the axis is a minimum of psi
     if ( (P - psi_axis) > 0.d0 ) then
       ES%axis_is_psi_minimum = .true.

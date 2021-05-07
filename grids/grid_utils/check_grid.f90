@@ -3,6 +3,7 @@ subroutine check_grid(my_id, node_list, element_list)
 use mod_parameters
 use data_structure
 use mod_basisfunctions
+use mod_export_restart
 
 implicit none
 
@@ -72,6 +73,7 @@ do ielm = 1, element_list%n_elements
 end do
 
 if ( problem_found ) then
+  call export_restart(node_list, element_list, 'jorek_stopped')
   stop
 else
   write(*,*) 'Routine check_grid did not find issues.'

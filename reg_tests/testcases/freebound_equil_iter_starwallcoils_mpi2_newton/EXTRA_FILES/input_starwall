@@ -1,0 +1,54 @@
+&PARAMS
+  ! Calculate response matrix for:
+  !   0=no wall, 1=ideal wall, 2=resistive wall
+  i_response = 2,
+  
+  ! Number of toroidal modes
+  n_harm     = 1,
+
+  ! Toroidal mode numbers n_tor(i) for i=1...n_harm
+  n_tor      = 0,
+  
+  ! Number of toroidal grid points for real space representation
+  nv         = 22,
+  
+  ! B_par is computed on a surface shifted by delta into the vacuum domain
+  ! (numerical parameter: leave unchanged)
+  delta      = 0.001,
+  
+  ! Number of grid points per boundary element
+  n_points   = 10,
+  
+  ! Number of unconnected wall components
+  ! (CURRENTLY UNUSED)
+  nwall      = 1,
+  
+  ! Representation of the wall:
+  !   1=Fourier series, 2=triangles, 3=triangles+index fu.
+  iwall      = 1,
+  
+  pol_coil_file = 'polcoils_iter.nml'
+/
+
+
+
+&PARAMS_WALL
+  eta_thin_w = 1.
+  
+  ! Wall grid points in poloidal direction
+  nwu        = 12,
+  
+  ! Wall grid points in toroidal direction
+  nwv        = 12,
+  
+  ! Number of Fourier harmonics
+  mn_w       = 8,
+  
+  ! Modes characterizing the wall shape (data taken from ../wall/descur/input/out_vmec_test)
+  n_w  =          0,         0,         0,         0,         0,         0,         0,         0,
+  m_w  =          0,         1,         2,         3,         4,         5,         6,         7,
+  rc_w =  5.7387E+0, 2.8230E+0, 4.3479E-1,-1.0796E-1, 8.9448E-2, 1.2628E-2, 1.2445E-3, 2.9309E-2,
+  rs_w =  0.0000E+0, 3.6590E-2, 5.1754E-2, 6.4473E-2, 5.7993E-2, 1.8204E-2,-1.4235E-2,-1.4031E-2,
+  zc_w =  7.9184E-2, 3.6590E-2, 7.4851E-2, 3.4342E-2, 1.2247E-2,-1.2918E-2,-2.1155E-2,-7.0774E-3,
+  zs_w =  0.0000E+0, 5.1906E+0,-2.2917E-1, 7.2744E-3,-2.3149E-2,-3.0743E-3, 1.6155E-4,-7.0349E-3,
+/

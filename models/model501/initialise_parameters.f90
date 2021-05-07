@@ -137,6 +137,7 @@ namelist /in1/  tstep, nstep, tstep_n, nstep_n,                     &
                 starwall_equil_coils, freeb_equil_iterate_area,     &
                 psi_offset_freeb, diag_coils, rmp_coils,            &
                 voltage_coils, vert_FB_amp, find_pf_coil_currents,  &
+                delta_psi_GS, newton_GS_fixbnd, newton_GS_freebnd,  &
                 pastix_maxthrd, eta_ohmic, centralize_harm_mat,     & 
                 n_particles, tstep_particles, nstep_particles,      &
                 nsubstep_particles, restart_particles,              &

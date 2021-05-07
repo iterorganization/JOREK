@@ -367,6 +367,9 @@ module phys_module
   real*8  :: amix              !< Mix Poisson solution with previous one with a given factor
   real*8  :: equil_accuracy    !< Tolerance of the convergence for the fix-boundary equilibrium
   real*8  :: axis_srch_radius  !< Magnetic axis will be searched inside a circle with this radius
+  real*8  :: delta_psi_GS      !< Expected psi_bnd - psi_axis for the final equilibrium  
+  logical :: newton_GS_fixbnd  !< Newton instead of Picard iterations for fixed-boundary equilibria?
+  logical :: newton_GS_freebnd !< Newton instead of Picard iterations for free-boundary equilibria?
  
   !> @name Free boundary extension
   !! Input parameters related to the free boundary extension (folder vacuum/).

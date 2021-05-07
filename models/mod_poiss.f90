@@ -10,10 +10,13 @@ use tr_module
 use data_structure
 use mumps_module
 use pastix_module
-use phys_module, only: amix, amix_freeb, use_pastix_eq, use_mumps_eq, use_strumpack_eq
+use phys_module, only: amix, amix_freeb, use_pastix_eq, use_mumps_eq, use_strumpack_eq, &
+                                                delta_psi_GS, newton_GS_freebnd, newton_GS_fixbnd, n_limiter
+use equil_info,  only: ES
 use vacuum_equilibrium, only: vacuum_equil
 use mod_coicsr
 use mpi_mod
+use mod_interp
 use mod_basisfunctions
     use mod_integer_types
 #ifdef USE_PASTIX6
@@ -53,12 +56,17 @@ type (type_bnd_node_list)    :: bnd_node_list
 type (type_bnd_element_list) :: bnd_elm_list
 
 real*8   :: ELM(n_vertex_max*(n_order+1),n_vertex_max*(n_order+1)), RHS(n_vertex_max*(n_order+1))
+real*8   :: ELM_axis(n_vertex_max*(n_order+1),n_vertex_max*(n_order+1)),  ELM_bnd(n_vertex_max*(n_order+1),n_vertex_max*(n_order+1))
 real*8   :: zbig, Z_xpoint(2), psi_axis, psi_bnd, psi_xpoint(2), R_xpoint(2), s_xpoint(2), t_xpoint(2)
 real*8   :: R_axis, Z_axis, s_axis, t_axis
+real*8   :: psi_axis_kl(n_vertex_max,(n_order+1)), psi_bnd_kl(n_vertex_max,(n_order+1)) 
+real*8   :: G_axis(4,4), G_bnd(4,4), G_s(4,4), G_t(4,4), G_st(4,4), G_ss(4,4), G_tt(4,4)
 real*8   :: amix_used
-integer  :: i_elm_axis, i_elm_xpoint(2)
+real*8   :: psi_lim, R_lim, Z_lim, R_out, Z_out, s_bnd, t_bnd, P_s,P_t,P_st,P_ss,P_tt
+integer  :: i_elm_bnd, i_elm_axis, i_elm_xpoint(2), ifail
 integer  :: n_AA, nz_AA, nz_AA_old, n_border, ilarge, ife, iv, i,j,k,l
 integer  :: inode, index_large_i, knode, index_large_k, index_ij, index_kl, index, index_i
+logical   :: newton_method_GS
 
 real*8, dimension(4,4)	 :: H, H_s, H_t, H_st
 real*8			 :: lambda, mu	
@@ -98,8 +106,16 @@ if (my_id == 0) then
     write(*,*) ' n_nodes      : ',node_list%n_nodes
     write(*,*) ' freeboundary_equil : ',freeboundary_equil
   endif
-  
-  nz_AA = element_list%n_elements * (n_vertex_max * (n_order+1))**2 
+
+  newton_method_GS = newton_GS_fixbnd
+  if (freeboundary_equil) newton_method_GS = newton_GS_freebnd
+ 
+  if (newton_method_GS) then  
+    nz_AA = 3 * element_list%n_elements * (n_vertex_max * (n_order+1))**2  !factor 3 comes from axis and x-point contributions 
+  else
+    nz_AA = 1 * element_list%n_elements * (n_vertex_max * (n_order+1))**2  
+  endif
+
   call tr_debug_write("Deb_poisson",nz_AA)
   
   n_border = 0
@@ -154,9 +170,30 @@ if (my_id == 0) then
   
   amix_used = amix
   
-  if (itype .eq. -1) then
+  if (itype .eq. -1) then     !--- if solving Grad-Shafranov
+    
+   
+    !-- Find axis and x-poit matrix contributions (for Newton iterations)   
+    call basisfunctions(ES%s_axis, ES%t_axis, G_axis, G_s, G_t, G_st, G_ss, G_tt)
+    call basisfunctions(ES%s_bnd ,  ES%t_bnd,  G_bnd, G_s, G_t, G_st, G_ss, G_tt)
+    do k=1,n_vertex_max  
+      do l=1,n_order+1
+        psi_axis_kl(k,l) =  G_axis(k,l) * element_list%element(ES%i_elm_axis)%size(k,l)  !--- matrix contributions of axis dofs
+        psi_bnd_kl(k,l)  =  G_bnd(k,l)  * element_list%element(ES%i_elm_bnd)%size(k,l)   !--- matrix contributions of bnd point dofs
+      enddo
+    enddo
+
+    ! --- ATTENTION: limiter free-boundary plasmas not working well yet with Newton method 
+    if (.not. xpoint) psi_bnd_kl = 0.d0  
+ 
+    if (.not. newton_method_GS) then
+      psi_bnd_kl  = 0.d0
+      psi_axis_kl = 0.d0
+    endif
+    
     if (freeboundary_equil) amix_used = amix_freeb
-  endif
+  
+  endif   !--- end type -1 (GS equilibrium)
   
   do ife =1, element_list%n_elements
   
@@ -188,7 +225,8 @@ if (my_id == 0) then
   
     if (itype .eq. -1) then
       
-      call element_matrix_GS_perturbation(xpoint,xcase,Z_xpoint,psi_axis,psi_bnd,element,nodes,ivar_in,ivar_out,i_harm,ELM,RHS)
+      call element_matrix_GS_perturbation(xpoint,xcase,Z_xpoint,psi_axis,psi_bnd,element,nodes,ivar_in,ivar_out,i_harm,ELM,RHS, &
+      psi_axis_kl, ELM_axis, psi_bnd_kl, ELM_bnd, newton_method_GS)
       
     elseif (itype .eq. -2) then
   
@@ -244,6 +282,51 @@ if (my_id == 0) then
   
           enddo
         enddo
+
+        if (newton_method_GS) then     ! newton method extra contributions
+        
+          ! --- Perturbed contribution of the magnetic axis
+          do k=1,n_vertex_max
+    
+            knode = element_list%element(ES%i_elm_axis)%vertex(k)
+    
+            do l=1,n_order+1
+    
+              index_kl = (k-1)*(n_order+1) + l
+    
+              index_large_k = node_list%node(knode)%index(l)  ! base index in the main matrix
+    
+              ilarge = ilarge +1
+    
+              mumps_par%irn(ilarge) = index_large_i
+              mumps_par%jcn(ilarge) = index_large_k
+              mumps_par%A(ilarge)   = ELM_axis(index_ij,index_kl)
+    
+            enddo
+          enddo
+          
+          ! --- Perturbed contribution of the limiter/X-point
+          do k=1,n_vertex_max
+    
+            knode = element_list%element(ES%i_elm_bnd)%vertex(k)
+    
+            do l=1,n_order+1
+    
+              index_kl = (k-1)*(n_order+1) + l
+    
+              index_large_k = node_list%node(knode)%index(l)  ! base index in the main matrix
+    
+              ilarge = ilarge +1
+    
+              mumps_par%irn(ilarge) = index_large_i
+              mumps_par%jcn(ilarge) = index_large_k
+              mumps_par%A(ilarge)   = ELM_bnd(index_ij,index_kl)           
+    
+            enddo
+          enddo
+
+        endif ! newton method extra contributions
+        
       enddo
     enddo
   

@@ -28,7 +28,9 @@
   freeboundary = .t.
   resistive_wall = .t.
   freeboundary_equil = .t.
-  
+
+  newton_GS_freebnd    = .f. 
+
   wall_resistivity_fact = 1.
   
   pf_coils( 1)%current =   367176.7    !--- triang                  IPF1AU

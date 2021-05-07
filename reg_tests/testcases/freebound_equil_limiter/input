@@ -20,9 +20,11 @@
  XR_r(2)  = 0.99
  SIG_r(2) = 0.05
 
- freeboundary = .f.
+ freeboundary = .t.
  freeboundary_equil = .t.
  resistive_wall      = .t.
+
+ newton_GS_freebnd  = .f.
  
  amix                 = 0.d0
  amix_freeb           = 0.85d0

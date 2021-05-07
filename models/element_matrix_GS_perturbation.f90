@@ -1,4 +1,5 @@
-subroutine element_matrix_GS_perturbation(xpoint2,xcase2,Z_xpoint,psi_axis,psi_bnd,element,nodes,ivar_in,ivar_out,i_harm,ELM,RHS)
+subroutine element_matrix_GS_perturbation(xpoint2,xcase2,Z_xpoint,psi_axis,psi_bnd,element,nodes,ivar_in, &
+           ivar_out,i_harm,ELM,RHS, psi_axis_kl, ELM_axis, psi_bnd_kl, ELM_bnd, newton_method_GS)
 !---------------------------------------------------------------
 ! calculates the matrix contribution of one element
 !---------------------------------------------------------------
@@ -19,12 +20,17 @@ real*8     :: factor(n_gauss,n_gauss)
 real*8     :: eq_g(n_gauss,n_gauss),  eq_s(n_gauss,n_gauss),  eq_t(n_gauss,n_gauss)
 real*8     :: eq2_g(n_gauss,n_gauss), eq2_s(n_gauss,n_gauss), eq2_t(n_gauss,n_gauss)
 real*8     :: ELM(n_vertex_max*(n_order+1),n_vertex_max*(n_order+1)), RHS(n_vertex_max*(n_order+1))
+real*8     :: ELM_axis(n_vertex_max*(n_order+1),n_vertex_max*(n_order+1))
+real*8     :: psi_axis_kl(n_vertex_max,(n_order+1))
+real*8     :: ELM_bnd(n_vertex_max*(n_order+1),n_vertex_max*(n_order+1))
+real*8     :: psi_bnd_kl(n_vertex_max,(n_order+1))
 
 real*8     :: xjac, wst
 real*8     :: ps0_x, ps0_y, v, v_x, v_y, psi, psi_x, psi_y, rhs_ij
-integer    :: ms, mt, i, j, k, l, index_ij, index_kl, itype, ivar_in, ivar_out, i_harm, xcase2, nc
-logical    :: xpoint2
-real*8     :: Z_xpoint(2),psi_axis,psi_bnd,dj_dpsi,dj_dz
+real*8     :: pprime_fact, fact_newton
+integer    :: ms, mt, i, j, k, l, index_ij, index_kl, itype, ivar_in, ivar_out, i_harm, xcase2, nc, ierr
+logical    :: xpoint2, newton_method_GS
+real*8     :: Z_xpoint(2),psi_axis,psi_bnd,dj_dpsi,dj_dz, psi_norm, fact_private
 real*8     :: zn, dn_dpsi, dn_dz,  ddn_dpsi,  ddn_dz,  ddn_dpsi_dz,  dn_dpsi3,  dn_dpsi_dz2,  dn_dpsi2_dz
 real*8     :: zT, dT_dpsi, dT_dz,  ddT_dpsi,  ddT_dz,  ddT_dpsi_dz,  dT_dpsi3,  dT_dpsi_dz2,  dT_dpsi2_dz
 real*8     :: zTi,dTi_dpsi,dTi_dz, ddTi_dpsi, ddTi_dz, ddTi_dpsi_dz, dTi_dpsi3, dTi_dpsi_dz2, dTi_dpsi2_dz
@@ -33,7 +39,26 @@ real*8     :: ddFFprime_dpsi_dz, zFFprime, dFFprime_dpsi,dFFprime_dz, dFFprime_d
 
 
 ELM=0.d0
+ELM_axis=0.d0
+ELM_bnd =0.d0
 RHS=0.d0
+
+fact_newton=0.d0
+if (newton_method_GS) fact_newton=1.d0   !--- parameter to choose Newton iterations instead of Picard
+
+if (delta_psi_GS < 10000.d0) then
+  pprime_fact = (psi_bnd - psi_axis)/delta_psi_GS  ! --- factor to impose total dp_dpsi instead of just dp_dpsinorm
+else
+  pprime_fact = 1.d0
+  if (newton_method_GS) then  !--- if newton iterations, oblige the user to specify target psi_bnd-psi_axis
+    write(*,*) "*************************************************************"
+    write(*,*) "*  Please specify delta_psi_GS = psi_bnd-psi_axis in the    *"
+    write(*,*) "*  input file for Newton iterations for the GS equation     *"
+    write(*,*) "*  If unknown, calculate it with newton_GS_fixbnd=.false.   *"
+    write(*,*) "*************************************************************"
+    call MPI_ABORT(MPI_COMM_WORLD,3,ierr) 
+  endif
+endif
 
 !---------------------------------------------------- value of (x,y) and derivatives on Gaussian points
 x_g(:,:)   = 0.d0; x_s(:,:)   = 0.d0; x_t(:,:)   = 0.d0;
@@ -96,9 +121,23 @@ do ms=1, n_gauss
     wst = wgauss(ms)*wgauss(mt)
 
     xjac =  x_s(ms,mt)*y_t(ms,mt) - x_t(ms,mt)*y_s(ms,mt)
+    
+    psi_norm = (eq2_g(ms,mt) - psi_axis) / (psi_bnd - psi_axis)
 
     ps0_x = (   y_t(ms,mt) * eq2_s(ms,mt) - y_s(ms,mt) * eq2_t(ms,mt) ) / xjac
     ps0_y = ( - x_t(ms,mt) * eq2_s(ms,mt) + x_s(ms,mt) * eq2_t(ms,mt) ) / xjac
+    
+    fact_private = 1.d0   !--- correct psi_norm definition in private regions
+    if (xpoint2) then
+      if ((psi_norm .lt. 1.d0) .and. (y_g(ms,mt) .lt. Z_xpoint(1)) .and. (xcase2 .ne. 2)) then
+        psi_norm = 2.d0 - psi_norm
+        fact_private = -1.d0
+      endif
+      if ((psi_norm .lt. 1.d0) .and. (y_g(ms,mt) .gt. Z_xpoint(2)) .and. (xcase2 .ne. 1)) then
+        psi_norm = 2.d0 - psi_norm
+        fact_private = -1.d0
+      endif
+    endif
 
     do i=1,n_vertex_max
 
@@ -110,17 +149,7 @@ do ms=1, n_gauss
         v_x = (  y_t(ms,mt) * h_s(i,j,ms,mt) - y_s(ms,mt) * h_t(i,j,ms,mt) ) * element%size(i,j) / xjac
         v_y = (- x_t(ms,mt) * h_s(i,j,ms,mt) + x_s(ms,mt) * h_t(i,j,ms,mt) ) * element%size(i,j) / xjac
 
-        rhs_ij =  zFFprime / x_g(ms,mt) - (zn * dT_dpsi + dn_dpsi * zT) * x_g(ms,mt)
-        
-	! --- Add PF coils for MAST
-        if ((.not. restart) .and. (n_pfc .ne. 0)) then
-    	  do nc=1,n_pfc
-    	    if (  (x_g(ms,mt) .lt. Rmax_pfc(nc)) .and. (x_g(ms,mt) .gt. Rmin_pfc(nc)) &
-	    .and. (y_g(ms,mt) .lt. Zmax_pfc(nc)) .and. (y_g(ms,mt) .gt. Zmin_pfc(nc)) )  then
-              rhs_ij = rhs_ij + current_pfc(nc)
-    	    endif
-    	  enddo
-        endif
+        rhs_ij =  zFFprime / x_g(ms,mt) - (zn * dT_dpsi + dn_dpsi * zT) * x_g(ms,mt) * pprime_fact
 
         RHS(index_ij) = RHS(index_ij) + v * rhs_ij  * xjac * wst
 
@@ -136,9 +165,17 @@ do ms=1, n_gauss
 
             index_kl = (k-1)*(n_order+1) + l
 
-            ELM(index_ij,index_kl) =  ELM(index_ij,index_kl) - (psi_x * v_x + psi_y * v_y) * factor(ms,mt) * xjac * wst  !&
-	   
-!	    - 0.5d0 *( dFFprime_dpsi/x_g(ms,mt) - (zn*ddT_dpsi + ddn_dpsi*zT + 2.*dn_dpsi*dT_dpsi)*x_g(ms,mt)) *v*psi*xjac*wst
+            ELM(index_ij,index_kl) =  ELM(index_ij,index_kl) - (psi_x * v_x + psi_y * v_y) * factor(ms,mt) * xjac * wst  &	   
+	           -  ( dFFprime_dpsi/x_g(ms,mt) - pprime_fact*(zn*ddT_dpsi + ddn_dpsi*zT + 2.*dn_dpsi*dT_dpsi)*x_g(ms,mt)  )  &
+             * v * psi * xjac * wst * fact_private * fact_newton           
+          
+            ELM_axis(index_ij,index_kl) = ELM_axis(index_ij,index_kl) &         ! contribution of the magnetic axis (because of psi_norm definition)
+             -  ( dFFprime_dpsi/x_g(ms,mt) - pprime_fact*(zn*ddT_dpsi + ddn_dpsi*zT + 2.*dn_dpsi*dT_dpsi)*x_g(ms,mt) )   &
+             *fact_private * v * psi_axis_kl(k,l) * (psi_norm - 1) *xjac * wst * fact_newton        
+           
+            ELM_bnd(index_ij,index_kl) = ELM_bnd(index_ij,index_kl) &           ! contribution of the boundary point (because of psi_norm definition)
+             +  ( dFFprime_dpsi/x_g(ms,mt) - pprime_fact*(zn*ddT_dpsi + ddn_dpsi*zT + 2.*dn_dpsi*dT_dpsi)*x_g(ms,mt) )   &
+             *fact_private * v * psi_bnd_kl(k,l)  *  psi_norm      * xjac * wst * fact_newton    
 
          enddo
        enddo

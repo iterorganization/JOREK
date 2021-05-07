@@ -30,6 +30,8 @@
  n_feedback_current   = 1
  n_feedback_vertical  = 1
  n_iter_freeb         = 999 
+
+ newton_GS_freebnd    = .f.
  
  n_pf_coils          = 13
 

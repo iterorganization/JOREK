@@ -1,0 +1,150 @@
+&coil_set_nml
+  description = 'ITER poloidal field coil set for STARWALL_J (produced by M. Hoelzl 2017-03-01)'
+  ncoil       = 12
+/
+
+&coils_nml
+  coil( 1)%name      = 'PF1'
+  coil( 1)%coil_type = 'axisym_thick'
+  coil( 1)%resist    = 1. !###
+  coil( 1)%nturns    = 248.6
+  coil( 1)%ntorpts   = 12 
+  coil( 1)%R         = 3.954
+  coil( 1)%Z         = 7.557
+  coil( 1)%dR        = 0.726
+  coil( 1)%dZ        = 0.81334
+  coil( 1)%nbands_R  = 7
+  coil( 1)%nbands_Z  = 2
+  
+  coil( 2)%name      = 'PF2'
+  coil( 2)%coil_type = 'axisym_thick'
+  coil( 2)%resist    = 1. !###
+  coil( 2)%nturns    = 115.2
+  coil( 2)%ntorpts   = 12 
+  coil( 2)%R         = 8.309
+  coil( 2)%Z         = 6.530
+  coil( 2)%dR        = 0.433
+  coil( 2)%dZ        = 0.397
+  coil( 2)%nbands_R  = 4
+  coil( 2)%nbands_Z  = 1
+  
+  coil( 3)%name      = 'PF3'
+  coil( 3)%coil_type = 'axisym_thick'
+  coil( 3)%resist    = 1. !###
+  coil( 3)%nturns    = 185.9
+  coil( 3)%ntorpts   = 12 
+  coil( 3)%R         = 11.935
+  coil( 3)%Z         = 3.265
+  coil( 3)%dR        = 0.472
+  coil( 3)%dZ        = 0.938
+  coil( 3)%nbands_R  = 5
+  coil( 3)%nbands_Z  = 2
+  
+  coil( 4)%name      = 'PF4'
+  coil( 4)%coil_type = 'axisym_thick'
+  coil( 4)%resist    = 1. !###
+  coil( 4)%nturns    = 169.9
+  coil( 4)%ntorpts   = 12 
+  coil( 4)%R         = 11.905
+  coil( 4)%Z         = -2.243
+  coil( 4)%dR        = 0.433
+  coil( 4)%dZ        = 0.900
+  coil( 4)%nbands_R  = 4
+  coil( 4)%nbands_Z  = 2
+  
+  coil( 5)%name      = 'PF5'
+  coil( 5)%coil_type = 'axisym_thick'
+  coil( 5)%resist    = 1. !###
+  coil( 5)%nturns    = 216.8
+  coil( 5)%ntorpts   = 12 
+  coil( 5)%R         = 8.395
+  coil( 5)%Z         = -6.730
+  coil( 5)%dR        = 0.615
+  coil( 5)%dZ        = 0.756
+  coil( 5)%nbands_R  = 6
+  coil( 5)%nbands_Z  = 2
+  
+  coil( 6)%name      = 'PF6'
+  coil( 6)%coil_type = 'axisym_thick'
+  coil( 6)%resist    = 1. !###
+  coil( 6)%nturns    = 459.4
+  coil( 6)%ntorpts   = 12 
+  coil( 6)%R         = 4.287
+  coil( 6)%Z         = -7.557
+  coil( 6)%dR        = 1.429
+  coil( 6)%dZ        = 0.781
+  coil( 6)%nbands_R  = 14
+  coil( 6)%nbands_Z  = 2
+  
+  coil( 7)%name      = 'CS3U'
+  coil( 7)%coil_type = 'axisym_thick'
+  coil( 7)%resist    = 1. !###
+  coil( 7)%nturns    = 554.
+  coil( 7)%ntorpts   = 12 
+  coil( 7)%R         = 1.688
+  coil( 7)%Z         = 5.071
+  coil( 7)%dR        = 0.562
+  coil( 7)%dZ        = 1.827
+  coil( 7)%nbands_R  = 6
+  coil( 7)%nbands_Z  = 4
+  
+  coil( 8)%name      = 'CS2U'
+  coil( 8)%coil_type = 'axisym_thick'
+  coil( 8)%resist    = 1. !###
+  coil( 8)%nturns    = 554.
+  coil( 8)%ntorpts   = 12 
+  coil( 8)%R         = 1.688
+  coil( 8)%Z         = 3.043
+  coil( 8)%dR        = 0.562
+  coil( 8)%dZ        = 1.827
+  coil( 8)%nbands_R  = 6
+  coil( 8)%nbands_Z  = 4
+  
+  coil( 9)%name      = 'CS1U'
+  coil( 9)%coil_type = 'axisym_thick'
+  coil( 9)%resist    = 1. !###
+  coil( 9)%nturns    = 554.
+  coil( 9)%ntorpts   = 12 
+  coil( 9)%R         = 1.688
+  coil( 9)%Z         = 1.014
+  coil( 9)%dR        = 0.562
+  coil( 9)%dZ        = 1.827
+  coil( 9)%nbands_R  = 6
+  coil( 9)%nbands_Z  = 4
+  
+  coil(10)%name      = 'CS1L'
+  coil(10)%coil_type = 'axisym_thick'
+  coil(10)%resist    = 1. !###
+  coil(10)%nturns    = 554.
+  coil(10)%ntorpts   = 12 
+  coil(10)%R         = 1.688
+  coil(10)%Z         = -1.014
+  coil(10)%dR        = 0.562
+  coil(10)%dZ        = 1.827
+  coil(10)%nbands_R  = 6
+  coil(10)%nbands_Z  = 4
+  
+  coil(11)%name      = 'CS2L'
+  coil(11)%coil_type = 'axisym_thick'
+  coil(11)%resist    = 1. !###
+  coil(11)%nturns    = 554.
+  coil(11)%ntorpts   = 12 
+  coil(11)%R         = 1.688
+  coil(11)%Z         = -3.043
+  coil(11)%dR        = 0.562
+  coil(11)%dZ        = 1.827
+  coil(11)%nbands_R  = 6
+  coil(11)%nbands_Z  = 4
+  
+  coil(12)%name      = 'CS3L'
+  coil(12)%coil_type = 'axisym_thick'
+  coil(12)%resist    = 1. !###
+  coil(12)%nturns    = 554.
+  coil(12)%ntorpts   = 12 
+  coil(12)%R         = 1.688
+  coil(12)%Z         = -5.071
+  coil(12)%dR        = 0.562
+  coil(12)%dZ        = 1.827
+  coil(12)%nbands_R  = 6
+  coil(12)%nbands_Z  = 4
+/

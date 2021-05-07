@@ -548,6 +548,9 @@ write(*,'(1x,a)',advance='no') ' USE_COMPLEX_PRECOND          : '
   write(*,REAL_FMT) 'amix                  ', amix
   write(*,REAL_FMT) 'equil_accuracy        ', equil_accuracy
   write(*,REAL_FMT) 'axis_srch_radius      ', axis_srch_radius
+  write(*,REAL_FMT) 'delta_psi_GS          ', delta_psi_GS
+  write(*,LOGI_FMT) 'newton_GS_fixbnd      ', newton_GS_fixbnd
+  write(*,LOGI_FMT) 'newton_GS_freebnd     ', newton_GS_freebnd
   
   if (freeboundary_equil) then
     write(*,LOGI_FMT) 'starwall_equil_coils  ', starwall_equil_coils

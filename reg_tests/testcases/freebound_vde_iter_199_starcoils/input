@@ -10,7 +10,9 @@
  resistive_wall     = .t.
  wall_resistivity   = 2.d-5
  wall_resistivity_fact = 1.
- 
+
+ newton_GS_freebnd    = .f. 
+
  amix                 = 0.25
  amix_freeb           = 0.65
  FB_Ip_position       = 0.35
