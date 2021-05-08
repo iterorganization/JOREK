@@ -911,8 +911,8 @@ do ms=1, n_gauss
      alpha_imp_x     = 0.5*m_i_over_m_imp*Z_imp_x
      alpha_imp_y     = 0.5*m_i_over_m_imp*Z_imp_y
 
-     delta_alpha_e = 0.
-     if (use_marker) delta_alpha_e = m_i_over_m_imp * delta_Z_imp
+     delta_alpha_imp = 0.
+     if (use_marker) delta_alpha_imp = 0.5 * m_i_over_m_imp * delta_Z_imp
 
      ne_SI       = (r0_corr + beta_imp * rn0_corr) * 1.d20 * central_density ! electron density (SI)
      ne_JOREK     = r0_corr + beta_imp * rn0_corr ! Electron density in JOREK unit
