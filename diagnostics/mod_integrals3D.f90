@@ -809,10 +809,12 @@ do ife = ife_min, ife_max
         if (Z_eff < 1) Z_eff = 1.
    
         ! This is to represent the dependence on Z_eff in resistivity
-        eta_coef     = Z_eff*(1.+1.198*Z_eff+0.222*Z_eff**2)/(1.+2.966*Z_eff+0.753*Z_eff**2)
-        eta_coef     = eta_coef / ((1.+1.198+0.222)/(1.+2.966+0.753))
-        eta_T        = eta_T * eta_coef
-        eta_T_ohm    = eta_T_ohm * eta_coef
+        if ( eta_T_dependent ) then
+          eta_coef     = Z_eff*(1.+1.198*Z_eff+0.222*Z_eff**2)/(1.+2.966*Z_eff+0.753*Z_eff**2)
+          eta_coef     = eta_coef / ((1.+1.198+0.222)/(1.+2.966+0.753))
+          eta_T        = eta_T * eta_coef
+          eta_T_ohm    = eta_T_ohm * eta_coef
+        endif
 
         if (ne_SI > ne_SI_min .and. Te_eV > Te_eV_min .and. rn0 > rn0_min) then
           Lrad = 0.0
@@ -1381,10 +1383,12 @@ do m_bndelem = 1, bnd_elm_list%n_bnd_elements
       if (Z_eff < 1) Z_eff = 1.
 
       ! This is to represent the dependence on Z_eff in resistivity
-      eta_coef     = Z_eff*(1.+1.198*Z_eff+0.222*Z_eff**2)/(1.+2.966*Z_eff+0.753*Z_eff**2)
-      eta_coef     = eta_coef / ((1.+1.198+0.222)/(1.+2.966+0.753))
-      eta_T        = eta_T * eta_coef
-      eta_T_ohm    = eta_T_ohm * eta_coef
+      if ( eta_T_dependent ) then
+        eta_coef     = Z_eff*(1.+1.198*Z_eff+0.222*Z_eff**2)/(1.+2.966*Z_eff+0.753*Z_eff**2)
+        eta_coef     = eta_coef / ((1.+1.198+0.222)/(1.+2.966+0.753))
+        eta_T        = eta_T * eta_coef
+        eta_T_ohm    = eta_T_ohm * eta_coef
+      endif
 
       dPedx  = ne_JOREK * dTedx + T0e * dne_JOREK_dx
       dPedy  = ne_JOREK * dTedy + T0e * dne_JOREK_dy
