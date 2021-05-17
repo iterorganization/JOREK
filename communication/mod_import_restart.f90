@@ -4,7 +4,7 @@ implicit none
 contains
 !> Imports a restart file written out by the routine export_restart.
 
-subroutine import_restart(node_list, element_list, filename, format_rst, ierr, no_perturbations)
+subroutine import_restart(node_list, element_list, filename, format_rst, ierr, no_perturbations, filename_pert)
 
   use tr_module
   use data_structure
@@ -23,6 +23,7 @@ subroutine import_restart(node_list, element_list, filename, format_rst, ierr, n
   integer,                 intent(out)   :: ierr
   integer,                 intent(in)    :: format_rst  ! format of restart file 
   logical, optional,       intent(in)    :: no_perturbations ! don't initialize new harmonics
+  character*(*), optional, intent(in)    :: filename_pert
  
   ! --- Local parameters
   type (type_bnd_element_list)           :: bnd_elm_list    
@@ -30,12 +31,18 @@ subroutine import_restart(node_list, element_list, filename, format_rst, ierr, n
 
   if ( rst_hdf5 == 0 ) then
     write(*,*) " Restart from BINARY file " // trim(filename) // '.rst'
+    if ( present(filename_pert) ) write(*,*) 'WARNING: Filename for perturbations ignored.'
     call import_binary_restart(node_list, element_list, trim(filename)//'.rst', &
             format_rst, ierr, no_perturbations)
   else if ( rst_hdf5 == 1 ) then
     write(*,*) " Restart from HDF5 file " // trim(filename) // '.h5'
-    call import_hdf5_restart(node_list, element_list, trim(filename)//'.h5', &
-            format_rst,ierr, no_perturbations)
+    if ( present(filename_pert)) then 
+      call import_hdf5_restart(node_list, element_list, trim(filename)//'.h5', &
+        format_rst,ierr, no_perturbations, trim(filename_pert)//'.h5')
+    else 
+      call import_hdf5_restart(node_list, element_list, trim(filename)//'.h5', &
+        format_rst,ierr, no_perturbations)
+    end if
   end if
   
   ! --- Required initializations to update equilibrium state
@@ -765,9 +772,13 @@ endif
 end subroutine import_binary_restart
 
 
-!
-! Import an HDF5 restart file
-subroutine import_hdf5_restart(node_list, element_list, filename, format_rst, error, no_perturbations)
+!############################################################################################################
+!#                                      Import an HDF5 restart file                                         #
+!############################################################################################################
+
+
+
+subroutine import_hdf5_restart(node_list, element_list, filename, format_rst, error, no_perturbations, filename_pert)
 
 #include "version.h"
 
@@ -790,20 +801,20 @@ subroutine import_hdf5_restart(node_list, element_list, filename, format_rst, er
   implicit none
   
   ! --- Routine parameters
-  type(type_node_list),    intent(inout) :: node_list
-  type(type_element_list), intent(inout) :: element_list
-  character(len=*),        intent(in)    :: filename
-  integer,                 intent(in)    :: format_rst  ! format of restart file
-  integer,                 intent(out)   :: error
-  logical, optional,       intent(in)    :: no_perturbations ! don't initialize new harmonics
+  type(type_node_list),       intent(inout) :: node_list
+  type(type_element_list),    intent(inout) :: element_list
+  character(len=*),           intent(in)    :: filename
+  integer,                    intent(in)    :: format_rst  ! format of restart file
+  integer,                    intent(out)   :: error
+  logical, optional,          intent(in)    :: no_perturbations ! don't initialize new harmonics
+  character(len=*), optional, intent(in)    :: filename_pert
   
   ! --- Perturbation-Import variables
-  type (type_node_list)   , pointer	:: node_list_perturbation
-  type (type_element_list), pointer	:: element_list_perturbation
-  integer              			:: n_tor_tmp_perturbation
-  integer, allocatable 			:: mode_tmp_perturbation(:)
-  real*8,  allocatable 			:: values_tmp_perturbation(:,:,:), deltas_tmp_perturbation(:,:,:)
-  logical, parameter   			:: import_perturbation = .false.
+  logical                  :: import_perturbation
+  integer                  :: n_tor_axis, rst_hdf5_version_pert, jorek_model_pert, n_nodes_tmp, n_nodes_pert
+  real(RKIND), allocatable :: a_values(:,:,:,:)
+  real(RKIND), allocatable :: a_deltas(:,:,:,:)
+  integer(HID_T)           :: pert_id
 
   ! --- Local variables
   integer              :: i, j, m, k, n_tor_tmp, n_coord_tor_tmp, jorek_model_tmp, n_var_tmp, n_order_tmp, n_period_tmp, rst_hdf5_version_tmp
@@ -813,10 +824,10 @@ subroutine import_hdf5_restart(node_list, element_list, filename, format_rst, er
   integer, allocatable :: mode_tmp(:), new_mode(:)
   real*8,  allocatable :: values_tmp(:,:,:), deltas_tmp(:,:,:)
   character*50         :: version_control, version_control_tmp
-  logical              :: kept, modes_changed, import_3xx_4xx
+  logical              :: kept, import_3xx_4xx
   
 #ifdef USE_HDF5
-  integer(HID_T)     :: file_id, datatype, dataset
+  integer(HID_T)     :: file_id, node_id, datatype, dataset
   integer            :: ind, n_spi_check
   
   real(RKIND), allocatable :: t_x(:,:,:,:)
@@ -845,36 +856,33 @@ subroutine import_hdf5_restart(node_list, element_list, filename, format_rst, er
   integer,     allocatable :: t_contain_node(:,:)
   integer,     allocatable :: t_nref(:)
 
-! local variables
+  real*8,      allocatable :: spi_R_arr (:)
+  real*8,      allocatable :: spi_Z_arr (:)
+  real*8,      allocatable :: spi_phi_arr (:)
+  real*8,      allocatable :: spi_phi_init_arr (:)
+  real*8,      allocatable :: spi_Vel_R_arr (:)
+  real*8,      allocatable :: spi_Vel_Z_arr (:)
+  real*8,      allocatable :: spi_Vel_RxZ_arr (:)
+  real*8,      allocatable :: spi_radius_arr (:)
+  real*8,      allocatable :: spi_abl_arr (:)
+  real*8,      allocatable :: spi_species_arr (:)
+  integer,     allocatable :: spi_species_arr_old (:)  !< For backward compatibility only
 
-  real*8, allocatable :: spi_R_arr (:)
-  real*8, allocatable :: spi_Z_arr (:)
-  real*8, allocatable :: spi_phi_arr (:)
-  real*8, allocatable :: spi_phi_init_arr (:)
-  real*8, allocatable :: spi_Vel_R_arr (:)
-  real*8, allocatable :: spi_Vel_Z_arr (:)
-  real*8, allocatable :: spi_Vel_RxZ_arr (:)
-  real*8, allocatable :: spi_radius_arr (:)
-  real*8, allocatable :: spi_abl_arr (:)
-  real*8, allocatable :: spi_species_arr (:)
-  integer, allocatable :: spi_species_arr_old (:)  !< For backward compatibility only
+  integer                  :: err_exists, dterr
+  logical                  :: flag_exists, type_match, no_pert
 
-  integer :: err_exists, dterr
-  logical :: flag_exists, type_match
+  real*8,      allocatable :: t_energies(:,:,:)   !< Magnetic and kinetic mode energies at previous timesteps.
+  real*8,      allocatable :: t_energies2(:,:,:)  !< Magnetic and kinetic mode energies at previous timesteps.
+  real*8,      allocatable :: t_energies3(:,:,:)  !< Magnetic and kinetic mode energies at previous timesteps.
+  real*8,      allocatable :: t_energies4(:,:,:)  !< Magnetic and kinetic mode energies at previous timesteps.
 
-  real*8, allocatable :: t_energies(:,:,:)   !< Magnetic and kinetic mode energies at previous timesteps.
-  real*8, allocatable :: t_energies2(:,:,:)  !< Magnetic and kinetic mode energies at previous timesteps.
-  real*8, allocatable :: t_energies3(:,:,:)  !< Magnetic and kinetic mode energies at previous timesteps.
-  real*8, allocatable :: t_energies4(:,:,:)  !< Magnetic and kinetic mode energies at previous timesteps.
-  logical                               :: no_pert
-  
-  no_pert = .false.
-  if ( present(no_perturbations) ) no_pert = no_perturbations
-  
-  !
 #endif
   error = 0
 #ifdef USE_HDF5
+
+  no_pert = .false.
+  if ( present(no_perturbations) )          no_pert = .true.
+  if ( present(filename_pert) ) import_perturbation = .true.
 
   ! ->  Reading HDF5 file
   write(*,*) 'Importing HDF5 restart file "', trim(filename), '".' 
@@ -885,6 +893,7 @@ subroutine import_hdf5_restart(node_list, element_list, filename, format_rst, er
     write(*,*) '...failed!'
     return
   end if
+  node_id = file_id
 
   ! Restart file version
   rst_hdf5_version_tmp = 0
@@ -904,6 +913,7 @@ subroutine import_hdf5_restart(node_list, element_list, filename, format_rst, er
 
   call HDF5_integer_reading(file_id,jorek_model_tmp,"jorek_model")
   call HDF5_integer_reading(file_id,n_var_tmp,"n_var")
+
   import_3xx_4xx = .false.
   if ( (jorek_model >= 400) .and. (jorek_model <= 499) .and. (jorek_model_tmp >= 300) .and. (jorek_model_tmp <= 399) ) then
     import_3xx_4xx = .true. ! Import a JOREK model 3XX restart file into a 4XX binary
@@ -914,7 +924,62 @@ subroutine import_hdf5_restart(node_list, element_list, filename, format_rst, er
     write(*,*) '  As an exception, importing a 3XX restart file into model 4XX has been implemented.'
     stop
   end if
-  call HDF5_integer_reading(file_id,n_order_tmp,"n_order")
+
+  if ( import_perturbation ) then
+
+    ! ->  Reading HDF5 file
+    write(*,*) 'Importing HDF5 restart file for perturbations "', trim(filename_pert), '".' 
+    
+    ! -> Open HDF5 file
+    call HDF5_open(trim(filename_pert),pert_id,error)
+    if ( error /= 0 ) then
+      write(*,*) '...failed!'
+      stop
+    end if
+
+    node_id = pert_id ! Set mode_tmp, n_tor_tmp, n_period_tmp, node_list%n_dof , t_values, t_deltas from perturbation
+
+    ! Restart file version
+    rst_hdf5_version_pert = 0
+    call HDF5_integer_reading(pert_id,rst_hdf5_version_pert,"rst_hdf5_version")
+    write(*,*) 'Restart file has rst_hdf5_version=', rst_hdf5_version_pert
+    if ( rst_hdf5_version_tmp > rst_hdf5_version_supported ) then
+      write(*,*) 'ERROR: Cannot read the hdf5 restart file "', trim(filename_pert),&
+        '" since it was created with a more recent code version.'
+      write(*,*) '* rst_hdf5_version of the restart file: ', rst_hdf5_version_tmp
+      write(*,*) '* rst_hdf5_version of the code version: ', rst_hdf5_version_supported
+      write(*,*) '* Note that you can export an older restart file version with your newer code by'
+      write(*,*) '    explicitly setting rst_hdf5_version in the namelist input file.'
+      stop
+    end if
+
+    ! check, if restart file and perturbation file are consistent
+    call HDF5_integer_reading(file_id,n_nodes_tmp,"n_nodes")
+    call HDF5_integer_reading(pert_id,n_nodes_pert,"n_nodes")
+    call HDF5_integer_reading(pert_id,jorek_model_pert,"jorek_model")
+
+
+    if ( n_nodes_pert /= n_nodes_tmp ) then
+      write(*,*) 'ERROR: Number of nodes in restart file and perturbation file must be identical.'
+      stop
+    end if
+
+    !if ( n_order_pert /= n_order_tmp ) then
+    !  write(*,*) 'ERROR: Order of polynomials in restart file and perturbation file must be identical.'
+    !  stop
+    !end if
+
+    !if ( n_dim_pert /= n_dim_tmp ) then
+    !  write(*,*) 'ERROR: Dimension of polynomials in restart file and perturbation file must be identical.'
+    !  stop
+    !end if
+
+    if ( jorek_model /= jorek_model_pert .or. jorek_model /= jorek_model_tmp ) then
+      write(*,*) 'ERROR: The JOREK model of the JOREK binary, restart file and perturbation file must be identical.'
+      stop
+    end if
+  end if
+
   call HDF5_integer_reading(file_id,n_tor_tmp, "n_tor")
   if (rst_hdf5_version_tmp .eq. 2) then
     call HDF5_integer_reading(file_id,n_coord_tor_tmp, "n_coord_tor")
@@ -922,39 +987,27 @@ subroutine import_hdf5_restart(node_list, element_list, filename, format_rst, er
     n_coord_tor_tmp = 1
   endif  
   call HDF5_integer_reading(file_id,n_period_tmp, "n_period")
-  call HDF5_integer_reading(file_id,n_plane_tmp, "n_plane")
-  call HDF5_integer_reading(file_id,n_vertex_max_tmp, "n_vertex_max")
-  call HDF5_integer_reading(file_id,n_nodes_max_tmp, "n_nodes_max")
-  call HDF5_integer_reading(file_id,n_elements_max_tmp, "n_elements_max")
-  call HDF5_integer_reading(file_id,n_boundary_max_tmp, "n_boundary_max")
-  call HDF5_integer_reading(file_id,n_pieces_max_tmp, "n_pieces_max")
-  call HDF5_integer_reading(file_id,n_degrees_tmp, "n_degrees")
-  call HDF5_integer_reading(file_id,nref_max_tmp, "nref_max")
-  call HDF5_integer_reading(file_id,n_ref_list_tmp, "n_ref_list")
-
 
   if (allocated(mode_tmp))   call tr_deallocate(mode_tmp,"mode_tmp",CAT_UNKNOWN)
   allocate(mode_tmp(n_tor_tmp))
   mode_tmp = -1 ! unset
 
   if (format_rst == 1) then
-    call HDF5_array1D_reading_int(file_id,mode_tmp,"mode_tmp")
+    call HDF5_array1D_reading_int(node_id,mode_tmp,"mode_tmp")
     write(*,*) " import_restart, HDF5 file : n_var     = ",mode_tmp
     write(*,*) ' NEW format (1) : ',mode_tmp
   elseif (format_rst == 0) then
     do i=1, n_tor_tmp
        mode_tmp(i) = int(i / 2) * n_period_tmp
     end do
-    modes_changed = .false.
-    if (n_tor_tmp .ne. n_tor) then
-      modes_changed = .true.
-    elseif (sum(abs(mode_tmp-mode)) .gt. 0) then
-      modes_changed = .true.
-    end if
     
     write(*,*) ' OLD format (0) : '
-    write(*,'(A,999i4)') ' previous modenumbers : ',mode_tmp
-    write(*,'(A,999i4)') ' new mode numbers     : ',mode
+    if ( import_perturbation == .false. ) then
+      write(*,'(A,999i4)') ' previous modenumbers        : ',mode_tmp
+    else
+      write(*,'(A,999i4)') ' modenumbers of perturbation : ',mode_tmp
+    end if
+    write(*,'(A,999i4)')   ' new mode numbers            : ',mode
     do i = 1, n_tor_tmp, 2
       kept = .false.
       do j = 1, n_tor, 2
@@ -983,12 +1036,19 @@ subroutine import_hdf5_restart(node_list, element_list, filename, format_rst, er
 
   call HDF5_integer_reading(file_id,node_list%n_nodes,"n_nodes")
   call HDF5_integer_reading(file_id,element_list%n_elements,"n_elements")
-  call HDF5_integer_reading(file_id,node_list%n_dof,"n_dof")
+  call HDF5_integer_reading(node_id,node_list%n_dof,"n_dof") ! IS THIS NECEASSARY?
+  node_list%n_dof = node_list%n_dof / n_tor_tmp * n_tor
 
   ! -> Allocate temporary arrays 
   call tr_allocate(t_x,     1,node_list%n_nodes,1,n_coord_tor_tmp,1,n_order+1,1,n_dim,         "node_list%x",     CAT_UNKNOWN)
   call tr_allocate(t_values,1,node_list%n_nodes,1,      n_tor_tmp,1,n_order+1,1,n_var_tmp, "node_list%values",CAT_UNKNOWN)
   call tr_allocate(t_deltas,1,node_list%n_nodes,1,      n_tor_tmp,1,n_order+1,1,n_var_tmp, "node_list%deltas",CAT_UNKNOWN)
+
+   if ( import_perturbation ) then
+    call HDF5_integer_reading(file_id,n_tor_axis, "n_tor")
+    call tr_allocate(a_values,1,node_list%n_nodes,1,n_tor_axis,1,n_order+1,1,n_var_tmp, "node_list%values",CAT_UNKNOWN)
+    call tr_allocate(a_deltas,1,node_list%n_nodes,1,n_tor_axis,1,n_order+1,1,n_var_tmp, "node_list%deltas",CAT_UNKNOWN)
+  end if
  
 #ifdef fullmhd
   call tr_allocate(t_psi_eq,  1,node_list%n_nodes,1,n_order+1, "node_list%psi_eq",  CAT_UNKNOWN)
@@ -1022,8 +1082,13 @@ subroutine import_hdf5_restart(node_list, element_list, filename, format_rst, er
   else
     call HDF5_array3D_reading(file_id,t_x(:,1,:,:),        'x')
   endif
-  call HDF5_array4D_reading(file_id,t_values,   'values')
-  call HDF5_array4D_reading(file_id,t_deltas,   'deltas')
+  call HDF5_array4D_reading(node_id,t_values,   'values')
+  call HDF5_array4D_reading(node_id,t_deltas,   'deltas')
+
+  if ( import_perturbation ) then
+    call HDF5_array4D_reading(file_id,a_values,   'values')
+    call HDF5_array4D_reading(file_id,a_deltas,   'deltas')
+  end if
 
 #ifdef fullmhd
   call HDF5_array2D_reading(file_id,t_psi_eq,   'psi_eq')
@@ -1058,7 +1123,7 @@ subroutine import_hdf5_restart(node_list, element_list, filename, format_rst, er
       end if
     end do
   end do
-  if (any(new_mode .ne. 0)) write(*,'(a,999i4)') ' need initialization  : ', new_mode
+  if (any(new_mode .ne. 0)) write(*,'(a,999i4)') ' need initialization         : ', new_mode
   
   do i=1,node_list%n_nodes
     node_list%node(i)%x = t_x(i,:,:,:) 
@@ -1082,6 +1147,12 @@ subroutine import_hdf5_restart(node_list, element_list, filename, format_rst, er
       end do
     end do
 
+    ! --- Take the axisymmetric values/deltas from jorek_restart if non-artificial perturbations are imported
+    if ( import_perturbation ) then
+      node_list%node(i)%values(1,:,1:n_var_tmp)   = a_values(i,1,:,1:n_var_tmp)
+      node_list%node(i)%deltas(1,:,1:n_var_tmp)   = a_deltas(i,1,:,1:n_var_tmp)
+    end if 
+
     ! --- Split "total" temperature into electron and ion temperature
     if ( import_3xx_4xx ) then
       node_list%node(i)%values(:,:,var_Te) = node_list%node(i)%values(:,:,6) / 2.d0
@@ -1089,7 +1160,6 @@ subroutine import_hdf5_restart(node_list, element_list, filename, format_rst, er
       node_list%node(i)%values(:,:,var_Ti) = node_list%node(i)%values(:,:,6) / 2.d0
       node_list%node(i)%deltas(:,:,var_Ti) = node_list%node(i)%deltas(:,:,6) / 2.d0
     end if
-
 
 #ifdef fullmhd
     node_list%node(i)%psi_eq   = t_psi_eq(i,:)
@@ -1711,7 +1781,11 @@ subroutine import_hdf5_restart(node_list, element_list, filename, format_rst, er
   end if
 
   call HDF5_close(file_id)
- 
+
+  if ( import_perturbation ) then
+    call HDF5_close(pert_id)
+  endif
+
   write(*,*) '************* restart ******************'
   write(*,'(A19,i6,f14.6,A)') ' *  restart time : ',index_start,t_start,' *'
   write(*,*) '****************************************'
@@ -1734,38 +1808,30 @@ subroutine import_hdf5_restart(node_list, element_list, filename, format_rst, er
     ! write(*,'(i7,f10.3,200e14.6)') i,xtime(i),energies(1:n_tor,:,i)
   enddo
  
-  ! --- initialise new harmonics (only density and temperature, to be improved)
+  ! --- initialise new harmonics to noise level (only density and temperature, to be improved)
   n_new_modes = sum(new_mode(1:n_tor))
   if ( (.not. no_pert) .and. (n_new_modes .gt. 0) ) then
     write(*,*), 'Warning:', n_new_modes, ' new modes initialized to noise level' 
-    ! --- Using an already computed mode
-    if ( (import_perturbation) .and. (n_tor .gt. 1) ) then
-      write(*,*) 'ERROR: Importing perturbation from jorek_perturbation.rst file...'
-      write(*,*) 'ERROR: Not yet implemeted!'
-      stop
-    ! --- Using just noise
-    else
-      amplitude = 1.d-10
-      do i=1,node_list%n_nodes
-        do m=2,n_tor
-          if ( new_mode(m) .eq. 1 ) then
-          node_list%node(i)%values(m,:,:) = 0.d0
-          node_list%node(i)%values(m,:,var_rho)   = amplitude * node_list%node(i)%values(1,:,var_rho)
+    amplitude = 1.d-10
+    do i=1,node_list%n_nodes
+      do m=2,n_tor
+        if ( new_mode(m) .eq. 1 ) then
+        node_list%node(i)%values(m,:,:) = 0.d0
+        node_list%node(i)%values(m,:,var_rho)   = amplitude * node_list%node(i)%values(1,:,var_rho)
 #ifdef WITH_TiTe
-          node_list%node(i)%values(m,:,var_Ti)   = amplitude * node_list%node(i)%values(1,:,var_Ti)
-          node_list%node(i)%values(m,:,var_Te)   = amplitude * node_list%node(i)%values(1,:,var_Te)
+        node_list%node(i)%values(m,:,var_Ti)   = amplitude * node_list%node(i)%values(1,:,var_Ti)
+        node_list%node(i)%values(m,:,var_Te)   = amplitude * node_list%node(i)%values(1,:,var_Te)
 #else
-          node_list%node(i)%values(m,:,var_T)    = amplitude * node_list%node(i)%values(1,:,var_T)
+        node_list%node(i)%values(m,:,var_T)    = amplitude * node_list%node(i)%values(1,:,var_T)
 #endif
 #ifdef fullmhd
-          node_list%node(i)%values(m,:,var_AR)= amplitude * node_list%node(i)%values(1,:,var_AR)
-          node_list%node(i)%values(m,:,var_AZ)= amplitude * node_list%node(i)%values(1,:,var_AZ)
-          node_list%node(i)%values(m,:,var_A3)= amplitude * node_list%node(i)%values(1,:,var_A3)
+        node_list%node(i)%values(m,:,var_AR)= amplitude * node_list%node(i)%values(1,:,var_AR)
+        node_list%node(i)%values(m,:,var_AZ)= amplitude * node_list%node(i)%values(1,:,var_AZ)
+        node_list%node(i)%values(m,:,var_A3)= amplitude * node_list%node(i)%values(1,:,var_A3)
 #endif
-          end if
-        end do
+        end if
       end do
-    endif
+    end do
   end if
 
   !call add_pellet(node_list,element_list,25.d0,0.06d0,0.03d0,3.78d0,0.14d0)

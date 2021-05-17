@@ -43,6 +43,7 @@ subroutine preset_parameters
   central_mass    = 2.d0        ! the central average ion mass (D)
 
   restart      = .false.
+  import_pert  = .false.
   import_equil = .false.
   regrid       = .false.
   rst_format   = 0             ! use 'old' format for restart import
