@@ -943,7 +943,7 @@ subroutine import_hdf5_restart(node_list, element_list, filename, format_rst, er
     rst_hdf5_version_pert = 0
     call HDF5_integer_reading(pert_id,rst_hdf5_version_pert,"rst_hdf5_version")
     write(*,*) 'Restart file has rst_hdf5_version=', rst_hdf5_version_pert
-    if ( rst_hdf5_version_tmp > rst_hdf5_version_supported ) then
+    if ( rst_hdf5_version_pert > rst_hdf5_version_supported ) then
       write(*,*) 'ERROR: Cannot read the hdf5 restart file "', trim(filename_pert),&
         '" since it was created with a more recent code version.'
       write(*,*) '* rst_hdf5_version of the restart file: ', rst_hdf5_version_tmp
@@ -980,13 +980,13 @@ subroutine import_hdf5_restart(node_list, element_list, filename, format_rst, er
     end if
   end if
 
-  call HDF5_integer_reading(file_id,n_tor_tmp, "n_tor")
+  call HDF5_integer_reading(node_id,n_tor_tmp, "n_tor")
   if (rst_hdf5_version_tmp .eq. 2) then
     call HDF5_integer_reading(file_id,n_coord_tor_tmp, "n_coord_tor")
   else
     n_coord_tor_tmp = 1
   endif  
-  call HDF5_integer_reading(file_id,n_period_tmp, "n_period")
+  call HDF5_integer_reading(node_id,n_period_tmp, "n_period")
 
   if (allocated(mode_tmp))   call tr_deallocate(mode_tmp,"mode_tmp",CAT_UNKNOWN)
   allocate(mode_tmp(n_tor_tmp))
