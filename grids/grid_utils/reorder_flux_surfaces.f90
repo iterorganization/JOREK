@@ -2841,7 +2841,10 @@ subroutine close_contour_with_wall(R_beg, Z_beg, R_end, Z_end, n_lim, index_lim,
   real*8  :: length1, length2
   real*8  :: diff_min_beg, diff_min_end, diff
   real*8  :: diff_R, diff_Z
-  real*8  :: R_average
+  real*8  :: R_average1, R_average2
+  real*8  :: Rmin, Rmax
+  real*8  :: Zmin, Zmax
+  real*8  :: offset
   
   ! --- Find out which wall points are our starting/ending points
   if (n_wall .eq. 0) then
@@ -2874,32 +2877,37 @@ subroutine close_contour_with_wall(R_beg, Z_beg, R_end, Z_end, n_lim, index_lim,
   i_wall = i_lim_beg
   direction = +1
   length1 = 0.0
+  R_average1 = 0.d0
   do i=1,n_wall
     i_lim_next = i_wall + direction
     if (i_lim_next .gt. n_wall) i_lim_next = 1
     if (i_lim_next .lt. 1     ) i_lim_next = n_wall
     count = count + 1
     length1 = length1 + sqrt( (R_wall(i_wall)-R_wall(i_lim_next))**2 + (Z_wall(i_wall)-Z_wall(i_lim_next))**2 )
+    R_average1 = R_average1 + 0.5 * (R_wall(i_wall) + R_wall(i_lim_next))
     if (i_lim_next .eq. i_lim_end) exit
     i_wall = i_lim_next
   enddo
   n_tmp = count
+  R_average1 = R_average1 / real(count)
   
   ! --- Then length in negative direction
   count = 1
   i_wall = i_lim_beg
   direction = -1
   length2 = 0.0
+  R_average2 = 0.d0
   do i=1,n_wall
     i_lim_next = i_wall + direction
     if (i_lim_next .gt. n_wall) i_lim_next = 1
     if (i_lim_next .lt. 1     ) i_lim_next = n_wall
     count = count + 1
     length2 = length2 + sqrt( (R_wall(i_wall)-R_wall(i_lim_next))**2 + (Z_wall(i_wall)-Z_wall(i_lim_next))**2 )
+    R_average2 = R_average2 + 0.5 * (R_wall(i_wall) + R_wall(i_lim_next))
     if (i_lim_next .eq. i_lim_end) exit
     i_wall = i_lim_next
   enddo
-  !if (count .lt. n_tmp) then
+  R_average2 = R_average2 / real(count)
   if (length2 .lt. length1) then
     direction = -1
   else
@@ -2923,43 +2931,45 @@ subroutine close_contour_with_wall(R_beg, Z_beg, R_end, Z_end, n_lim, index_lim,
   
   ! --- If we want reversed, this means we want the outer wall on the right
   if (reversed) then
-    R_average = 0.d0
-    do i=1,n_lim
-      R_average = R_average + R_wall(index_lim(i)) / real(n_lim)
-    enddo
-    if (R_average .lt. min(R_beg, R_end)) then
-      direction = -direction
-      ! --- And copy indices
-      count = 1
-      index_lim(1) = i_lim_beg
-      i_wall = i_lim_beg
-      do i=1,n_wall
-        i_lim_next = i_wall + direction
-        if (i_lim_next .gt. n_wall) i_lim_next = 1
-        if (i_lim_next .lt. 1     ) i_lim_next = n_wall
-        count = count + 1
-        index_lim(count) = i_lim_next
-        if (i_lim_next .eq. i_lim_end) exit
-        i_wall = i_lim_next
-      enddo
-      n_lim = count
+    if (R_average1 .lt. R_average2) then
+      direction = -1
+    else
+      direction = +1
     endif
+    ! --- And copy indices
+    count = 1
+    index_lim(1) = i_lim_beg
+    i_wall = i_lim_beg
+    do i=1,n_wall
+      i_lim_next = i_wall + direction
+      if (i_lim_next .gt. n_wall) i_lim_next = 1
+      if (i_lim_next .lt. 1     ) i_lim_next = n_wall
+      count = count + 1
+      index_lim(count) = i_lim_next
+      if (i_lim_next .eq. i_lim_end) exit
+      i_wall = i_lim_next
+    enddo
+    n_lim = count
   endif
   
   ! --- Check that we don't make a u-turn at the beginning or the end
   diff_R = abs(R_wall(index_lim(1))-R_wall(index_lim(2)))
   diff_Z = abs(Z_wall(index_lim(1))-Z_wall(index_lim(2)))
   if (diff_R .gt. diff_Z) then
-    if (    ( (R_wall(index_lim(1)) .lt. R_beg) .and. (R_beg .lt. R_wall(index_lim(2))) ) &
-        .or.( (R_wall(index_lim(2)) .lt. R_beg) .and. (R_beg .lt. R_wall(index_lim(1))) ) ) then
+    offset = min(0.05*diff_R, 1.d-2)
+    Rmin = min(R_wall(index_lim(1)),R_wall(index_lim(2))) + offset
+    Rmax = max(R_wall(index_lim(1)),R_wall(index_lim(2))) - offset
+    if ( (Rmin .lt. R_beg) .and. (R_beg .lt. Rmax) ) then
       do i = 1,n_lim-1
         index_lim(i) = index_lim(i+1)
       enddo
       n_lim = n_lim-1
     endif
   else
-    if (    ( (Z_wall(index_lim(1)) .lt. Z_beg) .and. (Z_beg .lt. Z_wall(index_lim(2))) ) &
-        .or.( (Z_wall(index_lim(2)) .lt. Z_beg) .and. (Z_beg .lt. Z_wall(index_lim(1))) ) ) then
+    offset = min(0.05*diff_Z, 1.d-2)
+    Zmin = min(Z_wall(index_lim(1)),Z_wall(index_lim(2))) + offset
+    Zmax = max(Z_wall(index_lim(1)),Z_wall(index_lim(2))) - offset
+    if ( (Zmin .lt. Z_beg) .and. (Z_beg .lt. Zmax) ) then
       do i = 1,n_lim-1
         index_lim(i) = index_lim(i+1)
       enddo
@@ -2970,13 +2980,17 @@ subroutine close_contour_with_wall(R_beg, Z_beg, R_end, Z_end, n_lim, index_lim,
   diff_R = abs(R_wall(index_lim(n_lim))-R_wall(index_lim(n_lim-1)))
   diff_Z = abs(Z_wall(index_lim(n_lim))-Z_wall(index_lim(n_lim-1)))
   if (diff_R .gt. diff_Z) then
-    if (    ( (R_wall(index_lim(n_lim  )) .lt. R_beg) .and. (R_beg .lt. R_wall(index_lim(n_lim-1))) ) &
-        .or.( (R_wall(index_lim(n_lim-1)) .lt. R_beg) .and. (R_beg .lt. R_wall(index_lim(n_lim  ))) ) ) then
+    offset = min(0.05*diff_R, 1.d-2)
+    Rmin = min(R_wall(index_lim(n_lim)),R_wall(index_lim(n_lim-1))) + offset
+    Rmax = max(R_wall(index_lim(n_lim)),R_wall(index_lim(n_lim-1))) - offset
+    if ( (Rmin .lt. R_end) .and. (R_end .lt. Rmax) ) then
       n_lim = n_lim-1
     endif
   else
-    if (    ( (Z_wall(index_lim(n_lim  )) .lt. Z_beg) .and. (Z_beg .lt. Z_wall(index_lim(n_lim-1))) ) &
-        .or.( (Z_wall(index_lim(n_lim-1)) .lt. Z_beg) .and. (Z_beg .lt. Z_wall(index_lim(n_lim  ))) ) ) then
+    offset = min(0.05*diff_Z, 1.d-2)
+    Zmin = min(Z_wall(index_lim(n_lim)),Z_wall(index_lim(n_lim-1))) + offset
+    Zmax = max(Z_wall(index_lim(n_lim)),Z_wall(index_lim(n_lim-1))) - offset
+    if ( (Zmin .lt. Z_end) .and. (Z_end .lt. Zmax) ) then
       n_lim = n_lim-1
     endif
   endif

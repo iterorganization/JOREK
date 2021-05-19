@@ -884,6 +884,12 @@ do ms=1, n_gauss
      dZ_imp_dT = dZ_imp_dT / (2.d0*EL_CHG*MU_ZERO*central_density*1.d20)
      dZ_imp_dT = dZ_imp_dT * dT0_corr_dT                      ! Account for the temperature correction
 
+     if (Te_corr_eV < 0.1) then
+       Z_imp = 0.
+       dZ_imp_dT = 0.
+       d2Z_imp_dT2 = 0.
+     endif
+
      if (Z_imp /= Z_imp .or. dZ_imp_dT /= dZ_imp_dT) then
        write(*,*) "WARNING!!! Z_imp:", Z_imp, dZ_imp_dT
        write(*,*) "Te_corr_eV =", Te_corr_eV

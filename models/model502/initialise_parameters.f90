@@ -268,9 +268,11 @@ call read_num_profiles(my_id)
 call derive_num_profiles(my_id)
 
 ! --- For now the diamagnetic term has not been implemented properly
-if (tauIC .ne. 0.0) then
-  tauIC = 0.0
-  write(*,*) "WARNING! The diamagnetic term has not been implemented properly for model 502, setting tauIC = 0 now."
+if (my_id==0) then
+  if (tauIC .ne. 0.0) then
+    tauIC = 0.0
+    write(*,*) "WARNING! The diamagnetic term has not been implemented properly for model 502, setting tauIC = 0 now."
+  endif
 endif
 
 if ( my_id == 0 ) then

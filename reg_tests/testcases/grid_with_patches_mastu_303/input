@@ -249,8 +249,8 @@
  
  !!! IMPORTANT NOTE!!! : The topological patches should be at least width of 2
  !!! IMPORTANT NOTE!!! : ie. do not use, for example, n_inner = 1
- n_R          =   45
- n_Z          =  125!90!120
+ n_R          =  45
+ n_Z          =  130
  n_radial     =   -1
  n_pol        =    0
 
