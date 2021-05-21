@@ -148,5 +148,5 @@
  ns_phi       = 0.
  ns_radius    = 0.3536d0
  ns_deltaphi  = 1.d3
- adas_dir = '/vol8/home/hudi/JOREK/adas/atomic/adas_data/'
+ adas_dir = './'
 /
