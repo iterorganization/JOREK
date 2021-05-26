@@ -253,7 +253,7 @@ else
     R_end(3) = stpts%RLeftCorn_UpperInnerLeg;  Z_end(3) = stpts%ZLeftCorn_UpperInnerLeg
     i_surf(3) = n_flux + n_open + n_outer + n_inner
     n_seg = n_up_leg
-    if ( (xcase .eq. 3) .and. (psi_xpoint(2) .lt. psi_xpoint(2)) ) then
+    if ( (xcase .eq. 2) .or. ( (xcase .eq. 3) .and. (psi_xpoint(2) .lt. psi_xpoint(2)) ) ) then
       n_surf_tot = n_inner + n_open + n_up_priv + 1
       allocate(i_flux(n_surf_tot))
       do i=1,n_up_priv
@@ -279,8 +279,14 @@ else
         i_flux(n_up_priv+1+i) = n_flux + n_open + n_outer +i
       enddo
     endif
-    n_xpoint_1 = 7 ! please see "create_x_node.f90" if confused
-    n_xpoint_2 = 8
+    ! --- please see "create_x_node.f90" if confused
+    if (xcase .eq. 2) then
+      n_xpoint_1 = 3
+      n_xpoint_2 = 4
+    else
+      n_xpoint_1 = 7
+      n_xpoint_2 = 8
+    endif
   ! --- inner or outer leg?
   else
     R_end(1) = stpts%RLeftCorn_UpperOuterLeg;  Z_end(1) = stpts%ZLeftCorn_UpperOuterLeg
@@ -290,7 +296,7 @@ else
     i_surf(3) = n_flux + n_open + n_outer
     n_seg = n_up_leg
     if (n_up_leg_out .gt. 0) n_seg = n_up_leg_out
-    if ( (xcase .eq. 3) .and. (psi_xpoint(2) .lt. psi_xpoint(2)) ) then
+    if ( (xcase .eq. 2) .or. ( (xcase .eq. 3) .and. (psi_xpoint(2) .lt. psi_xpoint(2)) ) ) then
       n_surf_tot = n_outer + n_open + n_up_priv + 1
       allocate(i_flux(n_surf_tot))
       do i=1,n_up_priv
@@ -316,8 +322,14 @@ else
         i_flux(n_up_priv+1+i) = n_flux + n_open + i
       enddo
     endif
-    n_xpoint_1 = 6 ! please see "create_x_node.f90" if confused
-    n_xpoint_2 = 5
+    ! --- please see "create_x_node.f90" if confused
+    if (xcase .eq. 2) then
+      n_xpoint_1 = 2
+      n_xpoint_2 = 1
+    else
+      n_xpoint_1 = 6
+      n_xpoint_2 = 5
+    endif
   endif
   SIG_0 = SIG_up_leg_0
   SIG_1 = SIG_up_leg_1

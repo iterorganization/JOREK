@@ -3,10 +3,6 @@ subroutine initialise_parameters(my_id, filename)
 
 use tr_module
 use phys_module
-use data_structure
-use constants
-use mpi_mod
-use corr_neg
 use mumps_module,  only: no_zeros_mumps, mumps_ordering
 use pastix_module, only: no_zeros_pastix, pastix_smp_only, pastix_pivot, &
     pastix_maxthrd
@@ -21,28 +17,7 @@ integer,                      intent(in) :: my_id
 character(len=*),             intent(in) :: filename
 real*8 :: vacuum_fraction, b_over_a, a_over_b
 
-! --- Local variables
-
-type (type_node_list)    :: node_list
-type (type_element_list) :: element_list
-
-integer :: ierr,err,ferr,i,ifail,i_elm, n_spi_begin
-
-real*8, dimension(2) :: P, P_s, P_t, P_phi
-real*8  :: R, R_s, R_t, Z, Z_s, Z_t
-real*8  :: s_out,t_out,R_out,Z_out
-
-real*8  :: n_SI, T_eV, n_corr, T_corr
-real*8  :: spi_gd_angle_01, spi_gd_angle_02        !The dispersion angles for each spi
-real*8  :: spi_rotation_01, spi_rotation_02        !The rotation angle from spi coordinate to real coordinate
-real*8  :: spi_Vel_totref, spi_Vel_i, spi_Vel_R_tmp, spi_Vel_Z_tmp, spi_Vel_RxZ_tmp
-real*8  :: spi_Vel_x, spi_Vel_y, spi_Vel_z         !Spi velocity in injection coordinate
-real*8  :: spi_R_inj, spi_Z_inj, spi_phi_inj       !Injection position of SPI 
-real*8  :: spi_R_tmp, spi_Z_tmp, spi_phi_tmp, spi_radius_tmp
-real*8  :: sign_corr, real_total_quantity
-real*8, allocatable :: rnd(:)                      !The random number array 
-real*8, allocatable :: shard_size(:)               !The shard size array
-
+integer :: ierr,err,i
 ! --- Namelist with input parameters.                                                                                                                        
 namelist /in1/  tstep, nstep, tstep_n, nstep_n,                     &
                 rst_hdf5, rst_hdf5_version, keep_current_prof,      &
@@ -179,7 +154,7 @@ namelist /in1/  tstep, nstep, tstep_n, nstep_n,                     &
                 weights_per_family, autodistribute_ranks,           &
                 ranks_per_family
 
- if (my_id .eq. 0) then
+if (my_id .eq. 0) then
   ! --- Preset input parameters to reasonable default values.
   call preset_parameters()
 
@@ -258,24 +233,21 @@ namelist /in1/  tstep, nstep, tstep_n, nstep_n,                     &
 
   call allocate_live_data()
 
-endif
 
-keep_n0_const  = ( keep_n0_const .or. linear_run )
-! --- Read numerical profiles for rho, T, and ff'.
-call read_num_profiles(my_id)
+  keep_n0_const  = ( keep_n0_const .or. linear_run )
 
-! --- Determine the derivatives of the numerical input profiles.
-call derive_num_profiles(my_id)
+  ! --- Read numerical profiles for rho, T, and ff'.
+  call read_num_profiles(my_id)
 
-! --- For now the diamagnetic term has not been implemented properly
-if (my_id==0) then
+  ! --- Determine the derivatives of the numerical input profiles.
+  call derive_num_profiles(my_id)
+
+  ! --- For now the diamagnetic term has not been implemented properly
   if (tauIC .ne. 0.0) then
     tauIC = 0.0
     write(*,*) "WARNING! The diamagnetic term has not been implemented properly for model 502, setting tauIC = 0 now."
   endif
-endif
 
-if ( my_id == 0 ) then
   if (2*PI/(n_tor*n_period) >= ns_deltaphi .and. my_id == 0) then
     write(*,*) "WARNING! ns_deltaphi too small for the n_tor, BEWARE!"
     if (t_now > minval(t_ns)) then
@@ -298,7 +270,7 @@ if ( my_id == 0 ) then
   
   !if (using_spi) call init_spi()
   if (using_spi) call init_spi_all()
-end if
+endif
 
 return
 end subroutine initialise_parameters
