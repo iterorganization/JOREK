@@ -86,7 +86,7 @@ if (sim%my_id .eq.0) then
   write(*,*) ' check : ', n_steps, tstep_si - n_steps*timesteps
 endif
 
-physical_particles = 1.d21
+physical_particles = 1.9d24
 if (using_spi) physical_particles = sum(spi_quantity)
 weight = physical_particles/n_particles
 
@@ -380,6 +380,8 @@ do while (.not. sim%stop_now)
   endif
   spi_source_imp_local = spi_source_imp / sim%n_cpu
   n_particles_add_local =  int(spi_source_imp_local * (real(n_steps,8) * timesteps) / weight) 
+
+  if (spi_source_imp_local > 0.)  n_particles_add_local = max(n_particles_add_local,1)
 
   ! Start assigning particles for this particle time step
   if (n_particles_add_local .gt. 0) then ! Otherwise no need to do anything
