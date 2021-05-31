@@ -381,7 +381,8 @@ do while (.not. sim%stop_now)
   spi_source_imp_local = spi_source_imp / sim%n_cpu
   n_particles_add_local =  int(spi_source_imp_local * (real(n_steps,8) * timesteps) / weight) 
 
-  if (spi_source_imp_local > 0.)  n_particles_add_local = max(n_particles_add_local,1)
+  if ((spi_source_imp_local* (real(n_steps,8) * timesteps)) > 1.d14)  &
+    n_particles_add_local = max(n_particles_add_local,1)
 
   ! Start assigning particles for this particle time step
   if (n_particles_add_local .gt. 0) then ! Otherwise no need to do anything
