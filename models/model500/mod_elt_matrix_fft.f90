@@ -1003,6 +1003,11 @@ do i=1,n_vertex_max
 
                        - v * BigR * ksiion * r0_corr * rn0_corr * Sion_T                  * xjac * tstep         &
 
+!===================== Additional terms from friction terms============
+                       + v * BigR * ((GAMMA - 1.)/2.) * vpar0**2 * BB2 * (r0_corr*rn0*Sion_T) * xjac * tstep &
+                       + v * BigR * ((GAMMA - 1.)/2.) * vv2 * ((r0_corr*rn0*Sion_T))          * xjac * tstep &
+!==============================End of friction terms=================
+
                        + v * (gamma-1.d0) * eta_T_ohm * (zj0 / BigR)**2.d0         * BigR  * xjac * tstep  &
                        - v * BigR * r0_corr * rn0_corr * LradDrays_T                       * xjac * tstep  &
                        - v * BigR * r0_corr * r0_corr  * LradDcont_T                       * xjac * tstep  &
@@ -1553,6 +1558,10 @@ do i=1,n_vertex_max
                             + v * r0 * Vpar0 * (T0_s * psi_t - T0_t * psi_s)                                     * theta * tstep &
                             + v * T0 * Vpar0 * (r0_s * psi_t - r0_t * psi_s)                                     * theta * tstep &
                             + v * r0 * GAMMA * T0 * (vpar0_s * psi_t - vpar0_t * psi_s)                          * theta * tstep &
+!===================== Additional terms from friction terms============
+                            - v * ((GAMMA - 1.) / BigR) * vpar0**2 * (psi_x * ps0_x + psi_y * ps0_y)&
+                                * (r0_corr*rn0*Sion_T)                                                    * xjac * theta * tstep &
+!==============================End of friction terms=================
 
                             + ZK_par_num * (v_psi_x  * ps0_y - v_psi_y  * ps0_x + v_ps0_x * psi_y - v_ps0_y * psi_x)          &
                                          * (T0_ps0_x * ps0_y - T0_ps0_y * ps0_x)                       * xjac * theta * tstep &
@@ -1586,6 +1595,10 @@ do i=1,n_vertex_max
                   amat(6,2) = - v * r0 * BigR**2 * ( T0_x * u_y - T0_y * u_x)           * xjac * theta * tstep &
                               - v * T0 * BigR**2 * ( r0_x * u_y - r0_y * u_x)           * xjac * theta * tstep &
                               - v * r0 * 2.d0* GAMMA * BigR * T0 * u_y                  * xjac * theta * tstep &
+!===================== Additional terms from friction terms============
+                              - v * BigR**3 * (GAMMA - 1.) * (u_x * u0_x + u_y * u0_y)  &
+                                  * (r0_corr*rn0*Sion_T)                                * xjac * theta * tstep &
+!==============================End of friction terms=================
 
                          + TG_num6 * 0.25d0 * BigR**2 * T0* (r0_x * u_y - r0_y * u_x)                &
                                             * ( v_x * u0_y - v_y * u0_x) * xjac * theta*tstep*tstep  &
@@ -1614,6 +1627,10 @@ do i=1,n_vertex_max
                            + v * BigR * rho * rn0_corr * LradDrays_T                          * xjac * theta * tstep &
                            + v * BigR * rho * 2d0 * r0_corr * LradDcont_T                * xjac * theta * tstep &
                            + v * BigR * rho * frad_bg                                    * xjac * theta * tstep &
+!===================== Additional terms from friction terms============
+                            - v * BigR * ((GAMMA - 1.)/2.) * vpar0**2 * BB2 * (rho*rn0*Sion_T) * xjac * theta * tstep &
+                            - v * BigR * ((GAMMA - 1.)/2.) * vv2            * (rho*rn0*Sion_T) * xjac * theta * tstep &
+!==============================End of friction terms=================
 
                          + TG_num6 * 0.25d0 * BigR**2 * T0* (rho_x * u0_y - rho_y * u0_x)      &
                                    * ( v_x * u0_y - v_y * u0_x) * xjac * theta*tstep*tstep     &
@@ -1672,6 +1689,12 @@ do i=1,n_vertex_max
                             + v * BigR * T * r0_corr * rn0_corr * dLradDrays_dT             * xjac * theta * tstep &
                             + v * BigR * T * r0_corr * r0_corr  * dLradDcont_dT             * xjac * theta * tstep &
                             + v * BigR * T * r0_corr * dfrad_bg_dT                          * xjac * theta * tstep &
+!===================== Additional terms from friction terms============
+                            - v * BigR * ((GAMMA - 1.)/2.) * vpar0**2 * BB2 &
+                                * (r0_corr*rn0*dSion_dT) * T * xjac * theta * tstep &
+                            - v * BigR * ((GAMMA - 1.)/2.) * vv2 &
+                                * (r0_corr*rn0*dSion_dT) * T * xjac * theta * tstep &
+!==============================End of friction terms=================
 
                             + TG_num6 * 0.25d0 * BigR**2 * T* (r0_x * u0_y - r0_y * u0_x)         &
                                       * ( v_x * u0_y - v_y * u0_x) * xjac * theta * tstep * tstep &
@@ -1714,6 +1737,9 @@ do i=1,n_vertex_max
                             + v * T0 * Vpar * (r0_s * ps0_t - r0_t * ps0_s)                        * theta * tstep & 
 
                             + v * r0 * GAMMA * T0 * (vpar_s * ps0_t - vpar_t * ps0_s)       * theta * tstep        &
+!===================== Additional terms from friction terms============
+                            - v * BigR *(GAMMA - 1.) * vpar0 * Vpar * BB2 * (r0_corr*rn0*Sion_T) * xjac * theta * tstep &
+!==============================End of friction terms=================
   
                             + TG_num6 * 0.25d0 / BigR * 2.d0 * vpar0*vpar &
                                   * T0 * (r0_x * ps0_y - r0_y * ps0_x + F0 / BigR * r0_p)                          &
@@ -1733,7 +1759,11 @@ do i=1,n_vertex_max
                   amat_n(6,7) = + v * r0 * GAMMA * T0 * F0 / BigR * vpar_p          * xjac * theta * tstep
 
                   amat(6,8) = + v * BigR * r0_corr * rhon * ksiion * Sion_T         * xjac * theta * tstep &
-                              + v * BigR * rhon * r0_corr * LradDrays_T             * xjac * theta * tstep               
+                              + v * BigR * rhon * r0_corr * LradDrays_T             * xjac * theta * tstep & 
+!===================== Additional terms from friction terms============
+                              - v * BigR * ((GAMMA - 1.)/2.) * vpar0**2 * BB2 * (r0_corr*rhon*Sion_T) * xjac * theta * tstep &
+                              - v * BigR * ((GAMMA - 1.)/2.) * vv2            * (r0_corr*rhon*Sion_T) * xjac * theta * tstep 
+!==============================End of friction terms=================
 
                   !###################################################################################################
                   !#  equation 7   (parallel velocity equation)                                                      #
