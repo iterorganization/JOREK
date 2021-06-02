@@ -2077,6 +2077,7 @@ subroutine get_separatrix_contours(node_list, element_list, sep_list)
     main_xpoint   = 2
     second_xpoint = 1
   endif
+  if (xcase .eq. 2) main_xpoint   = 2
   
   n_sub = 6
   
