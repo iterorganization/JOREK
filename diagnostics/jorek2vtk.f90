@@ -427,7 +427,7 @@ endif
 #ifdef WITH_Impurities
  if (include_radiation) then
      scalar_names(s_radiation+1:s_radiation+n_radiation) &
-                  = (/ 'Ionis_Jm-3  ', 'Coronal_radWm-3 ', 'Joule_Wm-3  ', 'Z_imp   ', 'Z_eff       '/)
+                  = (/ 'Ionis_Jm-3  ', 'Cor_radWm-3 ', 'Joule_Wm-3  ', 'Z_imp       ', 'Z_eff       '/)
  endif
 #endif
 
@@ -540,6 +540,18 @@ do i=1,element_list%n_elements
         call interp(node_list,element_list,i,var_w,  i_tor,s,t,W0, W0_s, W0_t, W0_st, W0_ss, W0_tt)
         call interp(node_list,element_list,i,var_rho,i_tor,s,t,ZN0,ZN0_s,ZN0_t,ZN0_st,ZN0_ss,ZN0_tt)
         call interp(node_list,element_list,i,var_T,  i_tor,s,t,T0, T0_s, T0_t, T0_st, T0_ss, T0_tt)
+        if (with_TiTe) then
+          call interp(node_list,element_list,i,var_Ti,i_tor,s,t,Ti0,Ti0_s,Ti0_t,Ti0_st,Ti0_ss,Ti0_tt)
+          call interp(node_list,element_list,i,var_Te,i_tor,s,t,Te0,Te0_s,Te0_t,Te0_st,Te0_ss,Te0_tt)
+          T0    = Ti0    + Te0
+          T0_s  = Ti0_s  + Te0_s
+          T0_t  = Ti0_t  + Te0_t
+          T0_st = Ti0_st + Te0_st
+          T0_ss = Ti0_ss + Te0_ss
+          T0_tt = Ti0_tt + Te0_tt
+        else
+          call interp(node_list,element_list,i,var_T,  i_tor,s,t,T0, T0_s, T0_t, T0_st, T0_ss, T0_tt)
+        endif
 
         if (with_Vpar) then
           call interp(node_list,element_list,i,var_Vpar,i_tor,s,t,V0,V0_s,V0_t,V0_st,V0_ss,V0_tt)
@@ -732,7 +744,18 @@ do i=1,element_list%n_elements
           call interp(node_list,element_list,i,var_uR, i_tor,s,t,VR0,VR0_s,VR0_t,VR0_st,VR0_ss,VR0_tt)
           call interp(node_list,element_list,i,var_uZ, i_tor,s,t,VZ0,VZ0_s,VZ0_t,VZ0_st,VZ0_ss,VZ0_tt)
           call interp(node_list,element_list,i,var_uP, i_tor,s,t,VP0,VP0_s,VP0_t,VP0_st,VP0_ss,VP0_tt)
-          call interp(node_list,element_list,i,var_T,  i_tor,s,t,T0 ,T0_s, T0_t, T0_st, T0_ss, T0_tt)
+          if (with_TiTe) then
+            call interp(node_list,element_list,i,var_Ti,i_tor,s,t,Ti0,Ti0_s,Ti0_t,Ti0_st,Ti0_ss,Ti0_tt)
+            call interp(node_list,element_list,i,var_Te,i_tor,s,t,Te0,Te0_s,Te0_t,Te0_st,Te0_ss,Te0_tt)
+            T0    = Ti0    + Te0
+            T0_s  = Ti0_s  + Te0_s
+            T0_t  = Ti0_t  + Te0_t
+            T0_st = Ti0_st + Te0_st
+            T0_ss = Ti0_ss + Te0_ss
+            T0_tt = Ti0_tt + Te0_tt
+          else
+            call interp(node_list,element_list,i,var_T,  i_tor,s,t,T0 ,T0_s, T0_t, T0_st, T0_ss, T0_tt)
+          endif
           call interp(node_list,element_list,i,var_rho,i_tor,s,t,ZN0,ZN0_s,ZN0_t,ZN0_st,ZN0_ss,ZN0_tt)
 
           if (i_tor == 1) then
