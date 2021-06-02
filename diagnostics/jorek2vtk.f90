@@ -539,7 +539,6 @@ do i=1,element_list%n_elements
         call interp(node_list,element_list,i,var_zj, i_tor,s,t,ZJ0,ZJ0_s,ZJ0_t,ZJ0_st,ZJ0_ss,ZJ0_tt)
         call interp(node_list,element_list,i,var_w,  i_tor,s,t,W0, W0_s, W0_t, W0_st, W0_ss, W0_tt)
         call interp(node_list,element_list,i,var_rho,i_tor,s,t,ZN0,ZN0_s,ZN0_t,ZN0_st,ZN0_ss,ZN0_tt)
-        call interp(node_list,element_list,i,var_T,  i_tor,s,t,T0, T0_s, T0_t, T0_st, T0_ss, T0_tt)
         if (with_TiTe) then
           call interp(node_list,element_list,i,var_Ti,i_tor,s,t,Ti0,Ti0_s,Ti0_t,Ti0_st,Ti0_ss,Ti0_tt)
           call interp(node_list,element_list,i,var_Te,i_tor,s,t,Te0,Te0_s,Te0_t,Te0_st,Te0_ss,Te0_tt)
