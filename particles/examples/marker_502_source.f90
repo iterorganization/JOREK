@@ -491,6 +491,11 @@ do while (.not. sim%stop_now)
             if (T_eV > 1.) Lrad     = get_Lz(sim, 1, iZ, n_e, T_e)
             rad_sink = rad_sink + particles(j)%P_imp(iZ) * real(particles(j)%weight,8) * Lrad * timesteps
 
+            if (T_eV < 1.) then
+              T_eV = 1.
+              T_e  = T_eV / (K_BOLTZ /  EL_CHG)
+            endif
+
             if (iZ .eq. 0) then
               call sim%groups(1)%ad%SCD%interp_linear(iZ,   log10(n_e), log10(T_e), P_ion(1))
               call sim%groups(1)%ad%ACD%interp_linear(iZ+1, log10(n_e), log10(T_e), P_rcb(2))
