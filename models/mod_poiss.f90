@@ -110,7 +110,7 @@ if (my_id == 0) then
   newton_method_GS = newton_GS_fixbnd
   if (freeboundary_equil) newton_method_GS = newton_GS_freebnd
  
-  if (newton_method_GS) then  
+  if (newton_method_GS .and. (itype==-1)) then  
     nz_AA = 3 * element_list%n_elements * (n_vertex_max * (n_order+1))**2  !factor 3 comes from axis and x-point contributions 
   else
     nz_AA = 1 * element_list%n_elements * (n_vertex_max * (n_order+1))**2  
@@ -283,7 +283,7 @@ if (my_id == 0) then
           enddo
         enddo
 
-        if (newton_method_GS) then     ! newton method extra contributions
+        if (newton_method_GS .and. (itype==-1)) then     ! newton method extra contributions
         
           ! --- Perturbed contribution of the magnetic axis
           do k=1,n_vertex_max
