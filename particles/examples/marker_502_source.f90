@@ -49,6 +49,8 @@ integer   :: n_particles_local, n_steps, ifail
 integer   :: n_reflect
 integer   :: j, seed, i_rng, n_stream
 
+logical   :: CE_marker
+
 ! For live updating the rhs of the projection
 real*8  :: R_g, Z_g, R_s, R_t, Z_s, Z_t, xjac, HZ(n_tor), HH(4,4), HH_s(4,4), HH_t(4,4)
 integer :: i_tor, index_lm, i_elm_temp
@@ -86,9 +88,11 @@ if (sim%my_id .eq.0) then
   write(*,*) ' check : ', n_steps, tstep_si - n_steps*timesteps
 endif
 
-physical_particles = 1.9d24
+physical_particles = 1.d21
 if (using_spi) physical_particles = sum(spi_quantity)
 weight = physical_particles/n_particles
+
+CE_marker = .false.
 
 if (restart_particles) then
 
@@ -206,6 +210,7 @@ use phys_module, only: CENTRAL_MASS, CENTRAL_DENSITY, GAMMA
 use constants,   only: MU_ZERO, MASS_PROTON, ATOMIC_MASS_UNIT, K_BOLTZ, EL_CHG
 use mod_integrals3D, only: int3d_new
 use mod_radiation, only: proj_Lz, get_Lz
+use mod_impurity, only: radiation_function_linear
 
 implicit none
 real*8, parameter  :: binding_energy = 2.18d-18 ! ionization energy of a hydrogen atom [J] (= 13.6 eV)
@@ -422,7 +427,7 @@ do while (.not. sim%stop_now)
     !$omp shared(sim, particles, n_particles, n_steps, timesteps, rng, particle_start_time, &
 #endif
     !$omp rho_norm, t_norm, v_norm, E_norm, M_norm, N_norm, P_Z, E_ion_tot,                 &
-    !$omp use_ncs, use_marker, n_particles_add_local,                                       &
+    !$omp use_ncs, use_marker, n_particles_add_local, CE_marker,                            &
     !$omp CENTRAL_DENSITY, CENTRAL_MASS)                    &
     !$omp private(i_rng, i,j,k,l,m, t, E, B, psi, U, rz_old, st_old, P_ion, P_rcb, iZ, P_tmp,&
     !$omp i_elm_old, n_rho, T_e, ion_rate, ion_prob, ion_source, ion_energy, kinetic_energy,& 
@@ -480,46 +485,60 @@ do while (.not. sim%stop_now)
         rad_sink = 0.0
         if (allocated(P_tmp)) deallocate(P_tmp)
         allocate(P_tmp(0:sim%groups(1)%ad%n_Z))
-        do iZ = 0,sim%groups(1)%ad%n_Z
+        if (.not. CE_marker) then
+          do iZ = 0,sim%groups(1)%ad%n_Z
 
+            Lrad = 0.d0
+            if (T_eV > 1.) Lrad     = get_Lz(sim, 1, iZ, n_e, T_e)
+            rad_sink = rad_sink + particles(j)%P_imp(iZ) * real(particles(j)%weight,8) * Lrad * timesteps
+
+            if (T_eV < 1.) then
+              T_eV = 1.
+              T_e  = T_eV / (K_BOLTZ /  EL_CHG)
+            endif
+
+            if (iZ .eq. 0) then
+              call sim%groups(1)%ad%SCD%interp_linear(iZ,   log10(n_e), log10(T_e), P_ion(1))
+              call sim%groups(1)%ad%ACD%interp_linear(iZ+1, log10(n_e), log10(T_e), P_rcb(2))
+              P_tmp(iZ) = particles(j)%P_imp(iZ) * (1.- P_ion(1)*n_e*timesteps) &
+                          + particles(j)%P_imp(iZ+1) *  P_rcb(2)*n_e*timesteps
+              !dEion_dt  = dEion_dt &
+              !            + real(particles(j)%weight,8)*n_e*timesteps*sim%groups(1)%ad%ionisation_energy(iZ+1)&
+              !                * (particles(j)%P_imp(iZ)*P_ion(1) - particles(j)%P_imp(iZ+1)*P_rcb(2))
+              P_tmp(iZ) = max(P_tmp(iZ), 0.0)
+            elseif (iZ .eq. sim%groups(1)%ad%n_Z) then
+              call sim%groups(1)%ad%SCD%interp_linear(iZ-1, log10(n_e), log10(T_e), P_ion(2))
+              call sim%groups(1)%ad%ACD%interp_linear(iZ,   log10(n_e), log10(T_e), P_rcb(1))
+              P_tmp(iZ) = particles(j)%P_imp(iZ) * (1.-P_rcb(1)*n_e*timesteps) &
+                          + particles(j)%P_imp(iZ-1) * P_ion(2)*n_e*timesteps
+              P_tmp(iZ) = max(P_tmp(iZ), 0.0)
+              !dEion_dt  = dEion_dt &
+              !            + real(particles(j)%weight,8)*n_e*timesteps*sim%groups(1)%ad%ionisation_energy(iZ)&
+              !                * (-particles(j)%P_imp(iZ)*P_rcb(1) + particles(j)%P_imp(iZ-1)*P_ion(2))
+            else
+              call sim%groups(1)%ad%SCD%interp_linear(iZ,   log10(n_e), log10(T_e), P_ion(1))
+              call sim%groups(1)%ad%ACD%interp_linear(iZ,   log10(n_e), log10(T_e), P_rcb(1))
+              call sim%groups(1)%ad%SCD%interp_linear(iZ-1, log10(n_e), log10(T_e), P_ion(2))
+              call sim%groups(1)%ad%ACD%interp_linear(iZ+1, log10(n_e), log10(T_e), P_rcb(2))
+              P_tmp(iZ) = particles(j)%P_imp(iZ) * (1.-P_ion(1)*n_e*timesteps-P_rcb(1)*n_e*timesteps) &
+                          + particles(j)%P_imp(iZ+1) * P_rcb(2)*n_e*timesteps           &
+                          + particles(j)%P_imp(iZ-1) * P_ion(2)*n_e*timesteps
+              P_tmp(iZ) = max(P_tmp(iZ), 0.0)
+              !dEion_dt  = dEion_dt &
+              !            + real(particles(j)%weight,8)*n_e*timesteps*sim%groups(1)%ad%ionisation_energy(iZ+1)&
+              !                * (particles(j)%P_imp(iZ)*P_ion(1) - particles(j)%P_imp(iZ+1)*P_rcb(2))           !&
+              !            + real(particles(j)%weight,8)*n_e*timesteps*sim%groups(1)%ad%ionisation_energy(iZ)&
+              !                * (-particles(j)%P_imp(iZ)*P_rcb(1) + particles(j)%P_imp(iZ-1)*P_ion(2))
+            endif
+          enddo !iZ
+        else
           Lrad = 0.d0
-          if (T_eV > 1.) Lrad     = get_Lz(sim, 1, iZ, n_e, T_e)
-          rad_sink = rad_sink + particles(j)%P_imp(iZ) * real(particles(j)%weight,8) * Lrad * timesteps
+          if (T_eV > 1.) &
+            call radiation_function_linear(sim%groups(1)%ad,sim%groups(1)%cor,log10(n_e),log10(T_e),Lrad)
+          rad_sink = real(particles(j)%weight,8) * Lrad * n_e * timesteps
 
-          if (iZ .eq. 0) then
-            call sim%groups(1)%ad%SCD%interp_linear(iZ,   log10(n_e), log10(T_e), P_ion(1))
-            call sim%groups(1)%ad%ACD%interp_linear(iZ+1, log10(n_e), log10(T_e), P_rcb(2))
-            P_tmp(iZ) = particles(j)%P_imp(iZ) * (1.- P_ion(1)*n_e*timesteps) &
-                        + particles(j)%P_imp(iZ+1) *  P_rcb(2)*n_e*timesteps
-            !dEion_dt  = dEion_dt &
-            !            + real(particles(j)%weight,8)*n_e*timesteps*sim%groups(1)%ad%ionisation_energy(iZ+1)&
-            !                * (particles(j)%P_imp(iZ)*P_ion(1) - particles(j)%P_imp(iZ+1)*P_rcb(2))
-            P_tmp(iZ) = max(P_tmp(iZ), 0.0)
-          elseif (iZ .eq. sim%groups(1)%ad%n_Z) then
-            call sim%groups(1)%ad%SCD%interp_linear(iZ-1, log10(n_e), log10(T_e), P_ion(2))
-            call sim%groups(1)%ad%ACD%interp_linear(iZ,   log10(n_e), log10(T_e), P_rcb(1))
-            P_tmp(iZ) = particles(j)%P_imp(iZ) * (1.-P_rcb(1)*n_e*timesteps) &
-                        + particles(j)%P_imp(iZ-1) * P_ion(2)*n_e*timesteps
-            P_tmp(iZ) = max(P_tmp(iZ), 0.0)
-            !dEion_dt  = dEion_dt &
-            !            + real(particles(j)%weight,8)*n_e*timesteps*sim%groups(1)%ad%ionisation_energy(iZ)&
-            !                * (-particles(j)%P_imp(iZ)*P_rcb(1) + particles(j)%P_imp(iZ-1)*P_ion(2))
-          else
-            call sim%groups(1)%ad%SCD%interp_linear(iZ,   log10(n_e), log10(T_e), P_ion(1))
-            call sim%groups(1)%ad%ACD%interp_linear(iZ,   log10(n_e), log10(T_e), P_rcb(1))
-            call sim%groups(1)%ad%SCD%interp_linear(iZ-1, log10(n_e), log10(T_e), P_ion(2))
-            call sim%groups(1)%ad%ACD%interp_linear(iZ+1, log10(n_e), log10(T_e), P_rcb(2))
-            P_tmp(iZ) = particles(j)%P_imp(iZ) * (1.-P_ion(1)*n_e*timesteps-P_rcb(1)*n_e*timesteps) &
-                        + particles(j)%P_imp(iZ+1) * P_rcb(2)*n_e*timesteps           &
-                        + particles(j)%P_imp(iZ-1) * P_ion(2)*n_e*timesteps
-            P_tmp(iZ) = max(P_tmp(iZ), 0.0)
-            !dEion_dt  = dEion_dt &
-            !            + real(particles(j)%weight,8)*n_e*timesteps*sim%groups(1)%ad%ionisation_energy(iZ+1)&
-            !                * (particles(j)%P_imp(iZ)*P_ion(1) - particles(j)%P_imp(iZ+1)*P_rcb(2))           !&
-            !            + real(particles(j)%weight,8)*n_e*timesteps*sim%groups(1)%ad%ionisation_energy(iZ)&
-            !                * (-particles(j)%P_imp(iZ)*P_rcb(1) + particles(j)%P_imp(iZ-1)*P_ion(2))
-          endif
-        enddo !iZ
+          call sim%groups(1)%cor%interp_linear(density=log10(n_e),temperature=log10(T_e),p_out=P_tmp)
+        endif
 
         P_tmp = P_tmp / sum(P_tmp)
         do iZ = 0,sim%groups(1)%ad%n_Z

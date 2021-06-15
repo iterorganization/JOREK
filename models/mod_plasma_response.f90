@@ -22,6 +22,7 @@ module mod_plasma_response
   public ::  find_Icoils, find_Icoils_JET
   public ::  t_pol_coil, t_coil, psi_coils
   public ::  read_coils, construct_test_coil, destruct_coils, log_coils, log_coil
+  public ::  plasma_fields_at_xyz
   
   ! --- Derived datatypes
   type :: t_pol_coil
@@ -201,12 +202,191 @@ module mod_plasma_response
   end subroutine psi_plasma
  
  
+
+
+
  
+  !-------------------------------------------------------------------------------------
+  !> Calculates the magnetic field produced by plasma currents at arbitrary x,y,z points 
+  !-------------------------------------------------------------------------------------
+  subroutine plasma_fields_at_xyz(my_id, node_list,element_list, x,y,z, bx, by, bz)
+
+    !$ use omp_lib
+    use mpi_mod
+
+    implicit none
+
+    integer,                  intent(in) :: my_id
+    type (type_node_list),    intent(in) :: node_list
+    type (type_element_list), intent(in) :: element_list
+    real*8,  intent(in)                  :: x(:), y(:), z(:)     ! Points where fields are calculated
+    real*8,  intent(inout)               :: bx(:), by(:), bz(:)
+
+    ! --- local variables    
+    type (type_element)      :: element
+    type (type_node)         :: nodes(n_vertex_max)
+    
+    real*8     :: x_g(n_gauss,n_gauss),        x_s(n_gauss,n_gauss),        x_t(n_gauss,n_gauss)
+    real*8     :: y_g(n_gauss,n_gauss),        y_s(n_gauss,n_gauss),        y_t(n_gauss,n_gauss)
+    real*8     :: eq_g(n_plane,n_gauss,n_gauss)
+    
+    integer    :: i, j, ms, mt, iv, inode, ife, mp, in
+    integer    :: ierr, n_cpu, ife_delta, ife_min, ife_max, omp_nthreads, omp_tid
+    real*8     :: zj0, R, xp,yp,zp, dd, wst, xjac, delta_phi, phi
+    real*8     :: d_vec(3), J_vec(3), cross(3), dB(3)
+    real*8     :: wgauss_copy(n_gauss)
+    integer    :: n_points
+
+    real*8, allocatable :: bx_tmp(:), by_tmp(:), bz_tmp(:)
+
+    ! --- MPI initialization
+    call MPI_COMM_SIZE(MPI_COMM_WORLD, n_cpu, ierr) ! number of MPI procs
+    n_cpu = max(n_cpu,1)
+
+    ife_delta = ceiling(float(element_list%n_elements) / n_cpu)
+    ife_min   =      my_id     * ife_delta + 1
+    ife_max   = min((my_id +1) * ife_delta, element_list%n_elements)
+
+   
+    n_points = size(x,1)
+    allocate(bx_tmp(n_points), by_tmp(n_points), bz_tmp(n_points))
+    
+    bx     = 0.d0;  by     = 0.d0;  bz     = 0.d0;
+    bx_tmp = 0.d0;  by_tmp = 0.d0;  bz_tmp = 0.d0;
+
+    delta_phi = 2.d0 * PI / float(n_plane) 
+ 
+    wgauss_copy = wgauss
+
+    ! --- OpenMP parallelization of element loop
+    !$omp parallel default(none)                                                           &
+    !$omp   shared(my_id,element_list,node_list, H, H_s, H_t, HZ, ife_min, ife_max,        &
+    !$omp          delta_phi, n_points, x, y, z, bx_tmp, by_tmp, bz_tmp, wgauss_copy)      &
+    !$omp   private(ife,iv,inode,element,nodes,i,j, in, mp, ms, mt,                        &
+    !$omp           x_g, y_g, x_s, y_s, x_t, y_t, xjac, eq_g, zj0, R, xp, yp, zp, dd, phi, &
+    !$omp           d_vec, J_vec, cross, dB, wst, omp_nthreads,omp_tid)
+    
+#ifdef OPENMP
+    omp_nthreads = omp_get_num_threads()
+    omp_tid      = omp_get_thread_num()
+#else
+    omp_nthreads = 1
+    omp_tid      = 0
+#endif
+    
+    !$omp do reduction(+:bx_tmp, by_tmp, bz_tmp)     
+       
+    !--- Go through all the elements
+    do ife = ife_min, ife_max
+    
+      element = element_list%element(ife)
+
+      do iv = 1, n_vertex_max
+        inode     = element%vertex(iv)
+        nodes(iv) = node_list%node(inode)
+      enddo
+      
+      x_g(:,:)    = 0.d0; x_s(:,:)    = 0.d0; x_t(:,:)    = 0.d0;
+      y_g(:,:)    = 0.d0; y_s(:,:)    = 0.d0; y_t(:,:)    = 0.d0;
+      
+      !--- Calculate R,Z and derivatives at gausstian points
+      do i=1,n_vertex_max
+        do j=1,n_order+1
+
+          do ms=1, n_gauss
+            do mt=1, n_gauss
+
+              x_g(ms,mt) = x_g(ms,mt) + nodes(i)%x(1,j,1) * element%size(i,j) * H(i,j,ms,mt)
+              y_g(ms,mt) = y_g(ms,mt) + nodes(i)%x(1,j,2) * element%size(i,j) * H(i,j,ms,mt)
+
+              x_s(ms,mt) = x_s(ms,mt) + nodes(i)%x(1,j,1) * element%size(i,j) * H_s(i,j,ms,mt)
+              x_t(ms,mt) = x_t(ms,mt) + nodes(i)%x(1,j,1) * element%size(i,j) * H_t(i,j,ms,mt)
+              y_s(ms,mt) = y_s(ms,mt) + nodes(i)%x(1,j,2) * element%size(i,j) * H_s(i,j,ms,mt)
+              y_t(ms,mt) = y_t(ms,mt) + nodes(i)%x(1,j,2) * element%size(i,j) * H_t(i,j,ms,mt)
+
+            enddo
+          enddo
+        enddo
+      enddo
+      
+      eq_g(:,:,:) = 0.d0
+            
+      !--- Calculate the current at gaussian points
+      do i=1,n_vertex_max
+        do j=1,n_order+1
+
+          do mp=1,n_plane
+            do ms=1, n_gauss
+              do mt=1, n_gauss
+                do in=1,n_tor
+                  eq_g(mp,ms,mt) = eq_g(mp,ms,mt) + nodes(i)%values(in,j,3) * element%size(i,j) * H(i,j,ms,mt)  * HZ(in,mp)
+                enddo !---ntor
+      	      enddo !---gauss
+            enddo !---gauss
+          enddo !---planes
+
+        enddo !---order
+      enddo !---vertex
+      
+      !---Do gaussian and toroidal planes integration
+      do ms=1, n_gauss
+        do mt=1, n_gauss
+
+          wst  = wgauss_copy(ms)*wgauss_copy(mt)
+          xjac = x_s(ms,mt)*y_t(ms,mt) - x_t(ms,mt)*y_s(ms,mt)
+          R    = x_g(ms,mt)
+          zp   = y_g(ms,mt)
+
+          do mp=1,n_plane
+
+            phi   =  float(mp-1) * delta_phi
+            xp    =  R * Cos(phi)
+            yp    = -R * Sin(phi)
+                                
+            zj0   =  eq_g(mp,ms,mt)
+            J_vec =  zj0/R*(/ Sin(phi), Cos(phi), 0.d0 /)       
+
+            ! --- Go over the given points
+            do i=1, n_points
+
+              d_vec(:)  = (/ xp-x(i), yp-y(i), zp-z(i) /)
+
+              dd        = max(sqrt( sum( d_vec(:)**2.d0 ) ) , 1.d-9 )
+    
+              cross     = (/  d_vec(2)*J_vec(3) - d_vec(3)*J_vec(2),  &
+                              d_vec(3)*J_vec(1) - d_vec(1)*J_vec(3),  &
+                              d_vec(1)*J_vec(2) - d_vec(2)*J_vec(1) /)
+    
+              dB(:)     =  cross(:) / (dd**3.d0) / (4.d0*PI) * wst * xjac * R * delta_phi
+    
+              bx_tmp(i) = bx_tmp(i) + dB(1)
+              by_tmp(i) = by_tmp(i) + dB(2)
+              bz_tmp(i) = bz_tmp(i) + dB(3)
+            enddo
+
+          enddo
+        enddo
+      enddo
+      
+    
+    enddo !---elements
+    !$omp end do
+    !$omp end parallel
+
+
+    call MPI_AllReduce(bx_tmp,bx,n_points,MPI_DOUBLE_PRECISION,MPI_SUM,MPI_COMM_WORLD,ierr)
+    call MPI_AllReduce(by_tmp,by,n_points,MPI_DOUBLE_PRECISION,MPI_SUM,MPI_COMM_WORLD,ierr)
+    call MPI_AllReduce(bz_tmp,bz,n_points,MPI_DOUBLE_PRECISION,MPI_SUM,MPI_COMM_WORLD,ierr)
+
+    deallocate(bx_tmp, by_tmp, bz_tmp)   
+
+  end subroutine plasma_fields_at_xyz
   
   
   
   
-  
+ 
+ 
   !------------------------------------------------------------------
   !> Calculates B_plasma at given (R,Z) points 
   !------------------------------------------------------------------

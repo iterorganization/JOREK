@@ -926,6 +926,10 @@ do ife = ife_min, ife_max
                                  xjac * wst * delta_phi / sqrt(MU_ZERO*central_mass*MASS_PROTON*central_density*1.d20)
         ! Total neutrals in particles
         local_n_particles     = local_n_particles     +  rn0 * central_density * 1.d20 * bigR * xjac * wst * delta_phi
+        ! Frictional heat source
+        fric_disp     =   0.5 * BigR**2 * (u0_x**2.0 + u0_y**2.0) * (r0_corr * rn0 * Sion_T)&
+                        + 0.5 * vpar0**2 * BB2 * (r0_corr * rn0 * Sion_T)
+        fric_disp_tot = fric_disp_tot + fric_disp * BigR * xjac * wst * delta_phi 
 #endif
 #ifdef WITH_Impurities
         !--- Calculate the neutral injection rate and the number of neutrals in the plasma
