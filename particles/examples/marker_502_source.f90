@@ -397,7 +397,7 @@ do while (.not. sim%stop_now)
       call initialise_particles_marker(sim%groups(1)%particles, sim%fields%node_list, sim%fields%element_list, &
                                         sim%fields, sim%time, pcg32_rng(), n_particles_add_local, &
                                         (real(n_steps,8) * timesteps), uniform=.false., &
-                                        fluid_source=spi_source_imp_local, transform_rej_f=f_source_imp)
+                                        fluid_source=spi_source_imp, transform_rej_f=f_source_imp)
     
     end select
   endif
@@ -744,7 +744,7 @@ pure function f_source_imp(P, P_norm) result(f)
   real*8, intent(in) :: P, P_norm
   real*4 :: f, dv
 
-  dv = 0.005 * 0.005 * PI * R_geo * (TWOPI / n_plane) 
+  dv = 0.005 * 0.005 * R_geo * (TWOPI / n_plane) 
  
   f = max(P*dv/P_norm, 0.e0)
 
