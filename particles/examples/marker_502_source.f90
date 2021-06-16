@@ -206,6 +206,7 @@ use mod_basisfunctions
 use corr_neg, only: corr_neg_dens
 use phys_module, only: tstep, use_ncs, use_pcs, use_ccs, use_marker
 use phys_module, only: pellets, n_spi_tot, ns_amplitude, n_inj, t_ns, t_now
+use phys_module, only: ng_radius_ratio, ns_radius, ng_radius_min, ns_R, ns_Z, ns_phi
 use phys_module, only: CENTRAL_MASS, CENTRAL_DENSITY, GAMMA
 use constants,   only: MU_ZERO, MASS_PROTON, ATOMIC_MASS_UNIT, K_BOLTZ, EL_CHG
 use mod_integrals3D, only: int3d_new
@@ -230,6 +231,7 @@ integer   :: i, j, k, l, m, n_steps, i_elm_old, iZ, spi_i, i_inj
 integer   :: seed, i_rng, n_stream, ierr, nthreads, myid
 real*8    :: ion_rate, ion_source, ion_prob, ion_rec_ran(2), cx_ran(7), cx_source, cx_energy
 real*8    :: rec_rate, dEion_dT, Z_imp, Z_eff, N_imp, Lrad, rad_sink, spi_source_imp, spi_source_imp_local
+real*8    :: spi_source_R(2), spi_source_Z(2), spi_source_phi(2), ng_radius
 real*8    :: cx_prob, CX_rate, Z_imp_tmp, n_imp_tmp
 real*8    :: particle_source, velocity_par_source, energy_source
 real*8    :: v_temp(3), T_eV, K_eV, B_norm(3), v_1, v_2, v_3, v_4, v_5
@@ -372,13 +374,36 @@ do while (.not. sim%stop_now)
   ! each position with source_imp density source is simply:
   ! source_imp * (real(n_steps,8) * timesteps) * xjac * BigR * wst * delta_phi divided by
   ! spi_source_imp * (real(n_steps,8) * timesteps)
-  spi_source_imp = 0.0
+  spi_source_imp       = 0.0
   spi_source_imp_local = 0.0
+  spi_source_R         = 0.0
+  spi_source_Z         = 0.0
+  spi_source_phi       = 0.0
   if (using_spi) then
+
+    spi_source_R = pellets(1)%spi_R
+    spi_source_Z = pellets(1)%spi_Z
+    spi_source_phi = pellets(1)%spi_phi
+    
     do spi_i=1, n_spi_tot
+
+      ng_radius   = pellets(spi_i)%spi_radius * ng_radius_ratio
+      if (ng_radius < ng_radius_min) then
+        ng_radius = ng_radius_min
+      end if
+
+      spi_source_R(1) = min(spi_source_R(1),pellets(spi_i)%spi_R - 3.*ng_radius)
+      spi_source_R(2) = max(spi_source_R(2),pellets(spi_i)%spi_R + 3.*ng_radius)
+      spi_source_Z(1) = min(spi_source_Z(1),pellets(spi_i)%spi_Z - 3.*ng_radius)
+      spi_source_Z(2) = max(spi_source_Z(2),pellets(spi_i)%spi_Z + 3.*ng_radius)
+
       spi_source_imp = spi_source_imp + pellets(spi_i)%spi_abl * pellets(spi_i)%spi_species
     enddo
   elseif (t_now .gt. minval(t_ns)) then
+    spi_source_R(1) = minval(ns_R) - 3.* ns_radius
+    spi_source_R(2) = maxval(ns_R) + 3.* ns_radius
+    spi_source_Z(1) = minval(ns_Z) - 3.* ns_radius
+    spi_source_Z(2) = maxval(ns_Z) + 3.* ns_radius
     do i_inj=1, n_inj
       if (t_now .gt. t_ns(i_inj)) spi_source_imp = spi_source_imp + ns_amplitude(i_inj)
     enddo
@@ -397,7 +422,8 @@ do while (.not. sim%stop_now)
       call initialise_particles_marker(sim%groups(1)%particles, sim%fields%node_list, sim%fields%element_list, &
                                         sim%fields, sim%time, pcg32_rng(), n_particles_add_local, &
                                         (real(n_steps,8) * timesteps), uniform=.false., &
-                                        fluid_source=spi_source_imp, transform_rej_f=f_source_imp)
+                                        fluid_source=spi_source_imp, transform_rej_f=f_source_imp,&
+                                        Rbound=spi_source_R, Zbound=spi_source_Z)
     
     end select
   endif

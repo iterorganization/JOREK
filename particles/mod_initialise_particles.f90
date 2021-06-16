@@ -328,7 +328,8 @@ subroutine initialise_particles_marker(particles, node_list, element_list, field
   ! Does not check for combinations of R and Z
   if (present(Rbound)) then
     if (maxval(Rbound) .gt. minval(Rbox) .and. maxval(Rbox) .gt. minval(Rbound)) then
-      Rbox = Rbound
+      Rbox(1) = max(Rbound(1),Rbox(1))
+      Rbox(2) = min(Rbound(2),Rbox(2))
     else
       write(*,*) "ERROR: no overlap between domain and requested bounding box in R, domain=", Rbox, ", box=", Rbound
       write(*,*) "Sampling from whole domain in R"
@@ -336,7 +337,8 @@ subroutine initialise_particles_marker(particles, node_list, element_list, field
   end if
   if (present(Zbound)) then
     if (maxval(Zbound) .gt. minval(Zbox) .and. maxval(Zbox) .gt. minval(Zbound)) then
-      Zbox = Zbound
+      Zbox(1) = max(Zbound(1),Zbox(1))
+      Zbox(2) = min(Zbound(2),Zbox(2))
     else
       write(*,*) "ERROR: no overlap between domain and requested bounding box in Z, domain=", Zbox, ", box=", Zbound
       write(*,*) "Sampling from whole domain in Z"
