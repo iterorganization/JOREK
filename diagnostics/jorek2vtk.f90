@@ -343,6 +343,7 @@ if ( SI_units ) then
    scalar_names(var_UZ )='VZ_km/s     '
    scalar_names(var_Up )='Vp_km/s     '
 #else
+   scalar_names(var_u)='u_m/s       '
    scalar_names(var_zj)='j_MA/m2     '
    scalar_names(var_rho)='n_e20m-3    '
    if (with_TiTe) then
@@ -1489,6 +1490,8 @@ if (SI_units) then
 
 #else /* not full-MHD */
 
+    !============================================u in m/s
+    scalars(i,var_u) = scalars(i,var_u)/t_norm
     !============================================j_phi in MA/m2
     scalars(i,var_zj) = currdens(i) / MU_zero * 1.e-6
     !============================================density in 1e20m-3
