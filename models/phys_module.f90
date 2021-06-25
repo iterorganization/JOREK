@@ -317,9 +317,10 @@ module phys_module
   real*8  :: ng_radius_ratio           !< We are assuming a constant ratio between the radius of NG clouds
                                        !< and that of shattered pellets
 
-  real*8  :: spi_Vel_diff(n_inj_max)   !< The veolocity difference from the reference velocity
+  real*8  :: spi_Vel_diff(n_inj_max)   !< The velocity difference from the reference velocity
   real*8  :: spi_angle                 !< The vertex angle of spi spreading in terms of rad
   real*8  :: spi_L_inj(n_inj_max)      !< Distance between SPI nozzle and ns_R, ns_Z, ns_phi
+  real*8  :: spi_L_inj_diff(n_inj_max) !< The position difference with respect to the point (ns_R, ns_Z, ns_phi)
   real*8  :: ns_phi_rotate             !< The toroidal position of rotated injection point
   real*8  :: tor_frequency             !< The rigid body rotation frequency
 

@@ -520,7 +520,7 @@ module pellet_module
     use data_structure
     use phys_module, only: pellets, n_spi, n_spi_tot, n_inj, JET_MGI, ASDEX_MGI, ns_R, ns_Z, ns_phi,&
                            ns_amplitude, spi_Vel_Rref, spi_Vel_Zref, spi_Vel_RxZref,&
-                           spi_quantity, spi_quantity_bg, spi_Vel_diff, spi_L_inj
+                           spi_quantity, spi_quantity_bg, spi_Vel_diff, spi_L_inj, spi_L_inj_diff
     use mpi_mod
     
     implicit none
@@ -548,7 +548,7 @@ module pellet_module
       n_spi_begin = 1
       do i = 1, n_inj
         call init_spi(ns_R(i),ns_Z(i),ns_phi(i),ns_amplitude(i),spi_Vel_Rref(i),spi_Vel_Zref(i),spi_Vel_RxZref(i),&
-                      spi_quantity(i),spi_quantity_bg(i),spi_Vel_diff(i),spi_L_inj(i),n_spi(i),n_spi_begin)
+                      spi_quantity(i),spi_quantity_bg(i),spi_Vel_diff(i),spi_L_inj(i),spi_L_inj_diff(i),n_spi(i),n_spi_begin)
         n_spi_begin = n_spi_begin + n_spi(i)
       end do
     end if
@@ -558,7 +558,7 @@ module pellet_module
 
   !> Initializes the shattered pellet position, velocity and size
   subroutine init_spi(ns_R,ns_Z,ns_phi,ns_amplitude,spi_Vel_Rref,spi_Vel_Zref,spi_Vel_RxZref,&
-                      spi_quantity,spi_quantity_bg,spi_Vel_diff,spi_L_inj,n_spi,n_spi_begin)
+                      spi_quantity,spi_quantity_bg,spi_Vel_diff,spi_L_inj,spi_L_inj_diff,n_spi,n_spi_begin)
   
     use constants
     use tr_module
@@ -577,7 +577,7 @@ module pellet_module
     real*8  :: n_SI, T_eV, n_corr, T_corr
     real*8  :: spi_gd_angle_01, spi_gd_angle_02        ! The dispersion angles for each shard
     real*8  :: spi_rotation_01, spi_rotation_02        ! The rotation angle from shard coordinates to (R,Z,phi) coordinates
-    real*8  :: spi_Vel_totref, spi_Vel_i, spi_Vel_R_tmp, spi_Vel_Z_tmp, spi_Vel_RxZ_tmp
+    real*8  :: spi_Vel_totref, spi_Vel_i, spi_Vel_R_tmp, spi_Vel_Z_tmp, spi_Vel_RxZ_tmp, spi_L_inj_i
     real*8  :: spi_Vel_x, spi_Vel_y, spi_Vel_z         ! Shard velocity in injection coordinates
     real*8  :: spi_R_inj, spi_Z_inj, spi_phi_inj       ! Position of the shattering point of the pellet
                                                        ! (the apex of the spreading cone)
@@ -602,6 +602,7 @@ module pellet_module
     real*8, intent(in)  :: spi_quantity_bg
     real*8, intent(in)  :: spi_Vel_diff
     real*8, intent(in)  :: spi_L_inj
+    real*8, intent(in)  :: spi_L_inj_diff
 
     integer, intent(in) :: n_spi
     integer, intent(in) :: n_spi_begin
@@ -631,13 +632,13 @@ module pellet_module
         shard_size = 1.
       end if
 
-#ifdef WITH_Neutrals
+#if (defined WITH_Neutrals) && (!defined WITH_Impurities)
       do i = 1, n_spi
         pellets(i)%spi_species = 0.
-        N_shard_norm = N_shard_norm + (4./3.) * PI * (shard_size(i)**3) * pellet_density * 1.d20
+        N_shard_norm = N_shard_norm + (4./3.) * PI * (shard_size(i)**3) * pellet_density_bg * 1.d20
       end do
 
-      size_beta    = (spi_quantity / N_shard_norm) ** (-1./3.)
+      size_beta    = (spi_quantity_bg / N_shard_norm) ** (-1./3.)
       write(*,*) "Characteristic shard size (m):", 1./size_beta
 #endif
 #ifdef WITH_Impurities
@@ -758,11 +759,11 @@ module pellet_module
 !==========================End of rotational angles==============================
 
       ! Generate a random number array rnd that contains two random angles
-      ! representing the velocity direction spread, and one the random speed. Those random
-      ! numbers uniquely define a random velocity of the shard, which is then transformed into
-      ! the R, Z, RxZ space.
+      ! representing the velocity direction spread, one random speed, and one random position difference.
+      ! Those random numbers uniquely define a random velocity and position of the shard,
+      ! which is then transformed into the R, Z, RxZ space.
       if (allocated(rnd)) deallocate(rnd)
-      allocate (rnd(3*n_spi))  !< Dynamically allocate memeries for randoms
+      allocate (rnd(4*n_spi))  !< Dynamically allocate memeries for randoms
 
       CALL random_seed(put=spi_rnd_seed) 
       CALL random_number(rnd)
@@ -775,12 +776,19 @@ module pellet_module
         stop
       end if
 
+      if (spi_L_inj_diff < 0) then
+        write(*,*) "WARNING, negative position spread, spi_L_inj_diff = ", spi_L_inj_diff
+        write(*,*) "Please always use a positive spi_L_inj_diff, EXITING!" 
+        stop
+      end if
+
       do i=1, n_spi
 
         i_p = i - 1 + n_spi_begin
-        spi_gd_angle_01 = rnd(3 * i - 2) * spi_angle / 2.0
-        spi_gd_angle_02 = rnd(3 * i - 1) * 2. * PI
-        spi_Vel_i       = (rnd(3*i)-0.5) * spi_Vel_diff + spi_Vel_totref
+        spi_gd_angle_01 =   rnd(3 * i - 3)         * spi_angle / 2.0
+        spi_gd_angle_02 =   rnd(3 * i - 2)         * 2. * PI
+        spi_Vel_i       = ( rnd(3 * i - 1) - 0.5 ) * spi_Vel_diff   + spi_Vel_totref
+        spi_L_inj_i     = ( rnd(3 * i    ) - 0.5 ) * spi_L_inj_diff + spi_L_inj
 
 
         !write(*,*) "Random angle:", i, spi_gd_angle_01, spi_gd_angle_02
@@ -799,9 +807,9 @@ module pellet_module
                           - cos(spi_rotation_02) * (-sin(spi_rotation_01)*spi_Vel_y &
                           + cos(spi_rotation_01)*spi_Vel_z)
 
-        spi_R_tmp       = spi_R_inj + spi_L_inj * (spi_Vel_R_tmp/spi_Vel_totref)
-        spi_Z_tmp       = spi_Z_inj + spi_L_inj * (spi_Vel_Z_tmp/spi_Vel_totref)
-        spi_phi_tmp     = spi_phi_inj + spi_L_inj * (spi_Vel_RxZ_tmp/spi_Vel_totref)/ns_R
+        spi_R_tmp       = spi_R_inj + spi_L_inj_i * (spi_Vel_R_tmp/spi_Vel_totref)
+        spi_Z_tmp       = spi_Z_inj + spi_L_inj_i * (spi_Vel_Z_tmp/spi_Vel_totref)
+        spi_phi_tmp     = spi_phi_inj + spi_L_inj_i * (spi_Vel_RxZ_tmp/spi_Vel_totref)/ns_R
 
         pellets(i_p)%spi_R       = spi_R_tmp
         pellets(i_p)%spi_Z       = spi_Z_tmp
