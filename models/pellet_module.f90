@@ -785,10 +785,10 @@ module pellet_module
       do i=1, n_spi
 
         i_p = i - 1 + n_spi_begin
-        spi_gd_angle_01 =   rnd(3 * i - 3)         * spi_angle / 2.0
-        spi_gd_angle_02 =   rnd(3 * i - 2)         * 2. * PI
-        spi_Vel_i       = ( rnd(3 * i - 1) - 0.5 ) * spi_Vel_diff   + spi_Vel_totref
-        spi_L_inj_i     = ( rnd(3 * i    ) - 0.5 ) * spi_L_inj_diff + spi_L_inj
+        spi_gd_angle_01 =   rnd(4 * i - 3)         * spi_angle / 2.0
+        spi_gd_angle_02 =   rnd(4 * i - 2)         * 2. * PI
+        spi_Vel_i       = ( rnd(4 * i - 1) - 0.5 ) * spi_Vel_diff   + spi_Vel_totref
+        spi_L_inj_i     = ( rnd(4 * i    ) - 0.5 ) * spi_L_inj_diff + spi_L_inj
 
 
         !write(*,*) "Random angle:", i, spi_gd_angle_01, spi_gd_angle_02
