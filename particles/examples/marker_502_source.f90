@@ -392,18 +392,18 @@ do while (.not. sim%stop_now)
         ng_radius = ng_radius_min
       end if
 
-      spi_source_R(1) = min(spi_source_R(1),pellets(spi_i)%spi_R - 3.*ng_radius)
-      spi_source_R(2) = max(spi_source_R(2),pellets(spi_i)%spi_R + 3.*ng_radius)
-      spi_source_Z(1) = min(spi_source_Z(1),pellets(spi_i)%spi_Z - 3.*ng_radius)
-      spi_source_Z(2) = max(spi_source_Z(2),pellets(spi_i)%spi_Z + 3.*ng_radius)
+      spi_source_R(1) = min(spi_source_R(1),pellets(spi_i)%spi_R - 5.*ng_radius)
+      spi_source_R(2) = max(spi_source_R(2),pellets(spi_i)%spi_R + 5.*ng_radius)
+      spi_source_Z(1) = min(spi_source_Z(1),pellets(spi_i)%spi_Z - 5.*ng_radius)
+      spi_source_Z(2) = max(spi_source_Z(2),pellets(spi_i)%spi_Z + 5.*ng_radius)
 
       spi_source_imp = spi_source_imp + pellets(spi_i)%spi_abl * pellets(spi_i)%spi_species
     enddo
   elseif (t_now .gt. minval(t_ns)) then
-    spi_source_R(1) = minval(ns_R) - 3.* ns_radius
-    spi_source_R(2) = maxval(ns_R) + 3.* ns_radius
-    spi_source_Z(1) = minval(ns_Z) - 3.* ns_radius
-    spi_source_Z(2) = maxval(ns_Z) + 3.* ns_radius
+    spi_source_R(1) = minval(ns_R) - 5.* ns_radius
+    spi_source_R(2) = maxval(ns_R) + 5.* ns_radius
+    spi_source_Z(1) = minval(ns_Z) - 5.* ns_radius
+    spi_source_Z(2) = maxval(ns_Z) + 5.* ns_radius
     do i_inj=1, n_inj
       if (t_now .gt. t_ns(i_inj)) spi_source_imp = spi_source_imp + ns_amplitude(i_inj)
     enddo
@@ -770,7 +770,7 @@ pure function f_source_imp(P, P_norm) result(f)
   real*8, intent(in) :: P, P_norm
   real*4 :: f, dv
 
-  dv = 0.005 * 0.005 * R_geo * (TWOPI / n_plane) 
+  dv = 0.01 * 0.01 * R_geo * (TWOPI / n_plane) 
  
   f = max(P*dv/P_norm, 0.e0)
 
