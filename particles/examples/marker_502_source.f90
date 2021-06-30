@@ -422,7 +422,7 @@ do while (.not. sim%stop_now)
       call initialise_particles_marker(sim%groups(1)%particles, sim%fields%node_list, sim%fields%element_list, &
                                         sim%fields, sim%time, pcg32_rng(), n_particles_add_local, &
                                         (real(n_steps,8) * timesteps), uniform=.false., &
-                                        fluid_source=spi_source_imp, transform_rej_f=f_source_imp,&
+                                        fluid_source=spi_source_imp_local, transform_rej_f=f_source_imp,&
                                         Rbound=spi_source_R, Zbound=spi_source_Z)
     
     end select
