@@ -728,23 +728,15 @@ contains
 #endif
         end if
 
-        if (n_cpu_n>1) then
 #ifndef USE_COMPLEX_PRECOND
-          if (associated(mumps_par%irn)) call tr_deallocatep(mumps_par%irn,"mumps_par%irn",CAT_DMATRIX)
-          if (associated(mumps_par%jcn)) call tr_deallocatep(mumps_par%jcn,"mumps_par%jcn",CAT_DMATRIX)
-          if (associated(mumps_par%A))   call tr_deallocatep(mumps_par%A,"mumps_par%A",CAT_DMATRIX)
+        if (associated(mumps_par%irn)) call tr_deallocatep(mumps_par%irn,"mumps_par%irn",CAT_DMATRIX)
+        if (associated(mumps_par%jcn)) call tr_deallocatep(mumps_par%jcn,"mumps_par%jcn",CAT_DMATRIX)
+        if (associated(mumps_par%A))   call tr_deallocatep(mumps_par%A,"mumps_par%A",CAT_DMATRIX)
 #else
-          if (allocated(A_cmplx))   deallocate(A_cmplx)
-          if (allocated(irn_cmplx)) deallocate(irn_cmplx)
-          if (allocated(jcn_cmplx)) deallocate(jcn_cmplx)
+        if (allocated(A_cmplx))   deallocate(A_cmplx)
+        if (allocated(irn_cmplx)) deallocate(irn_cmplx)
+        if (allocated(jcn_cmplx)) deallocate(jcn_cmplx)
 #endif
-        else
-#ifndef USE_COMPLEX_PRECOND
-          mumps_par%A => null()
-          mumps_par%irn => null()
-          mumps_par%jcn => null()
-#endif
-        endif
 
 #ifndef USE_COMPLEX_PRECOND
         call tr_locvnorms("smn_rhs",mumps_par%rhs,mumps_par%n)
@@ -960,15 +952,9 @@ subroutine solve_matrix_n_spk(my_id,MPI_COMM_N,MPI_COMM_MASTER,solve_only)
 
       endif
 
-      if (n_cpu_n>1) then
-        call tr_deallocatep(mumps_par%irn,"mumps_par%irn",CAT_DMATRIX)
-        call tr_deallocatep(mumps_par%jcn,"mumps_par%jcn",CAT_DMATRIX)
-        call tr_deallocatep(mumps_par%a,"mumps_par%A",CAT_DMATRIX)
-      else
-        mumps_par%irn=>null()
-        mumps_par%jcn=>null()
-        mumps_par%a=>null()
-      endif
+      if (associated(mumps_par%irn)) call tr_deallocatep(mumps_par%irn,"mumps_par%irn",CAT_DMATRIX)
+      if (associated(mumps_par%jcn)) call tr_deallocatep(mumps_par%jcn,"mumps_par%jcn",CAT_DMATRIX)
+      if (associated(mumps_par%A))   call tr_deallocatep(mumps_par%A,"mumps_par%A",CAT_DMATRIX)
 
       if (.not. spss_analyzed) then
         if (my_id_n.eq. 0) then                  ! elapsed time reorder start

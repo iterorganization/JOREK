@@ -480,6 +480,9 @@ module vacuum_response
   !! file_version 1: Original
   !! file_version 2: Includes eta_thin_w
   !! file_version 3: Includes additional coil information
+  !! file_version 4: Includes coil names                                    
+  !! file_version 5: Includes additional information on wall resolution, wall net potentials, control surface
+  !! file_version 6: Coil and wall currents sign reversed to follow JOREK coordinate system
   subroutine read_starwall_response(my_id, sr, filename, n_bnd)
 
     use constants
@@ -535,10 +538,16 @@ module vacuum_response
       disp = disp + sizeof(comment)
 
       sr%file_version = read_intparam_parallel(filehandle, 'file_version', disp)
-      if ( sr%file_version > 5 ) then
+      if ( sr%file_version > 6 ) then
         write(*,*) 'ERROR: STARWALL response file version ', sr%file_version, ' is not supported.'
         stop
       end if
+
+      if ( sr%file_version < 6 ) then
+        write(*,*) 'WARNING: You are using an old STARWALL file version and the wall and coil currents    '
+        write(*,*) '         sign do not follow the JOREK phi direction (positive means -phi direction)   '
+      end if
+
 
       sr%n_bnd  = read_intparam_parallel(filehandle, 'n_bnd' , disp)
       if ( n_bnd /= sr%n_bnd ) then

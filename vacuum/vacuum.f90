@@ -101,7 +101,7 @@ module vacuum
     integer :: n_tor                  = -1
     integer :: n_tor0                 = -1
 
-    ! --- Additional STARWALL input parameters (version 5)
+    ! --- Additional STARWALL input parameters (version >= 5)
     integer :: nv                     = -1  !< Number of toroidal points of the control surface
     integer :: n_points               = -1  !< Number of triangles per JOREK boundary element (control surface)
     integer :: iwall                  = -1  !< 1 if the wall is represented with Fourier harmonics 

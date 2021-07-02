@@ -634,7 +634,7 @@ module mod_plasma_response
         
         do i_c = 1, numb_coils        
           call B_coil_unit(coils(i_c), R, Z, Bc) 
-          coeff(count, i_c) = -Bc(1)*e_par(1) -  Bc(2)*e_par(2)  
+          coeff(count, i_c) = Bc(1)*e_par(1) +  Bc(2)*e_par(2)  
         enddo  
         
         R_vec(count)   = R;     Z_vec(count) = Z;       B_all(count,:) = B_pol(:);   v_tan(count,:) = e_par(:); 
@@ -699,6 +699,8 @@ module mod_plasma_response
 
    write(*,*) ' '
    write(*,*) ' Found total coil currents (stored in Icoils_found.txt) '
+   write(*,*) ' Positive currents follow the JOREK +phi direction      '
+   write(*,*) ' '
 
    open(26,file='Icoils_found.txt',status="replace", position="append", action="write")
    do i=1, numb_coils
@@ -857,7 +859,7 @@ module mod_plasma_response
         
         do i_c = 1, numb_coils        
           call B_coil_unit(coils(i_c), R, Z, Bc) 
-          coeff(count, i_c) = -Bc(1)*e_par(1) -  Bc(2)*e_par(2)  
+          coeff(count, i_c) = Bc(1)*e_par(1) +  Bc(2)*e_par(2)  
         enddo  
       
         R_vec(count)   = R;     Z_vec(count) = Z;       B_all(count,:) = B_pol(:);   v_tan(count,:) = e_par(:); 
@@ -972,6 +974,8 @@ module mod_plasma_response
       
    write(*,*) ' '
    write(*,*) ' Found total coil currents (stored in Icoils_found.txt) '
+   write(*,*) ' Positive currents follow the JOREK +phi direction      '
+   write(*,*) ' '
 
    open(26,file='Icoils_found.txt',status="replace", position="append", action="write")
    do i=1, numb_coils
@@ -1302,7 +1306,7 @@ module mod_plasma_response
           call Greens_functions(R0(i_p), Z0(i_p), R_f, Z_f, G_BR, G_BZ, G_psi)
             
           !--- psi = \int Greens_funct * I   see (4.66 Computational Methods in P.Physics, Jardin)
-          psi_c(i_p) = psi_c(i_p) - G_psi * I_coil * coils(i_c)%pol_coil%weight(i_f) * mu_zero
+          psi_c(i_p) = psi_c(i_p) + G_psi * I_coil * coils(i_c)%pol_coil%weight(i_f) * mu_zero
 
         enddo
       enddo
