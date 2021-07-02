@@ -454,7 +454,7 @@ do while (.not. sim%stop_now)
     !$omp shared(sim, particles, n_particles, n_steps, timesteps, rng, particle_start_time, &
 #endif
     !$omp rho_norm, t_norm, v_norm, E_norm, M_norm, N_norm, P_Z, E_ion_tot,                 &
-    !$omp use_ncs, use_marker, n_particles_add_local, CE_marker,                            &
+    !$omp use_ncs, use_marker, n_particles_add_local, CE_marker, aux_node_list,element_list,&
     !$omp CENTRAL_DENSITY, CENTRAL_MASS)                    &
     !$omp private(i_rng, i,j,k,l,m, t, E, B, psi, U, rz_old, st_old, P_ion, P_rcb, iZ, P_tmp,&
     !$omp i_elm_old, n_rho, T_e, ion_rate, ion_prob, ion_source, ion_energy, kinetic_energy,& 
