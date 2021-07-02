@@ -232,7 +232,7 @@ integer   :: seed, i_rng, n_stream, ierr, nthreads, myid
 real*8    :: ion_rate, ion_source, ion_prob, ion_rec_ran(2), cx_ran(7), cx_source, cx_energy
 real*8    :: rec_rate, dEion_dT, Z_imp, Z_eff, N_imp, Lrad, rad_sink, spi_source_imp, spi_source_imp_local
 real*8    :: spi_source_R(2), spi_source_Z(2), spi_source_phi(2), ng_radius
-real*8    :: cx_prob, CX_rate, Z_imp_tmp, n_imp_tmp
+real*8    :: cx_prob, CX_rate, Z_imp_tmp, n_imp_tmpi, grad_n_imp_tmp(3), grad_n_imp_fluid(3), V_ext(3)
 real*8    :: particle_source, velocity_par_source, energy_source
 real*8    :: v_temp(3), T_eV, K_eV, B_norm(3), v_1, v_2, v_3, v_4, v_5
 real*8    :: density_tot, density_in, density_out,  pressure, pressure_in, pressure_out
@@ -276,6 +276,7 @@ velocity_par_source = 0.0
 energy_source = 0.0
 dEion_dT = 0.0
 Z_imp    = 0.0; Z_eff = 0.0; N_imp = 0.0; Z_imp_tmp = 0.0; n_imp_tmp = 0.0
+grad_n_imp_tmp = 0.0; grad_n_imp_fluid = 0.0; V_ext = 0.0
 
 v_1 = 0.0; v_2 = 0.0; v_3 = 0.0; v_4 = 0.0; v_5 = 0.0
 
@@ -458,8 +459,8 @@ do while (.not. sim%stop_now)
     !$omp private(i_rng, i,j,k,l,m, t, E, B, psi, U, rz_old, st_old, P_ion, P_rcb, iZ, P_tmp,&
     !$omp i_elm_old, n_rho, T_e, ion_rate, ion_prob, ion_source, ion_energy, kinetic_energy,& 
     !$omp rec_rate, dEion_dt, ion_rec_ran, Z_imp, Z_eff, N_imp, Lrad, rad_sink, V, n_rho_imp,& 
-    !$omp R_g, R_s, R_t, Z_g, Z_s, Z_t, xjac, HH, HH_s, HH_t, HZ, index_lm, n_e,            &
-    !$omp P, P_s, P_t, P_phi, n_imp_tmp, Z_imp_tmp,                                         &
+    !$omp R_g, R_s, R_t, Z_g, Z_s, Z_t, xjac, HH, HH_s, HH_t, HZ, index_lm, n_e, V_ext,     &
+    !$omp P, P_s, P_t, P_phi, n_imp_tmp, Z_imp_tmp, grad_n_imp_tmp, grad_n_imp_fluid,       &
     !$omp ifail, CX_rate, CX_prob, CX_source, CX_energy, v_1, v_2, v_3, v_4, v_5,           &
     !$omp particle_source, velocity_par_source, energy_source, v_temp, K_eV, T_eV, cx_ran)  &
     !$omp reduction(+:feedback_rhs, E_lost_ion, E_lost_rad, Ne_tot)
@@ -479,7 +480,7 @@ do while (.not. sim%stop_now)
         i_elm_old = particles(j)%i_elm
 
         call sim%fields%calc_NeTe_imp(t, particles(j)%i_elm, particles(j)%st, particles(j)%x(3),&
-                                      n_rho, n_rho_imp, T_e)
+                                      n_rho, n_rho_imp, T_e, grad_n_imp=grad_n_imp_fluid)
         T_eV = T_e * K_BOLTZ /  EL_CHG ! Change K to eV
 
         call interp_PRZ(aux_node_list,element_list,particles(j)%i_elm,[4,5],2,particles(j)%st(1),&
@@ -489,6 +490,14 @@ do while (.not. sim%stop_now)
         n_imp_tmp = P(2)
         n_imp_tmp = corr_neg_dens(n_imp_tmp, (/ 1.d-1, 1.d-1 /),1.d-3)
         Z_imp_tmp = Z_imp_tmp / n_imp_tmp
+
+        xjac      = R_s * Z_t - R_t * Z_s
+
+        grad_n_imp_tmp = n_norm*[(  P_s(2) * Z_t - P_t(2) * Z_s)/ xjac, &
+                                 (- P_s(2) * R_t + P_t(2) * R_s)/ xjac, &
+                                 P_phi(2)/R] 
+        grad_n_imp_tmp = (grad_n_imp_tmp - grad_n_imp_fluid) / n_norm ! Normalize to JOREK unit
+        V_ext = (1.d-6/t_norm) * grad_n_imp_tmp 
 
         if (Z_imp_tmp < 0.) Z_imp_tmp = 0.
         if (Z_imp_tmp > sim%groups(1)%ad%n_Z) Z_imp_tmp = sim%groups(1)%ad%n_Z
@@ -626,7 +635,7 @@ do while (.not. sim%stop_now)
         if (particles(j)%i_elm .gt. 0) then
           !call sim%fields%calc_EBpsiU(t, particles(j)%i_elm, particles(j)%st, particles(j)%x(3), E, B, psi, U)
           call sim%fields%calc_VBpsiU(t, particles(j)%i_elm, particles(j)%st, particles(j)%x(3), V, B, psi, U)
-          call v_fieldline_adams_bashforth_push_cylindrical(particles(j), V, timesteps)
+          call v_fieldline_adams_bashforth_push_cylindrical(particles(j), V, timesteps, V_add=V_ext)
           call find_RZ_nearby(sim%fields%node_list, sim%fields%element_list, rz_old(1), rz_old(2), &
                               st_old(1), st_old(2), i_elm_old, particles(j)%x(1), particles(j)%x(2), &
                               particles(j)%st(1), particles(j)%st(2), particles(j)%i_elm, ifail)

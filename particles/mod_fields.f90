@@ -227,7 +227,7 @@ if (present(grad_T_e)) then
 end if
 end subroutine calc_NeTe
 
-pure subroutine calc_NeTe_imp(fields, time, i_elm, st, phi, n_bg, n_imp, T_e, grad_T_e)
+pure subroutine calc_NeTe_imp(fields, time, i_elm, st, phi, n_bg, n_imp, T_e, grad_n_imp, grad_T_e)
 use phys_module, only: central_density, imp_type, central_mass
 use constants
 use mod_parameters
@@ -238,10 +238,12 @@ real*8, intent(out)                               :: n_bg !< background species 
 real*8, intent(out)                               :: n_imp !< Impurity species density [m^-3]
 real*8, intent(out)                               :: T_e !< electron temperature [K]
 real*8, intent(out), optional, dimension(3)       :: grad_T_e !< gradient of electron temperature [K/m]
+real*8, intent(out), optional, dimension(3)       :: grad_n_imp !< gradient of impurity density [/m^4]
 
 real*8, dimension(3) :: P, P_s, P_t, P_phi, P_time
 real*8               :: R, R_s, R_t, Z, Z_s, Z_t, xjac, m_i_over_m_imp
 real*8 :: T_norm !< temperature normalisation
+real*8 :: n_norm !< temperature normalisation
 
 call fields%interp_PRZ(time,i_elm,&
 #ifdef WITH_TiTe
@@ -271,6 +273,7 @@ T_norm = (1.d0/K_BOLTZ/(2.d0*MU_ZERO*central_density*1.d20))
 T_norm = T_norm*2.d0 ! P(1) contains the electron temperature, reverse previous correction
 #endif
 T_e = max(P(2)*T_norm, 1.d4) ! temperature capped against going negative
+n_norm = central_density*1.d20
 
 if (present(grad_T_e)) then
 
@@ -278,6 +281,13 @@ if (present(grad_T_e)) then
   grad_T_e = T_norm*[(  P_s(2) * Z_t - P_t(2) * Z_s)/ xjac, &
                      (- P_s(2) * R_t + P_t(2) * R_s)/ xjac, &
                      P_phi(2)/R]
+end if
+if (present(grad_n_imp)) then
+
+  xjac = R_s * Z_t - R_t * Z_s
+  grad_n_imp = n_norm*[(  P_s(3) * Z_t - P_t(3) * Z_s)/ xjac, &
+                     (- P_s(3) * R_t + P_t(3) * R_s)/ xjac, &
+                     P_phi(3)/R] * m_i_over_m_imp
 end if
 end subroutine calc_NeTe_imp
 
