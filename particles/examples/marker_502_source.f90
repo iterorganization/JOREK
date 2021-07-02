@@ -495,7 +495,7 @@ do while (.not. sim%stop_now)
 
         grad_n_imp_tmp = n_norm*[(  P_s(2) * Z_t - P_t(2) * Z_s)/ xjac, &
                                  (- P_s(2) * R_t + P_t(2) * R_s)/ xjac, &
-                                 P_phi(2)/R] 
+                                 P_phi(2)/R_g] 
         grad_n_imp_tmp = (grad_n_imp_tmp - grad_n_imp_fluid) / n_norm ! Normalize to JOREK unit
         V_ext = (1.d-6/t_norm) * grad_n_imp_tmp 
 
