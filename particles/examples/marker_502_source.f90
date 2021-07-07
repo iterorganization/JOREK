@@ -533,8 +533,8 @@ do while (.not. sim%stop_now)
             endif
 
             if (iZ .eq. 0) then
-              call sim%groups(1)%ad%SCD%interp_linear(iZ,   log10(n_e), log10(T_e), P_ion(1))
-              call sim%groups(1)%ad%ACD%interp_linear(iZ+1, log10(n_e), log10(T_e), P_rcb(2))
+              P_ion(1) = sim%groups(1)%ad%SCD%interp_linear(iZ,   log10(n_e), log10(T_e))
+              P_rcb(2) = sim%groups(1)%ad%ACD%interp_linear(iZ+1, log10(n_e), log10(T_e))
               P_tmp(iZ) = particles(j)%P_imp(iZ) * (1.- P_ion(1)*n_e*timesteps) &
                           + particles(j)%P_imp(iZ+1) *  P_rcb(2)*n_e*timesteps
               !dEion_dt  = dEion_dt &
@@ -542,8 +542,8 @@ do while (.not. sim%stop_now)
               !                * (particles(j)%P_imp(iZ)*P_ion(1) - particles(j)%P_imp(iZ+1)*P_rcb(2))
               P_tmp(iZ) = max(P_tmp(iZ), 0.0)
             elseif (iZ .eq. sim%groups(1)%ad%n_Z) then
-              call sim%groups(1)%ad%SCD%interp_linear(iZ-1, log10(n_e), log10(T_e), P_ion(2))
-              call sim%groups(1)%ad%ACD%interp_linear(iZ,   log10(n_e), log10(T_e), P_rcb(1))
+              P_ion(2) = sim%groups(1)%ad%SCD%interp_linear(iZ-1, log10(n_e), log10(T_e))
+              P_rcb(1) = sim%groups(1)%ad%ACD%interp_linear(iZ,   log10(n_e), log10(T_e))
               P_tmp(iZ) = particles(j)%P_imp(iZ) * (1.-P_rcb(1)*n_e*timesteps) &
                           + particles(j)%P_imp(iZ-1) * P_ion(2)*n_e*timesteps
               P_tmp(iZ) = max(P_tmp(iZ), 0.0)
@@ -551,10 +551,10 @@ do while (.not. sim%stop_now)
               !            + real(particles(j)%weight,8)*n_e*timesteps*sim%groups(1)%ad%ionisation_energy(iZ)&
               !                * (-particles(j)%P_imp(iZ)*P_rcb(1) + particles(j)%P_imp(iZ-1)*P_ion(2))
             else
-              call sim%groups(1)%ad%SCD%interp_linear(iZ,   log10(n_e), log10(T_e), P_ion(1))
-              call sim%groups(1)%ad%ACD%interp_linear(iZ,   log10(n_e), log10(T_e), P_rcb(1))
-              call sim%groups(1)%ad%SCD%interp_linear(iZ-1, log10(n_e), log10(T_e), P_ion(2))
-              call sim%groups(1)%ad%ACD%interp_linear(iZ+1, log10(n_e), log10(T_e), P_rcb(2))
+              P_ion(1) = sim%groups(1)%ad%SCD%interp_linear(iZ,   log10(n_e), log10(T_e))
+              P_rcb(1) = sim%groups(1)%ad%ACD%interp_linear(iZ,   log10(n_e), log10(T_e))
+              P_ion(2) = sim%groups(1)%ad%SCD%interp_linear(iZ-1, log10(n_e), log10(T_e))
+              P_rcb(2) = sim%groups(1)%ad%ACD%interp_linear(iZ+1, log10(n_e), log10(T_e))
               P_tmp(iZ) = particles(j)%P_imp(iZ) * (1.-P_ion(1)*n_e*timesteps-P_rcb(1)*n_e*timesteps) &
                           + particles(j)%P_imp(iZ+1) * P_rcb(2)*n_e*timesteps           &
                           + particles(j)%P_imp(iZ-1) * P_ion(2)*n_e*timesteps

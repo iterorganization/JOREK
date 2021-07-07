@@ -42,11 +42,11 @@ function proj_Lz(sim, group, particle)
 
   q = particle_get_q(particle)
   ! From here on out we have a q
-  call sim%groups(group)%ad%PRB%interp_linear(q, log_n_e, log_T_e, prb)
-  call sim%groups(group)%ad%PLT%interp_linear(q, log_n_e, log_T_e, plt)
+  prb = sim%groups(group)%ad%PRB%interp_linear(q, log_n_e, log_T_e)
+  plt = sim%groups(group)%ad%PLT%interp_linear(q, log_n_e, log_T_e)
   proj_Lz      = (prb + plt) * n_e
 #if (defined WITH_Neutrals) && (!defined WITH_Impurities)
-  call sim%groups(group)%ad%PRC%interp_linear(q, log_n_e, log_T_e, prc)
+  prc = sim%groups(group)%ad%PRC%interp_linear(q, log_n_e, log_T_e)
   proj_Lz      = proj_Lz + prc * n_n
 #endif
 end function proj_Lz
