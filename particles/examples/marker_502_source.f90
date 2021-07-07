@@ -497,7 +497,7 @@ do while (.not. sim%stop_now)
                                  (- P_s(2) * R_t + P_t(2) * R_s)/ xjac, &
                                  P_phi(2)/R_g] 
         grad_n_imp_tmp = (grad_n_imp_tmp - grad_n_imp_fluid) / n_norm ! Normalize to JOREK unit
-        V_ext = (1.d-6/t_norm) * grad_n_imp_tmp 
+        V_ext = -(1.d-6/t_norm) * grad_n_imp_tmp 
 
         if (Z_imp_tmp < 0.) Z_imp_tmp = 0.
         if (Z_imp_tmp > sim%groups(1)%ad%n_Z) Z_imp_tmp = sim%groups(1)%ad%n_Z
