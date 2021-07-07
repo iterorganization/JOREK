@@ -53,20 +53,17 @@ integer,                  intent(in)    :: i_elm_old
 real*8,                   intent(out)   :: s_new, t_new !< The found new coordinates
 integer,                  intent(out)   :: i_elm_new
 integer,                  intent(out)   :: ifail !< if ifail = -1 the position could not be found in the grid.
-!< ifail > 0 indicates various other cases where the position can be used (albeit possibly at lower accuracy)
+!< ifail > 0 indicates various other cases
 
 !> Accuracy defaults (tolerances are squared!, units of element size)
-real*8,  parameter :: element_tolerance   = 1.d-24 !< Tolerance for finding a position inside an element
+real*8,  parameter :: element_tolerance   = 1.d-12 !< Tolerance for finding a position inside an element
 integer, parameter :: newton_iter_max     = 8 !< Number of iterations to try
-logical, parameter :: debug = .false. !< Perform extra checks
-real*8,  parameter :: edge_crossing_tolerance = 1d-8 !< maximum distance in meters when going to another element and back
 
 !> Internal variables
 integer :: newton_iter_number, i_elm_tmp
 real*8 :: inv_st_jac_det, R_s, R_t, Z_s, Z_t
 real*8 :: st_step(2), x_step(2), x_tmp(2), st_new(2), x_new(2) ! x_step = (R,Z) of trial position
 real*8 :: err2, err2_old, dist(2), fact
-logical :: newton_iter_converged
 
 ! Check if element is valid
 if (i_elm_old .lt. 1 .or. i_elm_old .gt. element_list%n_elements) then
@@ -85,7 +82,6 @@ err2 = dot_product(x_step-x_new,x_step-x_new)
 ifail=0
 
 
-newton_iter_converged = .false.
 ! Newton iteration to find s and t in or out of this element
 do newton_iter_number = 1, newton_iter_max
   ! Perform newton iteration by calculating the inverse of the jacobian matrix explicitly
@@ -102,28 +98,36 @@ do newton_iter_number = 1, newton_iter_max
 
   if (fact .ge. 1.d0-1d-12) then
     st_new = st_new + st_step/fact
-    if (debug) then
-      call try_interp(node_list,element_list,i_elm_new,st_new,x_tmp,R_s,R_t,Z_s,Z_t,inv_st_jac_det)
-    end if
+#ifdef DEBUG
+    call try_interp(node_list,element_list,i_elm_new,st_new,x_tmp,R_s,R_t,Z_s,Z_t,inv_st_jac_det)
+#endif
     i_elm_tmp = i_elm_new
     call coord_in_neighbour(node_list,element_list,i_elm_tmp,i_elm_new,st_new)
-    if (i_elm_new .lt. 0) then ! unknown which element is neighbouring
+    if (i_elm_new .lt. 0) then
       call find_RZ(node_list,element_list,x_new(1),x_new(2),x_step(1),x_step(2),i_elm_new,s_new,t_new,ifail)
-      return ! Stop because find_RZ works always or the particle is lost. Passthrough ifail
+      if (ifail .ne. 0) i_elm_new = 0
     end if
     if (i_elm_new .eq. 0) then ! No element on that side, particle is lost
+      i_elm_new = - i_elm_tmp ! Save position of particle
+      ! Calculate new R and Z in x_new
+      call try_interp(node_list,element_list,i_elm_tmp,st_new,x_new,R_s,R_t,Z_s,Z_t,inv_st_jac_det)
+      ! Set new element-local coordinates for the point on the axis
+      s_new = st_new(1)
+      t_new = st_new(2)
       ifail = -1
       return
     end if
 
     call try_interp(node_list,element_list,i_elm_new,st_new,x_step,R_s,R_t,Z_s,Z_t,inv_st_jac_det)
-    if (debug) then
-      if (norm2(x_step-x_tmp) .gt. edge_crossing_tolerance) then
-        write(*,*) "ERROR on element edge crossing", x_step, x_tmp, norm2(x_step-x_tmp), &
-        i_elm_new, i_elm_old
-        call exit(1)
-      end if
+#ifdef DEBUG 
+    if (norm2(x_step-x_tmp) .gt. 1d-8) then
+      !write(*,*) "ERROR on element edge crossing", x_step, x_tmp, norm2(x_step-x_tmp), &
+      !i_elm_new, i_elm_old, i_elm_tmp, "deleting particle"
+      !call exit(1)
+      i_elm_new = 0
+      return
     end if
+#endif
   else
     st_new = st_new + st_step
     call try_interp(node_list,element_list,i_elm_new,st_new,x_step,R_s,R_t,Z_s,Z_t,inv_st_jac_det)
@@ -132,10 +136,7 @@ do newton_iter_number = 1, newton_iter_max
   s_new = st_new(1)
   t_new = st_new(2)
 
-  if (err2 < element_tolerance) then
-    newton_iter_converged = .true.
-    exit
-  end if
+  if (err2 < element_tolerance) exit
 enddo
 
 
@@ -145,19 +146,13 @@ if (isnan(err2)) then
   if (ifail .eq. 0) ifail=2
   return
 endif
-if (.not. newton_iter_converged) then
+if (newton_iter_number .gt. newton_iter_max) then
   !write(*,"(A,i4,A,i5,A,2g14.6,A,3g14.6)") "WARNING: iteration for st did not converge after", newton_iter_max, " tries in element ", i_elm_new, &
   !" using find_RZ", x_new, "err2(old)/convergence: ", err2, err2_old, err2_old/err2
     !write(*,"(A,2g16.8)") "Find_RZ at ", x_new
-  ! See if with reduced tolerance it's ok (find_RZ has 10^-8 tolerance, so we check 10^-16)
-  if (err2 .le. 1e-16) then
-    ifail = 3
-    return
-  else
-    call find_RZ(node_list,element_list,x_new(1),x_new(2),x_step(1),x_step(2),i_elm_new,s_new,t_new,ifail)
-    if (ifail .eq. 0) ifail=3
-    return
-  end if
+  call find_RZ(node_list,element_list,x_new(1),x_new(2),x_step(1),x_step(2),i_elm_new,s_new,t_new,ifail)
+  if (ifail .eq. 0) ifail=3
+  return
 endif
 end subroutine find_RZ_nearby
 

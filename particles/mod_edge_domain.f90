@@ -87,7 +87,7 @@ function check_cutoff_edge_domain(x, x1, x2, flip_ud) result(cut_off) !< checks 
   R2 = x2(1) ! x2 = [R1, Z1]
   Z2 = x2(2)
   
-  !> x(1,1) = R and x(1,2) = Z
+  !> x(1,1,1) = R and x(1,1,2) = Z
   !> constructing RZ cutoff line
   !> with form y = ax + b = slope * R + z_ofset
   if (abs(R1 - R2) .le. 1d-10) then

@@ -27,6 +27,7 @@ subroutine test_square_10_10
   call default_square_grid(f%node_list, f%element_list, 10)
   call jorek_penning_fields(f%node_list, f%element_list)
   call verify_solution(f)
+  write(*,*) ' completed test_square_10_10'
 end subroutine test_square_10_10
 
 subroutine test_polar_30_32
@@ -35,6 +36,7 @@ subroutine test_polar_30_32
   call default_polar_grid(f%node_list, f%element_list, 32)
   call jorek_penning_fields(f%node_list, f%element_list)
   call verify_solution(f)
+  write(*,*) ' completed test_polar_30_32'
 end subroutine test_polar_30_32
 
 ! flux aligned grid does not work since there is no axis in the domain (and there aren't really flux surfaces in any useful way)

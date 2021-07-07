@@ -712,13 +712,13 @@ module phys_module
 
   !> @name Particles-related input parameters
   logical :: restart_particles
-  logical :: use_ncs
-  logical :: use_ccs
-  logical :: use_pcs
-  logical :: use_cx
-  logical :: use_marker         !< This flag determines whether to use marker particles to treat impurity
-  logical :: use_sputtering
-  logical :: use_ionisation
+  logical :: use_ncs          ! use neutral particles
+  logical :: use_ccs          ! use current coupling scheme for fast particles
+  logical :: use_pcs          ! use pressure coupling scheme for fast particles
+  logical :: use_cx           ! switch on sputtering         (in particle module)
+  logical :: use_marker       ! This flag determines whether to use marker particles to treat impurity
+  logical :: use_sputtering   ! switch on charge-exchange    (in particle module)
+  logical :: use_ionisation   ! switch on ionisation         (in particle module)
   real*8  :: n_particles      ! the number of particles (real on purpose)
   real*8  :: tstep_particles  ! the time step for the particles
   integer :: nstep_particles  ! the number of particle time steps

@@ -23,8 +23,9 @@ type, abstract :: fields_base
     procedure, public :: calc_NeTe_imp
     procedure, public :: calc_EBpsiU
     procedure, public :: calc_VBpsiU
-    procedure, public :: calc_Qin, calc_Qin_analytic
-    procedure, public :: calc_rk4, calc_RK4_analytic
+    procedure, public :: calc_gyro_average_E
+    procedure, public :: calc_Qin, calc_Qin_analytic, check_consistency_Qin
+    procedure, public :: calc_rk4, calc_RK4_analytic, check_consistency_RK4 
     procedure, public :: calc_EBNormBGradBCurlbDbdt
     procedure, public :: calc_analytical_EBpsiU
     procedure, public :: calc_analytical_EBNormBGradBCurlbDbdt
@@ -47,9 +48,9 @@ interface
   end subroutine interp_PRZ
   !> Interpolate a variable at s, t, phi in i_elm, returning first
   !> and second order derivatives of the variable and of R and Z.
-  pure subroutine interp_PRZ_2(this,time,i_elm,i_v,n_v,s,t,phi,P,P_s,P_t,P_phi, &
-    P_time,P_ss,P_st,P_tt,P_sphi,P_tphi,P_stime,P_ttime,                        &
-    R,R_s,R_t,R_ss,R_st,R_tt,Z,Z_s,Z_t,Z_ss,Z_st,Z_tt)
+  pure subroutine interp_PRZ_2(this, time, i_elm, i_v, n_v, s, t, phi, P, P_s, P_t, P_phi, &
+                               P_time, P_ss, P_st, P_tt, P_sphi, P_tphi, P_stime, P_ttime, &
+                               R, R_s, R_t, R_ss, R_st, R_tt, Z, Z_s, Z_t, Z_ss, Z_st, Z_tt)
     import fields_base
     !> declare input variables
     class(fields_base), intent(in)      :: this
@@ -68,7 +69,7 @@ end interface
 contains
 !> Calculates the electric and magnetic fields at a specific position
 !> in the jorek element `i_elm` at `st`.
-subroutine calc_EBpsiU(fields, time, i_elm, st, phi, E, B, psi, U)
+pure subroutine calc_EBpsiU(fields, time, i_elm, st, phi, E, B, psi, U)
 use phys_module, only: F0, mode, central_mass, central_density
 use constants, only: mu_zero, mass_proton
 use mod_coordinate_transforms, only: transform_derivatives_st_to_RZ
@@ -291,17 +292,77 @@ if (present(grad_n_imp)) then
 end if
 end subroutine calc_NeTe_imp
 
-function rot_tmp(x,A,dA) result(rotA)
+!> Calculates the gyro-averaged electric fields from a set of particles (representing the gyro-orbit)
+pure subroutine calc_gyro_average_E(fields, time, particles, n_phases, E_average)
+  use phys_module, only: F0, mode, central_mass, central_density
+  use constants, only: mu_zero, mass_proton
+  use mod_particle_types
+  ! Routine parameters
+  class(fields_base), intent(in)             :: fields
+  real*8, intent(in)                         :: time
+  type(particle_kinetic_leapfrog),intent(in) :: particles(n_phases) 
+  integer, intent(in)                        :: n_phases     ! the number of points used in the gyro orbit average
+  real*8, intent(inout)                      :: E_average(3) !< Electric field [V/m]
+  
+  ! Internal parameters
+  integer, parameter :: i_var(1) = [2]
+  real*8             :: P(1), P_s(1), P_t(1), P_phi(1), P_time(1) ! Placeholder for evaluating variables and derivatives locally
+  real*8             :: E(3), R, R_s, R_t, Z, Z_s, Z_t
+  real*8             :: inv_st_jac, R_inv
+  real*8             :: U, U_R, U_Z, U_phi, t_norm
+  integer            :: i
+
+  !!!!!!!!!!!!! careful Ptime is not yet defined !!!!!!!!!!!!!!!!!!!!!!
+ 
+  if (n_phases .lt. 1) return   ! return E_average as it was
+  
+  t_norm  = sqrt(mu_zero * mass_proton * central_mass * central_density * 1.d20) ! 1 jorek time unit in seconds
+  
+  ! Interpolate the fields to get psi and U at the current position (and the
+  ! changes u_n - u(n-1))
+  
+  E_average = 0.d0
+
+  do i=1, n_phases
+
+    call fields%interp_PRZ(time, particles(i)%i_elm, i_var, 1, particles(i)%st(1), particles(i)%st(2), particles(i)%x(3), P, P_s, P_t, P_phi, P_time, R, R_s, R_t, Z, Z_s, Z_t)
+  
+    P_time(1) = 0.d0
+
+    R_inv = 1.d0/R
+    inv_st_jac = 1.d0/(R_s * Z_t - R_t * Z_s)
+  
+    ! Calculate the derivatives to R and Z
+    U_R      = (  P_s(1) * Z_t - P_t(1) * Z_s ) * inv_st_jac
+    U_Z      = (- P_s(1) * R_t + P_t(1) * R_s ) * inv_st_jac
+    U_phi    = P_phi(1)
+  
+    U   = P(1)/t_norm
+   
+  ! The local electric field, obtained from E=-Grad (u F0)-\partial_t A
+  ! See http://jorek.eu/wiki/doku.php?id=u_phi
+    E     = [-F0*U_R, -F0*U_Z, -F0*U_phi*R_inv]/t_norm
+    E(3)  = E(3) - R_inv*P_time(1) ! because this is not normalized with t_norm
+  
+    E_average = E_average + E
+
+  enddo
+
+  E_average = E_average / real(n_phases,8)
+
+end subroutine calc_gyro_average_E
+
+pure function rot_tmp(x,A,dA) result(rotA)
   implicit none
-  real*8, intent(in) :: x(3), A(3), dA(3,3)
-  real*8             :: rotA(3)
+  real*8, intent(in)  :: x(3), A(3), dA(3,3)
+  real*8              :: rotA(3)
      rotA(1) = dA(3,2) - dA(2,3) / x(1)
      rotA(2) = dA(1,3) - dA(3,1) - A(3) / x(1)
      rotA(3) = dA(2,1) - dA(1,2) 
   return
 end  
 
-subroutine calc_RK4_analytic(fields, R, Z, phi, A_out, dA_out, B_out, dB_out, B_norm, dB_norm, bn, dBn, E)
+pure subroutine calc_RK4_analytic(fields, R, Z, phi, A_out, dA_out, B_out, dB_out, B_norm, dB_norm, bn, dBn, E)
   use phys_module, only: mode, central_mass, central_density
   use constants, only: mu_zero, mass_proton
   class(fields_base), intent(in) :: fields
@@ -401,7 +462,7 @@ subroutine calc_RK4_analytic(fields, R, Z, phi, A_out, dA_out, B_out, dB_out, B_
 return
 end
 
-subroutine calc_RK4(fields, time, i_elm, st, phi, A, dA, B, dB, Bnorm, dBnorm, bn, dBn, E)
+pure subroutine calc_RK4(fields, time, i_elm, st, phi, A, dA, B, dB, Bnorm, dBnorm, bn, dBn, E)
 use phys_module, only: F0, mode, central_mass, central_density
 use constants, only: mu_zero, mass_proton
 ! Routine parameters
@@ -511,9 +572,9 @@ Bnorm = B / Bn
 
 Bn = sqrt(psi_R**2 + psi_Z**2 + F0**2) / R
 
-dBn(1) = 0.5d0 /(R*Bn) * (2.d0*psi_R * psi_RR   + 2.d0*psi_Z * psi_RZ) - Bn / R
-dBn(2) = 0.5d0 /(R*Bn) * (2.d0*psi_R * psi_RZ   + 2.d0*psi_Z * psi_ZZ)
-dBn(3) = 0.5d0 /(R*Bn) * (2.d0*psi_R * psi_Rphi + 2.d0*psi_Z * psi_Zphi)
+dBn(1) = 1.d0 /(R**2 * Bn) * (psi_R * psi_RR   + psi_Z * psi_RZ) - Bn / R
+dBn(2) = 1.d0 /(R**2 * Bn) * (psi_R * psi_RZ   + psi_Z * psi_ZZ)
+dBn(3) = 1.d0 /(R**2 * Bn) * (psi_R * psi_Rphi + psi_Z * psi_Zphi)
 
 dBnorm(1,1) = dB(1,1) / Bn - B(1) * dBn(1) / Bn2
 dBnorm(1,2) = dB(1,2) / Bn - B(1) * dBn(2) / Bn2
@@ -525,8 +586,6 @@ dBnorm(3,1) = dB(3,1) / Bn - B(3) * dBn(1) / Bn2
 dBnorm(3,2) = dB(3,2) / Bn - B(3) * dBn(2) / Bn2
 dBnorm(3,3) = dB(3,3) / Bn - B(3) * dBn(3) / Bn2
 
-dBnorm(3,:) = dBnorm(3,:) * R_inv
-
 ! The local electric field, obtained from E=-Grad (u F0)-\partial_t A
 ! See http://jorek.eu/wiki/doku.php?id=u_phi
 E     = [-F0*U_R, -F0*U_Z, -F0*U_phi*R_inv]/t_norm
@@ -534,7 +593,116 @@ E(3)  = E(3) - R_inv*P_time(1) ! because this is not normalized with t_norm
 
 end subroutine calc_RK4
 
-subroutine calc_Qin_analytic(fields, R, Z, phi, A_out, dA_out, B_out, dB_out, B_norm, dB_norm, bn, dBn, E)
+subroutine check_consistency_RK4(fields, i_elm, st)
+use phys_module, only: F0, mode, central_mass, central_density
+use constants, only: mu_zero, mass_proton
+use mod_find_rz_nearby
+class(fields_base), intent(in) :: fields
+real*8  :: time
+integer :: i_elm       !< JOREK element index
+real*8  :: st(2)       !< element-local coordinates
+
+real*8  :: phi         !< toroidal angle
+real*8  :: E(3)        !< Electric field [V/m]
+real*8  :: A(3)        !< vector potential [T.m]
+real*8  :: dA(3,3)     !< derivatives of vector potential [T]
+real*8  :: B(3)        !< Magnetic field [T]
+real*8  :: dB(3,3)     !< derivatives of magnetic field [T/m]
+real*8  :: Bnorm(3)    !< normalised magnetic field vector
+real*8  :: dBnorm(3,3) !< derivatives of normalised magnetic field vector [1/m]
+real*8  :: Bn          !< Magnetic field amplitude [T]
+real*8  :: dBn(3)      !< derivatives of magnetic field amplitude [T/m]
+  
+! Internal parameters
+integer, parameter :: i_var(2) = [1,2]
+real*8             :: P(2), P_s(2), P_t(2), P_phi(2), P_ss(2), P_st(2), P_tt(2), P_sphi(2), P_tphi(2)
+real*8             :: P_time(2), P_stime(2), P_ttime(2), bn2
+real*8             :: x(3), R, R_s, R_t, R_ss, R_st, R_tt, Z, Z_s, Z_t, Z_st, Z_ss, Z_tt
+! Others
+real*8             :: inv_st_jac, R_inv, RZjac, RZjac_R, RZjac_Z
+real*8             :: psi, psi_R, psi_Z, psi_RR, psi_ZZ, psi_RZ, psi_Rphi, psi_Zphi
+real*8             :: U, U_R, U_Z, U_phi, t_norm
+
+integer            :: i_elm_p, i_elm_m, ifail
+real*8             :: st_p(2), st_m(2), Rout, Zout, R_p, Z_p, R_m, Z_m, delta, error
+real*8             :: A_p(3), dA_p(3,3), B_p(3), db_p(3,3), Bnorm_p(3), dBnorm_p(3,3), Bn_p, dBn_p(3), E_p(3)
+real*8             :: A_m(3), dA_m(3,3), B_m(3), db_m(3,3), Bnorm_m(3), dBnorm_m(3,3), Bn_m, dbn_m(3), E_m(3)
+logical            :: verbose = .false.  
+
+time = 0.d0
+phi  = 0.d0
+
+delta = 1.d-5
+
+call fields%interp_PRZ_2(time, i_elm, i_var, 2, st(1), st(2), phi, P, P_s, P_t, P_phi, &
+                         P_time, P_ss, P_st, P_tt, P_sphi, P_tphi, P_stime, P_ttime,   &
+                         R, R_s, R_t, R_ss, R_st, R_tt, Z, Z_s, Z_t, Z_ss, Z_st, Z_tt)
+
+call calc_RK4(fields, time, i_elm, st, phi, A, dA, B, dB, Bnorm, dBnorm, bn, dBn, E)
+
+R_p = R + delta
+Z_p = Z
+call find_RZ_nearby(fields%node_list, fields%element_list, R, Z, st(1), st(2), i_elm, R_p, Z_p, st_p(1), st_p(2), i_elm_p, ifail)
+call calc_RK4(fields, time, i_elm_p, st_p, phi, A_p, dA_p, B_p, dB_p, Bnorm_p, dBnorm_p, bn_p, dBn_p, E_p)
+
+R_m =  R - delta
+Z_m = Z
+call find_RZ_nearby(fields%node_list, fields%element_list, R, Z, st(1), st(2), i_elm, R_m, Z_m, st_m(1), st_m(2), i_elm_m, ifail)
+call calc_RK4(fields, time, i_elm_m, st_m, phi, A_m, dA_m, B_m, dB_m, Bnorm_m, dBnorm_m, bn_m, dBn_m, E_m)
+
+if (verbose) then
+  write(*,*) 'RK4 consistency check : '
+  write(*,'(A,8e18.10)') 'A(1),  dA(1,1)  : ',A(1), dA(1,1), (A_p(1) - A_m(1))/ (2.d0*delta)
+  write(*,'(A,8e18.10)') 'A(2),  dA(2,1)  : ',A(2), dA(2,1), (A_p(2) - A_m(2))/ (2.d0*delta)
+  write(*,'(A,8e18.10)') 'A(3),  dA(3,1)  : ',A(3), dA(3,1), (A_p(3) - A_m(3))/ (2.d0*delta)
+  write(*,'(A,8e18.10)') 'bn,    dbn(1)   : ',bn,   dbn(1),  (bn_p   - bn_m)  / (2.d0*delta)
+  write(*,'(A,8e18.10)') 'B(1),  dB(1,1)  : ',B(1), dB(1,1), (B_p(1) - B_m(1))/ (2.d0*delta)
+  write(*,'(A,8e18.10)') 'B(2),  dB(2,1)  : ',B(2), dB(2,1), (B_p(2) - B_m(2))/ (2.d0*delta)
+  write(*,'(A,8e18.10)') 'B(3),  dB(3,1)  : ',B(3), dB(3,1), (B_p(3) - B_m(3))/ (2.d0*delta)
+  write(*,'(A,8e18.10)') 'Bnorm(1),  dBnorm(1,1)  : ',Bnorm(1), dBnorm(1,1), (Bnorm_p(1) - Bnorm_m(1))/ (2.d0*delta)
+  write(*,'(A,8e18.10)') 'Bnorm(2),  dBnorm(2,1)  : ',Bnorm(2), dBnorm(2,1), (Bnorm_p(2) - Bnorm_m(2))/ (2.d0*delta)
+  write(*,'(A,8e18.10)') 'Bnorm(3),  dBnorm(3,1)  : ',Bnorm(3), dBnorm(3,1), (Bnorm_p(3) - Bnorm_m(3))/ (2.d0*delta)
+endif
+
+error =         sum(abs(dA(:,1) - (A_p(:) - A_m(:))/(2.d0*delta)))
+error = error + sum(abs(dB(:,1) - (B_p(:) - B_m(:))/(2.d0*delta)))
+error = error +     abs(dbn(1)  - (bn_p   - bn_m)  /(2.d0*delta))
+error = error + sum(abs(dBnorm(:,1) - (Bnorm_p(:) - Bnorm_m(:))/(2.d0*delta)))
+
+R_p = R 
+Z_p = Z + delta
+call find_RZ_nearby(fields%node_list, fields%element_list, R, Z, st(1), st(2), i_elm, R_p, Z_p, st_p(1), st_p(2), i_elm_p, ifail)
+call calc_RK4(fields, time, i_elm_p, st_p, phi, A_p, dA_p, B_p, dB_p, Bnorm_p, dBnorm_p, bn_p, dBn_p, E_p)
+
+R_m =  R 
+Z_m = Z - delta
+call find_RZ_nearby(fields%node_list, fields%element_list, R, Z, st(1), st(2), i_elm, R_m, Z_m, st_m(1), st_m(2), i_elm_m, ifail)
+call calc_RK4(fields, time, i_elm_m, st_m, phi, A_m, dA_m, B_m, dB_m, Bnorm_m, dBnorm_m, bn_m, dBn_m, E_m)
+
+if (verbose) then
+  write(*,'(A,8e18.10)') 'A(1),  dA(1,2)  : ',A(1), dA(1,2), (A_p(1) - A_m(1))/ (2.d0*delta)
+  write(*,'(A,8e18.10)') 'A(2),  dA(2,2)  : ',A(2), dA(2,2), (A_p(2) - A_m(2))/ (2.d0*delta)
+  write(*,'(A,8e18.10)') 'A(3),  dA(3,2)  : ',A(3), dA(3,2), (A_p(3) - A_m(3))/ (2.d0*delta)
+  write(*,'(A,8e18.10)') 'bn,    dbn(2)   : ',bn,   dbn(2),  (bn_p   - bn_m)  / (2.d0*delta)
+  write(*,'(A,8e18.10)') 'B(1),  dB(1,2)  : ',B(1), dB(1,2), (B_p(1) - B_m(1))/ (2.d0*delta)
+  write(*,'(A,8e18.10)') 'B(2),  dB(2,2)  : ',B(2), dB(2,2), (B_p(2) - B_m(2))/ (2.d0*delta)
+  write(*,'(A,8e18.10)') 'B(3),  dB(3,2)  : ',B(3), dB(3,2), (B_p(3) - B_m(3))/ (2.d0*delta)
+  write(*,'(A,8e18.10)') 'Bnorm(1),  dBnorm(1,2)  : ',Bnorm(1), dBnorm(1,2), (Bnorm_p(1) - Bnorm_m(1))/ (2.d0*delta)
+  write(*,'(A,8e18.10)') 'Bnorm(2),  dBnorm(2,2)  : ',Bnorm(2), dBnorm(2,2), (Bnorm_p(2) - Bnorm_m(2))/ (2.d0*delta)
+  write(*,'(A,8e18.10)') 'Bnorm(3),  dBnorm(3,2)  : ',Bnorm(3), dBnorm(3,2), (Bnorm_p(3) - Bnorm_m(3))/ (2.d0*delta)
+endif
+
+error = error + sum(abs(dA(:,2) - (A_p(:) - A_m(:))/(2.d0*delta)))
+error = error + sum(abs(dB(:,2) - (B_p(:) - B_m(:))/(2.d0*delta)))
+error = error +     abs(dbn(2)  - (bn_p   - bn_m)  /(2.d0*delta))
+error = error + sum(abs(dBnorm(:,2) - (Bnorm_p(:) - Bnorm_m(:))/(2.d0*delta)))
+
+write(*,*) 'RK4 consistency : error : ',error
+
+return
+end subroutine check_consistency_RK4
+
+pure subroutine calc_Qin_analytic(fields, R, Z, phi, A_out, dA_out, B_out, dB_out, B_norm, dB_norm, bn, dBn, E)
   use phys_module, only: mode, central_mass, central_density
   use constants, only: mu_zero, mass_proton
   class(fields_base), intent(in) :: fields
@@ -654,7 +822,7 @@ subroutine calc_Qin_analytic(fields, R, Z, phi, A_out, dA_out, B_out, dB_out, B_
 return
 end
 
-subroutine calc_Qin(fields, time, i_elm, st, phi, A, dA, B, dB, Bnorm, dBnorm, bn, dBn, E)
+pure subroutine calc_Qin(fields, time, i_elm, st, phi, A, dA, B, dB, Bnorm, dBnorm, bn, dBn, E)
   use phys_module, only: F0, mode, central_mass, central_density
   use constants, only: mu_zero, mass_proton
   ! Routine parameters
@@ -764,9 +932,9 @@ subroutine calc_Qin(fields, time, i_elm, st, phi, A, dA, B, dB, Bnorm, dBnorm, b
   
   Bn = sqrt(psi_R**2 + psi_Z**2 + F0**2) / R
   
-  dBn(1) = 0.5d0 /(R*Bn) * (2.d0*psi_R * psi_RR   + 2.d0*psi_Z * psi_RZ) - Bn / R
-  dBn(2) = 0.5d0 /(R*Bn) * (2.d0*psi_R * psi_RZ   + 2.d0*psi_Z * psi_ZZ)
-  dBn(3) = 0.5d0 /(R*Bn) * (2.d0*psi_R * psi_Rphi + 2.d0*psi_Z * psi_Zphi)
+  dBn(1) = 1.d0 /(R**2 * Bn) * (psi_R * psi_RR   + psi_Z * psi_RZ) - Bn / R
+  dBn(2) = 1.d0 /(R**2 * Bn) * (psi_R * psi_RZ   + psi_Z * psi_ZZ)
+  dBn(3) = 1.d0 /(R**2 * Bn) * (psi_R * psi_Rphi + psi_Z * psi_Zphi)
   
   dBnorm(1,:) = dB(1,:) / Bn - B(1) * dBn(:) / Bn2
   dBnorm(2,:) = dB(2,:) / Bn - B(2) * dBn(:) / Bn2
@@ -797,7 +965,115 @@ subroutine calc_Qin(fields, time, i_elm, st, phi, A, dA, B, dB, Bnorm, dBnorm, b
   E(3)     = R * E(3)
   
 end subroutine calc_Qin
+
+subroutine check_consistency_Qin(fields, i_elm, st)
+  use phys_module, only: F0, mode, central_mass, central_density
+  use constants, only: mu_zero, mass_proton
+  use mod_find_rz_nearby
+  class(fields_base), intent(in) :: fields
+  real*8  :: time
+  integer :: i_elm       !< JOREK element index
+  real*8  :: st(2)       !< element-local coordinates
+
+  real*8  :: phi         !< toroidal angle
+  real*8  :: E(3)        !< Electric field [V/m]
+  real*8  :: A(3)        !< vector potential [T.m]
+  real*8  :: dA(3,3)     !< derivatives of vector potential [T]
+  real*8  :: B(3)        !< Magnetic field [T]
+  real*8  :: dB(3,3)     !< derivatives of magnetic field [T/m]
+  real*8  :: Bnorm(3)    !< normalised magnetic field vector
+  real*8  :: dBnorm(3,3) !< derivatives of normalised magnetic field vector [1/m]
+  real*8  :: Bn          !< Magnetic field amplitude [T]
+  real*8  :: dBn(3)      !< derivatives of magnetic field amplitude [T/m]
   
+  ! Internal parameters
+  integer, parameter :: i_var(2) = [1,2]
+  real*8             :: P(2), P_s(2), P_t(2), P_phi(2), P_ss(2), P_st(2), P_tt(2), P_sphi(2), P_tphi(2)
+  real*8             :: P_time(2), P_stime(2), P_ttime(2), bn2
+  real*8             :: x(3), R, R_s, R_t, R_ss, R_st, R_tt, Z, Z_s, Z_t, Z_st, Z_ss, Z_tt
+  ! Others
+  real*8             :: inv_st_jac, R_inv, RZjac, RZjac_R, RZjac_Z
+  real*8             :: psi, psi_R, psi_Z, psi_RR, psi_ZZ, psi_RZ, psi_Rphi, psi_Zphi
+  real*8             :: U, U_R, U_Z, U_phi, t_norm
+
+  integer            :: i_elm_p, i_elm_m, ifail
+  real*8             :: st_p(2), st_m(2), Rout, Zout, R_p, Z_p, R_m, Z_m, delta, error
+  real*8             :: A_p(3), dA_p(3,3), B_p(3), db_p(3,3), Bnorm_p(3), dBnorm_p(3,3), Bn_p, dBn_p(3), E_p(3)
+  real*8             :: A_m(3), dA_m(3,3), B_m(3), db_m(3,3), Bnorm_m(3), dBnorm_m(3,3), Bn_m, dbn_m(3), E_m(3)
+  logical            :: verbose = .false.
+  
+ time = 0.d0
+ phi  = 0.d0
+
+ delta = 1.d-5
+
+call fields%interp_PRZ_2(time, i_elm, i_var, 2, st(1), st(2), phi, P, P_s, P_t, P_phi, &
+                          P_time, P_ss, P_st, P_tt, P_sphi, P_tphi, P_stime, P_ttime,   &
+                          R, R_s, R_t, R_ss, R_st, R_tt, Z, Z_s, Z_t, Z_ss, Z_st, Z_tt)
+
+call calc_Qin(fields, time, i_elm, st, phi, A, dA, B, dB, Bnorm, dBnorm, bn, dBn, E)
+
+R_p = R + delta
+Z_p = Z
+call find_RZ_nearby(fields%node_list, fields%element_list, R, Z, st(1), st(2), i_elm, R_p, Z_p, st_p(1), st_p(2), i_elm_p, ifail)
+call calc_Qin(fields, time, i_elm_p, st_p, phi, A_p, dA_p, B_p, dB_p, Bnorm_p, dBnorm_p, bn_p, dBn_p, E_p)
+
+R_m =  R - delta
+Z_m = Z
+call find_RZ_nearby(fields%node_list, fields%element_list, R, Z, st(1), st(2), i_elm, R_m, Z_m, st_m(1), st_m(2), i_elm_m, ifail)
+call calc_Qin(fields, time, i_elm_m, st_m, phi, A_m, dA_m, B_m, dB_m, Bnorm_m, dBnorm_m, bn_m, dBn_m, E_m)
+
+if (verbose) then
+  write(*,*) 'Qin consistency check : '
+  write(*,'(A,8e18.10)') 'A(1),  dA(1,1)  : ',A(1), dA(1,1), (A_p(1) - A_m(1))/ (2.d0*delta)
+  write(*,'(A,8e18.10)') 'A(2),  dA(2,1)  : ',A(2), dA(2,1), (A_p(2) - A_m(2))/ (2.d0*delta)
+  write(*,'(A,8e18.10)') 'A(3),  dA(3,1)  : ',A(3), dA(3,1), (A_p(3) - A_m(3))/ (2.d0*delta)
+  write(*,'(A,8e18.10)') 'bn,    dbn(1)   : ',bn,   dbn(1),  (bn_p   - bn_m)  / (2.d0*delta)
+  write(*,'(A,8e18.10)') 'B(1),  dB(1,1)  : ',B(1), dB(1,1), (B_p(1) - B_m(1))/ (2.d0*delta)
+  write(*,'(A,8e18.10)') 'B(2),  dB(2,1)  : ',B(2), dB(2,1), (B_p(2) - B_m(2))/ (2.d0*delta)
+  write(*,'(A,8e18.10)') 'B(3),  dB(3,1)  : ',B(3), dB(3,1), (B_p(3) - B_m(3))/ (2.d0*delta)
+  write(*,'(A,8e18.10)') 'Bnorm(1),  dBnorm(1,1)  : ',Bnorm(1), dBnorm(1,1), (Bnorm_p(1) - Bnorm_m(1))/ (2.d0*delta)
+  write(*,'(A,8e18.10)') 'Bnorm(2),  dBnorm(2,1)  : ',Bnorm(2), dBnorm(2,1), (Bnorm_p(2) - Bnorm_m(2))/ (2.d0*delta)
+  write(*,'(A,8e18.10)') 'Bnorm(3),  dBnorm(3,1)  : ',Bnorm(3), dBnorm(3,1), (Bnorm_p(3) - Bnorm_m(3))/ (2.d0*delta)
+endif
+
+error =         sum(abs(dA(:,1) - (A_p(:) - A_m(:))/(2.d0*delta)))
+error = error + sum(abs(dB(:,1) - (B_p(:) - B_m(:))/(2.d0*delta)))
+error = error +     abs(dbn(1)  - (bn_p   - bn_m)  /(2.d0*delta))
+error = error + sum(abs(dBnorm(:,1) - (Bnorm_p(:) - Bnorm_m(:))/(2.d0*delta)))
+
+R_p = R 
+Z_p = Z + delta
+call find_RZ_nearby(fields%node_list, fields%element_list, R, Z, st(1), st(2), i_elm, R_p, Z_p, st_p(1), st_p(2), i_elm_p, ifail)
+call calc_Qin(fields, time, i_elm_p, st_p, phi, A_p, dA_p, B_p, dB_p, Bnorm_p, dBnorm_p, bn_p, dBn_p, E_p)
+
+R_m =  R 
+Z_m = Z - delta
+call find_RZ_nearby(fields%node_list, fields%element_list, R, Z, st(1), st(2), i_elm, R_m, Z_m, st_m(1), st_m(2), i_elm_m, ifail)
+call calc_Qin(fields, time, i_elm_m, st_m, phi, A_m, dA_m, B_m, dB_m, Bnorm_m, dBnorm_m, bn_m, dBn_m, E_m)
+
+if (verbose) then
+  write(*,'(A,8e18.10)') 'A(1),  dA(1,2)  : ',A(1), dA(1,2), (A_p(1) - A_m(1))/ (2.d0*delta)
+  write(*,'(A,8e18.10)') 'A(2),  dA(2,2)  : ',A(2), dA(2,2), (A_p(2) - A_m(2))/ (2.d0*delta)
+  write(*,'(A,8e18.10)') 'A(3),  dA(3,2)  : ',A(3), dA(3,2), (A_p(3) - A_m(3))/ (2.d0*delta)
+  write(*,'(A,8e18.10)') 'bn,    dbn(2)   : ',bn,   dbn(2),  (bn_p   - bn_m)  / (2.d0*delta)
+  write(*,'(A,8e18.10)') 'B(1),  dB(1,2)  : ',B(1), dB(1,2), (B_p(1) - B_m(1))/ (2.d0*delta)
+  write(*,'(A,8e18.10)') 'B(2),  dB(2,2)  : ',B(2), dB(2,2), (B_p(2) - B_m(2))/ (2.d0*delta)
+  write(*,'(A,8e18.10)') 'B(3),  dB(3,2)  : ',B(3), dB(3,2), (B_p(3) - B_m(3))/ (2.d0*delta)
+  write(*,'(A,8e18.10)') 'Bnorm(1),  dBnorm(1,2)  : ',Bnorm(1), dBnorm(1,2), (Bnorm_p(1) - Bnorm_m(1))/ (2.d0*delta)
+  write(*,'(A,8e18.10)') 'Bnorm(2),  dBnorm(2,2)  : ',Bnorm(2), dBnorm(2,2), (Bnorm_p(2) - Bnorm_m(2))/ (2.d0*delta)
+  write(*,'(A,8e18.10)') 'Bnorm(3),  dBnorm(3,2)  : ',Bnorm(3), dBnorm(3,2), (Bnorm_p(3) - Bnorm_m(3))/ (2.d0*delta)
+endif
+
+error = error + sum(abs(dA(:,2) - (A_p(:) - A_m(:))/(2.d0*delta)))
+error = error + sum(abs(dB(:,2) - (B_p(:) - B_m(:))/(2.d0*delta)))
+error = error +     abs(dbn(2)  - (bn_p   - bn_m)  /(2.d0*delta))
+error = error + sum(abs(dBnorm(:,2) - (Bnorm_p(:) - Bnorm_m(:))/(2.d0*delta)))
+
+write(*,*) 'Qin consistency : error : ',error
+
+return
+end subroutine check_consistency_Qin
 
 !> This procedure computes the fields appearing in the
 !> the guiding center equations of motion

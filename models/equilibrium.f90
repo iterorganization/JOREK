@@ -350,6 +350,10 @@ if (freeboundary_equil) then
   if (freeb_equil_iterate_area .and. (.not. xpoint2)) then
     n_limiter = 1  ! set found limiter (defined inside iterate2area)
   endif
+
+else
+  
+  psi_offset_freeb = 0.d0
   
 endif
 
@@ -401,7 +405,7 @@ if (my_id == 0) then
   !------------------------------- end of equilibrium, start filling data
   psi_axis = psi_axis - psi_offset_freeb
   psi_bnd  = psi_bnd  - psi_offset_freeb
-  
+
   do i=1,node_list%n_nodes
   
     node_list%node(i)%values(1,1,1) = node_list%node(i)%values(1,1,1) - psi_offset_freeb

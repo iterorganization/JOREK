@@ -11,6 +11,9 @@ subroutine test_create_event_with_stop_action
   type(event), dimension(:), allocatable :: events
   events = [event(stop_action(), start=1.d0)]
   call assert_equals(events(1)%start, 1.d0)
+  
+  write(*,*) ' completed test_create_event_with_stop_action'
+
 end subroutine test_create_event_with_stop_action
 
 subroutine test_event_run_at
@@ -31,6 +34,9 @@ subroutine test_event_run_at
   e = event(stop_action(), start=1.d0, end=2.d0)
   call assert_true(e%run_at(1.d0), 'must run at start')
   call assert_false(e%run_at(2.d0), 'must not run after start if no step is set')
+
+  write(*,*) ' completed test_event_run_at'
+
 end subroutine test_event_run_at
 
 subroutine test_next_event_at
@@ -61,5 +67,7 @@ subroutine test_next_event_at
   sim%time = 6.d0; sim%stop_now = .false.
   call assert_equals(6.d0, next_event_at(sim, events), tick, 'must find start even after end of other')
   call assert_true(sim%stop_now, 'must set stop_now after the last event')
+
+  write(*,*) ' completed test_create_event_with_stop_action'
 end subroutine test_next_event_at
 end module event_spec

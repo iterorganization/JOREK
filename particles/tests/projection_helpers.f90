@@ -71,6 +71,7 @@ subroutine default_square_grid(node_list, element_list, n)
   node_list%n_nodes = 0
   element_list%n_elements = 0
   call grid_bezier_square(n, n, R_geo-amin,R_geo+amin, Z_geo-amin, Z_geo+amin, .true., node_list, element_list)
+  write(*,*) ' completed default_square_grid'
 end subroutine
 
 !> Create a simple polar grid with npol nodes in the poloidal direction, 30 radial
@@ -132,7 +133,7 @@ end subroutine default_flux_grid_32
 subroutine default_flux_grid(node_list, element_list, npol)
   use phys_module
   use mod_boundary
-  use mpi
+  use mpi_mod
   use mod_export_restart
   type(type_node_list), intent(out) :: node_list
   type(type_element_list), intent(out) :: element_list
@@ -209,15 +210,19 @@ subroutine default_flux_grid(node_list, element_list, npol)
   element_list%n_elements = 0
   bnd_elm_list%n_bnd_elements  = 0
 
+  use_mumps_eq  = .true.
+  use_pastix_eq = .false.
+
   call define_boundary()
 
   call grid_polar_bezier(R_geo, Z_geo, amin, 0.d0, 0.d0, fbnd, fpsi, mf, n_radial, n_pol,    &
     node_list, element_list)
 
   call boundary_from_grid(node_list, element_list, bnd_node_list, bnd_elm_list, .false.)
+
   call initialise_mumps(MPI_COMM_WORLD)
 
-  call equilibrium(0,node_list,element_list,bnd_node_list,bnd_elm_list,.false., 0.d0, .true.) 
+  call equilibrium(0,node_list,element_list,bnd_node_list,bnd_elm_list,.false., 0, .true.) 
 
   ! Set parameters for making flux grid
   call grid_flux_surface(.false., 0, node_list, element_list, &
@@ -228,21 +233,22 @@ end subroutine default_flux_grid
 
 !> Project a function onto the JOREK elements
 subroutine project_f(node_list, element_list, f, filter, filter_hyper, integral)
+  use mpi_mod
   type(type_node_list), intent(inout)    :: node_list
   type(type_element_list), intent(inout) :: element_list
-  real*8, external :: f
-  real*8, optional, intent(in) :: filter, filter_hyper !< smoothing and hyper-smoothing
-  real*8, optional, intent(out) :: integral !< The integral of the projected function, from the weights
-  real*8, dimension(:), allocatable :: this_integral_weights
-  type(DMUMPS_STRUC) :: p
-  integer :: i, k, index, i_tor_local, n_tor_local, mpi_comm_world, mpi_comm_n, mpi_comm_master
-  real*8 :: my_filter, my_filter_hyper, area, volume
+  real*8, external                       :: f
+  real*8, optional, intent(in)           :: filter, filter_hyper !< smoothing and hyper-smoothing
+  real*8, optional, intent(out)          :: integral !< The integral of the projected function, from the weights
+  real*8, dimension(:), allocatable      :: this_integral_weights
+  type(DMUMPS_STRUC)                     :: p
+  integer :: i, k, index, i_tor_local, n_tor_local, mpi_comm_n, mpi_comm_master, ierr
+  real*8  :: my_filter, my_filter_hyper, area, volume
 
-  mpi_comm_world  = 0
-  mpi_comm_n      = 0
-  mpi_comm_master = 0
-  i_tor_local     = 0
-  n_tor_local     = 0
+  call MPI_Comm_dup(MPI_COMM_WORLD, mpi_comm_n, ierr)
+  call MPI_Comm_dup(MPI_COMM_WORLD, mpi_comm_master, ierr)
+
+  i_tor_local     = 1
+  n_tor_local     = 1
 
   my_filter       = 0.d0
   my_filter_hyper = 0.d0
@@ -250,9 +256,10 @@ subroutine project_f(node_list, element_list, f, filter, filter_hyper, integral)
   if (present(filter))       my_filter       = filter 
   if (present(filter_hyper)) my_filter_hyper = filter_hyper 
   
-  if (present(integral)) then  
+!  if (present(integral)) then  
+  if (i_tor_local .eq. 1) then  
     call prepare_mumps_par_n0(node_list, element_list, n_tor_local, i_tor_local, mpi_comm_world, mpi_comm_n, mpi_comm_master, &
-                           p,  area, volume, filter=my_filter, filter_hyper=my_filter_hyper, filter_parallel=0.d0, integral_weights=this_integral_weights)
+                              p,  area, volume, filter=my_filter, filter_hyper=my_filter_hyper, filter_parallel=0.d0, integral_weights=this_integral_weights)
   else
     call prepare_mumps_par(node_list, element_list, n_tor_local, i_tor_local, mpi_comm_world, mpi_comm_n, mpi_comm_master, &
                            p, filter=my_filter, filter_hyper=my_filter_hyper, filter_parallel=0.d0)
@@ -262,6 +269,7 @@ subroutine project_f(node_list, element_list, f, filter, filter_hyper, integral)
   p%JOB = 3
   p%icntl(21) = 0 ! solution is available only on host
   p%icntl(4)  = 1 ! print only errors
+
   ! Setup RHS by integrating manually
   allocate(p%rhs(p%n))
   call calc_rhs_f(node_list,element_list,f,p%rhs)
@@ -272,7 +280,7 @@ subroutine project_f(node_list, element_list, f, filter, filter_hyper, integral)
 
   do i=1,node_list%n_nodes
     do k=1,n_order+1
-      index = node_list%node(i)%index(k)
+      index = 2*(node_list%node(i)%index(k)-1) + 1
       node_list%node(i)%values(1,k,1) = p%rhs(index)
     enddo
   enddo
@@ -284,18 +292,23 @@ end subroutine project_f
 !> Calculate the right-hand side of a distribution f (toroidally symmetric)
 subroutine calc_rhs_f(node_list,element_list,f,rhs)
   use basis_at_gaussian
-  type(type_node_list), intent(inout) :: node_list
+  use phys_module, only : TWOPI
+  type(type_node_list),    intent(inout) :: node_list
   type(type_element_list), intent(inout) :: element_list
-  real*8, external :: f
+  real*8, external   :: f
   real*8, dimension(:), intent(inout) :: rhs
-  integer :: i, j, k, m, index, i_elm, inode, ms, mt
+  integer            :: i, j, k, m, index, i_elm, inode, ms, mt
   real*8, dimension(n_gauss,n_gauss) :: x_g, y_g, x_s, x_t, y_s, y_t
-  real*8 :: wst, xjac, v
-  type(type_node) :: nodes(4)
+  real*8             :: wst, xjac, v
+  type(type_node)    :: nodes(4)
   type(type_element) :: element
+
   rhs = 0.d0
+
   do i_elm=1,element_list%n_elements
+
     element = element_list%element(i_elm)
+  
     do m=1,n_vertex_max
       nodes(m) = node_list%node(element%vertex(m))
     enddo
@@ -322,15 +335,17 @@ subroutine calc_rhs_f(node_list,element_list,f,rhs)
     ! Perform gauss integration of RHS
     do ms=1, n_gauss
       do mt=1, n_gauss
-        wst = wgauss(ms)*wgauss(mt)
-        xjac =  x_s(ms,mt)*y_t(ms,mt) - x_t(ms,mt)*y_s(ms,mt)
+    
+        wst  = wgauss(ms)*wgauss(mt)
+        xjac = x_s(ms,mt)*y_t(ms,mt) - x_t(ms,mt)*y_s(ms,mt)
 
         do i=1,n_vertex_max
           do j=1,n_order+1
-            index = nodes(i)%index(j)
+
+            index = 2*(nodes(i)%index(j)-1) + 1
 
             v   = h(i,j,ms,mt)  * element%size(i,j)
-            rhs(index) = rhs(index) + f(x_g(ms,mt), y_g(ms,mt)) * v * xjac * x_g(ms,mt) * wst
+            rhs(index) = rhs(index) + f(x_g(ms,mt), y_g(ms,mt)) * v * xjac * x_g(ms,mt) * wst * TWOPI
           enddo
         enddo
       enddo
@@ -392,15 +407,19 @@ subroutine elements_mean_rms(node_list, element_list, f, mean, rms, volume)
     ! Perform gauss integration of LHS
     do ms=1, n_gauss
       do mt=1, n_gauss
-        wst = wgauss(ms)*wgauss(mt)
-        xjac =  x_s(ms,mt)*y_t(ms,mt) - x_t(ms,mt)*y_s(ms,mt)
+
+        wst       = wgauss(ms)*wgauss(mt)
+        xjac      =  x_s(ms,mt)*y_t(ms,mt) - x_t(ms,mt)*y_s(ms,mt)
         my_volume = my_volume + TWOPI * x_g(ms,mt) * xjac * wst
 
         ! calculate contribution to integral of this point
         call interp(node_list, element_list, i_elm, 1, 1, Xgauss(ms), Xgauss(mt), P, P_s, P_t, P_st, P_ss, P_tt)
-        rms = rms + (P-f(x_g(ms,mt),y_g(ms,mt)))**2 * xjac * TWOPI * x_g(ms,mt) * wst
-        if (xjac .lt. 0) write(*,*) i_elm, ms, mt, xjac, x_g(ms,mt), wst
+      
+        rms  = rms  + (P-f(x_g(ms,mt),y_g(ms,mt)))**2 * xjac * TWOPI * x_g(ms,mt) * wst
         mean = mean + P * xjac * TWOPI * x_g(ms,mt) * wst
+        
+        if (xjac .lt. 0) write(*,*) i_elm, ms, mt, xjac, x_g(ms,mt), wst
+        
       enddo
     enddo
   enddo

@@ -10,27 +10,17 @@ use mumps_module
 use pastix_module
 use wsmp_module
 
+#ifdef USE_STRUMPACK
+use strumpack_module
+#endif
+use preconditioner_module
+use mod_distribute_preconditioner
+use direct_construction_mod
+use centralization_mod
+
 use equil_info
 
 implicit none
-
-interface
-
-  subroutine distribute_harmonics(my_id,my_id_n,n_cpu)
-    integer :: my_id, my_id_n, n_cpu
-  end subroutine distribute_harmonics
-
-  subroutine distribute_vector(rhs,rhs_dis,comm)
-    real*8                :: rhs(:), rhs_dis(:)
-    integer               :: comm
-  end subroutine distribute_vector
-
-  subroutine gmres_driver(my_id,my_id_n,MPI_COMM_N,MPI_COMM_MASTER,iter_gmres)
-    integer :: my_id, my_id_n, MPI_COMM_N, MPI_COMM_MASTER
-    integer :: iter_gmres
-  end subroutine gmres_driver
-
-end interface
 
 private
 public jorek_timestep_action, new_jorek_timestep_action
@@ -274,10 +264,10 @@ subroutine setup_solvers(this, sim)
                                ijA_index, ijA_size, irn_jcn, irn_glob, jcn_glob, 1, n_tor, n_glob, nz_glob, ndof_glob, block_size)
 
   if ( freeboundary .and. ( sr%n_tor /= 0 ) ) then 
-    call global_matrix_structure_vacuum(sim%fields%node_list, bnd_node_list, this%index_min(sim%my_id+1), &
-                                        this%index_max(sim%my_id+1), 1, n_tor, irn_glob, jcn_glob, block_size, &
-                                        ijA_index, ijA_size, irn_jcn) 
+    call global_matrix_structure_vacuum(sim%fields%node_list, bnd_node_list, this%index_min(sim%my_id+1), this%index_max(sim%my_id+1), &
+                                        1, n_tor, irn_glob, jcn_glob, n_matrix_block_size, ijA_index, ijA_size, irn_jcn) 
   endif
+
   call MPI_Barrier(MPI_COMM_WORLD,ierr)
 
   if ((gmres).and.(this%my_id_n.eq.0)) call map_row_index(ndof_glob)
@@ -464,9 +454,9 @@ subroutine do_jorek_timestep(this, sim, ev)
   call construct_matrix(sim%my_id, this%MPI_COMM_N, this%my_id_n, this%MPI_COMM_MASTER, this%my_id_master,               &
                         this%local_elms, this%n_local_elms, this%index_min(sim%my_id+1),                                 &
                         this%index_max(sim%my_id+1), xpoint, xcase, this%eq%R_axis, this%eq%Z_axis, this%eq%psi_axis,    &
-                        this%eq%psi_bnd, this%eq%R_xpoint, this%eq%Z_xpoint, this%eq%psi_xpoint,                         &
-                        1, n_tor, n_glob, nz_glob, ndof_glob, block_size, A_glob, rhs_glob, irn_glob, jcn_glob,          &
-                        ijA_index, ijA_size, irn_jcn, harmonic_matrix=.false.)
+                        this%eq%psi_bnd, this%eq%R_xpoint, this%eq%Z_xpoint, this%eq%psi_xpoint, 1, n_tor,               &
+                        n_glob, nz_glob, ndof_glob, n_matrix_block_size, A_glob, rhs_glob, irn_glob, jcn_glob, ijA_index, ijA_size, &
+                        irn_jcn,  harmonic_matrix=.false.)
   
   ! --- Free the buffers needed by OpenMP threads (ELM-RHS etc.)
   call del_thread_buffers()
@@ -496,7 +486,8 @@ subroutine do_jorek_timestep(this, sim, ev)
     if (sim%my_id .eq. 0) write(*,FMT_TIMING) sim%my_id, '# Elapsed time distribute :',tsecond
 
     call clck_time(t0)
-    call solve_matrix_n(sim%my_id,this%MPI_COMM_N,this%MPI_COMM_MASTER,solve_only) ! factorise preconditioning matrices
+    call solve_matrix_n(sim%my_id,this%MPI_COMM_N,this%MPI_COMM_MASTER,solve_only)    ! factorise preconditioning matrices
+
     call clck_time_barrier(t1)
     call clck_ldiff(t0,t1,tsecond)
     if (sim%my_id .eq. 0) write(*,FMT_TIMING) sim%my_id, '# Elapsed time first solve :',tsecond
@@ -612,7 +603,6 @@ subroutine do_jorek_timestep(this, sim, ev)
   if (sim%my_id .eq. 0 ) then
     ! --- Output energies and growth_rates to text files during the code run
     call write_live_data(index_now)
-    !call write_live_data_vacuum(index_now, diag_coil_curr, pf_coil_curr, rmp_coil_curr, net_tor_wall_curr)
     call write_live_data_vacuum(index_now)
   endif
 

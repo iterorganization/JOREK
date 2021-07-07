@@ -41,7 +41,7 @@ character(len=particle_type_name_length) :: particle_type_name
 integer                       :: i, j, hdferr, iZ
 type(c_ptr) :: p_ptr
 real*8, dimension(:,:), allocatable :: x, v, x_all, v_all, st, st_all, P1, P1_all
-real*8, dimension(:), allocatable   :: E, mu, v1, E_all, mu_all, v1_all
+real*8, dimension(:), allocatable   :: Vpar, E, mu, v1, Vpar_all, E_all, mu_all, v1_all
 real*4, dimension(:), allocatable   :: weight, weight_all, t_birth, t_birth_all
 integer, dimension(:), allocatable  :: i_elm, i_elm_all, i_life, i_life_all
 integer, dimension(:), allocatable  :: q, q_all, lost, lost_all
@@ -268,6 +268,43 @@ if (allocated(sim%groups)) then
       end if
       deallocate(E,mu,q,E_all,mu_all,q_all)
 
+    type is (particle_gc_vpar)
+      particle_type_name = 'particle_gc_vpar'
+
+      ! Vpar
+      allocate(Vpar(n_here), Vpar_all(n_total))
+      do j=1,n_here
+        Vpar(j) = p(j)%Vpar
+      end do
+      call MPI_Gatherv(Vpar(:), n_here, MPI_REAL8, &
+        Vpar_all(:), particles_per_proc, [(sum(particles_per_proc(1:i),1), i=0,n_cpu-1)], &
+        MPI_REAL8, 0, MPI_COMM_WORLD, ierr)
+
+      ! mu
+      allocate(mu(n_here), mu_all(n_total))
+      do j=1,n_here
+        mu(j) = p(j)%mu
+      end do
+      call MPI_Gatherv(mu(:), n_here, MPI_REAL8, &
+        mu_all(:), particles_per_proc, [(sum(particles_per_proc(1:i),1), i=0,n_cpu-1)], &
+        MPI_REAL8, 0, MPI_COMM_WORLD, ierr)
+
+      ! q
+      allocate(q(n_here), q_all(n_total))
+      do j=1,n_here
+        q(j) = p(j)%q
+      end do
+      call MPI_Gatherv(q(:), n_here, MPI_INTEGER, &
+        q_all(:), particles_per_proc, [(sum(particles_per_proc(1:i),1), i=0,n_cpu-1)], &
+        MPI_INTEGER, 0, MPI_COMM_WORLD, ierr)
+
+      if (my_id .eq. 0) then
+        call HDF5_array1D_saving(file,Vpar_all,n_total,group_name//"Vpar")
+        call HDF5_array1D_saving(file,mu_all,n_total,group_name//"mu")
+        call HDF5_array1D_saving_int(file,q_all,n_total,group_name//"q")
+      end if
+      deallocate(Vpar,mu,q,Vpar_all,mu_all,q_all)
+
     type is (particle_fieldline)
       particle_type_name = 'particle_fieldline'
       ! v
@@ -483,6 +520,8 @@ do i=1,n
     allocate(particle_kinetic_leapfrog::sim%groups(i)%particles(n_here), stat=ierr)
   case ('particle_gc')
     allocate(particle_gc::sim%groups(i)%particles(n_here), stat=ierr)
+  case ('particle_gc_vpar')
+    allocate(particle_gc_vpar::sim%groups(i)%particles(n_here), stat=ierr)
   case ('particle_fieldline')
     allocate(particle_fieldline::sim%groups(i)%particles(n_here), stat=ierr)
   case ('particle_marker')
@@ -626,7 +665,30 @@ do i=1,n
       p(j)%q = int4_1D(j)
     end do
     deallocate(int4_1D)
-
+  
+  type is (particle_gc_vpar)
+    ! 
+    allocate(real8_1D(n_here))
+    call HDF5_array1D_reading(file, real8_1D, group_name//"Vpar",start=[i_here])
+    do j=1,n_here
+      p(j)%Vpar = real8_1D(j)
+    end do
+    deallocate(real8_1D)
+    ! mu
+    allocate(real8_1D(n_here))
+    call HDF5_array1D_reading(file, real8_1D, group_name//"mu",start=[i_here])
+    do j=1,n_here
+      p(j)%mu = real8_1D(j)
+    end do
+    deallocate(real8_1D)
+    ! q
+    allocate(int4_1D(n_here))
+    call HDF5_array1D_reading_int(file, int4_1D, group_name//"q", start=[i_here])
+    do j=1,n_here
+      p(j)%q = int4_1D(j)
+    end do
+    deallocate(int4_1D)
+  
   type is (particle_fieldline)
     ! v
     allocate(real8_1D(n_here))

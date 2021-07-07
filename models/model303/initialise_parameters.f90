@@ -127,16 +127,16 @@ namelist /in1/  tstep, nstep, tstep_n, nstep_n,                     &
                 pastix_maxthrd, eta_ohmic, centralize_harm_mat,     & 
                 vert_FB_amp_ts, vert_FB_gain, vert_pos_file,        & 
                 vert_FB_tact, start_VFB_ts, I_coils_max,            &
+                autodistribute_modes, modes_per_family,             &
+                mode_families_modes, n_mode_families,               &
+                weights_per_family, autodistribute_ranks,           &
+                ranks_per_family,                                   &
                 n_particles, tstep_particles, nstep_particles,      &
                 nsubstep_particles,                                 &
                 filter_perp,    filter_hyper,    filter_par,        &
                 filter_perp_n0, filter_hyper_n0, filter_par_n0,     &
                 use_cx, use_sputtering, use_ionisation,             &
                 use_ncs, use_pcs, use_ccs
-                autodistribute_modes, modes_per_family,             &
-                mode_families_modes, n_mode_families,               &
-                weights_per_family, autodistribute_ranks,           &
-                ranks_per_family
 
 if (my_id .eq. 0) then
 

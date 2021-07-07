@@ -1,4 +1,5 @@
-!> Testing the coupling of the projections of particles to JOREK
+!> Testing the coupling of the projections of particles to JOREK with 2 neutral puffs included
+!> Puff adjusted for in_jet example
 
 program coupling_function
 use particle_tracer
@@ -15,13 +16,14 @@ use mod_basisfunctions
 use nodes_elements
 use phys_module, only: n_particles, nstep_particles, nsubstep_particles, tstep_particles, use_ncs, use_pcs, use_ccs
 use phys_module, only: filter_perp, filter_hyper, filter_par, filter_perp_n0, filter_hyper_n0, filter_par_n0
-use phys_module, only: tstep
+use phys_module, only: tstep, use_cx, use_ionisation, use_sputtering
 use phys_module, only: CENTRAL_MASS, CENTRAL_DENSITY
 use constants,   only: MU_ZERO, MASS_PROTON, ATOMIC_MASS_UNIT, K_BOLTZ, EL_CHG
 
 use mod_particle_sputtering, only: particle_sputter, sample_fluid_particle_energy
 use mod_projection_functions, only: proj_f_combined_density, &
                                     proj_f_combined_energy, proj_f_combined_par_momentum
+use mod_particle_puffing
 use mod_edge_domain
 use mod_edge_elements
 !$ use omp_lib
@@ -37,7 +39,8 @@ type(jorek_timestep_action), target               :: jorek_stepper
 type(particle_sputter)                            :: D_sputter_source
 type(type_edge_domain), allocatable, dimension(:) :: edge_domains
 type(edge_elements)                               :: D_edge
-
+type(particle_puffing)                            :: gas_puff
+type(particle_puffing)                            :: gas_puff2
 
 real*8    :: timesteps, tstep_si, t_norm, rho_norm, n_norm
 real*8    :: target_time, t, E(3), B(3), psi, U, n_e, T_e, rz_old(2), st_old(2)
@@ -51,7 +54,10 @@ integer   :: j, seed, i_rng, n_stream
 ! For live updating the rhs of the projection
 real*8  :: R_g, Z_g, R_s, R_t, Z_s, Z_t, xjac, HZ(n_tor), HH(4,4), HH_s(4,4), HH_t(4,4)
 integer :: i_tor, index_lm, i_elm_temp
-logical :: use_cx, use_ionisation, use_sputtering
+logical :: use_puffing !use_cx, use_ionisation, use_sputtering
+! Puffing parameters
+real*8  :: r_valve, R_valve_loc, Z_valve
+integer :: n_puff
 
 ! Start up MPI, jorek
 call sim%initialize(num_groups=1)
@@ -59,9 +65,10 @@ call sim%initialize(num_groups=1)
 n_particles_local = int(n_particles/sim%n_cpu) 
 timesteps         = tstep_particles
 
-use_cx         = .false.
-use_ionisation = .true.
-use_sputtering = .false.
+use_puffing = .true. 
+! use_cx         = .true.
+! use_ionisation = .true.
+! use_sputtering = .true. !false
 
 ! Set up the field reader
 fieldreader = event(read_jorek_fields_interp_linear(basename='jorek', i=-1))
@@ -73,6 +80,21 @@ adas = read_adf11(sim%my_id,'12_h')
 if (use_sputtering) then  
   n_reflect = int(n_particles * 2.d-3)
   D_sputter_source = initialise_sputtering(sim%fields%node_list, sim%fields%element_list, n_reflect)
+endif
+
+
+r_valve     = .005d0
+R_valve_loc = 2.33!2.6!2.1 !< for JET test !1.98991!2.58888  or 1.98991
+Z_valve     = -1.86 !-1.0!-1.75 !-0.550736!1.86579   or -0.550736
+if (use_puffing) then  
+	n_puff      = 0.001d0*n_particles
+	gas_puff = particle_puffing(n_puff, 2.d21, r_valve, R_valve_loc, Z_valve)
+	gas_puff2 = particle_puffing(n_puff, 2.d21, r_valve, 2.8d0, -1.77)!-0.0) !-1.77
+	!gas_puff = particle_puffing(n_puff, 5d22, r_valve, R_valve_loc, Z_valve)
+else 
+	n_puff = 0.d0
+	gas_puff = particle_puffing(n_puff, 5d20, r_valve, R_valve_loc, Z_valve)
+	gas_puff2 = particle_puffing(n_puff, 5d20, r_valve, R_valve_loc, Z_valve)
 endif
 
 n_norm   = CENTRAL_DENSITY * 1.d20                              ! (number) density normalisation
@@ -100,7 +122,7 @@ allocate(particle_kinetic_leapfrog::sim%groups(1)%particles(n_particles_local))
 call initialise_particles_H_mu_psi(sim%groups(1)%particles, sim%fields, pcg32_rng(), sim%groups(1)%mass, &
            uniform_space=.true., uniform_space_rej_f=f_psi_inside, uniform_space_rej_vars=[1], charge = 0)
 
-physical_particles = 1.d21
+physical_particles = 1.d18 !1.d21
 weight = physical_particles/n_particles
 
 v_kin_temp = sqrt( (2.d0 * 1d5) / (sim%groups(1)%mass* ATOMIC_MASS_UNIT) / physical_particles)
@@ -132,7 +154,7 @@ end select
 jorek_feedback = new_projection(sim%fields%node_list, sim%fields%element_list, &
                      filter    = filter_perp,    filter_hyper    = filter_hyper,    filter_parallel    = filter_par, &
                      filter_n0 = filter_perp_n0, filter_hyper_n0 = filter_hyper_n0, filter_parallel_n0 = filter_par_n0, &
-                     fractional_digits = 9,  to_vtk=.FALSE., to_h5 = .FALSE., basename='projections')
+                     fractional_digits = 9,  to_vtk=.TRUE., to_h5 = .FALSE., basename='projections')
 
 aux_node_list => jorek_feedback%node_list
 
@@ -148,25 +170,28 @@ endif
 
 jorek_feedback%rhs = 0.d0
 
-!project_density = new_projection(sim%fields%node_list, sim%fields%element_list, &
-!                      filter    = filter_perp,    filter_hyper    = filter_hyper,    filter_parallel    = filter_par, &
-!                      filter_n0 = filter_perp_n0, filter_hyper_n0 = filter_hyper_n0, filter_parallel_n0 = filter_par_n0, &
-!                      f=[proj_f(proj_one, group = 1)], &
-!                      fractional_digits = 9,  to_vtk=.TRUE., to_h5=.FALSE., basename='density', nsub=5)
-!
-!call with(sim, project_density)
+project_density = new_projection(sim%fields%node_list, sim%fields%element_list, &
+                     filter    = filter_perp,    filter_hyper    = filter_hyper,    filter_parallel    = filter_par, &
+                     filter_n0 = filter_perp_n0, filter_hyper_n0 = filter_hyper_n0, filter_parallel_n0 = filter_par_n0, &
+                     f=[proj_f(proj_one, group = 1)], &
+                     fractional_digits = 9,  to_vtk=.TRUE., to_h5=.FALSE., basename='density', nsub=5)
+
+call with(sim, project_density)
 
 ! For proper timestepping, the projections need to be defined before the jorek timestepper
 jorek_stepper = new_jorek_timestep_action(jorek_feedback%node_list)
 
-diag_time = 1.0d12
+diag_time = 1.d-7 !1.0d12
 events = [ new_event_ptr(jorek_feedback,   start = sim%time),            &
            new_event_ptr(jorek_stepper,    start = sim%time),            &
-!          new_event_ptr(D_sputter_source, start = sim%time, step=5d-6), &
+		   event(gas_puff, step = 5.d-6),                                &
+		   event(gas_puff2, step = 5.d-6),                                &
+          new_event_ptr(D_sputter_source, start = sim%time, step=5.d-6), &
 !          event(count_action(),           start = sim%time, step=1d-5), &
 !          event(write_particle_diagnostics(filename='diag.h5'), step=diag_time), &
-!          event(write_action(), step=diag_time),                        &
-!           new_event_ptr(project_density, step=1.d-5),                  &
+!         event(write_action(), step=diag_time),                        &
+           new_event_ptr(project_density, step=5.d-6),                  &
+!		   new_event_ptr(project_density, step=1.d-5),                  &
            event(stop_action(), start=1d12)                              &
         ]
 
@@ -197,7 +222,6 @@ use mod_basisfunctions
 use phys_module, only: tstep, use_ncs, use_pcs, use_ccs
 use phys_module, only: CENTRAL_MASS, CENTRAL_DENSITY
 use constants,   only: MU_ZERO, MASS_PROTON, ATOMIC_MASS_UNIT, K_BOLTZ, EL_CHG
-use mod_integrals3D, only: int3d_new
 
 implicit none
 real*8, parameter  :: binding_energy = 2.18d-18 ! ionization energy of a hydrogen atom [J] (= 13.6 eV)
@@ -304,17 +328,9 @@ do while (.not. sim%stop_now)
   select type (particles => sim%groups(1)%particles)
   type is (particle_kinetic_leapfrog)
 
-#ifdef __GFORTRAN__
-    !$omp parallel do default(shared) & ! workaround for Error: '__vtab_mod_openadas_Adf11' not specified in enclosing ‘parallel’
-#else
     !$omp parallel do default(none) &
-#endif
     !$omp schedule(dynamic,10)      &
-#ifdef __GFORTRAN__
-    !$omp shared(sim, n_particles, n_steps, timesteps, rng, particle_start_time, & ! This is to work around the GNU compiler error: ASSOCIATE name '__tmp_type_particle_kinetic_leapfrog' in SHARED clause
-#else
     !$omp shared(sim, particles, n_particles, n_steps, timesteps, rng, particle_start_time, &
-#endif
     !$omp rho_norm, t_norm, v_norm, E_norm, M_norm, N_norm, &
     !$omp use_cx, use_ionisation, use_sputtering,           &
     !$omp CENTRAL_DENSITY, CENTRAL_MASS)                    &
@@ -460,7 +476,7 @@ do while (.not. sim%stop_now)
 
   if (use_ncs) then
     write(*,*) 'GATHER TIME : ',jorek_feedback%rhs_gather_time
-    jorek_feedback%rhs = feedback_rhs / jorek_feedback%rhs_gather_time
+    jorek_feedback%rhs = feedback_rhs / jorek_feedback%rhs_gather_time !* TWOPI
     jorek_feedback%rhs_gather_time = 0.d0
   else
     jorek_feedback%rhs = feedback_rhs 
@@ -481,8 +497,8 @@ do while (.not. sim%stop_now)
   call with(sim, events, at=sim%time)
 !===================================================
 
-!  call Integrals_3D(sim%my_id, sim%fields%node_list, sim%fields%element_list, density_tot, density_in, density_out, &
-!                    pressure, pressure_in, pressure_out, kin_par_tot, kin_par_in, kin_par_out, mom_par_tot, mom_par_in, mom_par_out)
+  call Integrals_3D(sim%my_id, sim%fields%node_list, sim%fields%element_list, density_tot, density_in, density_out, &
+                    pressure, pressure_in, pressure_out, kin_par_tot, kin_par_in, kin_par_out, mom_par_tot, mom_par_in, mom_par_out)
 
   particles_remaining = 0.d0
   momentum_remaining  = 0.d0
@@ -491,13 +507,9 @@ do while (.not. sim%stop_now)
   select type (particles => sim%groups(1)%particles)
   type is (particle_kinetic_leapfrog)
 
-#ifdef __GFORTRAN__
-    !$omp parallel do default(shared) & ! workaround for Error: '__vtab_mod_openadas_Adf11' not specified in enclosing 'parallel'
-#else
-    !$omp parallel do default(none) & 
-#endif
+    !$omp parallel do default(none) &
     !$omp reduction(+:particles_remaining, momentum_remaining, energy_remaining) &
-    !$omp shared(sim) &
+    !$omp shared(sim, particles) &
     !$omp private(j, E, B, psi, U, B_norm)
     do j=1,size(particles,1)
 

@@ -31,7 +31,7 @@ contains
       thread_struct(tid)%eq_tt, thread_struct(tid)%delta_g, thread_struct(tid)%delta_s, thread_struct(tid)%delta_t, &
       i_tor_min, i_tor_max, aux_nodes)
 
-return
+    return
   end subroutine element_matrix
 
 end module mod_elt_matrix

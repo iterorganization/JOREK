@@ -13,7 +13,7 @@ public :: TICK
 public :: new_event_ptr
 
 !> @name Time precision
-real*8,  parameter :: TICK             = 1d-13                    !< Time precision for events [s]
+real*8,  parameter :: TICK             = 1d-12                    !< Time precision for events [s]
 
 !> Action abstract type, representing anything that can be done to a simulation
 type, abstract :: action
@@ -444,7 +444,8 @@ subroutine do_count_action(this, sim, ev)
     call MPI_Reduce(w_alive, w_alive_total, 1, MPI_REAL8, MPI_SUM, 0, MPI_COMM_WORLD, ierr)
 
     if (sim%my_id .eq. 0) then
-      write(*,'(A,g16.8,A,i2,A,i9,A,g16.8)') 'Number of particles at ', sim%time, " in group ", i_group, ": ", n_alive_total, ", w=", w_alive_total
+      write(*,'(A,g16.8,A,i2,A,i9,A,2g16.8)') 'Number of particles at ', sim%time, " in group ", i_group, ": ", n_alive_total,&
+                                               ", w=", w_alive_total, sim%groups(i_group)%particles(1)%weight*n_alive_total
     end if
   end do
 end subroutine do_count_action

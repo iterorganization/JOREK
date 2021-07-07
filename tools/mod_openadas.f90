@@ -34,7 +34,6 @@ type ADF11_all
   type(ADF11) :: PRB !< Continuum and line power driven by recombination and bremsstrahlung of dominant ions
   type(ADF11) :: PRC !< Line power due to charge transfer from thermal neutral hydrogen to dominant ions
   real*8, dimension(:), allocatable :: ionisation_energy !< energy in eV required to ionize to a level, indexed by the new charge state (i.e. 1 to 74 for W), no interpolation needed
-  !< state (i.e. 1 to 74 for W)
   character(len=8) :: suffix = '' !< The dataset name (like 50_w)
 end type ADF11_all
 contains
@@ -73,7 +72,7 @@ do i_ADF11 = 1,size(ADF11_filenames,1)
   if (present(directory)) filename = trim(directory) // trim(filename)
   inquire(file=trim(filename), exist=file_exists)
   if (.not. file_exists) then
-    write(*,*) "File not found for", trim(filename)
+    write(*,*) "File not found for", filename
     cycle ! Skip this type of data
   end if
 
@@ -138,7 +137,7 @@ do i_ADF11 = 1,size(ADF11_filenames,1)
     a%GRCFspline(i)%ylinear = a%density
 
     call ConstructFspline(a%GRCFspline(i),a%GRC(:,:,i))
-  enddo
+  end do   
 
   if (my_id .eq. 0) write(*,"(A)") " succeeded"
 enddo
@@ -233,20 +232,22 @@ endif
 end function dGRC_dn
 
 !> interpolation of log10 values of GRC in density and temperature
-subroutine GRC(a, z, density, temperature, GRC_out)
+function GRC(a, z, density, temperature)
 class(ADF11), intent(in) :: a           !< ADF11 datatype
 real*8, intent(in)            :: density     !< log10 density in m^-3
 real*8, intent(in)            :: temperature !< log10 temperature in K
 integer, intent(in)           :: z !< index in a%GRC(:,:,z) (is ionisation level or ionisation level - 1, 1:n_z)
-real*8 :: GRC_out !< Generalized Radiational Coefficient at this density and temperature
+real*8 :: GRC !< Generalized Radiational Coefficient at this density and temperature
+real*8 :: GRC_out
 
-! If GRC exists and z is in the bounds
+! If GRC exists and we are looking for a Z that is nonzero
 if (allocated(a%GRC) .and. z .le. ubound(a%GRC,3) .and. z .ge. lbound(a%GRC,3)) then
   GRC_out = 10.d0**L2Dinterp(a%density,a%temperature,a%GRC(:,:,z),density,temperature)
 else
   GRC_out = 0.d0
 endif
-end subroutine GRC
+GRC = GRC_out
+end function GRC
 
 !> interpolation of log10 values of GRC in density and temperature
 subroutine GRC_spl(a, z, density, temperature, GRC_out, dGRC_dT_out, dGRC_dn_out)

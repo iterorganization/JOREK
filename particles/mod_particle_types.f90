@@ -19,7 +19,7 @@ module mod_particle_types
   type, abstract :: particle_base
     real*8    :: x(3)             !< particle position in real space
     real*8    :: st(2)            !< particle position in the element
-    real*4    :: weight = 1.0     !< weight (i.e. number of particles)
+    real*8    :: weight = 1.0     !< weight (i.e. number of particles)
     integer*4 :: i_elm = 0        !< index in element_list. Negative indices indicate lost particles on the edge of - that element.
     integer*4 :: i_life = 0       !< particle lifetime index (i.e. is this still the same particle?)
     real*4    :: t_birth = 0.0    !< birth time of this particle
@@ -65,6 +65,7 @@ module mod_particle_types
     real*8    :: Bn_k          !< B   (amplitude, current step)
     real*8    :: dBn_k(3)      !< dB  (derivatives of Bn, current step)
     real*8    :: Bnorm_k(3)    !< normalised B (current step)
+    real*8    :: E_k(3)        !< electric field (current step)
   end type particle_gc_Qin
 
   !> For most kinetic methods the velocity is required at time \(t\)

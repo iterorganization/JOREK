@@ -437,7 +437,7 @@ required = 0
     write(*,*) '  No compression will be used in this run.'
   endif
 #endif
-  call check_preconditioner_consistency
+  if (nstep .gt. 0)   call check_preconditioner_consistency
   
   ! --- Initialize live data file which will be filled during the code run
   if ( my_id == 0 ) call init_live_data()
@@ -1169,6 +1169,7 @@ required = 0
 
     !--------------------------------------------------------- energies
     if ( (my_id == 0) .and. (.not. bench_without_plot) ) then
+
        call energy(node_list,element_list,W_mag,W_kin)
 
        R_axis_t(index_now)       = ES%R_axis

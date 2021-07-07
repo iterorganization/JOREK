@@ -1118,17 +1118,20 @@ subroutine adjust_particle_weights(particles, num_atoms_total)
   use mpi
   class(particle_base), intent(inout), dimension(:) :: particles
   real*8, intent(in)                                :: num_atoms_total !< What the sum of the weights should be
-  real*8 :: local_weights, sum_weights
+  real*8 :: local_weights, sum_weights, local_weights_active, sum_weights_active
   integer :: ifail
  
   local_weights = sum(particles(:)%weight)
 
-  call MPI_AllReduce(local_weights,sum_weights,1,MPI_REAL8,MPI_SUM,MPI_COMM_WORLD,ifail)
+  local_weights_active = sum(particles(:)%weight, mask=particles(:)%i_elm .gt. 0)
+
+  call MPI_AllReduce(local_weights,       sum_weights,       1,MPI_REAL8,MPI_SUM,MPI_COMM_WORLD,ifail)
+  call MPI_AllReduce(local_weights_active,sum_weights_active,1,MPI_REAL8,MPI_SUM,MPI_COMM_WORLD,ifail)
 
 ! Divide all weights by the sum of weights and multiply by the requested number of atoms
 !  particles(:)%weight = real(real(particles(:)%weight,8) / sum_weights * num_atoms_total,4)
  
-  particles(:)%weight = particles(:)%weight / sum_weights * num_atoms_total
+  particles(:)%weight = particles(:)%weight / sum_weights_active * num_atoms_total
 
 end subroutine adjust_particle_weights
 
@@ -1159,7 +1162,7 @@ function q_coronal(node_list, element_list, s, t, phi, i_elm, cor, u)
   local_Ne = P(1) * 1d20                           ! plasma density [1/m^3]
   local_Te = P(2)/(2.d0*MU_ZERO*central_density*1.d20)/K_BOLTZ
 #ifdef WITH_TiTe
-  local_Te = local_Te*2d0 ! P(1) contains the electron temperature, reverse previous correction
+  local_Te = local_Te*2.d0 ! P(1) contains the electron temperature, reverse previous correction
 #endif
 
   if (local_Ne .le. 0.d0 .or. local_Te .le. 0.d0) then

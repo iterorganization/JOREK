@@ -2,6 +2,7 @@
 !> Use here the parameters defined in [[mod_penning_case]] and project them onto a grid
 !> to test the accuracy of the pusher in JOREK fields.
 module mod_penning_case_jorek
+  use mod_project_particles
   use mod_penning_case, only: charge, mass, omega_e, omega_b, epsilon
   use data_structure, only: type_node_list, type_element_list
   use mod_parameters, only: n_order
@@ -12,19 +13,22 @@ contains
 
 subroutine jorek_penning_fields(node_list, element_list)
   use projection_helpers, only: prepare_mumps_par, calc_rhs_f
-  use phys_module, only: F0, central_mass, central_density
-  use constants, only: mass_proton, mu_zero, el_chg, atomic_mass_unit
-  use mpi
+  use phys_module, only       : F0, central_mass, central_density, tstep
+  use constants, only         : mass_proton, mu_zero, el_chg, atomic_mass_unit
+  use mpi_mod
   implicit none
 
   include 'dmumps_struc.h'        ! MUMPS include files defining its datastructure
 
-  type(type_node_list), intent(inout) :: node_list
+  type(type_node_list),    intent(inout) :: node_list
   type(type_element_list), intent(inout) :: element_list
 
-  type(DMUMPS_STRUC) :: p
-  integer :: i, k, index
-  real*8 :: t_norm, qom, B0, Phi0
+  real*8              :: area, volume
+  real*8, allocatable :: integral_weights(:)
+  type(DMUMPS_STRUC)  :: p
+  integer             :: i, k, index
+  real*8              :: t_norm, qom, B0, Phi0
+  integer             :: mpi_comm_n, mpi_comm_master, i_tor_local, n_tor_local, ierr
 
   !> Note that we have to cheat a little bit here:
   !> We need F0 nonzero for the electric potential, but we need F0 = 0 to not have
@@ -40,9 +44,18 @@ subroutine jorek_penning_fields(node_list, element_list)
   qom     = real(charge) * el_chg / (mass * atomic_mass_unit)
   B0      = omega_b/qom ! In T
   Phi0    = epsilon*omega_e**2/qom/2.d0*t_norm ! In JOREK units: E_SI*t_norm
+  tstep   = 1.d0
 
-  call prepare_mumps_par(node_list, element_list, 0, 0, MPI_COMM_WORLD, MPI_COMM_WORLD, MPI_COMM_WORLD, &
-                         p, filter=0.d0, filter_hyper=0.d0, filter_parallel=0.d0, skip_factorisation=.false.)
+
+  call MPI_Comm_dup(MPI_COMM_WORLD, mpi_comm_n, ierr)
+  call MPI_Comm_dup(MPI_COMM_WORLD, mpi_comm_master, ierr)
+
+  i_tor_local = 1
+  n_tor_local = 1
+
+  call prepare_mumps_par_n0(node_list, element_list, n_tor_local, i_tor_local, mpi_comm_world, mpi_comm_n, mpi_comm_master, &
+                            p,  area, volume, filter=0.d0, filter_hyper=0.d0, filter_parallel=0.d0, integral_weights=integral_weights )
+
 
   allocate(p%rhs(p%n))
 
@@ -57,10 +70,12 @@ subroutine jorek_penning_fields(node_list, element_list)
   ! the shape of the function is fixed, and we can calculate the scale factor after
   ! projecting the function.
   call calc_rhs_f(node_list,element_list,penning_U,p%rhs)
+
   call DMUMPS(p)
+
   do i=1,node_list%n_nodes
     do k=1,n_order+1
-      index = node_list%node(i)%index(k)
+      index = 2*(node_list%node(i)%index(k)-1) + 1
       ! Scale JOREK fields correctly and apply F0_CHEAT_FACTOR
       ! p%rhs contains R^2 - 2 Z^2
       node_list%node(i)%values(1,k,2) = Phi0 * p%rhs(index) / F0_CHEAT_FACTOR
@@ -68,20 +83,22 @@ subroutine jorek_penning_fields(node_list, element_list)
   enddo
 
   ! For psi
-  call calc_rhs_f(node_list,element_list,penning_psi,p%rhs)
+    call calc_rhs_f(node_list,element_list,penning_psi,p%rhs)
+  
   call DMUMPS(p)
+  
   do i=1,node_list%n_nodes
     do k=1,n_order+1
-      index = node_list%node(i)%index(k)
+      index = 2*(node_list%node(i)%index(k)-1) + 1
       ! p^rhs contains -R^2/2
       node_list%node(i)%values(1,k,1) = B0*p%rhs(index)
     enddo
+    node_list%node(i)%deltas = 0.d0
   enddo
-
+  
   p%JOB=-2
   call DMUMPS(p)
-
-  node_list%node(i)%deltas = 0.d0
+  
 end subroutine jorek_penning_fields
 
 !> E = -Grad F0*U, U = Phi0(R^2 - 2 Z^2) (see model001/initial_conditions.f90 for reference)
