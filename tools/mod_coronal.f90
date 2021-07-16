@@ -120,8 +120,8 @@ if(present(linear)) linear_flag = linear
 fractions(0) = 1.d0
 if (linear_flag) then
   do iz=1,ad%n_Z
-    call ad%SCD%interp_linear(iz-1, density, temperature, ion_rate) ! ionizing to level iz (0 is neutral)
-    call ad%ACD%interp_linear(iz,   density, temperature, rec_rate) ! recombining from iz
+    ion_rate = ad%SCD%interp_linear(iz-1, density, temperature) ! ionizing to level iz (0 is neutral)
+    rec_rate = ad%ACD%interp_linear(iz,   density, temperature) ! recombining from iz
     fractions(iz) = fractions(iz-1) * ion_rate/rec_rate
   end do
 else
