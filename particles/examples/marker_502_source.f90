@@ -235,7 +235,7 @@ real*8    :: ion_rate, ion_source, ion_prob, ion_rec_ran(2), cx_ran(7), cx_sourc
 real*8    :: rec_rate, dEion_dT, Z_imp, Z_eff, N_imp, Lrad, rad_sink, spi_source_imp, spi_source_imp_local
 real*8    :: spi_source_R(2), spi_source_Z(2), spi_source_phi(2), ng_radius
 real*8    :: cx_prob, CX_rate, Z_imp_tmp, n_imp_tmp, grad_n_imp_tmp(3), grad_n_imp_fluid(3), V_ext(3)
-real*8    :: particle_source, velocity_par_source, energy_sourcei, D_prof, psi_norm
+real*8    :: particle_source, velocity_par_source, energy_source, D_prof, psi_norm
 real*8    :: v_temp(3), T_eV, K_eV, B_norm(3), v_1, v_2, v_3, v_4, v_5
 real*8    :: density_tot, density_in, density_out,  pressure, pressure_in, pressure_out
 real*8    :: mom_par_tot, mom_par_in, mom_par_out, kin_par_tot, kin_par_out, kin_par_in
