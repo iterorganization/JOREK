@@ -107,8 +107,6 @@ contains
   enddo  
 
   if (allocated(A_harm)) call tr_deallocate(A_harm,"A_harm",CAT_DMATRIX)
-  if (allocated(irn_harm)) call tr_deallocate(irn_harm,"irn_harm",CAT_DMATRIX)
-  if (allocated(jcn_harm)) call tr_deallocate(jcn_harm,"jcn_harm",CAT_DMATRIX)
   
   end subroutine centralization_harmonic
 

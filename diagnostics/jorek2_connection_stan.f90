@@ -11,6 +11,7 @@ program jorek2_poincare
   use mod_neighbours
   use mod_interp
   use mpi
+  use equil_info
   
   implicit none
   
@@ -49,9 +50,7 @@ program jorek2_poincare
   real*8		:: delta_t, small_delta_t
   real*8		:: small_delta, dl2, total_length, length_max
   real*8		:: zl1, zl2, partial(2)
-  integer		:: i_elm_xpoint,i_elm_axis
-  real*8		:: psi_xpoint(2),R_xpoint(2),Z_xpoint(2),s_xpoint(2),t_xpoint(2), psi_bnd, psi_bnd2
-  real*8		:: psi_axis,R_axis,Z_axis,s_axis,t_axis
+  real*8		:: psi_bnd, psi_bnd2
   integer		:: bnd_tmp, bnd_tmp_opp
   real*8		:: s_tmp,   s_tmp_opp
   real*8		:: t_tmp,   t_tmp_opp
@@ -158,16 +157,14 @@ program jorek2_poincare
   enddo
   
   ! --- find x-point(s)
-  call find_axis(my_id,node_list,element_list,psi_axis,R_axis,Z_axis,i_elm_axis,s_axis,t_axis,ifail)
   if (xpoint) then
-    call find_xpoint(my_id,node_list,element_list,psi_xpoint,R_xpoint,Z_xpoint,i_elm_xpoint,s_xpoint,t_xpoint,xcase,ifail)
-    psi_bnd  = psi_xpoint(1)
-    psi_bnd2 = psi_xpoint(2)
-    if( (xcase .eq. 2) .or. ((xcase .eq. 3) .and. (psi_xpoint(2) .lt. psi_xpoint(1))) ) then
-      psi_bnd  = psi_xpoint(2)
-      psi_bnd2 = psi_xpoint(1)
+    psi_bnd  = ES%psi_xpoint(1)
+    psi_bnd2 = ES%psi_xpoint(2)
+    if( ES%active_xpoint .eq. UPPER_XPOINT ) then
+      psi_bnd  = ES%psi_xpoint(2)
+      psi_bnd2 = ES%psi_xpoint(1)
     endif
-    if (xcase .eq. 1) psi_bnd2 = psi_bnd
+    if (xcase .eq. LOWER_XPOINT) psi_bnd2 = psi_bnd
   else
     psi_bnd  = 0.d0
     psi_bnd2 = 0.d0
@@ -615,9 +612,9 @@ program jorek2_poincare
   	if ( (PSI_turn(1,1) .lt. psi_bnd2) &
 	     .and. (    ((n_turn_max(1) .lt. n_turns) .and. (n_turn_max(2) .lt. n_turns)) &
 	            .or. Rtheta_plot ) &
-  	     .and. (	( (xcase .eq. 1) .and. (Z_turn(1,1) .gt. Z_xpoint(1)) ) &
-  	  	    .or.( (xcase .eq. 2) .and. (Z_turn(1,1) .lt. Z_xpoint(2)) ) &
-  	  	    .or.( (xcase .eq. 3) .and. (Z_turn(1,1) .gt. Z_xpoint(1)) .and. (Z_turn(1,1) .lt. Z_xpoint(2)) ) ) ) then
+  	     .and. (	( (xcase .eq. LOWER_XPOINT) .and. (Z_turn(1,1) .gt. ES%Z_xpoint(1)) ) &
+  	  	    .or.( (xcase .eq. UPPER_XPOINT) .and. (Z_turn(1,1) .lt. ES%Z_xpoint(2)) ) &
+  	  	    .or.( (xcase .eq. DOUBLE_NULL ) .and. (Z_turn(1,1) .gt. ES%Z_xpoint(1)) .and. (Z_turn(1,1) .lt. ES%Z_xpoint(2)) ) ) ) then
   
           ! --- Compute averaged connection length
 	  count_lines = count_lines + 1
@@ -636,14 +633,14 @@ program jorek2_poincare
   	  	zl2 = C_turn(1,1) + C_turn(1,2) - C_turn(i_turn,i_dir)
   
   	  	ikeep = ikeep + 1
-		small_r   = sqrt( (R_turn(i_turn,i_dir)-R_axis)**2 + (Z_turn(i_turn,i_dir)-Z_axis)**2 )
-		theta_pol = atan2(Z_turn(i_turn,i_dir)-Z_axis,R_turn(i_turn,i_dir)-R_axis)
+		small_r   = sqrt( (R_turn(i_turn,i_dir)-ES%R_axis)**2 + (Z_turn(i_turn,i_dir)-ES%Z_axis)**2 )
+		theta_pol = atan2(Z_turn(i_turn,i_dir)-ES%Z_axis,R_turn(i_turn,i_dir)-ES%R_axis)
 		if (theta_pol .lt. 0.d0) theta_pol = theta_pol + 2.d0*PI
   	  	if (ikeep .le. n_points_max) then
 		  if (Rtheta_plot) then
                     call find_RZ(node_list,element_list,R_turn(i_turn,i_dir),Z_turn(i_turn,i_dir),R_tmp,Z_tmp,ielm_tmp,s_tmp,t_tmp,ifail)
                     call interp(node_list,element_list,ielm_tmp,1,1,s_tmp,t_tmp,psi_tmp,P0_s,P0_t,P0_st,P0_ss,P0_tt)
-		    RZkeep(1,ikeep)	     = (psi_tmp-psi_axis)/(psi_bnd-psi_axis)!small_r
+		    RZkeep(1,ikeep)	     = (psi_tmp-ES%psi_axis)/(psi_bnd-ES%psi_axis)!small_r
   	  	    RZkeep(2,ikeep)	     = theta_pol / (2.d0*PI)
 		  else
 		    RZkeep(1,ikeep)	     = R_turn(i_turn,i_dir)

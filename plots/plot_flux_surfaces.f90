@@ -1,8 +1,12 @@
-subroutine plot_flux_surfaces(node_list,element_list,surface_list,frame,every_nth,psi_xpoint,R_xpoint,Z_xpoint,xpoint,xcase)
+subroutine plot_flux_surfaces(node_list,element_list,surface_list,frame,every_nth,xpoint,xcase)
+
+use constants
 use tr_module 
 use data_structure
 use mod_interp
 use phys_module, only: write_ps
+use equil_info
+
 implicit none
 
 ! --- Routine parameters
@@ -13,7 +17,6 @@ logical,                  intent(in) :: frame
 integer,                  intent(in) :: every_nth     ! Plot only every_nth flux surface
 integer,                  intent(in) :: xcase
 logical,                  intent(in) :: xpoint
-real*8,                   intent(in) :: psi_xpoint(2), R_xpoint(2), Z_xpoint(2)    
 
 ! --- internal variables
 integer            :: i, j, k,ip, nplot, node1, node2, node3, node4, i_elm, found
@@ -32,15 +35,15 @@ psi_bnd  = 0.d0
 psi_bnd2 = 0.d0
 
 if(xpoint) then
-  if (xcase .eq. 1) psi_bnd = psi_xpoint(1)
-  if (xcase .eq. 2) psi_bnd = psi_xpoint(2)
-  if (xcase .eq. 3) then
-    if (psi_xpoint(2) .lt. psi_xpoint(1)) then
-      psi_bnd  = psi_xpoint(2)
-      psi_bnd2 = psi_xpoint(1)
+  if (xcase .eq. LOWER_XPOINT) psi_bnd = ES%psi_xpoint(1)
+  if (xcase .eq. UPPER_XPOINT) psi_bnd = ES%psi_xpoint(2)
+  if (xcase .eq. DOUBLE_NULL ) then
+    if (ES%active_xpoint .eq. UPPER_XPOINT) then
+      psi_bnd  = ES%psi_xpoint(2)
+      psi_bnd2 = ES%psi_xpoint(1)
     else
-      psi_bnd  = psi_xpoint(1)
-      psi_bnd2 = psi_xpoint(2)
+      psi_bnd  = ES%psi_xpoint(1)
+      psi_bnd2 = ES%psi_xpoint(2)
     endif
   endif
 endif
@@ -73,12 +76,12 @@ do j = 1, surface_list%n_psi, every_nth
   if(xpoint) then
     if ((surface_list%n_psi .gt. 10) .and. (j .gt. 2)) then
       if ((surface_list%psi_values(j) .gt. psi_bnd)  .and. (found .eq. 0)) found = 1
-      if ((surface_list%psi_values(j) .gt. psi_bnd2) .and. (xcase .eq. 3) .and. (found .eq. 1)) found = 2
+      if ((surface_list%psi_values(j) .gt. psi_bnd2) .and. (xcase .eq. DOUBLE_NULL) .and. (found .eq. 1)) found = 2
       if ((surface_list%psi_values(j) .lt. surface_list%psi_values(j-1))  .and. (found .eq. 3)) found = 4
       if ((surface_list%psi_values(j) .lt. surface_list%psi_values(j-1))  .and. (found .eq. 2)) found = 3
       if ((surface_list%psi_values(j) .gt. surface_list%psi_values(j-1))  .and. (found .eq. 4)) found = 5
-      if (xcase .gt. 1) then
-        if ((surface_list%psi_values(j) .lt. psi_xpoint(2)) .and. (psi_xpoint(2) .lt. psi_xpoint(1)) &
+      if (xcase .gt. 1) then  ! xcase == 2(UPPER_XPOINT) or 3(DOUBLE_NULL)
+        if ((surface_list%psi_values(j) .lt. ES%psi_xpoint(2)) .and. (ES%active_xpoint .eq. UPPER_XPOINT) &
             .and. (     abs(surface_list%psi_values(j)  -surface_list%psi_values(j-1)) .gt. &
              2.d0*abs(surface_list%psi_values(j-1)-surface_list%psi_values(j-2))       ) &
             .and. (found .eq. 4) ) found = 5
@@ -130,51 +133,51 @@ do j = 1, surface_list%n_psi, every_nth
     ! Make sure that we don't plot private regions twice
     if (found .eq. 0) then 
       if ((xpoint) .and. (surface_list%n_psi .gt. 6)) then
-        if(     (xcase .eq. 1) &
-          .and. ((surface_list%psi_values(j) .eq. psi_xpoint(1)) &
-          .or.  (minval(zplot) .ge. Z_xpoint(1))) ) call lplot6(21,11,rplot,zplot,-nplot,' ')
-        if(     (xcase .eq. 2) &
-          .and. ((surface_list%psi_values(j) .eq. psi_xpoint(2)) &
-          .or.  (maxval(zplot) .le. Z_xpoint(2))) ) call lplot6(21,11,rplot,zplot,-nplot,' ')
-        if(     (xcase .eq. 3) &
-          .and. (((surface_list%psi_values(j) .eq. psi_xpoint(1)) .and. (maxval(zplot) .le. Z_xpoint(2))) &
-          .or.   ((surface_list%psi_values(j) .eq. psi_xpoint(2)) .and. (minval(zplot) .ge. Z_xpoint(1))) &
-          .or.   ((minval(zplot) .ge. Z_xpoint(1)) &
-	  .and.   (maxval(zplot) .le. Z_xpoint(2))) ) ) call lplot6(21,11,rplot,zplot,-nplot,' ')
+        if(     (xcase .eq. LOWER_XPOINT) &
+          .and. ((surface_list%psi_values(j) .eq. ES%psi_xpoint(1)) &
+          .or.  (minval(zplot) .ge. ES%Z_xpoint(1))) ) call lplot6(21,11,rplot,zplot,-nplot,' ')
+        if(     (xcase .eq. UPPER_XPOINT) &
+          .and. ((surface_list%psi_values(j) .eq. ES%psi_xpoint(2)) &
+          .or.  (maxval(zplot) .le. ES%Z_xpoint(2))) ) call lplot6(21,11,rplot,zplot,-nplot,' ')
+        if(     (xcase .eq. DOUBLE_NULL) &
+          .and. (((surface_list%psi_values(j) .eq. ES%psi_xpoint(1)) .and. (maxval(zplot) .le. ES%Z_xpoint(2))) &
+          .or.   ((surface_list%psi_values(j) .eq. ES%psi_xpoint(2)) .and. (minval(zplot) .ge. ES%Z_xpoint(1))) &
+          .or.   ((minval(zplot) .ge. ES%Z_xpoint(1)) &
+          .and.   (maxval(zplot) .le. ES%Z_xpoint(2))) ) ) call lplot6(21,11,rplot,zplot,-nplot,' ')
       else
-	call lplot6(21,11,rplot,zplot,-nplot,' ')
+        call lplot6(21,11,rplot,zplot,-nplot,' ')
       endif
     endif
     if (found .eq. 1) then 
-      if(     (xcase .eq. 1) &
-        .and. ( ((surface_list%psi_values(j) .lt. psi_bnd) .and. (maxval(zplot) .lt. Z_xpoint(1))) &
-	       .or. (surface_list%psi_values(j) .ge. psi_bnd)) ) call lplot6(21,11,rplot,zplot,-nplot,' ')
-      if(     (xcase .eq. 2) &
-        .and. ( ((surface_list%psi_values(j) .lt. psi_bnd) .and. (maxval(zplot) .gt. Z_xpoint(2))) &
-	       .or. (surface_list%psi_values(j) .ge. psi_bnd)) ) call lplot6(21,11,rplot,zplot,-nplot,' ')
-      if (xcase .eq. 3) then
-        if(     (psi_xpoint(2) .lt. psi_xpoint(1)) &
-          .and. ((surface_list%psi_values(j) .eq. psi_xpoint(1)) &
-	  .or.   (minval(zplot) .ge. Z_xpoint(1)))  ) call lplot6(21,11,rplot,zplot,-nplot,' ')
-        if(     (psi_xpoint(1) .le. psi_xpoint(2)) &
-          .and. ((surface_list%psi_values(j) .eq. psi_xpoint(2)) &
-	  .or.   (maxval(zplot) .le. Z_xpoint(2)))  ) call lplot6(21,11,rplot,zplot,-nplot,' ')
+      if(     (xcase .eq. LOWER_XPOINT) &
+        .and. ( ((surface_list%psi_values(j) .lt. psi_bnd) .and. (maxval(zplot) .lt. ES%Z_xpoint(1))) &
+        .or. (surface_list%psi_values(j) .ge. psi_bnd)) ) call lplot6(21,11,rplot,zplot,-nplot,' ')
+      if(     (xcase .eq. UPPER_XPOINT) &
+        .and. ( ((surface_list%psi_values(j) .lt. psi_bnd) .and. (maxval(zplot) .gt. ES%Z_xpoint(2))) &
+        .or. (surface_list%psi_values(j) .ge. psi_bnd)) ) call lplot6(21,11,rplot,zplot,-nplot,' ')
+      if (xcase .eq. DOUBLE_NULL) then
+        if(     (ES%active_xpoint .eq. UPPER_XPOINT) &
+          .and. ((surface_list%psi_values(j) .eq. ES%psi_xpoint(1)) &
+          .or.   (minval(zplot) .ge. ES%Z_xpoint(1)))  ) call lplot6(21,11,rplot,zplot,-nplot,' ')
+        if(     ( (ES%active_xpoint .eq. LOWER_XPOINT) .or. (ES%active_xpoint .eq. SYMMETRIC_XPOINT) ) &
+          .and. ((surface_list%psi_values(j) .eq. ES%psi_xpoint(2)) &
+          .or.   (maxval(zplot) .le. ES%Z_xpoint(2)))  ) call lplot6(21,11,rplot,zplot,-nplot,' ')
       endif
     endif
     if (found .eq. 2) then 
-      if(     (minval(rplot) .ge. R_xpoint(2)) &
+      if(     (minval(rplot) .ge. ES%R_xpoint(2)) &
         .and. (maxval(zplot) .ge. 0.d0) ) call lplot6(21,11,rplot,zplot,-nplot,' ')
-      if(     (minval(rplot) .ge. R_xpoint(1)) &
+      if(     (minval(rplot) .ge. ES%R_xpoint(1)) &
         .and. (minval(zplot) .le. 0.d0) ) call lplot6(21,11,rplot,zplot,-nplot,' ')
     endif
     if (found .eq. 3) then 
-      if(     (maxval(rplot) .le. R_xpoint(2)) &
+      if(     (maxval(rplot) .le. ES%R_xpoint(2)) &
         .and. (maxval(zplot) .ge. 0.d0) ) call lplot6(21,11,rplot,zplot,-nplot,' ')
-      if(     (maxval(rplot) .le. R_xpoint(1)) &
+      if(     (maxval(rplot) .le. ES%R_xpoint(1)) &
         .and. (minval(zplot) .le. 0.d0) ) call lplot6(21,11,rplot,zplot,-nplot,' ')
     endif
-    if ( (found .eq. 4) .and. (maxval(zplot) .le. Z_xpoint(1)) ) call lplot6(21,11,rplot,zplot,-nplot,' ')
-    if ( (found .eq. 5) .and. (minval(zplot) .ge. Z_xpoint(2)) ) call lplot6(21,11,rplot,zplot,-nplot,' ')
+    if ( (found .eq. 4) .and. (maxval(zplot) .le. ES%Z_xpoint(1)) ) call lplot6(21,11,rplot,zplot,-nplot,' ')
+    if ( (found .eq. 5) .and. (minval(zplot) .ge. ES%Z_xpoint(2)) ) call lplot6(21,11,rplot,zplot,-nplot,' ')
 
   enddo
 

@@ -96,7 +96,7 @@ write(*,*) '                 Define extension patch',i_ext
 
 ! --- Avoid xpoint nodes
 n_start = 4
-if (xcase .eq. 3) n_start = 8
+if (xcase .eq. DOUBLE_NULL) n_start = 8
 
 !-------------------------------- Allocate data structures for new nodes and initialize them
 newnode_list%n_nodes = 0

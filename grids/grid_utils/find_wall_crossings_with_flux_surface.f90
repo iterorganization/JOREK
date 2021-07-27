@@ -102,8 +102,8 @@ subroutine get_target_flux_surfaces(node_list, element_list, surface_list, ignor
   n_int_tmp = n_int
   
   ! --- Determine angle of X-line
-  if (xcase .ne. 2) theta_x(1) = atan2(Z_xpoint(1)-Z_axis,R_xpoint(1)-R_axis) + 0.5d0*PI
-  if (xcase .ne. 1) theta_x(2) = atan2(Z_xpoint(2)-Z_axis,R_xpoint(2)-R_axis) + 1.5d0*PI
+  if (xcase .ne. UPPER_XPOINT) theta_x(1) = atan2(Z_xpoint(1)-Z_axis,R_xpoint(1)-R_axis) + 0.5d0*PI
+  if (xcase .ne. LOWER_XPOINT) theta_x(2) = atan2(Z_xpoint(2)-Z_axis,R_xpoint(2)-R_axis) + 1.5d0*PI
   if (theta_x(1) .lt. 0.d0)    theta_x(1) = theta_x(1) + 2.d0*PI
   if (theta_x(2) .lt. 0.d0)    theta_x(2) = theta_x(2) + 2.d0*PI
   if (theta_x(1) .gt. 2.d0*PI) theta_x(1) = theta_x(1) - 2.d0*PI
@@ -113,22 +113,22 @@ subroutine get_target_flux_surfaces(node_list, element_list, surface_list, ignor
   n_int = 0
   do i=1,n_int_tmp
     save_int = .false.
-    if (xcase .ne. 2) Z_line(1) = Z_xpoint(1) + (R_int_tmp(i) - R_xpoint(1)) * tan(theta_x(1))
-    if (xcase .ne. 1) Z_line(2) = Z_xpoint(2) + (R_int_tmp(i) - R_xpoint(2)) * tan(theta_x(2))
+    if (xcase .ne. UPPER_XPOINT) Z_line(1) = Z_xpoint(1) + (R_int_tmp(i) - R_xpoint(1)) * tan(theta_x(1))
+    if (xcase .ne. LOWER_XPOINT) Z_line(2) = Z_xpoint(2) + (R_int_tmp(i) - R_xpoint(2)) * tan(theta_x(2))
     ! --- Usual case
-    if (     ((xcase .ne. 2) .and. (Z_int_tmp(i) .lt. Z_line(1)))       &
-        .or. ((xcase .ne. 1) .and. (Z_int_tmp(i) .gt. Z_line(2)))        ) save_int = .true.
+    if (     ((xcase .ne. UPPER_XPOINT) .and. (Z_int_tmp(i) .lt. Z_line(1)))       &
+        .or. ((xcase .ne. LOWER_XPOINT) .and. (Z_int_tmp(i) .gt. Z_line(2)))        ) save_int = .true.
     ! --- If our legs go off to the side under Xpoint
-    if (     ((xcase .ne. 2) .and. (R_int_tmp(i) .gt. stpts%RLimit_LowerOuterLeg)               &
-                             .and. (Z_int_tmp(i) .lt. stpts%ZLimit_LowerOuterLeg))              &
-        .or. ((xcase .ne. 1) .and. (R_int_tmp(i) .gt. stpts%RLimit_UpperOuterLeg)               &
-                             .and. (Z_int_tmp(i) .gt. stpts%ZLimit_UpperOuterLeg))               ) save_int = .true.
+    if (     ((xcase .ne. UPPER_XPOINT) .and. (R_int_tmp(i) .gt. stpts%RLimit_LowerOuterLeg)               &
+                                        .and. (Z_int_tmp(i) .lt. stpts%ZLimit_LowerOuterLeg))              &
+        .or. ((xcase .ne. LOWER_XPOINT) .and. (R_int_tmp(i) .gt. stpts%RLimit_UpperOuterLeg)               &
+                                        .and. (Z_int_tmp(i) .gt. stpts%ZLimit_UpperOuterLeg))               ) save_int = .true.
     ! --- MAST special
     if (tokamak_device(1:4) .eq. 'MAST') then
-      if (     ((xcase .ne. 2) .and. (R_int_tmp(i) .gt. stpts%RLimit_LowerMastWallBox)          &
-                               .and. (Z_int_tmp(i) .lt. stpts%ZLimit_LowerMastWallBox))         &
-          .or. ((xcase .ne. 1) .and. (R_int_tmp(i) .gt. stpts%RLimit_UpperMastWallBox)          &
-                               .and. (Z_int_tmp(i) .gt. stpts%ZLimit_UpperMastWallBox))          ) save_int = .true.
+      if (     ((xcase .ne. UPPER_XPOINT) .and. (R_int_tmp(i) .gt. stpts%RLimit_LowerMastWallBox)          &
+                                          .and. (Z_int_tmp(i) .lt. stpts%ZLimit_LowerMastWallBox))         &
+          .or. ((xcase .ne. LOWER_XPOINT) .and. (R_int_tmp(i) .gt. stpts%RLimit_UpperMastWallBox)          &
+                                          .and. (Z_int_tmp(i) .gt. stpts%ZLimit_UpperMastWallBox))          ) save_int = .true.
     endif
     if (save_int) then
       n_int = n_int + 1

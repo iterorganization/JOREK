@@ -143,12 +143,12 @@ if (xpoint2) then
   datn_z_u	   = -0.5d0/cosh3_u**2 / sigz
   d2atn_z_u	   =  1.0d0/cosh3_u**2 / sigz**2 * tanh2_u
   
-  if(xcase2 .eq. 1) then
+  if(xcase2 .eq. LOWER_XPOINT) then
     atn_z_u          = 1.d0
     datn_z_u         = 0.d0
     d2atn_z_u        = 0.d0
   endif
-  if(xcase2 .eq. 2) then
+  if(xcase2 .eq. UPPER_XPOINT) then
     atn_z            = 1.d0
     datn_z           = 0.d0
     d2atn_z          = 0.d0

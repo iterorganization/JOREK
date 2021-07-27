@@ -7,7 +7,7 @@ contains
 
   !> Constructing harmonic matrix directly from the elementary matrix 
   subroutine direct_construction_harmonic(my_id, my_id_n, m_cpu, n_cpu, MPI_COMM_N,  MPI_COMM_MASTER, my_id_master, & 
-    node_list, element_list, bnd_elm_list, bnd_node_list, xpoint2, xcase2, freeboundary, direct_construction)
+    node_list, element_list, bnd_elm_list, bnd_node_list, xpoint2, xcase2, restart, freeboundary, direct_construction)
 
   use data_structure 
   use global_distributed_matrix
@@ -26,7 +26,7 @@ contains
   type (type_element_list),     intent(in)    :: element_list
   type (type_bnd_element_list), intent(in)    :: bnd_elm_list
   integer, intent(in) :: my_id, my_id_n, n_cpu, m_cpu, MPI_COMM_N, MPI_COMM_MASTER, my_id_master, xcase2
-  logical, intent(in) :: direct_construction, xpoint2, freeboundary
+  logical, intent(in) :: direct_construction, xpoint2, restart, freeboundary
   
   ! --- Local variables
   integer(kind=int_all)              :: Int1=1
@@ -55,7 +55,8 @@ contains
   endif
  
   call distribute_nodes_elements(my_id,m_cpu,n_cpu,node_list,element_list, direct_construction, & 
-    local_elms_harm, n_local_elms_harm, ndof, index_min_harm,index_max_harm)
+    local_elms_harm, n_local_elms_harm, ndof, index_min_harm,index_max_harm, &
+    restart, freeboundary)
 
   if ( .not. matrix_structure_initialized ) then
     matrix_structure_initialized = .true.

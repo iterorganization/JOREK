@@ -9,9 +9,9 @@ module equil_info
   
   
   
-  use constants,      only: LOWER_XPOINT, UPPER_XPOINT, DOUBLE_NULL
+  use constants,      only: LOWER_XPOINT, UPPER_XPOINT, DOUBLE_NULL,SYMMETRIC_XPOINT
   use data_structure, only: type_node_list, type_element_list, type_bnd_element_list
-  use phys_module,    only: R_geo, Z_geo, FF_0, psi_axis_t, psi_bnd_t, Z_xpoint_t, index_now
+  use phys_module,    only: R_geo, Z_geo, FF_0, psi_axis_t, psi_bnd_t, Z_xpoint_t, index_now, SDN_threshold
   use mod_interp
   
   
@@ -151,14 +151,35 @@ module equil_info
       else if ( (xcase==DOUBLE_NULL) ) then
         
         ES%limiter_plasma = .false.
-        
+
         if ( abs(ES%psi_axis-ES%psi_xpoint(1)) < abs(ES%psi_axis-ES%psi_xpoint(2)) ) then
           ES%psi_bnd       = ES%psi_xpoint(1)
           ES%active_xpoint = LOWER_XPOINT
+
+          ! --- Save boundary point inforamtion for DOUBLE_NULL cases       
+          ES%R_bnd      =  ES%R_xpoint(ES%active_xpoint)
+          ES%Z_bnd      =  ES%Z_xpoint(ES%active_xpoint)
+          ES%i_elm_bnd  =  ES%i_elm_xpoint(ES%active_xpoint)
+          ES%s_bnd      =  ES%s_xpoint(ES%active_xpoint)
+          ES%t_bnd      =  ES%t_xpoint(ES%active_xpoint)
+          ES%ifail_bnd  =  ES%ifail_xpoint
         else
           ES%psi_bnd       = ES%psi_xpoint(2)
           ES%active_xpoint = UPPER_XPOINT
+
+          ! --- Save boundary point inforamtion for DOUBLE_NULL cases       
+          ES%R_bnd      =  ES%R_xpoint(ES%active_xpoint)
+          ES%Z_bnd      =  ES%Z_xpoint(ES%active_xpoint)
+          ES%i_elm_bnd  =  ES%i_elm_xpoint(ES%active_xpoint)
+          ES%s_bnd      =  ES%s_xpoint(ES%active_xpoint)
+          ES%t_bnd      =  ES%t_xpoint(ES%active_xpoint)
+          ES%ifail_bnd  =  ES%ifail_xpoint
         end if
+
+        ! If one want to generate a symmetric double-null grid
+        if ( abs(ES%psi_xpoint(1)-ES%psi_xpoint(2)) < SDN_threshold ) then
+          ES%active_xpoint = SYMMETRIC_XPOINT
+        endif
         
       else ! This should never happen.
         write(*,*) 'ERROR: ILLEGAL VALUE FOR XCASE:', xcase
@@ -214,12 +235,14 @@ module equil_info
       ES%t_bnd      =  ES%t_lim
       ES%ifail_bnd  =  ES%ifail_lim
     else
-      ES%R_bnd      =  ES%R_xpoint(ES%active_xpoint)
-      ES%Z_bnd      =  ES%Z_xpoint(ES%active_xpoint)
-      ES%i_elm_bnd  =  ES%i_elm_xpoint(ES%active_xpoint)
-      ES%s_bnd      =  ES%s_xpoint(ES%active_xpoint)
-      ES%t_bnd      =  ES%t_xpoint(ES%active_xpoint)
-      ES%ifail_bnd  =  ES%ifail_xpoint
+      if (xcase .ne. DOUBLE_NULL) then
+        ES%R_bnd      =  ES%R_xpoint(ES%active_xpoint)
+        ES%Z_bnd      =  ES%Z_xpoint(ES%active_xpoint)
+        ES%i_elm_bnd  =  ES%i_elm_xpoint(ES%active_xpoint)
+        ES%s_bnd      =  ES%s_xpoint(ES%active_xpoint)
+        ES%t_bnd      =  ES%t_xpoint(ES%active_xpoint)
+        ES%ifail_bnd  =  ES%ifail_xpoint
+      endif
     endif  
     
     ! --- Strike points.
@@ -588,13 +611,13 @@ module equil_info
     
     if (ES%xpoint .and. correct_private) then
 
-      if ( ES%xcase .ne. 2 ) then
+      if ( ES%xcase .ne. UPPER_XPOINT ) then
         psi_n_xpoint_lower = ( ES%psi_xpoint(1) - ES%psi_axis ) / ( ES%psi_bnd - ES%psi_axis )       
         if ( (get_psi_n < psi_n_xpoint_lower) .and. (Z < ES%Z_xpoint(1)) ) then   ! if true is lower private region
           get_psi_n = 2.d0*psi_n_xpoint_lower - get_psi_n
         endif
       endif
-      if ( ES%xcase .ne. 1 ) then
+      if ( ES%xcase .ne. LOWER_XPOINT ) then
         psi_n_xpoint_upper = ( ES%psi_xpoint(2) - ES%psi_axis ) / ( ES%psi_bnd - ES%psi_axis )
         if ( (get_psi_n < psi_n_xpoint_upper) .and. (Z > ES%Z_xpoint(2)) ) then   ! if true is upper private region
           get_psi_n = 2.d0*psi_n_xpoint_upper - get_psi_n

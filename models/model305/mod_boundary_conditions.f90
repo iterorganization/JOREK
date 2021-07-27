@@ -29,6 +29,7 @@ contains
                                   gmres, solve_only, ijA_index, ijA_size, irn_jcn, irn, jcn, &
                                   A_mat, i_tor_min, i_tor_max )
 
+    use constants
     use data_structure
     use phys_module, only: F0, GAMMA, n_pol, n_tht, freeboundary, RMP_on, psi_RMP_cos, dpsi_RMP_cos_dR, dpsi_RMP_cos_dZ, &
          psi_RMP_sin, dpsi_RMP_sin_dR, dpsi_RMP_sin_dZ, t_now, RMP_growth_rate, RMP_ramp_up_time,  &
@@ -363,11 +364,11 @@ contains
                                  - (node_list%node(inode)%x(1,1,2)-Z_inside)*R_s)
                             direction = direction / abs(direction)
 
-                            if (xcase2 .eq. 2) then
+                            if (xcase2 .eq. UPPER_XPOINT) then
                                direction = -direction
-                            else if ((xcase2 .eq. 3).and.(node_list%node(inode)%x(1,1,2).gt.Z_axis +0.1).and.(node_list%node(inode)%x(1,1,1).gt.R_xpoint(2))) then
+                            else if ((xcase2 .eq. DOUBLE_NULL).and.(node_list%node(inode)%x(1,1,2).gt.Z_axis +0.1).and.(node_list%node(inode)%x(1,1,1).gt.R_xpoint(2))) then
                               direction = -1.
-                            else if ((xcase2 .eq. 3) .and. (node_list%node(inode)%x(1,1,2).gt.Z_axis +0.1).and.(node_list%node(inode)%x(1,1,1).lt.R_xpoint(2)))then
+                            else if ((xcase2 .eq. DOUBLE_NULL) .and. (node_list%node(inode)%x(1,1,2).gt.Z_axis +0.1).and.(node_list%node(inode)%x(1,1,1).lt.R_xpoint(2)))then
                               direction = +1.
                             end if
 

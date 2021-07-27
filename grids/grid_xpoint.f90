@@ -112,7 +112,7 @@ enddo
 call find_flux_surfaces(my_id,xpoint,xcase,node_list,element_list,flux_list)
 !call q_profile(node_list,element_list,flux_list,psi_axis,psi_xpoint,Z_xpoint)
 
-call plot_flux_surfaces(node_list,element_list,flux_list,.true.,1,psi_xpoint,R_xpoint,Z_xpoint,.true.,xcase)
+call plot_flux_surfaces(node_list,element_list,flux_list,.true.,1,.true.,xcase)
 
 
 !-------------------------------------- store some data for the new grid
@@ -1033,7 +1033,7 @@ newnode_list%n_nodes = index
 write(*,*) ' definition of nodes completed ',newnode_list%n_nodes
 
 if ( write_ps ) call nframe(11,11,1,2.0,3.0,-2.0,-1.0,' ',1,'R',1,'Z',1)
-call plot_flux_surfaces(node_list,element_list,flux_list,.false.,1,psi_xpoint,R_xpoint,Z_xpoint,.true.,xcase)
+call plot_flux_surfaces(node_list,element_list,flux_list,.false.,1,.true.,xcase)
 
 
 call tr_allocate(xp,1,index,"xp",CAT_GRID)
