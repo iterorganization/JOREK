@@ -17,6 +17,7 @@ use corr_neg
   use mod_injection_source, only: inj_source, total_n_particles, total_n_particles_inj, total_n_particles_inj_all
   use mod_impurity, only: radiation_function, radiation_function_linear
 #endif
+use mod_sources
 
 
 implicit none

@@ -1,4 +1,16 @@
-!> Determine the heat and particle sources at a given position.
+module mod_sources
+
+
+
+implicit none
+
+
+
+contains
+
+
+
+!> Determine the heat and particle sources at a given position. 
 subroutine sources(xpoint2, xcase2, Z, Z_xpoint, psi, psi_axis, psi_bnd, particle_source, heat_source_i, heat_source_e)
 
 use phys_module
@@ -195,3 +207,7 @@ return
 end subroutine velocity
 !============================================Marina 14.02.2011================
 
+
+
+
+end module mod_sources

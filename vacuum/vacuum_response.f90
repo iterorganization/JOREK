@@ -1855,8 +1855,8 @@ module vacuum_response
             if ( (l_index < index_min) .or. (l_index > index_max) ) cycle ! This MPI proc responsible?
 
             ! --- Determine the row in the main matrix.
-            l_row_psi = det_row_col(l_index, ivar_psi, l_tor, i_tor_min, i_tor_max)
-            l_row_j   = det_row_col(l_index, ivar_j,   l_tor, i_tor_min, i_tor_max)
+            l_row_psi = det_row_col(l_index, var_psi, l_tor, i_tor_min, i_tor_max)
+            l_row_j   = det_row_col(l_index, var_zj,  l_tor, i_tor_min, i_tor_max)
 
             ! --- Sum over boundary dofs at which response is calculated
             L_IV: do i_vertex = 1, 2 ! (loop over nodes in element m_bndelem)
@@ -1942,7 +1942,7 @@ module vacuum_response
                         if ( vacuum_decouple_modes .and. (j_tor /= i_tor) ) cycle
 
                         ! --- Determine the column in the main matrix
-                        j_col_psi = det_row_col(j_index, ivar_psi, j_tor, i_tor_min, i_tor_max)
+                        j_col_psi = det_row_col(j_index, var_psi, j_tor, i_tor_min, i_tor_max)
 
                         ! --- Determine the position in the sparse matrix data structure
                         !     which corresponds to the matrix entry at  l_row_j, j_col_psi.
@@ -2097,8 +2097,8 @@ module vacuum_response
 !          if (j_resp_old .ne. j_resp) write(*,'(A4i5)') 'PANIC jresp: ',j_resp_old,j_resp, &
 !           bnd_node_list%bnd_node(jnode)%index_starwall(1), bnd_node_list%bnd_node(jnode)%index_starwall(jbas)
 
-          psibnd_vec ( j_resp ) = node_list%node(jnode_glob)%values(jtor, jdir, ivar_psi)
-          dpsibnd_vec( j_resp ) = node_list%node(jnode_glob)%deltas(jtor, jdir, ivar_psi)
+          psibnd_vec ( j_resp ) = node_list%node(jnode_glob)%values(jtor, jdir, var_psi)
+          dpsibnd_vec( j_resp ) = node_list%node(jnode_glob)%deltas(jtor, jdir, var_psi)
 
           if ( (present(psibnd_coils)) .and. (allocated(I_coils)) .and. (jtor==1) .and. (.not. starwall_equil_coils) ) then
             j_resp_0 = 2*(jnode-1) + jbas

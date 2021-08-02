@@ -21,6 +21,7 @@ use mod_bootstrap_functions
 use pellet_module
 use mod_neutral_source
 use mod_impurity, only: radiation_function, radiation_function_linear
+use mod_sources
 
 implicit none
 

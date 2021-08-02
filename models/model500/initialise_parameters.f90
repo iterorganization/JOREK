@@ -173,8 +173,8 @@ if (my_id .eq. 0) then
   endif
   
   if ( old_deuterium_atomic ) then
-    write(*,*) 'WARNING: You use the old fit of deuterium atomic coefficients that is known '      &
-    // 'to be inaccurate and has only been kept such that old simulation cases can be repeated!'
+    write(*,*) 'WARNING: You use the old fit of deuterium atomic coefficients that is known to be'
+    write(*,*) 'inaccurate and has only been kept such that old simulation cases can be repeated!'
     write(*,*) 'You should either use the more accurate fit or the ADAS based implementation.'
   end if
 

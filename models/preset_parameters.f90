@@ -222,14 +222,16 @@ subroutine preset_parameters
   ZK_i_perp_num = 0.d0
   ZK_e_perp_num = 0.d0
   Dn_perp_num   = 0.d0
-  eta_num_T_dependent   = .false.
-  visco_num_T_dependent = .false.
 
   heatsource          = 1.e-7
   heatsource_e        = 0.5e-7
   heatsource_i        = 0.5e-7
   heatsource_psin     = 1.0d0
+  heatsource_e_psin   = 1.0d0
+  heatsource_i_psin   = 1.0d0
   heatsource_sig      = 0.1d0
+  heatsource_e_sig    = 0.1d0
+  heatsource_i_sig    = 0.1d0
   particlesource      = 1.e-5
   particlesource_psin = 1.0d0
   particlesource_sig  = 0.1d0
@@ -237,10 +239,14 @@ subroutine preset_parameters
   edgeparticlesource_psin = 0.98
   edgeparticlesource_sig  = 0.01
   heatsource_gauss          = 0.d0
-  heatsource_gauss_i        = 0.d0
   heatsource_gauss_e        = 0.d0
+  heatsource_gauss_i        = 0.d0
   heatsource_gauss_psin     = 0.9d0
+  heatsource_gauss_e_psin   = 0.9d0
+  heatsource_gauss_i_psin   = 0.9d0
   heatsource_gauss_sig      = 0.1d0
+  heatsource_gauss_e_sig    = 0.1d0
+  heatsource_gauss_i_sig    = 0.1d0
   particlesource_gauss      = 0.d0
   particlesource_gauss_psin = 0.9d0
   particlesource_gauss_sig  = 0.1d0
@@ -360,6 +366,20 @@ subroutine preset_parameters
   ! ------------------------------------------------------------------------
 
   tgnum              = 0.d0                 ! Taylor-Galerkin Stabilisation coefficients (0.d0 == TG not used)
+  tgnum_psi          = 0.d0          
+  tgnum_u            = 0.d0
+  tgnum_zj           = 0.d0
+  tgnum_w            = 0.d0
+  tgnum_rho          = 0.d0
+  tgnum_T            = 0.d0
+  tgnum_Ti           = 0.d0
+  tgnum_Te           = 0.d0
+  tgnum_vpar         = 0.d0
+  tgnum_rhon         = 0.d0
+  tgnum_nre          = 0.d0
+  tgnum_AR           = 0.d0
+  tgnum_AZ           = 0.d0
+  tgnum_A3           = 0.d0
 
   keep_current_prof  = .true.               ! Keep the current_source term
   
@@ -398,8 +418,6 @@ subroutine preset_parameters
   eta_ARAZ_on        = .true.               !< Full-MHD: to switch on/off resistive   terms for AR and AZ equations
   tauIC_ARAZ_on      = .true.               !< Full-MHD: to switch on/off diamagnetic terms for AR and AZ equations
 
-  fix_axis_nodes     = .false.              !< Fix t-derivative on axis to avoid noise)
-  
   bench_without_plot = .false.              ! .true. for benchmark (mesuring elapsed time without plot phases) 
   no_zeros_pastix    = .false.              ! .true. to remove nonzeros in the preconditioning matrix with MUMPS
   no_zeros_mumps     = .false.              ! .true. to remove nonzeros in the preconditioning matrix with PaStiX
@@ -471,8 +489,8 @@ subroutine preset_parameters
   delta_n_convection = 0
   nimp_bg = 0.
   n_adas = 0
-  adas_dir = ''
-  imp_type = ''
+  adas_dir = ' '
+  imp_type = ' '
   use_imp_adas = .true. ! Directly use adas for impurity radiation; hard-coded one exists for argon
 
   !====== JET DMV-2 parameters

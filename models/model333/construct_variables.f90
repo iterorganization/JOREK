@@ -363,6 +363,7 @@ subroutine ELM_build_diffusivities_and_sources(element, nodes, xpoint2, xcase2, 
   use pellet_module
   use mod_bootstrap_functions
   use equil_info, only : get_psi_n
+  use mod_sources
   
   implicit none
   

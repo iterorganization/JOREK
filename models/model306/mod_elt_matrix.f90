@@ -23,6 +23,7 @@ use phys_module
 use pellet_module
 use diffusivities, only: get_dperp, get_zkperp
 use equil_info, only : get_psi_n
+use mod_sources
 
 implicit none
 

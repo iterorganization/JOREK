@@ -1,3 +1,15 @@
+module mod_sources
+
+
+
+implicit none
+
+
+
+contains
+
+
+
 !> Determine the heat and particle sources at a given position.
 subroutine sources(xpoint2, xcase2, Z, Z_xpoint, psi, psi_axis, psi_bnd, particle_source, heat_source)
 
@@ -23,15 +35,17 @@ psi_n = (psi - psi_axis) / (psi_bnd - psi_axis)
 
 if (xpoint2) then
   if ((Z .lt. Z_xpoint(1)) .and. (psi_n .lt. 1.d0) ) then
-     psi_n = 2.d0 - psi_n
+    psi_n = 2.d0 - psi_n
   endif
 endif
 
 particle_source = particlesource * (0.5d0 - 0.5d0*tanh((psi_n - particlesource_psin)/particlesource_sig)) &
-    + edgeparticlesource * (0.5d0 + 0.5d0*tanh((psi_n - edgeparticlesource_psin)/edgeparticlesource_sig)) &
-    + particlesource_gauss * exp(-(psi_n - particlesource_gauss_psin)**2/(particlesource_gauss_sig**2))
-heat_source     = heatsource     * (0.5d0 - 0.5d0*tanh((psi_n - heatsource_psin    )/heatsource_sig    )) &
-    + heatsource_gauss * exp(-(psi_n - heatsource_gauss_psin)**2/(heatsource_gauss_sig**2))
+    + edgeparticlesource * (0.5d0 + 0.5d0*tanh((psi_n - edgeparticlesource_psin)/edgeparticlesource_sig))
+heat_source     = heatsource     * (0.5d0 - 0.5d0*tanh((psi_n - heatsource_psin    )/heatsource_sig    ))
 
 return
 end subroutine sources
+
+
+
+end module mod_sources

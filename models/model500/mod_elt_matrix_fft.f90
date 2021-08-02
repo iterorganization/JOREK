@@ -27,6 +27,7 @@ use mod_neutral_source
 use mod_bootstrap_functions
 use mod_atomic_coeff_deuterium, only : atomic_coeff_deuterium
 use mod_impurity, only: radiation_function, radiation_function_linear
+use mod_sources
 
 implicit none
 

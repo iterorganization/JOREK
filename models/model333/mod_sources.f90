@@ -1,3 +1,15 @@
+module mod_sources
+
+
+
+implicit none
+
+
+
+contains
+
+
+
 !> Determine the heat and particle sources at a given position.
 subroutine sources(xpoint2, xcase2, Z, Z_xpoint, psi, psi_axis, psi_bnd, particle_source, heat_source)
 
@@ -225,3 +237,7 @@ subroutine mgi_source(pellet_amplitude,pellet_R,pellet_Z,pellet_phi,pellet_radiu
 
 return
 end subroutine mgi_source
+
+
+
+end module mod_sources

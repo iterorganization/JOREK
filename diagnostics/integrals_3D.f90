@@ -14,9 +14,14 @@ use domains
 use corr_neg
 use equil_info, only : get_psi_n, ES
 !$ use omp_lib
-#if (defined WITH_Neutrals) || (defined WITH_Impurities)
+#if (defined WITH_Neutrals) && (!defined WITH_Impurities)
   use mod_neutral_source
 #endif
+#ifdef WITH_Impurities
+  use mod_impurity
+  use mod_injection_source
+#endif
+use mod_sources
 
 implicit none
 

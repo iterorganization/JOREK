@@ -1,6 +1,7 @@
 # --- General settings
 jorekmodel="600"
-description="Ballooning mode, simple X-point plasma, model$jorekmodel, n_tor=3 + FFT."
+options="with_vpar=.false. with_TiTe=.false. with_neutrals=.false. with_impurities=.false. with_refluid=.false."
+description="Ballooning mode, simple X-point plasma, model$jorekmodel, single temperature, no vpar, n_tor=3 + FFT, many terms switched on."
 mpitasks=2
 binaries="jorek_model${jorekmodel}_3"
 binaries_initial="jorek_model${jorekmodel}_1"
@@ -11,12 +12,12 @@ extra_remote_files=""
 # --- Compile the code for the test case
 function compile_jorek () {
   if [ "$initialrun" == "yes" ]; then
-    ./util/config.sh model=$jorekmodel n_tor=1 n_plane=1 n_period=1 with_vpar=.true. || exit 1
+    ./util/config.sh model=$jorekmodel n_tor=1 n_plane=1 n_period=1 $options         || exit 1
     make $compilopt $debugoptions jorek_model${jorekmodel}                           || exit 1
     mv jorek_model${jorekmodel} jorek_model${jorekmodel}_1                           || exit 1
     make cleanall                                                                    || exit 1
   fi
-  ./util/config.sh model=$jorekmodel n_tor=3 n_plane=4 n_period=6 with_vpar=.true.   || exit 1
+  ./util/config.sh model=$jorekmodel n_tor=3 n_plane=4 n_period=6 $options           || exit 1
   make $compilopt $debugoptions jorek_model${jorekmodel}                             || exit 1
   mv jorek_model${jorekmodel} jorek_model${jorekmodel}_3                             || exit 1
 }
@@ -26,7 +27,7 @@ function compile_jorek () {
 function initial_run () {
   ${codedir}/util/setinput.sh input nstep_n=10,10,10,10,10 tstep_n=1.d-3,1.d-2,1.d-1,1.d0,1.d1 || exit 1
   $MPIRUN 1 ./jorek_model${jorekmodel}_1 < input | tee logfile_initial               || exit 1
-  ${codedir}/util/setinput.sh input nstep_n=200 tstep_n=1.d1 restart=.t.             || exit 1
+  ${codedir}/util/setinput.sh input nstep_n=250 tstep_n=1.d1 restart=.t.             || exit 1
   $MPIRUN $mpitasks ./jorek_model${jorekmodel}_3 < input | tee logfile_initial2      || exit 1
 }
 

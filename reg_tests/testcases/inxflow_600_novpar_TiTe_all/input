@@ -6,6 +6,21 @@
  tstep_n   = 5. 
  nstep_n   = 0 
  
+ bc_natural_open = .t.
+ bootstrap       = .t.
+ tauIC           = 1.d-3
+ NEO             = .t.
+ aki_neo_const   = -1.e+0
+ amu_neo_const   = +1.e-5
+ tgnum_psi       = 0.2d0
+ tgnum_Te        = 0.2d0
+ tgnum_Ti        = 0.2d0
+ tgnum_u         = 0.2d0
+ tgnum_w         = 0.2d0
+ tgnum_vpar      = 0.2d0
+ tgnum_rho       = 0.2d0
+ tgnum_zj        = 0.2d0
+ 
  nout = 20
 
  fbnd(1)   = 2.
@@ -51,9 +66,12 @@
  n_private = 5
 
  eta   = 2.d-6
+ eta_ohmic = 1.d-7
  visco = 4.d-6
  visco_par = 1.d-4
-
+ 
+ visco_num = 1.d-11
+ visco_par_num = 1.d-11
  eta_num = 3.d-10
 
  D_par     = 0.d0
@@ -63,14 +81,14 @@
  D_perp(4) = 0.01d0
  D_perp(5) = 0.92d0
 
- ZK_e_par     = 10.d0
+ ZK_e_par     = 100.d0
  ZK_e_perp(1) = 1.d-5
  ZK_e_perp(2) = 0.85d0
  ZK_e_perp(3) = 0.d0
  ZK_e_perp(4) = 0.01d0
  ZK_e_perp(5) = 0.92d0
 
- ZK_i_par     = 10.d0
+ ZK_i_par     = 1.d0
  ZK_i_perp(1) = 1.d-5
  ZK_i_perp(2) = 0.85d0
  ZK_i_perp(3) = 0.d0
@@ -88,9 +106,21 @@
  FF_coef(7)  = 0.90d0
  FF_coef(8)  = 0.07d0
 
- heatsource_e     = 0.5d-7
- heatsource_i     = 0.5d-7
- particlesource = 5.d-6
+ heatsource_e              = 0.5d-7
+ heatsource_i              = 0.5d-7
+ particlesource            = 5.d-6
+ edgeparticlesource        = 1.d-7
+ edgeparticlesource_psin   = 1.d0
+ edgeparticlesource_sig    = 0.03d0
+ particlesource_gauss      = 1.d-7
+ particlesource_gauss_psin = 0.d0
+ particlesource_gauss_sig  = 0.1d0
+ heatsource_gauss_i        = 1.d-8
+ heatsource_gauss_i_psin   = 0.d0
+ heatsource_gauss_i_sig    = 0.1d0
+ heatsource_gauss_e        = 1.d-8
+ heatsource_gauss_e_psin   = 0.d0
+ heatsource_gauss_e_sig    = 0.1d0
 
  Ti_0 = 0.75d-2
  Ti_1 = 1.5d-4

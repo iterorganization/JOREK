@@ -29,6 +29,7 @@ module mod_integrals3D
   use mod_impurity, only: radiation_function, radiation_function_linear
   use equil_info, only : get_psi_n, ES
   use mod_atomic_coeff_deuterium, only : atomic_coeff_deuterium
+  use mod_sources
 
   implicit none
   

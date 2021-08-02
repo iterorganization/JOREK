@@ -2,6 +2,7 @@
 !!
 !! @see vacuum_response, vacuum_equilibrium
 module vacuum
+  use mod_parameters, only: var_zj, var_psi
   use phys_module, only: rst_hdf5_version, freeb_change_indices
   
   implicit none
@@ -11,8 +12,6 @@ module vacuum
   logical, parameter  :: vacuum_decouple_modes = .false. !< Option to switch off 3D wall mode coupling
   integer             :: n_dof_bnd                       !< Total number of boundary dofs per harmonic
   integer             :: n_dof_starwall                  !< Total number of boundary dofs in STARWALL response
-  integer, parameter  :: ivar_psi = 1                    !< Index of Psi variable
-  integer, parameter  :: ivar_j   = 3                    !< Index of j variable
   
   !> @name Resistive wall only
   real*8              :: wall_resistivity_fact           !< Scaling factor for the wall and coil resistivities specified in STARWALL
@@ -498,7 +497,7 @@ module vacuum
     end do
     
     ! --- Free boundary conditions only for certain variables
-    is_freebound = is_freebound .and. ( (i_var == ivar_j) .or. (i_var == ivar_psi) )
+    is_freebound = is_freebound .and. ( (i_var == var_zj) .or. (i_var == var_psi) )
     
   end function is_freebound
   
