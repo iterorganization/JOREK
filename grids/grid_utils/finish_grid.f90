@@ -3,6 +3,7 @@ subroutine finish_grid(node_list, element_list, newnode_list, newelement_list, n
 ! subroutine defines the new nodes and elements of the final grid 
 !------------------------------------------------------------------------------------------
 
+use constants
 use tr_module 
 use data_structure
 use grid_xpoint_data
@@ -18,7 +19,7 @@ type (type_node_list)       , intent(inout) :: node_list
 type (type_element_list)    , intent(inout) :: element_list
 type (type_node_list)       , intent(inout) :: newnode_list
 type (type_element_list)    , intent(inout) :: newelement_list
-integer                     , intent(in)    :: n_grids(10)
+integer                     , intent(in)    :: n_grids(12)
 logical                     , intent(in)    :: include_axis, include_xpoint, include_psi
 
 
@@ -240,7 +241,7 @@ if (include_xpoint) then
   newnode_list%node(2)%values(1,2:4,1) = 0.d0
   newnode_list%node(3)%values(1,2:4,1) = 0.d0
   newnode_list%node(4)%values(1,2:4,1) = 0.d0
-  if (xcase .eq. 3) then
+  if (xcase .eq. DOUBLE_NULL) then
     newnode_list%node(5)%values(1,2:4,1) = 0.d0
     newnode_list%node(6)%values(1,2:4,1) = 0.d0
     newnode_list%node(7)%values(1,2:4,1) = 0.d0
@@ -251,7 +252,7 @@ endif
 !-------------------------------- Empty Axis
 if (include_axis) then
   if (include_xpoint) then
-    if (xcase .ne. 3) then
+    if (xcase .ne. DOUBLE_NULL) then
       do j=5,4+n_tht-1
         newnode_list%node(j)%values(1,2:4,1) = 0.d0
       enddo
@@ -307,7 +308,7 @@ node_list%n_nodes = 0
 if (include_xpoint) then
   node_list%n_nodes = 4+n_tht-1
   node_list%node(1:node_list%n_nodes) = newnode_list%node(1:node_list%n_nodes)
-  if (xcase .eq. 3) then
+  if (xcase .eq. DOUBLE_NULL) then
     node_list%n_nodes = 8+n_tht-2
     node_list%node(1:node_list%n_nodes) = newnode_list%node(1:node_list%n_nodes)
   endif
@@ -318,8 +319,8 @@ endif
 do i_elm1 = 1,element_list%n_elements
   do i_vertex1 = 1,n_vertex_max
     i_node1 = newelement_list%element(i_elm1)%vertex(i_vertex1)
-    if ( (i_node1 .le. 8+n_tht-2) .and. (xcase .eq. 3) .and. (include_xpoint) ) cycle
-    if ( (i_node1 .le. 4+n_tht-1) .and. (xcase .ne. 3) .and. (include_xpoint) ) cycle
+    if ( (i_node1 .le. 8+n_tht-2) .and. (xcase .eq. DOUBLE_NULL) .and. (include_xpoint) ) cycle
+    if ( (i_node1 .le. 4+n_tht-1) .and. (xcase .ne. DOUBLE_NULL) .and. (include_xpoint) ) cycle
     i_node_save = 0
     do i_elm2 = 1,i_elm1-1
       do i_vertex2 = 1,n_vertex_max
@@ -358,7 +359,7 @@ do i=1,node_list%n_nodes
   node_list%node(i)%axis_node = .false.
   if (fix_axis_nodes .and. include_axis) then
     if (include_xpoint) then
-      if (xcase .ne. 3) then
+      if (xcase .ne. DOUBLE_NULL) then
         if ((i .ge. 5) .and. (i .le. 4+n_tht-1)) node_list%node(i)%axis_node = .true.
       else
         if ((i .ge. 9) .and. (i .le. 8+n_tht-2)) node_list%node(i)%axis_node = .true.
@@ -377,7 +378,7 @@ do i=1,node_list%n_nodes
     ! Remove all but one node at axis
     if (force_central_node .and. include_axis) then
       if (include_xpoint) then
-        if (xcase .ne. 3) then
+        if (xcase .ne. DOUBLE_NULL) then
           if ((i .gt. 5) .and. (i .le. 4+n_tht-1) .and. (k.eq.1)) then
             node_list%node(i)%index(k) = node_list%node(5)%index(1)
             index = index - 1
@@ -428,7 +429,7 @@ do i=1,node_list%n_nodes
       endif
       
       ! Remove all but one node at second Xpoint
-      if (xcase .eq. 3) then
+      if (xcase .eq. DOUBLE_NULL) then
         if ((i .eq. 6).and.(k.eq.1)) then
           node_list%node(i)%index(k) = node_list%node(5)%index(k)
           index = index - 1

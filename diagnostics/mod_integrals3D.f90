@@ -146,6 +146,7 @@ real*8  :: u0_p, u_s, u_t, u_p
 real*8  :: u0_x, u0_y
 real*8  :: viscopar_flux, viscopar_f, vpar_s, vpar_t, vpar_x, vpar_y, li3_tot, li3
 real*8  :: varmin(n_var), varmax(n_var), V_min(n_var), V_max(n_var)
+real*8  :: R_curr_cent, Z_curr_cent, Zcurr_tmp, R2curr_tmp, R2curr
 
 #if (defined WITH_Neutrals) && (!defined WITH_Impurities)
 real*8  :: source_neutral
@@ -276,6 +277,8 @@ mag_wk_tot   = 0.d0
 mag_src_tot  = 0.d0
 varmin   = +1.d99
 varmax   = -1.d99
+R2curr_tmp = 0.d0
+Zcurr_tmp  = 0.d0
 
 Dpar_part_flux   = 0.d0 
 Dperp_part_flux  = 0.d0
@@ -322,7 +325,7 @@ ife_max   = min((my_id +1) * ife_delta, element_list%n_elements)
 !$omp          local_pellet_particles, local_plasma_particles, local_pellet_volume,            &
 !$omp          heli_tot,  keep_current_prof, psi_off, visco_par, thm_wk_tot,                   &
 !$omp          mag_wk_tot, vpar_disp_tot, fric_disp_tot, area1, mag_src_tot,                   &
-!$omp          eta_ohmic, central_mass,                                                        &
+!$omp          eta_ohmic, central_mass, R2curr_tmp, Zcurr_tmp,                                 &
 #if (defined WITH_Neutrals) || (defined WITH_Impurities)
 !$omp          local_n_particles_inj, local_n_particles, ns_amplitude, ns_R, ns_Z,             &
 !$omp          ns_phi, ns_radius, ns_deltaphi, ns_tor_norm, spi_tor_rot, local_E_ion,          &
@@ -394,7 +397,7 @@ omp_tid      = 0
 !$omp                VP_int, VP_ext, VP_tot, VK_tot, VK_int, VK_ext, VM_ext,                  &
 !$omp                VM_int, VM_tot, Vol, P_tot, D_tot,J2_tot, J2_int, J2_ext,                &
 !$omp                heli_tot, mag_wk_tot, vpar_disp_tot, thm_wk_tot, area1, mag_src_tot,     &
-!$omp                fric_disp_tot)
+!$omp                fric_disp_tot, R2curr_tmp, Zcurr_tmp)
 
 do ife = ife_min, ife_max
 
@@ -933,6 +936,8 @@ do ife = ife_min, ife_max
         thm_wk_tot    = thm_wk_tot + thm_wk                     * wst * delta_phi
         vpar_disp_tot = vpar_disp_tot + vpar_disp * BigR * xjac * wst * delta_phi
 
+        R2curr_tmp    = R2curr_tmp - x_g(ms,mt)**2.0 * zj0 /BigR * xjac * wst * delta_phi    
+        Zcurr_tmp     = Zcurr_tmp  - y_g(ms,mt)      * zj0 /BigR * xjac * wst * delta_phi    
 
         if (use_pellet) then
           call pellet_source2(pellet_amplitude,pellet_R,pellet_Z,pellet_psi,pellet_phi, &
@@ -1501,6 +1506,8 @@ call MPI_AllReduce(P_i_int,pressure_i_in,1,MPI_DOUBLE_PRECISION,MPI_SUM,MPI_COMM
 call MPI_AllReduce(P_i_ext,pressure_i_out,1,MPI_DOUBLE_PRECISION,MPI_SUM,MPI_COMM_WORLD,ierr)
 call MPI_AllReduce(C_intern,current_in,1,MPI_DOUBLE_PRECISION,MPI_SUM,MPI_COMM_WORLD,ierr)
 call MPI_AllReduce(C_ext,current_out,1,MPI_DOUBLE_PRECISION,MPI_SUM,MPI_COMM_WORLD,ierr)
+call MPI_AllReduce(R2curr_tmp,      R2curr,1,MPI_DOUBLE_PRECISION,MPI_SUM,MPI_COMM_WORLD,ierr)
+call MPI_AllReduce(Zcurr_tmp , Z_curr_cent,1,MPI_DOUBLE_PRECISION,MPI_SUM,MPI_COMM_WORLD,ierr)
 call MPI_AllReduce(Vol,Volume,1,MPI_DOUBLE_PRECISION,MPI_SUM,MPI_COMM_WORLD,ierr)
 call MPI_AllReduce(area1,area,1,MPI_DOUBLE_PRECISION,MPI_SUM,MPI_COMM_WORLD,ierr)
 call MPI_AllReduce(D_tot,density_tot,1,MPI_DOUBLE_PRECISION,MPI_SUM,MPI_COMM_WORLD,ierr)
@@ -1550,6 +1557,8 @@ pressure_i_in        = P_i_int
 pressure_i_out       = P_i_ext
 current_in           = C_intern
 current_out          = C_ext
+R2curr               = R2curr_tmp
+Z_curr_cent          = Zcurr_tmp
 Volume               = Vol
 area                 = area1
 density_tot          = D_tot
@@ -1634,6 +1643,8 @@ endif
 ! --- Volume integrals
 current_in           = n_period * current_in  * fact_mu0  / (2.d0 * PI)
 current_out          = n_period * current_out * fact_mu0  / (2.d0 * PI)
+R2curr               = n_period * R2curr      * fact_mu0  / (2.d0 * PI)
+Z_curr_cent          = n_period * Z_curr_cent * fact_mu0  / (2.d0 * PI)
 pressure             = n_period * pressure    * fact_mu0  / (GAMMA-1.d0)
 pressure_in          = n_period * pressure_in * fact_mu0  / (GAMMA-1.d0)
 pressure_out         = n_period * pressure_out* fact_mu0  / (GAMMA-1.d0)
@@ -1708,6 +1719,9 @@ beta_n       = 100.d0 * beta_t * Bgeo/current_MA * sqrt(area/PI)
 li3          = 2.d0 * mag_in /0.5  /( current_in**2 * R_geo ) * fact_mu0
 li3_tot      = 2.d0 * mag_tot/0.5  /(current_tot**2 * R_geo ) * fact_mu0
 sheath_heatflux =  gamma_stangeby * (gamma-1)/(2.d0*gamma) * vn_p0 ! the factor comes to obtain n T_e v from vn_p0
+R_curr_cent  = sqrt(R2curr / current_tot) 
+Z_curr_cent  = Z_curr_cent / current_tot 
+
 
 ! --- Externally calculated quantities
 ! --- Halo currents
@@ -1757,6 +1771,12 @@ if (my_id .eq. 0) then
 
       case ( 'Z_axis' )
         res(iexpr+1) = ES%Z_axis
+
+      case ( 'R_curr_cent' )
+        res(iexpr+1) = R_curr_cent 
+
+      case ( 'Z_curr_cent' )
+        res(iexpr+1) = Z_curr_cent
 
       case ( 'psi_bnd' )
         res(iexpr+1) = ES%psi_bnd 

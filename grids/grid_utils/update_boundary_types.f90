@@ -10,7 +10,7 @@ subroutine update_boundary_types(element_list,node_list, across_xpoint)
   ! -------------------------------------------------------------------
   ! -------------------------------------------------------------------
   
-  
+  use constants
   use mod_parameters
   use data_structure
   use phys_module, only: xcase
@@ -45,7 +45,7 @@ subroutine update_boundary_types(element_list,node_list, across_xpoint)
   endif
   
   if (across_xpoint .gt. 0) then
-    if (xcase .eq. 3) then
+    if (xcase .eq. DOUBLE_NULL) then
       n_xpoints = 8
     else
       n_xpoints = 4
@@ -69,8 +69,8 @@ subroutine update_boundary_types(element_list,node_list, across_xpoint)
     do i_elm=1,element_list%n_elements
       do i_vertex=1,4
         i_node = element_list%element(i_elm)%vertex(i_vertex)
-        if ( (i_node .le. 4) .and. (xcase .ne. 3) .and. (across_xpoint .gt. 0) ) cycle
-        if ( (i_node .le. 8) .and. (xcase .eq. 3) .and. (across_xpoint .gt. 0) ) cycle
+        if ( (i_node .le. 4) .and. (xcase .ne. DOUBLE_NULL) .and. (across_xpoint .gt. 0) ) cycle
+        if ( (i_node .le. 8) .and. (xcase .eq. DOUBLE_NULL) .and. (across_xpoint .gt. 0) ) cycle
         call adjacent_elements(element_list,node_list,i_elm,i_vertex,3,elm_sum)
         ! --- We want a corner node to start with (note this also make it safer if we have axis nodes on our grid)
         ! --- We want an inverted corner when looking for additional holes

@@ -6,6 +6,7 @@ subroutine grid_xpoint_wall(node_list, element_list, n_flux, n_open, n_private, 
 ! Add shape of exetrnal wall, align to wall close to it.
 !-----------------------------------------------------------------------
 
+use constants,  only: LOWER_XPOINT
 use data_structure
 use tr_module 
 use gauss
@@ -69,7 +70,7 @@ integer             :: n_remove_elements, n_remove_nodes, remove_elements(100), 
 
 xpoint = .true.
 extend = .true.;   if (n_ext .lt. 1) extend = .false.
-xcase  = 1
+xcase  = LOWER_XPOINT
 my_id  = 0
 
 PI = 2.d0 * asin(1.d0)
@@ -154,7 +155,7 @@ enddo
 
 call find_flux_surfaces(my_id,xpoint,xcase,node_list,element_list,flux_list)
 
-call plot_flux_surfaces(node_list,element_list,flux_list,.true.,1,psi_xpoint,R_xpoint,Z_xpoint,xpoint,xcase)
+call plot_flux_surfaces(node_list,element_list,flux_list,.true.,1,xpoint,xcase)
 
 if ( write_ps ) then 
   call lincol(3)
@@ -531,7 +532,7 @@ do j=1,n_leg
 enddo
 
 
-call plot_flux_surfaces(node_list,element_list,flux_list,.true.,1,psi_xpoint,R_xpoint,Z_xpoint,xpoint,xcase)
+call plot_flux_surfaces(node_list,element_list,flux_list,.true.,1,xpoint,xcase)
 
 if ( write_ps ) then
   call lincol(3)
@@ -1730,7 +1731,7 @@ do k=1, newelement_list%n_elements   ! fill in the size of the elements
 enddo
 
 
-call plot_flux_surfaces(node_list,element_list,flux_list,.true.,1,psi_xpoint,R_xpoint,Z_xpoint,xpoint,xcase)
+call plot_flux_surfaces(node_list,element_list,flux_list,.true.,1,xpoint,xcase)
 
 !***********************************************************************
 !*             fill in the values into the new grid                    *

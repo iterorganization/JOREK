@@ -7,6 +7,7 @@ use mod_parameters
 use data_structure
 use phys_module
 use mod_interp
+use equil_info
 
 implicit none
 
@@ -56,11 +57,11 @@ if (xpoint) then
   call find_xpoint(my_id,node_list,element_list,psi_xpoint,R_xpoint,Z_xpoint,i_elm_xpoint,s_xpoint,t_xpoint,xcase,ifail)
   if (ifail .ne. 1) then      
     psi_bnd  = psi_xpoint(1)
-    if( (xcase .eq. 2) .or. ((xcase .eq. 3) .and. (psi_xpoint(2) .lt. psi_xpoint(1))) ) then
+    if( ES%active_xpoint .eq. UPPER_XPOINT ) then
       psi_bnd = psi_xpoint(2)
     endif
-    if(xcase .eq. 1) Z_xpoint(2) = +99.d0
-    if(xcase .eq. 2) Z_xpoint(1) = -99.d0
+    if(xcase .eq. LOWER_XPOINT) Z_xpoint(2) = +99.d0
+    if(xcase .eq. UPPER_XPOINT) Z_xpoint(1) = -99.d0
   else
     Z_xpoint(1) = -99.d0
     Z_xpoint(2) = +99.d0
@@ -80,8 +81,7 @@ surface_list%psi_values = 0 ! XL : uninitialised value.
 
 if (xpoint) then
   write(*,*) ' x-point plasma'
-  call find_xpoint(my_id,node_list,element_list,psi_xpoint,R_xpoint,Z_xpoint,i_elm_xpoint,s_xpoint,t_xpoint,xcase,ifail)
-  if( (xcase .eq. 2) .or. ((xcase .eq. 3) .and. (psi_xpoint(2) .lt. psi_xpoint(1))) ) then
+  if( ES%active_xpoint .eq. UPPER_XPOINT ) then
     surface_list%psi_values(1) =  psi_axis + 0.95  * (psi_xpoint(2) - psi_axis)
     surface_list%psi_values(2) =  psi_axis + 0.99  * (psi_xpoint(2) - psi_axis)
     surface_list%psi_values(3) =  psi_axis + 0.995 * (psi_xpoint(2) - psi_axis)
@@ -90,8 +90,8 @@ if (xpoint) then
     surface_list%psi_values(2) =  psi_axis + 0.99  * (psi_xpoint(1) - psi_axis)
     surface_list%psi_values(3) =  psi_axis + 0.995 * (psi_xpoint(1) - psi_axis)
   endif
-  if(xcase .eq. 1) Z_xpoint(2) = +99.d0
-  if(xcase .eq. 2) Z_xpoint(1) = -99.d0
+  if(xcase .eq. LOWER_XPOINT) Z_xpoint(2) = +99.d0
+  if(xcase .eq. UPPER_XPOINT) Z_xpoint(1) = -99.d0
 else
   write(*,*) ' NOT an x-point plasma'
   surface_list%psi_values(1) =  psi_axis + 0.95  * (psi_bnd - psi_axis)
@@ -246,10 +246,10 @@ do i=2, surface_list%n_psi
       ! --- Make sure that for flux surfaces at Psi_N < 1, the surface integral is carried out only
       !     over the flux surface segments of the plasma region.
       !     I.e., ignore flux surface segments in the private flux region below the x-point.
-      if (xcase .ne. 2) then 
+      if (xcase .ne. UPPER_XPOINT) then 
         if ( xpoint .and. ((PSgi-psi_axis)/(psi_xpoint(1)-psi_axis) < 1.d0) .and. (ZZgi < z_xpoint(1))) cycle
       endif
-      if (xcase .ne. 1) then
+      if (xcase .ne. LOWER_XPOINT) then
         if ( xpoint .and. ((PSgi-psi_axis)/(psi_xpoint(2)-psi_axis) < 1.d0) .and. (ZZgi > z_xpoint(2))) cycle
       endif
 

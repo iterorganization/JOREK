@@ -17,7 +17,8 @@ use phys_module, only:     n_flux, n_open, n_tht, n_outer, n_inner, n_private, n
                            SIG_closed, SIG_theta, SIG_open, SIG_outer, SIG_inner, SIG_private, SIG_up_priv,     &
                            SIG_leg_0, SIG_leg_1, SIG_up_leg_0, SIG_up_leg_1,                                    &
                            dPSI_open, dPSI_outer, dPSI_inner, dPSI_private, dPSI_up_priv,                       &
-                           xcase, force_horizontal_Xline, SDN_threshold
+                           xcase, force_horizontal_Xline
+use equil_info
 
 implicit none
 
@@ -37,11 +38,10 @@ type (type_element_list), pointer :: element_list_tmp, element_list_tmp2, elemen
 type (type_strategic_points) , pointer     :: stpts
 type (type_new_points)       , pointer     :: nwpts
 
-real*8              :: psi_axis,      R_axis,      Z_axis,      s_axis,      t_axis
-real*8              :: psi_xpoint(2), R_xpoint(2), Z_xpoint(2), s_xpoint(2), t_xpoint(2)
+real*8              :: psi_xpoint(2)
 integer             :: n_psi
-integer             :: i_elm_axis, i_elm_xpoint(2), i_elm_find(8), ifail
-integer             :: my_id, i_ext
+integer             :: i_elm_find(8), ifail
+integer             :: i_ext
 real*8              :: psi_bnd, psi_bnd2
 real*8              :: sigmas(16)
 integer             :: n_grids(12)
@@ -51,8 +51,6 @@ integer             :: n_loop, i, j, index
 logical, parameter  :: plot_grid = .true.
 character*2         :: char_patch
 character*256       :: filename
-
-my_id  = 1 ! Just don't want the printout...
 
 write(*,*) ' '
 write(*,*) ' '
@@ -89,23 +87,23 @@ if (sum(element_list%element(1)%neighbours) .eq. 0) then
 endif
 
 !-------------------------------- Reset some parameters if they are inconsistent with XCASE
-if (xcase .eq. 1) then
+if (xcase .eq. LOWER_XPOINT) then
   n_outer   = 0
   n_inner   = 0
   n_up_priv = 0
   n_up_leg  = 0
 endif
-if (xcase .eq. 2) then
+if (xcase .eq. UPPER_XPOINT) then
   n_outer   = 0
   n_inner   = 0
   n_private = 0
   n_leg     = 0
 endif
-if ( (xcase .eq. 3) .and. (mod(n_tht,2) .ne. 0) )  n_tht = n_tht + 1
-if ( (xcase .ne. 3) .and. (mod(n_tht,2) .eq. 0) )  n_tht = n_tht + 1
+if ( (xcase .eq. DOUBLE_NULL) .and. (mod(n_tht,2) .ne. 0) )  n_tht = n_tht + 1
+if ( (xcase .ne. DOUBLE_NULL) .and. (mod(n_tht,2) .eq. 0) )  n_tht = n_tht + 1
 
 !-------------------------------- Check consistency of grid inputs
-if (xcase .eq. 3) then
+if (xcase .eq. DOUBLE_NULL) then
   if ( (n_outer .le. 1) .or. (n_inner .le. 1) .or. (n_private .le. 1) .or. (n_up_priv .le. 1) ) then
     write(*,'(A)')'Unfortunately, there are minimal requirements for some of the grid inputs.'
     write(*,'(A)')'These are as follows:'
@@ -137,16 +135,15 @@ n_grids(10)= n_leg_out; n_grids(11)= n_up_leg_out
 !-------------------------------------------------------------------------------------------!
 !----------------------------- Find MagAxis and Xpoint -------------------------------------!
 !-------------------------------------------------------------------------------------------!
-
-call find_axis(my_id,node_list,element_list,psi_axis,R_axis,Z_axis,i_elm_axis,s_axis,t_axis,ifail)
+psi_xpoint(1) = ES%psi_xpoint(1)
+psi_xpoint(2) = ES%psi_xpoint(2)
 
 psi_bnd  = 0.d0
 psi_bnd2 = 0.d0
-call find_xpoint(my_id,node_list,element_list,psi_xpoint,R_xpoint,Z_xpoint,i_elm_xpoint,s_xpoint,t_xpoint,xcase,ifail)
-if(xcase .eq. 1) psi_bnd = psi_xpoint(1)
-if(xcase .eq. 2) psi_bnd = psi_xpoint(2)
-if(xcase .eq. 3) then
-  if(psi_xpoint(2) .lt. psi_xpoint(1)) then
+if(xcase .eq. LOWER_XPOINT) psi_bnd = psi_xpoint(1)
+if(xcase .eq. UPPER_XPOINT) psi_bnd = psi_xpoint(2)
+if(xcase .eq. DOUBLE_NULL ) then
+  if(ES%active_xpoint .eq. UPPER_XPOINT) then
     psi_bnd  = psi_xpoint(2)
     psi_bnd2 = psi_xpoint(1)
   else
@@ -154,9 +151,9 @@ if(xcase .eq. 3) then
     psi_bnd2 = psi_xpoint(2)  
   endif
   ! If we have a symmetric double-null, force the single separatrix
-  if (abs(psi_xpoint(1)-psi_xpoint(2)) .lt. SDN_threshold) then
-    psi_xpoint(1) = (psi_xpoint(1)+psi_xpoint(2))/2.d0
-    psi_xpoint(2) = psi_xpoint(1)
+  if (ES%active_xpoint .eq. SYMMETRIC_XPOINT) then
+    psi_xpoint(1)  = (psi_xpoint(1)+psi_xpoint(2))/2.d0
+    psi_xpoint(2)  = psi_xpoint(1)
     psi_bnd  = psi_xpoint(1)
     psi_bnd2 = psi_bnd  
     n_grids(3) = 0
@@ -176,16 +173,15 @@ call tr_allocate(flux_list%psi_values,1,flux_list%n_psi,"flux_list%psi_values",C
 
 !-------------------------------- Allocate sep_list structure (that's for plotting only)
 sep_list%n_psi =3
-if(xcase .eq. 3) sep_list%n_psi =6
+if(xcase .eq. DOUBLE_NULL) sep_list%n_psi =6
 if (allocated(sep_list%psi_values)) call tr_deallocate(sep_list%psi_values,"sep_list%psi_values",CAT_GRID)
 call tr_allocate(sep_list%psi_values,1,sep_list%n_psi,"sep_list%psi_values",CAT_GRID)
 
 !-------------------------------- Call the routine
-call define_flux_values(node_list, element_list, flux_list, sep_list, &
-                        xcase, R_xpoint, Z_xpoint, psi_xpoint, psi_axis, n_grids, sigmas)
+call define_flux_values(node_list, element_list, flux_list, sep_list, xcase, psi_xpoint, n_grids, sigmas)
 
-call plot_flux_surfaces(node_list,element_list,flux_list,.true.,1,psi_xpoint,R_xpoint,Z_xpoint,.true.,xcase)
-call plot_flux_surfaces(node_list,element_list,sep_list,.false.,1,psi_xpoint,R_xpoint,Z_xpoint,.true.,xcase)
+call plot_flux_surfaces(node_list,element_list,flux_list,.true.,1,.true.,xcase)
+call plot_flux_surfaces(node_list,element_list,sep_list,.false.,1,.true.,xcase)
 
 if (allocated(sep_list%flux_surfaces))     deallocate(sep_list%flux_surfaces)
 
@@ -197,9 +193,8 @@ if (allocated(sep_list%flux_surfaces))     deallocate(sep_list%flux_surfaces)
 
 !-------------------------------- Call the routine
 call reorder_flux_surfaces(node_list, element_list, flux_list, ifail)
-call clean_surfaces(node_list,element_list,flux_list,n_grids,psi_xpoint,R_xpoint,Z_xpoint)
-call find_strategic_points_advanced(node_list, element_list, flux_list, xcase, force_horizontal_Xline, &
-                                    R_xpoint, Z_xpoint, psi_xpoint, R_axis, Z_axis, n_grids, stpts)
+call clean_surfaces(node_list,element_list,flux_list,n_grids)
+call find_strategic_points_advanced(node_list, element_list, flux_list, xcase, force_horizontal_Xline, n_grids, stpts)
 
 
 !-------------------------------------------------------------------------------------------!
@@ -235,7 +230,7 @@ call update_neighbours_basic(element_list_new,node_list_new)
 call update_boundary_types  (element_list_new,node_list_new, 1)
 
 !-------------------------------- Then the lower legs
-if (xcase .ne. 2) then
+if (xcase .ne. UPPER_XPOINT) then
   !-------------------------------- The lower inner leg
   call define_leg_grid(node_list, element_list, node_list_inner_leg, element_list_inner_leg, &
                        flux_list, xcase, n_grids, stpts, sigmas, nwpts, 1)
@@ -265,7 +260,7 @@ if (xcase .ne. 2) then
 endif
 
 !-------------------------------- Then the Upper legs
-if (xcase .ne. 1) then
+if (xcase .ne. LOWER_XPOINT) then
   !-------------------------------- The Upper inner leg
   call define_leg_grid(node_list, element_list, node_list_inner_leg, element_list_inner_leg, &
                        flux_list, xcase, n_grids, stpts, sigmas, nwpts, 3)

@@ -59,6 +59,7 @@ program JOREK2
   use mod_distribute_preconditioner
   use direct_construction_mod
   use centralization_mod
+  use mod_exchange_indices
 
 ! these write additional live data (global data) used when an ECCD current is applied)
 #ifdef JECCD
@@ -491,7 +492,7 @@ required = 0
     ! --- Optional: Redo flux aligned grid (DOES NOT WORK CURRENTLY)
     if (regrid) then
       if (xpoint)  then
-        if ( (xcase .ge. 2) .or. (RZ_grid_inside_wall) ) then
+        if ( (xcase .ge. UPPER_XPOINT) .or. (RZ_grid_inside_wall) ) then
           if (grid_to_wall) then
             call grid_double_xpoint_inside_wall(node_list, element_list)
           else
@@ -505,11 +506,12 @@ required = 0
         call grid_flux_surface(xpoint,xcase, node_list, element_list, surface_list, n_flux, n_tht, xr1,  &
                                sig1, xr2, sig2, refinement)
       end if
-      if ( freeboundary .or. freeb_change_indices ) call exchange_indices_for_vacuum(node_list, my_id, n_cpu)
       
     end if
     
-  end if !   if ( restart .and. (my_id == 0) ) then
+    if ( freeboundary .and. freeb_change_indices) call exchange_indices(node_list, my_id, n_cpu, .false.)
+    
+ end if !   if ( restart .and. (my_id == 0) ) then
 
   ! This is necessary for the parallel vacuum version during the code restart 
   if(restart) then
@@ -561,7 +563,7 @@ required = 0
       if ( extend_existing_grid .and. (n_flux .le. 0) ) &
           call grid_patches_on_existing_grid(node_list, element_list)
 
-      if ( freeboundary .or. freeb_change_indices ) call exchange_indices_for_vacuum(node_list, my_id, n_cpu)
+      if ( freeboundary .and. (n_flux==0) .and. freeb_change_indices ) call exchange_indices(node_list, my_id, n_cpu, .false.)
       
       ! --- Determine boundary information from the grid
       call boundary_from_grid(node_list, element_list, bnd_node_list, bnd_elm_list, .false.)
@@ -614,6 +616,7 @@ required = 0
       if (export_for_nemec) then
         if(my_id ==0 ) call export_nemec(node_list, element_list, xpoint, xcase)
       endif
+      if (my_id == 0) call update_equil_state(my_id,node_list, element_list, bnd_elm_list, xpoint, xcase)
     end if ! if (equil) then
 
   
@@ -625,7 +628,7 @@ required = 0
         
         if (xpoint)  then
 
-          if ( (xcase .ge. 2) .or. (grid_to_wall .and. (n_wall_blocks .gt. 0)) .or. RZ_grid_inside_wall ) then
+          if ( (xcase .ge. UPPER_XPOINT) .or. (grid_to_wall .and. (n_wall_blocks .gt. 0)) .or. RZ_grid_inside_wall ) then
             if (grid_to_wall) then
               call grid_double_xpoint_inside_wall(node_list, element_list)
             else
@@ -667,7 +670,7 @@ required = 0
         if (extend_existing_grid) &
             call grid_patches_on_existing_grid(node_list, element_list)
 
-        if ( freeboundary .or. freeb_change_indices .and. (my_id == 0)) call exchange_indices_for_vacuum(node_list, my_id, n_cpu)
+        if ( freeboundary .and. freeb_change_indices ) call exchange_indices(node_list, my_id, n_cpu, .false.)
 
         ! --- Determine boundary information from the grid
         call boundary_from_grid(node_list, element_list, bnd_node_list, bnd_elm_list, .false.) 
@@ -876,8 +879,10 @@ required = 0
   
   ! --- Export a restart file before the first timestep
   if ( (my_id == 0) .and. (.not. restart) ) then
+    if ( freeboundary .and. freeb_change_indices ) call exchange_indices(node_list, my_id, n_cpu, .true.)
     fileout = 'jorek00000'
     call export_restart(node_list, element_list, fileout)
+    if ( freeboundary .and. freeb_change_indices ) call exchange_indices(node_list, my_id, n_cpu, .false.)
   end if
   
   if ( ( my_id == 0 ) .and. ( (node_list%n_nodes > n_nodes_max+1000)                               &
@@ -1035,7 +1040,7 @@ required = 0
          call clck_time_barrier(t0) 
          ! --- Direct construction of harmonic matrix
          call direct_construction_harmonic(my_id, my_id_n, m_cpu, n_cpu, MPI_COMM_N, MPI_COMM_MASTER, my_id_master, & 
-              node_list, element_list, bnd_elm_list, bnd_node_list, xpoint, xcase, freeboundary, .true.)
+              node_list, element_list, bnd_elm_list, bnd_node_list, xpoint, xcase, restart, freeboundary, .true.)
         call MPI_Barrier(MPI_COMM_WORLD,ierr)
         call clck_time_barrier(t1) 
 
@@ -1263,8 +1268,10 @@ required = 0
     
     ! --- Write a restart file every nout timesteps
     if ( (my_id == 0) .and. (mod(index_now,nout) == 0) ) then
+      if ( freeboundary .and. freeb_change_indices ) call exchange_indices(node_list, my_id, n_cpu, .true.)
       write(fileout,'(A5,i5.5)') 'jorek',index_now
       call export_restart(node_list, element_list, fileout)
+      if ( freeboundary .and. freeb_change_indices ) call exchange_indices(node_list, my_id, n_cpu, .false.)
     endif
     
     ! --- Exit the code if a file "STOP_NOW" exists in the run directory.
@@ -1389,8 +1396,10 @@ required = 0
   !***********************************************************************
 
   if (my_id .eq. 0)  then
+    if ( freeboundary .and. freeb_change_indices ) call exchange_indices(node_list, my_id, n_cpu, .true.)
     fileout = 'jorek_restart'
     call export_restart(node_list, element_list, fileout)
+    if ( freeboundary .and. freeb_change_indices ) call exchange_indices(node_list, my_id, n_cpu, .false.)
     if ( write_ps ) then
       if (.not. bench_without_plot) then
         do ivar=1,n_var

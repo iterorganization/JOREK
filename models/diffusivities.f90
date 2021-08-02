@@ -1,6 +1,7 @@
 !> Module containing functions to determine particle and heat diffusivities
 module diffusivities
-  
+
+  use constants  
   use mod_parameters,  only: jorek_model
   use phys_module, only: num_d_perp, D_perp, num_d_perp_x, num_d_perp_y, num_d_perp_len,           &
                          num_zk_perp, num_zk_e_perp, num_zk_i_perp, ZK_perp, ZK_e_perp, ZK_i_perp, num_zk_perp_x, num_zk_perp_y, num_zk_perp_len,      &
@@ -261,8 +262,8 @@ module diffusivities
         endif
         
         if (psi_norm .lt. 0.5d0) psi_D = 0.5d0
-        if (xcase .ne. 2)  psi_D = psi_D * (0.5d0 - 0.5d0 * tanh((Z_xpoint(1)-Z)/0.1d0))
-        if (xcase .ne. 1)  psi_D = psi_D * (0.5d0 - 0.5d0 * tanh((Z-Z_xpoint(2))/0.1d0))
+        if (xcase .ne. UPPER_XPOINT)  psi_D = psi_D * (0.5d0 - 0.5d0 * tanh((Z_xpoint(1)-Z)/0.1d0))
+        if (xcase .ne. LOWER_XPOINT)  psi_D = psi_D * (0.5d0 - 0.5d0 * tanh((Z-Z_xpoint(2))/0.1d0))
         
         ! --- The tanh part of the initial profile and its derivative 
         atn_D   = 0.5d0 - 0.5d0 * tanh((psi_D-Diff(5))/Diff(4))
@@ -351,8 +352,8 @@ module diffusivities
         endif
         
         if (psi_norm .lt. 0.5d0) psi_D = 0.5d0
-        if (xcase .ne. 2)  psi_D = psi_D * (0.5d0 - 0.5d0 * tanh((Z_xpoint(1)-Z)/0.1d0))
-        if (xcase .ne. 1)  psi_D = psi_D * (0.5d0 - 0.5d0 * tanh((Z-Z_xpoint(2))/0.1d0))
+        if (xcase .ne. UPPER_XPOINT)  psi_D = psi_D * (0.5d0 - 0.5d0 * tanh((Z_xpoint(1)-Z)/0.1d0))
+        if (xcase .ne. LOWER_XPOINT)  psi_D = psi_D * (0.5d0 - 0.5d0 * tanh((Z-Z_xpoint(2))/0.1d0))
         
         ! --- The tanh part of the initial profile and its derivative 
         atn_D   = 0.5d0 - 0.5d0 * tanh((psi_D-Diff(5))/Diff(4))
@@ -447,8 +448,8 @@ module diffusivities
         endif
         
         if (psi_norm .lt. 0.5d0) psi_D = 0.5d0
-        if (xcase .ne. 2)  psi_D = psi_D * (0.5d0 - 0.5d0 * tanh((Z_xpoint(1)-Z)/0.1d0))
-        if (xcase .ne. 1)  psi_D = psi_D * (0.5d0 - 0.5d0 * tanh((Z-Z_xpoint(2))/0.1d0))
+        if (xcase .ne. UPPER_XPOINT)  psi_D = psi_D * (0.5d0 - 0.5d0 * tanh((Z_xpoint(1)-Z)/0.1d0))
+        if (xcase .ne. LOWER_XPOINT)  psi_D = psi_D * (0.5d0 - 0.5d0 * tanh((Z-Z_xpoint(2))/0.1d0))
         
         ! --- The tanh part of the initial profile and its derivative 
         atn_D   = 0.5d0 - 0.5d0 * tanh((psi_D-Diff(5))/Diff(4))
@@ -543,8 +544,8 @@ module diffusivities
         endif
         
         if (psi_norm .lt. 0.5d0) psi_D = 0.5d0
-        if (xcase .ne. 2)  psi_D = psi_D * (0.5d0 - 0.5d0 * tanh((Z_xpoint(1)-Z)/0.1d0))
-        if (xcase .ne. 1)  psi_D = psi_D * (0.5d0 - 0.5d0 * tanh((Z-Z_xpoint(2))/0.1d0))
+        if (xcase .ne. UPPER_XPOINT)  psi_D = psi_D * (0.5d0 - 0.5d0 * tanh((Z_xpoint(1)-Z)/0.1d0))
+        if (xcase .ne. LOWER_XPOINT)  psi_D = psi_D * (0.5d0 - 0.5d0 * tanh((Z-Z_xpoint(2))/0.1d0))
         
         ! --- The tanh part of the initial profile and its derivative 
         atn_D   = 0.5d0 - 0.5d0 * tanh((psi_D-Diff(5))/Diff(4))

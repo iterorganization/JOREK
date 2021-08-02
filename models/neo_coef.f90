@@ -61,7 +61,7 @@ if (xpoint2) then
  
   sigz = 0.1d0
 
-  if (xcase2 .eq. 1) then
+  if (xcase2 .eq. LOWER_XPOINT) then
      atn_z_u = 1.d0
   else
     Z_star_u = (Z-Z_xpoint(2))/sigz
@@ -71,7 +71,7 @@ if (xpoint2) then
 
     atn_z_u  = (0.5d0 - 0.5d0*tanh2_u)
   endif
-  if (xcase .eq. 2) then
+  if (xcase .eq. UPPER_XPOINT) then
      atn_z = 1.d0
   else
     Z_star = (Z_xpoint(1)-Z)/sigz
@@ -91,8 +91,8 @@ end if
 
 ! set ki=0 and  mu_neo=0 in the SOL and the private region
 if ( (psi_n .gt. 1.d0 ) &
-     .or. ( xpoint2 .and. (xcase2 .ne. 2) .and. (Z .lt. Z_xpoint(1)) ) &
-     .or. ( xpoint2 .and. (xcase2 .ne. 1) .and. (Z .gt. Z_xpoint(2)) ) ) then
+     .or. ( xpoint2 .and. (xcase2 .ne. UPPER_XPOINT) .and. (Z .lt. Z_xpoint(1)) ) &
+     .or. ( xpoint2 .and. (xcase2 .ne. LOWER_XPOINT) .and. (Z .gt. Z_xpoint(2)) ) ) then
   aki_neo_node = 0.d0
   amu_neo_node = 0.d0
 endif

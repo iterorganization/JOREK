@@ -212,6 +212,8 @@ use constants,   only: MU_ZERO, MASS_PROTON, ATOMIC_MASS_UNIT, K_BOLTZ, EL_CHG
 use mod_integrals3D, only: int3d_new
 use mod_radiation, only: proj_Lz, get_Lz
 use mod_impurity, only: radiation_function_linear
+use equil_info, only : get_psi_n
+use diffusivities, only: get_dperp
 
 implicit none
 real*8, parameter  :: binding_energy = 2.18d-18 ! ionization energy of a hydrogen atom [J] (= 13.6 eV)
@@ -233,7 +235,7 @@ real*8    :: ion_rate, ion_source, ion_prob, ion_rec_ran(2), cx_ran(7), cx_sourc
 real*8    :: rec_rate, dEion_dT, Z_imp, Z_eff, N_imp, Lrad, rad_sink, spi_source_imp, spi_source_imp_local
 real*8    :: spi_source_R(2), spi_source_Z(2), spi_source_phi(2), ng_radius
 real*8    :: cx_prob, CX_rate, Z_imp_tmp, n_imp_tmp, grad_n_imp_tmp(3), grad_n_imp_fluid(3), V_ext(3)
-real*8    :: particle_source, velocity_par_source, energy_source
+real*8    :: particle_source, velocity_par_source, energy_source, D_prof, psi_norm
 real*8    :: v_temp(3), T_eV, K_eV, B_norm(3), v_1, v_2, v_3, v_4, v_5
 real*8    :: density_tot, density_in, density_out,  pressure, pressure_in, pressure_out
 real*8    :: mom_par_tot, mom_par_in, mom_par_out, kin_par_tot, kin_par_out, kin_par_in
@@ -460,8 +462,8 @@ do while (.not. sim%stop_now)
     !$omp i_elm_old, n_rho, T_e, ion_rate, ion_prob, ion_source, ion_energy, kinetic_energy,& 
     !$omp rec_rate, dEion_dt, ion_rec_ran, Z_imp, Z_eff, N_imp, Lrad, rad_sink, V, n_rho_imp,& 
     !$omp R_g, R_s, R_t, Z_g, Z_s, Z_t, xjac, HH, HH_s, HH_t, HZ, index_lm, n_e, V_ext,     &
-    !$omp P, P_s, P_t, P_phi, n_imp_tmp, Z_imp_tmp, grad_n_imp_tmp, grad_n_imp_fluid,       &
-    !$omp ifail, CX_rate, CX_prob, CX_source, CX_energy, v_1, v_2, v_3, v_4, v_5,           &
+    !$omp P, P_s, P_t, P_phi, n_imp_tmp, Z_imp_tmp, grad_n_imp_tmp, grad_n_imp_fluid, psi_norm,&
+    !$omp ifail, CX_rate, CX_prob, CX_source, CX_energy, v_1, v_2, v_3, v_4, v_5, D_prof,   &
     !$omp particle_source, velocity_par_source, energy_source, v_temp, K_eV, T_eV, cx_ran)  &
     !$omp reduction(+:feedback_rhs, E_lost_ion, E_lost_rad, Ne_tot)
     do j=1,size(particles,1)
@@ -491,13 +493,19 @@ do while (.not. sim%stop_now)
         n_imp_tmp = corr_neg_dens(n_imp_tmp, (/ 1.d-1, 1.d-1 /),1.d-3)
         Z_imp_tmp = Z_imp_tmp / n_imp_tmp
 
-        xjac      = R_s * Z_t - R_t * Z_s
+        !xjac      = R_s * Z_t - R_t * Z_s
 
-        grad_n_imp_tmp = n_norm*[(  P_s(2) * Z_t - P_t(2) * Z_s)/ xjac, &
-                                 (- P_s(2) * R_t + P_t(2) * R_s)/ xjac, &
-                                 P_phi(2)/R_g] 
-        grad_n_imp_tmp = (grad_n_imp_tmp - grad_n_imp_fluid) / n_norm ! Normalize to JOREK unit
-        V_ext = -(1.d-6/t_norm) * grad_n_imp_tmp 
+        !grad_n_imp_tmp = n_norm*[(  P_s(2) * Z_t - P_t(2) * Z_s)/ xjac, &
+        !                         (- P_s(2) * R_t + P_t(2) * R_s)/ xjac, &
+        !                         P_phi(2)/R_g] 
+        !grad_n_imp_tmp = (grad_n_imp_tmp - grad_n_imp_fluid) / n_norm ! Normalize to JOREK unit
+        grad_n_imp_tmp = grad_n_imp_fluid / max(n_rho_imp,1.d16) ! Extract the length scale of density gradient
+
+        call interp_PRZ(node_list,element_list,particles(j)%i_elm,[var_psi,var_rhon],2,particles(j)%st(1),&
+                        particles(j)%st(2), particles(j)%x(3), P,P_s,P_t,P_phi,R_g,R_s,R_t,Z_g,Z_s,Z_t)
+        psi_norm   = get_psi_n(P(1), Z_g) 
+        D_prof     = get_dperp(psi_norm)
+        V_ext      = -(D_prof/t_norm) * grad_n_imp_tmp   ! In SI unit 
 
         if (Z_imp_tmp < 0.) Z_imp_tmp = 0.
         if (Z_imp_tmp > sim%groups(1)%ad%n_Z) Z_imp_tmp = sim%groups(1)%ad%n_Z

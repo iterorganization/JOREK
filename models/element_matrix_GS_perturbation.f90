@@ -129,11 +129,11 @@ do ms=1, n_gauss
     
     fact_private = 1.d0   !--- correct psi_norm definition in private regions
     if (xpoint2) then
-      if ((psi_norm .lt. 1.d0) .and. (y_g(ms,mt) .lt. Z_xpoint(1)) .and. (xcase2 .ne. 2)) then
+      if ((psi_norm .lt. 1.d0) .and. (y_g(ms,mt) .lt. Z_xpoint(1)) .and. (xcase2 .ne. UPPER_XPOINT)) then
         psi_norm = 2.d0 - psi_norm
         fact_private = -1.d0
       endif
-      if ((psi_norm .lt. 1.d0) .and. (y_g(ms,mt) .gt. Z_xpoint(2)) .and. (xcase2 .ne. 1)) then
+      if ((psi_norm .lt. 1.d0) .and. (y_g(ms,mt) .gt. Z_xpoint(2)) .and. (xcase2 .ne. LOWER_XPOINT)) then
         psi_norm = 2.d0 - psi_norm
         fact_private = -1.d0
       endif

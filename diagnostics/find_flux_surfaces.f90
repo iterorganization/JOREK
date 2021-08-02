@@ -7,6 +7,7 @@ use data_structure
 use grid_xpoint_data
 use mod_interp
 use phys_module, only:   SDN_threshold
+use equil_info
 
 implicit none
 
@@ -23,7 +24,7 @@ real*8  :: psimin, psimax, a0, a1, a2, a3
 real*8  :: dpsi_dr(4),dpsi_ds(4)
 real*8  :: p1, dp1, dp4, p4, p2, p3, r_psi(4), s_psi(4), tht(4)
 real*8  :: s, s2, s3, r_tmp, s_tmp, psr_tmp, pss_tmp, ttmp, tt
-real*8  :: psi_xpoint(2),R_xpoint(2),Z_xpoint(2),s_xpoint(2),t_xpoint(2), r_av, s_av
+real*8  :: psi_xpoint(2), r_av, s_av
 
 real*8  :: RRg(4), ZZg(4)
 real*8  :: distance, distance_max
@@ -35,7 +36,7 @@ real*8  :: dpsi_dr_copy(4),dpsi_ds_copy(4)
 real*8  :: r_psi_copy(4), s_psi_copy(4), tht_copy(4)
 integer :: l, i_neigh, Xneigh, icount
 integer :: i, j, k, ifound, iv, im, is, n1, n2, n3
-integer :: ifail, itht(4), itmp,i_elm_xpoint(2)
+integer :: ifail, itht(4), itmp
 
 if (my_id == 0) then
   write(*,*) '***********************************'
@@ -61,11 +62,11 @@ do j=1, surface_list%n_psi
 enddo
 
 if (xpoint) then
-  call find_xpoint(my_id,node_list,element_list,psi_xpoint,R_xpoint,Z_xpoint,i_elm_xpoint,s_xpoint,t_xpoint,xcase,ifail)
-
+  psi_xpoint(1) = ES%psi_xpoint(1)
+  psi_xpoint(2) = ES%psi_xpoint(2)
   ! if we have a symmetric double-null, force the single separatrix
-  if (abs(psi_xpoint(1)-psi_xpoint(2)) .lt. SDN_threshold) then
-    psi_xpoint(1) = (psi_xpoint(1)+psi_xpoint(2))/2.d0
+  if (ES%active_xpoint .eq. SYMMETRIC_XPOINT) then
+    psi_xpoint(1) = (ES%psi_xpoint(1)+ES%psi_xpoint(2))/2.d0
     psi_xpoint(2) = psi_xpoint(1)
   endif
 endif
@@ -208,8 +209,8 @@ do i=1, element_list%n_elements
         endif
         
 
-        if ((xpoint) .and. (     ((i .eq. i_elm_xpoint(1)) .and. (xcase .ne. 2) .and. (surface_list%psi_values(j) .eq. psi_xpoint(1)) )  &
-                            .or. ((i .eq. i_elm_xpoint(2)) .and. (xcase .ne. 1) .and. (surface_list%psi_values(j) .eq. psi_xpoint(2)) )  ) ) then
+        if ((xpoint) .and. (     ((i .eq. ES%i_elm_xpoint(1)) .and. (xcase .ne. UPPER_XPOINT) .and. (surface_list%psi_values(j) .eq. psi_xpoint(1)) )  &
+                            .or. ((i .eq. ES%i_elm_xpoint(2)) .and. (xcase .ne. LOWER_XPOINT) .and. (surface_list%psi_values(j) .eq. psi_xpoint(2)) )  ) ) then
 
           call flux_surface_add_line(node_list,element_list,surface_list,i,j,r_psi(itht(1:3:2)), &
                    s_psi(itht(1:3:2)),dpsi_dr(itht(1:3:2)),dpsi_ds(itht(1:3:2)))
@@ -237,38 +238,38 @@ do i=1, element_list%n_elements
           Xneigh = 0
           do k=1,4
             i_neigh = element_list%element(i)%neighbours(k)
-            if( (xcase .ne. 2) .and. (i_neigh .eq. i_elm_xpoint(1)) ) then
+            if( (xcase .ne. UPPER_XPOINT) .and. (i_neigh .eq. ES%i_elm_xpoint(1)) ) then
               Xneigh = 1
               exit
             endif
-            if( (xcase .ne. 1) .and. (i_neigh .eq. i_elm_xpoint(2)) ) then
+            if( (xcase .ne. LOWER_XPOINT) .and. (i_neigh .eq. ES%i_elm_xpoint(2)) ) then
               Xneigh = 2
               exit
             endif
           enddo
           ! If it is a neighbour, then record all four intersections (also do that for cases where
-          ! the element is i_elm_xpoint, but the flux surface is not the LCFS)
+          ! the element is ES%i_elm_xpoint, but the flux surface is not the LCFS)
           if( (Xneigh .gt. 0) &
-            .or. ((i .eq. i_elm_xpoint(1)) .and. (xcase .ne. 2)) & 
-            .or. ((i .eq. i_elm_xpoint(2)) .and. (xcase .ne. 1)) ) then
+            .or. ((i .eq. ES%i_elm_xpoint(1)) .and. (xcase .ne. UPPER_XPOINT)) & 
+            .or. ((i .eq. ES%i_elm_xpoint(2)) .and. (xcase .ne. LOWER_XPOINT)) ) then
             do k=1,4
               call interp_RZ(node_list,element_list,i,r_psi(k),s_psi(k),RRg(k),ZZg(k))
             enddo
           endif
-          ! Then, look if the element is above/below or right/left of i_elm_xpoint, 
+          ! Then, look if the element is above/below or right/left of ES%i_elm_xpoint, 
           ! and then reorder the points 1,2,3,4 so that 1,2 are always right/above Xpoint,
           ! and 3,4 are always left/below Xpoint
           if(Xneigh .gt. 0) then
-            if( (maxval(RRg) .gt. R_xpoint(Xneigh)) .and. (minval(RRg) .lt. R_xpoint(Xneigh)) ) then
+            if( (maxval(RRg) .gt. ES%R_xpoint(Xneigh)) .and. (minval(RRg) .lt. ES%R_xpoint(Xneigh)) ) then
               icount = 0
               do k=1,4
-                if(RRg(k) .gt. R_xpoint(Xneigh)) then
+                if(RRg(k) .gt. ES%R_xpoint(Xneigh)) then
                   icount = icount + 1
                   itht(icount) = k
                 endif
               enddo
               do k=1,4
-                if(RRg(k) .lt. R_xpoint(Xneigh)) then
+                if(RRg(k) .lt. ES%R_xpoint(Xneigh)) then
                   icount = icount + 1
                   itht(icount) = k
                 endif
@@ -276,13 +277,13 @@ do i=1, element_list%n_elements
             else
               icount = 0
               do k=1,4
-                if(ZZg(k) .gt. Z_xpoint(Xneigh)) then
+                if(ZZg(k) .gt. ES%Z_xpoint(Xneigh)) then
                   icount = icount + 1
                   itht(icount) = k
                 endif
               enddo
               do k=1,4
-                if(ZZg(k) .lt. Z_xpoint(Xneigh)) then
+                if(ZZg(k) .lt. ES%Z_xpoint(Xneigh)) then
                   icount = icount + 1
                   itht(icount) = k
                 endif
@@ -290,24 +291,24 @@ do i=1, element_list%n_elements
             endif
           endif
           
-          ! In the case where the element actually is i_elm_xpoint, 
+          ! In the case where the element actually is ES%i_elm_xpoint, 
           ! but the flux surface is not the LCFS, we need to check if the line is right&left
           ! or above&below the Xpoint
           if( (Xneigh .eq. 0) &
-            .and. (    ((i .eq. i_elm_xpoint(1)) .and. (xcase .ne. 2)) &
-                  .or. ((i .eq. i_elm_xpoint(2)) .and. (xcase .ne. 1)) ) ) then
-            if(i .eq. i_elm_xpoint(1)) Xneigh = 1
-            if(i .eq. i_elm_xpoint(2)) Xneigh = 2
+            .and. (    ((i .eq. ES%i_elm_xpoint(1)) .and. (xcase .ne. UPPER_XPOINT)) &
+                  .or. ((i .eq. ES%i_elm_xpoint(2)) .and. (xcase .ne. LOWER_XPOINT)) ) ) then
+            if(i .eq. ES%i_elm_xpoint(1)) Xneigh = 1
+            if(i .eq. ES%i_elm_xpoint(2)) Xneigh = 2
             if(surface_list%psi_values(j) .gt. psi_xpoint(Xneigh)) then
               icount = 0
               do k=1,4
-                if(RRg(k) .gt. R_xpoint(Xneigh)) then
+                if(RRg(k) .gt. ES%R_xpoint(Xneigh)) then
                   icount = icount + 1
                   itht(icount) = k
                 endif
               enddo
               do k=1,4
-                if(RRg(k) .lt. R_xpoint(Xneigh)) then
+                if(RRg(k) .lt. ES%R_xpoint(Xneigh)) then
                   icount = icount + 1
                   itht(icount) = k
                 endif
@@ -315,13 +316,13 @@ do i=1, element_list%n_elements
             else
               icount = 0
               do k=1,4
-                if(ZZg(k) .gt. Z_xpoint(Xneigh)) then
+                if(ZZg(k) .gt. ES%Z_xpoint(Xneigh)) then
                   icount = icount + 1
                   itht(icount) = k
                 endif
               enddo
               do k=1,4
-                if(ZZg(k) .lt. Z_xpoint(Xneigh)) then
+                if(ZZg(k) .lt. ES%Z_xpoint(Xneigh)) then
                   icount = icount + 1
                   itht(icount) = k
                 endif

@@ -223,6 +223,8 @@ module mod_expression
     call add(exprs_all_int, 'psi_axis    ', 'psi at magnetic axis                                  ')
     call add(exprs_all_int, 'R_axis      ', 'R of magnetic axis                                    ')
     call add(exprs_all_int, 'Z_axis      ', 'Z of magnetic axis                                    ')
+    call add(exprs_all_int, 'R_curr_cent ', 'R current centroid,    doi:10.1088/0029-5515/38/5/307 ')  ! See equation 39
+    call add(exprs_all_int, 'Z_curr_cent ', 'Z current centroid,    doi:10.1088/0029-5515/38/5/307 ')  ! in the reference
     call add(exprs_all_int, 'psi_bnd     ', 'psi at boundary point (defining LCFS)                 ')
     call add(exprs_all_int, 'R_bnd       ', 'R of boundary point                                   ')
     call add(exprs_all_int, 'Z_bnd       ', 'Z of boundary point                                   ')

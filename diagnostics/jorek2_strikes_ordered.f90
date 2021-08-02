@@ -13,6 +13,7 @@ use mod_import_restart
 use mpi
 use mod_neighbours
 use mod_interp
+use equil_info
 
 implicit none
 
@@ -41,10 +42,10 @@ real*8  :: tol, delta_phi, Zjac, psi_s, psi_t, R_in, Z_in, R_out, Z_out
 real*8  :: Rmin, Rmax, Zmin, Zmax, delta_s, delta_t, R_keep, Z_keep
 real*8  :: small_delta, small_delta_s, small_delta_t, delta_phi_local, delta_phi_step, total_phi
 real*8  :: Rmid,Zmid,Rmid_s,Rmid_t,Zmid_s,Zmid_t, dl2, total_length, length_max, s_ini, t_ini, zl1, zl2, partial(2)
-real*8  :: psi_xpoint(2),R_xpoint(2),Z_xpoint(2),s_xpoint(2),t_xpoint(2), value_out, psi_bnd
-real*8  :: psi_axis,R_axis,Z_axis,s_axis,t_axis, phi_start, rho_norm, t_norm
+real*8  :: value_out, psi_bnd
+real*8  :: phi_start, rho_norm, t_norm
 
-integer :: i_elm_xpoint, i_elm_axis, r_delta, n_div, n_r_start
+integer :: r_delta, n_div, n_r_start
 integer :: my_id, ikeep, n_cpu, ierr, nsend, nrecv, ikeep0, inode1, inode2, i_line0
 real*4,allocatable :: RZkeep(:,:),scalars(:,:)
 real*4             :: ZERO
@@ -249,24 +250,21 @@ do i=1,node_list%n_nodes
 enddo
 
 !------------------------------------------------- find x-point(s)
-xcase = 1
+xcase = LOWER_XPOINT ! Why we have this line?
 if (xpoint) then
-  call find_xpoint(my_id,node_list,element_list,psi_xpoint,R_xpoint,Z_xpoint,i_elm_xpoint,s_xpoint,t_xpoint,xcase,ifail)
-  psi_bnd = psi_xpoint(1)
-  if( (xcase .eq. 2) .or. ((xcase .eq. 3) .and. (psi_xpoint(2) .lt. psi_xpoint(1))) ) then
-    psi_bnd = psi_xpoint(2)
+  psi_bnd = ES%psi_xpoint(1)
+  if( ES%active_xpoint .eq. UPPER_XPOINT ) then
+    psi_bnd = ES%psi_xpoint(2)
   endif
 else
   psi_bnd = 0.d0
 endif
 
-call find_axis(my_id,node_list,element_list,psi_axis,R_axis,Z_axis,i_elm_axis,s_axis,t_axis,ifail)
-
 if (my_id .eq. 0 ) then
-write(*,*) ' xcase,1st x-point:R,Z,psi: ',xcase, R_xpoint(1),Z_xpoint(1),psi_xpoint(1),psi_bnd
-!   write(*,*) ' PSI_XPOINT : ',psi_xpoint,i_elm_xpoint
-   write(*,*) ' PSI_AXIS : ',psi_axis,i_elm_axis
-   write(*,*) ' RZ_AXIS : ', R_axis, Z_axis
+write(*,*) ' xcase,1st x-point:R,Z,psi: ',xcase, ES%R_xpoint(1),ES%Z_xpoint(1),ES%psi_xpoint(1),psi_bnd
+!   write(*,*) ' PSI_XPOINT : ',ES%psi_xpoint,ES%i_elm_xpoint
+   write(*,*) ' PSI_AXIS : ',ES%psi_axis,ES%i_elm_axis
+   write(*,*) ' RZ_AXIS : ', ES%R_axis, ES%Z_axis
 endif
 
 !call MPI_Barrier(MPI_COMM_WORLD,ierr)
@@ -417,7 +415,7 @@ allocate(n_turn_plus(nk, n_phi), n_turn_minus(nk, n_phi))
       call var_value(i_elm,6,s_line,t_line,P_start,T_turn(1,(i_dir+1)/2+1))
       call var_value(i_elm,1,s_line,t_line,P_start,PSI_turn(1,(i_dir+1)/2+1))
       call var_value(i_elm,5,s_line,t_line,P_start,ZN_turn(1,(i_dir+1)/2+1))
-      !PSI_turn_norm (1,(i_dir+1)/2+1)= (PSI_turn(1,(i_dir+1)/2+1)-psi_axis)/(psi_bnd-psi_axis)
+      !PSI_turn_norm (1,(i_dir+1)/2+1)= (PSI_turn(1,(i_dir+1)/2+1)-ES%psi_axis)/(psi_bnd-ES%psi_axis)
 
       R_line = R_start
       Z_line = Z_start
@@ -729,7 +727,7 @@ allocate(n_turn_plus(nk, n_phi), n_turn_minus(nk, n_phi))
         call var_value(i_elm,6,s_line,t_line,p_line,T_turn(i_turn+1,(i_dir+1)/2+1))
         call var_value(i_elm,1,s_line,t_line,p_line,PSI_turn(i_turn+1,(i_dir+1)/2+1))
         call var_value(i_elm,5,s_line,t_line,p_line,ZN_turn(i_turn+1,(i_dir+1)/2+1))
-        !PSI_turn_norm (1,(i_dir+1)/2+1)= (PSI_turn(1,(i_dir+1)/2+1)-psi_axis)/(psi_bnd-psi_axis)
+        !PSI_turn_norm (1,(i_dir+1)/2+1)= (PSI_turn(1,(i_dir+1)/2+1)-ES%psi_axis)/(psi_bnd-ES%psi_axis)
 
       enddo torturns ! end of loop over toroidal turns
 
@@ -774,15 +772,15 @@ allocate(n_turn_plus(nk, n_phi), n_turn_minus(nk, n_phi))
           zl2 = C_turn(1,1) - C_turn(i_turn,1) + C_turn(1,2) 
 
           if ( (  (PSI_turn(1,1).le. psi_bnd)  &
-               .and. (Z_turn(1,1) .ge. Z_xpoint(1)) ) &    !.and. (Z_turn(1,1).le.Z_xpoint(2))) then    
+               .and. (Z_turn(1,1) .ge. ES%Z_xpoint(1)) ) &    !.and. (Z_turn(1,1).le.ES%Z_xpoint(2))) then    
                .and. (Z_turn(i_turn,1) .lt. 2.d0)  )  then
 
             if (n_turn_max(1) .lt. n_turns) then
               ikeep = ikeep + 1
 
               if(psi_theta) then
-                 RZkeep(1,ikeep) = ( PSI_turn(i_turn,1) - psi_axis ) / (psi_bnd - psi_axis )
-                 RZkeep(2,ikeep) = atan2( (Z_turn(i_turn,1) - Z_axis) , (R_turn(i_turn,1) - R_axis) ) / (2.d0*PI)
+                 RZkeep(1,ikeep) = ( PSI_turn(i_turn,1) - ES%psi_axis ) / (psi_bnd - ES%psi_axis )
+                 RZkeep(2,ikeep) = atan2( (Z_turn(i_turn,1) - ES%Z_axis) , (R_turn(i_turn,1) - ES%R_axis) ) / (2.d0*PI)
               else
                  RZkeep(1,ikeep)            = R_turn(i_turn,1)
                  RZkeep(2,ikeep)            = Z_turn(i_turn,1)
@@ -792,8 +790,8 @@ allocate(n_turn_plus(nk, n_phi), n_turn_minus(nk, n_phi))
             else
               ikeep = ikeep + 1
               if(psi_theta) then
-                 RZkeep(1,ikeep) = ( PSI_turn(i_turn,1) - psi_axis ) / (psi_bnd - psi_axis )
-                 RZkeep(2,ikeep) = atan2( (Z_turn(i_turn,1) - Z_axis) , (R_turn(i_turn,1) - R_axis) ) / (2.d0*PI)
+                 RZkeep(1,ikeep) = ( PSI_turn(i_turn,1) - ES%psi_axis ) / (psi_bnd - ES%psi_axis )
+                 RZkeep(2,ikeep) = atan2( (Z_turn(i_turn,1) - ES%Z_axis) , (R_turn(i_turn,1) - ES%R_axis) ) / (2.d0*PI)
               else
                  RZkeep(1,ikeep)            = R_turn(i_turn,1)
                  RZkeep(2,ikeep)            = Z_turn(i_turn,1)
@@ -815,14 +813,14 @@ allocate(n_turn_plus(nk, n_phi), n_turn_minus(nk, n_phi))
           zl2 = C_turn(1,2) - C_turn(i_turn,2) + C_turn(1,1) 
 
           if (     ( (PSI_turn(1,2).le. psi_bnd)  &
-               .and. (Z_turn(1,2).ge. Z_xpoint(1)) ) & !.and.(Z_turn(1,2).le. Z_xpoint(2))) then 
+               .and. (Z_turn(1,2).ge. ES%Z_xpoint(1)) ) & !.and.(Z_turn(1,2).le. ES%Z_xpoint(2))) then 
                .and. (Z_turn(i_turn,2) .lt. 2.d0) )  then
 !           if (Z_turn(i_turn,1) .lt. -2.d0) then
             if (n_turn_max(2) .lt. n_turns) then
               ikeep = ikeep + 1
               if(psi_theta) then
-                 RZkeep(1,ikeep) = ( PSI_turn(i_turn,2)  - psi_axis ) / (psi_bnd - psi_axis )
-                 RZkeep(2,ikeep) = atan2( (Z_turn(i_turn,2) - Z_axis) , (R_turn(i_turn,2) - R_axis) ) / (2.d0*PI)
+                 RZkeep(1,ikeep) = ( PSI_turn(i_turn,2)  - ES%psi_axis ) / (psi_bnd - ES%psi_axis )
+                 RZkeep(2,ikeep) = atan2( (Z_turn(i_turn,2) - ES%Z_axis) , (R_turn(i_turn,2) - ES%R_axis) ) / (2.d0*PI)
               else
                  RZkeep(1,ikeep)            = R_turn(i_turn,2)
                  RZkeep(2,ikeep)            = Z_turn(i_turn,2)
@@ -832,8 +830,8 @@ allocate(n_turn_plus(nk, n_phi), n_turn_minus(nk, n_phi))
             else
               ikeep = ikeep + 1
               if(psi_theta) then
-                 RZkeep(1,ikeep) = ( PSI_turn(i_turn,2) - psi_axis ) / (psi_bnd - psi_axis )
-                 RZkeep(2,ikeep) = atan2( (Z_turn(i_turn,2) - Z_axis) , (R_turn(i_turn,2) - R_axis) ) / (2.d0*PI)
+                 RZkeep(1,ikeep) = ( PSI_turn(i_turn,2) - ES%psi_axis ) / (psi_bnd - ES%psi_axis )
+                 RZkeep(2,ikeep) = atan2( (Z_turn(i_turn,2) - ES%Z_axis) , (R_turn(i_turn,2) - ES%R_axis) ) / (2.d0*PI)
               else
                  RZkeep(1,ikeep)            = R_turn(i_turn,2)
                  RZkeep(2,ikeep)            = Z_turn(i_turn,2)
@@ -914,7 +912,7 @@ endif
 !===========================================Temperature in keV
 scalars(:,2) = scalars(:,2) / MU_zero / (central_density * 1d20) / 1.602d-19 /2.*1.e-3 !(assumes Te=Ti=T/2)
 ! ------- normalisation of psi
-scalars(:,3) = (scalars(:,3) - psi_axis ) / (psi_bnd - psi_axis )
+scalars(:,3) = (scalars(:,3) - ES%psi_axis ) / (psi_bnd - ES%psi_axis )
 !=============================================
 do i_var =1, n_scalars
 
@@ -1042,7 +1040,7 @@ open(24,file='strikes_values.txt')
 do i=1,i_strike
   if (abs(R_strike(i)) .gt. 10.d0) R_strike(i) = 0.d0
   if (abs(Z_strike(i)) .gt. 10.d0) Z_strike(i) = 0.d0
-!  if (PS0_strike(i) .gt. psi_xpoint(1)) then       ! to exclude points started outside the plasma
+!  if (PS0_strike(i) .gt. ES%psi_xpoint(1)) then       ! to exclude points started outside the plasma
 !    R_strike(i) = 0.d0
 !    Z_strike(i) = 0.d0
 !  endif

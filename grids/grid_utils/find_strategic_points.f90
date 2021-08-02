@@ -1,5 +1,4 @@
-subroutine find_strategic_points(node_list, element_list, flux_list, xcase, force_horizontal_Xline, &
-                                 R_xpoint, Z_xpoint, psi_xpoint, R_axis, Z_axis, n_grids, stpts)
+subroutine find_strategic_points(node_list, element_list, flux_list, xcase, force_horizontal_Xline, n_grids, stpts)
 !----------------------------------------------------------------------------------------
 ! subroutine finds all the strategic points on the legs (Leg corners, strike points etc.)
 !----------------------------------------------------------------------------------------
@@ -10,6 +9,7 @@ use data_structure
 use grid_xpoint_data
 use phys_module, only: tokamak_device
 use mod_interp, only: interp_RZ
+use equil_info
 
 implicit none
 
@@ -18,10 +18,9 @@ type (type_surface_list),     intent(inout) :: flux_list
 type (type_node_list),        intent(inout) :: node_list
 type (type_element_list),     intent(inout) :: element_list
 type (type_strategic_points), intent(inout) :: stpts
-integer,                      intent(in)    :: n_grids(10) 
+integer,                      intent(in)    :: n_grids(12) 
 integer,                      intent(in)    :: xcase
 logical,                      intent(in)    :: force_horizontal_Xline
-real*8,                       intent(in)    :: psi_xpoint(2), R_xpoint(2), Z_xpoint(2), R_axis, Z_axis
 
 
 ! --- local variables
@@ -48,7 +47,7 @@ write(*,*) '****************************************'
 !--------------------------------------------------------------------------------------------
 !-------------------------------- Define all strategic points -------------------------------
 !--------------------------------------------------------------------------------------------
-if(xcase .eq. 2) then
+if(xcase .eq. UPPER_XPOINT) then
   stpts%RLeftCorn_LowerInnerLeg  = 0.d0;    stpts%ZLeftCorn_LowerInnerLeg  = 0.d0
   stpts%RRightCorn_LowerInnerLeg = 0.d0;    stpts%ZRightCorn_LowerInnerLeg = 0.d0
   stpts%RLeftCorn_LowerOuterLeg  = 0.d0;    stpts%ZLeftCorn_LowerOuterLeg  = 0.d0
@@ -64,7 +63,7 @@ else
   stpts%RStrike_LowerOuterLeg    = 999.d0;  stpts%ZStrike_LowerOuterLeg    = 1.d10
 endif
 
-if(xcase .eq. 1) then
+if(xcase .eq. LOWER_XPOINT) then
   stpts%RLeftCorn_UpperInnerLeg  = 0.d0;    stpts%ZLeftCorn_UpperInnerLeg  = 0.d0
   stpts%RRightCorn_UpperInnerLeg = 0.d0;    stpts%ZRightCorn_UpperInnerLeg = 0.d0
   stpts%RLeftCorn_UpperOuterLeg  = 0.d0;    stpts%ZLeftCorn_UpperOuterLeg  = 0.d0
@@ -80,11 +79,11 @@ else
   stpts%RStrike_UpperOuterLeg    = 999.d0;  stpts%ZStrike_UpperOuterLeg    = -1.d10
 endif
 
-if(xcase .ne. 3) then
+if(xcase .ne. DOUBLE_NULL) then
   stpts%RSecondStrike_InnerLeg   = 0.d0;    stpts%ZSecondStrike_InnerLeg   = 0.d0       
   stpts%RSecondStrike_OuterLeg   = 0.d0;    stpts%ZSecondStrike_OuterLeg   = 0.d0       
 else
-  if (psi_xpoint(1) .lt. psi_xpoint(2)) then
+  if ( ES%active_xpoint .eq. LOWER_XPOINT ) then
     stpts%RSecondStrike_InnerLeg = 999.d0;  stpts%ZSecondStrike_InnerLeg   = 1.d10   
     stpts%RSecondStrike_OuterLeg = 999.d0;  stpts%ZSecondStrike_OuterLeg   = 1.d10   
   else
@@ -104,7 +103,7 @@ stpts%RMiddle_UpperPrivate       = 999.d0;  stpts%ZMiddle_UpperPrivate     = -1.
 !------------------- Now find all the points for standard equilibria ------------------------
 !--------------------------------------------------------------------------------------------
 
-if (xcase .ne. 3) then
+if (xcase .ne. DOUBLE_NULL) then
   ! ---------------------------------- The last open flux surface (SOL boundary)
   i_surf = n_flux+n_open 
   do k=1,flux_list%flux_surfaces(i_surf)%n_pieces    
@@ -117,21 +116,21 @@ if (xcase .ne. 3) then
       call interp_RZ(node_list,element_list,i_elm,rr1,ss1,RRg1,dRRg1_dr,dRRg1_ds,dRRg1_drs,dRRg1_drr,dRRg1_dss, &
                                                           ZZg1,dZZg1_dr,dZZg1_ds,dZZg1_drs,dZZg1_drr,dZZg1_dss)
 
-      if (xcase .eq. 1) then
-        if ((ZZg1 .lt. stpts%ZLeftCorn_LowerInnerLeg) .and. (RRg1 .lt. R_xpoint(1))) then
+      if (xcase .eq. LOWER_XPOINT) then
+        if ((ZZg1 .lt. stpts%ZLeftCorn_LowerInnerLeg) .and. (RRg1 .lt. ES%R_xpoint(1))) then
           stpts%RLeftCorn_LowerInnerLeg = RRg1
           stpts%ZLeftCorn_LowerInnerLeg = ZZg1
         endif
-        if ((ZZg1 .lt. stpts%ZRightCorn_LowerOuterLeg) .and. (RRg1 .gt. R_xpoint(1))) then
+        if ((ZZg1 .lt. stpts%ZRightCorn_LowerOuterLeg) .and. (RRg1 .gt. ES%R_xpoint(1))) then
           stpts%RRightCorn_LowerOuterLeg = RRg1
           stpts%ZRightCorn_LowerOuterLeg = ZZg1
         endif
       else
-        if ((ZZg1 .gt. stpts%ZLeftCorn_UpperInnerLeg) .and. (RRg1 .lt. R_xpoint(2))) then
+        if ((ZZg1 .gt. stpts%ZLeftCorn_UpperInnerLeg) .and. (RRg1 .lt. ES%R_xpoint(2))) then
           stpts%RLeftCorn_UpperInnerLeg = RRg1
           stpts%ZLeftCorn_UpperInnerLeg = ZZg1
         endif
-        if ((ZZg1 .gt. stpts%ZRightCorn_UpperOuterLeg) .and. (RRg1 .gt. R_xpoint(2))) then
+        if ((ZZg1 .gt. stpts%ZRightCorn_UpperOuterLeg) .and. (RRg1 .gt. ES%R_xpoint(2))) then
           stpts%RRightCorn_UpperOuterLeg = RRg1
           stpts%ZRightCorn_UpperOuterLeg = ZZg1
         endif
@@ -140,7 +139,7 @@ if (xcase .ne. 3) then
     enddo
   enddo
 
-else
+else ! xcase == DOUBLE_NULL
   ! ---------------------------------- The last open flux surface (SOL boundary) on outer board (LFS)
   i_surf = n_flux+n_open+n_outer  
   do k=1,flux_list%flux_surfaces(i_surf)%n_pieces    
@@ -154,20 +153,20 @@ else
                                                           ZZg1,dZZg1_dr,dZZg1_ds,dZZg1_drs,dZZg1_drr,dZZg1_dss)
 
       if(tokamak_device(1:4) .ne. 'MAST') then
-        if ((ZZg1 .lt. stpts%ZRightCorn_LowerOuterLeg) .and. (RRg1 .gt. R_xpoint(1))) then
+        if ((ZZg1 .lt. stpts%ZRightCorn_LowerOuterLeg) .and. (RRg1 .gt. ES%R_xpoint(1))) then
           stpts%RRightCorn_LowerOuterLeg = RRg1
           stpts%ZRightCorn_LowerOuterLeg = ZZg1
         endif
-        if ((ZZg1 .gt. stpts%ZRightCorn_UpperOuterLeg) .and. (RRg1 .gt. R_xpoint(2))) then
+        if ((ZZg1 .gt. stpts%ZRightCorn_UpperOuterLeg) .and. (RRg1 .gt. ES%R_xpoint(2))) then
           stpts%RRightCorn_UpperOuterLeg = RRg1
           stpts%ZRightCorn_UpperOuterLeg = ZZg1
         endif
       else
-        if ((ZZg1 .lt. Z_xpoint(1)) .and. (RRg1 .gt. R_xpoint(1)) .and. (RRg1 .gt. stpts%RRightCorn_LowerOuterLeg)) then
+        if ((ZZg1 .lt. ES%Z_xpoint(1)) .and. (RRg1 .gt. ES%R_xpoint(1)) .and. (RRg1 .gt. stpts%RRightCorn_LowerOuterLeg)) then
           stpts%RRightCorn_LowerOuterLeg = RRg1
           stpts%ZRightCorn_LowerOuterLeg = ZZg1
         endif
-        if ((ZZg1 .gt. Z_xpoint(2)) .and. (RRg1 .gt. R_xpoint(2)) .and. (RRg1 .gt. stpts%RRightCorn_UpperOuterLeg)) then
+        if ((ZZg1 .gt. ES%Z_xpoint(2)) .and. (RRg1 .gt. ES%R_xpoint(2)) .and. (RRg1 .gt. stpts%RRightCorn_UpperOuterLeg)) then
           stpts%RRightCorn_UpperOuterLeg = RRg1
           stpts%ZRightCorn_UpperOuterLeg = ZZg1
         endif
@@ -188,11 +187,11 @@ else
       call interp_RZ(node_list,element_list,i_elm,rr1,ss1,RRg1,dRRg1_dr,dRRg1_ds,dRRg1_drs,dRRg1_drr,dRRg1_dss, &
                                                           ZZg1,dZZg1_dr,dZZg1_ds,dZZg1_drs,dZZg1_drr,dZZg1_dss)
 
-      if ((ZZg1 .lt. stpts%ZLeftCorn_LowerInnerLeg) .and. (RRg1 .lt. R_xpoint(1))) then
+      if ((ZZg1 .lt. stpts%ZLeftCorn_LowerInnerLeg) .and. (RRg1 .lt. ES%R_xpoint(1))) then
         stpts%RLeftCorn_LowerInnerLeg = RRg1
         stpts%ZLeftCorn_LowerInnerLeg = ZZg1
       endif
-      if ((ZZg1 .gt. stpts%ZLeftCorn_UpperInnerLeg) .and. (RRg1 .lt. R_xpoint(2))) then
+      if ((ZZg1 .gt. stpts%ZLeftCorn_UpperInnerLeg) .and. (RRg1 .lt. ES%R_xpoint(2))) then
         stpts%RLeftCorn_UpperInnerLeg = RRg1
         stpts%ZLeftCorn_UpperInnerLeg = ZZg1
       endif
@@ -202,7 +201,7 @@ else
 endif
 
 ! ---------------------------------- The last open flux surface (Private boundary) under lower X-point 
-if (xcase .ne. 2) then
+if (xcase .ne. UPPER_XPOINT) then
   i_surf = n_flux+n_open+n_outer+n_inner+n_private  
   do k=1,flux_list%flux_surfaces(i_surf)%n_pieces
     do l=1,3,2
@@ -214,11 +213,11 @@ if (xcase .ne. 2) then
       call interp_RZ(node_list,element_list,i_elm,rr1,ss1,RRg1,dRRg1_dr,dRRg1_ds,dRRg1_drs,dRRg1_drr,dRRg1_dss, &
                                                           ZZg1,dZZg1_dr,dZZg1_ds,dZZg1_drs,dZZg1_drr,dZZg1_dss)
 
-      if ((RRg1 .lt. stpts%RRightCorn_LowerInnerLeg) .and. (ZZg1 .lt. Z_xpoint(1))) then
+      if ((RRg1 .lt. stpts%RRightCorn_LowerInnerLeg) .and. (ZZg1 .lt. ES%Z_xpoint(1))) then
         stpts%RRightCorn_LowerInnerLeg = RRg1
         stpts%ZRightCorn_LowerInnerLeg = ZZg1
       endif
-      if ((RRg1 .gt. stpts%RLeftCorn_LowerOuterLeg) .and. (ZZg1 .lt. Z_xpoint(1))) then
+      if ((RRg1 .gt. stpts%RLeftCorn_LowerOuterLeg) .and. (ZZg1 .lt. ES%Z_xpoint(1))) then
         stpts%RLeftCorn_LowerOuterLeg = RRg1
         stpts%ZLeftCorn_LowerOuterLeg = ZZg1
       endif
@@ -228,7 +227,7 @@ if (xcase .ne. 2) then
 endif
 
 ! ---------------------------------- The last open flux surface (Private boundary) above upper X-point 
-if (xcase .ne. 1) then
+if (xcase .ne. LOWER_XPOINT) then
   i_surf = n_flux+n_open+n_outer+n_inner+n_private+n_up_priv 
   do k=1,flux_list%flux_surfaces(i_surf)%n_pieces
     do l=1,3,2
@@ -240,11 +239,11 @@ if (xcase .ne. 1) then
       call interp_RZ(node_list,element_list,i_elm,rr1,ss1,RRg1,dRRg1_dr,dRRg1_ds,dRRg1_drs,dRRg1_drr,dRRg1_dss, &
                                                           ZZg1,dZZg1_dr,dZZg1_ds,dZZg1_drs,dZZg1_drr,dZZg1_dss)
 
-      if ((RRg1 .lt. stpts%RRightCorn_UpperInnerLeg) .and. (ZZg1 .gt. Z_xpoint(2))) then
+      if ((RRg1 .lt. stpts%RRightCorn_UpperInnerLeg) .and. (ZZg1 .gt. ES%Z_xpoint(2))) then
         stpts%RRightCorn_UpperInnerLeg = RRg1
         stpts%ZRightCorn_UpperInnerLeg = ZZg1
       endif
-      if ((RRg1 .gt. stpts%RLeftCorn_UpperOuterLeg) .and. (ZZg1 .gt. Z_xpoint(2))) then
+      if ((RRg1 .gt. stpts%RLeftCorn_UpperOuterLeg) .and. (ZZg1 .gt. ES%Z_xpoint(2))) then
         stpts%RLeftCorn_UpperOuterLeg = RRg1
         stpts%ZLeftCorn_UpperOuterLeg = ZZg1
       endif
@@ -254,40 +253,40 @@ if (xcase .ne. 1) then
 endif  
 
 ! ---------------------------------- Find line from axis to lower X-point and get intersection ZMiddle_LowerPrivate with last private surface
-if (xcase .ne. 2) then
-  tht_x = atan2(Z_xpoint(1)-Z_axis,R_xpoint(1)-R_axis)
+if (xcase .ne. UPPER_XPOINT) then
+  tht_x = atan2(ES%Z_xpoint(1)-ES%Z_axis,ES%R_xpoint(1)-ES%R_axis)
   if (tht_x .lt. 0.d0) tht_x = tht_x + 2.d0 * PI
   i_surf = n_flux+n_open+n_outer+n_inner+n_private
-  call find_theta_surface(node_list,element_list,flux_list,i_surf,tht_x,R_axis,Z_axis,i_elm_find,s_find,t_find,i_find)
+  call find_theta_surface(node_list,element_list,flux_list,i_surf,tht_x,ES%R_axis,ES%Z_axis,i_elm_find,s_find,t_find,i_find)
 
   do i=1,i_find
     call interp_RZ(node_list,element_list,i_elm_find(i),s_find(i),t_find(i),RRg1,dRRg1_dr,dRRg1_ds,dRRg1_drs,dRRg1_drr,dRRg1_dss, &
                                                                             ZZg1,dZZg1_dr,dZZg1_ds,dZZg1_drs,dZZg1_drr,dZZg1_dss)
     stpts%RMiddle_LowerPrivate = RRg1
     stpts%ZMiddle_LowerPrivate = ZZg1
-    if (stpts%ZMiddle_LowerPrivate .le. Z_xpoint(1)) exit
+    if (stpts%ZMiddle_LowerPrivate .le. ES%Z_xpoint(1)) exit
   enddo
 endif
 
 ! ---------------------------------- Find line from axis to upper X-point and get intersection ZMiddle_UpperPrivate with last private surface
-if (xcase .ne. 1) then
-  tht_x = atan2(Z_xpoint(2)-Z_axis,R_xpoint(2)-R_axis)
+if (xcase .ne. LOWER_XPOINT) then
+  tht_x = atan2(ES%Z_xpoint(2)-ES%Z_axis,ES%R_xpoint(2)-ES%R_axis)
   if (tht_x .lt. 0.d0) tht_x = tht_x + 2.d0 * PI
   i_surf = n_flux+n_open+n_outer+n_inner+n_private+n_up_priv
-  call find_theta_surface(node_list,element_list,flux_list,i_surf,tht_x,R_axis,Z_axis,i_elm_find,s_find,t_find,i_find)
+  call find_theta_surface(node_list,element_list,flux_list,i_surf,tht_x,ES%R_axis,ES%Z_axis,i_elm_find,s_find,t_find,i_find)
 
   do i=1,i_find
     call interp_RZ(node_list,element_list,i_elm_find(i),s_find(i),t_find(i),RRg1,dRRg1_dr,dRRg1_ds,dRRg1_drs,dRRg1_drr,dRRg1_dss, &
                                                                             ZZg1,dZZg1_dr,dZZg1_ds,dZZg1_drs,dZZg1_drr,dZZg1_dss)
     stpts%RMiddle_UpperPrivate = RRg1
     stpts%ZMiddle_UpperPrivate = ZZg1
-    if (stpts%ZMiddle_UpperPrivate .ge. Z_xpoint(2)) exit
+    if (stpts%ZMiddle_UpperPrivate .ge. ES%Z_xpoint(2)) exit
   enddo
 endif
 
 ! ---------------------------------- Find lower strike points
-if (xcase .ne. 2) then
-  if ( (xcase .eq. 3) .and. (psi_xpoint(2) .lt. psi_xpoint(1)) ) then
+if (xcase .ne. UPPER_XPOINT) then
+  if ( (xcase .eq. DOUBLE_NULL) .and. ( ES%active_xpoint .eq. UPPER_XPOINT ) ) then
     i_surf = n_flux + n_open
   else
     i_surf = n_flux
@@ -302,11 +301,11 @@ if (xcase .ne. 2) then
       call interp_RZ(node_list,element_list,i_elm,rr1,ss1,RRg1,dRRg1_dr,dRRg1_ds,dRRg1_drs,dRRg1_drr,dRRg1_dss, &
                                                           ZZg1,dZZg1_dr,dZZg1_ds,dZZg1_drs,dZZg1_drr,dZZg1_dss)
 
-      if ((ZZg1 .lt. stpts%ZStrike_LowerInnerLeg) .and. (RRg1 .lt. R_xpoint(1))) then
+      if ((ZZg1 .lt. stpts%ZStrike_LowerInnerLeg) .and. (RRg1 .lt. ES%R_xpoint(1))) then
         stpts%RStrike_LowerInnerLeg = RRg1
         stpts%ZStrike_LowerInnerLeg = ZZg1
       endif
-      if ((ZZg1 .lt. stpts%ZStrike_LowerOuterLeg) .and. (RRg1 .gt. R_xpoint(1))) then
+      if ((ZZg1 .lt. stpts%ZStrike_LowerOuterLeg) .and. (RRg1 .gt. ES%R_xpoint(1))) then
         stpts%RStrike_LowerOuterLeg = RRg1
         stpts%ZStrike_LowerOuterLeg = ZZg1
       endif
@@ -316,8 +315,8 @@ if (xcase .ne. 2) then
 endif
 
 ! ---------------------------------- Find upper strike points
-if (xcase .ne. 1) then
-  if ( (xcase .eq. 3) .and. (psi_xpoint(1) .lt. psi_xpoint(2)) ) then
+if (xcase .ne. LOWER_XPOINT) then
+  if ( (xcase .eq. DOUBLE_NULL) .and. ( ES%active_xpoint .eq. LOWER_XPOINT ) ) then
     i_surf = n_flux + n_open
   else
     i_surf = n_flux
@@ -332,11 +331,11 @@ if (xcase .ne. 1) then
       call interp_RZ(node_list,element_list,i_elm,rr1,ss1,RRg1,dRRg1_dr,dRRg1_ds,dRRg1_drs,dRRg1_drr,dRRg1_dss, &
                                                           ZZg1,dZZg1_dr,dZZg1_ds,dZZg1_drs,dZZg1_drr,dZZg1_dss)
 
-      if ((ZZg1 .gt. stpts%ZStrike_UpperInnerLeg) .and. (RRg1 .lt. R_xpoint(2))) then
+      if ((ZZg1 .gt. stpts%ZStrike_UpperInnerLeg) .and. (RRg1 .lt. ES%R_xpoint(2))) then
         stpts%RStrike_UpperInnerLeg = RRg1
         stpts%ZStrike_UpperInnerLeg = ZZg1
       endif
-      if ((ZZg1 .gt. stpts%ZStrike_UpperOuterLeg) .and. (RRg1 .gt. R_xpoint(2))) then
+      if ((ZZg1 .gt. stpts%ZStrike_UpperOuterLeg) .and. (RRg1 .gt. ES%R_xpoint(2))) then
         stpts%RStrike_UpperOuterLeg = RRg1
         stpts%ZStrike_UpperOuterLeg = ZZg1
       endif
@@ -346,7 +345,7 @@ if (xcase .ne. 1) then
 endif
 
 ! ---------------------------------- Find strike points of second separatrix
-if (xcase .eq. 3) then
+if (xcase .eq. DOUBLE_NULL) then
   i_surf = n_flux+n_open
   do k=1,flux_list%flux_surfaces(i_surf)%n_pieces
     do l=1,3,2
@@ -358,21 +357,21 @@ if (xcase .eq. 3) then
       call interp_RZ(node_list,element_list,i_elm,rr1,ss1,RRg1,dRRg1_dr,dRRg1_ds,dRRg1_drs,dRRg1_drr,dRRg1_dss, &
                                                           ZZg1,dZZg1_dr,dZZg1_ds,dZZg1_drs,dZZg1_drr,dZZg1_dss)
 
-      if (psi_xpoint(1) .lt. psi_xpoint(2)) then
-        if ((ZZg1 .lt. stpts%ZSecondStrike_InnerLeg) .and. (RRg1 .lt. R_xpoint(1))) then
+      if ( ES%active_xpoint .eq. LOWER_XPOINT ) then
+        if ((ZZg1 .lt. stpts%ZSecondStrike_InnerLeg) .and. (RRg1 .lt. ES%R_xpoint(1))) then
           stpts%RSecondStrike_InnerLeg = RRg1
           stpts%ZSecondStrike_InnerLeg = ZZg1
         endif
-        if ((ZZg1 .lt. stpts%ZSecondStrike_OuterLeg) .and. (RRg1 .gt. R_xpoint(1))) then
+        if ((ZZg1 .lt. stpts%ZSecondStrike_OuterLeg) .and. (RRg1 .gt. ES%R_xpoint(1))) then
           stpts%RSecondStrike_OuterLeg = RRg1
           stpts%ZSecondStrike_OuterLeg = ZZg1
         endif
       else
-        if ((ZZg1 .gt. stpts%ZSecondStrike_InnerLeg) .and. (RRg1 .lt. R_xpoint(2))) then
+        if ((ZZg1 .gt. stpts%ZSecondStrike_InnerLeg) .and. (RRg1 .lt. ES%R_xpoint(2))) then
           stpts%RSecondStrike_InnerLeg = RRg1
           stpts%ZSecondStrike_InnerLeg = ZZg1
         endif
-        if ((ZZg1 .gt. stpts%ZSecondStrike_OuterLeg) .and. (RRg1 .gt. R_xpoint(2))) then
+        if ((ZZg1 .gt. stpts%ZSecondStrike_OuterLeg) .and. (RRg1 .gt. ES%R_xpoint(2))) then
           stpts%RSecondStrike_OuterLeg = RRg1
           stpts%ZSecondStrike_OuterLeg = ZZg1
         endif
@@ -383,16 +382,16 @@ if (xcase .eq. 3) then
 endif
 
 !----------------------------------- Define the lines separating the central and upper/lower parts of the grid
-if (xcase .ne. 2) tht_x1 = atan2(Z_xpoint(1)-Z_axis,R_xpoint(1)-R_axis)
-if (xcase .eq. 2) tht_x1 = atan2(Z_xpoint(2)-Z_axis,R_xpoint(2)-R_axis)
-if (xcase .eq. 3) tht_x2 = atan2(Z_xpoint(2)-Z_axis,R_xpoint(2)-R_axis)
+if (xcase .ne. UPPER_XPOINT) tht_x1 = atan2(ES%Z_xpoint(1)-ES%Z_axis,ES%R_xpoint(1)-ES%R_axis)
+if (xcase .eq. UPPER_XPOINT) tht_x1 = atan2(ES%Z_xpoint(2)-ES%Z_axis,ES%R_xpoint(2)-ES%R_axis)
+if (xcase .eq. DOUBLE_NULL ) tht_x2 = atan2(ES%Z_xpoint(2)-ES%Z_axis,ES%R_xpoint(2)-ES%R_axis)
 if (tht_x1 .lt. 0.d0) tht_x1 = tht_x1 + 2.d0*PI
 if (tht_x2 .lt. 0.d0) tht_x2 = tht_x2 + 2.d0*PI
 
 ! --- First define the lower angle
-if(xcase .ne. 2) then
+if(xcase .ne. UPPER_XPOINT) then
   
-  angle_LowerCorner       = atan2(stpts%ZLeftCorn_LowerInnerLeg-Z_xpoint(1),stpts%RLeftCorn_LowerInnerLeg-R_xpoint(1))
+  angle_LowerCorner       = atan2(stpts%ZLeftCorn_LowerInnerLeg-ES%Z_xpoint(1),stpts%RLeftCorn_LowerInnerLeg-ES%R_xpoint(1))
   stpts%angle_LowerLeft   = tht_x1 + 1.5d0*PI
   stpts%angle_LowerRight  = tht_x1 + 0.5d0*PI
   ! --- Depending on the equilibrium, it may be better to have a horizontal line... (eg. near double-null at JET)
@@ -413,11 +412,11 @@ if(xcase .ne. 2) then
 endif
 
 ! --- Define the upper angle
-if(xcase .ne. 1) then
+if(xcase .ne. LOWER_XPOINT) then
 
-  angle_UpperCorner       = atan2(stpts%ZLeftCorn_UpperInnerLeg-Z_xpoint(2),stpts%RLeftCorn_UpperInnerLeg-R_xpoint(2))
-  stpts%angle_UpperLeft   = tht_x2 + 0.5d0*PI; if(xcase .eq. 2) stpts%angle_UpperLeft   = tht_x1 + 0.5d0*PI
-  stpts%angle_UpperRight  = tht_x2 + 1.5d0*PI; if(xcase .eq. 2) stpts%angle_UpperRight  = tht_x1 + 1.5d0*PI
+  angle_UpperCorner       = atan2(stpts%ZLeftCorn_UpperInnerLeg-ES%Z_xpoint(2),stpts%RLeftCorn_UpperInnerLeg-ES%R_xpoint(2))
+  stpts%angle_UpperLeft   = tht_x2 + 0.5d0*PI; if(xcase .eq. UPPER_XPOINT) stpts%angle_UpperLeft   = tht_x1 + 0.5d0*PI
+  stpts%angle_UpperRight  = tht_x2 + 1.5d0*PI; if(xcase .eq. UPPER_XPOINT) stpts%angle_UpperRight  = tht_x1 + 1.5d0*PI
   ! --- Depending on the equilibrium, it may be better to have a horizontal line... (eg. near double-null at JET)
   if(force_horizontal_Xline) then
     stpts%angle_UpperLeft   = PI
@@ -436,10 +435,10 @@ if(xcase .ne. 1) then
 endif
 
 ! --- Then find the lower line
-if(xcase .ne. 2) then
+if(xcase .ne. UPPER_XPOINT) then
   
   i_max = n_flux + n_open + n_outer
-  call find_theta_surface(node_list,element_list,flux_list,i_max,stpts%angle_LowerRight,R_xpoint(1),Z_xpoint(1),i_elm_find,s_find,t_find,i_find)
+  call find_theta_surface(node_list,element_list,flux_list,i_max,stpts%angle_LowerRight,ES%R_xpoint(1),ES%Z_xpoint(1),i_elm_find,s_find,t_find,i_find)
   if(i_find .eq. 0) return
   call interp_RZ(node_list,element_list,i_elm_find(1),s_find(1),t_find(1),&
                  RRg1,dRRg1_dr,dRRg1_ds,dRRg1_drs,dRRg1_drr,dRRg1_dss,    &
@@ -449,7 +448,7 @@ if(xcase .ne. 2) then
   stpts%ZLimit_LowerOuterLeg = ZZg1
 
   i_max = n_flux + n_open + n_outer + n_inner
-  call find_theta_surface(node_list,element_list,flux_list,i_max,stpts%angle_LowerLeft,R_xpoint(1),Z_xpoint(1),i_elm_find,s_find,t_find,i_find)
+  call find_theta_surface(node_list,element_list,flux_list,i_max,stpts%angle_LowerLeft,ES%R_xpoint(1),ES%Z_xpoint(1),i_elm_find,s_find,t_find,i_find)
   if(i_find .eq. 0) return
   call interp_RZ(node_list,element_list,i_elm_find(1),s_find(1),t_find(1),&
                  RRg1,dRRg1_dr,dRRg1_ds,dRRg1_drs,dRRg1_drr,dRRg1_dss,    &
@@ -461,10 +460,10 @@ if(xcase .ne. 2) then
 endif
 
 ! --- And the upper line
-if(xcase .ne. 1) then
+if(xcase .ne. LOWER_XPOINT) then
   
   i_max = n_flux + n_open + n_outer
-  call find_theta_surface(node_list,element_list,flux_list,i_max,stpts%angle_UpperRight,R_xpoint(2),Z_xpoint(2),i_elm_find,s_find,t_find,i_find)
+  call find_theta_surface(node_list,element_list,flux_list,i_max,stpts%angle_UpperRight,ES%R_xpoint(2),ES%Z_xpoint(2),i_elm_find,s_find,t_find,i_find)
   if(i_find .eq. 0) return
   call interp_RZ(node_list,element_list,i_elm_find(1),s_find(1),t_find(1),&
                  RRg1,dRRg1_dr,dRRg1_ds,dRRg1_drs,dRRg1_drr,dRRg1_dss,    &
@@ -474,7 +473,7 @@ if(xcase .ne. 1) then
   stpts%ZLimit_UpperOuterLeg = ZZg1
 
   i_max = n_flux + n_open + n_outer + n_inner
-  call find_theta_surface(node_list,element_list,flux_list,i_max,stpts%angle_UpperLeft,R_xpoint(2),Z_xpoint(2),i_elm_find,s_find,t_find,i_find)
+  call find_theta_surface(node_list,element_list,flux_list,i_max,stpts%angle_UpperLeft,ES%R_xpoint(2),ES%Z_xpoint(2),i_elm_find,s_find,t_find,i_find)
   if(i_find .eq. 0) return
   call interp_RZ(node_list,element_list,i_elm_find(1),s_find(1),t_find(1),&
                  RRg1,dRRg1_dr,dRRg1_ds,dRRg1_drs,dRRg1_drr,dRRg1_dss,    &
@@ -491,7 +490,7 @@ endif
 !------------------- Now find points related to MAST equilibria -----------------------------
 !--------------------------------------------------------------------------------------------
 
-if( (tokamak_device(1:4) .eq. 'MAST') .and. (xcase .eq. 3) ) then
+if( (tokamak_device(1:4) .eq. 'MAST') .and. (xcase .eq. DOUBLE_NULL) ) then
 
   ! ---------------------------------- The last open flux surface on outer board that intersects MAST lower Wall
   ifound = 0
@@ -546,7 +545,7 @@ if( (tokamak_device(1:4) .eq. 'MAST') .and. (xcase .eq. 3) ) then
   enddo
 
   ! ---------------------------------- The last lower wall surface of MAST
-  call find_theta_surface(node_list,element_list,flux_list,stpts%i_surf_wall_low,stpts%angle_LowerRight,R_xpoint(1),Z_xpoint(1),i_elm_find,s_find,t_find,i_find)
+  call find_theta_surface(node_list,element_list,flux_list,stpts%i_surf_wall_low,stpts%angle_LowerRight,ES%R_xpoint(1),ES%Z_xpoint(1),i_elm_find,s_find,t_find,i_find)
   if(i_find .eq. 0) return
   call interp_RZ(node_list,element_list,i_elm_find(1),s_find(1),t_find(1),&
                  RRg1,dRRg1_dr,dRRg1_ds,dRRg1_drs,dRRg1_drr,dRRg1_dss,    &
@@ -556,7 +555,7 @@ if( (tokamak_device(1:4) .eq. 'MAST') .and. (xcase .eq. 3) ) then
   stpts%ZLimit_LowerMastWallBox = ZZg1
 
   ! ---------------------------------- The last upper wall surface of MAST
-  call find_theta_surface(node_list,element_list,flux_list,stpts%i_surf_wall_up,stpts%angle_UpperRight,R_xpoint(2),Z_xpoint(2),i_elm_find,s_find,t_find,i_find)
+  call find_theta_surface(node_list,element_list,flux_list,stpts%i_surf_wall_up,stpts%angle_UpperRight,ES%R_xpoint(2),ES%Z_xpoint(2),i_elm_find,s_find,t_find,i_find)
   if(i_find .eq. 0) return
   call interp_RZ(node_list,element_list,i_elm_find(1),s_find(1),t_find(1),&
                  RRg1,dRRg1_dr,dRRg1_ds,dRRg1_drs,dRRg1_drr,dRRg1_dss,    &
@@ -579,7 +578,7 @@ write(*,'(A)')                  '| LEG POINTS (R,Z)                             
 write(*,'(A)')                  '|_________________________________________________________|'
 write(*,'(A)')                  '|                                                         |'
 
-if (xcase .ne. 2) then
+if (xcase .ne. UPPER_XPOINT) then
   write(*,'(A)')                '| Lower Legs : -------------------------------------------|'
   write(*,'(A,F5.2,A,F5.2,A)')  '|   Upper corner of the Lower Inner Leg  : (',stpts%RLimit_LowerInnerLeg,     ', ', stpts%ZLimit_LowerInnerLeg,     ') |'
   write(*,'(A,F5.2,A,F5.2,A)')  '|   Left corner  of the Lower Inner Leg  : (',stpts%RLeftCorn_LowerInnerLeg,  ', ', stpts%ZLeftCorn_LowerInnerLeg,  ') |'
@@ -592,7 +591,7 @@ if (xcase .ne. 2) then
   write(*,'(A,F5.2,A,F5.2,A)')  '|   Upper corner of the Lower Outer Leg  : (',stpts%RLimit_LowerOuterLeg,     ', ', stpts%ZLimit_LowerOuterLeg,     ') |'
 endif
 
-if (xcase .ne. 1) then
+if (xcase .ne. LOWER_XPOINT) then
   write(*,'(A)')                '| Upper Legs : -------------------------------------------|'
   write(*,'(A,F5.2,A,F5.2,A)')  '|   Lower corner of the Upper Inner Leg  : (',stpts%RLimit_UpperInnerLeg,     ', ', stpts%ZLimit_UpperInnerLeg,     ') |'
   write(*,'(A,F5.2,A,F5.2,A)')  '|   Left corner  of the Upper Inner Leg  : (',stpts%RLeftCorn_UpperInnerLeg,  ', ', stpts%ZLeftCorn_UpperInnerLeg,  ') |'
@@ -605,7 +604,7 @@ if (xcase .ne. 1) then
   write(*,'(A,F5.2,A,F5.2,A)')  '|   Lower corner of the Upper Outer Leg  : (',stpts%RLimit_UpperOuterLeg,     ', ', stpts%ZLimit_UpperOuterLeg,     ') |'
 endif
 
-if (xcase .eq. 3) then
+if (xcase .eq. DOUBLE_NULL) then
   write(*,'(A)')                '| Secondary Strike Points : ------------------------------|'
   write(*,'(A,F5.2,A,F5.2,A)')  '|   Left  Strike point of 2nd separatrix : (',stpts%RSecondStrike_InnerLeg,   ', ', stpts%ZSecondStrike_InnerLeg,   ') |'
   write(*,'(A,F5.2,A,F5.2,A)')  '|   Right Strike point of 2nd separatrix : (',stpts%RSecondStrike_OuterLeg,   ', ', stpts%ZSecondStrike_OuterLeg,   ') |'
@@ -649,8 +648,7 @@ end subroutine find_strategic_points
 
 
 
-subroutine find_strategic_points_advanced(node_list, element_list, flux_list, xcase, force_horizontal_Xline, &
-                                          R_xpoint, Z_xpoint, psi_xpoint, R_axis, Z_axis, n_grids, stpts)
+subroutine find_strategic_points_advanced(node_list, element_list, flux_list, xcase, force_horizontal_Xline, n_grids, stpts)
 !----------------------------------------------------------------------------------------
 ! subroutine finds all the strategic points on the legs (Leg corners, strike points etc.)
 !----------------------------------------------------------------------------------------
@@ -661,6 +659,7 @@ use data_structure
 use grid_xpoint_data
 use phys_module, only:   tokamak_device
 use mod_interp, only: interp_RZ
+use equil_info
 
 implicit none
 
@@ -669,10 +668,9 @@ type (type_surface_list),     intent(inout) :: flux_list
 type (type_node_list),        intent(inout) :: node_list
 type (type_element_list),     intent(inout) :: element_list
 type (type_strategic_points), intent(inout) :: stpts
-integer,                      intent(in)    :: n_grids(10) 
+integer,                      intent(in)    :: n_grids(12) 
 integer,                      intent(in)    :: xcase
 logical,                      intent(in)    :: force_horizontal_Xline
-real*8,                       intent(in)    :: psi_xpoint(2), R_xpoint(2), Z_xpoint(2), R_axis, Z_axis
 
 
 ! --- local variables
@@ -710,7 +708,7 @@ write(*,*) '****************************************'
 !--------------------------------------------------------------------------------------------
 !-------------------------------- Define all strategic points -------------------------------
 !--------------------------------------------------------------------------------------------
-if(xcase .eq. 2) then
+if(xcase .eq. UPPER_XPOINT) then
   stpts%RLeftCorn_LowerInnerLeg  = 0.d0;    stpts%ZLeftCorn_LowerInnerLeg  = 0.d0
   stpts%RRightCorn_LowerInnerLeg = 0.d0;    stpts%ZRightCorn_LowerInnerLeg = 0.d0
   stpts%RLeftCorn_LowerOuterLeg  = 0.d0;    stpts%ZLeftCorn_LowerOuterLeg  = 0.d0
@@ -726,7 +724,7 @@ else
   stpts%RStrike_LowerOuterLeg    = 999.d0;  stpts%ZStrike_LowerOuterLeg    = 1.d10
 endif
 
-if(xcase .eq. 1) then
+if(xcase .eq. LOWER_XPOINT) then
   stpts%RLeftCorn_UpperInnerLeg  = 0.d0;    stpts%ZLeftCorn_UpperInnerLeg  = 0.d0
   stpts%RRightCorn_UpperInnerLeg = 0.d0;    stpts%ZRightCorn_UpperInnerLeg = 0.d0
   stpts%RLeftCorn_UpperOuterLeg  = 0.d0;    stpts%ZLeftCorn_UpperOuterLeg  = 0.d0
@@ -742,11 +740,11 @@ else
   stpts%RStrike_UpperOuterLeg    = 999.d0;  stpts%ZStrike_UpperOuterLeg    = -1.d10
 endif
 
-if(xcase .ne. 3) then
+if(xcase .ne. DOUBLE_NULL) then
   stpts%RSecondStrike_InnerLeg   = 0.d0;    stpts%ZSecondStrike_InnerLeg   = 0.d0
   stpts%RSecondStrike_OuterLeg   = 0.d0;    stpts%ZSecondStrike_OuterLeg   = 0.d0
-else
-  if (psi_xpoint(1) .lt. psi_xpoint(2)) then
+else ! xcase == DOUBLE_NULL
+  if ( ES%active_xpoint .eq. LOWER_XPOINT ) then
     stpts%RSecondStrike_InnerLeg = 999.d0;  stpts%ZSecondStrike_InnerLeg   = 1.d10
     stpts%RSecondStrike_OuterLeg = 999.d0;  stpts%ZSecondStrike_OuterLeg   = 1.d10
   else
@@ -768,7 +766,7 @@ stpts%RMiddle_UpperPrivate       = 999.d0;  stpts%ZMiddle_UpperPrivate     = -1.
 
 
 ! ---------------------------------- Find main strike points for symmetric case
-if ( (xcase .eq. 3) .and. (psi_xpoint(1) .eq. psi_xpoint(2)) ) then
+if ( (xcase .eq. DOUBLE_NULL) .and. (ES%active_xpoint .eq. SYMMETRIC_XPOINT) ) then
   if (debug) write(*,*)'looking for strike points of up-down symmetric DN'
   count_lower = 0
   count_upper = 0
@@ -784,7 +782,7 @@ if ( (xcase .eq. 3) .and. (psi_xpoint(1) .eq. psi_xpoint(2)) ) then
       i_elm = flux_list%flux_surfaces(i_surf)%elm(edge_piece(l))
       call interp_RZ(node_list,element_list,i_elm,rr1,ss1,RRg1,dRRg1_dr,dRRg1_ds,dRRg1_drs,dRRg1_drr,dRRg1_dss, &
                                                           ZZg1,dZZg1_dr,dZZg1_ds,dZZg1_drs,dZZg1_drr,dZZg1_dss)
-      if (ZZg1 .lt. Z_axis) then
+      if (ZZg1 .lt. ES%Z_axis) then
         count_lower = count_lower + 1
         R_tmp(count_lower) = RRg1
         Z_tmp(count_lower) = ZZg1
@@ -843,38 +841,38 @@ else
       i_elm = flux_list%flux_surfaces(i_surf)%elm(edge_piece(l))
       call interp_RZ(node_list,element_list,i_elm,rr1,ss1,RRg1,dRRg1_dr,dRRg1_ds,dRRg1_drs,dRRg1_drr,dRRg1_dss, &
                                                           ZZg1,dZZg1_dr,dZZg1_ds,dZZg1_drs,dZZg1_drr,dZZg1_dss)
-      if ( (xcase .eq. 1) .and. (ZZg1 .lt. Z_axis)) then
+      if ( (xcase .eq. LOWER_XPOINT) .and. (ZZg1 .lt. ES%Z_axis)) then
         count = count + 1
         R_tmp(count) = RRg1
         Z_tmp(count) = ZZg1
       endif
-      if ( (xcase .eq. 2) .and. (ZZg1 .gt. Z_axis)) then
+      if ( (xcase .eq. UPPER_XPOINT) .and. (ZZg1 .gt. ES%Z_axis)) then
         count = count + 1
         R_tmp(count) = RRg1
         Z_tmp(count) = ZZg1
       endif
-      if (xcase .eq. 3) then
-        if ( (psi_xpoint(1) .lt. psi_xpoint(2)) .and. (ZZg1 .lt. Z_axis) ) then
+      if (xcase .eq. DOUBLE_NULL ) then
+        if ( (ES%active_xpoint .eq. LOWER_XPOINT) .and. (ZZg1 .lt. ES%Z_axis) ) then
           count = count + 1
           R_tmp(count) = RRg1
           Z_tmp(count) = ZZg1
         endif
-        if ( (psi_xpoint(2) .lt. psi_xpoint(1)) .and. (ZZg1 .gt. Z_axis) ) then
+        if ( (ES%active_xpoint .eq. UPPER_XPOINT) .and. (ZZg1 .gt. ES%Z_axis) ) then
           count = count + 1
           R_tmp(count) = RRg1
           Z_tmp(count) = ZZg1
         endif
       endif
     enddo
-    !if ( (xcase .eq. 1) .and. ( (count .eq. 2) .or. (count .eq. 4) ) ) then
-    !  if (.not. (     ((R_tmp(count  ) .lt. R_xpoint(1)) .and. (R_tmp(count-1) .gt. R_xpoint(1))) &
-    !            .or. ((R_tmp(count-1) .lt. R_xpoint(1)) .and. (R_tmp(count  ) .gt. R_xpoint(1))) ) ) then
+    !if ( (xcase .eq. LOWER_XPOINT) .and. ( (count .eq. 2) .or. (count .eq. 4) ) ) then
+    !  if (.not. (     ((R_tmp(count  ) .lt. ES%R_xpoint(1)) .and. (R_tmp(count-1) .gt. ES%R_xpoint(1))) &
+    !            .or. ((R_tmp(count-1) .lt. ES%R_xpoint(1)) .and. (R_tmp(count  ) .gt. ES%R_xpoint(1))) ) ) then
     !   count = count - 2
     !  endif
     !endif
-    !if ( (xcase .eq. 2) .and. ( (count .eq. 2) .or. (count .eq. 4) ) ) then
-    !  if (.not. (     ((R_tmp(count  ) .lt. R_xpoint(2)) .and. (R_tmp(count-1) .gt. R_xpoint(2))) &
-    !            .or. ((R_tmp(count-1) .lt. R_xpoint(2)) .and. (R_tmp(count  ) .gt. R_xpoint(2))) ) ) then
+    !if ( (xcase .eq. UPPER_XPOINT) .and. ( (count .eq. 2) .or. (count .eq. 4) ) ) then
+    !  if (.not. (     ((R_tmp(count  ) .lt. ES%R_xpoint(2)) .and. (R_tmp(count-1) .gt. ES%R_xpoint(2))) &
+    !            .or. ((R_tmp(count-1) .lt. ES%R_xpoint(2)) .and. (R_tmp(count  ) .gt. ES%R_xpoint(2))) ) ) then
     !   count = count - 2
     !  endif
     !endif
@@ -884,7 +882,7 @@ else
     write(*,*)'Aborting...'
     stop
   endif
-  if (Z_tmp(1) .lt. Z_axis) then
+  if (Z_tmp(1) .lt. ES%Z_axis) then
     if (R_tmp(1) .lt. R_tmp(2)) then
       stpts%RStrike_LowerInnerLeg = R_tmp(1)
       stpts%ZStrike_LowerInnerLeg = Z_tmp(1)
@@ -916,7 +914,7 @@ else
     if (debug) write(*,*)'Upper Outer',stpts%RStrike_UpperOuterLeg,stpts%ZStrike_UpperOuterLeg
   endif
 ! ---------------------------------- Second main strike points  
-  if (xcase .eq. 3) then
+  if (xcase .eq. DOUBLE_NULL) then
     if (debug) write(*,*)'looking for secondary strike points'
     count = 0
     i_surf = n_flux + n_open
@@ -931,28 +929,28 @@ else
         i_elm = flux_list%flux_surfaces(i_surf)%elm(edge_piece(l))
         call interp_RZ(node_list,element_list,i_elm,rr1,ss1,RRg1,dRRg1_dr,dRRg1_ds,dRRg1_drs,dRRg1_drr,dRRg1_dss, &
                                                             ZZg1,dZZg1_dr,dZZg1_ds,dZZg1_drs,dZZg1_drr,dZZg1_dss)
-        if (xcase .eq. 3) then
-          if ( (psi_xpoint(1) .lt. psi_xpoint(2)) .and. (ZZg1 .gt. Z_axis) ) then
+        if (xcase .eq. DOUBLE_NULL) then
+          if ( (ES%active_xpoint .eq. LOWER_XPOINT) .and. (ZZg1 .gt. ES%Z_axis) ) then
             count = count + 1
             R_tmp(count) = RRg1
             Z_tmp(count) = ZZg1
           endif
-          if ( (psi_xpoint(2) .lt. psi_xpoint(1)) .and. (ZZg1 .lt. Z_axis) ) then
+          if ( (ES%active_xpoint .eq. UPPER_XPOINT) .and. (ZZg1 .lt. ES%Z_axis) ) then
             count = count + 1
             R_tmp(count) = RRg1
             Z_tmp(count) = ZZg1
           endif
         endif
       enddo
-      !if ( (xcase .eq. 1) .and. ( (count .eq. 2) .or. (count .eq. 4) ) ) then
-      !  if (.not. (     ((R_tmp(count  ) .lt. R_xpoint(1)) .and. (R_tmp(count-1) .gt. R_xpoint(1))) &
-      !             .or. ((R_tmp(count-1) .lt. R_xpoint(1)) .and. (R_tmp(count  ) .gt. R_xpoint(1))) ) ) then
+      !if ( (xcase .eq. LOWER_XPOINT) .and. ( (count .eq. 2) .or. (count .eq. 4) ) ) then
+      !  if (.not. (     ((R_tmp(count  ) .lt. ES%R_xpoint(1)) .and. (R_tmp(count-1) .gt. ES%R_xpoint(1))) &
+      !             .or. ((R_tmp(count-1) .lt. ES%R_xpoint(1)) .and. (R_tmp(count  ) .gt. ES%R_xpoint(1))) ) ) then
       !    count = count - 2
       !  endif
       !endif
-      !if ( (xcase .eq. 2) .and. ( (count .eq. 2) .or. (count .eq. 4) ) ) then
-      !  if (.not. (     ((R_tmp(count  ) .lt. R_xpoint(2)) .and. (R_tmp(count-1) .gt. R_xpoint(2))) &
-      !             .or. ((R_tmp(count-1) .lt. R_xpoint(2)) .and. (R_tmp(count  ) .gt. R_xpoint(2))) ) ) then
+      !if ( (xcase .eq. UPPER_XPOINT) .and. ( (count .eq. 2) .or. (count .eq. 4) ) ) then
+      !  if (.not. (     ((R_tmp(count  ) .lt. ES%R_xpoint(2)) .and. (R_tmp(count-1) .gt. ES%R_xpoint(2))) &
+      !             .or. ((R_tmp(count-1) .lt. ES%R_xpoint(2)) .and. (R_tmp(count  ) .gt. ES%R_xpoint(2))) ) ) then
       !    count = count - 2
       !  endif
       !endif
@@ -962,7 +960,7 @@ else
       write(*,*)'Aborting...'
       stop
     endif
-    if (Z_tmp(1) .lt. Z_axis) then
+    if (Z_tmp(1) .lt. ES%Z_axis) then
       if (R_tmp(1) .lt. R_tmp(2)) then
         stpts%RStrike_LowerInnerLeg = R_tmp(1)
         stpts%ZStrike_LowerInnerLeg = Z_tmp(1)
@@ -997,7 +995,7 @@ else
 endif
 
 ! ---------------------------------- Find strike points of 2nd separatrix
-if ( (xcase .eq. 3) .and. (psi_xpoint(1) .ne. psi_xpoint(2)) ) then
+if ( (xcase .eq. DOUBLE_NULL) .and. ( ES%active_xpoint .ne. SYMMETRIC_XPOINT ) ) then
   if (debug) write(*,*)'looking for strike points of secondary separatrix on main target'
   i_surf = n_flux + n_open
   count = 0
@@ -1012,12 +1010,12 @@ if ( (xcase .eq. 3) .and. (psi_xpoint(1) .ne. psi_xpoint(2)) ) then
       i_elm = flux_list%flux_surfaces(i_surf)%elm(edge_piece(l))
       call interp_RZ(node_list,element_list,i_elm,rr1,ss1,RRg1,dRRg1_dr,dRRg1_ds,dRRg1_drs,dRRg1_drr,dRRg1_dss, &
                                                           ZZg1,dZZg1_dr,dZZg1_ds,dZZg1_drs,dZZg1_drr,dZZg1_dss)
-      if ( (psi_xpoint(1) .lt. psi_xpoint(2)) .and. (ZZg1 .lt. Z_axis) ) then
+      if ( (ES%active_xpoint .eq. LOWER_XPOINT) .and. (ZZg1 .lt. ES%Z_axis) ) then
         count = count + 1
         R_tmp(count) = RRg1
         Z_tmp(count) = ZZg1
       endif
-      if ( (psi_xpoint(2) .lt. psi_xpoint(1)) .and. (ZZg1 .gt. Z_axis) ) then
+      if ( (ES%active_xpoint .eq. UPPER_XPOINT) .and. (ZZg1 .gt. ES%Z_axis) ) then
         count = count + 1
         R_tmp(count) = RRg1
         Z_tmp(count) = ZZg1
@@ -1047,7 +1045,7 @@ endif
 
 
 ! ---------------------------------- The last open flux surface (outer SOL boundary)
-if (xcase .eq. 3) then
+if (xcase .eq. DOUBLE_NULL) then
   if (debug) write(*,*)'looking for outer SOL limits'
   i_surf = n_flux+n_open+n_outer  
   do i=1,flux_list%flux_surfaces(i_surf)%n_parts
@@ -1058,8 +1056,8 @@ if (xcase .eq. 3) then
       i_elm = flux_list%flux_surfaces(i_surf)%elm(k)
       call interp_RZ(node_list,element_list,i_elm,rr1,ss1,RRg1,dRRg1_dr,dRRg1_ds,dRRg1_drs,dRRg1_drr,dRRg1_dss, &
                                                           ZZg1,dZZg1_dr,dZZg1_ds,dZZg1_drs,dZZg1_drr,dZZg1_dss)
-      if ( (RRg1 .gt. R_axis) .and. (abs(ZZg1-Z_axis) .lt. distance_min) ) then
-        distance_min = abs(ZZg1-Z_axis)
+      if ( (RRg1 .gt. ES%R_axis) .and. (abs(ZZg1-ES%Z_axis) .lt. distance_min) ) then
+        distance_min = abs(ZZg1-ES%Z_axis)
         i_part = i
       endif
     enddo
@@ -1074,7 +1072,7 @@ if (xcase .eq. 3) then
     i_elm = flux_list%flux_surfaces(i_surf)%elm(edge_piece(l))
     call interp_RZ(node_list,element_list,i_elm,rr1,ss1,RRg1,dRRg1_dr,dRRg1_ds,dRRg1_drs,dRRg1_drr,dRRg1_dss, &
                                                         ZZg1,dZZg1_dr,dZZg1_ds,dZZg1_drs,dZZg1_drr,dZZg1_dss)
-    if (ZZg1 .gt. Z_axis) then
+    if (ZZg1 .gt. ES%Z_axis) then
       stpts%RRightCorn_UpperOuterLeg = RRg1
       stpts%ZRightCorn_UpperOuterLeg = ZZg1
     else
@@ -1088,7 +1086,7 @@ if (xcase .eq. 3) then
 endif
 
 ! ---------------------------------- The last open flux surface (inner SOL boundary)
-if (xcase .eq. 3) then
+if (xcase .eq. DOUBLE_NULL) then
   if (debug) write(*,*)'looking for inner SOL limits'
   i_surf = n_flux+n_open+n_outer+n_inner
   do i=1,flux_list%flux_surfaces(i_surf)%n_parts
@@ -1099,8 +1097,8 @@ if (xcase .eq. 3) then
       i_elm = flux_list%flux_surfaces(i_surf)%elm(k)
       call interp_RZ(node_list,element_list,i_elm,rr1,ss1,RRg1,dRRg1_dr,dRRg1_ds,dRRg1_drs,dRRg1_drr,dRRg1_dss, &
                                                           ZZg1,dZZg1_dr,dZZg1_ds,dZZg1_drs,dZZg1_drr,dZZg1_dss)
-      if ( (RRg1 .lt. R_axis) .and. (abs(ZZg1-Z_axis) .lt. distance_min) ) then
-        distance_min = abs(ZZg1-Z_axis)
+      if ( (RRg1 .lt. ES%R_axis) .and. (abs(ZZg1-ES%Z_axis) .lt. distance_min) ) then
+        distance_min = abs(ZZg1-ES%Z_axis)
         i_part = i
       endif
     enddo
@@ -1115,7 +1113,7 @@ if (xcase .eq. 3) then
     i_elm = flux_list%flux_surfaces(i_surf)%elm(edge_piece(l))
     call interp_RZ(node_list,element_list,i_elm,rr1,ss1,RRg1,dRRg1_dr,dRRg1_ds,dRRg1_drs,dRRg1_drr,dRRg1_dss, &
                                                         ZZg1,dZZg1_dr,dZZg1_ds,dZZg1_drs,dZZg1_drr,dZZg1_dss)
-    if (ZZg1 .gt. Z_axis) then
+    if (ZZg1 .gt. ES%Z_axis) then
       stpts%RLeftCorn_UpperInnerLeg = RRg1
       stpts%ZLeftCorn_UpperInnerLeg = ZZg1
     else
@@ -1130,7 +1128,7 @@ endif
 
 
 ! ---------------------------------- The last open flux surface (SOL boundary single null)
-if (xcase .ne. 3) then
+if (xcase .ne. DOUBLE_NULL) then
   if (debug) write(*,*)'looking for SOL limits'
   i_surf = n_flux + n_open
   count = 0
@@ -1145,26 +1143,26 @@ if (xcase .ne. 3) then
       i_elm = flux_list%flux_surfaces(i_surf)%elm(edge_piece(l))
       call interp_RZ(node_list,element_list,i_elm,rr1,ss1,RRg1,dRRg1_dr,dRRg1_ds,dRRg1_drs,dRRg1_drr,dRRg1_dss, &
                                                           ZZg1,dZZg1_dr,dZZg1_ds,dZZg1_drs,dZZg1_drr,dZZg1_dss)
-      if ( (xcase .eq. 1) .and. (ZZg1 .lt. Z_axis) ) then
+      if ( (xcase .eq. LOWER_XPOINT) .and. (ZZg1 .lt. ES%Z_axis) ) then
         count = count + 1
         R_tmp(count) = RRg1
         Z_tmp(count) = ZZg1
       endif
-      if ( (xcase .eq. 2) .and. (ZZg1 .gt. Z_axis) ) then
+      if ( (xcase .eq. UPPER_XPOINT) .and. (ZZg1 .gt. ES%Z_axis) ) then
         count = count + 1
         R_tmp(count) = RRg1
         Z_tmp(count) = ZZg1
       endif
     enddo
-    !if ( (xcase .eq. 1) .and. ( (count .eq. 2) .or. (count .eq. 4) ) ) then
-    !  if (.not. (     ((R_tmp(count  ) .lt. R_xpoint(1)) .and. (R_tmp(count-1) .gt. R_xpoint(1))) &
-    !             .or. ((R_tmp(count-1) .lt. R_xpoint(1)) .and. (R_tmp(count  ) .gt. R_xpoint(1))) ) ) then
+    !if ( (xcase .eq. LOWER_XPOINT) .and. ( (count .eq. 2) .or. (count .eq. 4) ) ) then
+    !  if (.not. (     ((R_tmp(count  ) .lt. ES%R_xpoint(1)) .and. (R_tmp(count-1) .gt. ES%R_xpoint(1))) &
+    !             .or. ((R_tmp(count-1) .lt. ES%R_xpoint(1)) .and. (R_tmp(count  ) .gt. ES%R_xpoint(1))) ) ) then
     !    count = count - 2
     !  endif
     !endif
-    !if ( (xcase .eq. 2) .and. ( (count .eq. 2) .or. (count .eq. 4) ) ) then
-    !  if (.not. (     ((R_tmp(count  ) .lt. R_xpoint(2)) .and. (R_tmp(count-1) .gt. R_xpoint(2))) &
-    !             .or. ((R_tmp(count-1) .lt. R_xpoint(2)) .and. (R_tmp(count  ) .gt. R_xpoint(2))) ) ) then
+    !if ( (xcase .eq. UPPER_XPOINT) .and. ( (count .eq. 2) .or. (count .eq. 4) ) ) then
+    !  if (.not. (     ((R_tmp(count  ) .lt. ES%R_xpoint(2)) .and. (R_tmp(count-1) .gt. ES%R_xpoint(2))) &
+    !             .or. ((R_tmp(count-1) .lt. ES%R_xpoint(2)) .and. (R_tmp(count  ) .gt. ES%R_xpoint(2))) ) ) then
     !    count = count - 2
     !  endif
     !endif
@@ -1174,7 +1172,7 @@ if (xcase .ne. 3) then
     write(*,*)'Aborting...'
     stop
   endif
-  if (xcase .eq. 1) then
+  if (xcase .eq. LOWER_XPOINT) then
     if (R_tmp(1) .lt. R_tmp(2)) then
       stpts%RLeftCorn_LowerInnerLeg  = R_tmp(1)
       stpts%ZLeftCorn_LowerInnerLeg  = Z_tmp(1)
@@ -1209,7 +1207,7 @@ endif
 
 
 ! ---------------------------------- The last open flux surface (Private boundary) under lower X-point 
-if (xcase .ne. 2) then
+if (xcase .ne. UPPER_XPOINT) then
   if (debug) write(*,*)'looking for lower private limits'
   i_surf = n_flux+n_open+n_outer+n_inner+n_private  
   count = 0
@@ -1224,7 +1222,7 @@ if (xcase .ne. 2) then
       i_elm = flux_list%flux_surfaces(i_surf)%elm(edge_piece(l))
       call interp_RZ(node_list,element_list,i_elm,rr1,ss1,RRg1,dRRg1_dr,dRRg1_ds,dRRg1_drs,dRRg1_drr,dRRg1_dss, &
                                                           ZZg1,dZZg1_dr,dZZg1_ds,dZZg1_drs,dZZg1_drr,dZZg1_dss)
-      if (ZZg1 .lt. Z_axis) then
+      if (ZZg1 .lt. ES%Z_axis) then
         count = count + 1
         R_tmp(count) = RRg1
         Z_tmp(count) = ZZg1
@@ -1234,8 +1232,8 @@ if (xcase .ne. 2) then
     !  count = count - 2
     !endif
     !if ( (count .eq. 2) .or. (count .eq. 4) ) then
-    !  if (.not. (     ((R_tmp(count  ) .lt. R_xpoint(1)) .and. (R_tmp(count-1) .gt. R_xpoint(1))) &
-    !             .or. ((R_tmp(count-1) .lt. R_xpoint(1)) .and. (R_tmp(count  ) .gt. R_xpoint(1))) ) ) then
+    !  if (.not. (     ((R_tmp(count  ) .lt. ES%R_xpoint(1)) .and. (R_tmp(count-1) .gt. ES%R_xpoint(1))) &
+    !             .or. ((R_tmp(count-1) .lt. ES%R_xpoint(1)) .and. (R_tmp(count  ) .gt. ES%R_xpoint(1))) ) ) then
     !    count = count - 2
     !  endif
     !endif
@@ -1263,7 +1261,7 @@ endif
 
 
 ! ---------------------------------- The last open flux surface (Private boundary) above upper X-point 
-if (xcase .ne. 1) then
+if (xcase .ne. LOWER_XPOINT) then
   if (debug) write(*,*)'looking for upper private limits'
   i_surf = n_flux+n_open+n_outer+n_inner+n_private+n_up_priv 
   count = 0
@@ -1278,7 +1276,7 @@ if (xcase .ne. 1) then
       i_elm = flux_list%flux_surfaces(i_surf)%elm(edge_piece(l))
       call interp_RZ(node_list,element_list,i_elm,rr1,ss1,RRg1,dRRg1_dr,dRRg1_ds,dRRg1_drs,dRRg1_drr,dRRg1_dss, &
                                                           ZZg1,dZZg1_dr,dZZg1_ds,dZZg1_drs,dZZg1_drr,dZZg1_dss)
-      if (ZZg1 .gt. Z_axis) then
+      if (ZZg1 .gt. ES%Z_axis) then
         count = count + 1
         R_tmp(count) = RRg1
         Z_tmp(count) = ZZg1
@@ -1288,8 +1286,8 @@ if (xcase .ne. 1) then
     !  count = count - 2
     !endif
     !if ( (count .eq. 4) .or. (count .eq. 2) ) then
-    !  if (.not. (     ((R_tmp(count  ) .lt. R_xpoint(2)) .and. (R_tmp(count-1) .gt. R_xpoint(2))) &
-    !             .or. ((R_tmp(count-1) .lt. R_xpoint(2)) .and. (R_tmp(count  ) .gt. R_xpoint(2))) ) ) then
+    !  if (.not. (     ((R_tmp(count  ) .lt. ES%R_xpoint(2)) .and. (R_tmp(count-1) .gt. ES%R_xpoint(2))) &
+    !             .or. ((R_tmp(count-1) .lt. ES%R_xpoint(2)) .and. (R_tmp(count  ) .gt. ES%R_xpoint(2))) ) ) then
     !    count = count - 2
     !  endif
     !endif
@@ -1317,19 +1315,19 @@ endif
 
 
 ! ---------------------------------- Find line from axis to lower X-point and get intersection ZMiddle_LowerPrivate with last private surface
-if (xcase .ne. 2) then
+if (xcase .ne. UPPER_XPOINT) then
   if (debug) write(*,*)'looking for lower axis-xpoint line'
-  tht_x = atan2(Z_xpoint(1)-Z_axis,R_xpoint(1)-R_axis)
+  tht_x = atan2(ES%Z_xpoint(1)-ES%Z_axis,ES%R_xpoint(1)-ES%R_axis)
   if (tht_x .lt. 0.d0) tht_x = tht_x + 2.d0 * PI
   i_surf = n_flux+n_open+n_outer+n_inner+n_private
-  call find_theta_surface(node_list,element_list,flux_list,i_surf,tht_x,R_axis,Z_axis,i_elm_find,s_find,t_find,i_find)
+  call find_theta_surface(node_list,element_list,flux_list,i_surf,tht_x,ES%R_axis,ES%Z_axis,i_elm_find,s_find,t_find,i_find)
 
   do i=1,i_find
     call interp_RZ(node_list,element_list,i_elm_find(i),s_find(i),t_find(i),RRg1,dRRg1_dr,dRRg1_ds,dRRg1_drs,dRRg1_drr,dRRg1_dss, &
                                                                             ZZg1,dZZg1_dr,dZZg1_ds,dZZg1_drs,dZZg1_drr,dZZg1_dss)
     stpts%RMiddle_LowerPrivate = RRg1
     stpts%ZMiddle_LowerPrivate = ZZg1
-    if (stpts%ZMiddle_LowerPrivate .le. Z_xpoint(1)) exit
+    if (stpts%ZMiddle_LowerPrivate .le. ES%Z_xpoint(1)) exit
   enddo
   if (debug) write(*,*)'FOUND THE LOWER PRIVATE MIDDLE:'
   if (debug) write(*,*)'middle:',stpts%RMiddle_LowerPrivate,stpts%ZMiddle_LowerPrivate
@@ -1337,19 +1335,19 @@ endif
 
 
 ! ---------------------------------- Find line from axis to upper X-point and get intersection ZMiddle_UpperPrivate with last private surface
-if (xcase .ne. 1) then
+if (xcase .ne. LOWER_XPOINT) then
   if (debug) write(*,*)'looking for upper axis-xpoint line'
-  tht_x = atan2(Z_xpoint(2)-Z_axis,R_xpoint(2)-R_axis)
+  tht_x = atan2(ES%Z_xpoint(2)-ES%Z_axis,ES%R_xpoint(2)-ES%R_axis)
   if (tht_x .lt. 0.d0) tht_x = tht_x + 2.d0 * PI
   i_surf = n_flux+n_open+n_outer+n_inner+n_private+n_up_priv
-  call find_theta_surface(node_list,element_list,flux_list,i_surf,tht_x,R_axis,Z_axis,i_elm_find,s_find,t_find,i_find)
+  call find_theta_surface(node_list,element_list,flux_list,i_surf,tht_x,ES%R_axis,ES%Z_axis,i_elm_find,s_find,t_find,i_find)
 
   do i=1,i_find
     call interp_RZ(node_list,element_list,i_elm_find(i),s_find(i),t_find(i),RRg1,dRRg1_dr,dRRg1_ds,dRRg1_drs,dRRg1_drr,dRRg1_dss, &
                                                                             ZZg1,dZZg1_dr,dZZg1_ds,dZZg1_drs,dZZg1_drr,dZZg1_dss)
     stpts%RMiddle_UpperPrivate = RRg1
     stpts%ZMiddle_UpperPrivate = ZZg1
-    if (stpts%ZMiddle_UpperPrivate .ge. Z_xpoint(2)) exit
+    if (stpts%ZMiddle_UpperPrivate .ge. ES%Z_xpoint(2)) exit
   enddo
   if (debug) write(*,*)'FOUND THE UPPER PRIVATE MIDDLE:'
   if (debug) write(*,*)'middle:',stpts%RMiddle_UpperPrivate,stpts%ZMiddle_UpperPrivate
@@ -1357,16 +1355,16 @@ endif
 
 
 !----------------------------------- Define the lines separating the central and upper/lower parts of the grid
-if (xcase .ne. 2) tht_x1 = atan2(Z_xpoint(1)-Z_axis,R_xpoint(1)-R_axis)
-if (xcase .eq. 2) tht_x1 = atan2(Z_xpoint(2)-Z_axis,R_xpoint(2)-R_axis)
-if (xcase .eq. 3) tht_x2 = atan2(Z_xpoint(2)-Z_axis,R_xpoint(2)-R_axis)
+if (xcase .ne. UPPER_XPOINT) tht_x1 = atan2(ES%Z_xpoint(1)-ES%Z_axis,ES%R_xpoint(1)-ES%R_axis)
+if (xcase .eq. UPPER_XPOINT) tht_x1 = atan2(ES%Z_xpoint(2)-ES%Z_axis,ES%R_xpoint(2)-ES%R_axis)
+if (xcase .eq. DOUBLE_NULL ) tht_x2 = atan2(ES%Z_xpoint(2)-ES%Z_axis,ES%R_xpoint(2)-ES%R_axis)
 if (tht_x1 .lt. 0.d0) tht_x1 = tht_x1 + 2.d0*PI
 if (tht_x2 .lt. 0.d0) tht_x2 = tht_x2 + 2.d0*PI
 
 ! --- First define the lower angle
-if(xcase .ne. 2) then
+if(xcase .ne. UPPER_XPOINT) then
   if (debug) write(*,*)'looking for angle of lower horizontal line'
-  angle_LowerCorner       = atan2(stpts%ZLeftCorn_LowerInnerLeg-Z_xpoint(1),stpts%RLeftCorn_LowerInnerLeg-R_xpoint(1))
+  angle_LowerCorner       = atan2(stpts%ZLeftCorn_LowerInnerLeg-ES%Z_xpoint(1),stpts%RLeftCorn_LowerInnerLeg-ES%R_xpoint(1))
   stpts%angle_LowerLeft   = tht_x1 + 1.5d0*PI
   stpts%angle_LowerRight  = tht_x1 + 0.5d0*PI
   ! --- Depending on the equilibrium, it may be better to have a horizontal line... (eg. near double-null at JET)
@@ -1388,11 +1386,11 @@ if(xcase .ne. 2) then
 endif
 
 ! --- Define the upper angle
-if(xcase .ne. 1) then
+if(xcase .ne. LOWER_XPOINT) then
   if (debug) write(*,*)'looking for angle of upper horizontal line'
-  angle_UpperCorner       = atan2(stpts%ZLeftCorn_UpperInnerLeg-Z_xpoint(2),stpts%RLeftCorn_UpperInnerLeg-R_xpoint(2))
-  stpts%angle_UpperLeft   = tht_x2 + 0.5d0*PI; if(xcase .eq. 2) stpts%angle_UpperLeft   = tht_x1 + 0.5d0*PI
-  stpts%angle_UpperRight  = tht_x2 + 1.5d0*PI; if(xcase .eq. 2) stpts%angle_UpperRight  = tht_x1 + 1.5d0*PI
+  angle_UpperCorner       = atan2(stpts%ZLeftCorn_UpperInnerLeg-ES%Z_xpoint(2),stpts%RLeftCorn_UpperInnerLeg-ES%R_xpoint(2))
+  stpts%angle_UpperLeft   = tht_x2 + 0.5d0*PI; if(xcase .eq. UPPER_XPOINT) stpts%angle_UpperLeft   = tht_x1 + 0.5d0*PI
+  stpts%angle_UpperRight  = tht_x2 + 1.5d0*PI; if(xcase .eq. UPPER_XPOINT) stpts%angle_UpperRight  = tht_x1 + 1.5d0*PI
   ! --- Depending on the equilibrium, it may be better to have a horizontal line... (eg. near double-null at JET)
   if(force_horizontal_Xline) then
     stpts%angle_UpperLeft   = PI
@@ -1412,10 +1410,10 @@ if(xcase .ne. 1) then
 endif
 
 ! --- Then find the lower line
-if(xcase .ne. 2) then
+if(xcase .ne. UPPER_XPOINT) then
   if (debug) write(*,*)'looking for lower leg limits'
   i_max = n_flux + n_open + n_outer
-  call find_theta_surface(node_list,element_list,flux_list,i_max,stpts%angle_LowerRight,R_xpoint(1),Z_xpoint(1),i_elm_find,s_find,t_find,i_find)
+  call find_theta_surface(node_list,element_list,flux_list,i_max,stpts%angle_LowerRight,ES%R_xpoint(1),ES%Z_xpoint(1),i_elm_find,s_find,t_find,i_find)
   if(i_find .eq. 0) return
   call interp_RZ(node_list,element_list,i_elm_find(1),s_find(1),t_find(1),&
                  RRg1,dRRg1_dr,dRRg1_ds,dRRg1_drs,dRRg1_drr,dRRg1_dss,    &
@@ -1425,7 +1423,7 @@ if(xcase .ne. 2) then
   stpts%ZLimit_LowerOuterLeg = ZZg1
 
   i_max = n_flux + n_open + n_outer + n_inner
-  call find_theta_surface(node_list,element_list,flux_list,i_max,stpts%angle_LowerLeft,R_xpoint(1),Z_xpoint(1),i_elm_find,s_find,t_find,i_find)
+  call find_theta_surface(node_list,element_list,flux_list,i_max,stpts%angle_LowerLeft,ES%R_xpoint(1),ES%Z_xpoint(1),i_elm_find,s_find,t_find,i_find)
   if(i_find .eq. 0) return
   call interp_RZ(node_list,element_list,i_elm_find(1),s_find(1),t_find(1),&
                  RRg1,dRRg1_dr,dRRg1_ds,dRRg1_drs,dRRg1_drr,dRRg1_dss,    &
@@ -1439,10 +1437,10 @@ if(xcase .ne. 2) then
 endif
 
 ! --- And the upper line
-if(xcase .ne. 1) then
+if(xcase .ne. LOWER_XPOINT) then
   if (debug) write(*,*)'looking for upper leg limits'
   i_max = n_flux + n_open + n_outer
-  call find_theta_surface(node_list,element_list,flux_list,i_max,stpts%angle_UpperRight,R_xpoint(2),Z_xpoint(2),i_elm_find,s_find,t_find,i_find)
+  call find_theta_surface(node_list,element_list,flux_list,i_max,stpts%angle_UpperRight,ES%R_xpoint(2),ES%Z_xpoint(2),i_elm_find,s_find,t_find,i_find)
   if(i_find .eq. 0) return
   call interp_RZ(node_list,element_list,i_elm_find(1),s_find(1),t_find(1),&
                  RRg1,dRRg1_dr,dRRg1_ds,dRRg1_drs,dRRg1_drr,dRRg1_dss,    &
@@ -1452,7 +1450,7 @@ if(xcase .ne. 1) then
   stpts%ZLimit_UpperOuterLeg = ZZg1
 
   i_max = n_flux + n_open + n_outer + n_inner
-  call find_theta_surface(node_list,element_list,flux_list,i_max,stpts%angle_UpperLeft,R_xpoint(2),Z_xpoint(2),i_elm_find,s_find,t_find,i_find)
+  call find_theta_surface(node_list,element_list,flux_list,i_max,stpts%angle_UpperLeft,ES%R_xpoint(2),ES%Z_xpoint(2),i_elm_find,s_find,t_find,i_find)
   if(i_find .eq. 0) return
   call interp_RZ(node_list,element_list,i_elm_find(1),s_find(1),t_find(1),&
                  RRg1,dRRg1_dr,dRRg1_ds,dRRg1_drs,dRRg1_drr,dRRg1_dss,    &
@@ -1477,7 +1475,7 @@ write(*,'(A)')                  '| LEG POINTS (R,Z)                             
 write(*,'(A)')                  '|_________________________________________________________|'
 write(*,'(A)')                  '|                                                         |'
 
-if (xcase .ne. 2) then
+if (xcase .ne. UPPER_XPOINT) then
   write(*,'(A)')                '| Lower Legs : -------------------------------------------|'
   write(*,'(A,F5.2,A,F5.2,A)')  '|   Upper corner of the Lower Inner Leg  : (',stpts%RLimit_LowerInnerLeg,     ', ', stpts%ZLimit_LowerInnerLeg,     ') |'
   write(*,'(A,F5.2,A,F5.2,A)')  '|   Left corner  of the Lower Inner Leg  : (',stpts%RLeftCorn_LowerInnerLeg,  ', ', stpts%ZLeftCorn_LowerInnerLeg,  ') |'
@@ -1490,7 +1488,7 @@ if (xcase .ne. 2) then
   write(*,'(A,F5.2,A,F5.2,A)')  '|   Upper corner of the Lower Outer Leg  : (',stpts%RLimit_LowerOuterLeg,     ', ', stpts%ZLimit_LowerOuterLeg,     ') |'
 endif
 
-if (xcase .ne. 1) then
+if (xcase .ne. LOWER_XPOINT) then
   write(*,'(A)')                '| Upper Legs : -------------------------------------------|'
   write(*,'(A,F5.2,A,F5.2,A)')  '|   Lower corner of the Upper Inner Leg  : (',stpts%RLimit_UpperInnerLeg,     ', ', stpts%ZLimit_UpperInnerLeg,     ') |'
   write(*,'(A,F5.2,A,F5.2,A)')  '|   Left corner  of the Upper Inner Leg  : (',stpts%RLeftCorn_UpperInnerLeg,  ', ', stpts%ZLeftCorn_UpperInnerLeg,  ') |'
@@ -1503,7 +1501,7 @@ if (xcase .ne. 1) then
   write(*,'(A,F5.2,A,F5.2,A)')  '|   Lower corner of the Upper Outer Leg  : (',stpts%RLimit_UpperOuterLeg,     ', ', stpts%ZLimit_UpperOuterLeg,     ') |'
 endif
 
-if ( (xcase .eq. 3) .and. (psi_xpoint(1) .ne. psi_xpoint(2)) ) then
+if ( (xcase .eq. DOUBLE_NULL) .and. (ES%active_xpoint .ne. SYMMETRIC_XPOINT) ) then
   write(*,'(A)')                '| Secondary Strike Points : ------------------------------|'
   write(*,'(A,F5.2,A,F5.2,A)')  '|   Left  Strike point of 2nd separatrix : (',stpts%RSecondStrike_InnerLeg,   ', ', stpts%ZSecondStrike_InnerLeg,   ') |'
   write(*,'(A,F5.2,A,F5.2,A)')  '|   Right Strike point of 2nd separatrix : (',stpts%RSecondStrike_OuterLeg,   ', ', stpts%ZSecondStrike_OuterLeg,   ') |'
@@ -1514,8 +1512,3 @@ write(*,'(A)')                  '|______________________________________________
 
 return
 end subroutine find_strategic_points_advanced
-
-
-
-
-

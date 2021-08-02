@@ -2437,8 +2437,8 @@ module exec_commands
             Z, Z_s, Z_t, Z_st, Z_ss, Z_tt)
             
           ! --- Write out the (R,Z)-coordinates
-          if ( xpoint .and. ( xcase /= 2 ) .and. (Z < ES%Z_xpoint(1) ) ) cycle
-          if ( xpoint .and. ( xcase /= 1 ) .and. (Z > ES%Z_xpoint(2) ) ) cycle
+          if ( xpoint .and. ( xcase /= UPPER_XPOINT ) .and. (Z < ES%Z_xpoint(1) ) ) cycle
+          if ( xpoint .and. ( xcase /= LOWER_XPOINT ) .and. (Z > ES%Z_xpoint(2) ) ) cycle
           write(i_file,'(2ES16.7)') R, Z
         end do
         
