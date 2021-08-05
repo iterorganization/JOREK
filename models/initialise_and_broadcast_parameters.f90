@@ -68,4 +68,6 @@ subroutine initialise_and_broadcast_parameters(my_id, filename)
   endif
   ! -----------------------------------
   
+  prev_FB_fact = 1.d0 ! needed to make sure current_FB_fact is applied correctly in import_restart
+  
 end subroutine initialise_and_broadcast_parameters

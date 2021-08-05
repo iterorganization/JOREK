@@ -178,12 +178,7 @@ do i=1,3,2 ! full, strip
     endif
   else
     if (i .eq. 3) then
-#if (defined WITH_Neutrals) && (!defined WITH_Impurities)
       write(*,*) "Cannot find ionisation data file ", trim(filename), "not loading ionisation energies"
-#else
-      write(*,*) "Cannot find ionisation data file ", trim(filename), ", terminating!"
-      stop
-#endif
     end if
   end if
 end do

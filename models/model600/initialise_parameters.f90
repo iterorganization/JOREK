@@ -56,11 +56,14 @@ namelist /in1/  tstep, nstep, tstep_n, nstep_n,                     &
                 F0,                                                 &
                 gamma_stangeby,gamma_i_stangeby,gamma_e_stangeby,   &
                 gamma_sheath, gamma_sheath_i, gamma_sheath_e,       &
+                deuterium_adas, deuterium_adas_1e20,                &
+                old_deuterium_atomic,                               &
                 density_reflection,                                 &
                 mach_one_bnd_integral, Vpar_smoothing,              &
                 Vpar_smoothing_coef,                                &
                 zjz_0, zjz_1, zj_coef,                              &
                 rho_0, rho_1, rho_coef,                             &
+                rhon_0, rhon_1, rhon_coef,                          &
                 T_0,   T_1,   T_coef,                               &
                 Ti_0,  Ti_1,  Ti_coef,                              &
                 Te_0,  Te_1,  Te_coef,                              &
@@ -112,6 +115,9 @@ namelist /in1/  tstep, nstep, tstep_n, nstep_n,                     &
                 heatsource_gauss_i_psin, heatsource_gauss_i_sig,    &
                 heatsource_gauss_e_psin, heatsource_gauss_e_sig,    &
                 particlesource_gauss_psin, particlesource_gauss_sig,&
+                neutral_line_source,                                &
+                neutral_line_R_start, neutral_line_Z_start,         &
+                neutral_line_R_end,   neutral_line_Z_end,           &
                 produce_live_data, gmres, gmres_max_iter,           &
                 gmres_m, gmres_4, gmres_tol, iter_precon,           &
                 pastix_pivot, max_steps_noUpdate,                   &
@@ -125,11 +131,13 @@ namelist /in1/  tstep, nstep, tstep_n, nstep_n,                     &
                 R_Z_psi_bnd_file, wall_file,time_evol_scheme,       &
                 spi_tor_rot, tor_frequency,                         &
                 NEO, neo_file, aki_neo_const, amu_neo_const,        &
-                D_prof_neg, ZK_prof_neg,                            &
                 D_prof_neg_thresh, ZK_prof_neg_thresh, T_min,       &
-                rho_min,                                            &
+                ne_SI_min, Te_eV_min, rn0_min,                      &
+                D_neutral_x, D_neutral_y, D_neutral_p,              &
+                neutral_reflection, rho_min,                        &
                 corr_neg_temp_coef,                                 &
                 corr_neg_dens_coef, D_prof_neg, ZK_prof_neg,        &  
+                ZK_par_neg,                                         & 
                 ns_deltaphi, ksi_ion, spi_rnd_seed,                 &
                 ns_amplitude, ns_R, ns_Z, ns_phi, ns_radius,        &
                 spi_Vel_Rref,spi_Vel_Zref, using_spi, n_spi, n_inj, &
@@ -138,13 +146,13 @@ namelist /in1/  tstep, nstep, tstep_n, nstep_n,                     &
                 spi_L_inj, spi_L_inj_diff,                          &
                 K_Dmv, A_Dmv, L_tube, V_Dmv, P_Dmv,                 &
                 spi_Vel_diff, t_ns, JET_MGI, ASDEX_MGI,             &
-                delta_n_convection, nimp_bg,                        &
+                delta_n_convection, nimp_bg, output_prad_phi,       &
                 RMP_on, RMP_har_cos,RMP_har_sin, spi_shard_file,    &
                 RMP_growth_rate, RMP_ramp_up_time,                  &
                 RMP_psi_cos_file, RMP_psi_sin_file,                 &
                 Number_RMP_harmonics,RMP_har_cos_spectrum,          &
-                RMP_har_sin_spectrum,                               &
-                amix, amix_freeb, equil_accuracy,                   &
+                RMP_har_sin_spectrum, imp_type, adas_dir,           &
+                amix, amix_freeb, equil_accuracy, use_imp_adas,     &
                 equil_accuracy_freeb, current_ref, FB_Ip_position,  &
                 FB_Ip_integral, Z_axis_ref, FB_Zaxis_position,      &
                 FB_Zaxis_derivative,FB_Zaxis_integral, start_VFB,   &
@@ -164,7 +172,8 @@ namelist /in1/  tstep, nstep, tstep_n, nstep_n,                     &
                 ranks_per_family,                                   &
                 tgnum_psi, tgnum_u, tgnum_zj, tgnum_w, tgnum_rho,   &
                 tgnum_T, tgnum_Ti, tgnum_Te, tgnum_vpar, tgnum_rhon,&
-                tgnum_nre, tgnum_AR, tgnum_AZ, tgnum_A3  
+                tgnum_nre, tgnum_AR, tgnum_AZ, tgnum_A3,            &
+                min_sheath_angle      
 
 if (my_id .eq. 0) then
 

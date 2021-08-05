@@ -53,7 +53,7 @@ real*8     :: T0,   T0_s,  T0_t, T0_p
 real*8     :: Ti0, Ti0_s, Ti0_t, Ti0_x, Ti0_y, Ti0_p
 real*8     :: Te0, Te0_s, Te0_t, Te0_x, Te0_y, Te0_p
 real*8     :: r0, r0_s, r0_t, r0_p, r0_x, r0_y, rho, rho_s, rho_t, rho_x, rho_y
-real*8     :: c_1, c_2, c_3, c_angle
+real*8     :: c_1, c_2, c_3, c_angle, neutral_source
 real*8     :: element_size_ij, element_size_kl, element_size_perp
 real*8     :: grad_t(2), B0_R, B0_Z, factor_cs_bnd_integral
 logical    :: xpoint2
@@ -71,7 +71,7 @@ Zbig = 1.d12
 rhs_ij = 0.d0
 amat   = 0.d0
 
-c_angle = 0.d0!0.0174524d0 ! --- 1 degree angle factor for minimum heat and particle fluxes
+c_angle = min_sheath_angle     * PI / 180.d0 ! --- angle factor for minimum heat and particle fluxes (in radians here)
 
 !--------------------- reorder the nodes to have the same direction as full element (maybe not necesary)
 if ((vertex(1) .eq. 3) .and. (vertex(2) .eq. 4)) then
@@ -190,6 +190,16 @@ do ms=1, n_gauss
   normal = dot_product(grad_t,normal_direction) * grad_t      ! outward pointing normal
   normal = normal / norm2(normal)
 
+  neutral_source = 0.d0
+
+  ! --- Neutral sources at the boundary
+  do is = 1, 10
+    if     ( ((x_g(ms) - neutral_line_R_start(is))*(x_g(ms) - neutral_line_R_end(is)) .lt. 0.d0) &
+       .and. ((y_g(ms) - neutral_line_Z_start(is))*(y_g(ms) - neutral_line_Z_end(is)) .lt. 0.d0) ) then
+       neutral_source = neutral_source + neutral_line_source(is)
+    endif
+  enddo
+
   do mp = 1, n_plane
 
     ps0   = eq_g(mp,var_psi,ms)
@@ -213,7 +223,7 @@ do ms=1, n_gauss
       Ti0_s  = eq_s(mp,var_Ti,ms)
       Ti0_t  = eq_t(mp,var_Ti,ms)
       Ti0_p  = eq_p(mp,var_Ti,ms)
-
+     
       Te0    = eq_g(mp,var_Te,ms)
       Te0_s  = eq_s(mp,var_Te,ms)
       Te0_t  = eq_t(mp,var_Te,ms)
@@ -294,6 +304,11 @@ do ms=1, n_gauss
 
           v   =  H1(i,j,ms) * element_size_ij * HZ(im,mp)         ! test function
 
+          ! --- Neutral sources
+          if (with_neutrals) then
+            rhs_ij(var_rhon) =  v * neutral_source * BigR * dl * tstep     
+          endif
+
           ! --- Most B.C.s need vpar
           if (with_vpar) then
 
@@ -315,6 +330,13 @@ do ms=1, n_gauss
 
             ! --- Mach=1 through boundary integral penalization method
             rhs_ij(var_vpar) = - v * (vpar0 * Btot * normal_sign - cs0 * factor) * dl * Zbig  * factor_cs_bnd_integral 
+
+            ! --- Fluid neutral reflection
+            if (with_neutrals) then 
+              rhs_ij(var_rhon) = rhs_ij(var_rhon)                                                          &
+                               + v * neutral_reflection * r0_corr * vpar0 * ps0_s * normal_sign3 * tstep &
+                               + v * neutral_reflection * r0_corr * cs0 * BigR * dl * c_angle    * tstep ! particle flux at 1 degree angle  
+            endif ! with_neutrals
 
           endif ! with_vpar
           index_ij = n_tor_local*n_var*(n_order+1)*(vertex(i)-1) + n_tor_local * n_var * (j2-1) + im - i_tor_min +1  ! index in the ELM matrix
@@ -353,7 +375,7 @@ do ms=1, n_gauss
                 cs_Ti  = gamma * Ti / (2.d0 * cs0)
                 cs_Te  = gamma * Te / (2.d0 * cs0)
 
-                ! --- Density reflection
+                ! --- Most of natural BCs need vpar
                 if (with_vpar) then
 
                   ! --- Density reflection and minimum particle flux (c_angle)
@@ -361,7 +383,8 @@ do ms=1, n_gauss
                   amat(var_rho,var_rho)   = - v * density_reflection * rho      * vpar0 * ps0_s * normal_sign3 * theta * tstep &
                                             + v                      * rho      * cs0   * BigR * dl * c_angle  * theta * tstep 
                   amat(var_rho,var_vpar)  = - v * density_reflection * r0_corr  * vpar  * ps0_s * normal_sign3 * theta * tstep 
-           
+
+                  ! --- Sheath heat flux
                   if (with_TiTe) then                
                     amat(var_rho,var_Ti)  = + v * r0_corr  * cs_Ti * BigR * dl * c_angle  * theta * tstep
                     amat(var_rho,var_Te)  = + v * r0_corr  * cs_Te * BigR * dl * c_angle  * theta * tstep
@@ -400,6 +423,7 @@ do ms=1, n_gauss
 
                   ! --- Mach 1 condition through penalization boundary integral method
                   amat(var_vpar,var_vpar) =   v * (vpar * Btot * normal_sign) * dl * Zbig * factor_cs_bnd_integral
+
                   if (with_TiTe) then
                     amat(var_vpar,var_Ti) =   v * ( - cs_Ti) * factor         * dl * Zbig * factor_cs_bnd_integral
                     amat(var_vpar,var_Te) =   v * ( - cs_Te) * factor         * dl * Zbig * factor_cs_bnd_integral
@@ -407,10 +431,26 @@ do ms=1, n_gauss
                     amat(var_vpar,var_T)  =   v * ( - cs_T)  * factor         * dl * Zbig * factor_cs_bnd_integral
                   endif
 
-                endif   ! with_vpar
+                  ! --- Fluid neutral sources and reflection
+                  if (with_neutrals) then
+                    amat(var_rhon,var_psi) = - v * neutral_reflection * r0_corr * vpar0 * psi_s * normal_sign3      * theta * tstep 
+  
+                    amat(var_rhon,var_rho) = - v * neutral_reflection * rho     * vpar0 * ps0_s * normal_sign3      * theta * tstep &
+                                             - v * neutral_reflection * rho     * cs0 * BigR * dl * tstep * c_angle * theta * tstep 
+ 
+                    if (with_TiTe) then 
+                      amat(var_rhon,var_Ti) = - v * neutral_reflection * r0_corr * cs_Ti * BigR * dl * tstep * c_angle * theta * tstep 
+                      amat(var_rhon,var_Te) = - v * neutral_reflection * r0_corr * cs_Te * BigR * dl * tstep * c_angle * theta * tstep 
+                    else
+                      amat(var_rhon,var_T)  = - v * neutral_reflection * r0_corr * cs_T  * BigR * dl * tstep * c_angle * theta * tstep 
+                    endif
+  
+                    amat(var_rhon,var_vpar) = - v * neutral_reflection * r0_corr * vpar  * ps0_s * normal_sign3     * theta * tstep 
+                  endif ! with neutrals
 
+                endif   ! with_vpar
                 index_kl = n_tor_local*n_var*(n_order+1)*(vertex(k)-1) + n_tor_local * n_var * (l2-1) + in - i_tor_min +1  ! index in the ELM matrix
-                 
+
                 ! --- Add contributions to ELM matrix                 
                 do k_var = 1, n_var
                   do i_var = 1, n_var

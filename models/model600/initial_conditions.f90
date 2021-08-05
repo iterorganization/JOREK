@@ -18,6 +18,7 @@ type (type_bnd_element_list) :: bnd_elm_list
 integer    :: my_id, i, in, mm, i_elm, ifail, xcase2
 real*8     :: amplitude, psi, psi_n, theta
 real*8     :: zn,  dn_dpsi,  dn_dpsi2,  dn_dz,  dn_dz2,  dn_dpsi_dz,  dn_dpsi3,  dn_dpsi2_dz,  dn_dpsi_dz2
+real*8     :: zrn, drn_dpsi, drn_dpsi2, drn_dz, drn_dz2, drn_dpsi_dz, drn_dpsi3, drn_dpsi2_dz, drn_dpsi_dz2
 real*8     :: zT,  dT_dpsi,  dT_dpsi2,  dT_dz,  dT_dz2,  dT_dpsi_dz,  dT_dpsi3,  dT_dpsi2_dz,  dT_dpsi_dz2
 real*8     :: zTi, dTi_dpsi, dTi_dpsi2, dTi_dz, dTi_dz2, dTi_dpsi_dz, dTi_dpsi3, dTi_dpsi2_dz, dTi_dpsi_dz2
 real*8     :: zTe, dTe_dpsi, dTe_dpsi2, dTe_dz, dTe_dz2, dTe_dpsi_dz, dTe_dpsi3, dTe_dpsi2_dz, dTe_dpsi_dz2
@@ -105,6 +106,23 @@ if (my_id .eq. 0) then
                                     + dn_dz2     * node_list%node(i)%x(1,2,2)              * node_list%node(i)%x(1,3,2)         &
                                     + dn_dpsi_dz * node_list%node(i)%values(1,3,var_psi) * node_list%node(i)%x(1,2,2)         &
                                     + dn_dpsi_dz * node_list%node(i)%values(1,2,var_psi) * node_list%node(i)%x(1,3,2)
+
+    if (with_neutrals) then
+
+      call neutral_density(xpoint2, xcase2, Z, ES%Z_xpoint, psi,ES%psi_axis,ES%psi_bnd,zrn,drn_dpsi,drn_dz,drn_dpsi2,drn_dz2,             &
+                                                                 drn_dpsi_dz,drn_dpsi3,drn_dpsi_dz2, drn_dpsi2_dz)
+
+      node_list%node(i)%values(1,1,var_rhon) = zrn
+      node_list%node(i)%values(1,2,var_rhon) = drn_dpsi    * node_list%node(i)%values(1,2,var_psi) + drn_dz * node_list%node(i)%x(1,2,2)
+      node_list%node(i)%values(1,3,var_rhon) = drn_dpsi    * node_list%node(i)%values(1,3,var_psi) + drn_dz * node_list%node(i)%x(1,3,2)
+      node_list%node(i)%values(1,4,var_rhon) = drn_dpsi    * node_list%node(i)%values(1,4,var_psi) + drn_dz * node_list%node(i)%x(1,4,2) &
+                                      + drn_dpsi2   * node_list%node(i)%values(1,2,var_psi) * node_list%node(i)%values(1,3,var_psi)      &
+                                      + drn_dz2     * node_list%node(i)%x(1,2,2)            * node_list%node(i)%x(1,3,2)                 &
+                                      + drn_dpsi_dz * node_list%node(i)%values(1,3,var_psi) * node_list%node(i)%x(1,2,2)                 &
+                                      + drn_dpsi_dz * node_list%node(i)%values(1,2,var_psi) * node_list%node(i)%x(1,3,2)
+
+    endif ! with_neutrals
+
 
     if ( with_TiTe ) then
       node_list%node(i)%values(1,1,var_Ti) = zTi

@@ -20,7 +20,9 @@
  tgnum_vpar      = 0.2d0
  tgnum_rho       = 0.2d0
  tgnum_zj        = 0.2d0
- 
+  
+ min_sheath_angle     = 0.d0
+
  nout = 20
 
  fbnd(1)   = 2.
