@@ -499,7 +499,7 @@ do while (.not. sim%stop_now)
         !                         (- P_s(2) * R_t + P_t(2) * R_s)/ xjac, &
         !                         P_phi(2)/R_g] 
         !grad_n_imp_tmp = (grad_n_imp_tmp - grad_n_imp_fluid) / n_norm ! Normalize to JOREK unit
-        grad_n_imp_tmp = grad_n_imp_fluid / max(n_rho_imp,1.d16) ! Extract the length scale of density gradient
+        grad_n_imp_tmp = grad_n_imp_fluid / max(n_rho_imp,1.d12) ! Extract the length scale of density gradient
 
         call interp_PRZ(node_list,element_list,particles(j)%i_elm,[var_psi,var_rhon],2,particles(j)%st(1),&
                         particles(j)%st(2), particles(j)%x(3), P,P_s,P_t,P_phi,R_g,R_s,R_t,Z_g,Z_s,Z_t)
