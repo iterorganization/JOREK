@@ -743,7 +743,7 @@ do while (.not. sim%stop_now)
 #else
     !$omp parallel do default(none) & 
 #endif
-    !$omp shared(sim,particles) &
+    !$omp shared(sim) &
     !$omp private(j, E, B, psi, U, B_norm) &
     !$omp reduction(+:particles_remaining, momentum_remaining, energy_remaining)
     do j=1,size(particles,1)
