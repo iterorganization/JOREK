@@ -66,9 +66,6 @@ call sim%initialize(num_groups=1)
 n_particles_local = int(n_particles/sim%n_cpu) 
 timesteps         = tstep_particles
 
-! --- Read ADAS data and generate coronal equilibrium is needed
-call init_imp_adas(sim%my_id)
-
 ! Set up the field reader
 fieldreader = event(read_jorek_fields_interp_linear(basename='jorek', i=-1))
 call with(sim, fieldreader)
@@ -465,6 +462,7 @@ do while (.not. sim%stop_now)
     !$omp P, P_s, P_t, P_phi, n_imp_tmp, Z_imp_tmp, grad_n_imp_tmp, grad_n_imp_fluid, psi_norm,&
     !$omp ifail, CX_rate, CX_prob, CX_source, CX_energy, v_1, v_2, v_3, v_4, v_5, D_prof,   &
     !$omp particle_source, velocity_par_source, energy_source, v_temp, K_eV, T_eV, cx_ran)  &
+    !$omp schedule(dynamic,10)                                                              $
     !$omp reduction(+:feedback_rhs, E_lost_ion, E_lost_rad, Ne_tot)
     do j=1,size(particles,1)
 
@@ -746,9 +744,9 @@ do while (.not. sim%stop_now)
 #else
     !$omp parallel do default(none) & 
 #endif
-    !$omp reduction(+:particles_remaining, momentum_remaining, energy_remaining) &
-    !$omp shared(sim) &
+    !$omp shared(sim,particles) &
     !$omp private(j, E, B, psi, U, B_norm)
+    !$omp reduction(+:particles_remaining, momentum_remaining, energy_remaining) &
     do j=1,size(particles,1)
 
       if (particles(j)%i_elm .le. 0) cycle
