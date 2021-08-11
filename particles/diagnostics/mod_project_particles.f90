@@ -807,9 +807,13 @@ subroutine sample_rhs(this, sim)
     if (.not. allocated(sim%groups(i_group)%particles)) cycle
   
     my_rhs = 0.d0
-    
+
+#ifdef __GFORTRAN__
+    !$omp parallel do default(shared) & 
+#else    
     !$omp parallel do default(none)                                            &
-    !$omp shared(this, sim, n_sample, i_group, i_f)  &
+    !$omp shared(this, sim, n_sample, i_group, i_f)                            &
+#endif
     !$omp private(x, xjac, HH, HH_s, HH_t, R_g, R_s, R_t, Z_g, Z_s, Z_t,       &
     !$omp         m, i, j, i_tor, index_ij, v, HP),                            &
     !$omp reduction(+:my_rhs) schedule(dynamic,10)
@@ -1055,10 +1059,14 @@ if (my_id_n .eq. 0) then
 
   if (apply_dirichlet_condition) write(*,*) 'applying Dirichlet conditions'
 
+#ifdef __GFORTRAN__
+!$omp parallel do default(shared) &
+#else
 !$omp parallel do default(none) &
 !$omp shared(element_list, node_list, n_tor_local, i_tor_local,                     &
 !$omp        H, H_s, H_t, H_ss, H_st, H_tt, Hz, Hz_p, mumps_par, wgauss2,           &
 !$omp        filter, filter_hyper, filter_parallel, F0, my_id_master)               &
+#endif
 !$omp private(ELM, i_elm, element, nodes, i, j, k, l, ms, mt, in, im, mp,           &
 !$omp         x_g, x_s, x_t, x_ss, x_st, x_tt,                                      &
 !$omp         y_g, y_s, y_t, y_ss, y_st, y_tt,                                      &
@@ -1463,11 +1471,15 @@ if (my_id_n .eq. 0) then
   if (apply_zonal)               write(*,*) 'using n=0 zonal flow equations'
   if (apply_dirichlet_condition) write(*,*) 'applying Dirichlet conditions'
 
+#ifdef __GFORTRAN__
+!$omp parallel do default(shared) &
+#else
 !$omp parallel do default(none) &
 !$omp shared(element_list, node_list, n_tor_local, i_tor_local,                       &
 !$omp        apply_dirichlet_condition, zonal_factor, apply_zonal,                    &
 !$omp        H, H_s, H_t, H_ss, H_st, H_tt, Hz, Hz_p, mumps_par, wgauss2,             &
 !$omp        filter_n0, filter_hyper_n0, filter_parallel_n0, integral_weights, F0, my_id_master) &
+#endif
 !$omp private(ELM, i_elm, element, nodes, i, j, k, l, ms, mt, in, im, mp,           &
 !$omp         x_g, x_s, x_t, x_ss, x_st, x_tt,                                      &
 !$omp         y_g, y_s, y_t, y_ss, y_st, y_tt,                                      &
@@ -1932,7 +1944,12 @@ scalars = 0.e0
 vectors = 0.e0
 
 ! Create points for each element
-!$omp parallel do default(none) shared(element_list,nsub,node_list,n_fields,scalars) &
+#ifdef __GFORTRAN__
+!$omp parallel do default(shared) &
+#else
+!$omp parallel do default(none) &
+!$omp shared(element_list,nsub,node_list,n_fields,scalars) &
+#endif
 !$omp private(i,j,k,l,m,inode,ivar,s,t,P, P_s, P_t, P_st, P_ss, P_tt) schedule(static)
 do i=1,element_list%n_elements
   do j=1,n_fields

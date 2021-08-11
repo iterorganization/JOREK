@@ -98,20 +98,20 @@ if (sim%my_id .eq. 0) then
   write(*,'(A,e14.6)') ' E_norm   : ',E_norm
 endif
 #ifdef __GFORTRAN__
-      !$omp parallel do default(shared) & ! workaround for Error: ‘__vtab_mod_pcg32_rng_Pcg32_rng’ not specified in enclosing ‘parallel’
+   !$omp parallel do default(shared) & 
 #else
-      !$omp parallel do default(none) &
+   !$omp parallel do default(none) &
+   !$omp shared(sim, particles, n_steps, timesteps, rng, particle_start_time, &
+   !$omp        rho_norm, t_norm, v_norm, E_norm, M_norm, N_norm, &
+   !$omp        use_cx, use_ionisation, use_sputtering, use_ncs, use_ccs, use_pcs, &
+   !$omp        jorek_feedback, CENTRAL_DENSITY, CENTRAL_MASS) &
 #endif
-   !$omp schedule(dynamic,10) &
-   !$omp shared(sim, n_steps, timesteps, rng, particle_start_time, &
-   !$omp rho_norm, t_norm, v_norm, E_norm, M_norm, N_norm, &
-   !$omp use_cx, use_ionisation, use_sputtering, use_ncs, use_ccs, use_pcs, &
-   !$omp jorek_feedback, CENTRAL_DENSITY, CENTRAL_MASS) &
    !$omp private(particle_tmp, i_rng, i,j,k,l,m, t, E, B, psi, U, rz_old, st_old, &
-   !$omp i_elm_old, i_elm, n_e, T_e, ion_rate, ion_prob, ion_ran, ion_source, ion_energy, kinetic_energy,& 
-   !$omp R_g, R_s, R_t, Z_g, Z_s, Z_t, xjac, HH, HH_s, HH_t, HZ, index_lm, &
-   !$omp ifail, CX_rate, CX_prob, CX_source, CX_energy, v, &
-   !$omp particle_source, velocity_par_source, energy_source, v_temp, K_eV, T_eV, cx_ran) &
+   !$omp         i_elm_old, i_elm, n_e, T_e, ion_rate, ion_prob, ion_ran, ion_source, ion_energy, kinetic_energy,& 
+   !$omp         R_g, R_s, R_t, Z_g, Z_s, Z_t, xjac, HH, HH_s, HH_t, HZ, index_lm, &
+   !$omp         ifail, CX_rate, CX_prob, CX_source, CX_energy, v, &
+   !$omp         particle_source, velocity_par_source, energy_source, v_temp, K_eV, T_eV, cx_ran) &
+   !$omp schedule(dynamic,10) &
    !$omp reduction(+:feedback_rhs)
 
    do j=1,size(particles,1)

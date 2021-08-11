@@ -156,7 +156,11 @@ subroutine initialise_particles(particles, node_list, element_list, &
   ! default(shared) is very dangerous but needed due to gfortran failures.
   ! be very careful (error message for default(none) below)
   ! Error: ‘__vtab_mod_particle_types_Particle_kinetic_leapfrog’ not specified in enclosing ‘parallel’
-  !$omp parallel default(none) &
+#ifdef __GFORTRAN__
+    !$omp parallel default(shared) &
+#else
+    !$omp parallel default(none) &
+#endif
   !$omp   shared(particles, node_list, element_list, Rbox, Zbox, PhiBox, variables, &
   !$omp          rngs, n_threads, n_streams, seed, my_id, n_mhd, n_geom, i_to_find, not_found) &
   !$omp   private(j, i, R, Z, phi, i_elm, s, t, ifail, seq, ran, i_thread, P, DUMMY_REAL)
@@ -611,7 +615,12 @@ subroutine initialise_particles_H_mu_psi(particles, fields, rng_base, mass, T_ma
     psimin= 1d10
     psimax=-1d10
     ! Preparatory work: determine psi_min,max
+#ifdef __GFORTRAN__
     !$omp parallel do default(shared) &
+#else
+    !$omp parallel do default(none) &
+#endif
+    !$omp shared(fields,  psi_minmax_list) &
     !$omp private(i_elm) reduction(min:psimin) &
     !$omp reduction(max:psimax)
     do i_elm=1, fields%element_list%n_elements
@@ -678,7 +687,11 @@ subroutine initialise_particles_H_mu_psi(particles, fields, rng_base, mass, T_ma
     end select
     !allocate(particles_tmp(blocksize), mold=particles) ! this does not work in ifort 17
     allocate(found(blocksize))
-    !$omp parallel do default(none) & ! for gfortran which cannot handle the derived types otherwise
+#ifdef __GFORTRAN__
+    !$omp parallel do default(shared) &
+#else
+    !$omp parallel do default(none) &
+#endif
     !$omp   private(i, psi, theta, phi, i_elm, s, t, R, Z, R_s, R_t, Z_s, Z_t, P2, &
     !$omp           R_i, Z_i, xjac, grad_P2, u,  &
     !$omp           P, P_s, P_t, P_phi, inv_st_jac, psi_R, psi_Z, B, H, muB, chi, ran, particle, temp, ifail, DUMMY_R, DUMMY_Z) &
@@ -909,7 +922,12 @@ subroutine set_particle_weights_canonical_maxwellian(particles, node_list, eleme
 
   ! default(shared) is very dangerous but needed due to gfortran failures... be careful adding variables
   ! and try compilation with default(none) if you change anything.
-  !$omp parallel do default(none) private(i, psibar, H, n, T, P, P_s, P_t, P_phi, R, R_s, R_t, Z, Z_s, Z_t) &
+#ifdef __GFORTRAN__
+  !$omp parallel do default(shared) &
+#else
+  !$omp parallel do default(none) &
+#endif
+  !$omp private(i, psibar, H, n, T, P, P_s, P_t, P_phi, R, R_s, R_t, Z, Z_s, Z_t) &
   !$omp shared(particles, node_list, element_list, mass, central_density, my_alpha)
   do i=1,size(particles,1)
     

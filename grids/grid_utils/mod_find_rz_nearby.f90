@@ -56,7 +56,7 @@ integer,                  intent(out)   :: ifail !< if ifail = -1 the position c
 !< ifail > 0 indicates various other cases
 
 !> Accuracy defaults (tolerances are squared!, units of element size)
-real*8,  parameter :: element_tolerance   = 1.d-12 !< Tolerance for finding a position inside an element
+real*8,  parameter :: element_tolerance   = 1.d-24 !< Tolerance for finding a position inside an element
 integer, parameter :: newton_iter_max     = 8 !< Number of iterations to try
 
 !> Internal variables

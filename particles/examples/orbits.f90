@@ -364,14 +364,17 @@ M_norm   = rho_norm * v_norm                                    ! momentum norma
 
 select type (particles => sim%groups(1)%particles)
 type is (particle_kinetic_leapfrog)
-
+#ifdef __GFORTRAN__
+   !$omp parallel do default(shared) & 
+#else
    !$omp parallel do default(none) &
-   !$omp schedule(dynamic,10)                                                     &
    !$omp shared(sim, particles, n_steps, timesteps, particle_start_time,          &
    !$omp rho_norm, t_norm, v_norm, E_norm, M_norm, N_norm,                        &
    !$omp central_density, central_mass)                                           &
+#endif
    !$omp private(particle_tmp, i_rng, j, k, t, E, B, psi, U, rz_old, st_old,      &
-   !$omp i_elm_old, i_elm, ifail)
+   !$omp i_elm_old, i_elm, ifail)                                                 &
+   !$omp schedule(dynamic,10)                                                     
    do j=1,size(particles,1)
 
       call copy_particle_kinetic_leapfrog(particles(j),particle_tmp)

@@ -1183,7 +1183,7 @@ required = 0
     !--------------------------------------------------------- energies
     if ( (my_id == 0) .and. (.not. bench_without_plot) ) then
 
-       call energy(node_list,element_list,W_mag,W_kin)
+       call energy(W_mag,W_kin)
 
        R_axis_t(index_now)       = ES%R_axis
        Z_axis_t(index_now)       = ES%Z_axis

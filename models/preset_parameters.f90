@@ -574,4 +574,8 @@ subroutine preset_parameters
 
   thermalization = .false.
 
+!===================== not used?
+  Q_bar = 0.d0
+  Sigma = 0.d0
+
 end subroutine preset_parameters

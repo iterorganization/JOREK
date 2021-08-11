@@ -328,17 +328,21 @@ do while (.not. sim%stop_now)
   select type (particles => sim%groups(1)%particles)
   type is (particle_kinetic_leapfrog)
 
+#ifdef __GFORTRAN__
+    !$omp parallel do default(shared) &
+#else
     !$omp parallel do default(none) &
-    !$omp schedule(dynamic,10)      &
     !$omp shared(sim, particles, n_particles, n_steps, timesteps, rng, particle_start_time, &
-    !$omp rho_norm, t_norm, v_norm, E_norm, M_norm, N_norm, &
-    !$omp use_cx, use_ionisation, use_sputtering,           &
-    !$omp CENTRAL_DENSITY, CENTRAL_MASS)                    &
+    !$omp        rho_norm, t_norm, v_norm, E_norm, M_norm, N_norm, &
+    !$omp        use_cx, use_ionisation, use_sputtering,           &
+    !$omp        CENTRAL_DENSITY, CENTRAL_MASS)                    &
+#endif
     !$omp private(i_rng, i,j,k,l,m, t, E, B, psi, U, rz_old, st_old,                        &
-    !$omp i_elm_old, n_e, T_e, ion_rate, ion_prob, ion_ran, ion_source, ion_energy, kinetic_energy,& 
-    !$omp R_g, R_s, R_t, Z_g, Z_s, Z_t, xjac, HH, HH_s, HH_t, HZ, index_lm,                 &
-    !$omp ifail, CX_rate, CX_prob, CX_source, CX_energy, v, v_E, v_v,                       &
-    !$omp particle_source, velocity_par_source, energy_source, v_temp, K_eV, T_eV, cx_ran)  &
+    !$omp         i_elm_old, n_e, T_e, ion_rate, ion_prob, ion_ran, ion_source, ion_energy, kinetic_energy,& 
+    !$omp         R_g, R_s, R_t, Z_g, Z_s, Z_t, xjac, HH, HH_s, HH_t, HZ, index_lm,                 &
+    !$omp         ifail, CX_rate, CX_prob, CX_source, CX_energy, v, v_E, v_v,                       &
+    !$omp         particle_source, velocity_par_source, energy_source, v_temp, K_eV, T_eV, cx_ran)  &
+    !$omp schedule(dynamic,10)      &
     !$omp reduction(+:feedback_rhs)
     do j=1,size(particles,1)
 
@@ -507,10 +511,14 @@ do while (.not. sim%stop_now)
   select type (particles => sim%groups(1)%particles)
   type is (particle_kinetic_leapfrog)
 
-    !$omp parallel do default(none) &
-    !$omp reduction(+:particles_remaining, momentum_remaining, energy_remaining) &
-    !$omp shared(sim, particles) &
-    !$omp private(j, E, B, psi, U, B_norm)
+#ifdef __GFORTRAN__
+    !$omp parallel do default(shared) &
+#else
+    !$omp parallel do default(none)   &
+    !$omp shared(sim, particles)      &
+#endif
+    !$omp private(j, E, B, psi, U, B_norm) &
+    !$omp reduction(+:particles_remaining, momentum_remaining, energy_remaining)
     do j=1,size(particles,1)
 
       if (particles(j)%i_elm .le. 0) cycle

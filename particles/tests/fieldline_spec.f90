@@ -76,7 +76,7 @@ subroutine test_fieldline_backforth_euler
         call f%calc_EBpsiU(0.d0, p(k)%i_elm, p(k)%st, p(k)%x(3), E, B, psi, U)
 
         if (j .eq. 10*10**(-(i+5))) then
-          call assert_equals(0.d0, psi-psi0, 14d4*dt, "Must not leave flux surface mid dt=1e"//is)
+          call assert_equals(0.d0, psi-psi0, 16d4*dt, "Must not leave flux surface mid dt=1e"//is)
           p(k)%v = -v ! go backwards after this point
         end if
 
@@ -84,7 +84,7 @@ subroutine test_fieldline_backforth_euler
 
       if (p(k)%i_elm .ne. 0) then
         call f%calc_EBpsiU(0.d0, p(k)%i_elm, p(k)%st, p(k)%x(3), E, B, psi, u)
-        call assert_equals(0.d0, psi-psi0, 28d4*dt, "Must not leave flux surface dt=1e"//is)
+        call assert_equals(0.d0, psi-psi0, 32d4*dt, "Must not leave flux surface dt=1e"//is)
         call assert_equals(0.d0, p(k)%x(3)-phi0, 7d6*dt, "Must be back at same phi dt=1e"//is)
       else
         call assert_true(.false., 'Particle should be in domain after run dt=1e'//is)

@@ -345,7 +345,7 @@ subroutine do_jorek_timestep(this, sim, ev)
   use mod_export_restart
   use construct_matrix_mod
   use solve_mat_n
-  use pellet_module,           only: pellet_volume
+  use pellet_module
   use vacuum
   use vacuum_response,         only: update_response
   use mod_fields_linear
@@ -354,6 +354,12 @@ subroutine do_jorek_timestep(this, sim, ev)
   use mod_integrals3D
   use pellet_module,           only: update_spi
   use mod_distribute_preconditioner, only: distribute_vector, distribute_harmonics
+#if (defined WITH_Neutrals) && (!defined WITH_Impurities)
+  use mod_neutral_source
+#endif
+#ifdef WITH_Impurities
+  use mod_injection_source
+#endif
 
   class(jorek_timestep_action), intent(inout) :: this
   type(particle_sim), intent(inout)           :: sim
@@ -366,11 +372,13 @@ subroutine do_jorek_timestep(this, sim, ev)
 
   real*8         :: W_mag(n_tor), W_kin(n_tor), growth_mag, growth_kin, growth_mag0, growth_kin0
   real*8         :: density_tot,density_in,density_out,pressure_tot,pressure_in,pressure_out,Bgeo
+  real*8         :: kin_par_tot, kin_par_in, kin_par_out, mom_par_tot, mom_par_in, mom_par_out
   real*8, allocatable :: res(:)
 
   real*8         :: mindelta, maxdelta, sum_deltas
   character*8    :: label, itlabel
   character*14   :: fileout
+  integer        :: i, n_spi_begin
 
   integer        :: i, n_spi_begin
 
@@ -447,7 +455,9 @@ subroutine do_jorek_timestep(this, sim, ev)
 
   if (use_pellet) then            ! calculating the pellet_volume (total_pellet_volume)
     pellet_volume = PI * pellet_radius**2 * 2.d0 * PI * pellet_R * (pellet_phi/PI)
-    !call Integrals_3D(sim%my_id, sim%fields%node_list, sim%fields%element_list, density_tot,density_in,density_out,pressure_tot,pressure_in,pressure_out)
+    call Integrals_3D(sim%my_id, sim%fields%node_list, sim%fields%element_list, density_tot,density_in,density_out,pressure_tot,pressure_in,pressure_out, &
+                                                                                kin_par_tot, kin_par_in, kin_par_out, mom_par_tot, mom_par_in, mom_par_out)
+    
   endif
 
 
@@ -515,7 +525,7 @@ subroutine do_jorek_timestep(this, sim, ev)
         n_spi_begin = n_spi_begin + n_spi(i)
       end do
     end if
-#endif
+#endif    
 
     call update_values(sim%my_id, sim%fields%element_list, sim%fields%node_list, deltas)         ! add solution to node values
     call update_deltas(sim%my_id, sim%fields%node_list)
