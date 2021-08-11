@@ -380,8 +380,6 @@ subroutine do_jorek_timestep(this, sim, ev)
   character*14   :: fileout
   integer        :: i, n_spi_begin
 
-  integer        :: i, n_spi_begin
-
   call init_expr()
   allocate(res(exprs_all_int%n_expr+1))
   res = 0.d0  
