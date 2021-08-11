@@ -442,11 +442,10 @@ do while (.not. sim%stop_now)
   type is (particle_marker)
 
 #ifdef __GFORTRAN__
-    !$omp parallel do default(shared) & ! workaround for Error: '__vtab_mod_openadas_Adf11' not specified in enclosing ‘parallel’
+    !$omp parallel do default(shared) &
 #else
     !$omp parallel do default(none) &
 #endif
-    !$omp schedule(dynamic,10)      &
 #ifdef __GFORTRAN__
     !$omp shared(sim, n_particles, n_steps, timesteps, rng, particle_start_time, & ! This is to work around the GNU compiler error: ASSOCIATE name '__tmp_type_particle_marker' in SHARED clause
 #else
@@ -462,7 +461,7 @@ do while (.not. sim%stop_now)
     !$omp P, P_s, P_t, P_phi, n_imp_tmp, Z_imp_tmp, grad_n_imp_tmp, grad_n_imp_fluid, psi_norm,&
     !$omp ifail, CX_rate, CX_prob, CX_source, CX_energy, v_1, v_2, v_3, v_4, v_5, D_prof,   &
     !$omp particle_source, velocity_par_source, energy_source, v_temp, K_eV, T_eV, cx_ran)  &
-    !$omp schedule(dynamic,10)                                                              $
+    !$omp schedule(dynamic,10)                                                              &
     !$omp reduction(+:feedback_rhs, E_lost_ion, E_lost_rad, Ne_tot)
     do j=1,size(particles,1)
 
@@ -740,13 +739,13 @@ do while (.not. sim%stop_now)
   type is (particle_marker)
 
 #ifdef __GFORTRAN__
-    !$omp parallel do default(none) & ! workaround for Error: '__vtab_mod_openadas_Adf11' not specified in enclosing 'parallel'
+    !$omp parallel do default(shared) & ! workaround for Error: '__vtab_mod_openadas_Adf11' not specified in enclosing 'parallel'
 #else
     !$omp parallel do default(none) & 
 #endif
     !$omp shared(sim,particles) &
-    !$omp private(j, E, B, psi, U, B_norm)
-    !$omp reduction(+:particles_remaining, momentum_remaining, energy_remaining) &
+    !$omp private(j, E, B, psi, U, B_norm) &
+    !$omp reduction(+:particles_remaining, momentum_remaining, energy_remaining)
     do j=1,size(particles,1)
 
       if (particles(j)%i_elm .le. 0) cycle
