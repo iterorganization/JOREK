@@ -66,6 +66,9 @@ call sim%initialize(num_groups=1)
 n_particles_local = int(n_particles/sim%n_cpu) 
 timesteps         = tstep_particles
 
+! --- Read ADAS data and generate coronal equilibrium is needed
+call init_imp_adas(sim%my_id)
+
 ! Set up the field reader
 fieldreader = event(read_jorek_fields_interp_linear(basename='jorek', i=-1))
 call with(sim, fieldreader)
