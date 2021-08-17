@@ -18,7 +18,7 @@ use mod_sampling
 use phys_module, only: central_density
 use mod_collisions
 use mod_coronal
-use mod_elements
+use mod_atomic_elements
 use mod_particle_io
 
 !$ use omp_lib
@@ -61,7 +61,7 @@ fieldreader = event(read_jorek_fields_interp_linear(basename='jorek', i=-1))
 call with(sim, fieldreader)
 
 ! Prepare the coronal equilibrium
-adas = read_adf11('50_w')
+adas = read_adf11(sim%my_id,'50_w')
 cor = coronal(adas)
   
 
@@ -109,7 +109,7 @@ events = [fieldreader &
           , event(write_particle_diagnostics(filename='diag.h5', append=restart), step=1d-5) &
           , event(write_action(),   step=1d-3) &
           , event(projection(sim%fields%node_list, sim%fields%element_list, &
-            smoothing=1d-4, f=[proj_f(proj_one, 1)], to_h5=.true., basename='dens'),  step=1d-5) &
+            filter=1d-4, f=[proj_f(proj_one, 1)], to_h5=.true., basename='dens'),  step=1d-5) &
           , event(stop_action(), start=5d-2)  &
         ]
 

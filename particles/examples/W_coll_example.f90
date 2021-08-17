@@ -17,7 +17,7 @@ use mod_particle_sputtering, only: particle_sputter
 use phys_module, only: central_density
 use mod_collisions
 use mod_coronal
-use mod_elements
+use mod_atomic_elements
 use mod_particle_io
 
 use mod_edge_domain
@@ -55,7 +55,7 @@ call sim%initialize(num_groups=1)
 
 
 ! Prepare the coronal equilibrium
-adas = read_adf11('50_w')
+adas = read_adf11(sim%my_id,'50_w')
 cor = coronal(adas)
   
 
@@ -108,7 +108,7 @@ events = [fieldreader, &
           event(write_particle_diagnostics(filename='diag.h5', append=restart), step=1d-6), &
           event(write_action(),   step=1d-5), &
           event(projection(sim%fields%node_list, sim%fields%element_list, &
-            smoothing=4d-5, smoothing2=1d-9, f=[&
+            filter=4d-5, filter_hyper=1d-9, f=[&
             proj_f(proj_one, 1), proj_f(proj_vR, 1), &
             proj_f(proj_vZ, 1), proj_f(proj_Lz, 1)], &
             to_h5=.true., basename='proj'),  step=1d-6), &

@@ -20,7 +20,7 @@ use mod_particle_sputtering, only: particle_sputter
 use phys_module, only: central_density
 use mod_collisions
 use mod_coronal
-use mod_elements
+use mod_atomic_elements
 use mod_particle_io
 
 use mod_edge_domain
@@ -71,7 +71,7 @@ if (.not. restart) then
   ! Set up particles
   sim%groups(1)%Z    = 74
   sim%groups(1)%mass = atomic_weights(74) !< atomic mass units
-  sim%groups(1)%ad = read_adf11('50_w')
+  sim%groups(1)%ad = read_adf11(sim%my_id,'50_w')
   sim%groups(1)%cor = coronal(sim%groups(1)%ad)
   sim%groups(2)%Z    = 74
   sim%groups(2)%mass = atomic_weights(74) !< atomic mass units
@@ -131,7 +131,7 @@ events = [fieldreader, &
           event(write_particle_diagnostics(filename='diag.h5', append=restart), step=1d-5), &
           event(write_action(),   step=1d-5), &
           event(projection(sim%fields%node_list, sim%fields%element_list, &
-            smoothing=4d-5, smoothing2=1d-9, f=[&
+            filter=4d-5, filter_hyper=1d-9, f=[&
             proj_f(proj_one, 1), proj_f(proj_one, 2), proj_f(proj_Lz, 1), &
             proj_f(proj_Lz, 2), proj_f(proj_lz_equil, 1), proj_f(proj_Lz_equil, 2)],&
             to_h5=.true., basename='proj'),  step=1d-6), &
