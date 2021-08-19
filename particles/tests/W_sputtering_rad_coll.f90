@@ -59,7 +59,7 @@ fieldreader = event(read_jorek_fields_interp_linear(basename='jorek', i=-1))
 call with(sim, fieldreader)
 
 ! Prepare the coronal equilibrium
-adas = read_adf11('50_w')
+adas = read_adf11(sim%my_id,'50_w')
 
 ! Set up particles
 if (.not. restart) then
@@ -129,9 +129,9 @@ events = [fieldreader, &
           event(write_particle_diagnostics(filename='diag.h5', append=restart), step=1d-5), &
           event(write_action(),   step=1d-5), &
           !event(projection(sim%fields%node_list, sim%fields%element_list, &
-          !  smoothing=5d-6, proj_f=proj_Lz, to_h5=.true.),  step=1d-5), &
+          !  filter=5d-6, proj_f=proj_Lz, to_h5=.true.),  step=1d-5), &
           event(projection(sim%fields%node_list, sim%fields%element_list, &
-            smoothing=5d-6, to_h5=.true.),  step=1d-5) &
+             filter=5d-6, to_h5=.true.),  step=1d-5) &
         ]
 !call check_and_fix_timesteps(timesteps, events)
 

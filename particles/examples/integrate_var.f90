@@ -58,7 +58,7 @@ end do
 !!$omp end parallel do
 
 ! Set up the diagnostics output
-proj = new_projection(sim%fields%node_list, sim%fields%element_list, smoothing=6d-5, &
+proj = new_projection(sim%fields%node_list, sim%fields%element_list, filter=6d-5, &
     f=[proj_f(proj_q_homma, 1)], basename='qperp', &
     to_h5=.true.)
 call with(sim, proj)
