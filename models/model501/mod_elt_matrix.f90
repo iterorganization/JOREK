@@ -2198,6 +2198,10 @@ do ms=1, n_gauss
                       ! (see wiki: https://www.jorek.eu/wiki/doku.php?id=model500_501_555#equations):
                       + v * r0 * (vpar0_x * psi_y - vpar0_y * psi_x) * vpar0 * BB2 * xjac * theta * tstep  &
                       + v * vpar0 * (r0_x * psi_y - r0_y * psi_x)    * vpar0 * BB2 * xjac * theta * tstep  &
+                      - v * (r0_x_hat * u0_y - r0_y_hat * u0_x)      * vpar0 * BB2_psi * xjac * theta * tstep &
+                      + v * F0 / BigR * (r0 * vpar0_p + r0_p * vpar0)* vpar0 * BB2_psi * xjac * theta * tstep &
+                      + v * r0 * (vpar0_x * ps0_y - vpar0_y * ps0_x) * vpar0 * BB2_psi * xjac * theta * tstep &
+                      + v * vpar0 * (r0_x * ps0_y - r0_y * ps0_x)    * vpar0 * BB2_psi * xjac * theta * tstep &
 
                       ! Old term (not to be included anymore due to implementations of terms above):
                       !+ v * particle_source(ms,mt) * vpar0 * BB2_psi * BigR * xjac * theta * tstep &
