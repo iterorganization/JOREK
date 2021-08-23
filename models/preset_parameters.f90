@@ -522,6 +522,7 @@ subroutine preset_parameters
   spi_shard_file  = 'none'
   spi_tor_rot     = .false.
   using_spi       = .false.
+  restart_spi     = .true.
 
   output_prad_phi = .false.
 

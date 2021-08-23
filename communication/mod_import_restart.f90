@@ -521,7 +521,7 @@ endif
   end if
 #endif
 
-  if (using_spi) then
+  if (using_spi .and. restart_spi) then
     if (n_spi_tot >= 1) then
 
       if (index_start >= 1) then
@@ -1628,7 +1628,7 @@ subroutine import_hdf5_restart(node_list, element_list, filename, format_rst, er
   end if
 #endif
 
-  if (using_spi) then
+  if (using_spi .and. restart_spi) then
     if (n_spi_tot >= 1) then
 
       if (index_start >= 1) then
