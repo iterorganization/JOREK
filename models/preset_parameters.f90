@@ -529,6 +529,7 @@ subroutine preset_parameters
 !==================Particle related presets==============
   restart_particles = .false.
   use_ncs           = .false.
+  use_rcs           = .false.
   use_ccs           = .false.
   use_pcs           = .false.
   use_cx            = .false.

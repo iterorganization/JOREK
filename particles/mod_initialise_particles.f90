@@ -303,6 +303,10 @@ subroutine initialise_particles_marker(particles, node_list, element_list, field
       m_i_over_m_imp = central_mass/40. ! Argon mass = 40 u and main ion (D) mass = 2 u
     case('Ne')
       m_i_over_m_imp = central_mass/20. ! Neon mass = 20 u and main ion (D) mass = 2 u
+    case('Fe')
+      m_i_over_m_imp = central_mass/56. ! Argon mass = 56 u and main ion (D) mass = 2 u
+    case('W')
+      m_i_over_m_imp = central_mass/184. ! Neon mass = 184 u and main ion (D) mass = 2 u
     case default
       write(*,*) '!! Impurity type "', trim(imp_type), '" unknown (in mod_initialise_particles.f90) !!'
       write(*,*) '=> EXITING!!!'

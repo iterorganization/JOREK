@@ -65,6 +65,9 @@ call sim%initialize(num_groups=1)
 n_particles_local = int(n_particles/sim%n_cpu) 
 timesteps         = tstep_particles
 
+! --- Read ADAS data and generate coronal equilibrium is needed
+call init_imp_adas(sim%my_id)
+
 use_puffing = .true. 
 ! use_cx         = .true.
 ! use_ionisation = .true.
@@ -87,14 +90,14 @@ r_valve     = .005d0
 R_valve_loc = 2.33!2.6!2.1 !< for JET test !1.98991!2.58888  or 1.98991
 Z_valve     = -1.86 !-1.0!-1.75 !-0.550736!1.86579   or -0.550736
 if (use_puffing) then  
-	n_puff      = 0.001d0*n_particles
-	gas_puff = particle_puffing(n_puff, 2.d21, r_valve, R_valve_loc, Z_valve)
-	gas_puff2 = particle_puffing(n_puff, 2.d21, r_valve, 2.8d0, -1.77)!-0.0) !-1.77
-	!gas_puff = particle_puffing(n_puff, 5d22, r_valve, R_valve_loc, Z_valve)
+  n_puff      = 0.001d0*n_particles
+  gas_puff = particle_puffing(n_puff, 2.d21, r_valve, R_valve_loc, Z_valve)
+  gas_puff2 = particle_puffing(n_puff, 2.d21, r_valve, 2.8d0, -1.77)!-0.0) !-1.77
+  !gas_puff = particle_puffing(n_puff, 5d22, r_valve, R_valve_loc, Z_valve)
 else 
-	n_puff = 0.d0
-	gas_puff = particle_puffing(n_puff, 5d20, r_valve, R_valve_loc, Z_valve)
-	gas_puff2 = particle_puffing(n_puff, 5d20, r_valve, R_valve_loc, Z_valve)
+  n_puff = 0.d0 
+  gas_puff = particle_puffing(n_puff, 5d20, r_valve, R_valve_loc, Z_valve)
+  gas_puff2 = particle_puffing(n_puff, 5d20, r_valve, R_valve_loc, Z_valve)
 endif
 
 n_norm   = CENTRAL_DENSITY * 1.d20                              ! (number) density normalisation

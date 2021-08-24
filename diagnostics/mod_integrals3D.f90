@@ -314,7 +314,7 @@ ife_max   = min((my_id +1) * ife_delta, element_list%n_elements)
 
 !$omp parallel default(none)                                                                   &
 !$omp   shared(element_list,node_list, H, H_s, H_t, HZ, HZ_p, ife_min, ife_max, xpoint, xcase, &
-!$omp          H_ss, H_tt, H_st, aux_node_list, use_marker,                                    &
+!$omp          H_ss, H_tt, H_st, aux_node_list, use_marker, use_rcs,                           &
 !$omp          R_xpoint, Z_xpoint, my_id, use_pellet, delta_phi, R_axis, Z_axis, psi_axis, psi_bnd, &
 !$omp          D_tot, D_int, D_Ext, P_tot, P_int, P_ext, Vol, C_intern, C_ext, VP_ext, VP_int, &
 !$omp          VK_ext, VK_int, VK_tot, VM_ext, VM_int, VM_tot, J2_tot, J2_ext, J2_int,         &
@@ -718,6 +718,10 @@ do ife = ife_min, ife_max
           case('Ne')
             m_i_over_m_imp = central_mass/20. ! Neon mass = 20 u
             m_imp          = 20.
+          case('Fe')
+            m_i_over_m_imp = central_mass/56. ! Neon mass = 56 u
+          case('W')
+            m_i_over_m_imp = central_mass/184. ! Neon mass = 184 u
           case default
             write(*,*) '!! Gas type "', trim(imp_type), '" unknown (in mod_injection_source.f90) !!'
             write(*,*) '=> We assume the gas is D2.'
@@ -733,7 +737,7 @@ do ife = ife_min, ife_max
         Ti_corr_eV = T0i_corr/(EL_CHG*MU_ZERO*central_density*1.d20)
         Ti_eV = T0i/(EL_CHG*MU_ZERO*central_density*1.d20)
 
-        if (.not. use_marker) then   
+        if (.not. (use_marker .or. use_rcs)) then   
           if (allocated(P_imp)) deallocate(P_imp)
           allocate(P_imp(0:imp_adas(1)%n_Z))
           call imp_cor(1)%interp_linear(density=20.,temperature=log10(Te_corr_eV*EL_CHG/K_BOLTZ),&
@@ -786,7 +790,7 @@ do ife = ife_min, ife_max
                                                                ! Too small rho_1 will cause a problem
 #endif /* WITH_TiTe */
 
-        if (.not. use_marker) then
+        if (.not. (use_marker)) then
           ! Calculate the effective charge of all species
           Z_eff        = 0.
           Z_eff_imp    = 0.
@@ -1329,6 +1333,10 @@ do m_bndelem = 1, bnd_elm_list%n_bnd_elements
           m_i_over_m_imp = central_mass/40. ! Argon mass = 40 u
         case('Ne')
           m_i_over_m_imp = central_mass/20. ! Neon mass = 20 u
+        case('Fe')
+          m_i_over_m_imp = central_mass/56. ! Neon mass = 56 u
+        case('W')
+          m_i_over_m_imp = central_mass/184. ! Neon mass = 184 u
         case default
           write(*,*) '!! Gas type "', trim(imp_type), '" unknown (in mod_injection_source.f90) !!'
           write(*,*) '=> We assume the gas is D2.'

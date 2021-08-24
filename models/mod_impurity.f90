@@ -49,12 +49,14 @@ module mod_impurity
             adas_suffix = '89_ar'
           case('Ne')
             adas_suffix = '96_ne'
+          case('Fe')
+            adas_suffix = '93_fe'
           case('W')
             adas_suffix = '50_w'
           case('Be')
             adas_suffix = '96_be'
           case('N')
-            adas_suffix = '96_n'	  
+            adas_suffix = '96_n' 
           case default
             write(*,*) "Unrecognized species, terminating."
             adas_suffix = 'none'

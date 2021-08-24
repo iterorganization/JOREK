@@ -822,6 +822,7 @@ write(*,'(1x,a)',advance='no') ' USE_COMPLEX_PRECOND          : '
   write(*,REAL_FMT) 'filter_hyper_n0,    ',filter_hyper_n0   
   write(*,REAL_FMT) 'filter_par_n0,      ',filter_par_n0     
   write(*,LOGI_FMT) 'use_ncs,            ',use_ncs     
+  write(*,LOGI_FMT) 'use_rcs,            ',use_rcs     
   write(*,LOGI_FMT) 'use_ccs,            ',use_ccs    
   write(*,LOGI_FMT) 'use_pcs,            ',use_pcs
   write(*,LOGI_FMT) 'use_ionisation,     ',use_ionisation    

@@ -743,6 +743,7 @@ module phys_module
   !> @name Particles-related input parameters
   logical :: restart_particles
   logical :: use_ncs          ! use neutral particles
+  logical :: use_rcs          ! use radiative coupling of particles
   logical :: use_ccs          ! use current coupling scheme for fast particles
   logical :: use_pcs          ! use pressure coupling scheme for fast particles
   logical :: use_cx           ! switch on sputtering         (in particle module)

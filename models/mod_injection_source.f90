@@ -112,6 +112,18 @@ module mod_injection_source
         mol_atom = 1.
         mass_gas = A_gas*MASS_PROTON
         c0_gas = sqrt(8.3145d0*293.d0/(A_gas*1.d-3)*(5.d0/3.d0))
+      case('Fe')
+        n_gas  = 3
+        A_gas  = 56.
+        mol_atom = 1.
+        mass_gas = A_gas*MASS_PROTON
+        c0_gas = sqrt(8.3145d0*293.d0/(A_gas*1.d-3)*(5.d0/3.d0))
+      case('W')
+        n_gas  = 3
+        A_gas  = 184.
+        mol_atom = 1.
+        mass_gas = A_gas*MASS_PROTON
+        c0_gas = sqrt(8.3145d0*293.d0/(A_gas*1.d-3)*(5.d0/3.d0))
       case default
         write(*,*) '!! Gas type "', trim(imp_type), '" unknown (in mod_injection_source.f90) !!'
         write(*,*) '=> We assume the gas is D2.'

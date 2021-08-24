@@ -1301,6 +1301,10 @@ enddo  ! n_elements
        m_i_over_m_imp = central_mass/40. ! Argon mass = 40 u
      case('Ne')
        m_i_over_m_imp = central_mass/20. ! Neon mass = 20 u
+     case('Fe')
+       m_i_over_m_imp = central_mass/56. ! Neon mass = 56 u
+     case('W')
+       m_i_over_m_imp = central_mass/184. ! Neon mass = 184 u
      case default
        write(*,*) '!! Gas type "', trim(imp_type), '" unknown (in mod_injection_source.f90) !!'
        write(*,*) '=> We assume the gas is D2.'
