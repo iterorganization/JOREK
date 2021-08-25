@@ -277,6 +277,7 @@ particle_source = 0.0
 velocity_par_source = 0.0
 energy_source = 0.0
 dEion_dT = 0.0
+rad_sink = 0.0
 Z_imp    = 0.0; Z_eff = 0.0; N_imp = 0.0; Z_imp_tmp = 0.0; n_imp_tmp = 0.0
 grad_n_imp_tmp = 0.0; grad_n_imp_fluid = 0.0; V_ext = 0.0
 

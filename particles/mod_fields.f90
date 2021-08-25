@@ -206,10 +206,10 @@ real*8 :: T_norm !< temperature normalisation
 
 #ifdef WITH_TiTe
 ! electron temperature
-call fields%interp_PRZ(time,i_elm,[5,var_Te],2,st(1),st(2),phi,P,P_s,P_t,P_phi,P_time,R,R_s,R_t,Z,Z_s,Z_t) 
+call fields%interp_PRZ(time,i_elm,[var_rho,var_Te],2,st(1),st(2),phi,P,P_s,P_t,P_phi,P_time,R,R_s,R_t,Z,Z_s,Z_t) 
 #else
 ! electron temperature + ion temperature (assumed equal)
-call fields%interp_PRZ(time,i_elm,[5,var_T],2,st(1),st(2),phi,P,P_s,P_t,P_phi,P_time,R,R_s,R_t,Z,Z_s,Z_t)
+call fields%interp_PRZ(time,i_elm,[var_rho,var_T],2,st(1),st(2),phi,P,P_s,P_t,P_phi,P_time,R,R_s,R_t,Z,Z_s,Z_t)
 #endif
 
 n_e = max(central_density * P(1) * 1d20,1d16)                           ! plasma density [1/m^3], capped against negative

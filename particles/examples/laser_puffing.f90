@@ -73,7 +73,7 @@ call init_imp_adas(sim%my_id)
 use_puffing    = .true. 
 ! use_cx         = .false.
 ! use_ionisation = .true.
-! use_sputtering = .true. !false
+! use_sputtering = .false.
 
 ! Set up the field reader
 fieldreader = event(read_jorek_fields_interp_linear(basename='jorek', i=-1))
@@ -260,20 +260,23 @@ real*8,allocatable :: feedback_rhs(:,:,:,:,:)
 real*8    :: oldtime, step_rest_time, particle_step_time, particle_start_time, diag_time
 real*8    :: rho_norm, t_norm, v_norm, E_norm, M_norm, N_norm, tstep_si
 real*8    :: kinetic_energy, ion_energy
-real*8    :: n_lost_ion, n_lost_ion_all
 !$ real*8 :: w0, w1, mmm(3)
 integer   :: i, j, k, l, m, n_steps, i_elm_old
-integer   :: seed, i_rng, n_stream, ierr, nthreads, myid
-real*8    :: ion_rate, ion_source, ion_prob, ion_ran(1), cx_ran(7), cx_source, cx_energy 
-real*8    :: cx_prob, CX_rate
+integer   :: seed, i_rng, n_stream, ierr, nthreads, myid, n_coll
+real*8    :: ion_rate, ion_source, ion_prob, ion_rec_ran(2), cx_ran(7), cx_source, cx_energy 
+real*8    :: cx_prob, CX_rate, q(3), coulomb_log, kTb, n_b
 real*8    :: particle_source, velocity_par_source, energy_source
-real*8    :: v_temp(3), T_eV, K_eV, v_kin_temp, B_norm(3), v, v_v, v_E
+real*8    :: v_temp(3), T_eV, K_eV, v_kin_temp, B_norm(3), v_1, v_2, v_3, v_4, v_5
+real*8    :: dEion_dt, Z_imp, Z_eff, N_imp, Lrad, rad_sink
 real*8    :: density_tot, density_in, density_out,  pressure, pressure_in, pressure_out
 real*8    :: mom_par_tot, mom_par_in, mom_par_out, kin_par_tot, kin_par_out, kin_par_in
 real*8    :: particles_remaining, momentum_remaining, energy_remaining, all_particles, all_momentum, all_energy
 
 real*8    :: ne_imp_tmp, n_imp_tmp
 real*8, dimension(2) :: P, P_s, P_t, P_phi
+real*8, dimension(1) :: P_col, P_col_s, P_col_t, P_col_phi, P_col_time
+
+real*8, allocatable :: coll_ran(:,:), v_b
 
 n_norm   = CENTRAL_DENSITY * 1.d20                              ! (number) density normalisation
 rho_norm = CENTRAL_MASS * MASS_PROTON * n_norm                  ! rho_SI = rho_norm * rho
@@ -282,8 +285,11 @@ v_norm   = 1.d0 / t_norm                                        ! V_SI   = v_nor
 E_norm   = 1.5d0 / MU_ZERO                                      ! E_SI   = E_norm * E_jorek
 M_norm   = rho_norm * v_norm                                    ! momentum normalisation
 
-ne_imp_tmp = 0.0; n_imp_tmp = 0.0;
-P = 0.0; P_s = 0.0; P_t = 0.0; P_phi = 0.0;
+ne_imp_tmp = 0.0; n_imp_tmp = 0.0; Z_imp   = 0.0; Z_eff     = 0.0; N_imp =0.0;
+P          = 0.0; P_s       = 0.0; P_t     = 0.0; P_phi     = 0.0;
+P_col      = 0.0; P_col_s   = 0.0; P_col_t = 0.0; P_col_phi = 0.0; P_col_time = 0.0;
+dEion_dt = 0.0
+rad_sink = 0.0
 
 if (sim%my_id .eq. 0) then
   write(*,*)
@@ -314,24 +320,24 @@ call with(sim, events, at=sim%time)
 ! This is to fill in the first time step after restart, should find a better way.
 if (sim%my_id .eq. 0) then
 
-  if (index_now > 1 .and. use_marker) then
+  if (index_now > 1 .and. use_rcs) then
     xtime_radiation(index_now) = xtime_radiation(index_now-1)
-  else if (index_now == 1 .and. use_marker) then
+  else if (index_now == 1 .and. use_rcs) then
     xtime_radiation(index_now) = 0.
   end if
-  if (index_now > 0 .and. use_marker) then
+  if (index_now > 0 .and. use_rcs) then
     xtime_rad_power(index_now) = 0.
   end if
 
-  if (index_now > 1 .and. use_marker) then
+  if (index_now > 1 .and. use_rcs) then
     xtime_E_ion(index_now) = xtime_E_ion(index_now-1)
-  else if (index_now == 1 .and. use_marker) then
+  else if (index_now == 1 .and. use_rcs) then
     xtime_E_ion(index_now) = 0.
   end if
-  if (index_now > 0 .and. use_marker) then
+  if (index_now > 0 .and. use_rcs) then
     xtime_E_ion_power(index_now) = 0.
   end if
-  if (index_now > 0 .and. use_marker) then
+  if (index_now > 0 .and. use_rcs) then
     xtime_Ne_imp(index_now) = 0.
   end if
 
@@ -386,14 +392,17 @@ do while (.not. sim%stop_now)
 #else
     !$omp parallel do default(none) &
     !$omp shared(sim, particles, n_particles, n_steps, timesteps, rng, particle_start_time, &
+    !$omp        use_rcs, use_ncs, use_pcs, use_ccs, aux_node_list,                         &
     !$omp        rho_norm, t_norm, v_norm, E_norm, M_norm, N_norm, &
     !$omp        CENTRAL_DENSITY, CENTRAL_MASS)                    &
 #endif
     !$omp private(i_rng, i,j,k,l,m, t, E, B, psi, U, rz_old, st_old,                        &
-    !$omp         i_elm_old, n_e, T_e, ion_rate, ion_prob, ion_ran, ion_source, ion_energy, kinetic_energy,& 
+    !$omp         i_elm_old, n_e, T_e, ion_rate, ion_prob, ion_rec_ran, ion_source, ion_energy, kinetic_energy,& 
+    !$omp         dEion_dt, Z_imp, Z_eff, N_imp, Lrad, rad_sink,                                    &
     !$omp         R_g, R_s, R_t, Z_g, Z_s, Z_t, xjac, HH, HH_s, HH_t, HZ, index_lm,                 &
-    !$omp         ifail, CX_rate, CX_prob, CX_source, CX_energy, v, v_E, v_v,                       &
-    !$omp         P, P_s, P_t, P_phi, n_imp_tmp, ne_imp_tmp,                                         &
+    !$omp         ifail, CX_rate, CX_prob, CX_source, CX_energy, v_1, v_2, v_3, v_4, v_5,           &
+    !$omp         P, P_s, P_t, P_phi, P_col, P_col_s, P_col_t, P_col_phi, P_col_time,               &
+    !$omp         n_imp_tmp, ne_imp_tmp, n_coll, coll_ran, v_b, q, coulomb_log, kTb, n_b,           &
     !$omp         particle_source, velocity_par_source, energy_source, v_temp, K_eV, T_eV, cx_ran)  &
     !$omp schedule(dynamic,10)      &
     !$omp reduction(+:feedback_rhs)
@@ -415,8 +424,69 @@ do while (.not. sim%stop_now)
 
         call sim%fields%calc_NeTe(t, particles(j)%i_elm, particles(j)%st, particles(j)%x(3), n_e, T_e)
 
+        T_eV = T_e * K_BOLTZ /  EL_CHG ! Change K to eV
 
-        ! Calculate the projection of the ion source in real-time
+        call interp_PRZ(aux_node_list,sim%fields%element_list,particles(j)%i_elm,[4,5],2,particles(j)%st(1),&
+                        particles(j)%st(2), particles(j)%x(3), P,P_s,P_t,P_phi,R_g,R_s,R_t,Z_g,Z_s,Z_t)
+
+        ne_imp_tmp = P(1)
+        n_imp_tmp  = P(2)
+
+        if (ne_imp_tmp < 0.) ne_imp_tmp = 0.
+        n_e  = n_e + ne_imp_tmp * (central_density * 1.d20) ! Electron number density [m^-3]
+
+        Z_imp = real(particles(j)%weight,8) * particles(j)%q * timesteps
+        Z_eff = real(particles(j)%weight,8) * particles(j)%q**2. * timesteps
+        N_imp = real(particles(j)%weight,8) * timesteps
+
+        dEion_dt = 0.0
+        rad_sink = 0.0
+        Lrad     = 0.0
+
+        if (T_eV > 1.) Lrad     = get_Lz(sim, 1, particles(j)%q, n_e, T_e)
+        rad_sink = real(particles(j)%weight,8) * Lrad * timesteps
+
+        if (T_eV < 1.) then
+          T_eV = 1.
+          T_e  = T_eV / (K_BOLTZ /  EL_CHG)
+        endif        
+
+        ! Update the charge based on ionisation coefficients
+        call rng(i_rng)%next(ion_rec_ran)
+        particles(j)%q = int(new_charge(int(particles(j)%q,4), adas, log10(n_e), log10(T_e), &
+                                        timesteps, ran(1:2)),1)
+
+        ! Calculate collision with the background species
+        n_coll = timesteps / (1.d-10)
+        allocate(coll_ran(6,n_coll))
+        allocate(v_b(3,n_coll))
+        if (particles(j)%q .gt. 0 .and. n_coll .gt. 0) then
+          ! Calculate collisions
+          kTb = T_e*K_BOLTZ/EL_CHG ! assume T_e == T_i
+          n_b = n_e
+          q = q_homma2013(kTb, grad_T_e*EL_CHG/K_BOLTZ, B, n_b, real(central_mass,8), q_b)
+          coulomb_log = coulomb_logarithm(kTb, n_b, particles(j)%q, q_b, sim%groups(i)%mass, real(central_mass,8))
+          ! Get parallel flow velocity
+          call sim%fields%interp_PRZ(t, particles(j)%i_elm, [var_Vpar], 1, &
+                                     particles(j)%st(1), particles(j)%st(2), particles(j)%x(3), &
+                                     P_col, P_col_s, P_col_t, P_col_phi, P_time, R, R_s, R_t, Z, Z_s, Z_t)
+
+          do l=1,n_coll
+            call rng(i_rng)%next(coll_ran(:,l))
+          end do
+          call sample_velocity_dist_magnetized(n_coll, coll_ran(1:6,:), kTb, q, n_b, real(central_mass,8), q_b, &
+                                               P_col(1)*B/sim%t_norm, v_b)
+
+          do l=1,n_coll
+            call rng(i_rng)%next(coll_ran(:,l))
+            call collide_particles(coll_ran(1:3,l), particles(j)%q, sim%groups(i)%mass, particles(j)%v, &
+                q_b, real(central_mass,8), v_b(:,l), n_b, coulomb_log, timesteps/real(n_coll,8))
+          end do
+        end if
+        deallocate(coll_ran)
+        deallocate(v_b)
+
+        ! Canculate the projection of the ion source in real-time
 
         call basisfunctions(particles(j)%st(1), particles(j)%st(2), HH, HH_s, HH_t)
         call mode_moivre(particles(j)%x(3), HZ)
@@ -426,14 +496,19 @@ do while (.not. sim%stop_now)
 
             index_lm = (l-1)*(n_order+1) + m
 
-            v   = HH(l,m) * sim%fields%element_list%element(i_elm_old)%size(l,m) * particle_source     * t_norm / rho_norm
-            v_E = HH(l,m) * sim%fields%element_list%element(i_elm_old)%size(l,m) * energy_source       * t_norm / E_norm
-            v_v = HH(l,m) * sim%fields%element_list%element(i_elm_old)%size(l,m) * velocity_par_source * t_norm / m_norm
-        
+            v_1 = HH(l,m) * sim%fields%element_list%element(i_elm_old)%size(l,m) * dEion_dt * t_norm / E_norm
+            !v_2 = HH(l,m) * sim%fields%element_list%element(i_elm_old)%size(l,m) * rad_sink * t_norm * n_norm / E_norm
+            v_2 = HH(l,m) * sim%fields%element_list%element(i_elm_old)%size(l,m) * rad_sink * t_norm / E_norm
+            v_3 = HH(l,m) * sim%fields%element_list%element(i_elm_old)%size(l,m) * Z_eff / n_norm
+            v_4 = HH(l,m) * sim%fields%element_list%element(i_elm_old)%size(l,m) * Z_imp / n_norm
+            v_5 = HH(l,m) * sim%fields%element_list%element(i_elm_old)%size(l,m) * N_imp / n_norm
+
             do i_tor=1,n_tor
-              feedback_rhs(m,l,i_elm_old,i_tor,1) = feedback_rhs(m,l,i_elm_old,i_tor,1) + HZ(i_tor) * v
-              feedback_rhs(m,l,i_elm_old,i_tor,2) = feedback_rhs(m,l,i_elm_old,i_tor,2) + HZ(i_tor) * v_E
-              feedback_rhs(m,l,i_elm_old,i_tor,3) = feedback_rhs(m,l,i_elm_old,i_tor,3) + HZ(i_tor) * v_v
+              feedback_rhs(m,l,i_elm_old,i_tor,1) = feedback_rhs(m,l,i_elm_old,i_tor,1) + HZ(i_tor) * v_1
+              feedback_rhs(m,l,i_elm_old,i_tor,2) = feedback_rhs(m,l,i_elm_old,i_tor,2) + HZ(i_tor) * v_2
+              feedback_rhs(m,l,i_elm_old,i_tor,3) = feedback_rhs(m,l,i_elm_old,i_tor,3) + HZ(i_tor) * v_3
+              feedback_rhs(m,l,i_elm_old,i_tor,4) = feedback_rhs(m,l,i_elm_old,i_tor,4) + HZ(i_tor) * v_4
+              feedback_rhs(m,l,i_elm_old,i_tor,5) = feedback_rhs(m,l,i_elm_old,i_tor,5) + HZ(i_tor) * v_5
             enddo
 
           enddo
@@ -453,7 +528,7 @@ do while (.not. sim%stop_now)
 
   end select
 
-  if (use_ncs) then
+  if (use_rcs) then
     write(*,*) 'GATHER TIME : ',jorek_feedback%rhs_gather_time
     jorek_feedback%rhs = feedback_rhs / jorek_feedback%rhs_gather_time !* TWOPI
     jorek_feedback%rhs_gather_time = 0.d0
@@ -463,9 +538,34 @@ do while (.not. sim%stop_now)
 
   deallocate(feedback_rhs)
 
-  call MPI_REDUCE(n_lost_ion, n_lost_ion_all, 1, MPI_INTEGER, MPI_SUM, 0, MPI_COMM_WORLD, ierr)
-  
-  if (sim%my_id .eq. 0) write(*,*) " Lost particles at t due to ionisation: ", sim%time, n_lost_ion_all
+!============= Diagnostics!================
+  call MPI_AllReduce(E_lost_ion,E_lost_ion_all,1,MPI_DOUBLE_PRECISION,MPI_SUM,MPI_COMM_WORLD,ierr)
+  call MPI_AllReduce(E_lost_rad,E_lost_rad_all,1,MPI_DOUBLE_PRECISION,MPI_SUM,MPI_COMM_WORLD,ierr)
+  if (sim%my_id .eq. 0) write(*,*) " Lost energy at t due to ionisation: ", index_now+1, sim%time, E_lost_ion_all
+  if (sim%my_id .eq. 0) write(*,*) " Lost energy at t due to radiation: ", index_now+1, sim%time, E_lost_rad_all
+
+  if (sim%my_id .eq. 0) then
+
+    if (index_now > 0 .and. use_rcs) then
+      xtime_radiation(index_now+1) = xtime_radiation(index_now) + E_lost_rad_all
+    else if (index_now == 0 .and. use_rcs) then
+      write(*,*) "SOMETHING WRONG in the time-stepping, EXITING!"
+      call exit(1)
+    end if
+    if (use_rcs) xtime_rad_power(index_now+1) = E_lost_rad_all / (real(n_steps,8) * timesteps)
+
+    if (index_now > 0 .and. use_rcs) then
+      xtime_E_ion(index_now+1) = xtime_E_ion(index_now) + E_lost_ion_all
+    else if (index_now == 0 .and. use_rcs) then
+      write(*,*) "SOMETHING WRONG in the time-stepping, EXITING!"
+      call exit(1)
+    end if
+    if (use_rcs) xtime_E_ion_power(index_now+1) = E_lost_ion_all / (real(n_steps,8) * timesteps)
+
+    if (use_rcs) xtime_Ne_imp(index_now+1) = Ne_tot_all / (real(n_steps,8) * timesteps)
+
+  endif
+!=============================================
   !$ w1 = omp_get_wtime()
   !$ mmm = mpi_minmeanmax(w1-w0)
   !$ if (sim%my_id .eq. 0) write(*,"(f10.7,A,3f9.4,A)") sim%time, " Particle stepping complete in ", mmm, "s"
@@ -476,8 +576,8 @@ do while (.not. sim%stop_now)
   call with(sim, events, at=sim%time)
 !===================================================
 
-  call Integrals_3D(sim%my_id, sim%fields%node_list, sim%fields%element_list, density_tot, density_in, density_out, &
-                    pressure, pressure_in, pressure_out, kin_par_tot, kin_par_in, kin_par_out, mom_par_tot, mom_par_in, mom_par_out)
+!  call Integrals_3D(sim%my_id, sim%fields%node_list, sim%fields%element_list, density_tot, density_in, density_out, &
+!                    pressure, pressure_in, pressure_out, kin_par_tot, kin_par_in, kin_par_out, mom_par_tot, mom_par_in, mom_par_out)
 
   particles_remaining = 0.d0
   momentum_remaining  = 0.d0
@@ -522,6 +622,13 @@ do while (.not. sim%stop_now)
                                         pressure+kin_par_tot+all_energy, pressure, all_energy, kin_par_tot
   endif
 
+! --- Write a restart file every nout timesteps
+  if (mod(index_now,nout) == 0) then
+    write(part_fileout,'(A4,i5.5,A3)') 'part',index_now,'.h5'
+    partwriter = event(write_action(filename=trim(part_fileout)))
+    call with(sim, partwriter)
+    !call write_simulation_hdf5(sim, trim(part_fileout))
+  endif
 end do
 
 
