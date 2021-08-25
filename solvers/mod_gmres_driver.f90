@@ -1,7 +1,6 @@
 module mod_gmres_driver
 implicit none
 contains
-
 !> Driver for the reverse communication GMRES routine from dPackgmres (CERFACS)
 subroutine gmres_driver(my_id,my_id_n,MPI_COMM_N,MPI_COMM_MASTER,iter_gmres)
 
@@ -114,6 +113,7 @@ end if
        endif
 
        call MPI_BCAST(irc,5,MPI_INTEGER_ALL,0,MPI_COMM_WORLD,ierr)
+
        revcom = irc(1)
        colx   = irc(2)
        coly   = irc(3)
@@ -123,7 +123,7 @@ end if
        if (revcom.eq.matvec) then                  ! perform the matrix vector product
                                                    ! work(colz) <-- A * work(colx)
         
-         work_ndof(Int1:n_dof) = work(colx:colx+n_dof-Int1)
+        work_ndof(Int1:n_dof) = work(colx:colx+n_dof-Int1)
          work_ndof2(Int1:n_dof) = work(colz:colz+n_dof-Int1)
 
          call gmres_matrix_vector(n_dof,work_ndof,n_dof,work_ndof2,my_id)
@@ -154,7 +154,7 @@ end if
        endif
 
 !******************************** end of GMRES reverse communication
-
+       
 if (my_id .eq. 0) deltas(1:n_dof) = work(1:n_dof)
 
 work_ndof(Int1:n_dof) = deltas(Int1:n_dof)
@@ -171,9 +171,9 @@ if (my_id .eq. 0) then
   Bnorm = 0.d0
   Xnorm = 0.d0
   do i=1,n_dof
-       sum = sum      + (work(n_dof+i)-RHS_glob(i))**2
-       err = max(err,abs(work(n_dof+i)-RHS_glob(i)))
-       Bnorm = Bnorm + RHS_glob(i)**2
+    sum   = sum + (work(n_dof+i)-RHS_glob(i))**2
+    err   = max(err,abs(work(n_dof+i)-RHS_glob(i)))
+    Bnorm = Bnorm + RHS_glob(i)**2
     Xnorm = Xnorm + deltas(i)**2
   enddo
   write(*,'(A,4e16.8)') ' residu test after : ',sqrt(sum),err,sqrt(Bnorm),sqrt(Xnorm)

@@ -15,9 +15,9 @@ subroutine gmres_setup_jorek(my_id, n_cpu, i_tor, my_id_n, n_cpu_n, my_id_trans,
   use mod_parameters, only: n_tor
   use tr_module
   use mpi_mod
-  use preconditioner_module, only: create_communicators,distribute_modes
   implicit none
   integer, intent(in) :: my_id, n_cpu
+  integer, allocatable, intent(inout) :: i_tor(:)
   integer, intent(out) :: my_id_n, n_cpu_n
   integer, intent(out) :: my_id_trans, n_cpu_trans
   integer, intent(out) :: my_id_master
@@ -30,40 +30,23 @@ subroutine gmres_setup_jorek(my_id, n_cpu, i_tor, my_id_n, n_cpu_n, my_id_trans,
   integer :: N_masters, i_rank(n_tor), m_cpu
   integer :: i, ierr
 
-!  N_masters = (n_tor+1)/2
-!  if (MOD(n_cpu, N_masters) == 0) then
-!    M_cpu = n_cpu / (N_masters)
-!  else
-!    M_cpu = (n_cpu - MOD(n_cpu, N_masters))/N_masters +1
-!  end if
-!
-!  if (allocated(i_tor)) call tr_deallocate(i_tor,"i_tor",CAT_UNKNOWN)
-!  call tr_allocate(i_tor,1,n_cpu,"i_tor",CAT_UNKNOWN)
-!  do i = 1, n_cpu 
-!    i_tor(i) =  MOD(i-1, M_cpu)+1
-!  end do
-!  call MPI_COMM_SPLIT(MPI_COMM_WORLD,i_tor(my_id+1),my_id,MPI_COMM_TRANS,ierr)
-!
-!  do i=1,n_cpu
-!    i_tor(i) = ((i-1) - MOD(i-1, M_cpu))/ M_cpu  + 1
-!  enddo
-!
-!  call MPI_COMM_SPLIT(MPI_COMM_WORLD,i_tor(my_id+1),my_id,MPI_COMM_N,ierr)
-!  
-!  do i=1,N_masters
-!    i_rank(i) = (i-1) * M_cpu
-!  enddo
-!
-!  call MPI_COMM_GROUP(MPI_COMM_WORLD,MPI_GROUP_WORLD,ierr)
-!  call MPI_GROUP_INCL(MPI_GROUP_WORLD,N_masters,i_rank,MPI_GROUP_MASTER,ierr)
+  N_masters = (n_tor+1)/2
+  if (MOD(n_cpu, N_masters) == 0) then
+    M_cpu = n_cpu / (N_masters)
+  else
+    M_cpu = (n_cpu - MOD(n_cpu, N_masters))/N_masters +1
+  end if
 
-  call create_communicators(my_id_n, n_cpu_n, MPI_COMM_N, my_id_master, N_masters, &
-                            MPI_COMM_MASTER, MPI_COMM_TRANS)
-  m_cpu = n_cpu_n
-  write(*,*) "my_id, my_id_n", my_id, my_id_n
+  if (allocated(i_tor)) call tr_deallocate(i_tor,"i_tor",CAT_UNKNOWN)
+  call tr_allocate(i_tor,1,n_cpu,"i_tor",CAT_UNKNOWN)
+  do i = 1, n_cpu 
+    i_tor(i) =  MOD(i-1, M_cpu)+1
+  end do
+  call MPI_COMM_SPLIT(MPI_COMM_WORLD,i_tor(my_id+1),my_id,MPI_COMM_TRANS,ierr)
 
-!  call MPI_COMM_CREATE(MPI_COMM_WORLD,MPI_GROUP_MASTER,MPI_COMM_MASTER,ierr)
-  call distribute_modes
+  do i=1,n_cpu
+    i_tor(i) = ((i-1) - MOD(i-1, M_cpu))/ M_cpu  + 1
+  enddo
 
   my_family_id = i_tor(my_id+1)
 
