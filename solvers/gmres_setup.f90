@@ -9,8 +9,9 @@ contains
 !>      +-----------+  +-----------+  +-----------+  +-----------+
 !>  0   | 0 | 1 | 2 |  | 0 | 1 | 2 |  | 0 | 0 | 0 |  | 0 | 1 | 2 |
 !>      +-----------+  +-----------+  +-----------+  +-----------+
-subroutine gmres_setup_jorek(my_id, n_cpu, my_id_n, n_cpu_n, my_id_trans, n_cpu_trans, my_id_master, &
-      MPI_COMM_N, MPI_COMM_TRANS, MPI_COMM_MASTER, MPI_GROUP_MASTER, MPI_GROUP_WORLD)
+subroutine gmres_setup_jorek(my_id, n_cpu, i_tor, my_id_n, n_cpu_n, my_id_trans, n_cpu_trans, my_id_master,  &
+                             MPI_COMM_N, MPI_COMM_TRANS, MPI_COMM_MASTER, MPI_GROUP_MASTER, MPI_GROUP_WORLD, &
+                             my_family_id)
   use mod_parameters, only: n_tor
   use tr_module
   use mpi_mod
@@ -25,6 +26,7 @@ subroutine gmres_setup_jorek(my_id, n_cpu, my_id_n, n_cpu_n, my_id_trans, n_cpu_
   integer, intent(out) :: MPI_COMM_MASTER !< Every first of MPI_COMM_N
   integer, intent(out) :: MPI_GROUP_MASTER !< subset of MPI_COMM_WORLD corresponding to MPI_COMM_MASTER
   integer, intent(out) :: MPI_GROUP_WORLD
+  integer, intent(out) :: my_family_id
   integer :: N_masters, i_rank(n_tor), m_cpu
   integer :: i, ierr
 
@@ -63,10 +65,23 @@ subroutine gmres_setup_jorek(my_id, n_cpu, my_id_n, n_cpu_n, my_id_trans, n_cpu_
 !  call MPI_COMM_CREATE(MPI_COMM_WORLD,MPI_GROUP_MASTER,MPI_COMM_MASTER,ierr)
   call distribute_modes
 
-!  call MPI_COMM_RANK(MPI_COMM_N, my_id_n, ierr) ! id of this cpu in local comm
-!  call MPI_COMM_SIZE(MPI_COMM_N, n_cpu_n, ierr) ! number of local comm cpu
-!  call MPI_COMM_RANK(MPI_COMM_TRANS, my_id_trans, ierr) ! id of this proc in transverse comm
-!  call MPI_COMM_SIZE(MPI_COMM_TRANS, n_cpu_trans, ierr) ! num proc in transverse comm
+  my_family_id = i_tor(my_id+1)
+
+  call MPI_COMM_SPLIT(MPI_COMM_WORLD,i_tor(my_id+1),my_id,MPI_COMM_N,ierr)
+  
+  do i=1,N_masters
+    i_rank(i) = (i-1) * M_cpu
+  enddo
+
+  call MPI_COMM_GROUP(MPI_COMM_WORLD,MPI_GROUP_WORLD,ierr)
+  call MPI_GROUP_INCL(MPI_GROUP_WORLD,N_masters,i_rank,MPI_GROUP_MASTER,ierr)
+
+  call MPI_COMM_CREATE(MPI_COMM_WORLD,MPI_GROUP_MASTER,MPI_COMM_MASTER,ierr)
+
+  call MPI_COMM_RANK(MPI_COMM_N, my_id_n, ierr) ! id of this cpu in local comm
+  call MPI_COMM_SIZE(MPI_COMM_N, n_cpu_n, ierr) ! number of local comm cpu
+  call MPI_COMM_RANK(MPI_COMM_TRANS, my_id_trans, ierr) ! id of this proc in transverse comm
+  call MPI_COMM_SIZE(MPI_COMM_TRANS, n_cpu_trans, ierr) ! num proc in transverse comm
 
   write(*,*) 'gmres_setup : m_cpu, n_cpu_n ',m_cpu, n_cpu_n
 

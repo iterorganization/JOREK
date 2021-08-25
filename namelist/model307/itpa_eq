@@ -1,0 +1,124 @@
+&in1
+
+ restart = .f.
+ regrid  = .f.
+ refinement=.false.
+
+ tstep_n = 1. 
+ nstep_n = 0 
+
+ time_evol_scheme ="Gears"
+ 
+ use_pcs = .true.
+
+ n_particles        = 1d3
+ tstep_particles    = 2d-10
+! density_particles  = 0e18
+ restart_particles = .false.
+
+ filter_perp  = 0.d0
+ filter_hyper = 1d-10
+ filter_par   = 1.d0
+ filter_perp_n0  = 0.d0
+ filter_hyper_n0 = 1d-10
+ filter_par_n0   = 1.d0
+
+ !output_bnd_elements = .t.
+
+ linear_run = .true.
+
+ nout = 10 
+
+ use_mumps_eq  = .true.
+ use_pastix_eq = .false.
+
+ fbnd(1)   = 2.
+ fbnd(2:4) = 0.
+ mf        = 0
+
+ ellip  = 1.
+ tria_u = 0.
+ tria_l = 0.
+ quad_u = -0.
+ quad_l = -0.
+
+ freeboundary = .f.
+
+ R_geo = 10.0
+ Z_geo = 0.
+
+ F0    = 30.0
+
+ amin     = 1.
+
+ n_R      = 0
+ n_Z      = 0
+ n_radial = 51 
+ n_pol    = 64 
+
+ n_flux   = 51 
+ n_tht    = 64 
+ n_open   = 0
+ n_leg    = 0
+ n_private = 0
+ xr_r(1) = 0.5
+ sig_r(1) = 0.5
+
+ eta   = 1.d-8
+ visco = 1.d-8
+ visco_par = 1d-7
+
+ eta_T_dependent = .false.
+ visco_T_dependent = .false.
+
+ eta_num = 1.d-12
+ visco_num = 1.d-12
+ visco_par_num = 0.d-13
+
+ D_par  = 0.d0
+ D_perp = 1.d-8
+
+ ZK_par  = 0.d0
+ ZK_perp = 1.d-8
+
+ FF_0 = 2.435
+ FF_1 = 1.d-3
+ FF_coef(1)  = -0.205d0
+ FF_coef(2)  = 0.d0
+ FF_coef(3)  = 0.0d0
+ FF_coef(4)  = 0.1d0
+ FF_coef(5)  = 5.0d0
+ FF_coef(6)  = 1.d0
+ FF_coef(7)  = 10.d0
+ FF_coef(8)  = 1.d0
+
+ heatsource     = 0.d0
+ particlesource = 0.d0
+
+ !T_file = "jorek_temperature"
+ T_0 = 9.01d-3
+ T_1 = 1.d-4
+ T_coef(1) = -1. 
+ T_coef(2) = 0. 
+ T_coef(3) = 0.
+ T_coef(4) = 0.25d0
+ T_coef(5) = 2.0d0
+
+ rho_0 = 1.
+ rho_1 = 1.
+ rho_coef(1)  =  0.0
+ rho_coef(2)  =  0.0
+ rho_coef(3)  =  0.0
+ rho_coef(4)  =  1.d0
+ rho_coef(5)  =  5.d0
+ central_density = 0.2
+
+ central_mass = 1.d0
+
+ iter_precon = 22
+ gmres_m = 20
+ gmres_4 = 1.d0
+ gmres_max_iter = 200
+ gmres_tol = 1.d-8
+
+/

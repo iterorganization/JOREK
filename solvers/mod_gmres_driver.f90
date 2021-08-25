@@ -17,11 +17,11 @@ implicit none
 #include "r3_info.h"
 
 interface 
-   subroutine gmres_matrix_vector(size_x,x,size_y,y,my_id)      
-     use mod_integer_types
-     integer(kind=int_all) :: size_x,size_y
-     real*8                :: x(size_x), y(size_y)
-     integer               :: my_id, my_id_n
+  subroutine gmres_matrix_vector(size_x,x,size_y,y,my_id)      
+    use mod_integer_types
+    integer(kind=int_all) :: size_x,size_y
+    real*8                :: x(size_x), y(size_y)
+    integer               :: my_id, my_id_n
    end subroutine gmres_matrix_vector
 end interface
 integer               :: j, my_id, my_id_n, my_id_master, MPI_COMM_N, MPI_COMM_MASTER
@@ -74,10 +74,12 @@ call tr_allocate(work_ndof2,Int1,n_dof,"work_ndof2",CAT_GMRES)
 work(1:n_dof)         = deltas(1:n_dof)                     ! the initial guess
 work(n_dof+1:2*n_dof) = RHS_glob(1:n_dof)                   ! the right hand side
 
-work_ndof(Int1:n_dof) = work(Int1:n_dof)
+work_ndof(Int1:n_dof)  = work(Int1:n_dof)
 work_ndof2(Int1:n_dof) = work(2*n_dof+Int1:3*n_dof)
+
 call gmres_matrix_vector(n_dof,work_ndof,n_dof,work_ndof2,my_id)
-work(Int1:n_dof) = work_ndof(Int1:n_dof)
+
+work(Int1:n_dof)           = work_ndof(Int1:n_dof)
 work(2*n_dof+Int1:3*n_dof) = work_ndof2(Int1:n_dof)
 
 if (my_id .eq. 0) then
@@ -123,26 +125,29 @@ end if
         
          work_ndof(Int1:n_dof) = work(colx:colx+n_dof-Int1)
          work_ndof2(Int1:n_dof) = work(colz:colz+n_dof-Int1)
+
          call gmres_matrix_vector(n_dof,work_ndof,n_dof,work_ndof2,my_id)
+
          work(colx:colx+n_dof-Int1) = work_ndof(Int1:n_dof)
          work(colz:colz+n_dof-Int1) = work_ndof2(Int1:n_dof)
+
          goto 10
 
        else if (revcom.eq.precondLeft) then        ! perform the left preconditioning
                                                    ! work(colz) <-- M^{-1} * work(colx)
-         call gmres_precondition(work(colx),work(colz),my_id,my_id_n,MPI_COMM_MASTER,MPI_COMM_N)
-         goto 10
+        call gmres_precondition(work(colx),work(colz),my_id,my_id_n,MPI_COMM_MASTER,MPI_COMM_N)
+        goto 10
 
        else if (revcom.eq.precondRight) then       ! perform the right preconditioning
 
-         if (my_id .eq. 0) call dcopy(n_dof,work(colx),Int1,work(colz),Int1)
+        if (my_id .eq. 0) call dcopy(n_dof,work(colx),Int1,work(colz),Int1)
 
          goto 10
 
        else if (revcom.eq.dotProd) then            ! perform the scalar product
                                                    ! work(colz) <-- work(colx) work(coly)
 
-         if (my_id .eq. 0) call dgemv('C',n_dof,nbscal,ONE, work(colx),n_dof,work(coly),Int1,ZERO,work(colz),Int1)
+        if (my_id .eq. 0) call dgemv('C',n_dof,nbscal,ONE, work(colx),n_dof,work(coly),Int1,ZERO,work(colz),Int1)
  
          goto 10
 
@@ -154,7 +159,9 @@ if (my_id .eq. 0) deltas(1:n_dof) = work(1:n_dof)
 
 work_ndof(Int1:n_dof) = deltas(Int1:n_dof)
 work_ndof2(Int1:n_dof) = work(n_dof+Int1:2*n_dof)
+
 call gmres_matrix_vector(n_dof,work_ndof,n_dof,work_ndof2,my_id)
+
 deltas(Int1:n_dof) = work_ndof(Int1:n_dof)
 work(n_dof+Int1:2*n_dof) = work_ndof2(Int1:n_dof)
 
