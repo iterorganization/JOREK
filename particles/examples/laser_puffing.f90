@@ -17,6 +17,7 @@ use nodes_elements
 use phys_module, only: n_particles, nstep_particles, nsubstep_particles, tstep_particles, use_ncs, use_pcs, use_ccs
 use phys_module, only: filter_perp, filter_hyper, filter_par, filter_perp_n0, filter_hyper_n0, filter_par_n0
 use phys_module, only: use_rcs, restart_particles, index_now
+use phys_module, only: ns_R, ns_Z, ns_phi, ns_radius, ns_amplitude
 use phys_module, only: tstep, imp_type, imp_adas, imp_cor, adas_dir, xtime_radiation, xtime_rad_power, nout
 use phys_module, only: CENTRAL_MASS, CENTRAL_DENSITY
 use constants,   only: MU_ZERO, MASS_PROTON, ATOMIC_MASS_UNIT, K_BOLTZ, EL_CHG
@@ -31,7 +32,7 @@ use mod_edge_elements
 
 implicit none
 
-type(event)                                       :: fieldreader
+type(event)                                       :: fieldreader, partreader, partwriter
 type(adf11_all)                                   :: adas
 type(pcg32_rng), dimension(:), allocatable        :: rng
 type(count_action)                                :: counter
@@ -69,8 +70,8 @@ timesteps         = tstep_particles
 ! --- Read ADAS data and generate coronal equilibrium is needed
 call init_imp_adas(sim%my_id)
 
-use_puffing = .true. 
-! use_cx         = .true.
+use_puffing    = .true. 
+! use_cx         = .false.
 ! use_ionisation = .true.
 ! use_sputtering = .true. !false
 
@@ -117,11 +118,6 @@ sim%groups(1)%Z    = -2
 sim%groups(1)%mass = atomic_weights(-2) !< atomic mass units
 sim%groups(1)%ad   = adas
 
-allocate(particle_kinetic_leapfrog::sim%groups(1)%particles(n_particles_local))
-
-call initialise_particles_H_mu_psi(sim%groups(1)%particles, sim%fields, pcg32_rng(), sim%groups(1)%mass, &
-           uniform_space=.true., uniform_space_rej_f=f_psi_inside, uniform_space_rej_vars=[1], charge = 0)
-
 physical_particles = 1.d18 !1.d21
 weight = physical_particles/n_particles
 
@@ -166,7 +162,6 @@ else
   end select
   
   allocate(particle_kinetic_leapfrog::sim%groups(1)%particles(n_particles_local))
-
   
   select type (p => sim%groups(1)%particles)
   type is (particle_kinetic_leapfrog)
@@ -228,6 +223,8 @@ jorek_stepper%extra_event => events(1)
 
 call main_particle_loop(jorek_stepper, jorek_feedback, project_density, timesteps)
 
+call write_simulation_hdf5(sim, 'part_restart.h5')
+
 call sim%finalize
 
 contains
@@ -243,10 +240,11 @@ use mod_particle_io
 use mod_event
 use mod_project_particles
 use mod_random_seed
-use mod_interp, only: mode_moivre, interp_RZ
+use mod_interp,  only: mode_moivre, interp_RZ
 use mod_jorek_timestepping
 use mod_basisfunctions
-use phys_module, only: tstep, use_ncs, use_pcs, use_ccs
+use corr_neg,    only: corr_neg_dens
+use phys_module, only: tstep, use_ncs, use_pcs, use_ccs, use_rcs
 use phys_module, only: CENTRAL_MASS, CENTRAL_DENSITY
 use constants,   only: MU_ZERO, MASS_PROTON, ATOMIC_MASS_UNIT, K_BOLTZ, EL_CHG
 
@@ -274,6 +272,9 @@ real*8    :: density_tot, density_in, density_out,  pressure, pressure_in, press
 real*8    :: mom_par_tot, mom_par_in, mom_par_out, kin_par_tot, kin_par_out, kin_par_in
 real*8    :: particles_remaining, momentum_remaining, energy_remaining, all_particles, all_momentum, all_energy
 
+real*8    :: ne_imp_tmp, n_imp_tmp
+real*8, dimension(2) :: P, P_s, P_t, P_phi
+
 n_norm   = CENTRAL_DENSITY * 1.d20                              ! (number) density normalisation
 rho_norm = CENTRAL_MASS * MASS_PROTON * n_norm                  ! rho_SI = rho_norm * rho
 t_norm   = sqrt((MU_ZERO * rho_norm))                           ! t_SI   = t_norm * t_jorek
@@ -281,12 +282,10 @@ v_norm   = 1.d0 / t_norm                                        ! V_SI   = v_nor
 E_norm   = 1.5d0 / MU_ZERO                                      ! E_SI   = E_norm * E_jorek
 M_norm   = rho_norm * v_norm                                    ! momentum normalisation
 
+ne_imp_tmp = 0.0; n_imp_tmp = 0.0;
+P = 0.0; P_s = 0.0; P_t = 0.0; P_phi = 0.0;
+
 if (sim%my_id .eq. 0) then
-  if (use_cx) then
-    write(*,*) ' including charge exchange'
-  else
-    write(*,*) ' NOT including charge exchange'
-  endif
   write(*,*)
   write(*,'(A,e14.6)') ' N_norm   : ',N_norm
   write(*,'(A,e14.6)') ' rho_norm : ',rho_norm
@@ -311,6 +310,32 @@ end do
 step_rest_time = 0.d0
 
 call with(sim, events, at=sim%time)
+
+! This is to fill in the first time step after restart, should find a better way.
+if (sim%my_id .eq. 0) then
+
+  if (index_now > 1 .and. use_marker) then
+    xtime_radiation(index_now) = xtime_radiation(index_now-1)
+  else if (index_now == 1 .and. use_marker) then
+    xtime_radiation(index_now) = 0.
+  end if
+  if (index_now > 0 .and. use_marker) then
+    xtime_rad_power(index_now) = 0.
+  end if
+
+  if (index_now > 1 .and. use_marker) then
+    xtime_E_ion(index_now) = xtime_E_ion(index_now-1)
+  else if (index_now == 1 .and. use_marker) then
+    xtime_E_ion(index_now) = 0.
+  end if
+  if (index_now > 0 .and. use_marker) then
+    xtime_E_ion_power(index_now) = 0.
+  end if
+  if (index_now > 0 .and. use_marker) then
+    xtime_Ne_imp(index_now) = 0.
+  end if
+
+endif
 
 do while (.not. sim%stop_now)
 
@@ -338,8 +363,10 @@ do while (.not. sim%stop_now)
     write(*,*) "PARTICLE : step_rest_time      : ",step_rest_time
   endif
 
-  n_lost_ion = 0.d0
-  n_lost_ion_all = 0.d0
+  E_lost_ion = 0.d0
+  E_lost_ion_all = 0.d0
+  E_lost_rad = 0.d0
+  E_lost_rad_all = 0.d0
 
 !  jorek_feedback%rhs_gather_time = jorek_feedback%rhs_gather_time + n_steps * timesteps
   jorek_feedback%rhs_gather_time = n_steps * timesteps
@@ -366,6 +393,7 @@ do while (.not. sim%stop_now)
     !$omp         i_elm_old, n_e, T_e, ion_rate, ion_prob, ion_ran, ion_source, ion_energy, kinetic_energy,& 
     !$omp         R_g, R_s, R_t, Z_g, Z_s, Z_t, xjac, HH, HH_s, HH_t, HZ, index_lm,                 &
     !$omp         ifail, CX_rate, CX_prob, CX_source, CX_energy, v, v_E, v_v,                       &
+    !$omp         P, P_s, P_t, P_phi, n_imp_tmp, ne_imp_tmp,                                         &
     !$omp         particle_source, velocity_par_source, energy_source, v_temp, K_eV, T_eV, cx_ran)  &
     !$omp schedule(dynamic,10)      &
     !$omp reduction(+:feedback_rhs)
