@@ -27,7 +27,7 @@ interface
   function rej_f(n, P, gradP)
     integer, intent(in) :: n
     real*8, dimension(n), intent(in) :: P
-    real*8, dimension(3,n), intent(in), optional:: gradP
+    real*8, dimension(3,n), intent(in) :: gradP
     real*4 :: rej_f
   end function rej_f
   function rej_f2(P, P_norm)
