@@ -562,7 +562,7 @@ subroutine do_jorek_timestep(this, sim, ev)
     call update_equil_state(sim%my_id,sim%fields%node_list, sim%fields%element_list, bnd_elm_list, xpoint, xcase)
     this%eq = ES
 
-    call energy(node_list,element_list,W_mag,W_kin)
+    call energy(W_mag,W_kin)
     
 !    call integrals(sim%fields%node_list, sim%fields%element_list,                                                         &
 !        this%eq%R_axis, this%eq%Z_axis, this%eq%psi_axis, this%eq%R_xpoint, this%eq%Z_xpoint,       &

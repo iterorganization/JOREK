@@ -716,7 +716,7 @@ required = 0
 !      call remove_centre(node_list,element_list,n_tht,67*(n_tht-1))
 
       ! --- Determine initial energies
-      call energy(node_list,element_list,W_mag,W_kin)
+      call energy(W_mag,W_kin)
       write(*,'(A,12e16.8)') ' initial energies : ', W_mag, W_kin
 
     end if ! (my_id == 0)
@@ -1183,7 +1183,7 @@ required = 0
     !--------------------------------------------------------- energies
     if ( (my_id == 0) .and. (.not. bench_without_plot) ) then
 
-       call energy(node_list,element_list,W_mag,W_kin)
+       call energy(W_mag,W_kin)
 
        R_axis_t(index_now)       = ES%R_axis
        Z_axis_t(index_now)       = ES%Z_axis
