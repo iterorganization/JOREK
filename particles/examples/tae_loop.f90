@@ -13,6 +13,7 @@ use mod_jorek_timestepping
 use mod_random_seed
 use mod_interp, only: mode_moivre, interp_RZ, interp_0
 use mod_basisfunctions
+use nodes_elements
 use phys_module, only: tstep, restart, t_start, restart_particles
 use phys_module, only: CENTRAL_MASS, CENTRAL_DENSITY, xcase, xpoint
 use phys_module, only: n_particles, nstep_particles, nsubstep_particles, tstep_particles
@@ -43,8 +44,6 @@ type(jorek_timestep_action), target               :: jorek_stepper
 type(type_edge_domain), allocatable, dimension(:) :: edge_domains
 type(edge_elements)                               :: D_edge
 type(write_particle_diagnostics)                  :: diag
-type(type_bnd_element_list) :: bnd_elm_list !< List of boundary elements
-type(type_bnd_node_list)    :: bnd_node_list !< List of boundary nodes.
 
 real*8, parameter  :: binding_energy = 2.18d-18 ! ionization energy of a hydrogen atom [J] (= 13.6 eV)
 real*8    :: target_time
@@ -153,6 +152,8 @@ jorek_feedback = new_projection(sim%fields%node_list, sim%fields%element_list, &
 allocate(jorek_feedback%rhs(n_order+1, n_vertex_max, sim%fields%element_list%n_elements, n_tor, 1))
 
 jorek_feedback%rhs = 0.d0
+
+aux_node_list => jorek_feedback%node_list
 
 !project_density = new_projection(sim%fields%node_list, sim%fields%element_list, &
 !                      filter    = filter_perp, filter_hyper    = filter_hyper, filter_parallel    = filter_par, &
