@@ -473,8 +473,8 @@ do while (.not. sim%stop_now)
           ! Calculate collisions
           kTb = T_e*K_BOLTZ/EL_CHG ! assume T_e == T_i
           n_b = n_e
-          q = q_homma2013(kTb, grad_T_e*EL_CHG/K_BOLTZ, B, n_b, real(central_mass,8), q_b)
-          coulomb_log = coulomb_logarithm(kTb, n_b, particles(j)%q, q_b, sim%groups(i)%mass, real(central_mass,8))
+          q = q_homma2013(kTb, grad_T_e*EL_CHG/K_BOLTZ, B, n_b, central_mass, q_b)
+          coulomb_log = coulomb_logarithm(kTb, n_b, particles(j)%q, q_b, sim%groups(i)%mass, central_mass)
           ! Get parallel flow velocity
           call sim%fields%interp_PRZ(t, particles(j)%i_elm, [var_Vpar], 1, &
                                      particles(j)%st(1), particles(j)%st(2), particles(j)%x(3), &
@@ -483,13 +483,13 @@ do while (.not. sim%stop_now)
           do l=1,n_coll
             call rng(i_rng)%next(coll_ran(:,l))
           end do
-          call sample_velocity_dist_magnetized(n_coll, coll_ran(1:6,:), kTb, q, n_b, real(central_mass,8), q_b, &
+          call sample_velocity_dist_magnetized(n_coll, coll_ran(1:6,:), kTb, q, n_b, central_mass, q_b, &
                                                P_col(1)*B/sim%t_norm, v_b)
 
           do l=1,n_coll
             call rng(i_rng)%next(coll_ran(:,l))
             call collide_particles(coll_ran(1:3,l), particles(j)%q, sim%groups(i)%mass, particles(j)%v, &
-                q_b, real(central_mass,8), v_b(:,l), n_b, coulomb_log, timesteps/real(n_coll,8))
+                q_b, central_mass, v_b(:,l), n_b, coulomb_log, timesteps/real(n_coll,8))
           end do
         end if
         deallocate(coll_ran)
