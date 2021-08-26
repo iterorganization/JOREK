@@ -284,7 +284,7 @@ real*8    :: ne_imp_tmp, n_imp_tmp
 real*8, dimension(2) :: P, P_s, P_t, P_phi
 real*8, dimension(1) :: P_col, P_col_s, P_col_t, P_col_phi, P_col_time
 
-real*8, allocatable :: coll_ran(:,:), v_b
+real*8, allocatable :: coll_ran(:,:), v_b(:)
 integer(kind=1), parameter :: q_b = 1_1
 
 n_norm   = CENTRAL_DENSITY * 1.d20                              ! (number) density normalisation
@@ -398,7 +398,7 @@ do while (.not. sim%stop_now)
 #else
     !$omp parallel do default(none) &
     !$omp shared(sim, particles, n_particles, n_steps, timesteps, rng, particle_start_time, &
-    !$omp        use_rcs, use_ncs, use_pcs, use_ccs, aux_node_list, q_b,                    &
+    !$omp        use_rcs, use_ncs, use_pcs, use_ccs, aux_node_list,                         &
     !$omp        rho_norm, t_norm, v_norm, E_norm, M_norm, N_norm, &
     !$omp        CENTRAL_DENSITY, CENTRAL_MASS)                    &
 #endif
@@ -441,15 +441,15 @@ do while (.not. sim%stop_now)
         if (ne_imp_tmp < 0.) ne_imp_tmp = 0.
         n_e  = n_e + ne_imp_tmp * (central_density * 1.d20) ! Electron number density [m^-3]
 
-        Z_imp = real(particles(j)%weight,8) * particles(j)%q * timesteps
-        Z_eff = real(particles(j)%weight,8) * particles(j)%q**2. * timesteps
+        Z_imp = real(particles(j)%weight,8) * int(particles(j)%q,4) * timesteps
+        Z_eff = real(particles(j)%weight,8) * int(particles(j)%q,4)**2. * timesteps
         N_imp = real(particles(j)%weight,8) * timesteps
 
         dEion_dt = 0.0
         rad_sink = 0.0
         Lrad     = 0.0
 
-        if (T_eV > 1.) Lrad     = get_Lz(sim, 1, particles(j)%q, n_e, T_e)
+        if (T_eV > 1.) Lrad     = get_Lz(sim, 1, int(particles(j)%q,4), n_e, T_e)
         rad_sink = real(particles(j)%weight,8) * Lrad * timesteps
 
         if (T_eV < 1.) then
