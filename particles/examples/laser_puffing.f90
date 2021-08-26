@@ -34,7 +34,6 @@ use mod_edge_elements
 implicit none
 
 type(event)                                       :: fieldreader, partreader, partwriter
-type(adf11_all)                                   :: adas
 type(pcg32_rng), dimension(:), allocatable        :: rng
 type(count_action)                                :: counter
 type(projection), target                          :: jorek_feedback, project_density
@@ -116,11 +115,6 @@ if (sim%my_id .eq.0) then
   write(*,*) ' tstep = ', tstep_si, n_steps, timesteps
   write(*,*) ' check : ', n_steps, tstep_si - n_steps*timesteps
 endif
-
-! Set up particles
-sim%groups(1)%Z    = -2
-sim%groups(1)%mass = atomic_weights(-2) !< atomic mass units
-sim%groups(1)%ad   = adas
 
 physical_particles = 1.d18 !1.d21
 weight = physical_particles/n_particles
@@ -460,7 +454,7 @@ do while (.not. sim%stop_now)
         ! Update the charge based on ionisation coefficients
         Z_tmp = int(particles(j)%q,4)
         call rng(i_rng)%next(ion_rec_ran)
-        particles(j)%q = int(new_charge(int(particles(j)%q,4), adas, log10(n_e), log10(T_e), &
+        particles(j)%q = int(new_charge(int(particles(j)%q,4), sim%groups(1)%ad, log10(n_e), log10(T_e), &
                                         timesteps, ion_rec_ran(1:2)),1)
         if (int(particles(j)%q,4) > Z_tmp) then
           dEion_dt = sim%groups(1)%ad%ionisation_energy(int(particles(j)%q,4))
