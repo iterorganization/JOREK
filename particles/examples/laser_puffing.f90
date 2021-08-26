@@ -284,7 +284,7 @@ real*8    :: ne_imp_tmp, n_imp_tmp
 real*8, dimension(2) :: P, P_s, P_t, P_phi
 real*8, dimension(1) :: P_col, P_col_s, P_col_t, P_col_phi, P_col_time
 
-real*8, allocatable :: coll_ran(:,:), v_b(:)
+real*8, allocatable :: coll_ran(:,:), v_b(:,:)
 integer(kind=1), parameter :: q_b = 1_1
 
 n_norm   = CENTRAL_DENSITY * 1.d20                              ! (number) density normalisation
