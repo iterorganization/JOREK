@@ -456,23 +456,24 @@ do while (.not. sim%stop_now)
         Z_tmp = int(particles(j)%q,4)
         call rng(i_rng)%next(ion_rec_ran)
         particles(j)%q = int(new_charge(int(particles(j)%q,4), sim%groups(1)%ad, log10(n_e), log10(T_e), &
-                                        timesteps, ion_rec_ran(1:2)),1)
+                                        timesteps, ion_rec_ran),1)
         if (int(particles(j)%q,4) > Z_tmp) then
           dEion_dt = sim%groups(1)%ad%ionisation_energy(int(particles(j)%q,4))
         else if (int(particles(j)%q,4) < Z_tmp) then
           dEion_dt = -sim%groups(1)%ad%ionisation_energy(Z_tmp)
         endif
 
+        dEion_dt = dEion_dt * EL_CHG ! Turn from eV to Joule
         E_lost_ion = E_lost_ion + dEion_dt
         E_lost_rad = E_lost_rad + rad_sink
         ! Calculate collision with the background species
-        n_coll = timesteps / (1.d-10)
+        n_coll = int(timesteps / (1.d-10))
         allocate(coll_ran(6,n_coll))
         allocate(v_b(3,n_coll))
         if (particles(j)%q .gt. 0 .and. n_coll .gt. 0) then
           ! Calculate collisions
           kTb = T_e*K_BOLTZ/EL_CHG ! assume T_e == T_i
-          n_b = n_e
+          n_b = n_e                ! assuming the ion density is the same with the electron density
           q = q_homma2013(kTb, grad_T_e*EL_CHG/K_BOLTZ, B, n_b, central_mass, q_b)
           coulomb_log = coulomb_logarithm(kTb, n_b, particles(j)%q, q_b, sim%groups(i)%mass, central_mass)
           ! Get parallel flow velocity
