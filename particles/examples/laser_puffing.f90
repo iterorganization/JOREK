@@ -12,6 +12,7 @@ use mod_project_particles
 use mod_jorek_timestepping
 use mod_random_seed
 use mod_interp, only: mode_moivre, interp_RZ
+use mod_impurity, only: init_imp_adas
 use mod_basisfunctions
 use nodes_elements
 use phys_module, only: n_particles, nstep_particles, nsubstep_particles, tstep_particles, use_ncs, use_pcs, use_ccs
