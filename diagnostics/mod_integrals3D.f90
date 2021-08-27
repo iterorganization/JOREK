@@ -790,6 +790,8 @@ do ife = ife_min, ife_max
                                                                ! Too small rho_1 will cause a problem
 #endif /* WITH_TiTe */
 
+        if (ne_SI < 1.d16) ne_SI = 1.d16
+
         if (.not. (use_marker)) then
           ! Calculate the effective charge of all species
           Z_eff        = 0.
