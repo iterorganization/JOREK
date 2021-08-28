@@ -42,7 +42,7 @@ type(jorek_timestep_action), target               :: jorek_stepper
 type(particle_sputter)                            :: D_sputter_source
 type(type_edge_domain), allocatable, dimension(:) :: edge_domains
 type(edge_elements)                               :: D_edge
-type(particle_puffing)                            :: gas_puff
+type(laser_puffing)                               :: gas_puff
 type(particle_puffing)                            :: gas_puff2
 
 real*8    :: timesteps, tstep_si, t_norm, rho_norm, n_norm
@@ -62,8 +62,8 @@ logical :: use_puffing !use_cx, use_ionisation, use_sputtering
 character(len=50)  :: part_fileout
 character(len=500) :: part_file = 'part_restart.h5'
 ! Puffing parameters
-real*8  :: r_valve, R_valve_loc, Z_valve
-integer :: n_puff
+real*8  :: r_valve, R_valve_loc, Z_valvei, puffing_timestep
+integer :: n_puff, n_puffing_times
 
 ! Start up MPI, jorek
 call sim%initialize(num_groups=1)
@@ -91,14 +91,18 @@ call with(sim, fieldreader)
 r_valve     = .005d0
 R_valve_loc = 2.33!2.6!2.1 !< for JET test !1.98991!2.58888  or 1.98991
 Z_valve     = -1.86 !-1.0!-1.75 !-0.550736!1.86579   or -0.550736
+puffing_timestep = 1.d-6
+
 if (use_puffing) then  
-  n_puff      = 0.001d0*n_particles
-  gas_puff = particle_puffing(n_puff, 2.d21, r_valve, R_valve_loc, Z_valve)
+  n_puffing_times = 1000
+  n_puff      = int(n_particles/n_puffing_times)
+  gas_puff = laser_puffing(n_puff, physical_particles/(real(n_puffing_times,8)*puffing_timestep), &
+                           r_valve, R_valve_loc, Z_valve)
   !gas_puff2 = particle_puffing(n_puff, 2.d21, r_valve, 2.8d0, -1.77)!-0.0) !-1.77
   !gas_puff = particle_puffing(n_puff, 5d22, r_valve, R_valve_loc, Z_valve)
 else 
   n_puff = 0.d0 
-  gas_puff = particle_puffing(n_puff, 5d20, r_valve, R_valve_loc, Z_valve)
+  gas_puff = laser_puffing(n_puff, 5d20, r_valve, R_valve_loc, Z_valve)
   !gas_puff2 = particle_puffing(n_puff, 5d20, r_valve, R_valve_loc, Z_valve)
 endif
 
@@ -207,7 +211,7 @@ jorek_stepper = new_jorek_timestep_action(jorek_feedback%node_list)
 diag_time = 1.0d12
 events = [ new_event_ptr(jorek_feedback,   start = sim%time),            &
            new_event_ptr(jorek_stepper,    start = sim%time),            &
-           event(gas_puff, step = 5.d-6),                                &
+           event(gas_puff, step = puffing_timestep),                                &
 !           event(gas_puff2, step = 5.d-6),                                &
 !          new_event_ptr(D_sputter_source, start = sim%time, step=5.d-6), &
 !          event(count_action(),           start = sim%time, step=1d-5), &
