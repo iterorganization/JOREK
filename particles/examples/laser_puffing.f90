@@ -479,7 +479,7 @@ do while (.not. sim%stop_now)
           kTb = T_e*K_BOLTZ/EL_CHG ! assume T_e == T_i
           n_b = n_e                ! assuming the ion density is the same with the electron density
           q = q_homma2013(kTb, grad_T_e*EL_CHG/K_BOLTZ, B, n_b, central_mass, q_b)
-          coulomb_log = coulomb_logarithm(kTb, n_b, particles(j)%q, q_b, sim%groups(i)%mass, central_mass)
+          coulomb_log = coulomb_logarithm(kTb, n_b, particles(j)%q, q_b, sim%groups(1)%mass, central_mass)
           ! Get parallel flow velocity
           call sim%fields%interp_PRZ(t, particles(j)%i_elm, [var_Vpar], 1, &
                                      particles(j)%st(1), particles(j)%st(2), particles(j)%x(3), &
@@ -493,7 +493,7 @@ do while (.not. sim%stop_now)
 
           do l=1,n_coll
             call rng(i_rng)%next(coll_ran(:,l))
-            call collide_particles(coll_ran(1:3,l), particles(j)%q, sim%groups(i)%mass, particles(j)%v, &
+            call collide_particles(coll_ran(1:3,l), particles(j)%q, sim%groups(1)%mass, particles(j)%v, &
                 q_b, central_mass, v_b(:,l), n_b, coulomb_log, timesteps/real(n_coll,8))
           end do
         end if
