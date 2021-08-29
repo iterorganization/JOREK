@@ -52,7 +52,7 @@ module mod_impurity
           case('Fe')
             adas_suffix = '93_fe'
           case('W')
-            adas_suffix = '50_w'
+            adas_suffix = '89_w'
           case('Be')
             adas_suffix = '96_be'
           case('N')
