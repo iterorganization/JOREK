@@ -62,7 +62,7 @@ logical :: use_puffing !use_cx, use_ionisation, use_sputtering
 character(len=50)  :: part_fileout
 character(len=500) :: part_file = 'part_restart.h5'
 ! Puffing parameters
-real*8  :: r_valve, R_valve_loc, Z_valvei, puffing_timestep
+real*8  :: r_valve, R_valve_loc, Z_valve, puffing_timestep
 integer :: n_puff, n_puffing_times
 
 ! Start up MPI, jorek
