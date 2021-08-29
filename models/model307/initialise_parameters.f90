@@ -102,18 +102,29 @@ namelist /in1/  tstep, nstep, tstep_n, nstep_n,                     &
                 gmres_m, gmres_4, gmres_tol, iter_precon,           &
                 tgnum,  pastix_pivot, max_steps_noUpdate,           &
                 keep_n0_const, linear_run, export_for_nemec,        &
+                ns_deltaphi, ksi_ion, spi_rnd_seed,                 &
+                ns_amplitude, ns_R, ns_Z, ns_phi, ns_radius,        &
+                spi_Vel_Rref,spi_Vel_Zref, using_spi, n_spi, n_inj, &
+                spi_Vel_RxZref, spi_quantity, spi_abl_model,        &
+                spi_quantity_bg, pellet_density_bg,                 &
+                ng_radius_ratio, ng_radius_min, spi_angle,          &
+                spi_L_inj, spi_L_inj_diff, restart_spi,             &
+                K_Dmv, A_Dmv, L_tube, V_Dmv, P_Dmv,                 &
+                spi_Vel_diff, t_ns, JET_MGI, ASDEX_MGI,             &
+                imp_type, delta_n_convection, nimp_bg,              &
+                adas_dir, output_prad_phi,                          &
                 RMP_on, RMP_har_cos,RMP_har_sin,                    &
                 RMP_growth_rate, RMP_ramp_up_time,                  &
                 RMP_psi_cos_file, RMP_psi_sin_file,                 &
                 V_0,V_1,V_coef, output_bnd_elements,                &
-                wall_file,                                          &
+                wall_file, spi_shard_file,                          &
                 n_limiter, R_limiter, Z_limiter,                    &
                 first_target_point, last_target_point,		    &
                 NEO, neo_file, aki_neo_const, amu_neo_const,        &
                 time_evol_scheme, corr_neg_temp_coef,               &
                 corr_neg_dens_coef, D_prof_neg, ZK_prof_neg,        &
                 D_prof_neg_thresh, ZK_prof_neg_thresh, T_min,       &
-                ZK_par_neg_thresh, ZK_par_neg_thresh,               &
+                ZK_par_neg_thresh, ZK_par_neg,                      &
                 Number_RMP_harmonics,RMP_har_cos_spectrum,          &
                 RMP_har_sin_spectrum,                               &
                 amix, amix_freeb, equil_accuracy,                   &
