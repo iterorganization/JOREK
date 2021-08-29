@@ -93,6 +93,9 @@ R_valve_loc = 2.33!2.6!2.1 !< for JET test !1.98991!2.58888  or 1.98991
 Z_valve     = -1.86 !-1.0!-1.75 !-0.550736!1.86579   or -0.550736
 puffing_timestep = 1.d-6
 
+physical_particles = 1.d18 !1.d21
+weight = physical_particles/n_particles
+
 if (use_puffing) then  
   n_puffing_times = 1000
   n_puff      = int(n_particles/n_puffing_times)
@@ -120,9 +123,6 @@ if (sim%my_id .eq.0) then
   write(*,*) ' tstep = ', tstep_si, n_steps, timesteps
   write(*,*) ' check : ', n_steps, tstep_si - n_steps*timesteps
 endif
-
-physical_particles = 1.d18 !1.d21
-weight = physical_particles/n_particles
 
 if (restart_particles) then
 
