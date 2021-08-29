@@ -113,6 +113,7 @@ namelist /in1/  tstep, nstep, tstep_n, nstep_n,                     &
                 time_evol_scheme, corr_neg_temp_coef,               &
                 corr_neg_dens_coef, D_prof_neg, ZK_prof_neg,        &
                 D_prof_neg_thresh, ZK_prof_neg_thresh, T_min,       &
+                ZK_par_neg_thresh, ZK_par_neg_thresh,               &
                 Number_RMP_harmonics,RMP_har_cos_spectrum,          &
                 RMP_har_sin_spectrum,                               &
                 amix, amix_freeb, equil_accuracy,                   &
