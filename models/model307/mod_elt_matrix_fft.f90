@@ -88,8 +88,12 @@ real*8     :: dT_dpsi(n_gauss,n_gauss),dT_dz,dT_dpsi2,dT_dz2,dT_dpsi_dz,dT_dpsi3
 logical    :: xpoint2, use_fft
 real*8     :: Btheta2, epsil, Btheta2_psi
 real*8, dimension(n_gauss,n_gauss)    :: amu_neo_prof, aki_neo_prof
-real*8     :: aux_rho0, aux_T0, aux_Vpar0
+real*8     :: aux_rho0, aux_T0, aux_Vpar0, aux_dEion_dt, aux_rad
 real*8     :: aux_P0, aux_P0_s,  aux_P0_t, aux_P0_p, aux_q0, aux_jx0, aux_jy0, aux_jz0, aux_jz0_pcs 
+
+! Impurity projections
+real*8     :: Z_imp, Z_eff, n_imp, eta_coef
+
 ! time normalisation
 real*8     :: t_norm
 ! Temporary variables serving the SPI module
@@ -127,7 +131,7 @@ real*8, dimension(n_tor,n_plane) :: HHZ, HHZ_p, HHZ_pp
 
 
 if (.not. present(aux_nodes)) then
-  do i=1,4
+  do i=1,5
     aux_nodes(i)%values(:,:,:) = 0.d0
   enddo
 endif
@@ -206,9 +210,11 @@ dV_dz_source    = 0.d0
 eq_zne          = 0.d0
 eq_zTe          = 0.d0  
 
-aux_rho0  = 0.d0; aux_T0    = 0.d0; aux_Vpar0 = 0.d0
+aux_rho0  = 0.d0; aux_T0    = 0.d0; aux_Vpar0 = 0.d0; aux_dEion_dT = 0.0; aux_rad = 0.0
 aux_P0    = 0.d0; aux_P0_s  = 0.d0; aux_P0_t  = 0.d0; aux_P0_p  = 0.d0
 aux_q0    = 0.d0; aux_jx0   = 0.d0; aux_jy0   = 0.d0; aux_jz0   = 0.d0; aux_jz0_pcs = 0.d0
+Z_imp     = 0.d0; Z_eff     = 0.d0; n_imp     = 0.d0;
+
 
 amu_neo_prof   = 0.d0
 aki_neo_prof   = 0.d0
@@ -433,6 +439,18 @@ do i=1,n_vertex_max
           elseif (use_pcs) then
             aux_P0      = eq_aux_g(mp,1,ms,mt)
             aux_jz0_pcs = 0.d0 !eq_aux_g(mp,5,ms,mt)
+          elseif (use_rcs) then
+            aux_dEion_dt = eq_aux_g(mp,1,ms,mt) ! Accumulated ionization energy change
+            aux_rad    = max(eq_aux_g(mp,2,ms,mt),0.0)   ! The radiation power density
+            Z_eff      = max(eq_aux_g(mp,3,ms,mt),0.0)   ! The sum (q^2) divided by the impurity number density
+            Z_imp      = max(eq_aux_g(mp,4,ms,mt),0.0)   ! The sum (q) divided by the impurity number density
+            n_imp      = eq_aux_g(mp,5,ms,mt)            ! The time averaged impurity number density
+            n_imp      = corr_neg_dens(n_imp, (/ 1.d-1, 1.d-1 /),1.d-3)
+
+            Z_eff      = Z_eff + max(r0_corr,0.)
+            Z_eff      = Z_eff / max((r0_corr + Z_imp),1.d-4)
+            Z_eff      = max(Z_eff, 1.)
+            Z_imp      = Z_imp / n_imp
           endif
 
           P0    = r0 * T0
@@ -587,6 +605,15 @@ do i=1,n_vertex_max
           else
             eta_T_ohm     = eta_ohmic
             deta_dT_ohm   = 0.d0
+          end if
+
+          ! This is to represent the dependence on Z_eff in resistivity
+          eta_coef     = Z_eff*(1.+1.198*Z_eff+0.222*Z_eff**2)/(1.+2.966*Z_eff+0.753*Z_eff**2)
+          eta_coef     = eta_coef / ((1.+1.198+0.222)/(1.+2.966+0.753))
+
+          if ( eta_T_dependent ) then
+            eta_T     = eta_T * eta_coef
+            eta_T_ohm = eta_T_ohm * eta_coef
           end if
 
           ! --- Temperature dependent viscosity
@@ -862,6 +889,7 @@ do i=1,n_vertex_max
             !###################################################################################################
 
             rhs_ij(6) =  v * BigR * (heat_source(ms,mt) + aux_T0)                         * xjac * tstep &
+                       - v * BigR * (aux_dEion_dt + aux_rad)                              * xjac * tstep &
 
 !!!! terms not in 303 but 500!
                     + 0.5d0 * v * (particle_source(ms,mt) + source_pellet + aux_rho0) * vpar0**2 * BB2 * BigR * xjac * tstep &
