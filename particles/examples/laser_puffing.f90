@@ -462,9 +462,9 @@ do while (.not. sim%stop_now)
         particles(j)%q = int(new_charge(int(particles(j)%q,4), sim%groups(1)%ad, log10(n_e), log10(T_e), &
                                         timesteps, ion_rec_ran),1)
         if (int(particles(j)%q,4) > Z_tmp) then
-          dEion_dt = sim%groups(1)%ad%ionisation_energy(int(particles(j)%q,4))
+          dEion_dt = sim%groups(1)%ad%ionisation_energy(int(particles(j)%q,4)) * real(particles(j)%weight,8)
         else if (int(particles(j)%q,4) < Z_tmp) then
-          dEion_dt = -sim%groups(1)%ad%ionisation_energy(Z_tmp)
+          dEion_dt = -sim%groups(1)%ad%ionisation_energy(Z_tmp) * real(particles(j)%weight,8)
         endif
 
         dEion_dt = dEion_dt * EL_CHG ! Turn from eV to Joule
