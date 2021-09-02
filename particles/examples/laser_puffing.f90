@@ -62,7 +62,7 @@ logical :: use_puffing !use_cx, use_ionisation, use_sputtering
 character(len=50)  :: part_fileout
 character(len=500) :: part_file = 'part_restart.h5'
 ! Puffing parameters
-real*8  :: r_valve, R_valve_loc, Z_valve, puffing_timestep
+real*8  :: r_valve, R_valve_loc, Z_valve, phi_valve, puffing_timestep
 integer :: n_puff, n_puffing_times
 
 ! Start up MPI, jorek
@@ -89,8 +89,9 @@ call with(sim, fieldreader)
 !endif
 
 r_valve     = .005d0
-R_valve_loc = 2.33!2.6!2.1 !< for JET test !1.98991!2.58888  or 1.98991
-Z_valve     = -1.86 !-1.0!-1.75 !-0.550736!1.86579   or -0.550736
+R_valve_loc = 2.07!2.6!2.1 !< for JET test !1.98991!2.58888  or 1.98991
+Z_valve     = 0.d0!-1.86 !-1.0!-1.75 !-0.550736!1.86579   or -0.550736
+phi_valve   = 0.d0!
 puffing_timestep = 1.d-6
 
 physical_particles = 1.d18 !1.d21
@@ -100,7 +101,9 @@ if (use_puffing) then
   n_puffing_times = 1000
   n_puff      = int(n_particles_local/n_puffing_times)
   gas_puff = laser_puffing(n_puff, physical_particles/(real(n_puffing_times*sim%n_cpu,8)*puffing_timestep), &
-                           r_valve, R_valve_loc, Z_valve)
+                           r_valve, R_valve_loc, Z_valve, phi=phi_valve)
+!  gas_puff = laser_puffing(n_puff, physical_particles/(real(n_puffing_times*sim%n_cpu,8)*puffing_timestep), &
+!                           r_valve, R_valve_loc, Z_valve)
   !gas_puff2 = particle_puffing(n_puff, 2.d21, r_valve, 2.8d0, -1.77)!-0.0) !-1.77
   !gas_puff = particle_puffing(n_puff, 5d22, r_valve, R_valve_loc, Z_valve)
 else 
@@ -372,6 +375,11 @@ do while (.not. sim%stop_now)
     write(*,*) "PARTICLE : particle_step_time  : ",particle_step_time
     write(*,*) "PARTICLE : n_steps             : ",n_steps
     write(*,*) "PARTICLE : step_rest_time      : ",step_rest_time
+  endif
+
+  if (n_steps .le. 0) then
+    write(*,*) "Too small n_steps! Cycling!", n_steps
+    cycle
   endif
 
   E_lost_ion = 0.d0

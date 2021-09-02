@@ -114,6 +114,7 @@ real*8  :: VP_int, VP_ext, VK_int, VK_ext, vpar0, BB2, VP_tot, VK_tot
 real*8  :: kin_par_in, kin_par_out, kin_par_tot, kin_perp_in, kin_perp_out, kin_perp_tot
 real*8  :: VM_int, VM_ext, VM_tot, mag_in, mag_out, mag_tot, J2_int, J2_ext, J2_tot, ohm_in, ohm_tot, ohm_out
 real*8  :: heli_tot, thm_wk, thm_wk_tot, mag_wk, mag_wk_tot, thermal_work_tot
+real*8  :: thermal_work_e_tot,thermal_work_i_tot, thm_wk_e_tot, thm_wk_i_tot, thm_wk_e, thm_wk_i
 real*8  :: vpar_disp_tot, vpar_disp, viscopar_dissip_tot, source_tot, heating_tot
 real*8  :: fric_disp_tot, fric_disp, friction_dissip_tot
 real*8  :: H_int, H_ext, S_int, S_ext, heating_in, heating_out, source_in, source_out
@@ -142,7 +143,7 @@ real*8  :: Z_imp_tmp, Z_imp_tmp_s,Z_imp_tmp_t,Z_imp_tmp_st,Z_imp_tmp_ss,Z_imp_tm
 real*8  :: Z_imp_s, Z_imp_t, Z_imp_p, Z_imp_x, Z_imp_y
 real*8  :: n_imp_tmp, n_imp_tmp_s,n_imp_tmp_t,n_imp_tmp_st,n_imp_tmp_ss,n_imp_tmp_tt 
 real*8  :: n_imp, n_imp_s, n_imp_t, n_imp_p, n_imp_x, n_imp_y
-real*8  :: psi_s, psi_t, rho_s, rho_t, T_s, T_t, Ti, Ti_s, Ti_t, Te, Te_s, Te_t, p0_s, p0_t, u0_s, u0_t, ps0_s, ps0_t, p0_p, rhon_s, rhon_t
+real*8  :: psi_s, psi_t, rho_s, rho_t, T_s, T_t, Ti, Ti_s, Ti_t, Te, Te_s, Te_t, p0_s, p0_t, u0_s, u0_t, ps0_s, ps0_t, p0_p, rhon_s, rhon_t, pe0_s, pe0_t, pe0_p, pi0_s, pi0_t, pi0_p
 real*8  :: u0_p, u_s, u_t, u_p
 real*8  :: u0_x, u0_y
 real*8  :: viscopar_flux, viscopar_f, vpar_s, vpar_t, vpar_x, vpar_y, li3_tot, li3
@@ -170,7 +171,7 @@ real*8  :: ne_SI, Te_eV, Ti_eV
 real*8  :: m_i_over_m_imp, m_imp
 !   -Mean impurity ionization state
 real*8  :: Z_imp, dZ_imp_dT, T0_Zimp, alpha_Zimp, Z_eff, eta_coef, ne_JOREK, dne_JOREK_dx, dne_JOREK_dy
-real*8  :: Z_eff_imp
+real*8  :: Z_eff_imp 
 !   -Corrected plasma temperature and density for radiation calculation
 real*8  :: Te_corr_eV,  dT0e_corr_dT, Ti_corr_eV
 !   -Temporary variable for charge state distribution
@@ -182,6 +183,7 @@ integer*8  :: ion_i, ion_k, i_phi
 #ifdef WITH_TiTe
 !   -Coefficients related to Z_imp
 real*8  :: alpha_i, alpha_e, dalpha_e_dT, dalpha_e_dx, dalpha_e_dy
+real*8  :: alpha_e_s, alpha_e_t, alpha_e_p, alpha_e_x, alpha_e_y
 
 !   -Ion-electron energy transfer
 real*8     :: nu_e_imp, nu_e_bg, lambda_e_imp, lambda_e_bg, dTi_e, dTe_i
@@ -274,6 +276,8 @@ vpar_disp_tot= 0.d0
 fric_disp_tot= 0.d0
 psi_off      = 0.d0
 thm_wk_tot   = 0.d0
+thm_wk_e_tot = 0.d0
+thm_wk_i_tot = 0.d0
 mag_wk_tot   = 0.d0
 mag_src_tot  = 0.d0
 varmin   = +1.d99
@@ -324,7 +328,7 @@ ife_max   = min((my_id +1) * ife_delta, element_list%n_elements)
 !$omp          pellet_radius, pellet_delta_psi, pellet_sig, pellet_length, pellet_ellipse, pellet_theta,  &
 !$omp          central_density, pellet_particles,pellet_density, pellet_volume,                &
 !$omp          local_pellet_particles, local_plasma_particles, local_pellet_volume,            &
-!$omp          heli_tot,  keep_current_prof, psi_off, visco_par, thm_wk_tot,                   &
+!$omp          heli_tot,  keep_current_prof, psi_off, visco_par, thm_wk_tot, thm_wk_e_tot, thm_wk_i_tot,  &
 !$omp          mag_wk_tot, vpar_disp_tot, fric_disp_tot, area1, mag_src_tot,                   &
 !$omp          eta_ohmic, central_mass, R2curr_tmp, Zcurr_tmp,                                 &
 #if (defined WITH_Neutrals) || (defined WITH_Impurities)
@@ -349,8 +353,9 @@ ife_max   = min((my_id +1) * ife_delta, element_list%n_elements)
 !$omp           dn_dpsi,dn_dz,dn_dpsi2,dn_dz2,dn_dpsi_dz,dn_dpsi3,dn_dpsi_dz2, dn_dpsi2_dz,    &
 !$omp           dT_dpsi,dT_dz,dT_dpsi2,dT_dz2,dT_dpsi_dz,dT_dpsi3,dT_dpsi_dz2, dT_dpsi2_dz,    &
 !$omp           hel1, vpar_x, vpar_y, ps0_s, ps0_t, u0_s, u0_t, p0_s, p0_t, vpar_s, vpar_t,    &
-!$omp           u0_x, u0_y, T0e_corr, T0i_corr,                                                &
+!$omp           u0_x, u0_y, T0e_corr, T0i_corr, thm_wk_e, thm_wk_i,                            &
 !$omp           thm_wk, mag_wk, eta_T, vpar_disp, fric_disp, p0_p, T0_corr, r0_corr, u0_p,     &
+!$omp           pe0_s, pe0_t, pe0_p, pi0_s, pi0_t, pi0_p,                                      &
 !$omp           AR0, AR0_p, AR0_s, AR0_t, AR0_sp, AR0_tp, AR0_Rp, AZ0, AZ0_p, AZ0_s, AZ0_t, AZ0_sp, AZ0_tp, AZ0_Zp, A30, &
 !$omp           A30_p, A30_s, A30_t, A30_ss, A30_tt, A30_st, A30_R, A30_RR, A30_ZZ, BR_Z, BZ_R,&
 !$omp           eta_T_ohm,                                                              &
@@ -363,10 +368,12 @@ ife_max   = min((my_id +1) * ife_delta, element_list%n_elements)
 !$omp           m_i_over_m_imp, m_imp, Z_imp, dZ_imp_dT, T0_Zimp, alpha_Zimp, n_imp,           &
 !$omp           Te_corr_eV, Te_eV, ne_SI, ne_JOREK, P_imp, Lrad, E_ion, E_ion_bg, ion_i,       &
 !$omp           ion_k, Z_eff, Z_eff_imp, eta_coef, Ti_corr_eV, Ti_eV,                          &
+!$omp           Z_imp_s, Z_imp_t, Z_imp_p, Z_imp_x, Z_imp_y,                                   &
+!$omp           n_imp_s, n_imp_t, n_imp_p, n_imp_x, n_imp_y,                                   &
 #endif
 #if (defined WITH_Impurities) && (defined WITH_TiTe)
 !$omp           alpha_i, alpha_e, nu_e_imp, nu_e_bg, lambda_e_imp, lambda_e_bg, dTi_e, dTe_i,  &
-!$omp           dalpha_e_dT,                                                                   &
+!$omp           dalpha_e_dT, alpha_e_s, alpha_e_t, alpha_e_p, alpha_e_x, alpha_e_y,            &
 #endif
 #if (defined WITH_Impurities) && (!defined WITH_TiTe) 
 !$omp           alpha_imp, beta_imp, dalpha_imp_dT,                                            &
@@ -398,7 +405,7 @@ omp_tid      = 0
 !$omp                VP_int, VP_ext, VP_tot, VK_tot, VK_int, VK_ext, VM_ext,                  &
 !$omp                VM_int, VM_tot, Vol, P_tot, D_tot,J2_tot, J2_int, J2_ext,                &
 !$omp                heli_tot, mag_wk_tot, vpar_disp_tot, thm_wk_tot, area1, mag_src_tot,     &
-!$omp                fric_disp_tot, R2curr_tmp, Zcurr_tmp)
+!$omp                fric_disp_tot, R2curr_tmp, Zcurr_tmp, thm_wk_e_tot, thm_wk_i_tot)
 
 do ife = ife_min, ife_max
 
@@ -729,6 +736,23 @@ do ife = ife_min, ife_max
             m_imp          = 2.
         end select
 
+        Z_imp    = 0.
+   
+        Z_imp_x  = 0.0
+        Z_imp_y  = 0.0
+        Z_imp_p  = 0.0
+        Z_imp_s  = 0.0
+        Z_imp_t  = 0.0
+   
+        n_imp_x  = 0.0
+        n_imp_y  = 0.0
+        n_imp_p  = 0.0
+        n_imp_s  = 0.0
+        n_imp_t  = 0.0
+        n_imp    = 0.
+   
+        Z_eff    = 0.
+
         ! Te in eV:
         Te_corr_eV = T0e_corr/(EL_CHG*MU_ZERO*central_density*1.d20)
         Te_eV = T0e/(EL_CHG*MU_ZERO*central_density*1.d20)
@@ -768,6 +792,26 @@ do ife = ife_min, ife_max
           Z_imp      = Z_imp / n_imp
           Z_eff      = Z_eff / n_imp
 
+          ! This is the total derivative of n_imp*Z_imp, need to separate the two
+          Z_imp_x    = (   y_t(ms,mt) * eq_aux_s(mp,4,ms,mt) - y_s(ms,mt) * eq_aux_t(mp,4,ms,mt) ) / xjac
+          Z_imp_y    = ( - x_t(ms,mt) * eq_aux_s(mp,4,ms,mt) + x_s(ms,mt) * eq_aux_t(mp,4,ms,mt) ) / xjac
+          Z_imp_p    = eq_aux_p(mp,4,ms,mt)
+          Z_imp_s    = eq_aux_s(mp,4,ms,mt)
+          Z_imp_t    = eq_aux_t(mp,4,ms,mt)
+
+          n_imp_x    = (   y_t(ms,mt) * eq_aux_s(mp,5,ms,mt) - y_s(ms,mt) * eq_aux_t(mp,5,ms,mt) ) / xjac
+          n_imp_y    = ( - x_t(ms,mt) * eq_aux_s(mp,5,ms,mt) + x_s(ms,mt) * eq_aux_t(mp,5,ms,mt) ) / xjac
+          n_imp_p    = eq_aux_p(mp,5,ms,mt)
+          n_imp_s    = eq_aux_s(mp,5,ms,mt)
+          n_imp_t    = eq_aux_t(mp,5,ms,mt)
+
+          ! Separating the two derivatives
+          Z_imp_x    = (Z_imp_x - n_imp_x * Z_imp) / n_imp
+          Z_imp_y    = (Z_imp_y - n_imp_y * Z_imp) / n_imp
+          Z_imp_p    = (Z_imp_p - n_imp_p * Z_imp) / n_imp
+          Z_imp_s    = (Z_imp_s - n_imp_s * Z_imp) / n_imp
+          Z_imp_t    = (Z_imp_t - n_imp_t * Z_imp) / n_imp
+
           E_ion     = 0.
           E_ion_bg  = 0.
         endif
@@ -775,11 +819,18 @@ do ife = ife_min, ife_max
         alpha_i       = m_i_over_m_imp - 1.
         alpha_e       = m_i_over_m_imp*Z_imp - 1.
         dalpha_e_dT   = m_i_over_m_imp*dZ_imp_dT
+
+        ! This is used to provide the pressure gradient in the case of projected Z_imp (which do NOT depend on Te)
+        alpha_e_x     = m_i_over_m_imp*Z_imp_x
+        alpha_e_y     = m_i_over_m_imp*Z_imp_y
+        alpha_e_p     = m_i_over_m_imp*Z_imp_p
+        alpha_e_s     = m_i_over_m_imp*Z_imp_s
+        alpha_e_t     = m_i_over_m_imp*Z_imp_t
   
         ne_SI        = (r0_corr + alpha_e * rn0_corr) * 1.d20 * central_density ! electron density (SI)
         ne_JOREK     = r0_corr + alpha_e * rn0_corr ! Electron density in JOREK unit
         ne_JOREK     = corr_neg_dens(ne_JOREK,(/1.d-1,1.d-1/),1.d-3) ! Correction for negative electron density
-                                                            ! Too small rho_1 will cause a problem
+                                                               ! Too small rho_1 will cause a problem
 #else /* WITH_TiTe */
         alpha_imp    = 0.5*m_i_over_m_imp*(Z_imp+1.) - 1.
         dalpha_imp_dT= 0.5*m_i_over_m_imp*dZ_imp_dT
@@ -877,18 +928,21 @@ do ife = ife_min, ife_max
         P_i_tot = P_i_tot + (r0+alpha_i*rn0) * T0i * xjac * BigR * wst * delta_phi
         P_tot   = P_e_tot + P_i_tot
 
-        p0_s   = (r0+alpha_i*rn0)*eq_s(mp,var_Ti,ms,mt) &
-                 + T0i * (eq_s(mp,var_rho,ms,mt)+alpha_i*eq_s(mp,var_rhon,ms,mt))&
-                 + (r0+alpha_e*rn0+dalpha_e_dT*rn0*T0e)*eq_s(mp,var_Te,ms,mt)&
-                 + T0e * (eq_s(mp,var_rho,ms,mt)+alpha_e*eq_s(mp,var_rhon,ms,mt))
-        p0_t   = (r0+alpha_i*rn0)*eq_t(mp,var_Ti,ms,mt) &
-                 + T0i * (eq_t(mp,var_rho,ms,mt)+alpha_i*eq_t(mp,var_rhon,ms,mt))&
-                 + (r0+alpha_e*rn0+dalpha_e_dT*rn0*T0e)*eq_t(mp,var_Te,ms,mt)&
-                 + T0e * (eq_t(mp,var_rho,ms,mt)+alpha_e*eq_t(mp,var_rhon,ms,mt))
-        p0_p   = (r0+alpha_i*rn0)*eq_p(mp,var_Ti,ms,mt) &
-                 + T0i * (eq_p(mp,var_rho,ms,mt)+alpha_i*eq_p(mp,var_rhon,ms,mt))&
-                 + (r0+alpha_e*rn0+dalpha_e_dT*rn0*T0e)*eq_p(mp,var_Te,ms,mt)&
-                 + T0e * (eq_p(mp,var_rho,ms,mt)+alpha_e*eq_p(mp,var_rhon,ms,mt))
+        pe0_s   = (r0+alpha_e*rn0+dalpha_e_dT*rn0*T0e)*eq_s(mp,var_Te,ms,mt)&
+                 + T0e * (eq_s(mp,var_rho,ms,mt)+alpha_e*eq_s(mp,var_rhon,ms,mt)+rn0*alpha_e_s)
+        pe0_t   = (r0+alpha_e*rn0+dalpha_e_dT*rn0*T0e)*eq_t(mp,var_Te,ms,mt)&
+                 + T0e * (eq_t(mp,var_rho,ms,mt)+alpha_e*eq_t(mp,var_rhon,ms,mt)+rn0*alpha_e_t)
+        pe0_p   = (r0+alpha_e*rn0+dalpha_e_dT*rn0*T0e)*eq_p(mp,var_Te,ms,mt)&
+                 + T0e * (eq_p(mp,var_rho,ms,mt)+alpha_e*eq_p(mp,var_rhon,ms,mt)+rn0*alpha_e_p)
+        pi0_s   = (r0+alpha_i*rn0)*eq_s(mp,var_Ti,ms,mt) &
+                 + T0i * (eq_s(mp,var_rho,ms,mt)+alpha_i*eq_s(mp,var_rhon,ms,mt))
+        pi0_t   = (r0+alpha_i*rn0)*eq_t(mp,var_Ti,ms,mt) &
+                 + T0i * (eq_t(mp,var_rho,ms,mt)+alpha_i*eq_t(mp,var_rhon,ms,mt))
+        pi0_p   = (r0+alpha_i*rn0)*eq_p(mp,var_Ti,ms,mt) &
+                 + T0i * (eq_p(mp,var_rho,ms,mt)+alpha_i*eq_p(mp,var_rhon,ms,mt))
+        p0_s   = pe0_s + pi0_s
+        p0_t   = pe0_t + pi0_t
+        p0_p   = pe0_p + pi0_p
 #else /* WITH_TiTe */
         P_tot  = P_tot  + (r0+alpha_imp*rn0) * T0 * xjac * BigR * wst * delta_phi
         P_e_tot = P_tot / 2.
@@ -900,6 +954,13 @@ do ife = ife_min, ife_max
                  + T0 * (eq_t(mp,var_rho,ms,mt)+alpha_imp*eq_t(mp,var_rhon,ms,mt))
         p0_p   = (r0+alpha_imp*rn0+dalpha_imp_dT*rn0*T0)*eq_p(mp,var_T,ms,mt) &
                  + T0 * (eq_p(mp,var_rho,ms,mt)+alpha_imp*eq_p(mp,var_rhon,ms,mt))
+
+        pe0_s   = p0_s/2.
+        pe0_t   = p0_t/2.
+        pe0_p   = p0_p/2.
+        pi0_s   = pe0_s
+        pi0_t   = pe0_t
+        pi0_p   = pe0_p
 #endif /* WITH_TiTe */
 #else /* WITH_Impurities */
         D_tot  = D_tot  + r0       * xjac * BigR * wst * delta_phi
@@ -908,12 +969,15 @@ do ife = ife_min, ife_max
         P_i_tot = P_i_tot + r0 * T0i * xjac * BigR * wst * delta_phi
         P_tot   = P_e_tot + P_i_tot
 
-        p0_s   = r0*eq_s(mp,var_Te,ms,mt) + T0e * eq_s(mp,var_rho,ms,mt) &
-                 +r0*eq_s(mp,var_Ti,ms,mt) + T0i * eq_s(mp,var_rho,ms,mt)
-        p0_t   = r0*eq_t(mp,var_Te,ms,mt) + T0e * eq_t(mp,var_rho,ms,mt) &
-                 +r0*eq_t(mp,var_Ti,ms,mt) + T0i * eq_t(mp,var_rho,ms,mt)
-        p0_p   = r0*eq_p(mp,var_Te,ms,mt) + T0e * eq_p(mp,var_rho,ms,mt) &
-                 +r0*eq_p(mp,var_Ti,ms,mt) + T0i * eq_p(mp,var_rho,ms,mt)
+        pe0_s   = r0*eq_s(mp,var_Te,ms,mt) + T0e * eq_s(mp,var_rho,ms,mt) 
+        pe0_t   = r0*eq_t(mp,var_Te,ms,mt) + T0e * eq_t(mp,var_rho,ms,mt) 
+        pe0_p   = r0*eq_p(mp,var_Te,ms,mt) + T0e * eq_p(mp,var_rho,ms,mt) 
+        pi0_s   = r0*eq_s(mp,var_Ti,ms,mt) + T0i * eq_s(mp,var_rho,ms,mt)
+        pi0_t   = r0*eq_t(mp,var_Ti,ms,mt) + T0i * eq_t(mp,var_rho,ms,mt)
+        pi0_p   = r0*eq_p(mp,var_Ti,ms,mt) + T0i * eq_p(mp,var_rho,ms,mt)
+        p0_s   = pe0_s + pi0_s
+        p0_t   = pe0_t + pi0_t
+        p0_p   = pe0_p + pi0_p
 #else /* WITH_TiTe */
         P_tot  = P_tot  + r0 * T0 * xjac * BigR * wst * delta_phi
         P_e_tot = P_tot / 2.
@@ -922,10 +986,18 @@ do ife = ife_min, ife_max
         p0_s   = r0*eq_s(mp,var_T,ms,mt) + T0 * eq_s(mp,var_rho,ms,mt) 
         p0_t   = r0*eq_t(mp,var_T,ms,mt) + T0 * eq_t(mp,var_rho,ms,mt) 
         p0_p   = r0*eq_p(mp,var_T,ms,mt) + T0 * eq_p(mp,var_rho,ms,mt) 
+        pe0_s   = p0_s/2.
+        pe0_t   = p0_t/2.
+        pe0_p   = p0_p/2.
+        pi0_s   = pe0_s
+        pi0_t   = pe0_t
+        pi0_p   = pe0_p
 #endif /* WITH_TiTe */
 #endif /* WITH_Impurities */
 
         thm_wk     = vpar0 * (p0_s*ps0_t - p0_t*ps0_s) + vpar0 * F0/BigR*p0_p*xjac 
+        thm_wk_e   = vpar0 * (pe0_s*ps0_t - pe0_t*ps0_s) + vpar0 * F0/BigR*pe0_p*xjac 
+        thm_wk_i   = vpar0 * (pi0_s*ps0_t - pi0_t*ps0_s) + vpar0 * F0/BigR*pi0_p*xjac 
         hel1       = F0* ( (ps0 - psi_off) - y_g(ms,mt)*dpsidy) / (BigR**2.d0)
         mag_wk     = - (ps0_s*u0_t - ps0_t*u0_s) / xjac * zj0 / BigR  &
                      + F0 * zj0 * u0_p / (BigR**2.d0)
@@ -941,6 +1013,8 @@ do ife = ife_min, ife_max
         heli_tot      = heli_tot   + hel1         * BigR * xjac * wst * delta_phi
         mag_wk_tot    = mag_wk_tot + mag_wk       * BigR * xjac * wst * delta_phi
         thm_wk_tot    = thm_wk_tot + thm_wk                     * wst * delta_phi
+        thm_wk_e_tot  = thm_wk_e_tot + thm_wk_e                 * wst * delta_phi
+        thm_wk_i_tot  = thm_wk_i_tot + thm_wk_i                 * wst * delta_phi
         vpar_disp_tot = vpar_disp_tot + vpar_disp * BigR * xjac * wst * delta_phi
 
         R2curr_tmp    = R2curr_tmp - x_g(ms,mt)**2.0 * zj0 /BigR * xjac * wst * delta_phi    
@@ -1543,6 +1617,8 @@ call MPI_AllReduce(J2_ext,ohm_out,1,MPI_DOUBLE_PRECISION,MPI_SUM,MPI_COMM_WORLD,
 call MPI_AllReduce(J2_tot,ohm_tot,1,MPI_DOUBLE_PRECISION,MPI_SUM,MPI_COMM_WORLD,ierr)
 call MPI_AllReduce(heli_tot, helicity_tot,1,MPI_DOUBLE_PRECISION,MPI_SUM,MPI_COMM_WORLD,ierr)
 call MPI_AllReduce(thm_wk_tot, thermal_work_tot,1,MPI_DOUBLE_PRECISION,MPI_SUM,MPI_COMM_WORLD,ierr)
+call MPI_AllReduce(thm_wk_e_tot, thermal_work_e_tot,1,MPI_DOUBLE_PRECISION,MPI_SUM,MPI_COMM_WORLD,ierr)
+call MPI_AllReduce(thm_wk_i_tot, thermal_work_i_tot,1,MPI_DOUBLE_PRECISION,MPI_SUM,MPI_COMM_WORLD,ierr)
 call MPI_AllReduce(mag_wk_tot, mag_work_tot,1,MPI_DOUBLE_PRECISION,MPI_SUM,MPI_COMM_WORLD,ierr)
 call MPI_AllReduce(vpar_disp_tot, viscopar_dissip_tot,1,MPI_DOUBLE_PRECISION,MPI_SUM,MPI_COMM_WORLD,ierr)
 call MPI_AllReduce(fric_disp_tot, friction_dissip_tot,1,MPI_DOUBLE_PRECISION,MPI_SUM,MPI_COMM_WORLD,ierr)
@@ -1594,6 +1670,8 @@ ohm_out              = J2_ext
 ohm_tot              = J2_tot
 helicity_tot         = heli_tot
 thermal_work_tot     = thm_wk_tot
+thermal_work_e_tot   = thm_wk_e_tot
+thermal_work_i_tot   = thm_wk_i_tot
 mag_work_tot         = mag_wk_tot
 viscopar_dissip_tot  = vpar_disp_tot
 friction_dissip_tot  = fric_disp_tot
@@ -1687,6 +1765,8 @@ density_out          = n_period * density_out * fact_part
 neut_particles_tot   = n_period * neut_particles_tot * fact_part
 helicity_tot         = n_period * helicity_tot
 thermal_work_tot     = n_period * thermal_work_tot    * fact_flux 
+thermal_work_e_tot   = n_period * thermal_work_e_tot  * fact_flux 
+thermal_work_i_tot   = n_period * thermal_work_i_tot  * fact_flux 
 mag_work_tot         = n_period * mag_work_tot        * fact_flux
 viscopar_dissip_tot  = n_period * viscopar_dissip_tot * fact_flux
 friction_dissip_tot  = n_period * friction_dissip_tot * fact_flux
@@ -1881,6 +1961,12 @@ if (my_id .eq. 0) then
 
       case ( 'Thm_work_tot' )
         res(iexpr+1) = thermal_work_tot
+
+      case ( 'Thm_work_e_tot' )
+        res(iexpr+1) = thermal_work_e_tot
+
+      case ( 'Thm_work_i_tot' )
+        res(iexpr+1) = thermal_work_i_tot
 
       case ( 'Part_src_tot' )
         res(iexpr+1) = source_tot
@@ -2090,6 +2176,8 @@ if (my_id .eq. 0) then
     viscopar_dissip_tot_t(index_now) = viscopar_dissip_tot
     friction_dissip_tot_t(index_now) = friction_dissip_tot
     thmwork_tot_t(index_now)         = thermal_work_tot 
+    thmwork_e_tot_t(index_now)       = thermal_work_e_tot 
+    thmwork_i_tot_t(index_now)       = thermal_work_i_tot 
     magwork_tot_t(index_now)         = mag_work_tot 
     Thermal_tot_t(index_now)         = pressure 
     Thermal_e_tot_t(index_now)       = pressure_e

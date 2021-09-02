@@ -189,6 +189,12 @@ module live_data
     if (allocated(thmwork_tot_t)) call tr_deallocate(thmwork_tot_t,"thmwork_tot_t",CAT_UNKNOWN)
     if (nstep .gt. 0) call tr_allocate(thmwork_tot_t,1,index_start+nstep,"thmwork_tot_t",CAT_UNKNOWN)
 
+    if (allocated(thmwork_e_tot_t)) call tr_deallocate(thmwork_e_tot_t,"thmwork_e_tot_t",CAT_UNKNOWN)
+    if (nstep .gt. 0) call tr_allocate(thmwork_e_tot_t,1,index_start+nstep,"thmwork_e_tot_t",CAT_UNKNOWN)
+
+    if (allocated(thmwork_i_tot_t)) call tr_deallocate(thmwork_i_tot_t,"thmwork_i_tot_t",CAT_UNKNOWN)
+    if (nstep .gt. 0) call tr_allocate(thmwork_i_tot_t,1,index_start+nstep,"thmwork_i_tot_t",CAT_UNKNOWN)
+
     if (allocated(viscopar_dissip_tot_t)) call tr_deallocate(viscopar_dissip_tot_t,"viscopar_dissip_tot_t",CAT_UNKNOWN)
     if (nstep .gt. 0) call tr_allocate(viscopar_dissip_tot_t,1,index_start+nstep,"viscopar_dissip_tot_t",CAT_UNKNOWN)
 
@@ -582,7 +588,7 @@ module live_data
 #endif
     write(LIVE_DATA_HANDLE,*)
 
-    write(LIVE_DATA_HANDLE,'(A,I5)') '@n_work_terms: ', 2 
+    write(LIVE_DATA_HANDLE,'(A,I5)') '@n_work_terms: ', 4 
     write(LIVE_DATA_HANDLE,'(A)') '@work_terms_xlabel: normalized time'
     write(LIVE_DATA_HANDLE,'(A)') '@work_terms_xlabel_si: time [ms]'
     write(LIVE_DATA_HANDLE,'(A)') '@work_terms_ylabel: Total work [W]'
@@ -590,7 +596,7 @@ module live_data
     write(LIVE_DATA_HANDLE,'(A,5ES17.9)') '@work_terms_x2si: ', sqrt_mu0_rho0*1.e3
     write(LIVE_DATA_HANDLE,'(A,5ES17.9)') '@work_terms_y2si: ', 1.0
     write(LIVE_DATA_HANDLE,'(A)') '@work_terms_logy: 0'
-    write(LIVE_DATA_HANDLE,'(A)') '@work_terms: %"time"     "Magnetic = JxB~nabla p"   "Thermal = vpar*nabla p"  '
+    write(LIVE_DATA_HANDLE,'(A)') '@work_terms: %"time"     "Magnetic = JxB~nabla p"   "Thermal = vpar*nabla p"  "Thermal_e = vpar*nabla p_i"   "Thermal_i = vpar*nabla p_i"'
     write(LIVE_DATA_HANDLE,*)
 
     write(LIVE_DATA_HANDLE,'(A,I5)') '@n_dEdt: ', 5 
@@ -698,7 +704,7 @@ module live_data
       li3_tot_t, part_src_tot_t, heat_src_tot_t, volume_t, area_t, mag_ener_src_tot, eta_ohmic, eta, &
       dpart_tot_dt, part_flux_Dpar_t, part_flux_Dperp_t, part_flux_vpar_t, part_flux_vperp_t, &
       dnpart_tot_dt, npart_tot_t, npart_flux_t, density_tot_t, flux_poynting_t, xtime_rad_power, &
-      xtime_E_ion_power, thermal_e_tot_t, thermal_i_tot_t, xtime_P_ei
+      xtime_E_ion_power, thermal_e_tot_t, thermal_i_tot_t, xtime_P_ei, thmwork_e_tot_t, thmwork_i_tot_t
 
 
     implicit none
@@ -803,7 +809,7 @@ module live_data
 #endif
 
     write(LIVE_DATA_HANDLE,'(A,5ES17.9)') '@mag_energy_src: ', xtime(index), mag_ener_src_tot(index)
-    write(LIVE_DATA_HANDLE,'(A,5ES17.9)') '@work_terms: ', xtime(index), Magwork_tot_t(index), thmwork_tot_t(index)
+    write(LIVE_DATA_HANDLE,'(A,5ES17.9)') '@work_terms: ', xtime(index), Magwork_tot_t(index), thmwork_tot_t(index), thmwork_e_tot_t(index), thmwork_i_tot_t(index)
     write(LIVE_DATA_HANDLE,'(A,7ES17.9)') '@bnd_fluxes: ', xtime(index), flux_Pvn_t(index), flux_kinpar_t(index), &
                                            flux_qpar_t(index), flux_qperp_t(index)
     write(LIVE_DATA_HANDLE,'(A,7ES17.9)') '@bnd_particle_fluxes: ', xtime(index), part_flux_Dpar_t(index), part_flux_Dperp_t(index), &
