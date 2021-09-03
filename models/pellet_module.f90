@@ -489,7 +489,7 @@ module pellet_module
       end if
 
       if (pellets(i_p)%spi_abl < 0.) then
-        write(*,*) "SOMETHING WRONG in calculating the spi_abl. exiting!", i_p, spi_abl, T_eV, ne_SI, pellets(i_p)%spi_radius
+        write(*,*) "SOMETHING WRONG in calculating the spi_abl. exiting!", i_p, pellets(i_p)%spi_abl, T_eV, ne_SI, pellets(i_p)%spi_radius
         stop
       endif
      
