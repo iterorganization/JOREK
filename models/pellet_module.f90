@@ -487,6 +487,11 @@ module pellet_module
       else
         pellets(i_p)%spi_abl    = 0.d0
       end if
+
+      if (pellets(i_p)%spi_abl < 0.) then
+        write(*,*) "SOMETHING WRONG in calculating the spi_abl. exiting!", i_p, spi_abl, T_eV, ne_SI, pellets(i_p)%spi_radius
+        stop
+      endif
      
       if (my_id == 0) then
         xtime_spi_ablation_rate(i_p,index_now) = pellets(i_p)%spi_abl * pellets(i_p)%spi_species
