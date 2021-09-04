@@ -412,8 +412,15 @@ do i=1,n_vertex_max
           T0_tt = eq_tt(mp,6,ms,mt)
           T0_st = eq_st(mp,6,ms,mt)
 
-          T0_corr     = corr_neg_temp(T0) ! For use in eta(T), visco(T), ...
-          dT0_corr_dT = dcorr_neg_temp_dT(T0) ! Improve the correction
+          !T0_corr     = corr_neg_temp(T0) ! For use in eta(T), visco(T), ...
+          !dT0_corr_dT = dcorr_neg_temp_dT(T0) ! Improve the correction
+          if (T_min > T_1) then
+            T0_corr = corr_neg_temp(T0,(/5.d-1,5.d-1/),T_min) ! For use in eta(T), visco(T), ...
+            dT0_corr_dT = dcorr_neg_temp_dT(T0,(/5.d-1,5.d-1/),T_min) ! Improve the correction
+          else
+            T0_corr = corr_neg_temp(T0,(/5.d-1,5.d-1/),T_1) ! For use in eta(T), visco(T), ...
+            dT0_corr_dT = dcorr_neg_temp_dT(T0,(/5.d-1,5.d-1/),T_1) ! Improve the correction
+          end if
 
           Vpar0    = eq_g(mp,7,ms,mt)
           Vpar0_x  = (   y_t(ms,mt) * eq_s(mp,7,ms,mt) - y_s(ms,mt) * eq_t(mp,7,ms,mt) ) / xjac
@@ -704,7 +711,7 @@ do i=1,n_vertex_max
           ZK_prof = get_zkperp(psi_norm)
 
           ! --- Increase diffusivity if very small density/temperature
-          if (xpoint2) then
+!          if (xpoint2) then
             if (r0 .lt. D_prof_neg_thresh)  then
               D_prof  = D_prof_neg
             endif
@@ -714,7 +721,7 @@ do i=1,n_vertex_max
             if (T0 .lt. ZK_par_neg_thresh) then
               ZKpar_T = ZK_par_neg
             endif
-          endif
+!          endif
 
           phi       = 2.d0*PI*float(mp-1)/float(n_plane) / float(n_period)
           delta_phi = 2.d0*PI/float(n_plane) / float(n_period)
