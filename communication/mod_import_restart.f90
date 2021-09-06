@@ -200,7 +200,11 @@ subroutine import_binary_restart(node_list, element_list, filename, format_rst, 
   read(21) index_start
   read(21) t_start
   
+  write(*,*) 'CHECK (1): allocating energies in import_restart : ',index_start,index_start+nstep
+
   if (index_start .ge. 1) then
+
+    write(*,*) 'CHECK (2): allocating energies in import_restart : ',index_start,index_start+nstep
 
     if (allocated(xtime)) call tr_deallocate(xtime,"xtime",CAT_UNKNOWN)
     call tr_allocate(xtime,1,index_start+nstep,"xtime",CAT_UNKNOWN)

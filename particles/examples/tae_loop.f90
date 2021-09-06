@@ -1,11 +1,9 @@
 !> Testing the coupling of the projections of particles to JOREK
-
 program tae_loop
 
 use particle_tracer
 use mod_particle_diagnostics
 use mpi
-use mod_interp
 use mod_atomic_elements
 use mod_particle_io
 use mod_event
@@ -13,28 +11,31 @@ use mod_project_particles
 use mod_particle_loop
 use mod_jorek_timestepping
 use mod_random_seed
+use mod_interp, only: mode_moivre, interp_RZ, interp_0
 use mod_basisfunctions
 use nodes_elements
-use phys_module, only: tstep, restart, t_start
+use phys_module, only: tstep, restart, t_start, restart_particles
 use phys_module, only: CENTRAL_MASS, CENTRAL_DENSITY, xcase, xpoint
 use phys_module, only: n_particles, nstep_particles, nsubstep_particles, tstep_particles
 use phys_module, only: filter_perp, filter_hyper, filter_par, filter_perp_n0, filter_hyper_n0, filter_par_n0
+use phys_module, only: n_mode_families
 
 use constants,   only: MU_ZERO, MASS_PROTON, ATOMIC_MASS_UNIT, K_BOLTZ, EL_CHG
 
+use mod_particle_sputtering, only: particle_sputter, sample_fluid_particle_energy
 use mod_projection_functions, only: proj_f_combined_density, &
                                     proj_f_combined_energy, proj_f_combined_par_momentum
 use mod_edge_domain
 use mod_edge_elements
 use data_structure, only: type_bnd_element_list, type_bnd_node_list 
-use mod_boundary,   only: boundary_from_grid
 use equil_info
+use mod_boundary, only: boundary_from_grid
 
 !$ use omp_lib
 
 implicit none
 
-type(event)                                       :: fieldreader, partreader
+type(event)                                       :: fieldreader, partreader, partwriter
 !type(adf11_all)                                   :: adas
 type(pcg32_rng), dimension(:), allocatable        :: rng
 type(count_action)                                :: counter
@@ -54,13 +55,14 @@ real*8    :: rescale_coef, T_axis(1), E_axis, E_hot, rho_part, v2, tstart_jorek
 !$ real*8 :: w0, w1, mmm(3)
 
 integer   :: n_particles_local,n_reflect,ifail
-integer   :: i, j, k, l, m, n_steps, i_elm_old
+integer   :: i, j, k, l, m, n_steps, i_elm_old, i_diagno
 integer   :: seed, i_rng, n_stream
 
 ! Start up MPI, jorek
 call sim%initialize(num_groups=1)
 
 rho_part    = 1.195d19 !(corrected value to obtain density=1.441e17 (as in benchmark, for original profile with toroidal flux) 
+
 n_particles_local = int(n_particles/sim%n_cpu) 
 timesteps         = tstep_particles
 
@@ -74,11 +76,11 @@ if (sim%my_id .eq. 0) call boundary_from_grid(sim%fields%node_list, sim%fields%e
 
 call broadcast_boundary(sim%my_id, bnd_elm_list, bnd_node_list)
 
-call update_equil_state(sim%my_id, sim%fields%node_list, sim%fields%element_list, bnd_elm_list, xpoint, xcase )
+call update_equil_state(sim%my_id,sim%fields%node_list, sim%fields%element_list, bnd_elm_list, xpoint, xcase)
 
-n_norm    = CENTRAL_DENSITY * 1.d20                              ! (number) density normalisation
-rho_norm  = CENTRAL_MASS * MASS_PROTON * n_norm                  ! rho_SI = rho_norm * rho
-t_norm    = sqrt((MU_ZERO * rho_norm))                           ! t_SI   = t_norm * t_jorek
+n_norm   = CENTRAL_DENSITY * 1.d20                              ! (number) density normalisation
+rho_norm = CENTRAL_MASS * MASS_PROTON * n_norm                  ! rho_SI = rho_norm * rho
+t_norm   = sqrt((MU_ZERO * rho_norm))                           ! t_SI   = t_norm * t_jorek
 
 tstep_si  = tstep * t_norm
 n_steps   = floor(tstep_si / timesteps)
@@ -89,10 +91,13 @@ if (sim%my_id .eq.0) then
   write(*,*) ' adapt time step to be multiple of jorek time step'
   write(*,*) "tstep = ", tstep_si, n_steps, timesteps
   write(*,*) "check :", n_steps, tstep_si - n_steps*timesteps
+
+  i_diagno =  sim%fields%node_list%n_nodes / 3 
+  write(*,'(A,6f8.4)') ' probe at : ',sim%fields%node_list%node(i_diagno)%x(1,1,1:2)
+  open(111,file='diagno.txt')
 endif
 
-if (.not. restart) then
-
+if (.not. restart_particles) then
   ! Set up particles
   sim%groups(1)%Z    = 1
   sim%groups(1)%mass = atomic_weights(-2) !< atomic mass units
@@ -118,30 +123,48 @@ if (.not. restart) then
 
   end select
 
+!  do i=1,sim%fields%node_list%n_nodes
+!    sim%fields%node_list%node(i)%values(:,:,2) = 0.d0
+!    sim%fields%node_list%node(i)%values(:,:,4) = 0.d0
+!  enddo
+  
+else  ! restarting particles
+
+  if (sim%my_id .eq. 0) write(*,*) 'restarting particles: reading part_restart.h5'
+
+  deallocate(sim%groups)
+  allocate(sim%groups(0))
+
+  partreader = event(read_action(filename='part_restart.h5'))
+  call with(sim, partreader)
+
 endif
 
 !do i=1,sim%fields%node_list%n_nodes
-!  sim%fields%node_list%node(i)%values(2:3,:,:) = !1.d-2 * sim%fields%node_list%node(i)%values(2:3,:,:)
+!  sim%fields%node_list%node(i)%values(2:3,:,:) = 1.d-2 * sim%fields%node_list%node(i)%values(2:3,:,:)
 !enddo
 
 jorek_feedback = new_projection(sim%fields%node_list, sim%fields%element_list, &
-                                filter_n0 = filter_perp_n0, filter_hyper_n0 = filter_hyper_n0, filter_parallel_n0=filter_par_n0,      &
-                                filter = filter_perp, filter_hyper = filter_hyper, filter_parallel=filter_par, fractional_digits = 9, &
-                                do_zonal = .false., calc_integrals=.false., to_vtk=.false., to_h5 = .false., basename='projections')
-aux_node_list => jorek_feedback%node_list
+                                filter    = filter_perp, filter_hyper    = filter_hyper, filter_parallel    = filter_par, &
+                                filter_n0 = filter_perp, filter_hyper_n0 = filter_hyper, filter_parallel_n0 = filter_par_n0, &
+                                calc_integrals=.false., to_vtk=.false., to_h5 = .false., basename='projections')
 
 allocate(jorek_feedback%rhs(n_order+1, n_vertex_max, sim%fields%element_list%n_elements, n_tor, 1))
 
 jorek_feedback%rhs = 0.d0
 
-!project_density = new_projection(sim%fields%node_list, sim%fields%element_list,   &
-!                      filter = 0d-3, filter_hyper = 1d-5, filter_parallel = 0.d0, &
-!                      f=[proj_f(proj_one, group = 1)], fractional_digits = 9,     &
+aux_node_list => jorek_feedback%node_list
+
+!project_density = new_projection(sim%fields%node_list, sim%fields%element_list, &
+!                      filter    = filter_perp, filter_hyper    = filter_hyper, filter_parallel    = filter_par, &
+!                      filter_n0 = filter_perp, filter_hyper_n0 = filter_hyper, filter_parallel_n0 = filter_par_n0, &
+!                      f=[proj_f(proj_one, group = 1)], fractional_digits = 9, &
 !                      calc_integrals=.true., to_vtk=.true., to_h5=.false., basename='density', nsub=5)
 
-!project_current = new_projection(sim%fields%node_list, sim%fields%element_list,   &
-!                      filter = 0d-3, filter_hyper = 1d-5, filter_parallel = 0.d0, &
-!                      f=[proj_f(proj_jPhi, group = 1)], fractional_digits = 9,    &
+!project_current = new_projection(sim%fields%node_list, sim%fields%element_list, &
+!                      filter    = filter_perp, filter_hyper    = filter_hyper, filter_parallel    = filter_par, &
+!                      filter_n0 = filter_perp, filter_hyper_n0 = filter_hyper, filter_parallel_n0 = filter_par_n0, &
+!                      f=[proj_f(proj_jPhi, group = 1)], fractional_digits = 9, &
 !                      calc_integrals=.true., to_vtk=.false., to_h5=.false., basename='current', nsub=5)
 
 ! For proper timestepping, the projections need to be defined before the jorek timestepper
@@ -184,7 +207,7 @@ end do
 
 ! Call events at sim%time once to help event scheduler, before entering particle loop
 step_rest_time = 0.d0
-call with(sim, events, at=sim%time)
+if (.not. restart_particles) call with(sim, events, at=sim%time)
 
 !call with(sim, project_density)
 
@@ -214,11 +237,18 @@ do while (.not. sim%stop_now)
   
   call with(sim, events, at=sim%time)
 
+  if (sim%my_id == 0) write(111,'(12e20.12)') sim%time, sim%fields%node_list%node(i_diagno)%values(1:n_tor,1,1:2) 
+
 end do
 
-call write_simulation_hdf5(sim, 'part_restart.h5')
+!call write_simulation_hdf5(sim, 'part_restart.h5')
+
+partwriter = event(write_action(filename='part_restart.h5'))
+call with(sim, partwriter)
 
 call sim%finalize
+
+if (sim%my_id == 0) close(111)
 
 contains
 
@@ -250,7 +280,6 @@ integer   :: i, j, k, l, m, i_elm_old, i_elm
 integer   :: seed, i_rng, n_stream, ierr, nthreads
 integer   :: i_tor, index_lm, i_elm_temp
 integer   :: n_particles, ifail
-
 real*8,allocatable :: feedback_rhs(:,:,:,:,:)
 
 !$ w0 = omp_get_wtime()
@@ -263,7 +292,6 @@ E_norm   = 1.5d0 / MU_ZERO                                      ! E_SI   = E_nor
 M_norm   = rho_norm * v_norm                                    ! momentum normalisation
 
 jorek_feedback%rhs_gather_time = jorek_feedback%rhs_gather_time + n_steps * timesteps
-
 allocate(feedback_rhs,source=jorek_feedback%rhs)
 
 jorek_feedback%rhs = 0.d0
@@ -276,19 +304,20 @@ type is (particle_kinetic_leapfrog)
 #ifdef __GFORTRAN__
  !$omp parallel do default(shared) & 
 #else
- !$omp parallel do default(none)   &
+ !$omp parallel do default(none) &
  !$omp shared(sim, particles, n_steps, timesteps, rng, particle_start_time,        &
- !$omp        rho_norm, t_norm, v_norm, E_norm, M_norm, N_norm,                    &
- !$omp        jorek_feedback, CENTRAL_DENSITY, CENTRAL_MASS)                       &
+ !$omp rho_norm, t_norm, v_norm, E_norm, M_norm, N_norm,                           &
+ !$omp jorek_feedback, CENTRAL_DENSITY, CENTRAL_MASS)                              &
 #endif
  !$omp private(particle_tmp, i_rng, i,j,k,l,m, t, E, B, psi, U, rz_old, st_old,    &
- !$omp         i_elm_old, i_elm, n_e, T_e,                                                 & 
- !$omp         R_g, R_s, R_t, Z_g, Z_s, Z_t, xjac, HH, HH_s, HH_t, HZ, index_lm, ifail, v) &
- !$omp schedule(dynamic,10)        &
+ !$omp i_elm_old, i_elm, n_e, T_e,                                                 & 
+ !$omp R_g, R_s, R_t, Z_g, Z_s, Z_t, xjac, HH, HH_s, HH_t, HZ, index_lm, ifail, v) & 
+ !$omp schedule(dynamic,10) &
  !$omp reduction(+:feedback_rhs)
  do j=1,size(particles,1)
 
     call copy_particle_kinetic_leapfrog(particles(j),particle_tmp)
+
 !      i_rng = 1
   !$ i_rng = omp_get_thread_num()+1
 
@@ -303,7 +332,7 @@ type is (particle_kinetic_leapfrog)
       rz_old    = particle_tmp%x(1:2)
       st_old    = particle_tmp%st
       i_elm_old = particle_tmp%i_elm
-
+             
       if (particle_tmp%i_elm .gt. 0) then
         ! Push the particle and determine it's new location.
         call boris_push_cylindrical(particle_tmp, sim%groups(1)%mass, E, B, timesteps)
@@ -333,9 +362,9 @@ type is (particle_kinetic_leapfrog)
           do i_tor=1,n_tor
             feedback_rhs(m,l,i_elm,i_tor,1) = feedback_rhs(m,l,i_elm,i_tor,1) &
                                                   
-                                            + HZ(i_tor) * v * particle_tmp%weight * sim%groups(1)%mass * mass_proton &
+                                                  + HZ(i_tor) * v * particle_tmp%weight * sim%groups(1)%mass * mass_proton &
             
-                                            * (1.d0/3.d0) * (particle_tmp%v(1)**2 + particle_tmp%v(2)**2 + particle_tmp%v(3)**2) * mu_zero
+                                                  * (1.d0/3.d0) * (particle_tmp%v(1)**2 + particle_tmp%v(2)**2 + particle_tmp%v(3)**2) * mu_zero
           enddo
 
         enddo   !< order
@@ -348,15 +377,13 @@ type is (particle_kinetic_leapfrog)
   end do   ! particles
   !$omp end parallel do
   
+  if (sim%my_id .eq. 0) write(*,*) "End of the particle loop"
+
 end select
 
 jorek_feedback%rhs = feedback_rhs
 
 deallocate(feedback_rhs)
-
-!  write(*,*) 'CAREFUL: averaging over n_steps : ',n_steps
-!  jorek_feedback%rhs = jorek_feedback%rhs / real(n_steps,8)
-if (sim%my_id .eq. 0) write(*,*) 'done loop_particle_kinetic_local'
 
 end subroutine
 
@@ -420,6 +447,5 @@ pure function f_toroidal_flux(n, P, grad_P) result(f)
   f = coeff(3)*exp(-coeff(2)/coeff(1)*(tanh((sqrt(s)-coeff(0))/coeff(2))))
 
 end function f_toroidal_flux
-
 
 end program tae_loop

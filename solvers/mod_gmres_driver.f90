@@ -2,7 +2,7 @@ module mod_gmres_driver
 implicit none
 contains
 !> Driver for the reverse communication GMRES routine from dPackgmres (CERFACS)
-subroutine gmres_driver(my_id,my_id_n,i_tor,n_tor,MPI_COMM_N,MPI_COMM_MASTER,iter_gmres)
+subroutine gmres_driver(my_id,my_id_n,MPI_COMM_N,MPI_COMM_MASTER,iter_gmres)
 
 use tr_module 
 use mumps_module
@@ -10,24 +10,29 @@ use global_distributed_matrix
 use mpi_mod
 use mod_clock
 use phys_module,  only : gmres_4, gmres_tol, gmres_m, index_now
+use mod_integer_types
 
 implicit none
 #include "r3_info.h"
 
 interface 
-   subroutine gmres_matrix_vector(x,y,my_id,my_id_n, i_tor, MPI_COMM_MASTER)      
-     integer             :: i_tor(:), MPI_COMM_MASTER
-     real*8              :: x(:), y(:)
-     integer             :: my_id, my_id_n
+  subroutine gmres_matrix_vector(size_x,x,size_y,y,my_id)      
+    use mod_integer_types
+    integer(kind=int_all) :: size_x,size_y
+    real*8                :: x(size_x), y(size_y)
+    integer               :: my_id, my_id_n
    end subroutine gmres_matrix_vector
 end interface
-integer :: i_tor(:), i, j, m, my_id, my_id_n, my_id_master, MPI_COMM_N, MPI_COMM_MASTER
-integer :: revcom, colx, coly, colz, nbscal, lwork, iter_gmres, n_tor
-integer :: irc(5), icntl(8), info(3)
+integer               :: j, my_id, my_id_n, my_id_master, MPI_COMM_N, MPI_COMM_MASTER
+integer               :: revcom, iter_gmres, n_tor
+integer               :: icntl(8), info(3)
+integer(kind=int_all) :: i, m, colx, coly, colz, nbscal, lwork, n_dof, irc(5)
 
-integer :: matvec, precondLeft, precondRight, dotProd, ierr, n_dof
+integer(kind=int_all), parameter   :: Int1=1
+
+integer :: matvec, precondLeft, precondRight, dotProd, ierr
 real*8  :: cntl(5), rinfo(2), sum, err, Bnorm, Xnorm
-real*8, allocatable :: work(:)
+real*8, allocatable :: work(:), work_ndof(:), work_ndof2(:)
 type(clcktype)           :: t0, t1
 real*8                   :: tsecond
 REAL*8, ALLOCATABLE      :: rhs_tmp(:)
@@ -61,12 +66,21 @@ n_dof = ndof_glob
 
 lwork = m*m + m*(n_dof+5) + 6*n_dof + m + 1
 
-call tr_allocate(work,1,lwork,"work",CAT_GMRES)
+call tr_allocate(work,Int1,lwork,"work",CAT_GMRES)
+call tr_allocate(work_ndof,Int1,n_dof,"work_ndof",CAT_GMRES)
+call tr_allocate(work_ndof2,Int1,n_dof,"work_ndof2",CAT_GMRES)
 
 work(1:n_dof)         = deltas(1:n_dof)                     ! the initial guess
 work(n_dof+1:2*n_dof) = RHS_glob(1:n_dof)                   ! the right hand side
 
-call gmres_matrix_vector(work(1:n_dof),work(2*n_dof+1:3*n_dof),my_id,my_id_n, i_tor, MPI_COMM_MASTER)
+work_ndof(Int1:n_dof)  = work(Int1:n_dof)
+work_ndof2(Int1:n_dof) = work(2*n_dof+Int1:3*n_dof)
+
+call gmres_matrix_vector(n_dof,work_ndof,n_dof,work_ndof2,my_id)
+
+work(Int1:n_dof)           = work_ndof(Int1:n_dof)
+work(2*n_dof+Int1:3*n_dof) = work_ndof2(Int1:n_dof)
+
 if (my_id .eq. 0) then
   sum = 0.d0
   err = -1.d20
@@ -98,7 +112,7 @@ end if
          call drive_dgmres(n_dof,n_dof,m,lwork,work,irc,icntl,cntl,info,rinfo)
        endif
 
-       call MPI_BCAST(irc,5,MPI_INTEGER,0,MPI_COMM_WORLD,ierr)
+       call MPI_BCAST(irc,5,MPI_INTEGER_ALL,0,MPI_COMM_WORLD,ierr)
 
        revcom = irc(1)
        colx   = irc(2)
@@ -109,24 +123,31 @@ end if
        if (revcom.eq.matvec) then                  ! perform the matrix vector product
                                                    ! work(colz) <-- A * work(colx)
         
-         call gmres_matrix_vector(work(colx:colx+n_dof-1),work(colz:colz+n_dof-1),my_id,my_id_n, i_tor, MPI_COMM_MASTER)
+        work_ndof(Int1:n_dof) = work(colx:colx+n_dof-Int1)
+         work_ndof2(Int1:n_dof) = work(colz:colz+n_dof-Int1)
+
+         call gmres_matrix_vector(n_dof,work_ndof,n_dof,work_ndof2,my_id)
+
+         work(colx:colx+n_dof-Int1) = work_ndof(Int1:n_dof)
+         work(colz:colz+n_dof-Int1) = work_ndof2(Int1:n_dof)
+
          goto 10
 
        else if (revcom.eq.precondLeft) then        ! perform the left preconditioning
                                                    ! work(colz) <-- M^{-1} * work(colx)
-         call gmres_precondition(work(colx),work(colz),i_tor,my_id,my_id_n,MPI_COMM_MASTER,MPI_COMM_N)
-         goto 10
+        call gmres_precondition(work(colx),work(colz),my_id,my_id_n,MPI_COMM_MASTER,MPI_COMM_N)
+        goto 10
 
        else if (revcom.eq.precondRight) then       ! perform the right preconditioning
 
-         if (my_id .eq. 0) call dcopy(n_dof,work(colx),1,work(colz),1)
+        if (my_id .eq. 0) call dcopy(n_dof,work(colx),Int1,work(colz),Int1)
 
          goto 10
 
        else if (revcom.eq.dotProd) then            ! perform the scalar product
                                                    ! work(colz) <-- work(colx) work(coly)
 
-         if (my_id .eq. 0) call dgemv('C',n_dof,nbscal,ONE, work(colx),n_dof,work(coly),1,ZERO,work(colz),1)
+        if (my_id .eq. 0) call dgemv('C',n_dof,nbscal,ONE, work(colx),n_dof,work(coly),Int1,ZERO,work(colz),Int1)
  
          goto 10
 
@@ -136,7 +157,13 @@ end if
        
 if (my_id .eq. 0) deltas(1:n_dof) = work(1:n_dof)
 
-call gmres_matrix_vector(deltas,work(n_dof+1:2*n_dof),my_id,my_id_n, i_tor, MPI_COMM_MASTER)
+work_ndof(Int1:n_dof) = deltas(Int1:n_dof)
+work_ndof2(Int1:n_dof) = work(n_dof+Int1:2*n_dof)
+
+call gmres_matrix_vector(n_dof,work_ndof,n_dof,work_ndof2,my_id)
+
+deltas(Int1:n_dof) = work_ndof(Int1:n_dof)
+work(n_dof+Int1:2*n_dof) = work_ndof2(Int1:n_dof)
 
 if (my_id .eq. 0) then
   sum = 0.d0
@@ -158,6 +185,8 @@ call tr_debug_writei("nbiter_gmres", iter_gmres)
 call MPI_BCAST(iter_gmres,1,MPI_INTEGER,0,MPI_COMM_WORLD,ierr)
 
 call tr_deallocate(work,"work",CAT_GMRES)
+call tr_deallocate(work_ndof,"work_ndof",CAT_GMRES)
+call tr_deallocate(work_ndof2,"work_ndof2",CAT_GMRES)
 
 call clck_time(t1)
 call clck_ldiff(t0,t1,tsecond)
