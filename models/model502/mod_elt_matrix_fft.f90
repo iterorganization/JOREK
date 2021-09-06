@@ -953,7 +953,7 @@ do ms=1, n_gauss
        Z_eff      = max(eq_aux_g(mp,3,ms,mt),0.0)   ! The sum (q^2) divided by the impurity number density
        Z_imp      = max(eq_aux_g(mp,4,ms,mt),0.0)   ! The sum (q) divided by the impurity number density
        n_imp      = eq_aux_g(mp,5,ms,mt)            ! The time averaged impurity number density
-       n_imp      = corr_neg_dens(n_imp, (/ 1.d-1, 1.d-1 /),1.d-3)
+       n_imp      = max(n_imp,2.d-3)!corr_neg_dens(n_imp, (/ 1.d-1, 1.d-1 /),1.d-3)
        Z_imp      = Z_imp / n_imp
        Z_eff      = Z_eff / n_imp
 
