@@ -448,8 +448,8 @@ do while (.not. sim%stop_now)
         if (ne_imp_tmp < 0.) ne_imp_tmp = 0.
         n_e  = n_e + ne_imp_tmp * (central_density * 1.d20) ! Electron number density [m^-3]
 
-        Z_imp = real(particles(j)%weight,8) * int(particles(j)%q,4) * timesteps
-        Z_eff = real(particles(j)%weight,8) * int(particles(j)%q,4)**2. * timesteps
+        Z_imp = real(particles(j)%weight,8) * real(particles(j)%q,8) * timesteps
+        Z_eff = real(particles(j)%weight,8) * real(particles(j)%q,8)**2. * timesteps
         N_imp = real(particles(j)%weight,8) * timesteps
 
         dEion_dt = 0.0

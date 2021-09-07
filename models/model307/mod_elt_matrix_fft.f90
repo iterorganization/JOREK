@@ -448,7 +448,7 @@ do i=1,n_vertex_max
             n_imp      = max(n_imp, 2.d-3)!corr_neg_dens(n_imp, (/ 1.d-1, 1.d-1 /),1.d-3)
 
             Z_eff      = Z_eff + max(r0_corr,0.)
-            Z_eff      = Z_eff / max((r0_corr + Z_imp),1.d-3)
+            Z_eff      = Z_eff / max((r0_corr + Z_imp),1.d-2)
             Z_eff      = max(Z_eff, 1.)
             Z_imp      = Z_imp / n_imp
           endif
