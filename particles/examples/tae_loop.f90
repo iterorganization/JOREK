@@ -207,7 +207,7 @@ end do
 
 ! Call events at sim%time once to help event scheduler, before entering particle loop
 step_rest_time = 0.d0
-call with(sim, events, at=sim%time)
+if (.not. restart_particles) call with(sim, events, at=sim%time)
 
 !call with(sim, project_density)
 
@@ -317,6 +317,7 @@ type is (particle_kinetic_leapfrog)
  do j=1,size(particles,1)
 
     call copy_particle_kinetic_leapfrog(particles(j),particle_tmp)
+
 !      i_rng = 1
   !$ i_rng = omp_get_thread_num()+1
 

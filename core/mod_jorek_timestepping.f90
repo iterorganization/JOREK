@@ -79,7 +79,7 @@ contains
 function new_jorek_timestep_action(auxiliary_node_list) result(new)
   type(jorek_timestep_action) :: new
   type(type_node_list), intent(in), target,  optional :: auxiliary_node_list
-  if (present(auxiliary_node_list)) new%auxiliary_node_list => auxiliary_node_list
+!  if (present(auxiliary_node_list)) new%auxiliary_node_list => auxiliary_node_list
   new%istep = 1
   new%name = "JOREK timestep"
   new%log = .true.
@@ -131,13 +131,15 @@ subroutine setup_solvers(this, sim)
   call det_modes()
 
   ! Initialise the data writing 
-  if (sim%my_id == 0) call init_live_data()
+  if (sim%my_id .eq. 0) then
+    call init_live_data()
 
-  if (restart .and. (sim%my_id == 0)) then
-     do i = 1, index_start
-        call write_live_data_all(i)
-        !call write_live_data_vacuum(i)
-     end do
+    if (restart) then
+      do i = 1, index_start
+       call write_live_data_all(i)
+!      call write_live_data_vacuum(index_now, diag_coil_curr)
+      end do
+    endif
   endif
 
   ! --- Preset some solver variables
@@ -221,10 +223,10 @@ subroutine setup_solvers(this, sim)
   n_masters = (n_tor+1)/2
   if (gmres) then
     ! setup per-harmonic and transverse communicators
-!    call gmres_setup_jorek(sim%my_id, sim%n_cpu, this%i_tor, this%my_id_n, this%n_cpu_n, &
-!                           this%my_id_trans, this%n_cpu_trans, this%my_id_master,        &
-!                           this%MPI_COMM_N, this%MPI_COMM_TRANS, this%MPI_COMM_MASTER,   &
-!                           this%MPI_GROUP_MASTER, this%MPI_GROUP_WORLD, my_family_id)
+    !call gmres_setup_jorek(sim%my_id, sim%n_cpu, this%i_tor, this%my_id_n, this%n_cpu_n, &
+    !                       this%my_id_trans, this%n_cpu_trans, this%my_id_master,        &
+    !                       this%MPI_COMM_N, this%MPI_COMM_TRANS, this%MPI_COMM_MASTER,   &
+    !                       this%MPI_GROUP_MASTER, this%MPI_GROUP_WORLD, my_family_id)
     
     call create_communicators(this%my_id_n, this%n_cpu_n, this%MPI_COMM_N, this%my_id_master, n_masters, &
                              this%MPI_COMM_MASTER, this%MPI_COMM_TRANS)
@@ -246,28 +248,27 @@ subroutine setup_solvers(this, sim)
   call tr_allocate(this%local_elms,1,sim%fields%element_list%n_elements,"local_elms",CAT_FEM)
   call tr_allocate(this%index_min,1,index_size,"index_min",CAT_FEM)
   call tr_allocate(this%index_max,1,index_size,"index_max",CAT_FEM)
-  !
+  call tr_allocate(local_index_start,1,sim%n_cpu,"local_index_start",CAT_FEM)
+  call tr_allocate(local_index_end,1,sim%n_cpu,"local_index_end",CAT_FEM)
+ !
   ! Construct index_min, index_max and local_elems
   !
   call distribute_nodes_elements(id_elements,this%n_cpu_n,index_size,sim%fields%node_list,sim%fields%element_list, .false., &
                                  this%local_elms, this%n_local_elms, ndof_glob, this%index_min, this%index_max, restart, freeboundary)
                                           
   sim%fields%node_list%n_dof = ndof_glob
-  
-  call update_deltas(sim%my_id, sim%fields%node_list) ! create list of delta values in local_matrix module
-  
-  ! Build ijA_index, ijA_size and irn_jcn
-  call tr_allocate(local_index_start,1,sim%n_cpu,"local_index_start",CAT_FEM)
-  call tr_allocate(local_index_end,1,sim%n_cpu,"local_index_end",CAT_FEM)
- 
   local_index_start = this%index_min
   local_index_end   = this%index_max
-
+ 
+  call update_deltas(sim%my_id, sim%fields%node_list) ! create list of delta values in local_matrix module
+  
+   ! Build ijA_index, ijA_size and irn_jcn
+ 
   block_size = n_tor*n_var
 
   call global_matrix_structure(sim%my_id,this%my_id_n, sim%fields%node_List, sim%fields%element_list, bnd_elm_list, freeboundary,&
                                this%local_elms,this%n_local_elms,this%index_min(id_elements+1),this%index_max(id_elements+1),      &
-                               ijA_index, ijA_size, irn_jcn, irn_glob, jcn_glob, 1, n_tor, n_glob, nz_glob, ndof_glob, block_size)                      
+                               ijA_index, ijA_size, irn_jcn, irn_glob, jcn_glob, 1, n_tor, n_glob, nz_glob, ndof_glob, n_matrix_block_size)                      
 
   if ( freeboundary .and. ( sr%n_tor /= 0 ) ) then 
     call global_matrix_structure_vacuum(sim%fields%node_list, bnd_node_list, this%index_min(sim%my_id+1), this%index_max(sim%my_id+1), &
@@ -495,10 +496,9 @@ subroutine do_jorek_timestep(this, sim, ev)
     call clck_time(t0)
     if (.not. solve_only) then
       call distribute_harmonics(sim%my_id,this%my_id_n,sim%n_cpu)
-      if(this%my_id_n.eq.0) call distribute_vector(rhs_glob,mumps_par%rhs,this%MPI_COMM_MASTER)
-    else
-      if(this%my_id_n.eq.0) call distribute_vector(rhs_glob,mumps_par%rhs,this%MPI_COMM_MASTER)
     endif
+    if(this%my_id_n.eq.0) call distribute_vector(rhs_glob,mumps_par%rhs,this%MPI_COMM_MASTER)
+    
     call clck_time_barrier(t1)
     call clck_ldiff(t0,t1,tsecond)
     if (sim%my_id .eq. 0) write(*,FMT_TIMING) sim%my_id, '# Elapsed time distribute :',tsecond

@@ -37,10 +37,10 @@ real*8     :: RHS(n_vertex_max*n_var*(n_order+1)*n_tor)
 
 integer    :: vertex(2), direction(2), direction_perp(2)
 integer    :: i, j, j2, j3, ms, mt, mp, k, l, l2, l3, index_ij, index_kl, index, xcase2, is
-integer    :: in, im, ij1, ij2, ij3, ij4, ij5, ij6, ij7, ij8, kl1, kl2, kl3, kl4, kl5, kl6, kl7, kl8
+integer    :: in, im, ij1, ij2, ij3, ij4, ij5, ij6, ij7, kl1, kl2, kl3, kl4, kl5, kl6, kl7
 real*8     :: ws, xjac,  dl, BigR, phi, eps_cyl, Btot
 real*8     :: R_axis, Z_axis, psi_axis, psi_bnd, R_xpoint(2), Z_xpoint(2)
-real*8     :: rhs_ij_5, rhs_ij_6, rhs_ij_7, rhs_ij_8
+real*8     :: rhs_ij_5, rhs_ij_6, rhs_ij_7
 real*8     :: theta, zeta, Zbig, BB2, bdotn, factor, psi_ss, vpar_ss
 real*8     :: R_inside, Z_inside, R_mid, Z_mid, R_cnt, Z_cnt, normal(2), normal_direction(2)
 real*8     :: normal_sign, normal_sign3
@@ -51,9 +51,9 @@ real*8     :: psi, psi_s, psi_t, vpar, T, u0_s, u_s, cs_T
 real*8     :: T0, T0_s, T0_t, T0_x, T0_y, T0_p
 real*8     :: r0, r0_s, r0_t, r0_p, r0_x, r0_y, rho, rho_s, rho_t, rho_x, rho_y
 real*8     :: amat_51, amat_52, amat_55, amat_56, amat_57, amat_61, amat_62, amat_65, amat_66, amat_67
-real*8     :: amat_76, amat_77, amat_81, amat_85, amat_86, amat_87 
+real*8     :: amat_76, amat_77
 real*8     :: element_size_ij, element_size_kl, element_size_perp
-real*8     :: grad_t(2), B0_R, B0_Z, factor_cs_bnd_integral, neutral_source, c_angle
+real*8     :: grad_t(2), B0_R, B0_Z, factor_cs_bnd_integral, c_angle
 logical    :: xpoint2
 integer    :: n_tor_local 
 
@@ -180,14 +180,6 @@ do ms=1, n_gauss
   normal = dot_product(grad_t,normal_direction) * grad_t      ! outward pointing normal
   normal = normal / norm2(normal)
 
-  neutral_source = 0.d-0
-
-  do is = 1, 10
-    if     ( ((x_g(ms) - neutral_line_R_start(is))*(x_g(ms) - neutral_line_R_end(is)) .lt. 0.d0) &
-       .and. ((y_g(ms) - neutral_line_Z_start(is))*(y_g(ms) - neutral_line_Z_end(is)) .lt. 0.d0) ) then
-       neutral_source = neutral_source + neutral_line_source(is)
-    endif
-  enddo
 
   do mp = 1, n_plane
 
@@ -262,22 +254,16 @@ do ms=1, n_gauss
 
           rhs_ij_7 = - v * (vpar0 * Btot * normal_sign - cs0 * factor) * dl * Zbig                ! right hand side equation 7
 
-          rhs_ij_8 = + v * neutral_reflection * r0_corr * vpar0 * ps0_s * normal_sign3 * tstep &
-                     + v * neutral_reflection * r0_corr * cs0 * BigR * dl * c_angle    * tstep &  ! particle flux at 1 degree angle  
-!                     - v * neutral_reflection * D_prof  * (r0_x * y_t(ms) - r0_y * x_t(ms)) * BigR * tstep &            
-                     + v * neutral_source * BigR * dl * tstep                                     ! neutral source
 
           index_ij = n_tor_local*n_var*(n_order+1)*(vertex(i)-1) + n_tor_local * n_var * (j2-1) + im - i_tor_min +1  ! index in the ELM matrix
 
           ij5 = index_ij + 4*n_tor_local                                          ! local index in element matrix
           ij6 = index_ij + 5*n_tor_local                                          ! local index in element matrix
           ij7 = index_ij + 6*n_tor_local                                          ! local index in element matrix
-          ij8 = index_ij + 7*n_tor_local                                          ! local index in element matrix
 
           RHS(ij5) = RHS(ij5) + rhs_ij_5 * ws                               ! add to element RHS
           RHS(ij6) = RHS(ij6) + rhs_ij_6 * ws                               ! add to element RHS
           RHS(ij7) = RHS(ij7) + rhs_ij_7 * ws * factor_cs_bnd_integral      ! add to element RHS
-          RHS(ij8) = RHS(ij8) + rhs_ij_8 * ws
 
           do k=1,2                                                          ! loop over nodes
 
@@ -335,15 +321,6 @@ do ms=1, n_gauss
                 amat_76 =   v * ( - cs_T) * factor          * dl * Zbig
                 amat_77 =   v * (vpar * Btot * normal_sign) * dl * Zbig 
 
-                amat_81 = - v * neutral_reflection * r0_corr * vpar0 * psi_s * normal_sign3      * theta * tstep 
-
-                amat_85 = - v * neutral_reflection * rho     * vpar0 * ps0_s * normal_sign3      * theta * tstep &
-                          - v * neutral_reflection * rho     * cs0         * BigR * dl * tstep * c_angle * theta * tstep 
-
-                amat_86 = - v * neutral_reflection * r0_corr * cs_T * BigR * dl * tstep * c_angle * theta * tstep !&
- !                          + v * neutral_reflection * D_prof  * (rho_x * y_t(ms) - rho_y * x_t(ms)) * BigR * theta * tstep 
-
-                amat_87 = - v * neutral_reflection * r0_corr * vpar  * ps0_s * normal_sign3      * theta * tstep 
 
                 index_kl = n_tor_local*n_var*(n_order+1)*(vertex(k)-1) + n_tor_local * n_var * (l2-1) + in - i_tor_min +1  ! index in the ELM matrix
                  
@@ -352,7 +329,6 @@ do ms=1, n_gauss
                 kl5 = index_kl + 4*n_tor_local
                 kl6 = index_kl + 5*n_tor_local
                 kl7 = index_kl + 6*n_tor_local
-                kl8 = index_kl + 7*n_tor_local
 
                 ELM(ij5,kl1) =  ELM(ij5,kl1) + ws * amat_51
                 ELM(ij5,kl2) =  ELM(ij5,kl2) + ws * amat_52
@@ -369,10 +345,6 @@ do ms=1, n_gauss
                 ELM(ij7,kl6) =  ELM(ij7,kl6) + ws * amat_76 * factor_cs_bnd_integral
                 ELM(ij7,kl7) =  ELM(ij7,kl7) + ws * amat_77 * factor_cs_bnd_integral
 
-                ELM(ij8,kl1) =  ELM(ij8,kl1) + ws * amat_81
-                ELM(ij8,kl5) =  ELM(ij8,kl5) + ws * amat_85
-                ELM(ij8,kl6) =  ELM(ij8,kl6) + ws * amat_86
-                ELM(ij8,kl7) =  ELM(ij8,kl7) + ws * amat_87
 	
               enddo
             enddo
