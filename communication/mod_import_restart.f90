@@ -832,6 +832,10 @@ subroutine import_hdf5_restart(node_list, element_list, filename, format_rst, er
   real(RKIND), allocatable :: a_values(:,:,:,:)
   real(RKIND), allocatable :: a_deltas(:,:,:,:)
   integer(HID_T)           :: pert_id
+  real*8,      allocatable :: a_energies(:,:,:)   !< Magnetic and kinetic mode energies at previous timesteps.
+  real*8,      allocatable :: a_energies2(:,:,:)  !< Magnetic and kinetic mode energies at previous timesteps.
+  real*8,      allocatable :: a_energies3(:,:,:)  !< Magnetic and kinetic mode energies at previous timesteps.
+  real*8,      allocatable :: a_energies4(:,:,:)  !< Magnetic and kinetic mode energies at previous timesteps.
 
   ! --- Local variables
   integer              :: i, j, m, k, n_tor_tmp, n_coord_tor_tmp, jorek_model_tmp, n_var_tmp, n_order_tmp, n_period_tmp, rst_hdf5_version_tmp
@@ -910,7 +914,7 @@ subroutine import_hdf5_restart(node_list, element_list, filename, format_rst, er
     write(*,*) '...failed!'
     return
   end if
-  node_id = file_id
+  node_id = file_id ! By default, take mode_tmp, n_tor_tmp, n_period_tmp, node_list%n_dof , t_values, t_deltas from restart file
 
   ! Restart file version
   rst_hdf5_version_tmp = 0
@@ -1019,7 +1023,7 @@ subroutine import_hdf5_restart(node_list, element_list, filename, format_rst, er
     end do
     
     write(*,*) ' OLD format (0) : '
-    if ( import_perturbation == .false. ) then
+    if ( .not. import_perturbation ) then
       write(*,'(A,999i4)') ' previous modenumbers        : ',mode_tmp
     else
       write(*,'(A,999i4)') ' modenumbers of perturbation : ',mode_tmp
@@ -1061,7 +1065,7 @@ subroutine import_hdf5_restart(node_list, element_list, filename, format_rst, er
   call tr_allocate(t_values,1,node_list%n_nodes,1,      n_tor_tmp,1,n_order+1,1,n_var_tmp, "node_list%values",CAT_UNKNOWN)
   call tr_allocate(t_deltas,1,node_list%n_nodes,1,      n_tor_tmp,1,n_order+1,1,n_var_tmp, "node_list%deltas",CAT_UNKNOWN)
 
-   if ( import_perturbation ) then
+  if ( import_perturbation ) then
     call HDF5_integer_reading(file_id,n_tor_axis, "n_tor")
     call tr_allocate(a_values,1,node_list%n_nodes,1,n_tor_axis,1,n_order+1,1,n_var_tmp, "node_list%values",CAT_UNKNOWN)
     call tr_allocate(a_deltas,1,node_list%n_nodes,1,n_tor_axis,1,n_order+1,1,n_var_tmp, "node_list%deltas",CAT_UNKNOWN)
@@ -1238,26 +1242,39 @@ subroutine import_hdf5_restart(node_list, element_list, filename, format_rst, er
     call tr_allocate(xtime,1,index_start+nstep,"xtime",CAT_UNKNOWN)
     call HDF5_array1D_reading(file_id,xtime,'xtime')
 
-    if (allocated(t_energies))   call tr_deallocate(t_energies,"t_energies",CAT_UNKNOWN)
-    call tr_allocate(t_energies,1,n_tor_tmp,1,2,1,index_start+nstep,"t_energies",CAT_UNKNOWN)
-    t_energies = 0.d0
-    call HDF5_array3D_reading(file_id,t_energies,'energies')
-
     if (allocated(energies))   call tr_deallocate(energies,"energies",CAT_UNKNOWN)
     call tr_allocate(energies,1,n_tor,1,2,1,index_start+nstep,"energies",CAT_UNKNOWN)
     energies = 0.d0
 
-    do m=1,n_tor_tmp,2
-      do k=1, n_tor,2 
-        if (mode_tmp(m) .eq. mode(k)) then
-          if ((m .eq. 1) .and. (k.eq.1)) then
-            energies(k,:,:) = t_energies(m,:,:)
-          else
-            energies(k-1:k,:,:) = t_energies(m-1:m,:,:)
+    if ( .not. import_perturbation ) then
+
+      if (allocated(t_energies))   call tr_deallocate(t_energies,"t_energies",CAT_UNKNOWN)
+      call tr_allocate(t_energies,1,n_tor_tmp,1,2,1,index_start+nstep,"t_energies",CAT_UNKNOWN)
+      t_energies = 0.d0
+      call HDF5_array3D_reading(node_id,t_energies,'energies')
+
+      do m=1,n_tor_tmp,2
+        do k=1, n_tor,2 
+          if (mode_tmp(m) .eq. mode(k)) then
+            if ((m .eq. 1) .and. (k.eq.1)) then
+              energies(k,:,:) = t_energies(m,:,:)
+            else
+              energies(k-1:k,:,:) = t_energies(m-1:m,:,:)
+            end if
           end if
-        end if
+        end do
       end do
-    end do
+
+    else
+
+      if (allocated(a_energies))   call tr_deallocate(a_energies,"a_energies",CAT_UNKNOWN)
+      call tr_allocate(a_energies,1,n_tor_axis,1,2,1,index_start+nstep,"a_energies",CAT_UNKNOWN)
+      a_energies = 0.d0
+      call HDF5_array3D_reading(file_id,a_energies,'energies')
+
+      energies(1,:,:) = a_energies(1,:,:)      
+
+    end if
 
     if (allocated(R_axis_t)) call tr_deallocate(R_axis_t,"R_axis_t",CAT_UNKNOWN)
     call tr_allocate(R_axis_t,1,index_start+nstep,"R_axis_t",CAT_UNKNOWN)
@@ -1907,6 +1924,12 @@ subroutine import_hdf5_restart(node_list, element_list, filename, format_rst, er
   call tr_deallocate(t_values,"t_values",CAT_UNKNOWN)
   call tr_deallocate(t_deltas,"t_deltas",CAT_UNKNOWN)
   call tr_deallocate(t_energies,"t_energies",CAT_UNKNOWN)
+  if ( import_perturbation) then
+    call tr_deallocate(a_energies,"a_energies",CAT_UNKNOWN)
+    call tr_deallocate(a_values,"a_values",CAT_UNKNOWN)
+    call tr_deallocate(a_deltas,"a_deltas",CAT_UNKNOWN)
+  end if
+
 
 #ifdef JECCD                   
   call tr_deallocate(t_energies2,"t_energies2",CAT_UNKNOWN)
