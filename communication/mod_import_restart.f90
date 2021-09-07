@@ -823,7 +823,7 @@ subroutine import_hdf5_restart(node_list, element_list, filename, format_rst, er
   character(len=*),           intent(in)    :: filename
   integer,                    intent(in)    :: format_rst  ! format of restart file
   integer,                    intent(out)   :: error
-  logical, optional,          intent(in)    :: no_perturbations ! don't initialize new harmonics
+  logical, optional,          intent(in)    :: no_perturbations ! Not used any more
   character(len=*), optional, intent(in)    :: filename_pert
   
   ! --- Perturbation-Import variables
@@ -890,7 +890,7 @@ subroutine import_hdf5_restart(node_list, element_list, filename, format_rst, er
   integer,     allocatable :: spi_species_arr_old (:)  !< For backward compatibility only
 
   integer                  :: err_exists, dterr, n_spi_begin, i_inj
-  logical                  :: flag_exists, type_match, no_pert
+  logical                  :: flag_exists, type_match
 
   real*8,      allocatable :: t_energies(:,:,:)   !< Magnetic and kinetic mode energies at previous timesteps.
   real*8,      allocatable :: t_energies2(:,:,:)  !< Magnetic and kinetic mode energies at previous timesteps.
@@ -901,8 +901,7 @@ subroutine import_hdf5_restart(node_list, element_list, filename, format_rst, er
   error = 0
 #ifdef USE_HDF5
 
-  no_pert = .false.
-  if ( present(no_perturbations) )          no_pert = .true.
+  import_perturbation = .false.
   if ( present(filename_pert) ) import_perturbation = .true.
 
   ! ->  Reading HDF5 file
@@ -1890,7 +1889,7 @@ subroutine import_hdf5_restart(node_list, element_list, filename, format_rst, er
  
   ! --- initialise new harmonics to noise level (only density and temperature, to be improved)
   n_new_modes = sum(new_mode(1:n_tor))
-  if ( (.not. no_pert) .and. (n_new_modes .gt. 0) ) then
+  if (n_new_modes .gt. 0) then
     write(*,*), 'Warning:', n_new_modes, ' new modes initialized to noise level' 
     amplitude = 1.d-10
     do i=1,node_list%n_nodes
