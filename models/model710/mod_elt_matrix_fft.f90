@@ -18,6 +18,7 @@ use diffusivities, only: get_dperp, get_zkperp
 use equil_info, only : get_psi_n, ES
 use mod_F_profile
 use mod_bootstrap_functions
+use mod_sources
 
 implicit none
 

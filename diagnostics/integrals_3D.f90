@@ -13,9 +13,13 @@ use domains
 use corr_neg
 use equil_info, only : get_psi_n, ES
 !$ use omp_lib
-#if (defined WITH_Neutrals) || (defined WITH_Impurities)
+#ifdef WITH_Neutrals
   use mod_neutral_source
 #endif
+#ifdef WITH_Impurities
+  use mod_impurity
+#endif
+use mod_sources
 
 implicit none
 
@@ -135,10 +139,9 @@ ife_max   = min((my_id +1) * ife_delta, element_list%n_elements)
 !$omp          local_pellet_particles, local_plasma_particles, local_pellet_volume,            &
 #if (defined WITH_Neutrals) && (!defined WITH_Impurities)
 !$omp          local_n_particles_inj, local_n_particles, ns_amplitude, ns_R, ns_Z,             &
-!$omp          ns_phi, ns_radius, ns_sig, ns_deltaphi, ns_tor_norm, spi_tor_rot,               &
+!$omp          ns_phi, ns_radius, ns_deltaphi, ns_tor_norm, spi_tor_rot,                       &
 !$omp          t_now, A_Dmv, K_Dmv, V_Dmv, P_Dmv, t_ns, L_tube, JET_MGI,ASDEX_MGI,             &
 !$omp          central_mass, pellets, tor_frequency,                                           &
-!$omp          n_spi, using_spi,                                                               &
 !$omp          ng_radius_ratio, ng_radius_min, ng_radius, spi_shard_file,                      &
 #endif
 !$omp          wgauss_copy)                                                                    &
@@ -357,29 +360,7 @@ do ife = ife_min, ife_max
 
         source_neutral = 0.d0
 
-        if (using_spi) then
-
-          do spi_i = 1, n_spi
-
-            ng_radius   = pellets(spi_i)%spi_radius * ng_radius_ratio
-
-            if (ng_radius < ng_radius_min) then
-              ng_radius = ng_radius_min
-            end if
-
-            call neutral_source(pellets(spi_i)%spi_abl,pellets(spi_i)%spi_R,pellets(spi_i)%spi_Z,pellets(spi_i)%spi_phi,&
-                                  ng_radius,ns_sig,ns_deltaphi,     &
-                                  ns_tor_norm, A_Dmv,K_Dmv,V_Dmv,P_Dmv,t_ns,L_tube,x_g(ms,mt),y_g(ms,mt),     &
-                                  phi,source_neutral,t_now,JET_MGI,ASDEX_MGI,central_density,central_mass)
-          end do
-
-        else
-
-          call neutral_source(ns_amplitude,ns_R,ns_Z,ns_phi,ns_radius,ns_sig,ns_deltaphi,ns_tor_norm,        &
-                                A_Dmv,K_Dmv,V_Dmv,P_Dmv,t_ns,L_tube,x_g(ms,mt),y_g(ms,mt),phi,source_neutral,t_now, &
-                                JET_MGI,ASDEX_MGI,central_density,central_mass)
-
-        end if
+        call total_neutral_source(x_g(ms,mt),y_g(ms,mt),phi,source_neutral)
 
         local_n_particles_inj = local_n_particles_inj + 0.5d0 * central_density * 1.d20 * source_neutral * bigR * xjac * wst * delta_phi / sqrt(MU_ZERO*central_mass*MASS_PROTON*central_density*1.d20)
         local_n_particles     = local_n_particles     + central_density * 1.d20 * rn0 * bigR * xjac * wst * delta_phi

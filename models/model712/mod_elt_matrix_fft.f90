@@ -20,6 +20,8 @@ use mod_F_profile
 use mod_bootstrap_functions
 use pellet_module
 use mod_neutral_source
+use mod_impurity, only: radiation_function, radiation_function_linear
+use mod_sources
 
 implicit none
 
@@ -1181,26 +1183,7 @@ do i=1,n_vertex_max
 
           ! --- Source of neutrals, e.g. from MGI/SPI
           source_neutral = 0.d0
-          if (using_spi) then
-            do spi_i=1, n_spi
-              source_neutral_tmp = 0.d0
-              if (pellets(spi_i)%spi_radius > 0.0) then
-                ng_radius   = pellets(spi_i)%spi_radius * ng_radius_ratio
-                if (ng_radius < ng_radius_min) then
-                  ng_radius = ng_radius_min
-                end if
-                call neutral_source(pellets(spi_i)%spi_abl,pellets(spi_i)%spi_R,pellets(spi_i)%spi_Z,pellets(spi_i)%spi_phi,&
-                              ng_radius,ns_sig,ns_deltaphi,&
-                              ns_tor_norm, A_Dmv,K_Dmv,V_Dmv,P_Dmv,t_ns,0.,R,Z,     &
-                              phi,source_neutral_tmp,t_now,JET_MGI,ASDEX_MGI,central_density,central_mass)
-              end if
-              source_neutral = source_neutral + source_neutral_tmp
-            end do
-          else
-            call neutral_source(ns_amplitude,ns_R,ns_Z,ns_phi,ns_radius,ns_sig,ns_deltaphi,ns_tor_norm, &
-                          A_Dmv,K_Dmv,V_Dmv,P_Dmv,t_ns,L_tube,R,Z,phi,source_neutral,t_now, &
-                          JET_MGI,ASDEX_MGI,central_density,central_mass)
-          end if
+          call total_neutral_source(x_g(ms,mt),y_g(ms,mt),phi,source_neutral)
           source_neutral = max(source_neutral,0.) + source_pellet
 
           !--------------------------------------------------------

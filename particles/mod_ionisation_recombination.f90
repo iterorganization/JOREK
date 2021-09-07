@@ -34,6 +34,7 @@ end function new_charge
 
 pure subroutine fields_interp_ne_Te(fields, time, s, t, phi, i_elm, n_e, T_e)
 use mod_fields
+use mod_parameters
 use phys_module, only: central_density
 use constants
 use mod_parameters

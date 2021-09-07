@@ -7,6 +7,8 @@ use data_structure
 use phys_module
 use mod_poiss
 use equil_info
+use mod_sources
+
 implicit none
 
 type (type_node_list)    :: node_list
@@ -206,10 +208,10 @@ do in=2,n_tor
       node_list%node(i)%values(in,3,4) = amplitude * (1. - 2.d0 * psi_n)/(ES%psi_bnd - ES%psi_axis) * node_list%node(i)%values(1,3,1)
       node_list%node(i)%values(in,4,4) = amplitude * (1. - 2.d0 * psi_n)/(ES%psi_bnd - ES%psi_axis) * node_list%node(i)%values(1,4,1)
       
-      if (xpoint2 .and. ((psi_n .gt. 1.d0) .or. ((Z .lt. ES%Z_xpoint(1)) .and. (xcase2 .ne. 2)) ) ) then
+      if (xpoint2 .and. ((psi_n .gt. 1.d0) .or. ((Z .lt. ES%Z_xpoint(1)) .and. (xcase2 .ne. UPPER_XPOINT)) ) ) then
         node_list%node(i)%values(in,1:4,4) = 0.d0
       endif
-      if (xpoint2 .and. ((psi_n .gt. 1.d0) .or. ((Z .gt. ES%Z_xpoint(2)) .and. (xcase2 .ne. 1)) ) ) then
+      if (xpoint2 .and. ((psi_n .gt. 1.d0) .or. ((Z .gt. ES%Z_xpoint(2)) .and. (xcase2 .ne. LOWER_XPOINT)) ) ) then
         node_list%node(i)%values(in,1:4,4) = 0.d0
       endif
 
@@ -246,8 +248,8 @@ do i=1,node_list%n_nodes
     ps0_y = ( - R_t * ps0_s + R_s * ps0_t ) / xjac
 
     direction = + ps0_x / abs(ps0_x)           ! temporary solution for lower x-point only
-    if (xcase2 .eq. 2) direction = -direction
-    if ( (xcase2 .eq. 3) .and. (node_list%node(i)%x(1,1,2) .gt. (ES%Z_xpoint(1)+ES%Z_xpoint(2))/2.d0) ) direction = -direction
+    if (xcase2 .eq. UPPER_XPOINT) direction = -direction
+    if ( (xcase2 .eq. DOUBLE_NULL) .and. (node_list%node(i)%x(1,1,2) .gt. (ES%Z_xpoint(1)+ES%Z_xpoint(2))/2.d0) ) direction = -direction
     if ( (grid_to_wall) .and. (n_wall_blocks .ne. 0) ) direction = 0.d0
 
     BigR = node_list%node(i)%x(1,1,1)
@@ -261,11 +263,11 @@ do i=1,node_list%n_nodes
     node_list%node(i)%values(1,2,7) = BigR_s / (BigR*Btot) * sqrt(GAMMA * T0) + 0.5d0 / Btot * sqrt(GAMMA / T0) * T0_s
     node_list%node(i)%values(1,2,7) = direction *  node_list%node(i)%values(1,2,7)
 
-    if(xcase2 .eq. 1) then
+    if(xcase2 .eq. LOWER_XPOINT) then
       write(*,'(A,8e14.6)') ' Boundary condition (eq): ',BigR,ES%psi_xpoint(1),node_list%node(i)%values(1,1,1),ps0_x,ps0_y, &
       		    node_list%node(i)%values(1,1,7),BigR/F0 * sqrt(GAMMA*T0)
     endif
-    if( (xcase2 .eq. 2) .or. ((xcase2 .eq. 3) .and. (ES%psi_xpoint(2) .lt. ES%psi_xpoint(1))) ) then
+    if( ES%active_xpoint .eq. UPPER_XPOINT ) then
       write(*,'(A,8e14.6)') ' Boundary condition (eq): ',BigR,ES%psi_xpoint(2),node_list%node(i)%values(1,1,1),ps0_x,ps0_y, &
       		    node_list%node(i)%values(1,1,7),BigR/F0 * sqrt(GAMMA*T0)
     endif
@@ -286,8 +288,8 @@ do i=1,node_list%n_nodes
     ps0_y = ( - R_t * ps0_s + R_s * ps0_t ) / xjac
 
     direction = + ps0_x / abs(ps0_x)           ! temporary solution for lower x-point only
-    if (xcase2 .eq. 2) direction = -direction
-    if ( (xcase2 .eq. 3) .and. (node_list%node(i)%x(1,1,2) .gt. (ES%Z_xpoint(1)+ES%Z_xpoint(2))/2.d0) ) direction = -direction
+    if (xcase2 .eq. UPPER_XPOINT) direction = -direction
+    if ( (xcase2 .eq. DOUBLE_NULL) .and. (node_list%node(i)%x(1,1,2) .gt. (ES%Z_xpoint(1)+ES%Z_xpoint(2))/2.d0) ) direction = -direction
     if ( (grid_to_wall) .and. (n_wall_blocks .ne. 0) ) direction = 0.d0
 
 
@@ -302,11 +304,11 @@ do i=1,node_list%n_nodes
     node_list%node(i)%values(1,3,7) = BigR_s / (BigR*Btot) * sqrt(GAMMA * T0) + 0.5d0 / Btot * sqrt(GAMMA / T0) * T0_s
     node_list%node(i)%values(1,3,7) = direction *  node_list%node(i)%values(1,3,7)
 
-    if(xcase2 .eq. 1) then
+    if(xcase2 .eq. LOWER_XPOINT) then
       write(*,'(A,8e14.6)') ' Boundary condition (eq): ',BigR,ES%psi_xpoint(1),node_list%node(i)%values(1,1,1),ps0_x,ps0_y, &
                           node_list%node(i)%values(1,1,7),BigR/F0 * sqrt(GAMMA*T0)
     endif
-    if( (xcase2 .eq. 2) .or. ((xcase2 .eq. 3) .and. (ES%psi_xpoint(2) .lt. ES%psi_xpoint(1))) ) then
+    if( ES%active_xpoint .eq. UPPER_XPOINT ) then
       write(*,'(A,8e14.6)') ' Boundary condition (eq): ',BigR,ES%psi_xpoint(2),node_list%node(i)%values(1,1,1),ps0_x,ps0_y, &
                           node_list%node(i)%values(1,1,7),BigR/F0 * sqrt(GAMMA*T0)
     endif

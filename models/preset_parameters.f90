@@ -53,7 +53,7 @@ subroutine preset_parameters
   freeboundary       = .false. ! use free or fixed boundary?
   resistive_wall     = .false. ! use a resistive or ideal wall?    (freeboundary only)
   freeb_equil_iterate_area = .false.
-  freeb_change_indices = .false. ! exchange grid node indices to parallelize boundary integral (only needed when running fixed boundary at first)
+  freeb_change_indices = .true. ! exchange grid node indices to parallelize boundary integral
 
   bc_natural_flux    = .false.! boundary conditions for flux surface boundaries (2 and 3)
   bc_natural_open    = .false. ! use sheath (Bohm) boundary conditions
@@ -66,6 +66,7 @@ subroutine preset_parameters
   gamma_i_stangeby   = -1.d99 ! sheath transmission factor (ion fluid) given by Stangeby
   density_reflection = 0.d0   ! reflection coefficient for outgoing density
   neutral_reflection = 0.d0   ! reflection coefficient for (fluid) neutrals
+  imp_reflection     = 0.d0   ! reflection coefficient for (fluid) impurities
   
   deuterium_adas        = .false. 
   deuterium_adas_1e20   = .false. 
@@ -73,6 +74,7 @@ subroutine preset_parameters
   mach_one_bnd_integral = .false. ! implement Mach one condition as boundary integral
   Vpar_smoothing        = .false. ! smooth the transitions of Vpar positive/negavtive at B.n
   Vpar_smoothing_coef   = (/0.01d0, 0.d0, 0.d0 /) !(/ 0.01d0, 0.016d0, 0.00575446347d0/)
+  min_sheath_angle      = 1.d0   ! 1 degree (not in radians)
 
   amix                 = 0.d0
   amix_freeb           = 0.85d0
@@ -222,14 +224,16 @@ subroutine preset_parameters
   ZK_i_perp_num = 0.d0
   ZK_e_perp_num = 0.d0
   Dn_perp_num   = 0.d0
-  eta_num_T_dependent   = .false.
-  visco_num_T_dependent = .false.
 
   heatsource          = 1.e-7
   heatsource_e        = 0.5e-7
   heatsource_i        = 0.5e-7
   heatsource_psin     = 1.0d0
+  heatsource_e_psin   = 1.0d0
+  heatsource_i_psin   = 1.0d0
   heatsource_sig      = 0.1d0
+  heatsource_e_sig    = 0.1d0
+  heatsource_i_sig    = 0.1d0
   particlesource      = 1.e-5
   particlesource_psin = 1.0d0
   particlesource_sig  = 0.1d0
@@ -237,10 +241,14 @@ subroutine preset_parameters
   edgeparticlesource_psin = 0.98
   edgeparticlesource_sig  = 0.01
   heatsource_gauss          = 0.d0
-  heatsource_gauss_i        = 0.d0
   heatsource_gauss_e        = 0.d0
+  heatsource_gauss_i        = 0.d0
   heatsource_gauss_psin     = 0.9d0
+  heatsource_gauss_e_psin   = 0.9d0
+  heatsource_gauss_i_psin   = 0.9d0
   heatsource_gauss_sig      = 0.1d0
+  heatsource_gauss_e_sig    = 0.1d0
+  heatsource_gauss_i_sig    = 0.1d0
   particlesource_gauss      = 0.d0
   particlesource_gauss_psin = 0.9d0
   particlesource_gauss_sig  = 0.1d0
@@ -299,8 +307,8 @@ subroutine preset_parameters
   pellet_velocity_R = 0.d0
   pellet_velocity_Z = 0.d0
   pellet_particles  = 0.d0
-  pellet_density    = 3.d8       ! pellet density (in units 10^20 m^-3)
-  pellet_density_bg = 3.d8
+  pellet_density    = 5.985d8       ! pellet density (in units 10^20 m^-3)
+  pellet_density_bg = 5.958d8
   use_pellet        = .false.
   
   t_now       = 0.d0
@@ -360,6 +368,20 @@ subroutine preset_parameters
   ! ------------------------------------------------------------------------
 
   tgnum              = 0.d0                 ! Taylor-Galerkin Stabilisation coefficients (0.d0 == TG not used)
+  tgnum_psi          = 0.d0          
+  tgnum_u            = 0.d0
+  tgnum_zj           = 0.d0
+  tgnum_w            = 0.d0
+  tgnum_rho          = 0.d0
+  tgnum_T            = 0.d0
+  tgnum_Ti           = 0.d0
+  tgnum_Te           = 0.d0
+  tgnum_vpar         = 0.d0
+  tgnum_rhon         = 0.d0
+  tgnum_nre          = 0.d0
+  tgnum_AR           = 0.d0
+  tgnum_AZ           = 0.d0
+  tgnum_A3           = 0.d0
 
   keep_current_prof  = .true.               ! Keep the current_source term
   
@@ -398,8 +420,6 @@ subroutine preset_parameters
   eta_ARAZ_on        = .true.               !< Full-MHD: to switch on/off resistive   terms for AR and AZ equations
   tauIC_ARAZ_on      = .true.               !< Full-MHD: to switch on/off diamagnetic terms for AR and AZ equations
 
-  fix_axis_nodes     = .false.              !< Fix t-derivative on axis to avoid noise)
-  
   bench_without_plot = .false.              ! .true. for benchmark (mesuring elapsed time without plot phases) 
   no_zeros_pastix    = .false.              ! .true. to remove nonzeros in the preconditioning matrix with MUMPS
   no_zeros_mumps     = .false.              ! .true. to remove nonzeros in the preconditioning matrix with PaStiX
@@ -462,7 +482,6 @@ subroutine preset_parameters
   ns_Z      =  1.5d0
   ns_phi    = 1.57d0
   ns_radius =   0.08d0
-  ns_sig    =  0.05
   ns_deltaphi =  0.5
   ns_tor_norm = 1.
   ksi_ion = 1.84d-24
@@ -472,8 +491,8 @@ subroutine preset_parameters
   delta_n_convection = 0
   nimp_bg = 0.
   n_adas = 0
-  adas_dir = ''
-  imp_type = ''
+  adas_dir = ' '
+  imp_type = ' '
   use_imp_adas = .true. ! Directly use adas for impurity radiation; hard-coded one exists for argon
 
   !====== JET DMV-2 parameters
@@ -493,9 +512,12 @@ subroutine preset_parameters
   spi_Vel_diff    = 0.0
   spi_angle       = 0.0
   spi_L_inj       = 0.25
+  spi_L_inj_diff  = 0.0
   ns_phi_rotate   = 0.0
   tor_frequency   = 0.0
-  n_spi           = 1
+  n_spi           = 0
+  n_spi(1)        = 1
+  n_inj           = 1
   spi_rnd_seed    = 0
   spi_abl_model   = 0
   spi_shard_file  = 'none'

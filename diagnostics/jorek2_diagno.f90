@@ -16,12 +16,7 @@ use basis_at_gaussian
 use pellet_module
 use mpi_mod
 use mod_import_restart
-#if (defined WITH_Neutrals) && (!defined WITH_Impurities)
-   use mod_neutral_source
-#endif
-#if (!defined WITH_Neutrals) && (defined WITH_Impurities)
-   use mod_injection_source
-#endif
+use mod_impurity
 
 implicit none
 

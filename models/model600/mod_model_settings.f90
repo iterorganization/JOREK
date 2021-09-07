@@ -3,8 +3,8 @@ module mod_model_settings
 
 implicit none
 
-logical, parameter :: with_vpar       = .false. 
-logical, parameter :: with_TiTe       = .true.  ! not yet possible to switch
+logical, parameter :: with_vpar       = .true.
+logical, parameter :: with_TiTe       = .false.
 logical, parameter :: with_neutrals   = .false. ! not yet possible to switch
 logical, parameter :: with_impurities = .false. ! not yet possible to switch
 logical, parameter :: with_refluid    = .false. ! not yet possible to switch
@@ -16,7 +16,7 @@ logical, parameter :: with_refluid    = .false. ! not yet possible to switch
 
 
 ! The following line is needed by ./util/config.sh:
-! #SETTINGS# with_vpar
+! #SETTINGS# with_vpar with_TiTe with_neutrals
 
 integer, parameter :: jorek_model     = 600
 
@@ -97,7 +97,7 @@ elemental pure logical function ext_available(i_ext)
   else if ( i_ext == i_ext_vpar ) then
     ext_available = .true.
   else if ( i_ext == i_ext_neutrals ) then
-    ext_available = .false.
+    ext_available = .true.
   else if ( i_ext == i_ext_impurities ) then
     ext_available = .false.
   else if ( i_ext == i_ext_refluid ) then

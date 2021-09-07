@@ -18,7 +18,7 @@ character(len=*),             intent(in) :: filename
 real*8 :: vacuum_fraction, b_over_a, a_over_b
 
 ! --- Local variables
-integer :: ierr,err,i
+integer :: ierr,err,i, n_spi_begin
 
 ! --- Namelist with input parameters.
 namelist /in1/  tstep, nstep, tstep_n, nstep_n,                     &
@@ -117,12 +117,13 @@ namelist /in1/  tstep, nstep, tstep_n, nstep_n,                     &
                 ne_SI_min, Te_eV_min, rn0_min,                      &
                 D_neutral_x, D_neutral_y, D_neutral_p,              &
                 neutral_reflection, rho_min,                        &
-                ns_sig, ns_deltaphi, ksi_ion, spi_rnd_seed,         &
+                ns_deltaphi, ksi_ion, spi_rnd_seed,                 &
                 ns_amplitude, ns_R, ns_Z, ns_phi, ns_radius,        &
-                spi_Vel_Rref,spi_Vel_Zref, using_spi, n_spi,        &
+                spi_Vel_Rref,spi_Vel_Zref, using_spi, n_spi, n_inj, &
                 spi_Vel_RxZref, spi_quantity, spi_abl_model,        &
                 ng_radius_ratio, ng_radius_min, spi_angle,          &
-                spi_L_inj, K_Dmv, A_Dmv, L_tube, V_Dmv, P_Dmv,      &
+                spi_L_inj, spi_L_inj_diff,                          &
+                K_Dmv, A_Dmv, L_tube, V_Dmv, P_Dmv,                 &
                 spi_Vel_diff, t_ns, JET_MGI, ASDEX_MGI,             &
                 delta_n_convection, nimp_bg, output_prad_phi,       &
                 RMP_on, RMP_har_cos,RMP_har_sin, spi_shard_file,    &
@@ -173,8 +174,8 @@ if (my_id .eq. 0) then
   endif
   
   if ( old_deuterium_atomic ) then
-    write(*,*) 'WARNING: You use the old fit of deuterium atomic coefficients that is known '      &
-    // 'to be inaccurate and has only been kept such that old simulation cases can be repeated!'
+    write(*,*) 'WARNING: You use the old fit of deuterium atomic coefficients that is known to be'
+    write(*,*) 'inaccurate and has only been kept such that old simulation cases can be repeated!'
     write(*,*) 'You should either use the more accurate fit or the ADAS based implementation.'
   end if
 
@@ -239,25 +240,35 @@ call read_num_profiles(my_id)
 ! --- Determine the derivatives of the numerical input profiles.
 call derive_num_profiles(my_id)
 
+#if (defined WITH_Neutrals) && (!defined WITH_Impurities)
+spi_quantity_bg   = spi_quantity
+pellet_density_bg = pellet_density
+#endif
+
 if ( my_id == 0 ) then
   if (2*PI/(n_tor*n_period) >= ns_deltaphi) then
     write(*,*) "WARNING! ns_deltaphi too small for the n_tor, BEWARE!"
-    if (t_now > t_ns) then
+    if (t_now > minval(t_ns)) then
       write(*,*) "EXITING NOW!!!"
       stop
     end if
   end if
 
-  if (using_spi) then
-    if (JET_MGI .or. ASDEX_MGI) then
-      write(*,*) "WARNING: Using SPI, conflicting with MGI settings"
-      write(*,*) "JET_MGI:", JET_MGI
-      write(*,*) "ASDEX_MGI:", ASDEX_MGI
+
+  if (n_inj > n_inj_max .or. n_inj < 1) then
+    write(*,*) "ERROR! Do not support n_inj larger than n_inj_max or smaller than 1, EXITING!"
+    stop
+  end if  
+
+  do i = 1, n_inj_max
+    if (n_spi(i)/=0 .and. i > n_inj) then
+      write(*,*) "ERROR! Something wrong with n_inj, double check, EXITING!", n_spi, n_inj
       stop
-    else 
-      call init_spi()
     end if
-  end if
+  end do 
+
+  if (using_spi) call init_spi_all()
+
 end if
 
 return

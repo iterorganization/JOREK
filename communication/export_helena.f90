@@ -7,6 +7,7 @@ use mod_parameters
 use data_structure
 use phys_module
 use mod_interp
+use equil_info
 
 implicit none
 
@@ -56,11 +57,11 @@ if (xpoint) then
   call find_xpoint(my_id,node_list,element_list,psi_xpoint,R_xpoint,Z_xpoint,i_elm_xpoint,s_xpoint,t_xpoint,xcase,ifail)
   if (ifail .ne. 1) then      
     psi_bnd  = psi_xpoint(1)
-    if( (xcase .eq. 2) .or. ((xcase .eq. 3) .and. (psi_xpoint(2) .lt. psi_xpoint(1))) ) then
+    if( ES%active_xpoint .eq. UPPER_XPOINT ) then
       psi_bnd = psi_xpoint(2)
     endif
-    if(xcase .eq. 1) Z_xpoint(2) = +99.d0
-    if(xcase .eq. 2) Z_xpoint(1) = -99.d0
+    if(xcase .eq. LOWER_XPOINT) Z_xpoint(2) = +99.d0
+    if(xcase .eq. UPPER_XPOINT) Z_xpoint(1) = -99.d0
   else
     Z_xpoint(1) = -99.d0
     Z_xpoint(2) = +99.d0
@@ -80,8 +81,7 @@ surface_list%psi_values = 0 ! XL : uninitialised value.
 
 if (xpoint) then
   write(*,*) ' x-point plasma'
-  call find_xpoint(my_id,node_list,element_list,psi_xpoint,R_xpoint,Z_xpoint,i_elm_xpoint,s_xpoint,t_xpoint,xcase,ifail)
-  if( (xcase .eq. 2) .or. ((xcase .eq. 3) .and. (psi_xpoint(2) .lt. psi_xpoint(1))) ) then
+  if( ES%active_xpoint .eq. UPPER_XPOINT ) then
     surface_list%psi_values(1) =  psi_axis + 0.95  * (psi_xpoint(2) - psi_axis)
     surface_list%psi_values(2) =  psi_axis + 0.99  * (psi_xpoint(2) - psi_axis)
     surface_list%psi_values(3) =  psi_axis + 0.995 * (psi_xpoint(2) - psi_axis)
@@ -90,8 +90,8 @@ if (xpoint) then
     surface_list%psi_values(2) =  psi_axis + 0.99  * (psi_xpoint(1) - psi_axis)
     surface_list%psi_values(3) =  psi_axis + 0.995 * (psi_xpoint(1) - psi_axis)
   endif
-  if(xcase .eq. 1) Z_xpoint(2) = +99.d0
-  if(xcase .eq. 2) Z_xpoint(1) = -99.d0
+  if(xcase .eq. LOWER_XPOINT) Z_xpoint(2) = +99.d0
+  if(xcase .eq. UPPER_XPOINT) Z_xpoint(1) = -99.d0
 else
   write(*,*) ' NOT an x-point plasma'
   surface_list%psi_values(1) =  psi_axis + 0.95  * (psi_bnd - psi_axis)
@@ -230,13 +230,13 @@ do i=2, surface_list%n_psi
       call interp(node_list,element_list,i_elm,1,1,ri,si,PSgi,dPSgi_dr,dPSgi_ds,dPSgi_drs,dPSgi_drr,dPSgi_dss)
       call interp(node_list,element_list,i_elm,5,1,ri,si,R0gi,dR0gi_dr,dR0gi_ds,dR0gi_drs,dR0gi_drr,dR0gi_dss)
       if (with_TiTe) then
-        call interp(node_list,element_list,i_elm,6,1,ri,si,Ti0gi,dTi0gi_dr,dTi0gi_ds,dTi0gi_drs,dTi0gi_drr,dTi0gi_dss)
-        call interp(node_list,element_list,i_elm,8,1,ri,si,Te0gi,dTe0gi_dr,dTe0gi_ds,dTe0gi_drs,dTe0gi_drr,dTe0gi_dss)
+        call interp(node_list,element_list,i_elm,var_Ti,1,ri,si,Ti0gi,dTi0gi_dr,dTi0gi_ds,dTi0gi_drs,dTi0gi_drr,dTi0gi_dss)
+        call interp(node_list,element_list,i_elm,var_Te,1,ri,si,Te0gi,dTe0gi_dr,dTe0gi_ds,dTe0gi_drs,dTe0gi_drr,dTe0gi_dss)
         T0gi     = Ti0gi + Te0gi
         dT0gi_dr = dTi0gi_dr + dTe0gi_dr
         dT0gi_ds = dTi0gi_ds + dTe0gi_ds
       else
-        call interp(node_list,element_list,i_elm,6,1,ri,si,T0gi,dT0gi_dr,dT0gi_ds,dT0gi_drs,dT0gi_drr,dT0gi_dss)
+        call interp(node_list,element_list,i_elm,var_T,1,ri,si,T0gi,dT0gi_dr,dT0gi_ds,dT0gi_drs,dT0gi_drr,dT0gi_dss)
       endif      
       call interp(node_list,element_list,i_elm,3,1,ri,si,ZJgi,dZJgi_dr,dZJgi_ds,dZJgi_drs,dZJgi_drr,dZJgi_dss)
 
@@ -246,10 +246,10 @@ do i=2, surface_list%n_psi
       ! --- Make sure that for flux surfaces at Psi_N < 1, the surface integral is carried out only
       !     over the flux surface segments of the plasma region.
       !     I.e., ignore flux surface segments in the private flux region below the x-point.
-      if (xcase .ne. 2) then 
+      if (xcase .ne. UPPER_XPOINT) then 
         if ( xpoint .and. ((PSgi-psi_axis)/(psi_xpoint(1)-psi_axis) < 1.d0) .and. (ZZgi < z_xpoint(1))) cycle
       endif
-      if (xcase .ne. 1) then
+      if (xcase .ne. LOWER_XPOINT) then
         if ( xpoint .and. ((PSgi-psi_axis)/(psi_xpoint(2)-psi_axis) < 1.d0) .and. (ZZgi > z_xpoint(2))) cycle
       endif
 

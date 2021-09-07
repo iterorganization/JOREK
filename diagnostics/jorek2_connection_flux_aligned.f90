@@ -29,6 +29,7 @@ program jorek2_connection_flux_aligned
   use mod_boundary
   use mod_neighbours
   use mod_interp
+  use equil_info
   
   implicit none
 
@@ -75,9 +76,7 @@ program jorek2_connection_flux_aligned
   real*8    :: delta_t, small_delta_t
   real*8    :: small_delta, dl2, total_length, length_max
   real*8    :: zl1, zl2, partial(2)
-  integer   :: i_elm_xpoint,i_elm_axis
-  real*8    :: psi_xpoint(2),R_xpoint(2),Z_xpoint(2),s_xpoint(2),t_xpoint(2), psi_bnd, psi_bnd2
-  real*8    :: psi_axis,R_axis,Z_axis,s_axis,t_axis
+  real*8    :: psi_bnd, psi_bnd2
   integer   :: bnd_tmp, bnd_tmp_opp
   real*8    :: s_tmp, t_tmp
   real*8,allocatable  :: RZkeep(:,:),RhoThetakeep(:,:)
@@ -202,16 +201,14 @@ program jorek2_connection_flux_aligned
   enddo
   
   ! --- find x-point(s)
-  call find_axis(my_id,node_list,element_list,psi_axis,R_axis,Z_axis,i_elm_axis,s_axis,t_axis,ifail)
   if (xpoint) then
-    call find_xpoint(my_id,node_list,element_list,psi_xpoint,R_xpoint,Z_xpoint,i_elm_xpoint,s_xpoint,t_xpoint,xcase,ifail)
-    psi_bnd  = psi_xpoint(1)
-    psi_bnd2 = psi_xpoint(2)
-    if( (xcase .eq. 2) .or. ((xcase .eq. 3) .and. (psi_xpoint(2) .lt. psi_xpoint(1))) ) then
-      psi_bnd  = psi_xpoint(2)
-      psi_bnd2 = psi_xpoint(1)
+    psi_bnd  = ES%psi_xpoint(1)
+    psi_bnd2 = ES%psi_xpoint(2)
+    if( ES%active_xpoint .eq. UPPER_XPOINT ) then
+      psi_bnd  = ES%psi_xpoint(2)
+      psi_bnd2 = ES%psi_xpoint(1)
     endif
-    if (xcase .eq. 1) psi_bnd2 = psi_bnd
+    if (xcase .eq. LOWER_XPOINT) psi_bnd2 = psi_bnd
   else
     call find_limiter(my_id, node_list, element_list, bnd_elm_list, psi_bnd, R_start, Z_start)
     psi_bnd2 = psi_bnd
@@ -260,7 +257,7 @@ program jorek2_connection_flux_aligned
     do j=1, npsin
       ! Get starting R, Z, phi - phi is set arbitrarily
       psin_start = psin_range_min + j * delta_psin
-      call find_starting_element(i_elm_start, psin_start, psi_axis, psi_bnd, theta_start, R_axis, Z_axis, Z_xpoint, s_ini, t_ini, previous_r_lower, previous_r_upper, R_start, Z_start)
+      call find_starting_element(i_elm_start, psin_start, ES%psi_axis, psi_bnd, theta_start, ES%R_axis, ES%Z_axis, ES%Z_xpoint, s_ini, t_ini, previous_r_lower, previous_r_upper, R_start, Z_start)
 
       ! ----------------------
       ! --- We have a new line
@@ -289,7 +286,7 @@ program jorek2_connection_flux_aligned
         R_all(i_line) = R_start
         Z_all(i_line) = Z_start
         call var_value(i_elm, i_var_psi, s_line, t_line, phi_start, psin_all(i_line))
-        psin_all(i_line) = (psin_all(i_line) - psi_axis) / (psi_bnd - psi_axis)  
+        psin_all(i_line) = (psin_all(i_line) - ES%psi_axis) / (psi_bnd - ES%psi_axis)  
 
         R_turn(1,(i_dir+1)/2+1) = R_start
         Z_turn(1,(i_dir+1)/2+1) = Z_start
@@ -431,7 +428,7 @@ program jorek2_connection_flux_aligned
               if (i_elm .eq. 0) exit
               
               call interp(node_list,element_list,i_elm,1,1,s_line,t_line,psi_tmp,P0_s,P0_t,P0_st,P0_ss,P0_tt)
-              psin_tmp = (psi_tmp - psi_axis) / (psi_bnd - psi_axis)
+              psin_tmp = (psi_tmp - ES%psi_axis) / (psi_bnd - ES%psi_axis)
               if (psin_tmp .gt. psin_strike_bnd) exit
             enddo  ! end of loop over steps within one element
     
@@ -496,9 +493,9 @@ program jorek2_connection_flux_aligned
       enddo
 
       ! --- Keep only field lines starting inside the plasma region
-      if ( ( ( (xcase .eq. 1) .and. (Z_turn(1,1) .gt. Z_xpoint(1)) ) &
-          .or.( (xcase .eq. 2) .and. (Z_turn(1,1) .lt. Z_xpoint(2)) ) &
-          .or.( (xcase .eq. 3) .and. (Z_turn(1,1) .gt. Z_xpoint(1)) .and. (Z_turn(1,1) .lt. Z_xpoint(2)) ) ) ) then
+      if ( ( ( (xcase .eq. 1) .and. (Z_turn(1,1) .gt. ES%Z_xpoint(1)) ) &
+          .or.( (xcase .eq. 2) .and. (Z_turn(1,1) .lt. ES%Z_xpoint(2)) ) &
+          .or.( (xcase .eq. 3) .and. (Z_turn(1,1) .gt. ES%Z_xpoint(1)) .and. (Z_turn(1,1) .lt. ES%Z_xpoint(2)) ) ) ) then
 
         ! --- Compute averaged connection length
         count_lines = count_lines + 1
@@ -512,14 +509,14 @@ program jorek2_connection_flux_aligned
 
               ! --- Connection lengths in both directions
               ikeep = ikeep + 1
-              small_r   = sqrt( (R_turn(i_turn,i_dir)-R_axis)**2 + (Z_turn(i_turn,i_dir)-Z_axis)**2 )
-              theta_pol = atan2(Z_turn(i_turn,i_dir)-Z_axis,R_turn(i_turn,i_dir)-R_axis)
+              small_r   = sqrt( (R_turn(i_turn,i_dir)-ES%R_axis)**2 + (Z_turn(i_turn,i_dir)-ES%Z_axis)**2 )
+              theta_pol = atan2(Z_turn(i_turn,i_dir)-ES%Z_axis,R_turn(i_turn,i_dir)-ES%R_axis)
               if (theta_pol .lt. 0.d0) theta_pol = theta_pol + 2.d0*PI
               
               if (ikeep .le. n_points_max) then
                 call find_RZ(node_list,element_list,R_turn(i_turn,i_dir),Z_turn(i_turn,i_dir),R_tmp,Z_tmp,ielm_tmp,s_tmp,t_tmp,ifail)
                 call interp(node_list,element_list,ielm_tmp,1,1,s_tmp,t_tmp,psi_tmp,P0_s,P0_t,P0_st,P0_ss,P0_tt)
-                RhoThetakeep(1,ikeep)      = (psi_tmp-psi_axis)/(psi_bnd-psi_axis)!small_r
+                RhoThetakeep(1,ikeep)      = (psi_tmp-ES%psi_axis)/(psi_bnd-ES%psi_axis)!small_r
                 RhoThetakeep(2,ikeep)      = theta_pol / (2.d0*PI)
                 RZkeep(1,ikeep)            = R_turn(i_turn,i_dir)
                 RZkeep(2,ikeep)            = Z_turn(i_turn,i_dir)
@@ -563,7 +560,7 @@ program jorek2_connection_flux_aligned
   write(21,*) '#  R                 Z'
   open(22,file='poinc_rho-theta.dat',status='replace')
   write(22,*) '# rho=sqrt(psi_n)'
-  write(22,*) '# psi_n=(psi - psi_axis)/(psi_bnd - psi_axis)'
+  write(22,*) '# psi_n=(psi - ES%psi_axis)/(psi_bnd - ES%psi_axis)'
   write(22,*) '#'
   write(22,*) '#  rho               theta'
   

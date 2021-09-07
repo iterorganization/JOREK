@@ -8,7 +8,7 @@ program jorek2_fast_camera
   use basis_at_gaussian
   use diffusivities, only: get_dperp, get_zkperp
   use mod_interp
-  use constants, only: PI
+  use constants, only: PI, LOWER_XPOINT, UPPER_XPOINT
   use equil_info
   use mod_element_rtree, only: populate_element_rtree
 
@@ -407,8 +407,8 @@ program jorek2_fast_camera
     endif
   endif
   
-  if (xcase .eq. 2) ES%Z_xpoint(1) = -999.0
-  if (xcase .eq. 1) ES%Z_xpoint(2) = +999.0
+  if (xcase .eq. UPPER_XPOINT) ES%Z_xpoint(1) = -999.0
+  if (xcase .eq. LOWER_XPOINT) ES%Z_xpoint(2) = +999.0
   
   ! --- Just in case
   if (central_density .gt. 1.d10) then

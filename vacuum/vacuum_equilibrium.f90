@@ -72,6 +72,14 @@ module vacuum_equilibrium
         call read_array(filehandle, 'B_t', dim, float2d=bext_tan)
         call read_array(filehandle, 'B_n', dim, float2d=bext_nor)
         call read_array(filehandle, 'Psi', dim, float2d=bext_psi)
+
+        ! --- From STARWALL file version 6, the coil currents follow the JOREK sign convention
+        ! --- and the fields created by the old COIL_FIELD must be reversed
+        if (sr%file_version >= 6) then
+          bext_tan = -bext_tan
+          bext_nor = -bext_nor
+          bext_psi = -bext_psi
+        endif
         
         32 format(3x,77('-'))
         33 format(3x,a,i8)

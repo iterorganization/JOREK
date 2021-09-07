@@ -63,9 +63,6 @@ subroutine import_binary_restart(node_list, element_list, filename, format_rst, 
   use data_structure
   use phys_module
   use pellet_module
-#if (defined WITH_Neutrals) || (defined WITH_Impurities)
-  use mod_neutral_source
-#endif
   use vacuum, only: import_restart_vacuum, current_FB_fact
   use mod_element_rtree, only: populate_element_rtree
   
@@ -95,7 +92,7 @@ subroutine import_binary_restart(node_list, element_list, filename, format_rst, 
   real*8,  allocatable :: spi_abl_arr (:)
   real*8, allocatable  :: spi_species_arr (:)
 
-  integer              :: n_spi_check
+  integer              :: n_spi_check, n_inj_check
   logical              :: modes_changed
  
   real*8, allocatable :: t_energies(:,:,:)   !< Magnetic and kinetic mode energies at previous timesteps.
@@ -319,6 +316,14 @@ subroutine import_binary_restart(node_list, element_list, filename, format_rst, 
     call tr_allocate(thermal_tot_t,1,index_start+nstep,"thermal_tot_t",CAT_UNKNOWN)
     thermal_tot_t = 0.d0
 
+    if (allocated(thermal_e_tot_t)) call tr_deallocate(thermal_e_tot_t,"thermal_e_tot_t",CAT_UNKNOWN)
+    call tr_allocate(thermal_e_tot_t,1,index_start+nstep,"thermal_e_tot_t",CAT_UNKNOWN)
+    thermal_e_tot_t = 0.d0
+
+    if (allocated(thermal_i_tot_t)) call tr_deallocate(thermal_i_tot_t,"thermal_i_tot_t",CAT_UNKNOWN)
+    call tr_allocate(thermal_i_tot_t,1,index_start+nstep,"thermal_i_tot_t",CAT_UNKNOWN)
+    thermal_i_tot_t = 0.d0
+
     if (allocated(kin_par_tot_t)) call tr_deallocate(kin_par_tot_t,"kin_par_tot_t",CAT_UNKNOWN)
     call tr_allocate(kin_par_tot_t,1,index_start+nstep,"kin_par_tot_t",CAT_UNKNOWN)
     kin_par_tot_t = 0.d0
@@ -407,6 +412,10 @@ subroutine import_binary_restart(node_list, element_list, filename, format_rst, 
     call tr_allocate(viscopar_dissip_tot_t,1,index_start+nstep,"viscopar_dissip_tot_t",CAT_UNKNOWN)
     viscopar_dissip_tot_t = 0.d0
 
+    if (allocated(friction_dissip_tot_t)) call tr_deallocate(friction_dissip_tot_t,"friction_dissip_tot_t",CAT_UNKNOWN)
+    call tr_allocate(friction_dissip_tot_t,1,index_start+nstep,"friction_dissip_tot_t",CAT_UNKNOWN)
+    friction_dissip_tot_t = 0.d0
+
     if (allocated(thmwork_tot_t)) call tr_deallocate(thmwork_tot_t,"thmwork_tot_t",CAT_UNKNOWN)
     call tr_allocate(thmwork_tot_t,1,index_start+nstep,"thmwork_tot_t",CAT_UNKNOWN)
     thmwork_tot_t = 0.d0
@@ -457,10 +466,11 @@ endif
   call import_restart_vacuum(21, freeboundary, resistive_wall)  
   
   !--- Some parameters need to be scaled when importing a free-boundary equilibrium
-  T_0  = T_0 * current_FB_fact
-  T_1  = T_1 * current_FB_fact
-  FF_0 = FF_0 * current_FB_fact
-  FF_1 = FF_1 * current_FB_fact
+  T_0  = T_0  * current_FB_fact / prev_FB_fact
+  T_1  = T_1  * current_FB_fact / prev_FB_fact
+  FF_0 = FF_0 * current_FB_fact / prev_FB_fact
+  FF_1 = FF_1 * current_FB_fact / prev_FB_fact
+  prev_FB_fact = current_FB_fact
 
   if (use_pellet) then
     if (index_start .ge. 1) then
@@ -505,63 +515,74 @@ endif
       call tr_deallocate(xtime_E_ion_power,"xtime_E_ion_power",CAT_UNKNOWN)
     call tr_allocate(xtime_E_ion_power,1,index_start+nstep,"xtime_E_ion_power",CAT_UNKNOWN)
     read(21)  xtime_E_ion_power(1:index_start)
+    if (allocated(xtime_P_ei)) &
+      call tr_deallocate(xtime_P_ei,"xtime_P_ei",CAT_UNKNOWN)
+    call tr_allocate(xtime_P_ei,1,index_start+nstep,"xtime_P_ei",CAT_UNKNOWN)
+    read(21)  xtime_P_ei(1:index_start)
   end if
 #endif
 
   if (using_spi) then
-    if (n_spi >= 1) then
+    if (n_spi_tot >= 1) then
 
       if (index_start >= 1) then
 
         if (allocated(xtime_spi_ablation)) &
           call tr_deallocate(xtime_spi_ablation,"xtime_spi_ablation",CAT_UNKNOWN)
-        call tr_allocate(xtime_spi_ablation,1,n_spi,1,index_start+nstep,"xtime_spi_ablation",CAT_UNKNOWN)
+        call tr_allocate(xtime_spi_ablation,1,n_spi_tot,1,index_start+nstep,"xtime_spi_ablation",CAT_UNKNOWN)
         if (allocated(xtime_spi_ablation_rate)) &
           call tr_deallocate(xtime_spi_ablation_rate,"xtime_spi_ablation_rate",CAT_UNKNOWN)
-        call tr_allocate(xtime_spi_ablation_rate,1,n_spi,1,index_start+nstep,"xtime_spi_ablation_rate",CAT_UNKNOWN)
+        call tr_allocate(xtime_spi_ablation_rate,1,n_spi_tot,1,index_start+nstep,"xtime_spi_ablation_rate",CAT_UNKNOWN)
         if (allocated(xtime_spi_ablation_bg)) &
           call tr_deallocate(xtime_spi_ablation_bg,"xtime_spi_ablation_bg",CAT_UNKNOWN)
-        call tr_allocate(xtime_spi_ablation_bg,1,n_spi,1,index_start+nstep,"xtime_spi_ablation_bg",CAT_UNKNOWN)
+        call tr_allocate(xtime_spi_ablation_bg,1,n_spi_tot,1,index_start+nstep,"xtime_spi_ablation_bg",CAT_UNKNOWN)
         if (allocated(xtime_spi_ablation_bg_rate)) &
           call tr_deallocate(xtime_spi_ablation_bg_rate,"xtime_spi_ablation_bg_rate",CAT_UNKNOWN)
-        call tr_allocate(xtime_spi_ablation_bg_rate,1,n_spi,1,index_start+nstep,"xtime_spi_ablation_bg_rate",CAT_UNKNOWN)
+        call tr_allocate(xtime_spi_ablation_bg_rate,1,n_spi_tot,1,index_start+nstep,"xtime_spi_ablation_bg_rate",CAT_UNKNOWN)
 
-        read(21)  xtime_spi_ablation(1:n_spi,1:index_start)
-        read(21)  xtime_spi_ablation_rate(1:n_spi,1:index_start)
-        read(21)  xtime_spi_ablation_bg(1:n_spi,1:index_start)
-        read(21)  xtime_spi_ablation_bg_rate(1:n_spi,1:index_start)
+        read(21)  xtime_spi_ablation(1:n_spi_tot,1:index_start)
+        read(21)  xtime_spi_ablation_rate(1:n_spi_tot,1:index_start)
+        read(21)  xtime_spi_ablation_bg(1:n_spi_tot,1:index_start)
+        read(21)  xtime_spi_ablation_bg_rate(1:n_spi_tot,1:index_start)
       end if
 
       read(21,err=999, end=999) n_spi_check
 
-      if (n_spi_check /= n_spi) then
-        write(*,*) "Inconsistency in n_spi detected, exiting!"
+      if (n_spi_check /= n_spi_tot) then
+        write(*,*) "Inconsistency in n_spi_tot detected, exiting!"
         stop
       end if
-      
-      allocate (spi_R_arr(n_spi))
-      allocate (spi_Z_arr(n_spi))
-      allocate (spi_phi_arr(n_spi))
-      allocate (spi_phi_init_arr(n_spi))
-      allocate (spi_Vel_R_arr(n_spi))
-      allocate (spi_Vel_Z_arr(n_spi))
-      allocate (spi_Vel_RxZ_arr(n_spi))
-      allocate (spi_radius_arr(n_spi))
-      allocate (spi_abl_arr(n_spi))
-      allocate (spi_species_arr(n_spi))
-    
-      read(21,err=999, end=999)  spi_R_arr(1:n_spi)
-      read(21,err=999, end=999)  spi_Z_arr(1:n_spi)
-      read(21,err=999, end=999)  spi_phi_arr(1:n_spi)
-      read(21,err=999, end=999)  spi_phi_init_arr(1:n_spi)
-      read(21,err=999, end=999)  spi_Vel_R_arr(1:n_spi)
-      read(21,err=999, end=999)  spi_Vel_Z_arr(1:n_spi)
-      read(21,err=999, end=999)  spi_Vel_RxZ_arr(1:n_spi)
-      read(21,err=999, end=999)  spi_radius_arr(1:n_spi)
-      read(21,err=999, end=999)  spi_abl_arr(1:n_spi)
-      read(21,err=999, end=999)  spi_species_arr(1:n_spi)
 
-      do i=1, n_spi
+      read(21,err=999, end=999) n_inj_check
+
+      if (n_inj_check /= n_inj) then
+        write(*,*) "Inconsistency in n_inj detected, exiting!"
+        stop
+      end if      
+
+      allocate (spi_R_arr(n_spi_tot))
+      allocate (spi_Z_arr(n_spi_tot))
+      allocate (spi_phi_arr(n_spi_tot))
+      allocate (spi_phi_init_arr(n_spi_tot))
+      allocate (spi_Vel_R_arr(n_spi_tot))
+      allocate (spi_Vel_Z_arr(n_spi_tot))
+      allocate (spi_Vel_RxZ_arr(n_spi_tot))
+      allocate (spi_radius_arr(n_spi_tot))
+      allocate (spi_abl_arr(n_spi_tot))
+      allocate (spi_species_arr(n_spi_tot))
+    
+      read(21,err=999, end=999)  spi_R_arr(1:n_spi_tot)
+      read(21,err=999, end=999)  spi_Z_arr(1:n_spi_tot)
+      read(21,err=999, end=999)  spi_phi_arr(1:n_spi_tot)
+      read(21,err=999, end=999)  spi_phi_init_arr(1:n_spi_tot)
+      read(21,err=999, end=999)  spi_Vel_R_arr(1:n_spi_tot)
+      read(21,err=999, end=999)  spi_Vel_Z_arr(1:n_spi_tot)
+      read(21,err=999, end=999)  spi_Vel_RxZ_arr(1:n_spi_tot)
+      read(21,err=999, end=999)  spi_radius_arr(1:n_spi_tot)
+      read(21,err=999, end=999)  spi_abl_arr(1:n_spi_tot)
+      read(21,err=999, end=999)  spi_species_arr(1:n_spi_tot)
+
+      do i=1, n_spi_tot
         pellets(i)%spi_R       = spi_R_arr(i)
         pellets(i)%spi_Z       = spi_Z_arr(i)
         pellets(i)%spi_phi     = spi_phi_arr(i)
@@ -786,15 +807,11 @@ subroutine import_hdf5_restart(node_list, element_list, filename, format_rst, er
   use data_structure
   use phys_module
   use pellet_module
-#if (defined WITH_Neutrals) || (defined WITH_Impurities)
-  use mod_neutral_source
-#endif
   use vacuum, only: import_HDF5_restart_vacuum, current_FB_fact
   use mod_element_rtree, only: populate_element_rtree
 #ifdef USE_HDF5
   use hdf5
   use hdf5_io_module
-  !use tr_module
   use mod_parameters 
 #endif
   
@@ -828,7 +845,7 @@ subroutine import_hdf5_restart(node_list, element_list, filename, format_rst, er
   
 #ifdef USE_HDF5
   integer(HID_T)     :: file_id, node_id, datatype, dataset
-  integer            :: ind, n_spi_check
+  integer            :: ind, n_spi_check, n_inj_check
   
   real(RKIND), allocatable :: t_x(:,:,:,:)
   real(RKIND), allocatable :: t_values(:,:,:,:)
@@ -868,7 +885,7 @@ subroutine import_hdf5_restart(node_list, element_list, filename, format_rst, er
   real*8,      allocatable :: spi_species_arr (:)
   integer,     allocatable :: spi_species_arr_old (:)  !< For backward compatibility only
 
-  integer                  :: err_exists, dterr
+  integer                  :: err_exists, dterr, n_spi_begin, i_inj
   logical                  :: flag_exists, type_match, no_pert
 
   real*8,      allocatable :: t_energies(:,:,:)   !< Magnetic and kinetic mode energies at previous timesteps.
@@ -1362,6 +1379,16 @@ subroutine import_hdf5_restart(node_list, element_list, filename, format_rst, er
     thermal_tot_t = 0.d0
     call HDF5_array1D_reading(file_id,thermal_tot_t,'thermal_tot_t')
 
+    if (allocated(thermal_e_tot_t)) call tr_deallocate(thermal_e_tot_t,"thermal_e_tot_t",CAT_UNKNOWN)
+    call tr_allocate(thermal_e_tot_t,1,index_start+nstep,"thermal_e_tot_t",CAT_UNKNOWN)
+    thermal_e_tot_t = 0.d0
+    call HDF5_array1D_reading(file_id,thermal_e_tot_t,'thermal_e_tot_t')
+
+    if (allocated(thermal_i_tot_t)) call tr_deallocate(thermal_i_tot_t,"thermal_i_tot_t",CAT_UNKNOWN)
+    call tr_allocate(thermal_i_tot_t,1,index_start+nstep,"thermal_i_tot_t",CAT_UNKNOWN)
+    thermal_i_tot_t = 0.d0
+    call HDF5_array1D_reading(file_id,thermal_i_tot_t,'thermal_i_tot_t')
+
     if (allocated(kin_par_tot_t)) call tr_deallocate(kin_par_tot_t,"kin_par_tot_t",CAT_UNKNOWN)
     call tr_allocate(kin_par_tot_t,1,index_start+nstep,"kin_par_tot_t",CAT_UNKNOWN)
     kin_par_tot_t = 0.d0
@@ -1471,6 +1498,11 @@ subroutine import_hdf5_restart(node_list, element_list, filename, format_rst, er
     call tr_allocate(viscopar_dissip_tot_t,1,index_start+nstep,"viscopar_dissip_tot_t",CAT_UNKNOWN)
     viscopar_dissip_tot_t = 0.d0
     call HDF5_array1D_reading(file_id,viscopar_dissip_tot_t,'viscopar_dissip_tot_t')
+
+    if (allocated(friction_dissip_tot_t)) call tr_deallocate(friction_dissip_tot_t,"friction_dissip_tot_t",CAT_UNKNOWN)
+    call tr_allocate(friction_dissip_tot_t,1,index_start+nstep,"friction_dissip_tot_t",CAT_UNKNOWN)
+    friction_dissip_tot_t = 0.d0
+    call HDF5_array1D_reading(file_id,friction_dissip_tot_t,'friction_dissip_tot_t')
 
     if (allocated(thmwork_tot_t)) call tr_deallocate(thmwork_tot_t,"thmwork_tot_t",CAT_UNKNOWN)
     call tr_allocate(thmwork_tot_t,1,index_start+nstep,"thmwork_tot_t",CAT_UNKNOWN)
@@ -1597,10 +1629,11 @@ subroutine import_hdf5_restart(node_list, element_list, filename, format_rst, er
   call import_HDF5_restart_vacuum(file_id, freeboundary, resistive_wall)
   
   !--- Some parameters need to be scaled when importing a free-boundary equilibrium
-  T_0  = T_0 * current_FB_fact
-  T_1  = T_1 * current_FB_fact
-  FF_0 = FF_0 * current_FB_fact
-  FF_1 = FF_1 * current_FB_fact
+  T_0  = T_0  * current_FB_fact / prev_FB_fact
+  T_1  = T_1  * current_FB_fact / prev_FB_fact
+  FF_0 = FF_0 * current_FB_fact / prev_FB_fact
+  FF_1 = FF_1 * current_FB_fact / prev_FB_fact
+  prev_FB_fact = current_FB_fact
   
   if (use_pellet) then
      if (index_start .ge. 1) then
@@ -1646,25 +1679,29 @@ subroutine import_hdf5_restart(node_list, element_list, filename, format_rst, er
       call tr_deallocate(xtime_E_ion_power,"xtime_E_ion_power",CAT_UNKNOWN)
     call tr_allocate(xtime_E_ion_power,1,index_start+nstep,"xtime_E_ion_power",CAT_UNKNOWN)
     call HDF5_array1D_reading(file_id,xtime_E_ion_power,"xtime_E_ion_power")
+    if (allocated(xtime_P_ei)) &
+      call tr_deallocate(xtime_P_ei,"xtime_P_ei",CAT_UNKNOWN)
+    call tr_allocate(xtime_P_ei,1,index_start+nstep,"xtime_P_ei",CAT_UNKNOWN)
+    call HDF5_array1D_reading(file_id,xtime_P_ei,"xtime_P_ei")
   end if
 #endif
 
   if (using_spi) then
-    if (n_spi >= 1) then
+    if (n_spi_tot >= 1) then
 
       if (index_start >= 1) then
         if (allocated(xtime_spi_ablation)) &
           call tr_deallocate(xtime_spi_ablation,"xtime_spi_ablation",CAT_UNKNOWN)
-        call tr_allocate(xtime_spi_ablation,1,n_spi,1,index_start+nstep,"xtime_spi_ablation",CAT_UNKNOWN)
+        call tr_allocate(xtime_spi_ablation,1,n_spi_tot,1,index_start+nstep,"xtime_spi_ablation",CAT_UNKNOWN)
         if (allocated(xtime_spi_ablation_rate)) &
           call tr_deallocate(xtime_spi_ablation_rate,"xtime_spi_ablation_rate",CAT_UNKNOWN)
-        call tr_allocate(xtime_spi_ablation_rate,1,n_spi,1,index_start+nstep,"xtime_spi_ablation_rate",CAT_UNKNOWN)
+        call tr_allocate(xtime_spi_ablation_rate,1,n_spi_tot,1,index_start+nstep,"xtime_spi_ablation_rate",CAT_UNKNOWN)
         if (allocated(xtime_spi_ablation_bg)) &
           call tr_deallocate(xtime_spi_ablation_bg,"xtime_spi_ablation_bg",CAT_UNKNOWN)
-        call tr_allocate(xtime_spi_ablation_bg,1,n_spi,1,index_start+nstep,"xtime_spi_ablation_bg",CAT_UNKNOWN)
+        call tr_allocate(xtime_spi_ablation_bg,1,n_spi_tot,1,index_start+nstep,"xtime_spi_ablation_bg",CAT_UNKNOWN)
         if (allocated(xtime_spi_ablation_bg_rate)) &
           call tr_deallocate(xtime_spi_ablation_bg_rate,"xtime_spi_ablation_bg_rate",CAT_UNKNOWN)
-        call tr_allocate(xtime_spi_ablation_bg_rate,1,n_spi,1,index_start+nstep,"xtime_spi_ablation_bg_rate",CAT_UNKNOWN)
+        call tr_allocate(xtime_spi_ablation_bg_rate,1,n_spi_tot,1,index_start+nstep,"xtime_spi_ablation_bg_rate",CAT_UNKNOWN)
 
         call HDF5_array2D_reading(file_id,xtime_spi_ablation,"xtime_spi_ablation")
         call HDF5_array2D_reading(file_id,xtime_spi_ablation_rate,"xtime_spi_ablation_rate")
@@ -1680,27 +1717,44 @@ subroutine import_hdf5_restart(node_list, element_list, filename, format_rst, er
         end if
       end if
 
-      call H5Lexists_f(file_id,"n_spi",flag_exists,err_exists) !Backward compatibility
+      call H5Lexists_f(file_id,"n_spi_tot",flag_exists,err_exists) !Backward compatibility
       if (flag_exists .and. err_exists == 0) then
-        call HDF5_integer_reading(file_id,n_spi_check,"n_spi")
-        if (n_spi_check /= n_spi) then
-          write(*,*) "Inconsistency in n_spi detected, exiting!"
+        call HDF5_integer_reading(file_id,n_spi_check,"n_spi_tot")
+        if (n_spi_check /= n_spi_tot) then
+          write(*,*) "Inconsistency in n_spi_tot detected, exiting!"
           stop
         end if
+      else if (n_spi_tot == n_spi(1)) then
+        write(*,*)"Backward Compatibility: No n_spi_tot information found, assuming consistent."
       else
-        write(*,*)"Backward Compatibility: No n_spi information found, assuming consistent."
+        write(*,*)"Backward Compatibility: No n_spi_tot information found, but n_spi_tot is not equal to n_spi(1)."
+        stop
       end if
-      
-      allocate (spi_R_arr(n_spi))
-      allocate (spi_Z_arr(n_spi))
-      allocate (spi_phi_arr(n_spi))
-      allocate (spi_phi_init_arr(n_spi))
-      allocate (spi_Vel_R_arr(n_spi))
-      allocate (spi_Vel_Z_arr(n_spi))
-      allocate (spi_Vel_RxZ_arr(n_spi))
-      allocate (spi_radius_arr(n_spi))
-      allocate (spi_abl_arr(n_spi))
-      allocate (spi_species_arr(n_spi))
+
+      call H5Lexists_f(file_id,"n_inj",flag_exists,err_exists) !Backward compatibility
+      if (flag_exists .and. err_exists == 0) then
+        call HDF5_integer_reading(file_id,n_inj_check,"n_inj")
+        if (n_inj_check /= n_inj) then
+          write(*,*) "Inconsistency in n_inj detected, exiting!"
+          stop
+        end if
+      else if (n_inj == 1) then
+        write(*,*)"Backward Compatibility: No n_inj information found, assuming consistent."
+      else 
+        write(*,*)"Backward Compatibility: No n_inj information found, but n_inj larger than 1, aborting."
+        stop
+      end if
+
+      allocate (spi_R_arr(n_spi_tot))
+      allocate (spi_Z_arr(n_spi_tot))
+      allocate (spi_phi_arr(n_spi_tot))
+      allocate (spi_phi_init_arr(n_spi_tot))
+      allocate (spi_Vel_R_arr(n_spi_tot))
+      allocate (spi_Vel_Z_arr(n_spi_tot))
+      allocate (spi_Vel_RxZ_arr(n_spi_tot))
+      allocate (spi_radius_arr(n_spi_tot))
+      allocate (spi_abl_arr(n_spi_tot))
+      allocate (spi_species_arr(n_spi_tot))
 
       call HDF5_array1D_reading(file_id,spi_R_arr,"spi_R_arr")
       call HDF5_array1D_reading(file_id,spi_Z_arr,"spi_Z_arr")
@@ -1710,10 +1764,13 @@ subroutine import_hdf5_restart(node_list, element_list, filename, format_rst, er
       if (flag_exists .and. err_exists == 0) then
         call HDF5_array1D_reading(file_id,spi_phi_init_arr,"spi_phi_init_arr")
       else
-        spi_phi_init_arr = ns_phi
+        n_spi_begin = 1
+        do i_inj = 1, n_inj
+          if(n_spi(i_inj)>0) spi_phi_init_arr(n_spi_begin:(n_spi_begin+n_spi(i_inj)-1)) = ns_phi(i_inj)
+          n_spi_begin = n_spi_begin + n_spi(i_inj)
+        end do
         write(*,*)"Backward Compatibility: No spi_phi_init location found, assuming to be ns_phi."
       end if
-
 
       call HDF5_array1D_reading(file_id,spi_Vel_R_arr,"spi_Vel_R_arr")
       call HDF5_array1D_reading(file_id,spi_Vel_Z_arr,"spi_Vel_Z_arr")
@@ -1730,7 +1787,7 @@ subroutine import_hdf5_restart(node_list, element_list, filename, format_rst, er
         call H5Dclose_f(dataset,dterr)
         if (type_match .and. dterr == 0) then
           write(*,*) "Backward Compatibility: Converting integer spi_species into double precision"
-          allocate (spi_species_arr_old(n_spi))
+          allocate (spi_species_arr_old(n_spi_tot))
           call HDF5_array1D_reading_int(file_id,spi_species_arr_old,"spi_species_arr")
           spi_species_arr = REAL(spi_species_arr_old,8)
         else if (dterr == 0) then
@@ -1740,11 +1797,17 @@ subroutine import_hdf5_restart(node_list, element_list, filename, format_rst, er
           stop
         end if
       else
+#ifdef WITH_Impurities
         spi_species_arr = 1.0
         write(*,*)"Backward Compatibility: No species information found, assuming full impurity."
+#endif
+#ifdef WITH_Neutrals
+        spi_species_arr = 0.0
+        write(*,*)"Backward Compatibility: No species information found, assuming pure deuterium."
+#endif
       end if
 
-      do i=1, n_spi
+      do i=1, n_spi_tot
         pellets(i)%spi_R       = spi_R_arr(i)
         pellets(i)%spi_Z       = spi_Z_arr(i)
         pellets(i)%spi_phi     = spi_phi_arr(i)

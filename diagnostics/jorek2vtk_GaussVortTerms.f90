@@ -64,6 +64,7 @@ use elements_nodes_neighbours
 use mod_import_restart
 use mod_neighbours
 use equil_info, only : get_psi_n, ES
+use mod_sources
 
 
 implicit none
@@ -546,8 +547,13 @@ do ife = 1, element_list%n_elements
 
     eps_cyl = 1.d0          ! for cylinder geometry : epscyl = eps
 
+#ifdef WITH_TiTe
+    write(*,*) 'ERROR: Diagnostic has not been adapted to models with separate Te and Ti.'
+    stop
+#else
     call sources(xpoint, xcase, y_g(ms,mt), ES%Z_xpoint, eq_g(1,1,ms,mt), ES%psi_axis, ES%psi_bnd  &
                , particle_source(ms,mt), heat_source(ms,mt))
+#endif
 
     do mp = 1, n_plane_local
 

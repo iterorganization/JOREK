@@ -59,6 +59,7 @@ program JOREK2
   use mod_distribute_preconditioner
   use direct_construction_mod
   use centralization_mod
+  use mod_exchange_indices
 
 ! these write additional live data (global data) used when an ECCD current is applied)
 #ifdef JECCD
@@ -77,13 +78,7 @@ program JOREK2
   use hdf5_io_module
 #endif
   use mpi_mod
-
-#if (defined WITH_Neutrals) && (!defined WITH_Impurities)
-  use mod_neutral_source
-#endif
-#ifdef WITH_Impurities
-  use mod_injection_source
-#endif
+  use mod_impurity, only: init_imp_adas
 
 
   use, intrinsic :: iso_c_binding
@@ -154,7 +149,7 @@ program JOREK2
   real*8                   :: Rp_start, Rp_end, density_tot,density_in,density_out,pressure_tot,pressure_in,pressure_out,Bgeo
   real*8,allocatable       :: xp(:), yp1(:), yp2(:), yp3(:)
   real*8,allocatable       :: res(:) 
-  integer                  :: nplot, iplot, i_elm, ifail, ivar, iter_big, n_aa, iter_prev, n_since_update
+  integer                  :: nplot, iplot, i_elm, ifail, ivar, iter_big, n_aa, iter_prev, n_since_update, n_spi_begin
   logical                  :: is_local, file_exists
   integer                  :: i_elem, inode1, i_order, index_node1
   type (type_element)      :: element
@@ -176,6 +171,10 @@ program JOREK2
   integer :: DUMMY_INT (1:1)
   character(len=MPI_MAX_PROCESSOR_NAME) :: name
   integer :: resultlength
+
+  integer :: holder
+  integer :: getpid
+
   integer :: nsolvers=0
   logical :: solvers(4), solvers_eq(3)
  
@@ -260,6 +259,10 @@ required = 0
 #if (defined WITH_Neutrals) || (defined WITH_Impurities)
   ! --- Read ADAS data and generate coronal equilibrium if needed
   call init_imp_adas(my_id)
+#else
+  if (use_imp_adas .and. (nimp_bg > 0.d0)) then
+    call init_imp_adas(my_id)
+  endif
 #endif
 
   ! --- Write out all parameters defined in parameters and the namelist input file.
@@ -414,6 +417,10 @@ required = 0
     write(*,*) '  Consider testing, whether you get better performance by increasing the number'
     write(*,*) '  of MPI tasks and reducing the number of OpenMP threads in the jobscript.'
   end if
+  if ( ( tauIC .ne. 0.d0 ) .and. ( jorek_model == 401 ) ) then
+    write(*,*) 'WARNING: tauIC in model401 has been modified to match model303. '
+    write(*,*) '         tauIC should be = m_{ion} / ( e * F0 * sqrt_mu0_rho0 * (1. + T_i/T_e) )'
+  endif
   if (abs(eta-eta_ohmic)/(eta+eta_ohmic+1.d-12) > 1.d-6) then
     write(*,*) 'WARNING: The resistivity eta and the resistivity used for Ohmic heating '
     write(*,*) '  eta_ohm are not the same. No problem if you know what you are doing,  ' 
@@ -497,7 +504,7 @@ required = 0
     ! --- Optional: Redo flux aligned grid (DOES NOT WORK CURRENTLY)
     if (regrid) then
       if (xpoint)  then
-        if ( (xcase .ge. 2) .or. (RZ_grid_inside_wall) ) then
+        if ( (xcase .ge. UPPER_XPOINT) .or. (RZ_grid_inside_wall) ) then
           if (grid_to_wall) then
             call grid_double_xpoint_inside_wall(node_list, element_list)
           else
@@ -511,11 +518,12 @@ required = 0
         call grid_flux_surface(xpoint,xcase, node_list, element_list, surface_list, n_flux, n_tht, xr1,  &
                                sig1, xr2, sig2, refinement)
       end if
-      if ( freeboundary .or. freeb_change_indices ) call exchange_indices_for_vacuum(node_list, my_id, n_cpu)
       
     end if
     
-  end if !   if ( restart .and. (my_id == 0) ) then
+    if ( freeboundary .and. freeb_change_indices) call exchange_indices(node_list, my_id, n_cpu, .false.)
+    
+ end if !   if ( restart .and. (my_id == 0) ) then
 
   ! This is necessary for the parallel vacuum version during the code restart 
   if(restart) then
@@ -567,7 +575,7 @@ required = 0
       if ( extend_existing_grid .and. (n_flux .le. 0) ) &
           call grid_patches_on_existing_grid(node_list, element_list)
 
-      if ( freeboundary .or. freeb_change_indices ) call exchange_indices_for_vacuum(node_list, my_id, n_cpu)
+      if ( freeboundary .and. (n_flux==0) .and. freeb_change_indices ) call exchange_indices(node_list, my_id, n_cpu, .false.)
       
       ! --- Determine boundary information from the grid
       call boundary_from_grid(node_list, element_list, bnd_node_list, bnd_elm_list, .false.)
@@ -620,6 +628,7 @@ required = 0
       if (export_for_nemec) then
         if(my_id ==0 ) call export_nemec(node_list, element_list, xpoint, xcase)
       endif
+      if (my_id == 0) call update_equil_state(my_id,node_list, element_list, bnd_elm_list, xpoint, xcase)
     end if ! if (equil) then
 
   
@@ -631,7 +640,7 @@ required = 0
         
         if (xpoint)  then
 
-          if ( (xcase .ge. 2) .or. (grid_to_wall .and. (n_wall_blocks .gt. 0)) .or. RZ_grid_inside_wall ) then
+          if ( (xcase .ge. UPPER_XPOINT) .or. (grid_to_wall .and. (n_wall_blocks .gt. 0)) .or. RZ_grid_inside_wall ) then
             if (grid_to_wall) then
               call grid_double_xpoint_inside_wall(node_list, element_list)
             else
@@ -673,7 +682,7 @@ required = 0
         if (extend_existing_grid) &
             call grid_patches_on_existing_grid(node_list, element_list)
 
-        if ( freeboundary .or. freeb_change_indices .and. (my_id == 0)) call exchange_indices_for_vacuum(node_list, my_id, n_cpu)
+        if ( freeboundary .and. freeb_change_indices ) call exchange_indices(node_list, my_id, n_cpu, .false.)
 
         ! --- Determine boundary information from the grid
         call boundary_from_grid(node_list, element_list, bnd_node_list, bnd_elm_list, .false.) 
@@ -906,8 +915,10 @@ required = 0
   
   ! --- Export a restart file before the first timestep
   if ( (my_id == 0) .and. (.not. restart) ) then
+    if ( freeboundary .and. freeb_change_indices ) call exchange_indices(node_list, my_id, n_cpu, .true.)
     fileout = 'jorek00000'
     call export_restart(node_list, element_list, fileout)
+    if ( freeboundary .and. freeb_change_indices ) call exchange_indices(node_list, my_id, n_cpu, .false.)
   end if
   
   if ( ( my_id == 0 ) .and. ( (node_list%n_nodes > n_nodes_max+1000)                               &
@@ -1004,6 +1015,17 @@ required = 0
     endif
     call tr_debug_write("JMAIN:Debconstruct_n_elms",n_local_elms)
 
+    ! --- The following is for parallel debugging only
+
+    !holder = 0;
+    !write(*,*) "my_id", my_id, "PID", getpid(), "Host", name
+
+    !do while (holder == 0)
+    !  call sleep(5)
+    !end do
+
+    ! --- End of parallel debugging section 
+
     !--------- Constructing Global Matrix
     call construct_matrix(my_id, MPI_COMM_N, my_id_n, MPI_COMM_MASTER, my_id_master, local_elms,   &
          n_local_ELms, index_min(my_id+1), index_max(my_id+1), xpoint, xcase, ES%R_axis, ES%Z_axis,&
@@ -1052,7 +1074,7 @@ required = 0
          call clck_time_barrier(t0) 
          ! --- Direct construction of harmonic matrix
          call direct_construction_harmonic(my_id, my_id_n, m_cpu, n_cpu, MPI_COMM_N, MPI_COMM_MASTER, my_id_master, & 
-              node_list, element_list, bnd_elm_list, bnd_node_list, xpoint, xcase, freeboundary, .true.)
+              node_list, element_list, bnd_elm_list, bnd_node_list, xpoint, xcase, restart, freeboundary, .true.)
         call MPI_Barrier(MPI_COMM_WORLD,ierr)
         call clck_time_barrier(t1) 
 
@@ -1131,16 +1153,14 @@ required = 0
 
       endif
 
-#if (defined WITH_Neutrals) && (!defined WITH_Impurities)
-      call total_neutrals(my_id,node_list,element_list)
-      if (using_spi .and. t_now >= t_ns) then
-        call update_spi(my_id,node_list,element_list)
-      end if
-#endif
-#ifdef WITH_Impurities
-      if (using_spi .and. t_now >= t_ns) then
-        call update_spi(my_id,node_list,element_list)
-      end if
+#if (defined WITH_Neutrals) || (defined WITH_Impurities)
+       if (using_spi) then
+         n_spi_begin = 1
+         do i = 1, n_inj !< Do one update for each injection location
+           if (t_now >= t_ns(i)) call update_spi(my_id,node_list,element_list,i,n_spi_begin)
+           n_spi_begin = n_spi_begin + n_spi(i)
+         end do
+       end if
 #endif
 
 
@@ -1281,8 +1301,10 @@ required = 0
     
     ! --- Write a restart file every nout timesteps
     if ( (my_id == 0) .and. (mod(index_now,nout) == 0) ) then
+      if ( freeboundary .and. freeb_change_indices ) call exchange_indices(node_list, my_id, n_cpu, .true.)
       write(fileout,'(A5,i5.5)') 'jorek',index_now
       call export_restart(node_list, element_list, fileout)
+      if ( freeboundary .and. freeb_change_indices ) call exchange_indices(node_list, my_id, n_cpu, .false.)
     endif
     
     ! --- Exit the code if a file "STOP_NOW" exists in the run directory.
@@ -1407,8 +1429,10 @@ required = 0
   !***********************************************************************
 
   if (my_id .eq. 0)  then
+    if ( freeboundary .and. freeb_change_indices ) call exchange_indices(node_list, my_id, n_cpu, .true.)
     fileout = 'jorek_restart'
     call export_restart(node_list, element_list, fileout)
+    if ( freeboundary .and. freeb_change_indices ) call exchange_indices(node_list, my_id, n_cpu, .false.)
     if ( write_ps ) then
       if (.not. bench_without_plot) then
         do ivar=1,n_var

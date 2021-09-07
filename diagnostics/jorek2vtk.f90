@@ -16,12 +16,7 @@ use mod_boundary
 use mod_vtk
 use mod_interp
 use mod_poloidal_currents
-#if (defined WITH_Neutrals) && (!defined WITH_Impurities)
-  use mod_neutral_source
-#endif
-#ifdef WITH_Impurities
-  use mod_injection_source
-#endif
+use mod_impurity, only: init_imp_adas, radiation_function, radiation_function_linear
 use mod_atomic_coeff_deuterium, only : atomic_coeff_deuterium
 use mod_openadas , only : read_adf11
 use mod_atomic_coeff_deuterium, only : ad_deuterium , atomic_coeff_deuterium
@@ -348,6 +343,7 @@ if ( SI_units ) then
    scalar_names(var_UZ )='VZ_km/s     '
    scalar_names(var_Up )='Vp_km/s     '
 #else
+   scalar_names(var_u)='u_m/s       '
    scalar_names(var_zj)='j_MA/m2     '
    scalar_names(var_rho)='n_e20m-3    '
    if (with_TiTe) then
@@ -432,7 +428,7 @@ endif
 #ifdef WITH_Impurities
  if (include_radiation) then
      scalar_names(s_radiation+1:s_radiation+n_radiation) &
-                  = (/ 'Ionis_Jm-3  ', 'Coronal_radWm-3 ', 'Joule_Wm-3  ', 'Z_imp ', 'Z_eff '/)
+                  = (/ 'Ionis_Jm-3  ', 'Coronal_radWm-3 ', 'Joule_Wm-3  ', 'Z_imp   ', 'Z_eff       '/)
  endif
 #endif
 
@@ -1276,30 +1272,30 @@ enddo  ! n_elements
   ! Atomic physics parameters for Impurities
   !-------------------------------------------
 
-     select case ( trim(imp_type) )
-       case('D2')
-         m_i_over_m_imp = central_mass/2.  ! Deuterium mass = 2 u
-       case('Ar')
-         m_i_over_m_imp = central_mass/40. ! Argon mass = 40 u
-       case('Ne')
-         m_i_over_m_imp = central_mass/20. ! Neon mass = 20 u
-       case default
-         write(*,*) '!! Gas type "', trim(imp_type), '" unknown (in mod_injection_source.f90) !!'
-         write(*,*) '=> We assume the gas is D2.'
-         m_i_over_m_imp = central_mass/2.
-     end select
+   select case ( trim(imp_type) )
+     case('D2')
+       m_i_over_m_imp = central_mass/2.  ! Deuterium mass = 2 u
+     case('Ar')
+       m_i_over_m_imp = central_mass/40. ! Argon mass = 40 u
+     case('Ne')
+       m_i_over_m_imp = central_mass/20. ! Neon mass = 20 u
+     case default
+       write(*,*) '!! Gas type "', trim(imp_type), '" unknown (in mod_injection_source.f90) !!'
+       write(*,*) '=> We assume the gas is D2.'
+       m_i_over_m_imp = central_mass/2.
+   end select
 
    do i=1,nnos
-     T_real8 = scalars(i,6)
-     
-     if (T_min > T_1) then
-       T0_corr = corr_neg_temp(T_real8,(/5.d-1,5.d-1/),2.*T_min)
+     if ( with_TiTe ) then
+       T_real8 = scalars(i,var_Te)
+       Te_corr_eV = corr_neg_temp(T_real8,(/5.d-1,5.d-1/),max(T_min,Te_1))/(EL_CHG*MU_ZERO*central_density*1.d20)
+       Te_eV = T_real8/(EL_CHG*MU_ZERO*central_density*1.d20)
      else
-       T0_corr = corr_neg_temp(T_real8,(/5.d-1,5.d-1/),2.*T_1)
-     end if
-     Te_corr_eV = T0_corr/(2.d0*EL_CHG*MU_ZERO*central_density*1.d20)
-     Te_eV = T_real8/(2.d0*EL_CHG*MU_ZERO*central_density*1.d20)
-
+       T_real8 = scalars(i,var_T)
+       Te_corr_eV = corr_neg_temp(T_real8,(/5.d-1,5.d-1/),max(2.*T_min,2.*T_1))/(2.d0*EL_CHG*MU_ZERO*central_density*1.d20)
+       Te_eV = T_real8/(2.d0*EL_CHG*MU_ZERO*central_density*1.d20)
+     endif
+     
      eta_Sp = 1.65d-9*17*(1.d-3*Te_corr_eV)**(-1.5d0) &
                         *(central_mass*MASS_PROTON*central_density * 1.d20/MU_ZERO)**(0.5d0)
 
@@ -1472,6 +1468,8 @@ if (SI_units) then
 
 #else /* not full-MHD */
 
+    !============================================u in m/s
+    scalars(i,var_u) = scalars(i,var_u)/t_norm
     !============================================j_phi in MA/m2
     scalars(i,var_zj) = currdens(i) / MU_zero * 1.e-6
     !============================================density in 1e20m-3
@@ -1537,7 +1535,7 @@ if (SI_units) then
       coef_rad_1 = (gamma-1.d0)*MU_ZERO**1.5d0*(central_mass*MASS_PROTON)**0.5d0*(central_density*1.d20)**2.5d0
 
       ksiion = ksi_ion * central_density * 1.d20
-
+  
       T_real8 = scalars(i,6)*1.e3*2.*EL_CHG*MU_zero*(central_density * 1.d20)
       ! ======= T_real8 in JOREK units
 
@@ -1549,7 +1547,7 @@ if (SI_units) then
                                   LradDcont_T, dLradDcont_dT, LradDrays_T, dLradDrays_dT ) 
 
       eta_Sp = 1.65d-9*17*(1.d-3*Te_corr_eV)**(-1.5d0)
-
+  
       scalars(i,s_radiation+1) = ksiion* (1.5d0)/(MU_zero*central_density*1.d20)      &
                                           * scalars(i,5) * 1.d20 * scalars(i,8) * 1.d20 * Sion_T / coef_ion_1
 

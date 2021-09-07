@@ -24,12 +24,11 @@ real*8,                   intent(in)    :: xr1, xr2
 real*8,                   intent(in)    :: sig1, sig2
 
 ! --- local variables
-integer            :: nrnew, npnew, i, j, k, i_elm, i_elm_axis
+integer            :: nrnew, npnew, i, j, k, i_elm
 real*8,allocatable :: RRnew(:,:),ZZnew(:,:),PSInew(:,:)
 real*8             :: abltg(3), xtmp
 real*8,allocatable :: s_values(:),radius(:),psi_values(:),tht_start(:),tht_end(:)
 real*8,allocatable :: sp1(:),sp2(:),sp3(:),sp4(:)
-real*8             :: R_axis, Z_axis, psi_axis, s_axis, t_axis
 real*8             :: dpsi_ds, tht_min, tht_max, rr1, rr2, ss1, ss2
 real*8             :: RRg1,dRRg1_dr,dRRg1_ds,dRRg1_drs,dRRg1_drr,dRRg1_dss
 real*8             :: ZZg1,dZZg1_dr,dZZg1_ds,dZZg1_drs,dZZg1_drr,dZZg1_dss
@@ -45,11 +44,15 @@ real*8             :: rzjac, ps_z, ps_r, ejac, ptjac, rt, st, dptjac_dr, dptjac_
 real*8             :: dr_dr, dr_dz, ds_dr, ds_dz, dps_drr, dps_dzz, crr_axis, czz_axis, cx, cy
 real*8             :: dr_dpt, dz_dpt, r_ax, s_ax, tn, tn2, cn
 real*8             :: delta_rp, delta_zp, delta_rm, delta_zm, dir_2, dir_3, B_axis, q_axis
-real*8             :: psi_xpoint(2), R_xpoint(2), Z_xpoint(2), s_xpoint(2), t_xpoint(2), psi_bnd
+real*8             :: psi_bnd
 real*8, external   :: spwert
 integer            :: ifail, inode, node, index, index0, n_node_start, n_element_start, iv, ivp, ivm
-integer            :: my_id, n_index_start, node_iv, node_ivp, node_ivm, i_elm_xpoint(2)
+integer            :: my_id, n_index_start, node_iv, node_ivp, node_ivm
 integer            :: i_sons
+
+real*8             :: psi_axis_local, R_axis_local, Z_axis_local, s_axis_local, t_axis_local
+real*8             :: psi_xpoint_local(2), R_xpoint_local(2), Z_xpoint_local(2), s_xpoint_local(2), t_xpoint_local(2)
+integer            :: i_elm_axis_local, i_elm_xpoint_local(2)
 
 write(*,*) '**************************************'
 write(*,*) '*         flux surface grid          *'
@@ -57,9 +60,9 @@ write(*,*) '**************************************'
 
 my_id = 0
  
-call find_axis(my_id,node_list,element_list,psi_axis,R_axis,Z_axis,i_elm_axis,s_axis,t_axis,ifail)
+call find_axis(my_id,node_list,element_list,psi_axis_local,R_axis_local,Z_axis_local,i_elm_axis_local,s_axis_local,t_axis_local,ifail)  ! left to print some info
  
-if (xpoint) call find_xpoint(my_id,node_list,element_list,psi_xpoint,R_xpoint,Z_xpoint,i_elm_xpoint,s_xpoint,t_xpoint,xcase,ifail)
+if (xpoint) call find_xpoint(my_id,node_list,element_list,psi_xpoint_local,R_xpoint_local,Z_xpoint_local,i_elm_xpoint_local,s_xpoint_local,t_xpoint_local,xcase,ifail) !left to print some info
 
 surface_list%n_psi = n_flux - 1
 nrnew              = n_flux
@@ -78,33 +81,33 @@ call tr_allocate(PSInew,1,4,1,nrnew*npnew,"PSInew",CAT_GRID)
 s_values = 0.d0
 call meshac2(surface_list%n_psi+1,s_values,xr1,xr2,sig1,sig2,0.6d0,1.0d0)
 
-psi_values(1) = psi_axis
+psi_values(1) = ES%psi_axis
 
 psi_bnd = ES%psi_bnd + 1.d-8*(ES%psi_axis-ES%psi_bnd)
 if (xpoint) then
-  psi_bnd = psi_xpoint(1)
-  if( (xcase .eq. 2) .or. ((xcase .eq. 3) .and. (psi_xpoint(2) .lt. psi_xpoint(1))) ) then
-    psi_bnd = psi_xpoint(2)
+  psi_bnd = ES%psi_xpoint(1)
+  if (ES%active_xpoint .eq. UPPER_XPOINT) then
+    psi_bnd = ES%psi_xpoint(2)
   endif
 endif
 
 do i=1,surface_list%n_psi
   radius(i+1)                = float(i)/float(surface_list%n_psi)
-  surface_list%psi_values(i) = psi_axis + s_values(i+1)**2 *  (psi_bnd - psi_axis)
+  surface_list%psi_values(i) = ES%psi_axis + s_values(i+1)**2 *  (psi_bnd - ES%psi_axis)
   psi_values(i+1)            = surface_list%psi_values(i)
 !  write(*,'(A,i5,3f14.6)') ' psi values : ',i,radius(i+1),s_values(i+1),surface_list%psi_values(i)
 enddo
 radius(1)     = 0.d0
-psi_values(1) = psi_axis
+psi_values(1) = ES%psi_axis
 
 RRnew(1:4,1:nrnew*npnew)  = 0.d0
 ZZnew(1:4,1:nrnew*npnew)  = 0.d0
 PSInew(1:4,1:nrnew*npnew) = 0.d0
 
 call find_flux_surfaces(my_id,xpoint,xcase,node_list,element_list,surface_list)
-call plot_flux_surfaces(node_list,element_list,surface_list,.true.,1,psi_xpoint,R_xpoint,Z_xpoint,xpoint,xcase)
+call plot_flux_surfaces(node_list,element_list,surface_list,.true.,1,xpoint,xcase)
 
-!call q_profile(node_list,element_list,surface_list,psi_axis,psi_xpoint,Z_xpoint)
+!call q_profile(node_list,element_list,surface_list,ES%psi_axis,ES%psi_xpoint,ES%Z_xpoint)
 
 call tr_allocate(sp1,1,surface_list%n_psi+1,"sp1",CAT_GRID)
 call tr_allocate(sp2,1,surface_list%n_psi+1,"sp2",CAT_GRID)
@@ -116,7 +119,7 @@ call spline(surface_list%n_psi+1,radius,s_values,0.d0,0.d0,0,sp1,sp2,sp3,sp4)
 do i=1,surface_list%n_psi
 
     xtmp     = spwert(surface_list%n_psi+1,radius(i+1),sp1,sp2,sp3,sp4,radius,abltg)
-    dpsi_ds  = abltg(1) * (psi_bnd - psi_axis) * 2.d0 * s_values(i+1)
+    dpsi_ds  = abltg(1) * (psi_bnd - ES%psi_axis) * 2.d0 * s_values(i+1)
 
     tht_min =  1d20
     tht_max = -1d20
@@ -136,8 +139,8 @@ do i=1,surface_list%n_psi
       call interp_RZ(node_list,element_list,i_elm,rr2,ss2,RRg2,dRRg2_dr,dRRg2_ds,dRRg2_drs,dRRg2_drr,dRRg2_dss, &
                                                           ZZg2,dZZg2_dr,dZZg2_ds,dZZg2_drs,dZZg2_drr,dZZg2_dss)
 
-      tht1 = atan2(ZZg1-Z_axis,RRg1-R_axis)
-      tht2 = atan2(ZZg2-Z_axis,RRg2-R_axis)
+      tht1 = atan2(ZZg1-ES%Z_axis,RRg1-ES%R_axis)
+      tht2 = atan2(ZZg2-ES%Z_axis,RRg2-ES%R_axis)
 
       if (tht1 .lt. 0.d0) tht1 = tht1 + 2.d0*PI
       if (tht2 .lt. 0.d0) tht2 = tht2 + 2.d0*PI
@@ -188,7 +191,7 @@ do i=1,surface_list%n_psi
           dRZ1 = dRRg1_dt * tan(theta) - dZZg1_dt
           dRZ2 = dRRg2_dt * tan(theta) - dZZg2_dt
 
-          RZ0  = R_axis  * tan(theta) - Z_axis
+          RZ0  = ES%R_axis  * tan(theta) - ES%Z_axis
 
           a3 = (   RZ1 + dRZ1 -   RZ2 + dRZ2 )/4.d0
           a2 = (       - dRZ1         + dRZ2 )/4.d0
@@ -208,20 +211,20 @@ do i=1,surface_list%n_psi
                                                               ZZg2,dZZg2_dr,dZZg2_ds,dZZg2_drs,dZZg2_drr,dZZg2_dss)
             call interp(node_list,element_list,i_elm,1,1,ri,si,PSg1,dPSg1_dr,dPSg1_ds,dPSg1_drs,dPSg1_drr,dPSg1_dss)
 
-            check = atan2(ZZg1- Z_axis,RRg1-R_axis)
+            check = atan2(ZZg1- ES%Z_axis,RRg1-ES%R_axis)
             if (check .lt. 0.d0) check = check + 2.d0*PI
 
             RRnew(1,npnew*(i) + j)  = RRg1
             ZZnew(1,npnew*(i) + j)  = ZZg1
             PSInew(1,npnew*(i) + j) = surface_list%psi_values(i)
 
-            RAD2    =   (RRg1 - R_axis)**2 + (ZZg1 - Z_axis)**2
-            TH_Z    =   (RRg1 - R_axis) / RAD2
-            TH_R    = - (ZZg1 - Z_axis) / RAD2
+            RAD2    =   (RRg1 - ES%R_axis)**2 + (ZZg1 - ES%Z_axis)**2
+            TH_Z    =   (RRg1 - ES%R_axis) / RAD2
+            TH_R    = - (ZZg1 - ES%Z_axis) / RAD2
 
-            TH_RR   = 2.d0*(ZZg1 - Z_axis) * (RRg1 - R_axis) / RAD2**2
+            TH_RR   = 2.d0*(ZZg1 - ES%Z_axis) * (RRg1 - ES%R_axis) / RAD2**2
             TH_ZZ   = - TH_RR
-            TH_RZ   = ( (ZZg1 - Z_axis)**2 - (RRg1 - R_axis)**2 ) / RAD2**2
+            TH_RZ   = ( (ZZg1 - ES%Z_axis)**2 - (RRg1 - ES%R_axis)**2 ) / RAD2**2
 
             dTH_ds  = TH_R * dRRg1_ds + TH_Z * dZZg1_ds
             dTH_dr  = TH_R * dRRg1_dr + TH_Z * dZZg1_dr
@@ -290,12 +293,12 @@ enddo
 
 !----------------------------------- magnetic axis
 
-r_ax = s_axis
-s_ax = t_axis
+r_ax = ES%s_axis
+s_ax = ES%t_axis
 
-call interp_RZ(node_list,element_list,i_elm_axis,r_ax,s_ax, RRg1,dRRg1_dr,dRRg1_ds,dRRg1_drs,dRRg1_drr,dRRg1_dss, &
+call interp_RZ(node_list,element_list,ES%i_elm_axis,r_ax,s_ax, RRg1,dRRg1_dr,dRRg1_ds,dRRg1_drs,dRRg1_drr,dRRg1_dss, &
                                                             ZZg1,dZZg1_dr,dZZg1_ds,dZZg1_drs,dZZg1_drr,dZZg1_dss)
-call interp(node_list,element_list,i_elm_axis,1,1,r_ax,s_ax,PSg1,dPSg1_dr,dPSg1_ds,dPSg1_drs,dPSg1_drr,dPSg1_dss)
+call interp(node_list,element_list,ES%i_elm_axis,1,1,r_ax,s_ax,PSg1,dPSg1_dr,dPSg1_ds,dPSg1_drs,dPSg1_drr,dPSg1_dss)
 
 ejac  = dRRg1_dr * dZZg1_ds - dRRg1_ds * DZZg1_dr
 dr_dZ = - dRRg1_ds / ejac
@@ -306,13 +309,13 @@ ds_dR = - dZZg1_dr / ejac
 dPS_dRR = dPSg1_drr * dr_dR * dr_dR + 2.d0*dPSg1_drs * dr_dR * ds_dR + dPSg1_dss * ds_dR * ds_dR
 dPS_dZZ = dPSg1_drr * dr_dZ * dr_dZ + 2.d0*dPSg1_drs * dr_dZ * ds_dZ + dPSg1_dss * ds_dZ * ds_dZ
 
-CRR_axis = dPS_dRR / 2.d0 / abs(psi_axis)
-CZZ_axis = dPS_dZZ / 2.d0 / abs(psi_axis)
+CRR_axis = dPS_dRR / 2.d0 / abs(ES%psi_axis)
+CZZ_axis = dPS_dZZ / 2.d0 / abs(ES%psi_axis)
 
-B_axis = 1.d0 / R_axis
-q_axis = B_axis   /(2.d0*SQRT(CRR_axis*CZZ_axis)) / abs(psi_axis)
+B_axis = 1.d0 / ES%R_axis
+q_axis = B_axis   /(2.d0*SQRT(CRR_axis*CZZ_axis)) / abs(ES%psi_axis)
 
-write(*,'(A,4f14.8)') ' magnetic axis, q : ',R_axis,Z_axis,psi_axis,q_axis
+write(*,'(A,4f14.8)') ' magnetic axis, q : ',ES%R_axis,ES%Z_axis,ES%psi_axis,q_axis
 
 CX = CRR_axis
 CY = CZZ_axis
@@ -352,7 +355,7 @@ do j=1,npnew
   ENDIF
   RRnew(3,inode) = 0.d0
   ZZnew(3,inode) = 0.d0
-  PSInew(1,inode) = psi_axis
+  PSInew(1,inode) = ES%psi_axis
 
   RRnew(2,inode) = RRnew(2,inode) * sp2(1)
   RRnew(4,inode) = RRnew(4,inode) * sp2(1)
@@ -429,16 +432,16 @@ do i=1,nrnew
 
     node_list%node(index)%values(1,1,1) = PSInew(1,index0)
 
-    node_list%node(index)%X(1,2,1) = RRnew(2,index0)         * 2.d0/3.d0
-    node_list%node(index)%X(1,2,2) = ZZnew(2,index0)         * 2.d0/3.d0
+    node_list%node(index)%X(1,2,1) = RRnew(2,index0)       * 2.d0/3.d0
+    node_list%node(index)%X(1,2,2) = ZZnew(2,index0)       * 2.d0/3.d0
     node_list%node(index)%values(1,2,1) = PSInew(2,index0) * 2.d0/3.d0
 
-    node_list%node(index)%X(1,3,1) = RRnew(3,index0)         * 2.d0/3.d0
-    node_list%node(index)%X(1,3,2) = ZZnew(3,index0)         * 2.d0/3.d0
+    node_list%node(index)%X(1,3,1) = RRnew(3,index0)       * 2.d0/3.d0
+    node_list%node(index)%X(1,3,2) = ZZnew(3,index0)       * 2.d0/3.d0
     node_list%node(index)%values(1,3,1) = PSInew(3,index0) * 2.d0/3.d0
 
-    node_list%node(index)%X(1,4,1) = RRnew(4,index0)         * 4.d0/9.d0
-    node_list%node(index)%X(1,4,2) = ZZnew(4,index0)         * 4.d0/9.d0
+    node_list%node(index)%X(1,4,1) = RRnew(4,index0)       * 4.d0/9.d0
+    node_list%node(index)%X(1,4,2) = ZZnew(4,index0)       * 4.d0/9.d0
     node_list%node(index)%values(1,4,1) = PSInew(4,index0) * 4.d0/9.d0
 
     if (i .eq. nrnew) node_list%node(index)%boundary = 2
@@ -474,9 +477,9 @@ do i=1,nrnew
   
           !Neighbours of the element (for refinement procedure)
 
-      if(i==1) then	        
+      if(i==1) then
         element_list%element(Index)%neighbours(4) = 0    
-      else		 
+      else
         element_list%element(Index)%neighbours(4) = Index - npnew 
       end if 
     
@@ -484,7 +487,7 @@ do i=1,nrnew
         element_list%element(Index)%neighbours(3) = Index - npnew + 1  
       else
         element_list%element(Index)%neighbours(3) = Index + 1       
-      end if	  	    
+      end if
     
       if(i==nrnew-1) then
         element_list%element(Index)%neighbours(2) = 0   

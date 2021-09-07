@@ -16,6 +16,7 @@ use tr_module
 use diffusivities, only: get_dperp, get_zkperp    
 use corr_neg
 use equil_info, only : get_psi_n
+use mod_sources
 
 implicit none
 

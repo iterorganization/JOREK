@@ -1,6 +1,6 @@
 !**********************************************************************
 !* program to extract data from a JOREK2 restart file                 *
-!*                                                                    *
+!*                                                                    *     
 !* This diagnostic has to be run with MPI (mpirun/mpiexec/srun        *
 !* depending on the system). For details, see:                        *
 !* https://www.jorek.eu/wiki/doku.php?id=diagnostics#diagnostics      *
@@ -17,17 +17,7 @@ use pellet_module
 use mpi_mod
 use mod_boundary, only: boundary_from_grid 
 use mod_import_restart
-use domains
-use mod_log_params
-use diagnostics, only: axis_is_psi_minimum
-use mod_boundary, only: boundary_from_grid
-use mod_element_rtree
-#if (defined WITH_Neutrals) && (!defined WITH_Impurities)
-  use mod_neutral_source
-#endif
-#ifdef WITH_Impurities
-  use mod_injection_source
-#endif
+use mod_impurity
 use mod_integrals3D
 use mod_expression, only: exprs_all_int, init_expr, t_expr_list
 
@@ -41,61 +31,16 @@ type (t_expr_list)           :: expr_list
 real*8, allocatable          :: res(:)
 integer                      :: units
 
-integer :: i, in, i_tor, i_spi, resultlength
+
+integer :: i, in, i_tor, i_spi
 real*8  :: growth_kin, growth_mag,density,density_in,density_out,pressure,pressure_in,pressure_out
 real*8  :: Rplot(2), Zplot(2)
-real*8  :: psi_bnd, psi_axis,R_axis,Z_axis,s_axis,t_axis
-integer :: ifail, my_id, ierr, i_elm_axis
+real*8  :: psi_axis,R_axis,Z_axis,s_axis,t_axis
+integer :: ifail, ierr, i_elm_axis
 integer :: required, provided, StatInfo
-integer :: rank, comm_size, n_cpu
-integer :: MPI_COMM_N, MPI_GROUP_MASTER, MPI_GROUP_WORLD, MPI_COMM_MASTER, MPI_COMM_TRANS
 real*8  :: spi_abl_rate_tot, spi_abl_tot
 real*8  :: spi_abl_bg_rate_tot, spi_abl_bg_tot
 
-  interface
-    subroutine distribute_vector(my_id,rhs,rhs_dis,again)
-      real*8               :: rhs(:), rhs_dis(:)
-      integer              :: my_id
-      logical              :: again
-    end subroutine distribute_vector
-
-    subroutine distribute_harmonics(my_id,my_id_n,n_cpu)
-      integer              :: my_id, my_id_n,n_cpu
-    end subroutine distribute_harmonics
-
-    subroutine gmres_driver(my_id,my_id_n,i_tor,n_tor,MPI_COMM_N,MPI_COMM_MASTER,iter_gmres)
-      integer :: i_tor(:), my_id, my_id_n, MPI_COMM_N, MPI_COMM_MASTER
-      integer :: iter_gmres, n_tor
-    end subroutine gmres_driver
-
-
-    subroutine equilibrium(my_id,node_list,element_list,bnd_node_list,bnd_elm_list,xpoint2,xcase2, nice_q)
-      use data_structure
-      integer(kind=4),             intent(in)    :: my_id
-      integer(kind=4),             intent(in)    :: xcase2
-      type (type_node_list),       intent(inout) :: node_list
-      type (type_element_list),    intent(inout) :: element_list
-      type (type_bnd_node_list)   ,intent(inout) :: bnd_node_list
-      type (type_bnd_element_list),intent(inout) :: bnd_elm_list
-      logical(kind=4),             intent(in)    :: xpoint2
-      logical(kind=4),             intent(in)    :: nice_q
-    end subroutine equilibrium
-
-    subroutine set_trap_sigterm() bind(C)
-    end subroutine set_trap_sigterm
-    logical function sigterm_called() bind(C)
-    end function sigterm_called
-  end interface
-
-
-real*8  :: psi_xpoint(2), R_xpoint(2), Z_xpoint(2), s_xpoint(2), t_xpoint(2), mindelta, maxdelta
-real*8  :: psi_lim, R_lim, Z_lim
-integer :: i_elm_xpoint(2) 
-
-
-character(len=MPI_MAX_PROCESSOR_NAME) :: name
-
-logical, save :: axis_is_min
 
 write(*,*) '***************************************'
 write(*,*) '* JOREK2_diagno                       *'
@@ -105,47 +50,16 @@ call init_expr()
 allocate(res(exprs_all_int%n_expr+1))
 res = 0.d0
 
-!my_id=0
 
 #ifdef FUNNELED
   required = MPI_THREAD_FUNNELED
 #else
   required = MPI_THREAD_MULTIPLE
 #endif
-  call MPI_Init_thread(required, provided, StatInfo)
-
-  call init_threads()  ! on some systems init_threads needs to come after mpi_init_thread
-
-  ! --- Determine number of MPI procs
-  call MPI_COMM_SIZE(MPI_COMM_WORLD, comm_size, ierr)
-  n_cpu = comm_size
-
-  ! --- Determine ID of each MPI proc
-  call MPI_COMM_RANK(MPI_COMM_WORLD, rank, ierr)
-  my_id = rank
-
-  ! --- Process command line arguments
-  if ( my_id == 0 ) call jorek2help(n_cpu, nbthreads)
-
-  CALL MPI_GET_PROCESSOR_NAME (name,resultlength,ierr)
-  write(*,'(A,I5,2A)') '#MPI id, ProcessorName ', rank, ': ', name
-
-  ! --- Initialize mode and mode_type arrays
-  call det_modes()
-
-  ! --- Remove file STOP_NOW if it exists
-  if ( my_id == 0 ) then
-    open(42, file='STOP_NOW', iostat=ierr)
-    if ( ierr == 0 ) close(42, status='delete')
-  end if
+call MPI_Init_thread(required, provided, StatInfo)
 
 
-!call initialise_parameters(my_id, "__NO_FILENAME__")
-call initialise_and_broadcast_parameters(my_id, "__NO_FILENAME__")
-
-
-! --- Write out all parameters defined in parameters and the namelist input file.
-call log_parameters(my_id)
+call initialise_parameters(0, "__NO_FILENAME__")
 
 do i_tor=1, n_tor
   mode(i_tor) = + int(i_tor / 2) * n_period
@@ -155,36 +69,6 @@ enddo
 call import_restart(node_list,element_list, 'jorek_restart', rst_format, ierr, .true.)
 
 call initialise_basis()                              ! define the basis functions at the Gaussian points
-
-call broadcast_elements(my_id, element_list)                ! elements
-call broadcast_nodes(my_id, node_list)                      ! nodes
-call broadcast_phys(my_id)                                  ! physics parameters
-
-
-!------------------------------------------------- find x-point(s)
-xcase = 1
-if (xpoint) then
-  call find_xpoint(my_id,node_list,element_list,psi_xpoint,R_xpoint,Z_xpoint,i_elm_xpoint,s_xpoint,t_xpoint,xcase,ifail)
-  psi_bnd = psi_xpoint(1)
-  if( (xcase .eq. 2) .or. ((xcase .eq. 3) .and. (psi_xpoint(2) .lt. psi_xpoint(1))) ) then
-    psi_bnd = psi_xpoint(2)
-  endif
-else
-  psi_bnd = 0.d0
-endif
-
-call find_axis(my_id,node_list,element_list,psi_axis,R_axis,Z_axis,i_elm_axis,s_axis,t_axis,ifail)
-
-if (my_id .eq. 0 ) then
-  write(*,*) ' xcase,1st x-point:R,Z,psi: ',xcase, R_xpoint(1),Z_xpoint(1),psi_xpoint(1),psi_bnd
-!   write(*,*) ' PSI_XPOINT : ',psi_xpoint,i_elm_xpoint
-  write(*,*) ' PSI_AXIS : ',psi_axis,i_elm_axis
-  write(*,*) ' RZ_AXIS : ', R_axis, Z_axis
-endif
-
-
-axis_is_min = axis_is_psi_minimum(node_list, element_list, R_axis, Z_axis, psi_axis) !Dump call to initialize
-
 
 open(20,file='energies.txt')
 
@@ -222,10 +106,19 @@ endif
 
 open(20,file="rad_history.dat")
 
-write(20,'(2A20)') 'time', 'total_radiation (MJ)'
+write(20,'(3A20)') 'time', 'tot_rad_power (MW)', 'total_radiation (MJ)'
 
 do i=1,index_start
-  write(20,'(i7,f12.3,1e14.6)') i,xtime(i), xtime_radiation(i)/1.d6
+  write(20,'(i7,f12.3,2e14.6)') i,xtime(i), xtime_rad_power(i)/1.d6, xtime_radiation(i)/1.d6
+enddo
+close(20)
+
+open(20,file="thermal_history.dat")
+
+write(20,'(3A20)') 'time', 'e_th_energy (MJ)', 'i_th_energy (MJ)'
+
+do i=1,index_start
+  write(20,'(i7,f12.3,2e14.6)') i,xtime(i), thermal_e_tot_t(i)/1.d6, thermal_i_tot_t(i)/1.d6
 enddo
 close(20)
 
@@ -240,7 +133,7 @@ if (using_spi) then
     spi_abl_tot = 0.0
     spi_abl_bg_rate_tot = 0.0
     spi_abl_bg_tot = 0.0
-    do i_spi = 1, n_spi
+    do i_spi = 1, n_spi_tot
       spi_abl_rate_tot = spi_abl_rate_tot + xtime_spi_ablation_rate(i_spi,i)
       spi_abl_tot = spi_abl_tot + xtime_spi_ablation(i_spi,i)
       spi_abl_bg_rate_tot = spi_abl_bg_rate_tot + xtime_spi_ablation_bg_rate(i_spi,i)
@@ -252,9 +145,9 @@ if (using_spi) then
 
   open(20,file="fragments_position.dat")
 
-  do i_spi = 1, n_spi
-    write(20,'(i7,2f12.3,e14.6,f12.3)') i_spi, pellets(i_spi)%spi_R, pellets(i_spi)%spi_Z, pellets(i_spi)%spi_radius,&
-                                            pellets(i_spi)%spi_species
+  do i_spi = 1, n_spi_tot
+    write(20,'(i7,3f12.3,e14.6,f12.3)') i_spi, pellets(i_spi)%spi_R, pellets(i_spi)%spi_Z, pellets(i_spi)%spi_phi,&
+                                               pellets(i_spi)%spi_radius, pellets(i_spi)%spi_species
   end do
   close(20)
 
@@ -262,19 +155,18 @@ endif
 
 #if (defined WITH_Neutrals) || (defined WITH_Impurities)
   ! --- Read ADAS data and generate coronal equilibrium is needed
-  call init_imp_adas(my_id)
+  call init_imp_adas(0)
   if (output_prad_phi) then
     ! --- Determine boundary information from the grid
     call boundary_from_grid(node_list, element_list, bnd_node_list, bnd_elm_list, .false.)
 
-    call int3d_new(my_id, node_list, element_list, bnd_node_list, bnd_elm_list, exprs_all_int, res, 1)
+    call int3d_new(0, node_list, element_list, bnd_node_list, bnd_elm_list, exprs_all_int, res, 1)
   endif
 #endif
 !if (use_pellet) then
 !   pellet_volume = total_pellet_volume
-!   call update_pellet(my_id,node_list,element_list)
+!   call update_pellet(0,node_list,element_list)
 !end if
-
 !------------------lowshape3bis outside
 !Rplot(1) = 3.0
 !Rplot(2) = 3.676
@@ -299,7 +191,7 @@ endif
 !Zplot(1) = 0.07
 !Zplot(2) = 0.07
 
-!call find_axis(my_id,node_list,element_list,psi_axis,R_axis,Z_axis,i_elm_axis,s_axis,t_axis,ifail)
+!call find_axis(0,node_list,element_list,psi_axis,R_axis,Z_axis,i_elm_axis,s_axis,t_axis,ifail)
 
 !Rplot(1) = 1.0
 !Rplot(2) = 3.5

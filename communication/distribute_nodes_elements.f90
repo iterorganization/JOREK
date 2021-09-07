@@ -14,6 +14,8 @@ type (type_node_list)    :: node_list
 type (type_element_list) :: element_list
 type (type_surface_list) :: flux_list
 
+logical, parameter :: DEBUG = .false.
+
 integer               :: local_elms(*)
 integer               :: my_id, n_cpu, m_cpu, n_local_elms, inode
 integer(kind=int_all) :: n_dof
@@ -60,7 +62,7 @@ if (.not. direct_construction) then ! global matrix construction
     index_min(i) = index_max(i-1) + 1
   enddo
   if (my_id .eq. n_cpu-1) index_max(my_id+1) = index_total
-  !write(*,'(A,3i6)') ' index_min,index_max:',my_id,index_min(my_id+1),index_max(my_id+1)
+  if (DEBUG) write(*,'(A,3i6)') ' index_min,index_max:',my_id,index_min(my_id+1),index_max(my_id+1)
   
 else ! harmonic matrix "direct" construction
   
@@ -74,7 +76,7 @@ else ! harmonic matrix "direct" construction
     endif
   enddo
   if (mod(my_id+1,m_cpu) .eq. 0) index_max(my_id+1) = index_total
-  !write(*,'(A,3i6)') ' index_min,index_max:',my_id,index_min(my_id+1),index_max(my_id+1)
+  if (DEBUG) write(*,'(A,3i6)') ' index_min,index_max:',my_id,index_min(my_id+1),index_max(my_id+1)
   
 end if 
 
@@ -125,7 +127,7 @@ enddo
 
 n_local_ELMs = inext
 
-!write(*,'(i4,A,20i8)') my_id,' n_local_elms  : ',n_local_elms,element_list%n_elements
+if (DEBUG) write(*,'(i4,A,20i8)') my_id,' n_local_elms  : ',n_local_elms,element_list%n_elements
 
 !--------------------- check distribution of boundary nodes 
 mpi_distr_count=0
@@ -140,7 +142,7 @@ if (restart .and. freeboundary) then
       end do
     end if
   end do
-  !write(*,*) 'task ', my_id, 'is responsible for ', mpi_distr_count, 'boundary nodes.'
+  if (DEBUG) write(*,*) 'task ', my_id, 'is responsible for ', mpi_distr_count, 'boundary nodes.'
   if (mpi_distr_count == 0) then 
     write(*,*) 'WARNING: boundary node indices seem to be unevenly distributed among the MPI tasks. To avoid this, use freeb_change_indices=.true. from the very beginning of your simulation."'
   end if 

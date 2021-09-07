@@ -25,12 +25,7 @@ use mod_import_restart
 use equil_info, only : get_psi_n, ES
 use mod_interp
 use mod_new_diag
-#if (defined WITH_Neutrals) && (!defined WITH_Impurities)
-   use mod_neutral_source
-#endif
-#if (!defined WITH_Neutrals) && (defined WITH_Impurities)
-   use mod_injection_source
-#endif
+use mod_impurity, only : init_imp_adas
 
 implicit none
 

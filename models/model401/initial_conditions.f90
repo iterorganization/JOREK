@@ -7,6 +7,8 @@ use data_structure
 use phys_module
 use mod_poiss
 use equil_info
+use mod_sources
+
 implicit none
 
 type (type_node_list)    :: node_list
@@ -191,10 +193,10 @@ do in=2,n_tor
       node_list%node(i)%values(in,3,var_w) = amplitude * (1.d0 - 2.d0 * psi_n)/(ES%psi_bnd - ES%psi_axis) * node_list%node(i)%values(1,3,var_psi)
       node_list%node(i)%values(in,4,var_w) = amplitude * (1.d0 - 2.d0 * psi_n)/(ES%psi_bnd - ES%psi_axis) * node_list%node(i)%values(1,4,var_psi)
       
-      if (xpoint2 .and. ((psi_n .gt. 1.d0) .or. ((Z .lt. ES%Z_xpoint(1)) .and. (xcase2 .ne. 2)) ) ) then
+      if (xpoint2 .and. ((psi_n .gt. 1.d0) .or. ((Z .lt. ES%Z_xpoint(1)) .and. (xcase2 .ne. UPPER_XPOINT)) ) ) then
         node_list%node(i)%values(in,1:4,4) = 0.d0
       endif
-      if (xpoint2 .and. ((psi_n .gt. 1.d0) .or. ((Z .gt. ES%Z_xpoint(2)) .and. (xcase2 .ne. 1)) ) ) then
+      if (xpoint2 .and. ((psi_n .gt. 1.d0) .or. ((Z .gt. ES%Z_xpoint(2)) .and. (xcase2 .ne. LOWER_XPOINT)) ) ) then
         node_list%node(i)%values(in,1:4,4) = 0.d0
       endif
 

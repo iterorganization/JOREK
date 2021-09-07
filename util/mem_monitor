@@ -58,6 +58,12 @@ p = subprocess.Popen(child_cmd)
 pid = p.pid
 nid = 0
 
+#remove old memory logs
+test=os.listdir(os.getcwd())
+for item in test:
+    if item.startswith("mem_pid_")&item.endswith(".log"):
+        os.remove(item)
+
 log_name = "mem_pid_{}.log".format(pid)
 
 watch_cmd = ["ps", "--no-header", "-o", "rss", "-p", str(p.pid)]

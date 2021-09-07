@@ -113,13 +113,14 @@ namelist /in1/  tstep, nstep, tstep_n, nstep_n,                     &
                 D_imp_extra_R, D_imp_extra_Z, D_imp_extra_p,        &
                 D_imp_extra_neg, D_imp_extra_neg_thresh,            &
                 rho_min, ZK_par_neg_thresh,                         &
-                ns_sig, ns_deltaphi, ksi_ion, spi_rnd_seed,         &
+                ns_deltaphi, ksi_ion, spi_rnd_seed,                 &
                 ns_amplitude, ns_R, ns_Z, ns_phi, ns_radius,        &
-                spi_Vel_Rref,spi_Vel_Zref, using_spi, n_spi,        &
+                spi_Vel_Rref,spi_Vel_Zref, using_spi, n_spi, n_inj, &
                 spi_Vel_RxZref, spi_quantity, spi_abl_model,        &
                 spi_quantity_bg, pellet_density_bg,                 &
                 ng_radius_ratio, ng_radius_min, spi_angle,          &
-                spi_L_inj, K_Dmv, A_Dmv, L_tube, V_Dmv, P_Dmv,      &
+                spi_L_inj, spi_L_inj_diff,                          &
+                K_Dmv, A_Dmv, L_tube, V_Dmv, P_Dmv,                 &
                 spi_Vel_diff, t_ns, JET_MGI, ASDEX_MGI,             &
                 imp_type, delta_n_convection, nimp_bg,              &
                 adas_dir, output_prad_phi,                          &
@@ -238,22 +239,25 @@ if (my_id .eq. 0) then
 
   if (2*PI/(n_tor*n_period) >= ns_deltaphi) then
     write(*,*) "WARNING! ns_deltaphi too small for the n_tor, BEWARE!"
-    if (t_now > t_ns) then
+    if (t_now > minval(t_ns)) then
       write(*,*) "EXITING NOW!!!"
       stop
     end if
   end if
 
-  if (using_spi) then
-    if (JET_MGI .or. ASDEX_MGI) then
-      write(*,*) "WARNING: Using SPI, conflicting with MGI settings"
-      write(*,*) "JET_MGI:", JET_MGI
-      write(*,*) "ASDEX_MGI:", ASDEX_MGI
-      stop
-    else 
-      call init_spi()
-    end if
+  if (n_inj > n_inj_max .or. n_inj < 1) then
+    write(*,*) "ERROR! Do not support n_inj larger than n_inj_max or smaller than 1, EXITING!"
+    stop
   end if
+
+  do i = 1, n_inj_max
+    if (n_spi(i)/=0 .and. i > n_inj) then
+      write(*,*) "ERROR! Something wrong with n_inj, double check, EXITING!", n_spi, n_inj
+      stop
+    end if
+  end do
+
+  if (using_spi) call init_spi_all()
 end if
 
 return

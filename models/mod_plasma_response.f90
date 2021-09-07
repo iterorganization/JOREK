@@ -22,6 +22,7 @@ module mod_plasma_response
   public ::  find_Icoils, find_Icoils_JET
   public ::  t_pol_coil, t_coil, psi_coils
   public ::  read_coils, construct_test_coil, destruct_coils, log_coils, log_coil
+  public ::  plasma_fields_at_xyz
   
   ! --- Derived datatypes
   type :: t_pol_coil
@@ -34,6 +35,7 @@ module mod_plasma_response
   type :: t_coil
     character(len=80)      :: name
     integer                :: coil_type
+    integer                :: n_turns
     type(t_pol_coil) :: pol_coil
   end type t_coil
   
@@ -41,12 +43,12 @@ module mod_plasma_response
   logical            :: debug=.true.        !< Output debugging information (fort.xxx files)
   logical            :: debug_norm=.false.   !< Output normalized magnetic field vectors
   logical            :: verbose=.false.      !< Output verbose information
- 
+
   contains
   
     
   !!-------------------------------------------------------------------
-  !> Calculates Green's fuctions G(r,r') for B_R, B_Z and \psi 
+  !> Calculates Green's fuctions G(r,r') for B_R, B_Z and \psi
   !!
   !! The Green's functions are used to calculate the fields by
   !! integrating current densities over areas
@@ -82,7 +84,6 @@ module mod_plasma_response
           * ( (R_p**2 - R**2 - (Z_p-Z)**2) / ((R_p-R)**2.d0 + (Z_p-Z)**2.d0) * Eellip_kk + Kellip_kk )
     
     G_psi = (0.5d0/PI) * sqrt(R_p*R)/kk * ( (2.d0-kk**2.d0)*Kellip_kk - 2.d0*Eellip_kk )    
-  
   end subroutine Greens_functions
   
   
@@ -201,12 +202,191 @@ module mod_plasma_response
   end subroutine psi_plasma
  
  
+
+
+
  
+  !-------------------------------------------------------------------------------------
+  !> Calculates the magnetic field produced by plasma currents at arbitrary x,y,z points 
+  !-------------------------------------------------------------------------------------
+  subroutine plasma_fields_at_xyz(my_id, node_list,element_list, x,y,z, bx, by, bz)
+
+    !$ use omp_lib
+    use mpi_mod
+
+    implicit none
+
+    integer,                  intent(in) :: my_id
+    type (type_node_list),    intent(in) :: node_list
+    type (type_element_list), intent(in) :: element_list
+    real*8,  intent(in)                  :: x(:), y(:), z(:)     ! Points where fields are calculated
+    real*8,  intent(inout)               :: bx(:), by(:), bz(:)
+
+    ! --- local variables    
+    type (type_element)      :: element
+    type (type_node)         :: nodes(n_vertex_max)
+    
+    real*8     :: x_g(n_gauss,n_gauss),        x_s(n_gauss,n_gauss),        x_t(n_gauss,n_gauss)
+    real*8     :: y_g(n_gauss,n_gauss),        y_s(n_gauss,n_gauss),        y_t(n_gauss,n_gauss)
+    real*8     :: eq_g(n_plane,n_gauss,n_gauss)
+    
+    integer    :: i, j, ms, mt, iv, inode, ife, mp, in
+    integer    :: ierr, n_cpu, ife_delta, ife_min, ife_max, omp_nthreads, omp_tid
+    real*8     :: zj0, R, xp,yp,zp, dd, wst, xjac, delta_phi, phi
+    real*8     :: d_vec(3), J_vec(3), cross(3), dB(3)
+    real*8     :: wgauss_copy(n_gauss)
+    integer    :: n_points
+
+    real*8, allocatable :: bx_tmp(:), by_tmp(:), bz_tmp(:)
+
+    ! --- MPI initialization
+    call MPI_COMM_SIZE(MPI_COMM_WORLD, n_cpu, ierr) ! number of MPI procs
+    n_cpu = max(n_cpu,1)
+
+    ife_delta = ceiling(float(element_list%n_elements) / n_cpu)
+    ife_min   =      my_id     * ife_delta + 1
+    ife_max   = min((my_id +1) * ife_delta, element_list%n_elements)
+
+   
+    n_points = size(x,1)
+    allocate(bx_tmp(n_points), by_tmp(n_points), bz_tmp(n_points))
+    
+    bx     = 0.d0;  by     = 0.d0;  bz     = 0.d0;
+    bx_tmp = 0.d0;  by_tmp = 0.d0;  bz_tmp = 0.d0;
+
+    delta_phi = 2.d0 * PI / float(n_plane) 
+ 
+    wgauss_copy = wgauss
+
+    ! --- OpenMP parallelization of element loop
+    !$omp parallel default(none)                                                           &
+    !$omp   shared(my_id,element_list,node_list, H, H_s, H_t, HZ, ife_min, ife_max,        &
+    !$omp          delta_phi, n_points, x, y, z, bx_tmp, by_tmp, bz_tmp, wgauss_copy)      &
+    !$omp   private(ife,iv,inode,element,nodes,i,j, in, mp, ms, mt,                        &
+    !$omp           x_g, y_g, x_s, y_s, x_t, y_t, xjac, eq_g, zj0, R, xp, yp, zp, dd, phi, &
+    !$omp           d_vec, J_vec, cross, dB, wst, omp_nthreads,omp_tid)
+    
+#ifdef OPENMP
+    omp_nthreads = omp_get_num_threads()
+    omp_tid      = omp_get_thread_num()
+#else
+    omp_nthreads = 1
+    omp_tid      = 0
+#endif
+    
+    !$omp do reduction(+:bx_tmp, by_tmp, bz_tmp)     
+       
+    !--- Go through all the elements
+    do ife = ife_min, ife_max
+    
+      element = element_list%element(ife)
+
+      do iv = 1, n_vertex_max
+        inode     = element%vertex(iv)
+        nodes(iv) = node_list%node(inode)
+      enddo
+      
+      x_g(:,:)    = 0.d0; x_s(:,:)    = 0.d0; x_t(:,:)    = 0.d0;
+      y_g(:,:)    = 0.d0; y_s(:,:)    = 0.d0; y_t(:,:)    = 0.d0;
+      
+      !--- Calculate R,Z and derivatives at gausstian points
+      do i=1,n_vertex_max
+        do j=1,n_order+1
+
+          do ms=1, n_gauss
+            do mt=1, n_gauss
+
+              x_g(ms,mt) = x_g(ms,mt) + nodes(i)%x(1,j,1) * element%size(i,j) * H(i,j,ms,mt)
+              y_g(ms,mt) = y_g(ms,mt) + nodes(i)%x(1,j,2) * element%size(i,j) * H(i,j,ms,mt)
+
+              x_s(ms,mt) = x_s(ms,mt) + nodes(i)%x(1,j,1) * element%size(i,j) * H_s(i,j,ms,mt)
+              x_t(ms,mt) = x_t(ms,mt) + nodes(i)%x(1,j,1) * element%size(i,j) * H_t(i,j,ms,mt)
+              y_s(ms,mt) = y_s(ms,mt) + nodes(i)%x(1,j,2) * element%size(i,j) * H_s(i,j,ms,mt)
+              y_t(ms,mt) = y_t(ms,mt) + nodes(i)%x(1,j,2) * element%size(i,j) * H_t(i,j,ms,mt)
+
+            enddo
+          enddo
+        enddo
+      enddo
+      
+      eq_g(:,:,:) = 0.d0
+            
+      !--- Calculate the current at gaussian points
+      do i=1,n_vertex_max
+        do j=1,n_order+1
+
+          do mp=1,n_plane
+            do ms=1, n_gauss
+              do mt=1, n_gauss
+                do in=1,n_tor
+                  eq_g(mp,ms,mt) = eq_g(mp,ms,mt) + nodes(i)%values(in,j,3) * element%size(i,j) * H(i,j,ms,mt)  * HZ(in,mp)
+                enddo !---ntor
+      	      enddo !---gauss
+            enddo !---gauss
+          enddo !---planes
+
+        enddo !---order
+      enddo !---vertex
+      
+      !---Do gaussian and toroidal planes integration
+      do ms=1, n_gauss
+        do mt=1, n_gauss
+
+          wst  = wgauss_copy(ms)*wgauss_copy(mt)
+          xjac = x_s(ms,mt)*y_t(ms,mt) - x_t(ms,mt)*y_s(ms,mt)
+          R    = x_g(ms,mt)
+          zp   = y_g(ms,mt)
+
+          do mp=1,n_plane
+
+            phi   =  float(mp-1) * delta_phi
+            xp    =  R * Cos(phi)
+            yp    = -R * Sin(phi)
+                                
+            zj0   =  eq_g(mp,ms,mt)
+            J_vec =  zj0/R*(/ Sin(phi), Cos(phi), 0.d0 /)       
+
+            ! --- Go over the given points
+            do i=1, n_points
+
+              d_vec(:)  = (/ xp-x(i), yp-y(i), zp-z(i) /)
+
+              dd        = max(sqrt( sum( d_vec(:)**2.d0 ) ) , 1.d-9 )
+    
+              cross     = (/  d_vec(2)*J_vec(3) - d_vec(3)*J_vec(2),  &
+                              d_vec(3)*J_vec(1) - d_vec(1)*J_vec(3),  &
+                              d_vec(1)*J_vec(2) - d_vec(2)*J_vec(1) /)
+    
+              dB(:)     =  cross(:) / (dd**3.d0) / (4.d0*PI) * wst * xjac * R * delta_phi
+    
+              bx_tmp(i) = bx_tmp(i) + dB(1)
+              by_tmp(i) = by_tmp(i) + dB(2)
+              bz_tmp(i) = bz_tmp(i) + dB(3)
+            enddo
+
+          enddo
+        enddo
+      enddo
+      
+    
+    enddo !---elements
+    !$omp end do
+    !$omp end parallel
+
+
+    call MPI_AllReduce(bx_tmp,bx,n_points,MPI_DOUBLE_PRECISION,MPI_SUM,MPI_COMM_WORLD,ierr)
+    call MPI_AllReduce(by_tmp,by,n_points,MPI_DOUBLE_PRECISION,MPI_SUM,MPI_COMM_WORLD,ierr)
+    call MPI_AllReduce(bz_tmp,bz,n_points,MPI_DOUBLE_PRECISION,MPI_SUM,MPI_COMM_WORLD,ierr)
+
+    deallocate(bx_tmp, by_tmp, bz_tmp)   
+
+  end subroutine plasma_fields_at_xyz
   
   
   
   
-  
+ 
+ 
   !------------------------------------------------------------------
   !> Calculates B_plasma at given (R,Z) points 
   !------------------------------------------------------------------
@@ -360,16 +540,16 @@ module mod_plasma_response
     real*8   :: R1, R2, Z1, Z2
     logical  :: s_const            ! Is the bound. elem. an s=const side of the 2D element?
   
-    real*8,  allocatable :: R_vec(:), Z_vec(:), coeff(:,:), B_all(:,:), B_p(:,:), B_ext(:,:)
-    real*8,  allocatable :: Btan_ext(:), v_tan(:,:), weights(:)
-    real*8,  allocatable :: A_mat_min(:,:), RHS_min(:)
+    real*8,  allocatable :: R_vec(:), Z_vec(:), coeff(:,:), B_all(:,:), B_p(:,:), B_ext(:,:), Psitot(:)
+    real*8,  allocatable :: Btan_ext(:), v_tan(:,:), weights(:), psi_c(:), psi_c_min(:), psi_p(:)
+    real*8,  allocatable :: A_mat_min(:,:), RHS_min(:), RHS_min_per_turn(:), pf_current_Aturn(:)
     integer, allocatable :: ipiv(:)
     integer              :: n_points, n_points_elm, numb_coils
     integer              :: i, pt, count, i_c, j_c, info
     real*8               :: Btan_c, Bmax, Bc(2)
-  
+    
     l_starwall=1;  l_tor=1;
-  
+
     write(*,*) ' '
     write(*,*) '************************************************************'
     write(*,*) '******** Calculate best I_coils from fixed bnd *************'
@@ -386,7 +566,7 @@ module mod_plasma_response
     n_points     = n_points_elm * bnd_elm_list%n_bnd_elements  
     
     allocate( R_vec(n_points), Z_vec(n_points), coeff(n_points, numb_coils) )
-    allocate( B_all(n_points,2), B_ext(n_points,2), B_p(n_points,2) )
+    allocate( B_all(n_points,2), B_ext(n_points,2), B_p(n_points,2) , Psitot(n_points))
     allocate( v_tan(n_points,2), Btan_ext(n_points), weights(n_points) )    
     R_vec = 0.d0 ; Z_vec = 0.d0; coeff = 0.d0; B_all=0.d0; B_ext=0.d0; B_p=0.d0;
     v_tan = 0.d0 ; weights=0.d0;
@@ -446,7 +626,7 @@ module mod_plasma_response
     
         ! --- Psi value (plus derivatives) at current point (l_tor mode)
         call interp(node_list, element_list, m_elm, 1, l_tor, s_pt, t_pt, P, P_s, P_t, P_st, P_ss, P_tt)
-    
+        Psitot(count) = P
         ! --- Poloidal magnetic field at current point
         P_R   = (   P_s * Z_t - P_t * Z_s ) / xjac ! dPsi/dR
         P_Z   = ( - P_s * R_t + P_t * R_s ) / xjac ! dPsi/dZ
@@ -454,7 +634,7 @@ module mod_plasma_response
         
         do i_c = 1, numb_coils        
           call B_coil_unit(coils(i_c), R, Z, Bc) 
-          coeff(count, i_c) = -Bc(1)*e_par(1) -  Bc(2)*e_par(2)  
+          coeff(count, i_c) = Bc(1)*e_par(1) +  Bc(2)*e_par(2)  
         enddo  
         
         R_vec(count)   = R;     Z_vec(count) = Z;       B_all(count,:) = B_pol(:);   v_tan(count,:) = e_par(:); 
@@ -473,7 +653,7 @@ module mod_plasma_response
     
     B_ext(:,:)  = B_all(:,:) - B_p(:,:) 
     Btan_ext(:) = B_ext(:,1)*v_tan(:,1) +  B_ext(:,2)*v_tan(:,2)  
-    
+    allocate( psi_c(n_points), psi_c_min(n_points),psi_p(n_points)) 
     !--- Check coils initial guess
     open(25,file='B_ext.txt',status="replace", position="append", action="write")
     do i = 1, n_points
@@ -498,7 +678,8 @@ module mod_plasma_response
     write(*,*) ' '
     write(*,*) 'Solve minimization problem'
     
-    allocate(RHS_min(numb_coils), A_mat_min(numb_coils,numb_coils) )
+    allocate(RHS_min(numb_coils), A_mat_min(numb_coils,numb_coils), RHS_min_per_turn(numb_coils) )
+    allocate(pf_current_Aturn(numb_coils))
     allocate(ipiv(numb_coils))
     RHS_min = 0.d0;     A_mat_min = 0.d0
     
@@ -516,24 +697,48 @@ module mod_plasma_response
 
    call dgesv( numb_coils, 1, A_mat_min, numb_coils, ipiv, RHS_min, numb_coils, info )
    write(*,*) 'info = ', info
+   do i = 1, numb_coils
+     RHS_min_per_turn(i) = RHS_min(i)/coils(i)%n_turns
+     pf_current_Aturn(i) = pf_coils(i)%current*coils(i)%n_turns
+   end do
 
    write(*,*) ' '
    write(*,*) ' Found total coil currents (stored in Icoils_found.txt) '
+   write(*,*) ' Positive currents follow the JOREK +phi direction      '
+   write(*,*) ' '
 
    open(26,file='Icoils_found.txt',status="replace", position="append", action="write")
+   open(25,file='Psi_coils.txt',status="replace", position="append", action="write")
+
+   call  psi_coils(coils,R_vec,Z_vec,psi_c, pf_current_Aturn)
+   call  psi_coils(coils,R_vec,Z_vec,psi_c_min,RHS_min)
+   call  psi_plasma(node_list,element_list,R_vec,Z_vec,psi_p)
+
+   write(25,*) 'R    Z    psi_coil    psi_coil_min    psi_plasma    psi_tot'
+    do i = 1, n_points
+      write(25,'(6ES14.6)') R_vec(i), Z_vec(i), psi_c(i), psi_c_min(i), psi_p(i), Psitot(i)
+    enddo
+   write(26,*) '#current Aturns      current[A]/turn'
    do i=1, numb_coils
-     write(26,'(1ES18.10)')   RHS_min(i) 
-     write(*, '(1ES18.10)')   RHS_min(i) 
+     write(26,'(2ES18.10)')   RHS_min(i),  RHS_min_per_turn(i)
+     write(*, '(2ES18.10)')   RHS_min(i),  RHS_min_per_turn(i)
    enddo
+   write(26,'(A,99ES14.6)') '# pf_coils%current = ', RHS_min_per_turn
    close(26)
-   
+   close(25)
    !----- Compare given and calculated currents
    write(*,*) ' '
    write(*,*) ' Initial coil currents, Calculated currents, Relative differences '
+   write(*,*) ' Assuming pf_coils%fcurrent is given in A/turn '
    do i=1, numb_coils
-     write(*,'(3ES14.6)') pf_coils(i)%current, RHS_min(i), (pf_coils(i)%current - RHS_min(i)) / (pf_coils(i)%current + 0.1)
+     write(*,'(3ES14.6)') pf_coils(i)%current,  RHS_min_per_turn(i), (pf_coils(i)%current - RHS_min(i)/coils(i)%n_turns) / (pf_coils(i)%current + 0.1)
    enddo
-
+   deallocate(RHS_min_per_turn, RHS_min, A_mat_min, ipiv)
+   deallocate(psi_c, psi_c_min, psi_p, pf_current_Aturn)
+   deallocate( R_vec, Z_vec, coeff)
+   deallocate( B_all, B_ext, B_p , Psitot)
+   deallocate( v_tan, Btan_ext, weights)    
+  
   end subroutine find_Icoils 
   
   
@@ -677,7 +882,7 @@ module mod_plasma_response
         
         do i_c = 1, numb_coils        
           call B_coil_unit(coils(i_c), R, Z, Bc) 
-          coeff(count, i_c) = -Bc(1)*e_par(1) -  Bc(2)*e_par(2)  
+          coeff(count, i_c) = Bc(1)*e_par(1) +  Bc(2)*e_par(2)  
         enddo  
       
         R_vec(count)   = R;     Z_vec(count) = Z;       B_all(count,:) = B_pol(:);   v_tan(count,:) = e_par(:); 
@@ -792,6 +997,8 @@ module mod_plasma_response
       
    write(*,*) ' '
    write(*,*) ' Found total coil currents (stored in Icoils_found.txt) '
+   write(*,*) ' Positive currents follow the JOREK +phi direction      '
+   write(*,*) ' '
 
    open(26,file='Icoils_found.txt',status="replace", position="append", action="write")
    do i=1, numb_coils
@@ -945,6 +1152,7 @@ module mod_plasma_response
       
       coils(i_c)%coil_type = C_POL_COIL
       coils(i_c)%name = trim(adjustl(coils(i_c)%name))
+      coils(i_c)%n_turns  =  n_turns(i_c)
       allocate( coils(i_c)%pol_coil%R_fila(coils(i_c)%pol_coil%n_fila) )
       allocate( coils(i_c)%pol_coil%Z_fila(coils(i_c)%pol_coil%n_fila) )
       allocate( coils(i_c)%pol_coil%weight(coils(i_c)%pol_coil%n_fila) )
@@ -1085,8 +1293,8 @@ module mod_plasma_response
   !------------------------------------------------------------------
   !> Calculates psi_coils at given (R,Z) points 
   !------------------------------------------------------------------
-  subroutine psi_coils(coils, R0, Z0, psi_c)
-
+  subroutine psi_coils(coils, R0, Z0, psi_c, current_in)
+    
     use vacuum, only : pf_coils
 
     implicit none
@@ -1095,6 +1303,7 @@ module mod_plasma_response
 
     real*8, intent(in)        :: R0(:), Z0(:)
     real*8, intent(inout)     :: psi_c(:)
+    real*8, optional,intent(in)    :: current_in(:)
     
     ! --- local variables    
     integer    :: i_p, i_c, i_f 
@@ -1111,6 +1320,9 @@ module mod_plasma_response
       do i_c =1, n_coils     ! --- loop over coils
 
         I_coil = pf_coils(i_c)%current
+        if (present(current_in)) then
+          I_coil = current_in(i_c)
+        end if
    
         do i_f = 1, coils(i_c)%pol_coil%n_fila ! (Loop over coil filaments)
 
@@ -1122,7 +1334,7 @@ module mod_plasma_response
           call Greens_functions(R0(i_p), Z0(i_p), R_f, Z_f, G_BR, G_BZ, G_psi)
             
           !--- psi = \int Greens_funct * I   see (4.66 Computational Methods in P.Physics, Jardin)
-          psi_c(i_p) = psi_c(i_p) - G_psi * I_coil * coils(i_c)%pol_coil%weight(i_f) * mu_zero
+          psi_c(i_p) = psi_c(i_p) + G_psi * I_coil * coils(i_c)%pol_coil%weight(i_f) * mu_zero
 
         enddo
       enddo

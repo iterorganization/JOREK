@@ -10,6 +10,7 @@ subroutine export_nemec(node_list, element_list, xpoint, xcase)
   use constants
   use data_structure
   use mod_interp, only: interp_RZ
+  use equil_info
   
   implicit none
   
@@ -42,7 +43,7 @@ subroutine export_nemec(node_list, element_list, xpoint, xcase)
       t_xpoint,xcase,ifail)
     if (ifail .ne. 1) then
       psi_bnd  = psi_xpoint(1)
-      if( (xcase .eq. 2) .or. ((xcase .eq. 3) .and. (psi_xpoint(2) .lt. psi_xpoint(1))) ) then
+      if( ES%active_xpoint .eq. UPPER_XPOINT ) then
         psi_bnd = psi_xpoint(2)
       endif
     endif

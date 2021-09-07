@@ -7,7 +7,7 @@ module strumpack_module
 
   implicit none
   type(C_PTR) :: spss ! STRUMPACK sparse solver
-  integer(kind=C_INT_ALL), dimension(:), pointer :: dist  ! row distribution
+  integer(kind=C_INT_ALL), allocatable, target :: dist(:)  ! row distribution
   logical :: spss_initialized, spss_analyzed
 
   private
@@ -175,7 +175,7 @@ module strumpack_module
 
           elseif (dflag.and.(ncpu.gt.1)) then
             ! get row distribution from irn in case of pre-distributed matrix
-            if (associated(dist)) dist=>null()
+            if (allocated(dist)) deallocate(dist)
             allocate(dist(ncpu+1))
             dist(1:ncpu+1) = 0
             imin = minval(irn(1:nnz))
@@ -305,7 +305,7 @@ module strumpack_module
         integer(kind=C_INT_ALL), dimension(:), allocatable :: nr
         integer :: ierr, i
 
-        if (associated(dist)) dist=>null()
+        if (allocated(dist)) deallocate(dist)
         allocate(dist(ncpu+1))
         allocate(nr(ncpu))
 

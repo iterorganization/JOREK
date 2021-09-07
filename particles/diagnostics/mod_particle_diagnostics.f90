@@ -395,6 +395,7 @@ subroutine calculate_particle_diagnostics(fields, time, particles, mass, real8_s
   use mod_gc_relativistic, only: relativistic_gc_to_particle
   use mod_fields_linear
   use domains
+  use equil_info
   class(fields_base), intent(in)                               :: fields
   real*8, intent(in)                                           :: time
   class(particle_base), intent(in), dimension(:)               :: particles
@@ -423,7 +424,7 @@ subroutine calculate_particle_diagnostics(fields, time, particles, mass, real8_s
   if (xpoint) then
     call find_xpoint(1,fields%node_list,fields%element_list,psi_xpoint,R_xpoint,Z_xpoint,i_elm_xpoint,s_xpoint,t_xpoint,xcase,ifail)
     psi_limit  = psi_xpoint(1)
-    if((xcase .eq. 2) .or. ((xcase .eq. 3) .and. (psi_xpoint(2) .lt. psi_xpoint(1)))) then ! less than? assumption on current direction?
+    if(ES%active_xpoint .eq. UPPER_XPOINT) then
       psi_limit = psi_xpoint(2)
     endif
   else
@@ -572,6 +573,7 @@ end subroutine calculate_particle_diagnostics
 !> Regions are: DOMAIN_PLASMA, DOMAIN_SOL, DOMAIN_OUTER_SOL,
 !> DOMAIN_UPPER_PRIVATE, DOMAIN_LOWER_PRIVATE
 function particles_in_regions(node_list, element_list, particles)
+  use constants
   use data_structure
   use phys_module, only: DOMAIN_PLASMA, DOMAIN_SOL, DOMAIN_OUTER_SOL, DOMAIN_UPPER_PRIVATE,        &
       DOMAIN_LOWER_PRIVATE, xpoint, xcase
@@ -579,6 +581,7 @@ function particles_in_regions(node_list, element_list, particles)
   use domains
   use mpi
   use mod_interp, only: interp
+  use equil_info
   implicit none
 
   type(type_node_list), intent(in)     :: node_list
@@ -599,7 +602,7 @@ function particles_in_regions(node_list, element_list, particles)
   if (xpoint) then
     call find_xpoint(1,node_list,element_list,psi_xpoint,R_xpoint,Z_xpoint,i_elm_xpoint,s_xpoint,t_xpoint,xcase,ifail)
     psi_limit  = psi_xpoint(1)
-    if( (xcase .eq. 2) .or. ((xcase .eq. 3) .and. (psi_xpoint(2) .lt. psi_xpoint(1))) ) then
+    if(ES%active_xpoint .eq. UPPER_XPOINT) then
       psi_limit = psi_xpoint(2)
     endif
   else

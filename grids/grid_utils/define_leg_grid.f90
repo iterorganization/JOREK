@@ -9,6 +9,7 @@ use grid_xpoint_data
 use phys_module, only:   tokamak_device, SDN_threshold
 use py_plots_grids
 use mod_interp, only: interp_RZ
+use equil_info
 
 implicit none
 
@@ -38,9 +39,6 @@ integer             :: ifail, my_id
 integer             :: n_xpoint_1, n_xpoint_2
 integer             :: n_loop, n_tmp
 real*8              :: R_cub1d(4), Z_cub1d(4)
-integer             :: i_elm_axis, i_elm_xpoint(2)
-real*8              :: psi_axis,      R_axis,      Z_axis,      s_axis,      t_axis
-real*8              :: psi_xpoint(2), R_xpoint(2), Z_xpoint(2), s_xpoint(2), t_xpoint(2)
 real*8              :: length
 real*8              :: R1,dR1_dr,dR1_ds,dR1_drs,dR1_drr,dR1_dss
 real*8              :: Z1,dZ1_dr,dZ1_ds,dZ1_drs,dZ1_drr,dZ1_dss
@@ -76,19 +74,6 @@ write(*,*) '*****************************************'
 write(*,*) '* X-point grid inside wall :            *'
 write(*,*) '*****************************************'
 write(*,*) '                 Define leg part of grid',which_leg
-
-
-my_id = 1 ! Just don't want the printout...
-call find_axis(my_id,node_list,element_list,psi_axis,R_axis,Z_axis,i_elm_axis,s_axis,t_axis,ifail)
-call find_xpoint(my_id,node_list,element_list,psi_xpoint,R_xpoint,Z_xpoint,i_elm_xpoint,s_xpoint,t_xpoint,xcase,ifail)
-if(xcase .eq. 3) then
-  ! If we have a symmetric double-null, force the single separatrix
-  if (abs(psi_xpoint(1)-psi_xpoint(2)) .lt. SDN_threshold) then
-    psi_xpoint(1) = (psi_xpoint(1)+psi_xpoint(2))/2.d0
-    psi_xpoint(2) = psi_xpoint(1)
-  endif
-endif
-
 
 SIG_theta    = sigmas(2) 
 SIG_leg_0    = sigmas(8) ; SIG_leg_1    = sigmas(9) 
@@ -155,9 +140,9 @@ end do
 ! --- lower or upper leg?
 if (which_leg .le. 2) then
   R_beg(1) = stpts%RMiddle_LowerPrivate; Z_beg(1) = stpts%ZMiddle_LowerPrivate
-  R_beg(2) = R_xpoint(1);                Z_beg(2) = Z_xpoint(1)
+  R_beg(2) = ES%R_xpoint(1);                Z_beg(2) = ES%Z_xpoint(1)
   i_surf(1) = n_flux + n_open + n_outer + n_inner + n_private
-  if ( (psi_xpoint(1) .le. psi_xpoint(2)) .or. (xcase .ne. 3) ) then
+  if ( (xcase .ne. DOUBLE_NULL) .or. ( (xcase .eq. DOUBLE_NULL) .and. ( (ES%active_xpoint .eq. LOWER_XPOINT) .or. (ES%active_xpoint .eq. SYMMETRIC_XPOINT) ) ) ) then
     i_surf(2) = n_flux
   else
     i_surf(2) = n_flux + n_open
@@ -170,7 +155,7 @@ if (which_leg .le. 2) then
     R_end(3) = stpts%RLeftCorn_LowerInnerLeg;  Z_end(3) = stpts%ZLeftCorn_LowerInnerLeg
     i_surf(3) = n_flux + n_open + n_outer + n_inner
     n_seg = n_leg
-    if ( (xcase .eq. 3) .and. (psi_xpoint(2) .lt. psi_xpoint(2)) ) then
+    if ( (xcase .eq. DOUBLE_NULL) .and. ( ES%active_xpoint .eq. UPPER_XPOINT ) ) then
       n_surf_tot = n_inner + n_private + 1
       allocate(i_flux(n_surf_tot))
       do i=1,n_private
@@ -206,7 +191,7 @@ if (which_leg .le. 2) then
     i_surf(3) = n_flux + n_open + n_outer
     n_seg = n_leg
     if (n_leg_out .gt. 0) n_seg = n_leg_out
-    if ( (xcase .eq. 3) .and. (psi_xpoint(2) .lt. psi_xpoint(2)) ) then
+    if ( (xcase .eq. DOUBLE_NULL) .and. ( ES%active_xpoint .eq. UPPER_XPOINT ) ) then
       n_surf_tot = n_outer + n_private + 1
       allocate(i_flux(n_surf_tot))
       do i=1,n_private
@@ -240,8 +225,8 @@ if (which_leg .le. 2) then
 else
   i_surf(1) = n_flux + n_open + n_outer + n_inner + n_private + n_up_priv
   R_beg(1) = stpts%RMiddle_UpperPrivate; Z_beg(1) = stpts%ZMiddle_UpperPrivate
-  R_beg(2) = R_xpoint(2);                Z_beg(2) = Z_xpoint(2)
-  if ( (psi_xpoint(2) .le. psi_xpoint(1)) .or. (xcase .ne. 3) ) then
+  R_beg(2) = ES%R_xpoint(2);             Z_beg(2) = ES%Z_xpoint(2)
+  if ( (xcase .ne. DOUBLE_NULL) .or. ( (xcase .eq. DOUBLE_NULL) .and. ( (ES%active_xpoint .eq. UPPER_XPOINT) .or. (ES%active_xpoint .eq. SYMMETRIC_XPOINT) ) ) ) then
     i_surf(2) = n_flux
   else
     i_surf(2) = n_flux + n_open
@@ -253,7 +238,7 @@ else
     R_end(3) = stpts%RLeftCorn_UpperInnerLeg;  Z_end(3) = stpts%ZLeftCorn_UpperInnerLeg
     i_surf(3) = n_flux + n_open + n_outer + n_inner
     n_seg = n_up_leg
-    if ( (xcase .eq. 3) .and. (psi_xpoint(2) .lt. psi_xpoint(2)) ) then
+    if ( ES%active_xpoint .eq. UPPER_XPOINT  ) then
       n_surf_tot = n_inner + n_open + n_up_priv + 1
       allocate(i_flux(n_surf_tot))
       do i=1,n_up_priv
@@ -279,8 +264,14 @@ else
         i_flux(n_up_priv+1+i) = n_flux + n_open + n_outer +i
       enddo
     endif
-    n_xpoint_1 = 7 ! please see "create_x_node.f90" if confused
-    n_xpoint_2 = 8
+    ! --- please see "create_x_node.f90" if confused
+    if (xcase .eq. UPPER_XPOINT) then
+      n_xpoint_1 = 3
+      n_xpoint_2 = 4
+    else
+      n_xpoint_1 = 7
+      n_xpoint_2 = 8
+    endif
   ! --- inner or outer leg?
   else
     R_end(1) = stpts%RLeftCorn_UpperOuterLeg;  Z_end(1) = stpts%ZLeftCorn_UpperOuterLeg
@@ -290,7 +281,7 @@ else
     i_surf(3) = n_flux + n_open + n_outer
     n_seg = n_up_leg
     if (n_up_leg_out .gt. 0) n_seg = n_up_leg_out
-    if ( (xcase .eq. 3) .and. (psi_xpoint(2) .lt. psi_xpoint(2)) ) then
+    if ( ES%active_xpoint .eq. UPPER_XPOINT ) then
       n_surf_tot = n_outer + n_open + n_up_priv + 1
       allocate(i_flux(n_surf_tot))
       do i=1,n_up_priv
@@ -316,8 +307,14 @@ else
         i_flux(n_up_priv+1+i) = n_flux + n_open + i
       enddo
     endif
-    n_xpoint_1 = 6 ! please see "create_x_node.f90" if confused
-    n_xpoint_2 = 5
+    ! --- please see "create_x_node.f90" if confused
+    if (xcase .eq. UPPER_XPOINT) then
+      n_xpoint_1 = 2
+      n_xpoint_2 = 1
+    else
+      n_xpoint_1 = 6
+      n_xpoint_2 = 5
+    endif
   endif
   SIG_0 = SIG_up_leg_0
   SIG_1 = SIG_up_leg_1
@@ -371,12 +368,12 @@ do i = 1,n_surf_tot
                                                                               Z1,dZ1_dr,dZ1_ds,dZ1_drs,dZ1_drr,dZ1_dss)
       R_beg_tmp = R1
       Z_beg_tmp = Z1
-      if ( (Z_beg_tmp .le. Z_xpoint(1)) .and. (which_leg .le. 2) .and. (i .lt. i_sep) ) exit
-      if ( (Z_beg_tmp .ge. Z_xpoint(2)) .and. (which_leg .gt. 2) .and. (i .lt. i_sep) ) exit
-      if ( (R_beg_tmp .le. R_xpoint(1)) .and. (which_leg .eq. 1) .and. (i .gt. i_sep) ) exit
-      if ( (R_beg_tmp .ge. R_xpoint(1)) .and. (which_leg .eq. 2) .and. (i .gt. i_sep) ) exit
-      if ( (R_beg_tmp .le. R_xpoint(2)) .and. (which_leg .eq. 3) .and. (i .gt. i_sep) ) exit
-      if ( (R_beg_tmp .ge. R_xpoint(2)) .and. (which_leg .eq. 4) .and. (i .gt. i_sep) ) exit
+      if ( (Z_beg_tmp .le. ES%Z_xpoint(1)) .and. (which_leg .le. 2) .and. (i .lt. i_sep) ) exit
+      if ( (Z_beg_tmp .ge. ES%Z_xpoint(2)) .and. (which_leg .gt. 2) .and. (i .lt. i_sep) ) exit
+      if ( (R_beg_tmp .le. ES%R_xpoint(1)) .and. (which_leg .eq. 1) .and. (i .gt. i_sep) ) exit
+      if ( (R_beg_tmp .ge. ES%R_xpoint(1)) .and. (which_leg .eq. 2) .and. (i .gt. i_sep) ) exit
+      if ( (R_beg_tmp .le. ES%R_xpoint(2)) .and. (which_leg .eq. 3) .and. (i .gt. i_sep) ) exit
+      if ( (R_beg_tmp .ge. ES%R_xpoint(2)) .and. (which_leg .eq. 4) .and. (i .gt. i_sep) ) exit
     enddo
     ! --- The End point
     count = 0
@@ -392,32 +389,32 @@ do i = 1,n_surf_tot
         call interp_RZ(node_list,element_list,i_elm,rr1,ss1,R1,dR1_dr,dR1_ds,dR1_drs,dR1_drr,dR1_dss, &
                                                             Z1,dZ1_dr,dZ1_ds,dZ1_drs,dZ1_drr,dZ1_dss)
         if (which_leg .eq. 1) then
-          !if ( (R1 .lt. R_xpoint(1)) .and. (Z1 .lt. Z_axis) ) then
-          if (Z1 .lt. Z_axis) then
+          !if ( (R1 .lt. ES%R_xpoint(1)) .and. (Z1 .lt. ES%Z_axis) ) then
+          if (Z1 .lt. ES%Z_axis) then
             count = count + 1
             R_tmp(count) = R1
             Z_tmp(count) = Z1
           endif
         endif
         if (which_leg .eq. 2) then
-          !if ( (R1 .gt. R_xpoint(1)) .and. (Z1 .lt. Z_axis) ) then
-          if (Z1 .lt. Z_axis) then
+          !if ( (R1 .gt. ES%R_xpoint(1)) .and. (Z1 .lt. ES%Z_axis) ) then
+          if (Z1 .lt. ES%Z_axis) then
             count = count + 1
             R_tmp(count) = R1
             Z_tmp(count) = Z1
           endif
         endif
         if (which_leg .eq. 3) then
-          !if ( (R1 .lt. R_xpoint(2)) .and. (Z1 .gt. Z_axis) ) then
-          if (Z1 .gt. Z_axis) then
+          !if ( (R1 .lt. ES%R_xpoint(2)) .and. (Z1 .gt. ES%Z_axis) ) then
+          if (Z1 .gt. ES%Z_axis) then
             count = count + 1
             R_tmp(count) = R1
             Z_tmp(count) = Z1
           endif
         endif
         if (which_leg .eq. 4) then
-          !if ( (R1 .gt. R_xpoint(2)) .and. (Z1 .gt. Z_axis) ) then
-          if (Z1 .gt. Z_axis) then
+          !if ( (R1 .gt. ES%R_xpoint(2)) .and. (Z1 .gt. ES%Z_axis) ) then
+          if (Z1 .gt. ES%Z_axis) then
             count = count + 1
             R_tmp(count) = R1
             Z_tmp(count) = Z1
@@ -448,9 +445,9 @@ do i = 1,n_surf_tot
       diff_min = 1.d10
       do j=1,count
         if (which_leg .le. 2) then
-          diff = sqrt( (R_tmp(j)-R_xpoint(1))**2 + (Z_tmp(j)-Z_xpoint(1))**2 )
+          diff = sqrt( (R_tmp(j)-ES%R_xpoint(1))**2 + (Z_tmp(j)-ES%Z_xpoint(1))**2 )
         else
-          diff = sqrt( (R_tmp(j)-R_xpoint(2))**2 + (Z_tmp(j)-Z_xpoint(2))**2 )
+          diff = sqrt( (R_tmp(j)-ES%R_xpoint(2))**2 + (Z_tmp(j)-ES%Z_xpoint(2))**2 )
         endif
         if (diff .lt. diff_min) then
           diff_min = diff
@@ -718,25 +715,25 @@ write(*,*) '                 Defining new nodes'
 !-------------------------------------------------------------------------------------------!
 
 ! THIS ADDS FOUR NODES AT EACH XPOINTS, PLEASE SEE create_x_node FOR MORE DETAILS
-if (xcase .eq. 1) then
+if (xcase .eq. LOWER_XPOINT) then
   call create_x_node(node_list, element_list, newnode_list, nwpts, stpts, &
-                     1, R_axis, Z_axis, R_xpoint, Z_xpoint, i_elm_xpoint, s_xpoint, t_xpoint)
+                     LOWER_XPOINT, ES%R_axis, ES%Z_axis, ES%R_xpoint, ES%Z_xpoint, ES%i_elm_xpoint, ES%s_xpoint, ES%t_xpoint)
 endif 
-if (xcase .eq. 2) then
+if (xcase .eq. UPPER_XPOINT) then
   call create_x_node(node_list, element_list, newnode_list, nwpts, stpts, &
-                     2, R_axis, Z_axis, R_xpoint, Z_xpoint, i_elm_xpoint, s_xpoint, t_xpoint)
+                     UPPER_XPOINT, ES%R_axis, ES%Z_axis, ES%R_xpoint, ES%Z_xpoint, ES%i_elm_xpoint, ES%s_xpoint, ES%t_xpoint)
 endif 
-if ( (xcase .eq. 3) .and. (psi_xpoint(1) .le. psi_xpoint(2)) ) then ! Put lower Xpoint first
+if ( (xcase .eq. DOUBLE_NULL) .and. ( (ES%active_xpoint .eq. LOWER_XPOINT) .or. (ES%active_xpoint .eq. SYMMETRIC_XPOINT) ) ) then ! Put lower Xpoint first
   call create_x_node(node_list, element_list, newnode_list, nwpts, stpts, &
-                     1, R_axis, Z_axis, R_xpoint, Z_xpoint, i_elm_xpoint, s_xpoint, t_xpoint)
+                     LOWER_XPOINT, ES%R_axis, ES%Z_axis, ES%R_xpoint, ES%Z_xpoint, ES%i_elm_xpoint, ES%s_xpoint, ES%t_xpoint)
   call create_x_node(node_list, element_list, newnode_list, nwpts, stpts, &
-                     2, R_axis, Z_axis, R_xpoint, Z_xpoint, i_elm_xpoint, s_xpoint, t_xpoint)
+                     UPPER_XPOINT, ES%R_axis, ES%Z_axis, ES%R_xpoint, ES%Z_xpoint, ES%i_elm_xpoint, ES%s_xpoint, ES%t_xpoint)
 endif 
-if ( (xcase .eq. 3) .and. (psi_xpoint(2) .lt. psi_xpoint(1)) ) then ! Put upper Xpoint first
+if ( (xcase .eq. DOUBLE_NULL) .and. ( ES%active_xpoint .eq. UPPER_XPOINT ) ) then ! Put upper Xpoint first
   call create_x_node(node_list, element_list, newnode_list, nwpts, stpts, &
-                     2, R_axis, Z_axis, R_xpoint, Z_xpoint, i_elm_xpoint, s_xpoint, t_xpoint)
+                     UPPER_XPOINT, ES%R_axis, ES%Z_axis, ES%R_xpoint, ES%Z_xpoint, ES%i_elm_xpoint, ES%s_xpoint, ES%t_xpoint)
   call create_x_node(node_list, element_list, newnode_list, nwpts, stpts, &
-                     1, R_axis, Z_axis, R_xpoint, Z_xpoint, i_elm_xpoint, s_xpoint, t_xpoint)
+                     LOWER_XPOINT, ES%R_axis, ES%Z_axis, ES%R_xpoint, ES%Z_xpoint, ES%i_elm_xpoint, ES%s_xpoint, ES%t_xpoint)
 endif 
 index = newnode_list%n_nodes
 
@@ -771,7 +768,7 @@ write(*,*) '                 Defining new elements'
 
 !-------------------------------- The closed region
 n_tmp = 4 ! because we put the Xpoints first
-if (xcase .eq. 3) n_tmp = 8 ! because we put the Xpoints first
+if (xcase .eq. DOUBLE_NULL) n_tmp = 8 ! because we put the Xpoints first
 index = 0
 do i=1,n_surf_tot-1
   do j=1, n_seg-1
@@ -1248,11 +1245,4 @@ subroutine curve_length(R1, dR1, R2, dR2, Z1, dZ1, Z2, dZ2, s_beg, s_end, length
   return
 
 end subroutine curve_length
-
-
-
-
-
-
-
 

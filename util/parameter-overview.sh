@@ -13,11 +13,11 @@ outfile="parameter-overview.txt"
 models=""
 for i in `ls -1d models/model*/initialise_parameters.f90`; do
   model=`echo $i | sed -e 's|models/model||' -e 's|/.*||'`
-  if [ $model = "001" ] || [ $model = "305" ] || [ $model = "306" ]; then
+  if [ $model = "001" ] || [ $model = "305" ] || [ $model = "306" ] || [ $model = "333" ]; then
     continue
   fi
   models="$models $model"
-  grep /in1/ models/model$model/initialise_parameters.f90 -A 999 | grep "&" -A 1 | tr -d '\n' | sed -e 's/[&,]/ /g' -e 's/\t/ /g' -e 's/  */ /g' -e 's/,//g' -e 's|^.*/ ||' | tr ' ' '\n' | sort | uniq > tmp_${model}_$$
+  grep /in1/ models/model$model/initialise_parameters.f90 -A 999 | grep -v "^#" | grep "&" -A 1 | tr -d '\n' | sed -e 's/[&,]/ /g' -e 's/\t/ /g' -e 's/  */ /g' -e 's/,//g' -e 's|^.*/ ||' | tr ' ' '\n' | sort | uniq > tmp_${model}_$$
 done
 
 cat tmp_*_$$ | sort | uniq > tmp_$$
@@ -75,7 +75,7 @@ for param in `cat tmp_$$_phys`; do
     fi
     is_communicated $param
     description=`egrep -i "^[^!]* $param[( ]" models/phys_module.f90 | grep "!" | sed -e 's/^.*![< ]*//' -e 's/\\\f//g' | tr '\n' ';' | sed -e 's/;$//' -e 's/((/( (/' -e 's/))/) )/' -e s'|//|/ /|'`
-    default=`egrep -i "^[^!] $param[ =(]" models/preset_parameters.f90 | sed -e 's/^[^!]*= *//' -e 's/!.*$//' -e 's| *(/ *||' -e 's| */) *||' -e 's/d0//g' -e 's/rst_hdf5_version_supported//' -e 's/[ \t]*$//'`
+    default=`egrep -i "^[^!] $param[ =(]" models/preset_parameters.f90 | sed -e 's/^[^!]*= *//' -e 's/!.*$//' -e 's| *(/ *||' -e 's| */) *||' -e 's/d0//g' -e 's/rst_hdf5_version_supported//' -e 's/[ \t]*$//' | tr '\n' ' '`
     echo -n "| **$param** | $default | $description |" >> $outfile
     for model in $models; do
       matches=`egrep -x $param tmp_${model}_$$ | wc -l | sed -e 's/0/ /' -e "s/1/x/"`
