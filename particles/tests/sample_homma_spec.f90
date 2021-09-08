@@ -14,7 +14,7 @@ real*8, parameter :: zero3(3) = [0d0, 0d0, 0d0]
 real*8, parameter :: grad_kTb = 30.d0*EL_CHG !< [J/m] (30 eV/m)
 real*8, parameter :: m_b = 2d0 !< deuterium
 integer*1, parameter :: q_b = 1
-real*8, parameter :: coulomb_log = 15
+real*8, parameter :: coulomb_log = 15d0
 
 contains
 
