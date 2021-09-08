@@ -359,7 +359,7 @@ subroutine preset_parameters
   gmres_m            = 20                   ! gmres restart parameter
   iter_precon        = 10                   ! redo preconditioner when gmres iterations > iter_precon
   max_steps_noUpdate = 10000000             ! redo preconditioner when steps without preconditioning matrix update > max_steps_noUpdate
-  centralize_harm_mat= .false.              ! centralize harmonic matrices on toroidal master rank 
+  centralize_harm_mat= .true.              ! centralize harmonic matrices on toroidal master rank 
   
   ! --- deprecated, code will stop if these parameters are set to .true. ---
   use_murge          = .false.

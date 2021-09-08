@@ -1263,8 +1263,7 @@ do i_elm=1,element_list%n_elements
 !$omp critical
               mumps_par%irn(ilarge) = index_large_i
               mumps_par%jcn(ilarge) = index_large_k
-!              mumps_par%A(ilarge)   = ELM(index_ij,index_kl) * TWOPI / real(n_plane,8)
-              mumps_par%A(ilarge)   = ELM(index_ij,index_kl) / real(n_plane,8)
+              mumps_par%A(ilarge)   = ELM(index_ij,index_kl) * TWOPI / real(n_plane,8)
 !$omp end critical
 
             enddo
