@@ -12,7 +12,7 @@ real*8, parameter  :: m_b = 1 !< [u]
 integer*1, parameter :: q_b = 1 !< [e]
 real*8, parameter :: B(3) = [0.d0, 0.d0, 0.1d0] !< [T]
 real*8, parameter :: kT = 50.d0*EL_CHG !< [J]
-logical :: fixed_coulomb_log = .true.
+logical :: fixed_coulomb_log = .false.
 contains
 
 !> Calculate analytically the heat flux vector and compare our implementation
@@ -39,7 +39,7 @@ end subroutine test_q_homma2013_perp
 subroutine test_q_homma2013_par
   real*8, parameter :: grad_kT(3) = [0.d0, 0.d0, 100.d0]*EL_CHG ! [J/m]
   real*8, dimension(3) :: q
-  real*8, parameter :: tol = 1.d0
+  real*8, parameter :: tol = 10.d0
 
   q = q_homma2013(kT, grad_kT, B, n_b, m_b, q_b)
   call assert_equals(0.d0, q(1), tol, 'x component 0')

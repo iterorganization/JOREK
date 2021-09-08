@@ -57,8 +57,8 @@ use constants
 real*8, parameter :: m_a = 183.84d0, m_b=1.d0
 real*8, parameter :: v_a(3) = [0.d0,0.d0,1.d4], v_b(3) = [0.d0,0.d0,-1.d5]
 integer*1, parameter :: q_a = 3, q_b = 1
-real*8 :: r(3) = [0.1, 0.4, 0.2] ! 'random' numbers for this test
-real*8, parameter :: tol = 1d-12
+real*8 :: r(3) = [0.1d0, 0.4d0, 0.2d0] ! 'random' numbers for this test
+real*8, parameter :: tol = 2d-11
 real*8 :: v_a_test(3), v_b_test(3), delta, theta, tmp(2), mab, v_rel(3), delta_v(3), u, phi
 v_a_test = v_a
 v_b_test = v_b
@@ -81,6 +81,7 @@ call assert_equals(v_a(3)+mab/m_a*delta_v(3), v_a_test(3), tol, 'z-component of 
 call assert_equals(v_b(1)-mab/m_b*delta_v(1), v_b_test(1), tol, 'x-component of v_b')
 call assert_equals(v_b(2)-mab/m_b*delta_v(2), v_b_test(2), tol, 'y-component of v_b')
 call assert_equals(v_b(3)-mab/m_b*delta_v(3), v_b_test(3), tol, 'z-component of v_b')
+write(*,*) v_b(3)-mab/m_b*delta_v(3)- v_b_test(3)
 end subroutine test_heavy_light_head_on
 
 !> Test that a collision with heavy and light particles produces the right result
@@ -93,7 +94,7 @@ use constants
 real*8, parameter :: m_a = 183.84d0, m_b=1.d0
 real*8, parameter :: v_a(3) = [0.d0,0.d0,1.d4], v_b(3) = [0.d0,1.d5,0.d0]
 integer*1, parameter :: q_a = 3, q_b = 1
-real*8 :: r(3) = [0.7, 0.2, 0.5] ! 'random' numbers for this test
+real*8 :: r(3) = [0.7d0, 0.2d0, 0.5d0] ! 'random' numbers for this test
 real*8, parameter :: tol = 1d-12 !< WARNING: very high tolerance!
 real*8 :: v_a_test(3), v_b_test(3), delta, theta, tmp(2), mab, v_rel(3), delta_v(3), u, phi
 v_a_test = v_a
@@ -121,6 +122,8 @@ call assert_equals(v_a(3)+mab/m_a*delta_v(3), v_a_test(3), tol, 'z-component of 
 call assert_equals(v_b(1)-mab/m_b*delta_v(1), v_b_test(1), tol, 'x-component of v_b')
 call assert_equals(v_b(2)-mab/m_b*delta_v(2), v_b_test(2), tol, 'y-component of v_b')
 call assert_equals(v_b(3)-mab/m_b*delta_v(3), v_b_test(3), tol, 'z-component of v_b')
+
+
 end subroutine test_heavy_light_angle
 
 pure function sq(v) result(n)
