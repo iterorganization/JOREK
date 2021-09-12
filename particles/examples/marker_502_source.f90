@@ -512,7 +512,8 @@ do while (.not. sim%stop_now)
         if (Z_imp_tmp > sim%groups(1)%ad%n_Z) Z_imp_tmp = sim%groups(1)%ad%n_Z
 
         !n_e  = n_rho + dot_product(particles(j)%P_imp,P_Z) * n_rho_imp ! Electron number density [m^-3]
-        n_e  = n_rho + Z_imp_tmp * n_imp_tmp * (central_density * 1.d20) ! Electron number density [m^-3]
+        !n_e  = n_rho + Z_imp_tmp * n_imp_tmp * (central_density * 1.d20) ! Electron number density [m^-3]
+        n_e  = n_rho + Z_imp_tmp * n_rho_imp ! Electron number density [m^-3]
 
         ion_source = 0.d0
         ion_energy = 0.d0
