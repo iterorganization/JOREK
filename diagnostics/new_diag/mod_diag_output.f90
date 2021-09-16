@@ -525,7 +525,7 @@ module mod_diag_output
   
   
   !> Write diagnostic output to an hdf5 file.
-  subroutine write_hdf5_2d(ierr, expr_list, res2d, filename, comment)
+  subroutine write_hdf5_2d(ierr, expr_list, res2d, filename, comment, include_time)
   
 #ifdef USE_HDF5
     use hdf5
@@ -541,12 +541,14 @@ module mod_diag_output
     real*8, allocatable,        intent(in)    :: res2d(:,:,:)
     character(len=*),           intent(in)    :: filename
     character(len=*), optional, intent(in)    :: comment
+    logical,          optional, intent(in)    :: include_time
     
 #ifdef USE_HDF5
     ! --- Local variables.
     integer(HID_T) :: i_file
     character(len=1), allocatable :: varnames(:) !#####################
     integer :: n(3), i
+    real*8  :: t_norm, rho_norm
     
     ierr = 0
     
@@ -578,6 +580,15 @@ module mod_diag_output
     call HDF5_array1D_saving_char(i_file,varnames,expr_list%n_expr,'variables'//char(0))
     call HDF5_array3D_saving(i_file,res2d(:,:,:),n(1),n(2),n(3),'values'//char(0))
     
+    if ( present(include_time) ) then
+      if ( include_time ) then
+        rho_norm = central_density *1.d20 * central_mass * mass_proton
+        t_norm   = sqrt(MU_zero*rho_norm)
+        call HDF5_real_saving(i_file,t_now*t_norm,'time'//char(0))
+        call HDF5_integer_saving(i_file,index_now,'index_now'//char(0))
+      end if
+    end if
+    
     call HDF5_close(i_file)
     
     deallocate(varnames)
@@ -593,7 +604,7 @@ module mod_diag_output
   
   
   !> Write diagnostic output to an hdf5 file.
-  subroutine write_hdf5_3d(ierr, expr_list, res3d, filename, comment)
+  subroutine write_hdf5_3d(ierr, expr_list, res3d, filename, comment, include_time)
   
 #ifdef USE_HDF5
     use hdf5
@@ -609,12 +620,14 @@ module mod_diag_output
     real*8, allocatable,        intent(in)    :: res3d(:,:,:,:)
     character(len=*),           intent(in)    :: filename
     character(len=*), optional, intent(in)    :: comment
+    logical,          optional, intent(in)    :: include_time
     
 #ifdef USE_HDF5
     ! --- Local variables.
     integer(HID_T) :: i_file
     character(len=1), allocatable :: varnames(:) !#####################
     integer :: n(4), i
+    real*8  :: t_norm, rho_norm
     
     ierr = 0
     
@@ -645,6 +658,15 @@ module mod_diag_output
     call HDF5_integer_saving(i_file,expr_list%n_expr,'n_var'//char(0))
     call HDF5_array1D_saving_char(i_file,varnames,expr_list%n_expr,'variables'//char(0))
     call HDF5_array4D_saving(i_file,res3d(:,:,:,:),n(1),n(2),n(3),n(4),'values'//char(0))
+    
+    if ( present(include_time) ) then
+      if ( include_time ) then
+        rho_norm = central_density *1.d20 * central_mass * mass_proton
+        t_norm   = sqrt(MU_zero*rho_norm)
+        call HDF5_real_saving(i_file,t_now*t_norm,'time'//char(0))
+        call HDF5_integer_saving(i_file,index_now,'index_now'//char(0))
+      end if
+    end if
     
     call HDF5_close(i_file)
     
