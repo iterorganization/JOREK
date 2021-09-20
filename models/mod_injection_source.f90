@@ -286,6 +286,9 @@ module mod_injection_source
     real*8     :: ng_radius !< Radius of neutral gas cloud as a result of the ablation
     real*8     :: source_tmp
 
+    source_background = 0.d0
+    source_impurity   = 0.d0
+
     if (using_spi) then
 
       if (JET_MGI .or. ASDEX_MGI) then

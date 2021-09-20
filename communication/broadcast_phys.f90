@@ -1309,6 +1309,7 @@ if (my_id .ne. 0) then
     enddo
     call MPI_UNPACK(buffer,bufsize,position,weights_per_family(1:n_mode_families),n_mode_families,MPI_REAL8,MPI_COMM_WORLD,ierr)
   endif
+  if (autodistribute_modes) n_mode_families = (n_tor+1)/2
   call MPI_UNPACK(buffer,bufsize,position,autodistribute_ranks,1,MPI_LOGICAL,MPI_COMM_WORLD,ierr)
   if (.not. autodistribute_ranks) then
     call MPI_UNPACK(buffer,bufsize,position,ranks_per_family(1:n_mode_families),n_mode_families,MPI_INTEGER,MPI_COMM_WORLD,ierr)
