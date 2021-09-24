@@ -28,6 +28,7 @@ use phys_module, only: filter_perp, filter_hyper, filter_par, filter_perp_n0, fi
 use phys_module, only: xtime, energies, mode, restart_particles
 use constants,   only: MU_ZERO, MASS_PROTON, ATOMIC_MASS_UNIT, K_BOLTZ, EL_CHG
 use mod_export_restart
+use live_data
 
 use mod_projection_functions, only: proj_f_combined_density, &
                                     proj_f_combined_energy, proj_f_combined_par_momentum
@@ -58,7 +59,7 @@ real*8    :: oldtime, step_rest_time, particle_step_time, particle_start_time, d
 real*8    :: rho_norm, t_norm, v_norm, E_norm, M_norm, zn_norm, tstep_si, timesteps
 real*8    :: v_kin_temp, E(3), B(3), psi, U, B_norm
 real*8    :: rescale_coef, T_axis(1), E_axis, E_hot, rho_part, v2, delta_phi
-real*8    :: W_mag(n_tor), W_kin(n_tor), ran(6), T_scale_factor, Te0_eV, alfa
+real*8    :: W_mag(n_tor), W_kin(n_tor), ran(6), T_scale_factor, Te0_eV, alfa, growth_kin
 real*8    :: psi_n, dpsi_n, ss, psi_axis, psi_bnd, average_potential, previous_potential
 real*8    :: w_alive, w_alive_total, w_alive_previous, W_thermal_local, W_thermal_total
 real*8    :: sum_rhs(4), sum_rhs_local(4), sum_weights(4)
@@ -74,6 +75,7 @@ logical   :: compensate_n0_field
 character*14 :: fileout, filepart
 
 real*8, allocatable :: rhs_nodes(:,:), rhs_nodes_local(:,:)
+
 
 psi_n_start = 0.d0          ! limit domain to psi_start:psi_end (in normalised psi)
 psi_n_end   = 1.d0 
@@ -96,6 +98,8 @@ n_steps     = nsubstep_particles
 
 write(*,*) sim%my_id,' number of particles : ',n_particles_local,int(n_particles)
 open(111,file='diagno.txt')
+
+if (sim%my_id .eq. 0) call init_live_data()
 
 if (restart_particles) then
   deallocate(sim%groups)
@@ -125,6 +129,12 @@ if (.not. restart) then
     sim%fields%node_list%node(j)%values(:,:,2) = 0.d0
     sim%fields%node_list%node(j)%values(:,:,6) = T_scale_factor * sim%fields%node_list%node(j)%values(:,:,6)
   enddo
+endif
+
+if (sim%my_id .eq. 0) then
+  do i=1, index_start
+    call write_live_data(i)
+  enddo 
 endif
 
 zn_norm   = CENTRAL_DENSITY * 1.d20                              ! (number) density normalisation
@@ -341,8 +351,16 @@ do i=1, nstep_particles
 
   if (sim%my_id .eq. 0) then
     call itg_energy(node_list,element_list,min(psi_start,psi_end),max(psi_start,psi_end),W_kin)
-    energies(:,1,index_now) = W_kin(:)    
-    write(*,'(A,8e14.6)') 'energies: ',sim%time, W_kin(1:n_tor)
+    energies(:,1,index_now) = W_kin(:)
+    call write_live_data(index_now)
+    if (index_now > index_start+1) then
+      growth_kin = 0.d0
+      if (energies(n_tor,1,index_now-1) .gt. 0.d0) then
+        growth_kin = 0.5d0*log(abs(energies(n_tor,1,index_now)/energies(n_tor,1,index_now-1)))/ timesteps
+      endif
+    endif
+    write(*,'(A,8e14.6)') 'energies   : ',sim%time, W_kin(2:n_tor)
+    write(*,'(A,8e14.6)') 'growth rate: ',sim%time, growth_kin
   endif
 
   if ( (sim%my_id .eq. 0) .and. (mod(index_now,nout).eq. 0) ) then
@@ -374,6 +392,8 @@ if (nstep_particles .gt. 0) then
   partwriter = event(write_action(filename='part_restart.h5'))
   call with(sim, partwriter)
 
+  if ( sim%my_id .eq. 0 ) call finalize_live_data()
+  
   call sim%finalize
 
 endif
