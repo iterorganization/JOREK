@@ -623,6 +623,26 @@ endif
       end if
 
     end if
+  elseif (using_spi) then
+    if (n_spi_tot >= 1) then
+
+      if (index_start >= 1) then
+
+        if (allocated(xtime_spi_ablation)) &
+          call tr_deallocate(xtime_spi_ablation,"xtime_spi_ablation",CAT_UNKNOWN)
+        call tr_allocate(xtime_spi_ablation,1,n_spi_tot,1,index_start+nstep,"xtime_spi_ablation",CAT_UNKNOWN)
+        if (allocated(xtime_spi_ablation_rate)) &
+          call tr_deallocate(xtime_spi_ablation_rate,"xtime_spi_ablation_rate",CAT_UNKNOWN)
+        call tr_allocate(xtime_spi_ablation_rate,1,n_spi_tot,1,index_start+nstep,"xtime_spi_ablation_rate",CAT_UNKNOWN)
+        if (allocated(xtime_spi_ablation_bg)) &
+          call tr_deallocate(xtime_spi_ablation_bg,"xtime_spi_ablation_bg",CAT_UNKNOWN)
+        call tr_allocate(xtime_spi_ablation_bg,1,n_spi_tot,1,index_start+nstep,"xtime_spi_ablation_bg",CAT_UNKNOWN)
+        if (allocated(xtime_spi_ablation_bg_rate)) &
+          call tr_deallocate(xtime_spi_ablation_bg_rate,"xtime_spi_ablation_bg_rate",CAT_UNKNOWN)
+        call tr_allocate(xtime_spi_ablation_bg_rate,1,n_spi_tot,1,index_start+nstep,"xtime_spi_ablation_bg_rate",CAT_UNKNOWN)
+
+      end if
+    endif
   end if
 
 999 continue
@@ -1800,6 +1820,23 @@ subroutine import_hdf5_restart(node_list, element_list, filename, format_rst, er
       end if
 
 
+    end if
+  else if (using_spi) then
+    if (n_spi_tot >= 1) then
+      if (index_start >= 1) then
+        if (allocated(xtime_spi_ablation)) &
+          call tr_deallocate(xtime_spi_ablation,"xtime_spi_ablation",CAT_UNKNOWN)
+        call tr_allocate(xtime_spi_ablation,1,n_spi_tot,1,index_start+nstep,"xtime_spi_ablation",CAT_UNKNOWN)
+        if (allocated(xtime_spi_ablation_rate)) &
+          call tr_deallocate(xtime_spi_ablation_rate,"xtime_spi_ablation_rate",CAT_UNKNOWN)
+        call tr_allocate(xtime_spi_ablation_rate,1,n_spi_tot,1,index_start+nstep,"xtime_spi_ablation_rate",CAT_UNKNOWN)
+        if (allocated(xtime_spi_ablation_bg)) &
+          call tr_deallocate(xtime_spi_ablation_bg,"xtime_spi_ablation_bg",CAT_UNKNOWN)
+        call tr_allocate(xtime_spi_ablation_bg,1,n_spi_tot,1,index_start+nstep,"xtime_spi_ablation_bg",CAT_UNKNOWN)
+        if (allocated(xtime_spi_ablation_bg_rate)) &
+          call tr_deallocate(xtime_spi_ablation_bg_rate,"xtime_spi_ablation_bg_rate",CAT_UNKNOWN)
+        call tr_allocate(xtime_spi_ablation_bg_rate,1,n_spi_tot,1,index_start+nstep,"xtime_spi_ablation_bg_rate",CAT_UNKNOWN)
+      end if
     end if
   end if
 
