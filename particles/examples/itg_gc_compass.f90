@@ -30,8 +30,6 @@ use constants,   only: MU_ZERO, MASS_PROTON, ATOMIC_MASS_UNIT, K_BOLTZ, EL_CHG
 use mod_export_restart
 use live_data
 
-use mod_projection_functions, only: proj_f_combined_density, &
-                                    proj_f_combined_energy, proj_f_combined_par_momentum
 use mod_edge_domain
 use mod_edge_elements
 use data_structure, only: type_bnd_element_list, type_bnd_node_list 
@@ -203,12 +201,12 @@ endif ! not restart
 
 ! SHOULD MAKE PROFILES USING THE MULTIPLE KINETIC POINTS PER GYROCENTRE
 
-!project_profiles = new_projection(sim%fields%node_list, sim%fields%element_list, &
-!                      filter    = filter_perp, filter_hyper    = filter_hyper, filter_parallel    = filter_par, &
-!                      filter_n0 = filter_perp, filter_hyper_n0 = filter_hyper, filter_parallel_n0 = filter_par_n0, &
-!                      f=[proj_f(proj_one, group = 1),proj_f(proj_Pressure, group = 1)], fractional_digits = 9,  &
-!                      do_zonal = .false., calc_integrals=.true., to_vtk=.true., to_h5=.false., basename='profiles', nsub=5)
-!call with(sim, project_profiles)
+project_profiles = new_projection(sim%fields%node_list, sim%fields%element_list, &
+                      filter    = filter_perp,    filter_hyper    = filter_hyper,    filter_parallel    = filter_par, &
+                      filter_n0 = filter_perp_n0, filter_hyper_n0 = filter_hyper_n0, filter_parallel_n0 = filter_par_n0, &
+                      f=[proj_f(proj_one, group = 1),proj_f(proj_Pressure, group = 1)], fractional_digits = 9,  &
+                      do_zonal = .false., calc_integrals=.true., to_vtk=.true., to_h5=.false., basename='profiles', nsub=5)
+call with(sim, project_profiles)
 
 !do j=1, project_profiles%node_list%n_nodes
 !  sim%fields%node_list%node(j)%values(1,:,5) = project_profiles%node_list%node(j)%values(1,:,1) / (central_density * 1d20)     
@@ -359,8 +357,8 @@ do i=1, nstep_particles
         growth_kin = 0.5d0*log(abs(energies(n_tor,1,index_now)/energies(n_tor,1,index_now-1)))/ timesteps
       endif
     endif
-    write(*,'(A,8e14.6)') 'energies   : ',sim%time, W_kin(2:n_tor)
-    write(*,'(A,8e14.6)') 'growth rate: ',sim%time, growth_kin
+    write(*,'(A,32e14.6)') 'energies   : ',sim%time, W_kin(2:n_tor)
+    write(*,'(A,32e14.6)') 'growth rate: ',sim%time, growth_kin
   endif
 
   if ( (sim%my_id .eq. 0) .and. (mod(index_now,nout).eq. 0) ) then
@@ -369,7 +367,7 @@ do i=1, nstep_particles
   
     call export_restart(sim%fields%node_list, sim%fields%element_list, fileout)
 
-!    call with(sim, project_profiles)
+    call with(sim, project_profiles)
 
   endif
 

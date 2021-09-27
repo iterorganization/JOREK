@@ -33,7 +33,8 @@ private
 public projection
 public new_projection !< The constructor function is also public since it provides better error handling than the real constructor
 public proj_f
-public proj_f_interface, proj_one, proj_q, proj_vR, proj_vZ, proj_vPhi, proj_Ekin, proj_Ekin_keV, proj_jR, proj_jZ, proj_jPhi
+public proj_f_interface, proj_one, proj_q, proj_vR, proj_vZ, proj_vPhi, proj_Pressure 
+public proj_Ekin, proj_Ekin_keV, proj_jR, proj_jZ, proj_jPhi
 public write_particle_distribution_to_vtk, write_particle_distribution_to_h5 !< public for testing reasons, please don't use directly
 public prepare_mumps_par, prepare_mumps_par_n0, sample_rhs !< public for testing reasons
 public DMUMPS_STRUC
@@ -182,6 +183,20 @@ pure function proj_vPhi(sim, group, particle)
     proj_vPhi = 0.d0
   end select
 end function proj_vPhi
+
+pure function proj_Pressure(sim, group, particle)
+  use mod_particle_types, only: particle_kinetic_leapfrog
+  type(particle_sim), intent(in) :: sim
+  integer, intent(in) :: group
+  class(particle_base), intent(in) :: particle
+  real*8 :: proj_Pressure
+  select type (p => particle)
+  type is (particle_kinetic_leapfrog)
+    proj_Pressure = sim%groups(group)%mass * atomic_mass_unit * dot_product(p%v,p%v)/3.d0
+  class default
+    proj_Pressure = 0.d0
+  end select
+end function proj_Pressure
 
 !< Energy in joules
 pure function proj_Ekin(sim, group, particle) 
