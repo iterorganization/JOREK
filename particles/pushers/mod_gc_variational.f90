@@ -130,7 +130,7 @@ particle_out%weight= particle_in%weight
 return
 end
    
-subroutine convert_gc_vpar_to_kinetic(node_list, element_list, particle_in, B, mass, n_phases, particle_out)
+subroutine convert_gc_vpar_to_kinetic(node_list, element_list, particle_in, B, mass, n_phases, particle_out, my_ifail)
   use constants
   use data_structure
   use mod_pusher_tools, only: get_orthonormals
@@ -145,9 +145,13 @@ subroutine convert_gc_vpar_to_kinetic(node_list, element_list, particle_in, B, m
   real*8, intent(in)   :: mass        !< Mass of the particle [amu]
   integer, intent(in)  :: n_phases    !< number of points of the gyro orbit
   type(particle_kinetic_leapfrog), intent(out)  :: particle_out(:)
+  integer, intent(out) :: my_ifail
 
   real*8  :: B_norm, v_perp, v_par, B_hat(3), e1(3), e2(3), chi, chi_start
   integer :: i, ifail
+
+  ifail = 0
+  my_ifail = 0
 
   if (n_phases .lt. 0) return
 
@@ -191,6 +195,8 @@ subroutine convert_gc_vpar_to_kinetic(node_list, element_list, particle_in, B, m
       call find_RZ_nearby(node_list, element_list, &
              particle_in%x(1),     particle_in%x(2),     particle_in%st(1),     particle_in%st(2),     particle_in%i_elm, &
              particle_out(i)%x(1), particle_out(i)%x(2), particle_out(i)%st(1), particle_out(i)%st(2), particle_out(i)%i_elm, ifail)
+
+      if (ifail .ne. 0) my_ifail = ifail
     else
 
       particle_out(i)%x     = particle_in%x
@@ -428,7 +434,7 @@ call copy_particle_gc_vpar(particle_gc,p_3)
 call fields%calc_RK4(time_0, p_0%i_elm, p_0%st, p_0%x(3), A_0, dA_0, B_0, dB_0, Bnorm_0, dBnorm_0, bn_0, dbn_0, E_0)
 !call fields%calc_RK4_analytic(p_0%x(1), p_0%x(2), p_0%x(3), A_0, dA_0, B_0, dB_0, Bnorm_0, dBnorm_0, bn_0, dbn_0, E_0)
 
-call convert_gc_vpar_to_kinetic(node_list, element_list, p_0, B_0, mass, n_gyro_phases, p_orbit)
+call convert_gc_vpar_to_kinetic(node_list, element_list, p_0, B_0, mass, n_gyro_phases, p_orbit, ifail)
 call fields%calc_gyro_average_E(time_0, p_orbit, n_gyro_phases, E_0)
 
 do i =1, n_steps
@@ -446,7 +452,7 @@ do i =1, n_steps
   call fields%calc_RK4(time_1, p_1%i_elm, p_1%st, p_1%x(3), A_1, dA_1, B_1, dB_1, Bnorm_1, dBnorm_1, bn_1, dbn_1, E_1)
  !call fields%calc_RK4_analytic(p_1%x(1), p_1%x(2), p_1%x(3), A_1, dA_1, B_1, dB_1, Bnorm_1, dBnorm_1, bn_1, dbn_1, E_1)
 
-  call convert_gc_vpar_to_kinetic(node_list, element_list, p_1, B_1, mass, n_gyro_phases, p_orbit)
+  call convert_gc_vpar_to_kinetic(node_list, element_list, p_1, B_1, mass, n_gyro_phases, p_orbit, ifail)
   call fields%calc_gyro_average_E(time_0, p_orbit, n_gyro_phases, E_1)
   
   call rk4_step(p_1%x, p_1%vpar, qom, p_1%mu, E_1, B_1, Bnorm_1, dBnorm_1, dBn_1, delta_x2, delta_u2)
@@ -461,7 +467,7 @@ do i =1, n_steps
   call fields%calc_RK4(time_2, p_2%i_elm, p_2%st, p_2%x(3), A_2, dA_2, B_2, dB_2, Bnorm_2, dBnorm_2, bn_2, dbn_2, E_2)
  !call fields%calc_RK4_analytic(p_2%x(1), p_2%x(2), p_2%x(3), A_2, dA_2, B_2, dB_2, Bnorm_2, dBnorm_2, bn_2, dbn_2, E_2)
             
-  call convert_gc_vpar_to_kinetic(node_list, element_list, p_2, B_2, mass, n_gyro_phases, p_orbit)
+  call convert_gc_vpar_to_kinetic(node_list, element_list, p_2, B_2, mass, n_gyro_phases, p_orbit, ifail)
   call fields%calc_gyro_average_E(time_0, p_orbit, n_gyro_phases, E_2)
 
   call rk4_step(p_2%x, p_2%vpar, qom, p_2%mu, E_2, B_2, Bnorm_2, dBnorm_2, dBn_2, delta_x3, delta_u3)
@@ -477,7 +483,7 @@ do i =1, n_steps
   call fields%calc_RK4(time_3, p_3%i_elm, p_3%st, p_3%x(3), A_3, dA_3, B_3, dB_3, Bnorm_3, dBnorm_3, bn_3, dbn_3, E_3)
  !call fields%calc_RK4_analytic(p_3%x(1), p_3%x(2), p_3%x(3), A_3, dA_3, B_3, dB_3, Bnorm_3, dBnorm_3, bn_3, dbn_3, E_3)
     
-  call convert_gc_vpar_to_kinetic(node_list, element_list, p_3, B_3, mass, n_gyro_phases, p_orbit)
+  call convert_gc_vpar_to_kinetic(node_list, element_list, p_3, B_3, mass, n_gyro_phases, p_orbit, ifail)
   call fields%calc_gyro_average_E(time_0, p_orbit, n_gyro_phases, E_3)
 
   call rk4_step(p_3%x, p_3%vpar, qom, p_3%mu, E_3, B_3, Bnorm_3, dBnorm_3, dBn_3, delta_x4, delta_u4)
