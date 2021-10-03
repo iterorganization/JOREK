@@ -2265,9 +2265,7 @@ module vacuum_response
       allocate(delta_Icoils_0(n_coils))
       delta_Icoils_0 = 0.d0
       do i=1, n_coils
-        if ((vert_FB_amp(i) /= 0.d0) .or. (vert_FB_amp_ts(i)/=0.d0) ) then
           delta_Icoils_0(i) = I_coils(i) - interpolProf(coil_curr_time_trace(i)%time, coil_curr_time_trace(i)%curr, coil_curr_time_trace(i)%len, t_now)
-        end if
       end do
       initialized = .true.
     end if

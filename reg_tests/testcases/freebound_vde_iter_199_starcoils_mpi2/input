@@ -47,7 +47,8 @@
  ! --- Small current perturbation to trigger the VDE
  pf_coils(1)%pert        = -120.675784393
  pf_coils(6)%pert        =   65.3025685677
- PF_pert_start_time    = 1.d-8
+ pf_coils(1)%pert_start_time        = 1.d-8
+ pf_coils(6)%pert_start_time        = 1.d-8
 
  !------------------------------------------------------------
 

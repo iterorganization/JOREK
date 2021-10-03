@@ -569,7 +569,6 @@ write(*,'(1x,a)',advance='no') ' USE_COMPLEX_PRECOND          : '
       write(*,REAL_FMT2) 'wall_resistivity      ', wall_resistivity, ' (used only if STARWALL response file_version==1)'
       write(*,REAL_FMT2) 'wall_resistivity_fact ', wall_resistivity_fact, ' (used only if STARWALL response file_version>=2)'
     end if
-    write(*,REAL_FMT) 'PF_pert_start_time    ', PF_pert_start_time 
     write(*,REAL_FMT) 'start_VFB_ts          ', start_VFB_ts
     write(*,REAL_FMT) 'vert_FB_gain          ', vert_FB_gain(:)
     write(*,REAL_FMT) 'vert_FB_amp_ts        ', vert_FB_amp_ts(1:n_pf_coils)
