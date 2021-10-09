@@ -125,7 +125,8 @@ namelist /in1/  tstep, nstep, tstep_n, nstep_n,                     &
                 K_Dmv, A_Dmv, L_tube, V_Dmv, P_Dmv,                 &
                 spi_Vel_diff, t_ns, JET_MGI, ASDEX_MGI,             &
                 delta_n_convection, nimp_bg, output_prad_phi,       &
-                RMP_on, RMP_har_cos,RMP_har_sin, spi_shard_file,    &
+                spi_shard_file, spi_plume_file, spi_plume_hdf5,     &
+                RMP_on, RMP_har_cos,RMP_har_sin,                    &
                 RMP_growth_rate, RMP_ramp_up_time,                  &
                 RMP_psi_cos_file, RMP_psi_sin_file,                 &
                 Number_RMP_harmonics,RMP_har_cos_spectrum,          &

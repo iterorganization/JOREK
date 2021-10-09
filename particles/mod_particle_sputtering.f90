@@ -433,13 +433,14 @@ subroutine do_particle_sputter(this, sim, ev)
     ! gfortran wants and does not want to have the types in the shared section at the same time.... default(shared) it is
     ! be very very careful however!
 #ifdef __GFORTRAN__
-    !$omp parallel default(shared)  
+    !$omp parallel default(shared) & 
 #else
     !$omp parallel default(none) &
-    !$omp shared(this, sim, i), private(q, velocity, theta, E, &
+    !$omp shared(this, sim, i)   &
+#endif
+    !$omp private(q, velocity, theta, E, &
     !$omp        sputtering_yield, sputtered_energy_coeff, i_rng, u, i_patch,j, i_edge_nodes, vector_normal, T_eV, &
     !$omp        k, area, i_edge_elm, toroidal_offset, dphi, is_prompt_loss, Efield, B, psi, pot, T_e, n_e)
-#endif
     i_rng = 1
     !$ i_rng = omp_get_thread_num()+1
     !$omp do schedule(dynamic, 10)
@@ -731,12 +732,8 @@ subroutine do_particle_sputter(this, sim, ev)
 
     ! We need to properly use all RNGS here to avoid missing numbers
     ! needs default(shared) for gfortran
-#ifdef __GFORTRAN__
-    !$omp parallel default(shared) 
-#else
     !$omp parallel default(none) &
     !$omp shared(this, rng_sample, i, n_samples_fluid) private(i_rng, j)
-#endif
     i_rng = 1
     !$ i_rng = omp_get_thread_num()+1
     !$omp do schedule(static,1)

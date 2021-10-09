@@ -619,11 +619,7 @@ subroutine initialise_particles_H_mu_psi(particles, fields, rng_base, mass, T_ma
     psimin= 1d10
     psimax=-1d10
     ! Preparatory work: determine psi_min,max
-#ifdef __GFORTRAN__
-    !$omp parallel do default(shared) &
-#else
     !$omp parallel do default(none) &
-#endif
     !$omp shared(fields,  psi_minmax_list) &
     !$omp private(i_elm) reduction(min:psimin) &
     !$omp reduction(max:psimax)

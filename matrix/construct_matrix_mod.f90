@@ -144,7 +144,6 @@ contains
           elseif (  ((bnd1 .eq. 2) .or. (bnd1 .eq. 3)) .and. ((bnd2 .eq. 2) .or. (bnd2 .eq. 3)) ) then
             
             direction = (/  1, 3  /)
-            cycle
             
           else
             write(*,'(A,4i8)') 'WARNING: boundary_matrix_open, boundary element not included ',&
@@ -155,45 +154,14 @@ contains
           
 
         ! --- Build matrix elements for boundary
-    	call boundary_matrix_open(vertex, direction, element, nodes, & 
+        call boundary_matrix_open(vertex, direction, element, nodes, & 
                                   xpoint2, xcase2, R_axis, Z_axis, psi_axis, psi_bnd, R_xpoint, Z_xpoint, &
                                   thread_struct(omp_tid)%ELM, thread_struct(omp_tid)%RHS, i_tor_min, i_tor_max)
        
       enddo
     endif
     
-    ! --- Apply boundary conditions for flux surface boundaries (2 and 3)
-    if (bc_natural_flux) then
-      ! --- Loop over the 4 nodes
-      do iv = 1, n_vertex_max
-
-        iv2  = mod(iv, n_vertex_max) + 1
-        inode1 = element%vertex(iv)
-        inode2 = element%vertex(iv2)
-
-        ! --- The target has boundary 1 or 3
-        if (      ((node_list%node(inode1)%boundary .eq. 2) .or.(node_list%node(inode1)%boundary .eq. 3)) &
-            .and. ((node_list%node(inode2)%boundary .eq. 2) .or.(node_list%node(inode2)%boundary .eq. 3)) ) then
-
-          nodes(1)  = node_list%node(inode1)
-          nodes(2)  = node_list%node(inode2)
-          
-          vertex    = (/ iv, iv2 /)
-          direction = (/  1, 2   /)
-
-          iv3 = mod(iv2, n_vertex_max) + 1
-          iv4 = mod(iv3, n_vertex_max) + 1
-
-          nodes(3) = node_list%node(element%vertex(iv3))
-          nodes(4) = node_list%node(element%vertex(iv4))
-
-          ! --- Build matrix elements for boundary
-          !call boundary_matrix(vertex, direction, element,nodes, xpoint2, xcase2, R_axis, Z_axis, psi_axis, psi_bnd, R_xpoint, Z_xpoint, ELM, RHS)
-        endif
-       
-      enddo
-    endif
-    
+   
     n_tor_local = i_tor_max - i_tor_min + 1
     ! --- If keep_n0_const then the n0 component should be frozen = diagonal entries high
     if ( keep_n0_const ) then

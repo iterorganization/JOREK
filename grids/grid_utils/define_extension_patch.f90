@@ -922,7 +922,6 @@ allocate(R_polar_sides (n_seg-1  ,4,n_nodes),Z_polar_sides (n_seg-1  ,4,n_nodes)
 !------------------------------------------------------!
 !------- Segmentation in both directions --------------!
 !------------------------------------------------------!
-
 seg = 0.d0
 
 ! --- Segmentation in radial direction is the input (note this will get changed later on for smooth transition)

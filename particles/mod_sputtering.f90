@@ -64,14 +64,13 @@ subroutine do_sputter(this, sim, ev)
     call MPI_Bcast(seed, 1, MPI_INTEGER, 0, MPI_COMM_WORLD, ierr)
 
     allocate(is_free(size(sim%groups(i)%particles,1)))
-
 #ifdef __GFORTRAN__
     !$omp parallel default(shared) & 
 #else
     !$omp parallel default(none) &
     !$omp shared(sim, this, n_free, i_free, is_free, n_free_total, i, seed, free_frac, n_sputter, n_target) &
 #endif
-    !$omp private(i_rng, n_stream, j, k, rng, u, ierr)
+  !$omp private(i_rng, n_stream, j, k, rng, u, ierr)
     i_rng = 1
     n_stream = 1
     !$ n_stream = omp_get_max_threads()
