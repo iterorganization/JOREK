@@ -43,6 +43,9 @@ subroutine test_cylindrical_to_cartesian
   call assert_equals(0.d0, xyz(1), tolerance, "r zero phi pi")
   call assert_equals(0.d0, xyz(2), "r zero phi pi => y zero")
   call assert_equals(2.d0, xyz(3), "z unchanged")
+
+  write(*,*) ' completed test_cylindrical_to_cartesian'
+
 end subroutine test_cylindrical_to_cartesian
 
 subroutine test_cartesian_to_cylindrical
@@ -72,6 +75,9 @@ subroutine test_cartesian_to_cylindrical
   call assert_equals(1.d0, cyl(1), tolerance, "r correct for negative values")
   call assert_equals(2.d0, cyl(2), "z unchanged")
   call assert_equals(-PI, cyl(3), "angle should be PI or -PI")
+
+  write(*,*) ' completed test_cartesian_to_cylindrical'
+
 end subroutine test_cartesian_to_cylindrical
 
 subroutine test_vector_rotation
@@ -97,5 +103,8 @@ subroutine test_vector_rotation
   call assert_equals(3.d0, out(1), tolerance, "rotates phi to R")
   call assert_equals(-2.d0, out(2), tolerance, "keeps z")
   call assert_equals(-1.d0, out(3), tolerance, "rotates R to -phi")
+
+  write(*,*) ' completed test_cartesian_to_cylindrical'
+
 end subroutine test_vector_rotation
 end module coordinate_transforms_spec

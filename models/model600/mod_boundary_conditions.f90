@@ -38,7 +38,8 @@ use phys_module, only: F0, GAMMA, freeboundary, RMP_on, psi_RMP_cos, dpsi_RMP_co
        psi_RMP_sin, dpsi_RMP_sin_dR, dpsi_RMP_sin_dZ, t_now, RMP_growth_rate, RMP_ramp_up_time,            &
        RMP_start_time, tstep, RMP_har_cos, RMP_har_sin, T_min,                                             &
        mach_one_bnd_integral, Vpar_smoothing, vpar_smoothing_coef, no_mach1_bc,                            &
-       Number_RMP_harmonics, RMP_har_cos_spectrum,RMP_har_sin_spectrum, grid_to_wall, n_wall_blocks, keep_n0_const
+       Number_RMP_harmonics, RMP_har_cos_spectrum,RMP_har_sin_spectrum, grid_to_wall, n_wall_blocks, keep_n0_const, &
+       bcs 
 use tr_module
 use mpi_mod
 use mod_locate_irn_jcn
@@ -99,7 +100,7 @@ real*8  :: delta_psi_rmp, delta_psi_rmp_dR, delta_psi_rmp_dZ, delta_psi_rmp_ds, 
 real*8  :: R_mid, Z_mid, R_center, Z_center, direction2, normal(2), normal_direction(2), grad_s(2), grad_t(2)
 real*8  :: factor, factor_b, c_1, c_2, c_3, bn, cs0, cs0_T, cs0_TT, dl, dl_b
 real*8  :: bn_b, bn_b_abs, hfact_b, bn_1, bn_2, ps2_b, element_size_2
-integer :: ilarge_vp, ilarge_vp2
+integer :: ilarge_vp, ilarge_vp2, bnd_type
 integer :: kp, j, err, itest, i_mid, i_bnd, idir, iv_dir, iv_perp_dir, k_max
 integer :: n_rmp_harm, N_rmp_har_block_size
 
@@ -220,34 +221,7 @@ do i=1, n_local_elms !=== do elements
 
       normal_direction = (/R_mid - R_center, Z_mid - Z_center /) / norm2((/R_mid - R_center, Z_mid - Z_center /))
 
-      apply_cs             = .false.
-      apply_dirichlet_1234 = .true.
-      apply_dirichlet_all  = .false.
-
-      if (     (node_list%node(inode)%boundary .eq.  2) &
-          .or. (node_list%node(inode)%boundary .eq.  3) &
-          .or. (node_list%node(inode)%boundary .eq. 12) &
-          .or. (node_list%node(inode)%boundary .eq. 20) &
-          .or. (node_list%node(inode)%boundary .eq. 21)) &
-      then
-        apply_dirichlet_all = .true.
-      endif
-
-      if      ((node_list%node(inode)%boundary .eq.  1) &
-          .or. (node_list%node(inode)%boundary .eq.  3) &
-          .or. (node_list%node(inode)%boundary .eq.  4) &
-          .or. (node_list%node(inode)%boundary .eq.  5) &
-          .or. (node_list%node(inode)%boundary .eq.  9) &
-          .or. (node_list%node(inode)%boundary .eq. 11) &
-          .or. (node_list%node(inode)%boundary .eq. 15) &
-          .or. (node_list%node(inode)%boundary .eq. 19)) &
-      then
-        apply_cs = .true.
-      endif
-
-      if (no_mach1_bc) apply_cs = .false.
-      if (no_mach1_bc) apply_dirichlet_all = .true.
-
+      bnd_type = node_list%node(inode)%boundary
 
       do in=i_tor_min, i_tor_max  ! === do n_tor
       
@@ -331,18 +305,35 @@ do i=1, n_local_elms !=== do elements
           if (k == var_zj) then
             if ( .not. is_freebound(in,k) )   apply_current_BC = .true.
           endif
-                
-          if (        apply_psi_BC      &
-                 .or. apply_current_BC  &
-                 .or. ((k .eq. var_u)    .and. apply_dirichlet_1234) &
-                 .or. ((k .eq. var_w)    .and. apply_dirichlet_1234) &
-                 .or. ((k .eq. var_rho)  .and. apply_dirichlet_all)  &
-                 .or. ((k .eq. var_T)    .and. apply_dirichlet_all)  &
-                 .or. ((k .eq. var_Te)   .and. apply_dirichlet_all)  &
-                 .or. ((k .eq. var_Ti)   .and. apply_dirichlet_all)  &
-                 .or. ((k .eq. var_vpar) .and. apply_dirichlet_all)  &
-                 .or. ((k .eq. var_rhon) .and. apply_dirichlet_all)  &
-              ) then
+          !---------------------------------------------------------------------------------------------------                      
+
+          
+          !------------ Decide when to apply vpar=cs ---------------------------------------------------------                      
+          apply_cs = .false.          
+          if ( (.not. mach_one_bnd_integral) .and. bcs(bnd_type)%mach1 .and. with_vpar) then
+            apply_cs = .true.
+          endif
+          !---------------------------------------------------------------------------------------------------                      
+
+          if (  ( (k == var_psi     ) .and. bcs(bnd_type)%dirichlet%psi     )  .or.  &
+                ( (k == var_u       ) .and. bcs(bnd_type)%dirichlet%u       )  .or.  &
+                ( (k == var_zj      ) .and. bcs(bnd_type)%dirichlet%zj      )  .or.  &
+                ( (k == var_w       ) .and. bcs(bnd_type)%dirichlet%w       )  .or.  &
+                ( (k == var_rho     ) .and. bcs(bnd_type)%dirichlet%rho     )  .or.  &
+                ( (k == var_T       ) .and. bcs(bnd_type)%dirichlet%T       )  .or.  &
+                ( (k == var_Ti      ) .and. bcs(bnd_type)%dirichlet%Ti      )  .or.  &
+                ( (k == var_Te      ) .and. bcs(bnd_type)%dirichlet%Te      )  .or.  &
+                ( (k == var_Vpar    ) .and. bcs(bnd_type)%dirichlet%Vpar    )  .or.  &
+                ( (k == var_rhon    ) .and. bcs(bnd_type)%dirichlet%rhon    )  .or.  &
+                ( (k == var_rho_imp ) .and. bcs(bnd_type)%dirichlet%rho_imp )  .or.  &
+                ( (k == var_nre     ) .and. bcs(bnd_type)%dirichlet%nre     )        &
+             ) then
+
+            ! --- If special conditions apply (e.g. freeboundary, mach1), do not apply Dirichlet even if specified in the namelist
+            if ( (k==var_psi  ) .and. (.not. apply_psi_BC    ) )       cycle
+            if ( (k==var_zj   ) .and. (.not. apply_current_BC) )       cycle
+            if ( (k==var_vpar ) .and.  apply_cs .and. (bnd_type/=3)  ) cycle  ! vpar=cs is a special case (this is done below)
+                                                                              ! however bnd_type=3 needs both BCs for different directions
 
 !            if ((k.eq.7) .and. (node_list%node(inode)%boundary .eq. 3)) cycle  !=== better included for ITER extended wall
 
@@ -366,7 +357,7 @@ do i=1, n_local_elms !=== do elements
 
         if ((node_list%node(inode)%boundary .eq.  3) .and. (node_list%node(inode2)%boundary .eq.  2)) cycle
 
-        if ( (.not. mach_one_bnd_integral) .and. apply_cs .and. with_Vpar ) then
+        if ( apply_cs ) then
 
           call basisfunctions1(0.d0, H1, H1_s, H1_ss)
 

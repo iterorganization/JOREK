@@ -1,9 +1,11 @@
 !> Particle input-output module, containing hdf5 data_type and writing routines
 !> TODO: add metadata and/or use H5MD format (http://nongnu.org/h5md/h5md.html)
 module mod_particle_io
+use iso_c_binding
 use hdf5_io_module
 use hdf5
 use mpi
+use mod_interp, only: interp_0
 use mod_particle_types
 use mod_particle_sim
 implicit none
@@ -38,9 +40,9 @@ character(len=particle_type_name_length) :: particle_type_name
 integer                       :: i, j, hdferr
 type(c_ptr) :: p_ptr
 real*8, dimension(:,:), allocatable :: x, v, x_all, v_all, st, st_all
-real*8, dimension(:), allocatable   :: E, mu, v1, E_all, mu_all, v1_all
-real*4, dimension(:), allocatable   :: weight, weight_all
-integer, dimension(:), allocatable  :: i_elm, i_elm_all
+real*8, dimension(:), allocatable   :: Vpar, E, mu, v1, Vpar_all, E_all, mu_all, v1_all
+real*4, dimension(:), allocatable   :: weight, weight_all, t_birth, t_birth_all
+integer, dimension(:), allocatable  :: i_elm, i_elm_all, i_life, i_life_all
 integer, dimension(:), allocatable  :: q, q_all, lost, lost_all
 
 ! Preparation
@@ -76,8 +78,7 @@ if (allocated(sim%groups)) then
     end if
     ! Find the number of particles on each node
     n_here = size(sim%groups(i)%particles,1)
-    call MPI_Gather(n_here,1,MPI_INTEGER,&
-        particles_per_proc,1,MPI_INTEGER,0,MPI_COMM_WORLD,ierr)
+    call MPI_Gather(n_here,1,MPI_INTEGER,particles_per_proc,1,MPI_INTEGER,0,MPI_COMM_WORLD,ierr)
     n_total = sum(particles_per_proc,1) ! set it on other processes as well (to
     ! 0) so they can allocate the useless arrays
 
@@ -94,9 +95,19 @@ if (allocated(sim%groups)) then
     do j=1,n_here
       x(:,j) = sim%groups(i)%particles(j)%x
     end do
-    call MPI_Gatherv(x(:,:), 3*n_here, MPI_REAL8, &
-      x_all(:,:), particles_per_proc*3, [(sum(particles_per_proc(1:i),1)*3, i=0,n_cpu-1)], &
-      MPI_REAL8, 0, MPI_COMM_WORLD, ierr)
+!    call MPI_Gatherv(x(:,:), 3*n_here, MPI_REAL8, &
+!      x_all(:,:), particles_per_proc*3, [(sum(particles_per_proc(1:i),1)*3, i=0,n_cpu-1)], &
+!      MPI_REAL8, 0, MPI_COMM_WORLD, ierr)
+
+    call MPI_Gatherv(x(1,:), n_here, MPI_REAL8, &
+                     x_all(1,:), particles_per_proc, [(sum(particles_per_proc(1:i),1), i=0,n_cpu-1)], &
+                     MPI_REAL8, 0, MPI_COMM_WORLD, ierr)
+    call MPI_Gatherv(x(2,:), n_here, MPI_REAL8, &
+                     x_all(2,:), particles_per_proc, [(sum(particles_per_proc(1:i),1), i=0,n_cpu-1)], &
+                     MPI_REAL8, 0, MPI_COMM_WORLD, ierr)
+    call MPI_Gatherv(x(3,:), n_here, MPI_REAL8, &
+                     x_all(3,:), particles_per_proc, [(sum(particles_per_proc(1:i),1), i=0,n_cpu-1)], &
+                     MPI_REAL8, 0, MPI_COMM_WORLD, ierr)
 
     ! st
     allocate(st(2,n_here), st_all(2,n_total))
@@ -124,7 +135,25 @@ if (allocated(sim%groups)) then
     call MPI_Gatherv(i_elm(:), n_here, MPI_INTEGER, &
       i_elm_all(:), particles_per_proc, [(sum(particles_per_proc(1:i),1), i=0,n_cpu-1)], &
       MPI_INTEGER, 0, MPI_COMM_WORLD, ierr)
-	  
+
+    ! i_life
+    allocate(i_life(n_here), i_life_all(n_total))
+    do j=1,n_here
+      i_life(j) = sim%groups(i)%particles(j)%i_life
+    end do
+    call MPI_Gatherv(i_life(:), n_here, MPI_INTEGER, &
+      i_life_all(:), particles_per_proc, [(sum(particles_per_proc(1:i),1), i=0,n_cpu-1)], &
+      MPI_INTEGER, 0, MPI_COMM_WORLD, ierr)
+
+    ! t_birth
+    allocate(t_birth(n_here), t_birth_all(n_total))
+    do j=1,n_here
+      t_birth(j) = sim%groups(i)%particles(j)%t_birth
+    end do
+    call MPI_Gatherv(t_birth(:), n_here, MPI_REAL4, &
+      t_birth_all(:), particles_per_proc, [(sum(particles_per_proc(1:i),1), i=0,n_cpu-1)], &
+      MPI_REAL4, 0, MPI_COMM_WORLD, ierr)
+
     ! Write out stuff depending on particle type
     select type (p => sim%groups(i)%particles)
 
@@ -136,10 +165,19 @@ if (allocated(sim%groups)) then
       do j=1,n_here
         v(:,j) = p(j)%v
       end do
-      call MPI_Gatherv(v(:,:), 3*n_here, MPI_REAL8, &
-        v_all(:,:), particles_per_proc*3, [(sum(particles_per_proc(1:i),1)*3, i=0,n_cpu-1)], &
-        MPI_REAL8, 0, MPI_COMM_WORLD, ierr)
+!      call MPI_Gatherv(v(:,:), 3*n_here, MPI_REAL8, &
+!        v_all(:,:), particles_per_proc*3, [(sum(particles_per_proc(1:i),1)*3, i=0,n_cpu-1)], &
+!        MPI_REAL8, 0, MPI_COMM_WORLD, ierr)
 
+      call MPI_Gatherv(v(1,:), n_here, MPI_REAL8, &
+                       v_all(1,:), particles_per_proc, [(sum(particles_per_proc(1:i),1), i=0,n_cpu-1)], &
+                       MPI_REAL8, 0, MPI_COMM_WORLD, ierr)
+      call MPI_Gatherv(v(2,:), n_here, MPI_REAL8, &
+                       v_all(2,:), particles_per_proc, [(sum(particles_per_proc(1:i),1), i=0,n_cpu-1)], &
+                       MPI_REAL8, 0, MPI_COMM_WORLD, ierr)
+      call MPI_Gatherv(v(3,:), n_here, MPI_REAL8, &
+                       v_all(3,:), particles_per_proc, [(sum(particles_per_proc(1:i),1), i=0,n_cpu-1)], &
+                       MPI_REAL8, 0, MPI_COMM_WORLD, ierr)
       ! q
       allocate(q(n_here), q_all(n_total))
       do j=1,n_here
@@ -163,9 +201,19 @@ if (allocated(sim%groups)) then
       do j=1,n_here
         v(:,j) = p(j)%v
       end do
-      call MPI_Gatherv(v(:,:), 3*n_here, MPI_REAL8, &
-        v_all(:,:), particles_per_proc*3, [(sum(particles_per_proc(1:i),1)*3, i=0,n_cpu-1)], &
-        MPI_REAL8, 0, MPI_COMM_WORLD, ierr)
+!      call MPI_Gatherv(v(:,:), 3*n_here, MPI_REAL8, &
+!        v_all(:,:), particles_per_proc*3, [(sum(particles_per_proc(1:i),1)*3, i=0,n_cpu-1)], &
+!        MPI_REAL8, 0, MPI_COMM_WORLD, ierr)
+
+      call MPI_Gatherv(v(1,:), n_here, MPI_REAL8, &
+                       v_all(1,:), particles_per_proc, [(sum(particles_per_proc(1:i),1), i=0,n_cpu-1)], &
+                       MPI_REAL8, 0, MPI_COMM_WORLD, ierr)
+      call MPI_Gatherv(v(2,:), n_here, MPI_REAL8, &
+                       v_all(2,:), particles_per_proc, [(sum(particles_per_proc(1:i),1), i=0,n_cpu-1)], &
+                       MPI_REAL8, 0, MPI_COMM_WORLD, ierr)
+      call MPI_Gatherv(v(3,:), n_here, MPI_REAL8, &
+                       v_all(3,:), particles_per_proc, [(sum(particles_per_proc(1:i),1), i=0,n_cpu-1)], &
+                       MPI_REAL8, 0, MPI_COMM_WORLD, ierr)
 
       ! q
       allocate(q(n_here), q_all(n_total))
@@ -218,6 +266,43 @@ if (allocated(sim%groups)) then
         call HDF5_array1D_saving_int(file,q_all,n_total,group_name//"q")
       end if
       deallocate(E,mu,q,E_all,mu_all,q_all)
+
+    type is (particle_gc_vpar)
+      particle_type_name = 'particle_gc_vpar'
+
+      ! Vpar
+      allocate(Vpar(n_here), Vpar_all(n_total))
+      do j=1,n_here
+        Vpar(j) = p(j)%Vpar
+      end do
+      call MPI_Gatherv(Vpar(:), n_here, MPI_REAL8, &
+        Vpar_all(:), particles_per_proc, [(sum(particles_per_proc(1:i),1), i=0,n_cpu-1)], &
+        MPI_REAL8, 0, MPI_COMM_WORLD, ierr)
+
+      ! mu
+      allocate(mu(n_here), mu_all(n_total))
+      do j=1,n_here
+        mu(j) = p(j)%mu
+      end do
+      call MPI_Gatherv(mu(:), n_here, MPI_REAL8, &
+        mu_all(:), particles_per_proc, [(sum(particles_per_proc(1:i),1), i=0,n_cpu-1)], &
+        MPI_REAL8, 0, MPI_COMM_WORLD, ierr)
+
+      ! q
+      allocate(q(n_here), q_all(n_total))
+      do j=1,n_here
+        q(j) = p(j)%q
+      end do
+      call MPI_Gatherv(q(:), n_here, MPI_INTEGER, &
+        q_all(:), particles_per_proc, [(sum(particles_per_proc(1:i),1), i=0,n_cpu-1)], &
+        MPI_INTEGER, 0, MPI_COMM_WORLD, ierr)
+
+      if (my_id .eq. 0) then
+        call HDF5_array1D_saving(file,Vpar_all,n_total,group_name//"Vpar")
+        call HDF5_array1D_saving(file,mu_all,n_total,group_name//"mu")
+        call HDF5_array1D_saving_int(file,q_all,n_total,group_name//"q")
+      end if
+      deallocate(Vpar,mu,q,Vpar_all,mu_all,q_all)
 
     type is (particle_fieldline)
       particle_type_name = 'particle_fieldline'
@@ -300,12 +385,16 @@ if (allocated(sim%groups)) then
       call HDF5_array2D_saving(file,st_all,2,n_total,group_name//"st")
       call HDF5_array1D_saving_r4(file,weight_all,n_total,group_name//"weight")
       call HDF5_array1D_saving_int(file,i_elm_all,n_total,group_name//"i_elm")
+      call HDF5_array1D_saving_int(file,i_life_all,n_total,group_name//"i_life")
+      call HDF5_array1D_saving_r4(file,t_birth_all,n_total,group_name//"t_birth")
 
       call HDF5_char_saving(file,particle_type_name,group_name//"type")
       call HDF5_integer_saving(file,sim%groups(i)%Z,group_name//"Z")
       call HDF5_real_saving(file,sim%groups(i)%mass,group_name//"mass")
+
+      call HDF5_char_saving(file,sim%groups(i)%ad%suffix,group_name//"adas_suffix")
     end if
-    deallocate(x,x_all,st,st_all,weight,weight_all,i_elm,i_elm_all)
+    deallocate(x,x_all,st,st_all,weight,weight_all,t_birth,t_birth_all,i_elm,i_elm_all,i_life,i_life_all)
   end do
 end if
 
@@ -326,6 +415,8 @@ end subroutine write_simulation_hdf5
 !> particle distribution over all processors and read this many
 !> particles per processor.
 subroutine read_simulation_hdf5(sim, filename)
+use mod_openadas, only: read_adf11
+use mod_coronal
 type(particle_sim) , intent(inout) :: sim
 character*(*)      , intent(in)  :: filename
 
@@ -342,7 +433,9 @@ integer           :: n_here
 integer           :: storage_type, max_corder
 character(len=12) :: group_name
 character(len=particle_type_name_length) :: particle_type_name
-integer           :: i, j, n, hdferr
+integer           :: i, j, n, hdferr, n_alive
+integer, allocatable :: n_alive_all(:)
+logical           :: exists
 
 type(c_ptr) :: p_ptr
 integer*8, dimension(1:2) :: tmp, maxdims
@@ -408,6 +501,8 @@ do i=1,n
     allocate(particle_kinetic_leapfrog::sim%groups(i)%particles(n_here), stat=ierr)
   case ('particle_gc')
     allocate(particle_gc::sim%groups(i)%particles(n_here), stat=ierr)
+  case ('particle_gc_vpar')
+    allocate(particle_gc_vpar::sim%groups(i)%particles(n_here), stat=ierr)
   case ('particle_fieldline')
     allocate(particle_fieldline::sim%groups(i)%particles(n_here), stat=ierr)
   case ('particle_kinetic_relativistic')
@@ -415,11 +510,19 @@ do i=1,n
   case ('particle_gc_relativistic')
     allocate(particle_gc_relativistic::sim%groups(i)%particles(n_here), stat=ierr)
   case default
-    write(*,*) "error: missing type name declaration for read"
+    write(*,*) "error: missing type name declaration ", trim(particle_type_name), " for read"
     call exit(1)
   end select
   if (ierr .gt. 0) write(*,"(i3,a,i12,a)") my_id, &
       "unable to allocate particles(", particles_per_proc(my_id), ")"
+
+  call HDF5_integer_reading(file,sim%groups(i)%Z,group_name//"Z")
+  call HDF5_real_reading(file,sim%groups(i)%mass,group_name//"mass")
+  call HDF5_char_reading(file,sim%groups(i)%ad%suffix,group_name//"adas_suffix")
+  if (len_trim(sim%groups(i)%ad%suffix) .gt. 0) then
+    sim%groups(i)%ad = read_adf11(my_id,sim%groups(i)%ad%suffix)
+    sim%groups(i)%cor = coronal(sim%groups(i)%ad)
+  end if
 
   ! Read base particle attributes
   ! x
@@ -453,8 +556,34 @@ do i=1,n
   end do
   deallocate(int4_1D)
 
-  select type (p => sim%groups(i)%particles)
+  ! The following two are relatively new, so might not always be present
+  ! i_life
+  call h5lexists_f(file, group_name//"i_life", exists, ierr)
+  if (exists) then
+    allocate(int4_1D(n_here))
+    int4_1D = 0 ! preset to 0 in case not present (i.e. old restart files)
+    ! will still give a nasty error message, but should work,
+    ! though who knows what hdf5 does with our array if reading fails...
+    call HDF5_array1D_reading_int(file, int4_1D, group_name//"i_life", start=[i_here])
+    do j=1,n_here
+      sim%groups(i)%particles(j)%i_life = int4_1D(j)
+    end do
+    deallocate(int4_1D)
+  end if
 
+  ! t_birth
+  call h5lexists_f(file, group_name//"t_birth", exists, ierr)
+  if (exists) then
+    allocate(real4_1D(n_here))
+    real4_1D = 0.0 ! preset to 0 in case not present (i.e. old restart files)
+    call HDF5_array1D_reading_r4(file, real4_1D, group_name//"t_birth",start=[i_here])
+    do j=1,n_here
+      sim%groups(i)%particles(j)%t_birth = real4_1D(j)
+    end do
+    deallocate(real4_1D)
+  end if
+
+  select type (p => sim%groups(i)%particles)
   type is (particle_kinetic)
     ! v
     allocate(real8_2D(3,n_here))
@@ -511,7 +640,30 @@ do i=1,n
       p(j)%q = int4_1D(j)
     end do
     deallocate(int4_1D)
-
+  
+  type is (particle_gc_vpar)
+    ! 
+    allocate(real8_1D(n_here))
+    call HDF5_array1D_reading(file, real8_1D, group_name//"Vpar",start=[i_here])
+    do j=1,n_here
+      p(j)%Vpar = real8_1D(j)
+    end do
+    deallocate(real8_1D)
+    ! mu
+    allocate(real8_1D(n_here))
+    call HDF5_array1D_reading(file, real8_1D, group_name//"mu",start=[i_here])
+    do j=1,n_here
+      p(j)%mu = real8_1D(j)
+    end do
+    deallocate(real8_1D)
+    ! q
+    allocate(int4_1D(n_here))
+    call HDF5_array1D_reading_int(file, int4_1D, group_name//"q", start=[i_here])
+    do j=1,n_here
+      p(j)%q = int4_1D(j)
+    end do
+    deallocate(int4_1D)
+  
   type is (particle_fieldline)
     ! v
     allocate(real8_1D(n_here))
@@ -559,8 +711,21 @@ do i=1,n
 
   end select
 
-  call HDF5_integer_reading(file,sim%groups(i)%Z,group_name//"Z")
-  call HDF5_real_reading(file,sim%groups(i)%mass,group_name//"mass")
+  ! Check if the balance between processors is okay, by comparing the number of
+  ! alive particles
+  n_alive = count(sim%groups(i)%particles(:)%i_elm .gt. 0)
+  allocate(n_alive_all(sim%n_cpu))
+  call MPI_Gather(n_alive, 1, MPI_INTEGER, n_alive_all, 1, MPI_INTEGER, 0, MPI_COMM_WORLD, ierr)
+
+  ! Check if the imbalance is not too great
+  if (sim%my_id .eq. 0) then
+    if (maxval(n_alive_all) .gt. minval(n_alive_all) * 1.5) then
+      write(*,*) "WARNING: ", (maxval(n_alive_all)*100)/minval(n_alive_all), '% imbalance between CPUs, counts:'
+      write(*,*) n_alive_all
+    end if
+  end if
+  deallocate(n_alive_all)
+
 end do
 
 ! Close everything else

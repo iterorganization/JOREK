@@ -3,6 +3,8 @@ module mod_particle_sim
 use mod_particle_types
 use mod_fields
 use mod_openadas
+use mod_coronal
+use basis_at_gaussian
 implicit none
 private
 public particle_group, particle_sim
@@ -10,9 +12,10 @@ public particle_group, particle_sim
 !> A group of particles, implemented as an allocatable array.
 !> It must contain particles of the same species (charge number).
 type :: particle_group
-  integer :: Z !< Atomic number of all particles in the group (-1 for electrons, 0 for fieldline-following)
+  integer :: Z !< Atomic number of al particles in the group (-1 for electrons, 0 for fieldline-following)
   real*8  :: mass !< Mass of all the particles in the group
   type(ADF11_all) :: ad !< OPEN-ADAS datafiles for this species
+  type(coronal) :: cor !< (coronal) equilibrium pre-calculation
   class(particle_base), dimension(:), allocatable :: particles
   real*8 :: dt !< timestep (if fixed for all particles in this group)
 end type particle_group
@@ -23,11 +26,12 @@ type :: particle_sim
   !< the start of the simulation
   class(fields_base), allocatable                 :: fields
   logical                                         :: stop_now = .false.
+  real*8                                          :: t_norm !< JOREK normalisation factor
   type(particle_group), dimension(:), allocatable :: groups
   !< MPI settings
-  integer :: my_id
-  integer :: n_cpu
-  real*8 :: wtime_start !< Clock time at the start of the program
+  integer :: my_id = 0
+  integer :: n_cpu = 1 ! if not initialized, act as if there is no mpi
+  real*8  :: wtime_start !< Clock time at the start of the program
 contains
   procedure :: finalize
   procedure :: initialize
@@ -38,17 +42,26 @@ contains
 subroutine initialize(sim, num_groups, skip_jorek2help)
   use mpi
   use mod_parameters, only: n_tor, n_period
-  use phys_module, only: mode
-  use data_structure, only: nbthreads
+  use phys_module, only: mode, central_mass, central_density
   use basis_at_gaussian, only: initialise_basis
+  use constants, only: MU_ZERO, MASS_PROTON
+  use data_structure, only: init_threads, nbthreads
+  !$ use omp_lib
   class(particle_sim), intent(inout) :: sim !< why is this class() and not type()?
   integer, intent(in) :: num_groups
-  logical, intent(in), optional :: skip_jorek2help
-  integer :: provided, ierr, i_tor
+  logical, optional :: skip_jorek2help
+  integer :: required, provided, ierr, i_tor
   character(len=MPI_MAX_PROCESSOR_NAME) :: name
-  integer :: resultlength
+  integer :: resultlength, nthreads
+  logical :: my_skip_help
 
-  call MPI_Init_thread(MPI_THREAD_MULTIPLE, provided, ierr)
+#ifdef FUNNELED
+  required = MPI_THREAD_FUNNELED
+#else
+  required = MPI_THREAD_MULTIPLE
+#endif
+
+  call MPI_Init_thread(required, provided, ierr)
   if (ierr .ne. 0) write(*,*) "Error ", ierr, " in MPI_Init_thread"
   call MPI_COMM_RANK(MPI_COMM_WORLD, sim%my_id, ierr)
   call MPI_COMM_SIZE(MPI_COMM_WORLD, sim%n_cpu, ierr)
@@ -56,10 +69,12 @@ subroutine initialize(sim, num_groups, skip_jorek2help)
   call MPI_BARRIER(MPI_COMM_WORLD, ierr)
   sim%wtime_start = MPI_Wtime() ! accurate up to the network latency (fine for times measured in seconds)
 
-  if (provided .ne. MPI_THREAD_MULTIPLE .and. sim%my_id .eq. 0) write(*,*) "WARNING: provided(", provided, ") != MPI_THREAD_MULTIPLE"
+  if (provided .ne. required .and. sim%my_id .eq. 0) write(*,*) "WARNING: provided(", provided, ") != required(", required, ")"
   allocate(sim%groups(num_groups))
   call MPI_GET_PROCESSOR_NAME(name,resultlength,ierr)
   write(*,'(A,I5,2A)') '#MPI id, ProcessorName ', sim%my_id, ': ', name
+  
+  call init_threads()
 
   if (present(skip_jorek2help)) then
     if (sim%my_id .eq. 0 .and. .not. skip_jorek2help) call jorek2help(sim%n_cpu, nbthreads)
@@ -68,13 +83,16 @@ subroutine initialize(sim, num_groups, skip_jorek2help)
   end if
 
   ! Initialise mode numbers
-  do i_tor=1, n_tor
-    mode(i_tor) = + int(i_tor / 2) * n_period
-    if (sim%my_id .eq. 0) write(*,*) ' toroidal mode numbers : ',i_tor,mode(i_tor)
-  enddo
+  call det_modes()
 
   ! Initialise parameters
   call initialise_and_broadcast_parameters(sim%my_id, "__NO_FILENAME__")
+
+  ! Broadcast physics parameters
+  call broadcast_phys(sim%my_id)
+
+  ! Set up normalisation factors
+  sim%t_norm = sqrt(MU_ZERO * central_mass * MASS_PROTON * central_density * 1.d20)
 
   ! Initialise the gaussian points at basis functions
   call initialise_basis
@@ -82,6 +100,7 @@ end subroutine
 
 !> Actions to perform when stopping the simulation.
 subroutine finalize(sim)
+  use mod_startup_teardown, only: jorek_finalize => finalize
   class(particle_sim), intent(in) :: sim !< why is this class() and not type()?
   integer :: ierr
   if (sim%stop_now) then

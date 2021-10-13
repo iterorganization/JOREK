@@ -302,6 +302,7 @@ subroutine do_read(this, sim, ev)
   use phys_module
   use mpi
   use mod_neighbours
+  use nodes_elements
   class(read_jorek_fields_interp_linear), intent(inout) :: this
   type(particle_sim), intent(inout) :: sim
   type(event), intent(inout), optional :: ev
@@ -326,8 +327,10 @@ subroutine do_read(this, sim, ev)
   else
     allocate(jorek_fields_interp_linear::sim%fields)
   end if
-  if (.not. allocated(sim%fields%node_list)) allocate(sim%fields%node_list)
-  if (.not. allocated(sim%fields%element_list)) allocate(sim%fields%element_list)
+
+  if (.not. associated(sim%fields%node_list))    sim%fields%node_list    => node_list
+  if (.not. associated(sim%fields%element_list)) sim%fields%element_list => element_list
+
   
   ! Continue for jorek_fields_interp_linear
   select type (f => sim%fields)
@@ -349,6 +352,11 @@ subroutine do_read(this, sim, ev)
           if (my_id .eq. 0) write(*,*) "ERROR: file ", trim(restart_file), " does not exist"
           call exit(1)
         end if
+        f%time_now = t_start * sim%t_norm
+        t_now = t_start
+
+        write(*,'(A,3e14.6,L4)') 'mod_fields_linear : (t_start, t_norm, t_now, static) ',t_start,sim%t_norm,t_now,f%static
+        
       else ! Linearly interpolating case
         ! If nothing has been loaded (i.e. fields%time_prev = 0.d0) load the initial file
         if (abs(f%time_prev) .lt. 1.d-50) then
@@ -419,12 +427,15 @@ subroutine do_read(this, sim, ev)
     ! Communicate the new fields to all processes
     call broadcast_elements(my_id, f%element_list)
     call broadcast_nodes(my_id, f%node_list)
+    call broadcast_phys(my_id)
     call update_neighbours(f%node_list, f%element_list) ! needs to be done on every process to have an RTree everywhere
     call MPI_Bcast(f%time_prev, 1, MPI_REAL8, 0, MPI_COMM_WORLD, ierr)
     call MPI_Bcast(f%time_now, 1, MPI_REAL8, 0, MPI_COMM_WORLD, ierr)
     call MPI_Bcast(sim%time, 1, MPI_REAL8, 0, MPI_COMM_WORLD, ierr)
     call MPI_Bcast(t_start, 1, MPI_REAL8, 0, MPI_COMM_WORLD, ierr) ! might be needed in some cases (static with number)
+    call MPI_Bcast(t_now, 1, MPI_REAL8, 0, MPI_COMM_WORLD, ierr) 
     call MPI_Bcast(f%static, 1, MPI_LOGICAL, 0, MPI_COMM_WORLD, ierr)
+    call MPI_Bcast(index_start, 1, MPI_INTEGER, 0, MPI_COMM_WORLD, ierr)
     if (present(ev)) then
       call MPI_Bcast(ev%start, 1, MPI_REAL8, 0, MPI_COMM_WORLD, ierr)
     end if

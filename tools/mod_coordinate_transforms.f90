@@ -7,10 +7,15 @@ module mod_coordinate_transforms
   public vector_cartesian_to_cylindrical
   public vector_cylindrical_to_cartesian
   public vector_rotation
+  public cartesian_velocity_to_cylindrical
   public transform_derivatives_st_to_RZ, transform_derivatives_RZ_to_st
   public transform_first_derivatives_st_to_RZ
   public transform_second_derivatives_st_to_RZ
   !> interfaces
+  interface cylindrical_to_cartesian
+    module procedure cylindrical_to_cartesian_real8
+    module procedure cylindrical_to_cartesian_real4
+  end interface cylindrical_to_cartesian
 
   !> overload transform derivatives from local to global coordinates
   interface transform_derivatives_st_to_RZ
@@ -35,17 +40,26 @@ contains
     cyl(3) = atan2(-xyz(2), xyz(1))
   end function cartesian_to_cylindrical
 
-  !> convert a position in RZPhi coordinates to xyz coordinates
-  pure function cylindrical_to_cartesian(cyl) result(xyz)
-    real*8, intent(in)           :: cyl(3) !< The position in RZPhi coordinates
-    real*8                       :: xyz(3) !< The position in xyz coordinates
+ !> converts a position in RZPhi coordinates to xyz coordinates
+  pure function cylindrical_to_cartesian_real8(cyl) result(xyz)
+    real*8, intent(in)           :: cyl(3) !< The vector components in RZPhi coordinates
+    real*8                       :: xyz(3) !< The vector components in xyz coordinates
 
-    xyz(1) =  cyl(1)*cos(cyl(3))
-    xyz(2) = -cyl(1)*sin(cyl(3))
-    xyz(3) =  cyl(2)
-  end function cylindrical_to_cartesian
+    xyz(1) = cyl(1)*cos(-cyl(3))
+    xyz(2) = cyl(1)*sin(-cyl(3))
+    xyz(3) = cyl(2)
+  end function cylindrical_to_cartesian_real8
 
-  !> convert a vector in (ex,ey,ez) basis into (eR,eZ,ephi) basis
+  !> converts a position in RZPhi coordinates to xyz coordinates
+  pure function cylindrical_to_cartesian_real4(cyl) result(xyz)
+    real*4, intent(in)           :: cyl(3) !< The vector components in RZPhi coordinates
+    real*4                       :: xyz(3) !< The vector components in xyz coordinates
+
+    xyz(1) = cyl(1)*cos(-cyl(3))
+    xyz(2) = cyl(1)*sin(-cyl(3))
+    xyz(3) = cyl(2)
+  end function cylindrical_to_cartesian_real4
+
   pure function vector_cartesian_to_cylindrical(phi,a) result(b)
     real*8, intent(in)               :: phi !< The local toroidal angle
     real*8, dimension(3), intent(in) :: a   !< The vector components in (ex,ey,ez) basis
@@ -83,6 +97,17 @@ contains
     out(2) = in(2)
     out(3) = sin(phi) * in(1) + cos(phi) * in(3)
   end function vector_rotation
+
+ !> Calculate the corresponding cylindrical expression for a cartesian velocity vector
+  pure function cartesian_velocity_to_cylindrical(in, phi) result(out)
+    real*8, intent(in) :: in(3) !< Input velocity in xyz coordinates
+    real*8, intent(in) :: phi !< toroidal angle of particle (jorek coordinate 3)
+    real*8             :: out(3) !< Output velocity in RZPhi coordinates
+
+    out(1) = cos(phi) * in(1) + sin(phi) * in(2)
+    out(2) = in(3)
+    out(3) = -sin(phi) * in(1) + cos(phi) * in(2)
+  end function cartesian_velocity_to_cylindrical
 
 !--------------------------------------------------------------------------
 !> This procedure expresses first order derivatives from the local (s,t)

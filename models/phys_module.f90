@@ -103,6 +103,51 @@ module phys_module
   logical :: centralize_harm_mat  !< Centralize harmonic matrices on toridal master ranks; switch for STRUMPACK solver
   real*8  :: prev_FB_fact = 1.d0  !< FB_factor that had been applied when importing the restart file
 
+  ! ------------------------------------------------
+  ! --- Structures to implement BCs in model600
+  ! ------------------------------------------------
+  ! --- For more info see  https://www.jorek.eu/wiki/doku.php?id=choose_boundary_conditions
+  integer, parameter :: max_bnd_types=30
+
+  type type_dirichlet_bc                           
+    logical :: psi  
+    logical :: u    
+    logical :: zj   
+    logical :: w    
+    logical :: rho  
+    logical :: T    
+    logical :: Ti   
+    logical :: Te   
+    logical :: Vpar 
+    logical :: rhon 
+    logical :: rho_imp 
+    logical :: nre  
+    logical :: AR   
+    logical :: AZ   
+    logical :: A3  
+  end type type_dirichlet_bc
+
+  type type_natural_bc                           
+    logical :: rho  
+    logical :: T    
+    logical :: Ti   
+    logical :: Te   
+    logical :: Vpar 
+    logical :: rhon 
+    logical :: rho_imp 
+    logical :: nre  
+  end type type_natural_bc
+
+  type type_bcs                           
+    type (type_dirichlet_bc) :: dirichlet
+    type (type_natural_bc)   :: natural
+    logical                  :: mach1 
+  end type type_bcs
+
+  type (type_bcs), dimension(max_bnd_types) :: bcs   
+  ! ------------------------------------------------
+
+
   character(20)       :: numfmt     = "'_d',i5.5"
   character(20)       :: numfmt_rst = "'_r',i3.3"
   ! Identity of the processor
@@ -361,7 +406,9 @@ module phys_module
                                 !< https://iopscience.iop.org/article/10.1088/1741-4326/abcbcb
   integer :: spi_rnd_seed(40)   !< Random seed array used for the generation of the SPI velocity spread
 
-  character(len=256) :: spi_shard_file !< The name of the shard size file
+  character(len=256) :: spi_shard_file(n_inj_max)!< The name of the shard size file
+  character(len=256) :: spi_plume_file(n_inj_max)!< The name of the shard information datafile (array)
+  logical            :: spi_plume_hdf5           !< if 'spi_plume_file' is in HDF5format?
 
   integer :: n_adas             !< Number of species to be traced by ADAS, for future development only
 
@@ -737,6 +784,25 @@ module phys_module
   !> @name (Currently unused)
   real*8  :: zjz_0, zjz_1,  zj_coef(10)
   real*8  :: D_neutral
+
+  !> @name Particles-related input parameters
+  logical :: restart_particles
+  logical :: use_ncs          ! use neutral particles
+  logical :: use_ccs          ! use current coupling scheme for fast particles
+  logical :: use_pcs          ! use pressure coupling scheme for fast particles
+  logical :: use_cx           ! switch on sputtering         (in particle module)
+  logical :: use_sputtering   ! switch on charge-exchange    (in particle module)
+  logical :: use_ionisation   ! switch on ionisation         (in particle module)
+  real*8  :: n_particles      ! the number of particles (real on purpose)
+  real*8  :: tstep_particles  ! the time step for the particles
+  integer :: nstep_particles  ! the number of particle time steps
+  integer :: nsubstep_particles ! the number of particles substeps (without projection)
+  real*8  :: filter_perp      ! particle projection smoothing parameter, poloidal plane
+  real*8  :: filter_hyper     ! particle projection smoothing parameter, poloidal plane
+  real*8  :: filter_par       ! particle projection smoothing parameter, parallel direction
+  real*8  :: filter_perp_n0   ! particle projection smoothing parameter, poloidal plane (n=0)
+  real*8  :: filter_hyper_n0  ! particle projection smoothing parameter, poloidal plane (n=0)
+  real*8  :: filter_par_n0    ! particle projection smoothing parameter, parallel direction (n=0)
   
   !> @name Mode families preconditioner parameters
   integer, parameter :: n_fam_max = 100               !< maximum number of families

@@ -304,13 +304,13 @@ subroutine do_read(this, sim, ev)
   else
     allocate(jorek_fields_interp_hermite_birkhoff::sim%fields)
   end if
-  if (.not. allocated(sim%fields%node_list)) allocate(sim%fields%node_list)
-  if (.not. allocated(sim%fields%element_list)) allocate(sim%fields%element_list)
+  if (.not. associated(sim%fields%node_list))    allocate(sim%fields%node_list)
+  if (.not. associated(sim%fields%element_list)) allocate(sim%fields%element_list)
   
   ! Continue for jorek_fields_interp_hermite_birkhoff
   select type (f => sim%fields)
   type is (jorek_fields_interp_hermite_birkhoff)
-    if (.not. allocated(f%node_lists)) allocate(f%node_lists(NL))
+    if (.not. allocated(f%node_lists))    allocate(f%node_lists(NL))
     if (.not. allocated(f%element_lists)) allocate(f%element_lists(NL))
 
     ! If nothing has been loaded load the initial file

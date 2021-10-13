@@ -36,7 +36,7 @@ real*8     :: ELM(n_vertex_max*n_var*(n_order+1)*n_tor,n_vertex_max*n_var*(n_ord
 real*8     :: RHS(n_vertex_max*n_var*(n_order+1)*n_tor)
 real*8     :: rhs_ij(n_var), amat(n_var,n_var)
 
-integer    :: vertex(2), direction(2), direction_perp(2)
+integer    :: vertex(2), direction(2), direction_perp(2), bnd_type1, bnd_type2
 integer    :: i, j, j2, j3, ms, mt, mp, k, l, l2, l3, index_ij, index_kl, index, xcase2, is
 integer    :: in, im, ij1, ij2, ij3, ij4, ij5, ij6, ij7, ij8, kl1, kl2, kl3, kl4, kl5, kl6, kl7, kl8, i_var, k_var
 real*8     :: ws, xjac,  dl, BigR, phi, eps_cyl, Btot
@@ -58,6 +58,7 @@ real*8     :: element_size_ij, element_size_kl, element_size_perp
 real*8     :: grad_t(2), B0_R, B0_Z, factor_cs_bnd_integral
 logical    :: xpoint2
 integer    :: n_tor_local 
+logical    :: apply_natural_bc(0:n_var)
 
 type (type_node)         :: tmp_node
 
@@ -120,6 +121,21 @@ R_cnt = sum(nodes(1:4)%x(1,1,1)) / 4.d0     ! center point within element (appro
 Z_cnt = sum(nodes(1:4)%x(1,1,2)) / 4.d0
 
 normal_direction = (/R_mid - R_cnt, Z_mid - Z_cnt /) / norm2((/R_mid - R_cnt, Z_mid - Z_cnt /))
+
+apply_natural_bc(:) = .false.
+
+bnd_type1 = nodes(1)%boundary 
+bnd_type2 = nodes(2)%boundary 
+
+! --- If one of the nodes has a boundary type where natural BCs are applied, apply boundary integral for the full bnd element
+do i_var=1, n_var
+  if ( (i_var==var_rho ) .and. (bcs(bnd_type1)%natural%rho  .or. bcs(bnd_type2)%natural%rho ))  apply_natural_bc(i_var)=.true.
+  if ( (i_var==var_T   ) .and. (bcs(bnd_type1)%natural%T    .or. bcs(bnd_type2)%natural%T   ))  apply_natural_bc(i_var)=.true.
+  if ( (i_var==var_Ti  ) .and. (bcs(bnd_type1)%natural%Ti   .or. bcs(bnd_type2)%natural%Ti  ))  apply_natural_bc(i_var)=.true.
+  if ( (i_var==var_Te  ) .and. (bcs(bnd_type1)%natural%Te   .or. bcs(bnd_type2)%natural%Te  ))  apply_natural_bc(i_var)=.true.
+  if ( (i_var==var_rhon) .and. (bcs(bnd_type1)%natural%rhon .or. bcs(bnd_type2)%natural%rhon))  apply_natural_bc(i_var)=.true.
+  if ( (i_var==var_vpar) .and. (bcs(bnd_type1)%natural%vpar .or. bcs(bnd_type2)%natural%vpar))  apply_natural_bc(i_var)=.true.
+enddo
 
 do i=1,2    ! sum over 2 verices
   
@@ -342,6 +358,7 @@ do ms=1, n_gauss
           index_ij = n_tor_local*n_var*(n_order+1)*(vertex(i)-1) + n_tor_local * n_var * (j2-1) + im - i_tor_min +1  ! index in the ELM matrix
 
           do i_var = 1, n_var
+            if ( .not. apply_natural_bc(i_var) ) cycle
             RHS(index_ij+(i_var-1)*(n_tor_local)) = RHS(index_ij+(i_var-1)*(n_tor_local)) + rhs_ij(i_var) * ws
           enddo
 
@@ -436,13 +453,13 @@ do ms=1, n_gauss
                     amat(var_rhon,var_psi) = - v * neutral_reflection * r0_corr * vpar0 * psi_s * normal_sign3      * theta * tstep 
   
                     amat(var_rhon,var_rho) = - v * neutral_reflection * rho     * vpar0 * ps0_s * normal_sign3      * theta * tstep &
-                                             - v * neutral_reflection * rho     * cs0 * BigR * dl * tstep * c_angle * theta * tstep 
+                                             - v * neutral_reflection * rho     * cs0 * BigR * dl * c_angle * theta * tstep 
  
                     if (with_TiTe) then 
-                      amat(var_rhon,var_Ti) = - v * neutral_reflection * r0_corr * cs_Ti * BigR * dl * tstep * c_angle * theta * tstep 
-                      amat(var_rhon,var_Te) = - v * neutral_reflection * r0_corr * cs_Te * BigR * dl * tstep * c_angle * theta * tstep 
+                      amat(var_rhon,var_Ti) = - v * neutral_reflection * r0_corr * cs_Ti * BigR * dl * c_angle * theta * tstep 
+                      amat(var_rhon,var_Te) = - v * neutral_reflection * r0_corr * cs_Te * BigR * dl * c_angle * theta * tstep 
                     else
-                      amat(var_rhon,var_T)  = - v * neutral_reflection * r0_corr * cs_T  * BigR * dl * tstep * c_angle * theta * tstep 
+                      amat(var_rhon,var_T)  = - v * neutral_reflection * r0_corr * cs_T  * BigR * dl * c_angle * theta * tstep 
                     endif
   
                     amat(var_rhon,var_vpar) = - v * neutral_reflection * r0_corr * vpar  * ps0_s * normal_sign3     * theta * tstep 
@@ -454,6 +471,8 @@ do ms=1, n_gauss
                 ! --- Add contributions to ELM matrix                 
                 do k_var = 1, n_var
                   do i_var = 1, n_var
+
+                    if ( .not. apply_natural_bc(i_var) ) cycle
 
                     ELM(index_ij+(i_var-1)*(n_tor_local),index_kl+(k_var-1)*(n_tor_local)) = &
                     ELM(index_ij+(i_var-1)*(n_tor_local),index_kl+(k_var-1)*(n_tor_local))   &

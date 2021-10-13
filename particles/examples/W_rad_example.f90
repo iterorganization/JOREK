@@ -55,7 +55,7 @@ end do
 call adjust_particle_weights(sim%groups(1)%particles, 6d16) ! 60 m^3 at n_i = 10^15 /m^3
 
 ! Set up the diagnostics output
-proj = projection(sim%fields%node_list, sim%fields%element_list, smoothing=1d-5, &
+proj = projection(sim%fields%node_list, sim%fields%element_list, filter=1d-5, &
     f=[proj_f(proj_Lz, 1)], &
     to_h5=.true., to_vtk=.true.)
 

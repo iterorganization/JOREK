@@ -40,6 +40,7 @@ integer :: ifail, ierr, i_elm_axis
 integer :: required, provided, StatInfo
 real*8  :: spi_abl_rate_tot, spi_abl_tot
 real*8  :: spi_abl_bg_rate_tot, spi_abl_bg_tot
+real*8  :: spi_x, spi_y
 
 
 write(*,*) '***************************************'
@@ -150,6 +151,18 @@ if (using_spi) then
                                                pellets(i_spi)%spi_radius, pellets(i_spi)%spi_species
   end do
   close(20)
+
+  ! SPI fragments' position in (x,y,z) coordinate
+  open(20,file="fragments_position_xyz.dat")
+
+  do i_spi = 1, n_spi_tot
+    spi_x  =   pellets(i_spi)%spi_R * cos(pellets(i_spi)%spi_phi)
+    spi_y  = - pellets(i_spi)%spi_R * sin(pellets(i_spi)%spi_phi)
+    write(20,'(i7,3e14.6,e14.6,e14.6)') i_spi, spi_x, spi_y, pellets(i_spi)%spi_Z,&
+                                               pellets(i_spi)%spi_radius, pellets(i_spi)%spi_species
+  end do
+  close(20)
+
 
 endif
 

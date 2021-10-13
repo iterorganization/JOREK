@@ -16,7 +16,7 @@ call read_simulation_hdf5(sim, 'part_restart.h5')
 fieldreader = event(read_jorek_fields_interp_linear(basename='jorek', i=-1))
 call with(sim, fieldreader)
 
-proj = new_projection(sim%fields%node_list, sim%fields%element_list, smoothing=1d-5, smoothing2=1d-10, &
+proj = new_projection(sim%fields%node_list, sim%fields%element_list, filter=1d-5, filter_hyper=1d-10, &
                       f=[proj_f(proj_one, group=1), &
                          proj_f(proj_q, group=1)], &
                       to_h5=.true.,basename='proj')

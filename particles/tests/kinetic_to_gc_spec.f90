@@ -43,7 +43,7 @@ subroutine test_known_gc_kinetic
   r      = mass*ATOMIC_MASS_UNIT*v_perp/(gc%q*EL_CHG*(norm2(B)))
 
   ! check we did the calculation right
-  call assert_equals(gc%E, (v_perp**2+v_par**2)*0.5d0*mass*ATOMIC_MASS_UNIT/EL_CHG, "energy must be correct")
+  call assert_equals(gc%E, (v_perp**2+v_par**2)*0.5d0*mass*ATOMIC_MASS_UNIT/EL_CHG,tol, "energy must be correct")
 
   call get_orthonormals(B, e1, e2)
 

@@ -230,7 +230,7 @@ subroutine boundary_check(my_id)
   end do L_MB
   
   if ( (minval(abs(val_integral)) /= 0.d0) .and. (my_id == 0) ) then
-    write(*,'(1x,A,20ES15.5)') 'Relative errors in harmonics:', err_integral(:) / val_integral(:), err_integral(:), val_integral(:)
+    write(*,'(1x,A,99ES15.5)') 'Relative errors in harmonics:', err_integral(:) / val_integral(:), err_integral(:), val_integral(:)
   end if
 
   ! --- Debugging output

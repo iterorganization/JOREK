@@ -93,6 +93,9 @@ logical    :: parallel_projection
 theta = time_evol_theta
 zeta  = time_evol_zeta * 2.0d0 * tstep / (tstep + tstep_prev)
 
+! --- Needs adaptation for t-derivatives
+if (direction(2) == 3) return
+
 ! --- Flag to switch Mach-1 between boundary_conditions and boundary_matrix_open
 Mach1 = 0.d0
 if (Mach1_openBC) Mach1 = 1.d0

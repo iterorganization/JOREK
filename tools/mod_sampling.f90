@@ -2,13 +2,54 @@
 !> including sampling from gaussian distributions and 
 !> sampling in cylindrical coordinates.
 !>
+!> Contains functions like CDF and PDF for different distributions,
+!> to use with analytical rootfinding methods to sample from these.
+!> That has the advantage that we can sample from any distribution for which
+!> we know the CDF, albeit at a slow speed. Be careful with the implementation
+!> of CDF and PDF functions if there is a hard edge on the domain. It is probably
+!> best to generate a continuous extension of that function for negative numbers
+!> for instance, to maintain stability of the rootfinding methods.
+!>
+!> When adding new methods, try to find a reasonable approximation to the function
+!> which is easily invertible. This has an enormous impact on the number of
+!> iterations needed to converge. Most distributions look like a hyperbolic tangent
+!> in their CDF. This can be scaled and distorted without destroying the invertibility
+!> of that approximation. See [[sample_chi_squared_3]] for an example.
 module mod_sampling
+  use mod_rootfinding
   implicit none
   private
   public :: transform_uniform_cylindrical
   public :: boxmueller_transform
   public :: sample_chi_squared_3
+  public :: cdf_chi_squared_3 !< for testing purposes
   public :: sample_gaussian
+  public :: sample_dist
+  public :: thompson_dist
+  public :: sample_cosine
+  public :: sample_diffuse
+  public :: normal_vectors, normal_vectors_frisvad, normal_vectors_naive
+  public :: sample_discrete
+  public :: sample_piecewise_linear
+  public :: cross_product
+
+  !> Switch here which procedure to use by default. The other ones can be found
+  !> by their name
+  interface normal_vectors
+    module procedure normal_vectors_frisvad
+  end interface normal_vectors
+
+  !> The Thompson distribution with parameters E_b and n
+  type, extends(ddfun) :: thompson_dist
+    real*8 :: E_b = 10 ! [eV]
+    integer :: n = 2 ! high-energy tail fall-of
+  contains
+    procedure :: inverse_f => guess_inverse_CDF_thompson
+    procedure :: f => CDF_thompson
+    procedure :: df => PDF_thompson
+    procedure :: ddf => DPDF_thompson
+  end type
+
 contains
   !> Transform three uniform random numbers in [0,1] to 
   !> Uniform random numbers in cylindrical coordinates (R,Z,Phi)
@@ -35,8 +76,8 @@ contains
     integer :: i
 
     do i=1,size(ran,1),2
-      out(i:i+1) = sqrt(-2*log(ran(i))) * &
-          (/cos(TWOPI*ran(i+1)), sin(TWOPI*ran(i+1))/)
+      out(i:i+1) = sqrt(-2*log(max(ran(i),1d-200))) * &
+          [cos(TWOPI*ran(i+1)), sin(TWOPI*ran(i+1))]
     end do
   end function boxmueller_transform
 
@@ -45,7 +86,6 @@ contains
   !> number by inverse transform sampling (slow!)
   !> It is much better to use box-muller or something else
   pure function sample_gaussian(u) result(x)
-    use mod_rootfinding, only: halleys_method
     real*8, intent(in)   :: u !< Uniformly distributed number in [0,1]
     real*8               :: x !< Normally distributed number
     real*8               :: x0 !< Initial guess
@@ -63,13 +103,102 @@ contains
     ! Dangerous: ignore ierr for now
   end function sample_gaussian
 
+
+  !> Sample from a Knudsen cosine distribution, representing well the angle
+  !> of sputtered particles
+  !> see https://www.sciencedirect.com/science/article/pii/S0042207X02001732
+  !> and https://www-sciencedirect-com.dianus.libr.tue.nl/science/article/pii/0168583X89907040
+  pure function sample_cosine(u, n) result(v)
+    use constants, only: TWOPI
+    real*8, intent(in) :: u(2) !< 2 uniformly distributed random numbers
+    real*8, intent(in) :: n(3) !< Normal vector of the surface (does not need to be normalized to 1)
+    real*8 :: v(3) !< Resulting velocity vector
+
+    real*8 :: sin_theta, cos_theta, psi, a, b, c
+    real*8 :: normal(3), tang1(3), tang2(3)
+
+    sin_theta = sqrt(u(1))
+    cos_theta = sqrt(1.d0 - u(1))
+
+    psi = TWOPI * u(2)
+
+    a = sin_theta*cos(psi)
+    b = sin_theta*sin(psi)
+    c = cos_theta
+
+    ! prepare the normal vector
+    normal = n/norm2(n)
+    ! make vectors perpendicular to the normal vector
+    call normal_vectors(normal, tang1, tang2)
+    v = c*normal + a*tang1 + b*tang2
+  end function sample_cosine
+
+  !> This corresponds to diffuse emission, as the Lambert cosine distribution. See
+  !> https://www.particleincell.com/2015/cosine-distribution/
+  !> and https://en.wikipedia.org/wiki/Lambert%27s_cosine_law
+  !> indicating uniform emission in solid angle
+  pure function sample_diffuse(u, n) result(v)
+    use constants, only: TWOPI
+    real*8, intent(in) :: u(2) !< 2 uniformly distributed random numbers
+    real*8, intent(in) :: n(3) !< Normal vector of the surface (does not need to be normalized to 1)
+    real*8 :: v(3) !< Resulting velocity vector
+
+    real*8 :: sin_theta, cos_theta, psi, a, b, c
+    real*8 :: normal(3), tang1(3), tang2(3)
+
+    sin_theta = u(1)
+    cos_theta = sqrt(1.d0 - sin_theta**2)
+
+    psi = TWOPI * u(2)
+
+    a = sin_theta*cos(psi)
+    b = sin_theta*sin(psi)
+    c = cos_theta
+
+    ! prepare the normal vector
+    normal = n/norm2(n)
+    ! make vectors perpendicular to the normal vector
+    call normal_vectors(normal, tang1, tang2)
+    v = c*normal + a*tang1 + b*tang2
+  end function sample_diffuse
+
+  !> Construct normal vectors with a naive algorithm
+  pure subroutine normal_vectors_naive(a, b, c)
+    real*8, dimension(3), intent(in) :: a
+    real*8, dimension(3), intent(out) :: b, c
+    if (abs(a(1)) > 0.9d0) then
+      b = [0.d0, 1.d0, 0.d0]
+    else
+      b = [1.d0, 0.d0, 0.d0]
+    end if
+    b = b - a*dot_product(b, a)
+    b = b / norm2(b)
+    c = cross_product(a, b)
+  end subroutine normal_vectors_naive
+
+  !> From http://orbit.dtu.dk/files/126824972/onb_frisvad_jgt2012_v2.pdf
+  pure subroutine normal_vectors_frisvad(n, b1, b2)
+    real*8, dimension(3), intent(in) :: n !< Unit vector input (must be normalized)
+    real*8, dimension(3), intent(out) :: b1, b2
+    real*8 :: a, b, a_norm(3)
+
+    if (n(3) < -.9999999d0) then ! Handle the singularity
+      b1 = [0.d0, -1.d0, 0.d0]
+      b2 = [-1.d0, 0.d0, 0.d0]
+      return
+    end if
+    a = 1.d0/(1.d0 + n(3))
+    b = -n(1)*n(2)*a
+    b1 = [1.d0 - n(1)*n(1)*a, b, -n(1)]
+    b2 = [b, 1.d0 - n(2)*n(2)*a, -n(2)]
+  end subroutine normal_vectors_frisvad
+
   !> Transform a uniformly distributed number u on [0,1] into a chi^2(3)-distributed
   !> number by inverse transform sampling.
   !> This function might be a bit expensive. There are cheaper ways of making
   !> chi-squared distributions from squares of normally distributed variables.
   !> If you are using quasi-random sequences those are not suitable however.
   pure function sample_chi_squared_3(u) result(x)
-    use mod_rootfinding, only: newtons_method
     real*8, intent(in)   :: u !< Uniformly distributed number in [0,1]
     real*8               :: x !< Chi-squared(3) distributed number
     real*8               :: x0 !< Initial guess
@@ -113,6 +242,9 @@ contains
     P = sign((1-abs(x))*exp(-abs(x)*0.5d0)/(2.d0*sqrt(2.d0*PI*abs(x))), x)
   end function PDF_prime_chi_squared_3
 
+
+
+
   !> PDF of a gaussian (normal) distribution with sigma = 1 and mu = 0
   pure function PDF_gaussian(x) result(P)
     use constants, only: PI
@@ -135,4 +267,193 @@ contains
     real*8             :: P
     P = 0.5d0*(1.d0 + erf(x/sqrt(2.d0)))
   end function CDF_gaussian
+
+
+
+  !> ---- Thompson distribution sampling functions (CDF, PDF, PDF')
+  !> \( \mathrm{CDF}(x) = \left[ 1 - E_b^{n-1} \frac{E_b + n x}{(E_b + x)^n} \right] \)
+  pure function CDF_thompson(this, x)
+    class(thompson_dist), intent(in) :: this
+    real*8, intent(in) :: x
+    real*8 :: CDF_thompson
+    ! Force x to positive and use the sign later to make the continuation to negative numbers
+    ! which is needed for stability of the iterative method
+    CDF_thompson = 1.d0 - this%E_b**(this%n-1) * (this%E_b + real(this%n,8) * abs(x))/((this%E_b + abs(x))**this%n)
+    CDF_thompson = sign(1.d0, x)*CDF_thompson ! if x < 0 inverse the result
+  end function CDF_thompson
+
+  !> \(  n(n-1) \frac{E E_b^{n-1}}{{(E + E_b)}^{n+1}} \)
+  pure function PDF_thompson(this, x)
+    class(thompson_dist), intent(in) :: this
+    real*8, intent(in) :: x
+    real*8 :: PDF_thompson
+    PDF_thompson = real(this%n * (this%n-1), 8) * (abs(x) * this%E_b**(this%n - 1))/((abs(x) + this%E_b)**(this%n+1))
+    PDF_thompson = sign(1.d0, x)*PDF_thompson ! if x < 0 inverse the result
+  end function PDF_thompson
+
+  !> \(  n(n-1) E_b^{n-1} \frac{E_b - n x}{(E_b + x)^{(n+2)}} \)
+  pure function DPDF_thompson(this, x)
+    class(thompson_dist), intent(in) :: this
+    real*8, intent(in) :: x
+    real*8 :: DPDF_thompson
+    DPDF_thompson = real(this%n * (this%n-1), 8) * (this%E_b**(this%n - 1)) * &
+        (this%E_b - real(this%n,8)*abs(x))/((abs(x) + this%E_b)**(this%n+2))
+    DPDF_thompson = sign(1.d0, x)*DPDF_thompson ! if x < 0 inverse the result
+  end function DPDF_thompson
+
+
+  !> We make a very shitty estimate of this function from some scaling arguments
+  !> We could do much better by minimizing the integral of some parametrized
+  !> invertible function against E_b and n but I have no time for it.
+  !> The function we find is f = 1-1/(1+x/E_b/2.3)
+  !> we don't take n into account here (n=2 is very common) and 2.3 is really
+  !> arbitrary (but fits ok for E_b = 10, 20). This function is accurate to within
+  !> 10% or so.
+  !>
+  !> If n == 2,3 we can solve the n-th order polynomial equation efficiently
+  !> so our guess for the inverse is exact.
+  pure function guess_inverse_CDF_thompson(this, f) result(x)
+    class(thompson_dist), intent(in) :: this
+    real*8, intent(in) :: f
+    real*8 :: x
+    real*8 :: A, B, C, D
+
+    select case (this%n)
+    case (2)
+      ! root(A,B,C,SGN) for A x^2 + B x + C = 0, D = B^2-4 A C, sgn indicates
+      ! which root to take
+      ! We write the equation in terms of y = E_b + x
+      A = (1.d0 - f)/this%E_b**(this%n-1)
+      B = -2.d0
+      C = real(this%n-1,8)*this%E_b
+      D = B*B-4*A*C
+
+      x = root(A, B, C, D, 1.d0) - this%E_b
+    !case (3) ! not implemented yet
+    case default
+      x = this%E_b * 2.3d0 * (f / (1.d0 - f))
+    end select
+  end function guess_inverse_CDF_thompson
+
+
+
+
+  !> Transform a uniformly distributed number u on [0,1) into a number distributed
+  !> with the passed dist by inverse transform sampling.
+  function sample_dist(dist, u) result(x)
+    class(fun), intent(in) :: dist
+    real*8, intent(in)   :: u !< Uniformly distributed number in [0,1]
+    real*8               :: x !< Normally distributed number
+    integer              :: ierr
+
+    select type(dist)
+    class is (dfun)
+      call newtons_method(dist, y0=u, x=x, ierr=ierr)
+    class is (ddfun)
+      call halleys_method(dist, y0=u, x=x, ierr=ierr)
+    end select
+
+    if (ierr .ne. 0) then
+      write(*,*) "Error in sampling distribution with u=", u, ierr, " err: ", dist%f(x) - u
+      write(*,*) "Guess quality", dist%inverse_f(u), x
+    end if
+  end function sample_dist
+
+
+  !> Sample from a discrete distribution, i.e. a list of probabilities.
+  !> This is done by calculating the cumulative sum array and bisecting it with our
+  !> uniform random number.
+  !> See https://stackoverflow.com/questions/16489449/select-element-from-array-with-probability-proportional-to-its-value#16490300
+  !> We take a vector of probabilities p and a uniform random number on [0,1] and return
+  !> the index into p of the selected value.
+  pure function sample_discrete(p, u) result(i_out)
+    real*8, dimension(:), intent(in) :: p !< Vector of probabilities of size >1
+    real*8, intent(in)               :: u !< Uniformly distributed random number on [0,1]
+    integer :: i_out
+
+    integer :: i, i_min, i_max, i_try
+    real*8, dimension(:), allocatable :: c !< Cumulative probability density vector
+    real*8 :: split !< The value to find
+
+    allocate(c(size(p,1)))
+    c(1) = p(1)
+    do i=2,size(p,1)
+      c(i) = c(i-1) + p(i)
+    end do
+
+    split = u*c(size(p,1))
+    i_min = lbound(p,1)
+    i_max = ubound(p,1)
+    do i=1,size(p,1) ! upper bound on number of steps
+      i_try = (i_min + i_max)/2
+      if (split .gt. c(i_try)) then
+        i_min = i_try
+      else
+        i_max = i_try
+      end if
+      if (i_max - i_min .le. 1) then
+        i_out = i_max
+        return
+      end if
+    end do
+    i_out = size(p,1) ! it must be the last one?
+  end function sample_discrete
+
+
+
+  !> Sample from a linearly interpolated probability density
+  !> This is done by calculating the cumulative sum array and bisecting it with our
+  !> uniform random number. Then we calculate the root of the quadratic polynomial manually.
+  function sample_piecewise_linear(n, x, p, u) result(x_out)
+    integer, intent(in)              :: n !< Number of points in domain
+    real*8, dimension(n), intent(in) :: x !< Vector of positions of size n
+    real*8, dimension(n), intent(in) :: p !< Vector of probability densities at points
+    real*8, intent(in)               :: u !< Uniformly distributed random number on [0,1]
+    real*8 :: x_out
+
+    integer :: i, i_min, i_max, i_try
+    real*8, dimension(:), allocatable :: c !< Cumulative probability density vector
+    real*8 :: split !< The value to find
+    real*8 :: a, b, d
+
+    allocate(c(n))
+    c(1) = 0.d0
+    do i=2,size(p,1)
+      c(i) = c(i-1) + 0.5d0 * (p(i) + p(i-1)) * (x(i) - x(i-1))
+    end do
+
+    split = u*c(ubound(p,1))
+    i_min = lbound(p,1)
+    i_max = ubound(p,1)
+    do i=1,size(p,1) ! upper bound on number of steps
+      if (i_max - i_min .eq. 1) then
+        a = (p(i_max)-p(i_min))/(x(i_max)-x(i_min))/2
+        b = p(i_min)
+        d = max(b*b - 4*a*(c(i_min)-split), 0.d0) ! force to zero at edges against numerical issues
+
+        if (abs(a) .gt. 1d-10) then
+          x_out = x(i_min) + (-b + sqrt(d))/(2*a) ! always take this root
+        else
+          x_out = x(i_min) + (split - c(i_min))/p(i_min)
+        end if
+        return
+      end if
+
+      i_try = (i_min + i_max)/2
+      if (split .gt. c(i_try)) then
+        i_min = i_try
+      else
+        i_max = i_try
+      end if
+    end do
+  end function sample_piecewise_linear
+
+pure function cross_product(a, b)
+  real*8, dimension(3) :: cross_product
+  real*8, dimension(3), intent(in) :: a, b
+
+  cross_product(1) = a(2) * b(3) - a(3) * b(2)
+  cross_product(2) = a(3) * b(1) - a(1) * b(3)
+  cross_product(3) = a(1) * b(2) - a(2) * b(1)
+end function cross_product
 end module mod_sampling

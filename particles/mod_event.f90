@@ -6,10 +6,11 @@ use mod_particle_sim
 use mod_event_timestep
 implicit none
 private
-public action, stop_action, cycle_time_action
-public event, with, next_event_at, check_and_fix_timesteps
+public action, stop_action, cycle_time_action, count_action
+public event, with, next_event_at, display_events_info, check_and_fix_timesteps
 public mpi_minmeanmax
 public :: TICK
+public :: new_event_ptr
 
 !> @name Time precision
 real*8,  parameter :: TICK             = 1d-12                    !< Time precision for events [s]
@@ -17,7 +18,7 @@ real*8,  parameter :: TICK             = 1d-12                    !< Time precis
 !> Action abstract type, representing anything that can be done to a simulation
 type, abstract :: action
   !> Logging variable, set this in an initializer
-  character(len=50) :: name = "unset action" !< Event name for logging
+  character(len=20) :: name = "unset action" !< Event name for logging
   logical :: log = .false. !< Output event duration
 
   !> Timing variables
@@ -46,6 +47,12 @@ interface cycle_time_action
   module procedure new_cycle_time_action
 end interface
 
+!> Count the number of alive simulation particles and physical particles
+type, extends(action) :: count_action
+contains
+  procedure :: do => do_count_action
+end type count_action
+
 
 
 
@@ -60,12 +67,13 @@ type :: event
   integer, dimension(:), allocatable :: sync_groups !< which groups to require at a full-timestep (unallocated = all, empty array = none)
 
   !> Action to perform when this event runs
-  class(action), allocatable :: action
+  class(action), pointer :: action => null() !< A pointer to the action to pass around
+  class(action), allocatable :: stored_action !< where to store the action if it is not external
 contains
   procedure run_at
 end type event
 interface event
-  module procedure new_event
+  module procedure new_event_copy !< this takes an action and makes a copy for internal use
 end interface
 
 interface with
@@ -84,11 +92,33 @@ end interface
 
 
 contains
+
+!> This is an alternate constructor for events, designed to directly take a pointer
+!> instead of copying its input argument. Useful for shared state.
+function new_event_ptr(act, start, step, end, sync_groups, sync_groups_none) result(new_event)
+  type(event), target                 :: new_event
+  class(action), intent(in), target   :: act !< action to point to
+  real*8, intent(in), optional  :: start, step, end
+  integer, dimension(:), intent(in), optional :: sync_groups !< Groups to sync
+  logical, intent(in), optional :: sync_groups_none !< Sync no groups. If sync_groups is present that takes precedence
+  if (present(start))    new_event%start    = start
+  if (present(step))     new_event%step     = step
+  if (present(end))      new_event%end      = end
+  if (present(sync_groups)) then
+    new_event%sync_groups = sync_groups
+  else
+    if (present(sync_groups_none)) allocate(new_event%sync_groups(0))
+  end if
+
+  new_event%action => act
+end function new_event_ptr
+
+
 !> Constructor for an event
 !> This is needed to allow changing default values
-function new_event(act, start, step, end, sync_groups, sync_groups_none)
-  type(event), target           :: new_event
-  class(action), intent(in)     :: act
+function new_event_copy(act, start, step, end, sync_groups, sync_groups_none) result(new_event)
+  type(event), target       :: new_event
+  class(action), intent(in) :: act !< action to copy in here
   real*8, intent(in), optional  :: start, step, end
   integer, dimension(:), intent(in), optional :: sync_groups !< Groups to sync
   logical, intent(in), optional :: sync_groups_none !< Sync no groups. If sync_groups is present that takes precedence
@@ -101,7 +131,14 @@ function new_event(act, start, step, end, sync_groups, sync_groups_none)
   else
     if (present(sync_groups_none)) allocate(new_event%sync_groups(0))
   end if
-end function new_event
+
+  allocate(new_event%stored_action, source=act) ! because assignment is not yet supported in gfortran 6.1.1
+  !new_event%stored_action = act
+  !new_event%action => new_event%stored_action ! setup the pointer so everyone can use that
+  !Do not set the pointer here, since ifort 17 (at least) does not keep the
+  !address the same. Instead, use the event_run subroutine below to select
+  !stored_action if the pointer is not set.
+end function new_event_copy
 
 !> Should this event run at this time?
 function run_at(this, time)
@@ -118,22 +155,38 @@ function run_at(this, time)
   end if
 end function
 
+
+!> Run a single event, with the action found by a pointer or stored in the event
+subroutine event_run(sim, ev)
+  type(particle_sim), intent(inout) :: sim
+  type(event), intent(inout) :: ev
+  if (associated(ev%action)) then
+    call ev%action%run(sim, ev)
+  else if (allocated(ev%stored_action)) then
+    call ev%stored_action%run(sim, ev)
+  else
+    write(*,*) "WARNING: no action found, skipping ev"
+  end if
+end subroutine event_run
+
+
+
 subroutine with_event_0D(sim, single_event)
   type(particle_sim), intent(inout) :: sim
-  type(event), intent(inout) :: single_event
-  call single_event%action%run(sim, single_event)
+  type(event), intent(inout), target :: single_event
+  call event_run(sim, single_event)
 end subroutine with_event_0D
 subroutine with_action_0D(sim, single_action)
   type(particle_sim), intent(inout) :: sim
-  class(action), intent(inout) :: single_action
+  class(action), intent(inout), target :: single_action
   call single_action%run(sim)
 end subroutine with_action_0D
 subroutine with_event_1D(sim, events)
   type(particle_sim), intent(inout) :: sim
-  type(event), intent(inout), dimension(:) :: events
+  type(event), intent(inout), dimension(:), target :: events
   integer :: i
   do i=1,size(events)
-    call events(i)%action%run(sim, events(i))
+    call event_run(sim, events(i))
   end do
 end subroutine with_event_1D
 subroutine with_action_1D(sim, actions)
@@ -150,12 +203,14 @@ subroutine with_event_1D_at(sim, events, at)
   real*8, intent(in) :: at
   integer :: i
   do i=1,size(events)
-    if (events(i)%run_at(at)) call events(i)%action%run(sim, events(i))
+    if (events(i)%run_at(at)) then 
+       call event_run(sim, events(i))
+    end if
   end do
 end subroutine with_event_1D_at
 subroutine with_event_1D_mask(sim, events, mask)
   type(particle_sim), intent(inout) :: sim
-  type(event), intent(inout), dimension(:) :: events
+  type(event), intent(inout), dimension(:), target :: events
   !logical, dimension(size(events,1)), intent(in) :: mask ! internal compiler error in gfortran, workaround below
   logical, dimension(:), intent(in) :: mask
   integer :: i
@@ -197,26 +252,40 @@ function next_event_at(sim, events) result(at)
   at = huge(0.d0)
   run_event(:) = .false.
   do i=1,size(events)
-    ! next event needs to be at least tick in the future
-    if (events(i)%start .gt. sim%time + tick) then
+    if (events(i)%start .gt. sim%time + TICK) then
+      ! for the first iteration
       event_run = events(i)%start
     else
+      ! for any following
       event_run = sim%time + events(i)%step - mod(sim%time - events(i)%start, events(i)%step)
-      if (abs(event_run - sim%time) .le. tick) event_run = sim%time + events(i)%step
+      if (abs(event_run - sim%time) .le. TICK) event_run = sim%time + events(i)%step
     end if
 
     ! If this event has ended already
-    if (event_run .gt. events(i)%end + tick) cycle
+    if (event_run .gt. events(i)%end + TICK) cycle
 
-    ! if this event occurs faster than the previously fastest (event_time)
-    if (event_run .lt. at - tick) then
+    ! if this event occurs faster than the previously fastest (event_time) by a margin of TICK
+    if (event_run .lt. at - TICK) then
       run_event(:) = .false.
       run_event(i) = .true.
       at = event_run
-    else if (event_run .le. at + tick) then ! if it is equally fast
+    else if (event_run .le. at + TICK) then ! if it is equally fast
       run_event(i) = .true.
     end if
   end do
+ 
+  do i=1,size(events)
+     if (run_event(i) .and. sim%my_id == 0) then 
+        if (associated(events(i)%action)) then
+           write(*,'(A,A20,A,E12.4)') "Next particle event ", events(i)%action%name  , " is scheduled at:", at
+        else if (allocated(events(i)%stored_action)) then
+           write(*,'(A,A20,A,E12.4)') "Next particle event ", events(i)%stored_action%name  , " is scheduled at:", at
+        else
+           write(*,'(A,E12.4)') "Next particle event is scheduled at:", at
+        endif
+
+     end if 
+  enddo
 
   ! Exit the simulation if there are no more events to do
   if (at .ge. maxval(events(:)%end)) then
@@ -224,6 +293,27 @@ function next_event_at(sim, events) result(at)
     if (at .eq. huge(0.d0)) at = sim%time ! if the next event is not occurring or at infinity keep the current time
   end if
 end function next_event_at
+
+subroutine display_events_info(sim, events)
+  type(particle_sim), intent(inout)     :: sim
+  type(event), intent(in), dimension(:) :: events
+  integer                               :: i
+
+  if (sim%my_id == 0) write(*,'(/,A)')   "  ------------Scheduled particle events---------------  "
+  if (sim%my_id == 0) write(*,*)         "  -Event name-        -tstart-     -tstep-      -tend-  "
+  do i=1,size(events)
+     if (sim%my_id == 0) then
+        if (associated(events(i)%action)) then
+           write(*,'(A20,3E12.4)') events(i)%action%name, events(i)%start, events(i)%step, events(i)%end
+        else if (allocated(events(i)%stored_action)) then
+           write(*,'(A20,3E12.4)') events(i)%stored_action%name, events(i)%start, events(i)%step, events(i)%end
+        else
+           write(*,'(A,3E12.4)') "  Event has no name ", events(i)%start, events(i)%step, events(i)%end
+        endif
+     end if
+  end do
+
+end subroutine display_events_info
 
 
 !> Calculate whether we need to change any of the fixed timesteps or events to match
@@ -336,6 +426,30 @@ function new_cycle_time_action() result(new)
 end function new_cycle_time_action
 
 
+!> Perform the count particles action
+subroutine do_count_action(this, sim, ev)
+  use mpi
+  class(count_action), intent(inout) :: this
+  type(particle_sim), intent(inout) :: sim
+  type(event), intent(inout), optional :: ev
+  integer :: i_group, n_alive, n_alive_total, ierr
+  real*8 :: w_alive, w_alive_total
+
+  ! Count the number of alive simulation particles in each group
+  do i_group=1,size(sim%groups,1)
+    n_alive = count(sim%groups(i_group)%particles(:)%i_elm .gt. 0)
+    w_alive = sum(sim%groups(i_group)%particles(:)%weight, mask=sim%groups(i_group)%particles(:)%i_elm .gt. 0)
+
+    call MPI_Reduce(n_alive, n_alive_total, 1, MPI_INTEGER, MPI_SUM, 0, MPI_COMM_WORLD, ierr)
+    call MPI_Reduce(w_alive, w_alive_total, 1, MPI_REAL8, MPI_SUM, 0, MPI_COMM_WORLD, ierr)
+
+    if (sim%my_id .eq. 0) then
+      write(*,'(A,g16.8,A,i2,A,i9,A,2g16.8)') 'Number of particles at ', sim%time, " in group ", i_group, ": ", n_alive_total,&
+                                               ", w=", w_alive_total, sim%groups(i_group)%particles(1)%weight*n_alive_total
+    end if
+  end do
+end subroutine do_count_action
+
 
 !> Run an action
 subroutine run(this, sim, ev)
@@ -388,16 +502,16 @@ subroutine run(this, sim, ev)
       mmm = mpi_minmeanmax(t1-this%t0)
       !$ mmm2 = mpi_minmeanmax(w1-this%w0)
       if (sim%my_id .eq. 0) then
-        if (.not. has_omp) write(*,"(A,A,3f9.3,A)") trim(this%name), " finished in (min/mean/max): ", &
+        if (.not. has_omp) write(*,"(A,A,3f10.3,A)") trim(this%name), " finished in (min/mean/max): ", &
             mmm, "s"
-        !$ write(*,"(A,A,3f8.3,A,3f8.3,A)") trim(this%name), " finished in (min/mean/max): ", &
+        !$ write(*,"(A,A,3f10.3,A,3f10.3,A)") trim(this%name), " finished in (min/mean/max): ", &
         !$   mmm2, &
         !$ "s (cpu time: ", mmm, ")"
       end if
     else
-      if (.not. has_omp) write(*,"(A,A,f8.3,A)") trim(this%name), " finished in: ", &
+      if (.not. has_omp) write(*,"(A,A,f10.3,A)") trim(this%name), " finished in: ", &
          t1-this%t0, "s"
-      !$ write(*,"(A,A,f8.3,A,f8.3,A)") trim(this%name), " finished in: ", &
+      !$ write(*,"(A,A,f10.3,A,f10.3,A)") trim(this%name), " finished in: ", &
       !$   w1-this%w0, &
       !$ "s (cpu time: ", t1-this%t0, ")"
     end if
@@ -411,7 +525,7 @@ subroutine run(this, sim, ev)
     m4 = mpi_minmeanmedmax(t1)
     m4 = m4 - m4(1) ! Measure times from first process to reach (i.e. min = 0)
     if (m4(4) .gt. 0.1) then ! only write if there is a significant imbalance
-      if (sim%my_id .eq. 0) write(*,"(A,A,3f8.3,A)") trim(this%name), " MPI exit imbalance (mean/median/max): ", m4(2:4), "s"
+      if (sim%my_id .eq. 0) write(*,"(A,A,3f10.3,A)") trim(this%name), " MPI exit imbalance (mean/median/max): ", m4(2:4), "s"
     end if
   end if
 end subroutine run

@@ -34,6 +34,7 @@ type ADF11_all
   type(ADF11) :: PRB !< Continuum and line power driven by recombination and bremsstrahlung of dominant ions
   type(ADF11) :: PRC !< Line power due to charge transfer from thermal neutral hydrogen to dominant ions
   real*8, dimension(:), allocatable :: ionisation_energy !< energy in eV required to ionize to a level, indexed by the new charge state (i.e. 1 to 74 for W), no interpolation needed
+  character(len=8) :: suffix = '' !< The dataset name (like 50_w)
 end type ADF11_all
 contains
 
@@ -94,6 +95,7 @@ do i_ADF11 = 1,size(ADF11_filenames,1)
 
   read(10,*)  a%n_z, n_d, n_T, a%izmin, a%izmax
   ad%n_z = a%n_z
+  ad%suffix = suffix
   allocate(a%density(n_d), a%temperature(n_T), a%GRC(n_d,n_T,0:a%n_z))
   allocate(a%GRCFspline(0:a%n_z))
   
@@ -231,15 +233,17 @@ real*8, intent(in)            :: density     !< log10 density in m^-3
 real*8, intent(in)            :: temperature !< log10 temperature in K
 integer, intent(in)           :: z !< index in a%GRC(:,:,z) (is ionisation level or ionisation level - 1, 1:n_z)
 real*8 :: GRC !< Generalized Radiational Coefficient at this density and temperature
+real*8 :: GRC_out
 
 ! If GRC exists and we are looking for a Z that is nonzero
 if (allocated(a%GRC) .and. z .le. ubound(a%GRC,3) .and. z .ge. lbound(a%GRC,3)) then
-  GRC = 10.d0**L2Dinterp(a%density,a%temperature,a%GRC(:,:,z),density,temperature)
+  GRC_out = 10.d0**L2Dinterp(a%density,a%temperature,a%GRC(:,:,z),density,temperature)
   !call SL2Dinterp(a%GRCFspline(z),temperature,density,fout=GRC)
   !GRC = 10.d0**GRC
 else
-  GRC = 0.d0
+  GRC_out = 0.d0
 endif
+GRC = GRC_out
 end function GRC
 
 !> interpolation of log10 values of GRC in density and temperature
