@@ -306,10 +306,11 @@ if (my_id .eq. 0) then
 #if (defined WITH_Neutrals) || (defined WITH_Impurities)
   call MPI_PACK(total_n_particles_inj_all,1,MPI_REAL8,buffer,bufsize,position,MPI_COMM_WORLD,ierr)
 #endif
-  call MPI_PACK(nimp_bg,                1,MPI_REAL8,buffer,bufsize,position,MPI_COMM_WORLD,ierr)
-  call MPI_PACK(imp_type,               80,MPI_CHARACTER,buffer,bufsize,position,MPI_COMM_WORLD,ierr)
+  call MPI_PACK(nimp_bg,                n_imp_max,MPI_REAL8,buffer,bufsize,position,MPI_COMM_WORLD,ierr)
+  call MPI_PACK(imp_type,               n_imp_max*80,MPI_CHARACTER,buffer,bufsize,position,MPI_COMM_WORLD,ierr)
   call MPI_PACK(output_prad_phi,        1,MPI_LOGICAL,buffer,bufsize,position,MPI_COMM_WORLD,ierr)
   call MPI_PACK(use_imp_adas,           1,MPI_LOGICAL,buffer,bufsize,position,MPI_COMM_WORLD,ierr)
+  call MPI_PACK(n_adas,                 1,MPI_INTEGER,buffer,bufsize,position,MPI_COMM_WORLD,ierr)
 
   call MPI_PACK(gmres_4,                1,MPI_REAL8,buffer,bufsize,position,MPI_COMM_WORLD,ierr)
   call MPI_PACK(gmres_tol,              1,MPI_REAL8,buffer,bufsize,position,MPI_COMM_WORLD,ierr)
@@ -998,10 +999,11 @@ if (my_id .ne. 0) then
 #if (defined WITH_Neutrals) || (defined WITH_Impurities)
   call MPI_UNPACK(buffer,bufsize,position,total_n_particles_inj_all,1,MPI_REAL8,MPI_COMM_WORLD,ierr)
 #endif
-  call MPI_UNPACK(buffer,bufsize,position,nimp_bg,                1,MPI_REAL8,MPI_COMM_WORLD,ierr)
-  call MPI_UNPACK(buffer,bufsize,position,imp_type,               80,MPI_CHARACTER,MPI_COMM_WORLD,ierr)
+  call MPI_UNPACK(buffer,bufsize,position,nimp_bg,                n_imp_max,MPI_REAL8,MPI_COMM_WORLD,ierr)
+  call MPI_UNPACK(buffer,bufsize,position,imp_type,               n_imp_max*80,MPI_CHARACTER,MPI_COMM_WORLD,ierr)
   call MPI_UNPACK(buffer,bufsize,position,output_prad_phi,        1,MPI_LOGICAL,MPI_COMM_WORLD,ierr)
   call MPI_UNPACK(buffer,bufsize,position,use_imp_adas,           1,MPI_LOGICAL,MPI_COMM_WORLD,ierr) 
+  call MPI_UNPACK(buffer,bufsize,position,n_adas,                 1,MPI_INTEGER,MPI_COMM_WORLD,ierr)
 
   call MPI_UNPACK(buffer,bufsize,position,gmres_4,                1,MPI_REAL8,MPI_COMM_WORLD,ierr)
   call MPI_UNPACK(buffer,bufsize,position,gmres_tol,              1,MPI_REAL8,MPI_COMM_WORLD,ierr)

@@ -198,7 +198,7 @@ real*8     :: Arad_bg, Brad_bg, Crad_bg, frad_bg              ! Retain hard-code
 real*8     :: Lrad_imp
 integer*8  :: i_phi
 real*8     :: coef_prad_si                                    ! Prad,SI = coef_prad_si * Prad,jorek
-
+integer    :: i_imp                                           ! Loop for more than one background impurity
 #endif
 
 #ifndef NOMPIVERSION
@@ -323,6 +323,7 @@ ife_max   = min((my_id +1) * ife_delta, element_list%n_elements)
 !$omp          ns_phi, ns_radius, ns_deltaphi, ns_tor_norm, spi_tor_rot, local_E_ion,          &
 !$omp          t_now, A_Dmv, K_Dmv, V_Dmv, P_Dmv, t_ns, L_tube, JET_MGI,ASDEX_MGI, local_P_ion,&
 !$omp          local_radiation, local_radiation_phi, imp_cor, imp_adas, imp_type, local_P_ei,  &
+!$omp          n_adas,                                                                         &
 #endif
 #if (defined WITH_Neutrals) && (!defined WITH_Impurities)
 !$omp          nimp_bg, ksi_ion, GAMMA, use_imp_adas,                                          &
@@ -366,7 +367,7 @@ ife_max   = min((my_id +1) * ife_delta, element_list%n_elements)
 !$omp           Sion_T, dSion_dT, Srec_T, dSrec_dT, ksiion, source_neutral,                    &
 !$omp           Te_eV, ne_SI, LradDrays_T, LradDcont_T, dLradDrays_dT, dLradDcont_dT,          &
 !$omp           Arad_bg, Brad_bg, Crad_bg, frad_bg,                                            &
-!$omp           Lrad_imp, coef_prad_si,                                                        &
+!$omp           Lrad_imp, coef_prad_si, i_imp,                                                 &
 #endif
 !$omp           omp_nthreads,omp_tid)
 
@@ -634,41 +635,41 @@ do ife = ife_min, ife_max
         ! Get coefficient:  Prad,SI = coef_prad_si * Prad,jorek
         coef_prad_si = 1./((GAMMA-1)*MU_ZERO*(MU_ZERO*central_mass*MASS_PROTON*central_density*1.d20)**0.5) 
       
-        ksiion = central_density * 1.d20 * ksi_ion   !Normalisation of the ionization energy cost for Deuterium
+        ksiion = central_density * 1.d20 * ksi_ion   ! Normalisation of the ionization energy cost for Deuterium
       
         ! --- Radiation from background impurity
         ne_SI = r0_corr * 1.d20 * central_density !electron density (SI)
         Te_eV = T0_corr/(2.d0*EL_CHG*MU_ZERO*central_density*1.d20) ! Te in eV
-      
+
         if (use_imp_adas) then  ! use open adas by default  
           ! Use radiation coefficients from ADAS
-          if (ne_SI > ne_SI_min .and. Te_eV > Te_eV_min .and. nimp_bg > 0) then
-            Lrad_imp = 0.0
-            call radiation_function_linear(imp_adas(1),imp_cor(1),log10(ne_SI),log10(Te_eV*EL_CHG/K_BOLTZ),Lrad_imp)
-            if (Lrad_imp < 0.) Lrad_imp = 0.
-          else
-            Lrad_imp = 0.
-          end if
-          ! This is to detect N/A
-          if (Lrad_imp/=Lrad_imp) then
-            write(*,*) "WARNING: Lrad_imp ", Lrad_imp
-            stop
-          end if
+          frad_bg = 0. 
+          do i_imp = 1, n_adas     
+            if (ne_SI > ne_SI_min .and. Te_eV > Te_eV_min .and. nimp_bg(i_imp) > 0) then
+              Lrad_imp = 0.0
+              call radiation_function_linear(imp_adas(i_imp),imp_cor(i_imp),log10(ne_SI),    & 
+                                           log10(Te_eV*EL_CHG/K_BOLTZ),.false.,Lrad_imp)           
+            else     
+              Lrad_imp = 0.
+            end if
+            frad_bg = frad_bg + nimp_bg(i_imp) * Lrad_imp
+          end do
+
           local_radiation_phi(mp) = local_radiation_phi(mp) + ( (r0_corr * rn0_corr  * LradDrays_T    &
                                      + r0_corr ** 2 * LradDcont_T) * coef_prad_si                     & 
-                                     + ne_SI * nimp_bg * Lrad_imp) * bigR * xjac * wst * delta_phi  
+                                     + ne_SI * frad_bg) * bigR * xjac * wst * delta_phi  
           local_radiation         = local_radiation + ( (r0_corr * rn0_corr  * LradDrays_T            &
                                      + r0_corr ** 2 * LradDcont_T) * coef_prad_si                     & 
-                                     + ne_SI * nimp_bg * Lrad_imp) * bigR * xjac * wst * delta_phi 
+                                     + ne_SI * frad_bg) * bigR * xjac * wst * delta_phi 
           local_P_ion             = local_P_ion + ksiion * r0_corr * rn0_corr * Sion_T * coef_prad_si &
                                    * bigR * xjac * wst * delta_phi
         else
-          if ( trim(imp_type) == 'Ar') then ! Hard-coded fitting exists for argon
+          if ( trim(imp_type(1)) == 'Ar') then ! Hard-coded fitting exists for argon
             Arad_bg = 2.4d-31 
             Brad_bg = 20.
             Crad_bg = 0.8
             frad_bg = (2./3.)*(1./(central_mass*MASS_PROTON))*((MU_ZERO*central_mass*MASS_PROTON*central_density*1.d20)**(1.5d0))                &
-                            *nimp_bg*Arad_bg*exp(-((log(Te_eV)-log(Brad_bg))**2.)/Crad_bg**2.)
+                            *nimp_bg(1)*Arad_bg*exp(-((log(Te_eV)-log(Brad_bg))**2.)/Crad_bg**2.)
                     
             local_radiation_phi(mp) = local_radiation_phi(mp) + (r0_corr * rn0_corr  * LradDrays_T &
                                        + r0_corr ** 2 * LradDcont_T + r0_corr * frad_bg) * coef_prad_si & 
@@ -679,7 +680,7 @@ do ife = ife_min, ife_max
             local_P_ion             = local_P_ion + ksiion * r0_corr * rn0_corr * Sion_T * coef_prad_si &
                                        * bigR * xjac * wst * delta_phi
           else
-            write(*,*) "WARNING: hard-coded fitting doesn't exist for  ", trim(imp_type), ",use open adas instead!"
+            write(*,*) "WARNING: hard-coded fitting doesn't exist for  ", trim(imp_type(1)), ", use open adas instead!"
             stop
           end if
         end if
@@ -691,7 +692,7 @@ do ife = ife_min, ife_max
         ! Atomic physics parameters for Impurities
         !-------------------------------------------
 
-        select case ( trim(imp_type) )
+        select case ( trim(imp_type(1)) )
           case('D2')
             m_i_over_m_imp = central_mass/2.  ! Deuterium mass = 2 u
             m_imp          = 2.
@@ -702,7 +703,7 @@ do ife = ife_min, ife_max
             m_i_over_m_imp = central_mass/20. ! Neon mass = 20 u
             m_imp          = 20.
           case default
-            write(*,*) '!! Gas type "', trim(imp_type), '" unknown (in mod_injection_source.f90) !!'
+            write(*,*) '!! Gas type "', trim(imp_type(1)), '" unknown (in mod_injection_source.f90) !!'
             write(*,*) '=> We assume the gas is D2.'
             m_i_over_m_imp = central_mass/2.
             m_imp          = 2.
@@ -783,8 +784,7 @@ do ife = ife_min, ife_max
         if (ne_SI > ne_SI_min .and. Te_eV > Te_eV_min .and. rn0 > rn0_min) then
           Lrad = 0.0
           !call radiation_function(imp_adas(1),imp_cor(1),log10(ne_SI),log10(Te_corr_eV*EL_CHG/K_BOLTZ),Lrad)
-          call radiation_function_linear(imp_adas(1),imp_cor(1),log10(ne_SI),log10(Te_corr_eV*EL_CHG/K_BOLTZ),Lrad)
-          if (Lrad < 0.) Lrad = 0.
+          call radiation_function_linear(imp_adas(1),imp_cor(1),log10(ne_SI),log10(Te_corr_eV*EL_CHG/K_BOLTZ),.false.,Lrad)
         else
           Lrad = 0.
         end if
@@ -1272,7 +1272,7 @@ do m_bndelem = 1, bnd_elm_list%n_bnd_elements
       ! Atomic physics parameters for Impurities
       !-------------------------------------------
 
-      select case ( trim(imp_type) )
+      select case ( trim(imp_type(1)) )
         case('D2')
           m_i_over_m_imp = central_mass/2.  ! Deuterium mass = 2 u
         case('Ar')
@@ -1280,7 +1280,7 @@ do m_bndelem = 1, bnd_elm_list%n_bnd_elements
         case('Ne')
           m_i_over_m_imp = central_mass/20. ! Neon mass = 20 u
         case default
-          write(*,*) '!! Gas type "', trim(imp_type), '" unknown (in mod_injection_source.f90) !!'
+          write(*,*) '!! Gas type "', trim(imp_type(1)), '" unknown (in mod_injection_source.f90) !!'
           write(*,*) '=> We assume the gas is D2.'
           m_i_over_m_imp = central_mass/2.
       end select

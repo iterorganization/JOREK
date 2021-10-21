@@ -336,6 +336,7 @@ module phys_module
 
   !> @name shared between MGI and SPI applications
   integer, parameter :: n_inj_max = 10 ! The hard coded maximum number of injections
+  integer, parameter :: n_imp_max = 5  ! The hard coded maximum number of impurity species
 
   real*8  :: t_ns(n_inj_max)   !< MGI onset time (JOREK units)
   real*8  :: ns_amplitude(n_inj_max)  !< Amplitude of gas source
@@ -346,7 +347,7 @@ module phys_module
   real*8  :: ns_deltaphi       !< Toroidal extension of gas source
   real*8  :: ns_tor_norm       !< Gas source normalization factor related to its toroidal shape
 
-  character(len=80) :: imp_type !< Type of injected material or background impurity species: Argon, neon, ...
+  character(len=80) :: imp_type(n_imp_max) !< Type of injected material or background impurity species: Argon, neon, ...
   logical :: use_imp_adas       !< Use open adas to calculate ionization, recombination and radiation coeffients for impurities
 
   !> @name Massive gas injection-related input parameters
@@ -360,8 +361,8 @@ module phys_module
   real*8  :: L_tube            !< Pipe length
   real*8  :: ksi_ion            !< Energy cost of each ionization
   real*8  :: delta_n_convection !< Switch to activate the convection term for neutrals (at the plasma velocity)
-  real*8  :: nimp_bg            !< Density of background impurity (in \f$m^{-3}\f$)
- 
+  real*8  :: nimp_bg(n_imp_max) !< Density of background impurities (in \f$m^{-3}\f$)
+
   !> @name Shattered Pellet Injection related input parameters
   ! Note that the SPI share many of the MGI parameters. The code should return to simple MGI upon using_spi = false
   ! The reference spatial coordinate for shattered pellets are calculated using ns_R etc. 
@@ -410,7 +411,7 @@ module phys_module
   character(len=256) :: spi_plume_file(n_inj_max)!< The name of the shard information datafile (array)
   logical            :: spi_plume_hdf5           !< if 'spi_plume_file' is in HDF5format?
 
-  integer :: n_adas             !< Number of species to be traced by ADAS, for future development only
+  integer :: n_adas             !< Number of species to be traced by ADAS
 
   logical :: spi_tor_rot        !< Flag to turn on a rigid body toroidal plasma rotation for SPI
 

@@ -7,6 +7,7 @@ use data_structure
 use phys_module
 use mod_poiss
 use equil_info
+use mod_sources
 implicit none
 
 type (type_node_list)    :: node_list

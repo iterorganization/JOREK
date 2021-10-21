@@ -24,6 +24,7 @@ use diffusivities, only: get_dperp, get_zkperp
 use equil_info, only : get_psi_n
 use corr_neg
 use mod_bootstrap_functions
+use mod_sources
 
 implicit none
 

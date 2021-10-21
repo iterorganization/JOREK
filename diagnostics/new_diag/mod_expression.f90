@@ -592,7 +592,7 @@ module mod_expression
 #endif
 #if (defined WITH_Neutrals) && (!defined WITH_Impurities)
     real*8  :: Arad_bg, Brad_bg, Crad_bg, frad_bg
-    real*8  :: Lrad_imp, r_imp, coef_rad_imp
+    real*8  :: Lrad_imp, r_imp, i_imp
 #endif
 #ifdef WITH_Impurities
     ! See https://www.jorek.eu/wiki/doku.php?id=model500_501_555 for details
@@ -642,7 +642,7 @@ module mod_expression
     end if
 
 #ifdef WITH_Impurities
-     select case ( trim(imp_type) )
+     select case ( trim(imp_type(1)) )
        case('D2')
          m_i_over_m_imp = central_mass/2.  ! Deuterium mass = 2 u
        case('Ar')
@@ -1497,38 +1497,37 @@ module mod_expression
     ! --- Radiation from background impurity
     !--------------------------------------------------------
       ne_SI = corr_neg_dens(r0) * 1.d20 * central_density !electron density (SI)
-      r_imp = nimp_bg / (1.d20 * central_density)  ! Background impurity density in JU     
-
-      if (ne_SI > ne_SI_min .and. Te_corr_eV > Te_eV_min .and. nimp_bg > 0) then
-        ! Normalization coefficient for radiation rate from SI units (W.m^3) to JOREK units:
-        coef_rad_imp = 2.d0/3.d0*MU_ZERO**1.5d0*(central_mass*MASS_PROTON)**0.5d0&
-                     *(central_density*1.d20)**2.5d0
-        Lrad_imp = 0.0
-        call radiation_function_linear(imp_adas(1),imp_cor(1),log10(ne_SI),log10(Te_corr_eV*EL_CHG/K_BOLTZ),Lrad_imp)         
-        if (Lrad_imp < 0.) then
+      frad_bg = 0.
+      do i_imp = 1, n_adas
+        r_imp = nimp_bg(i_imp) / (1.d20 * central_density)  ! Background impurity density in JU
+        if (ne_SI > ne_SI_min .and. Te_corr_eV > Te_eV_min .and. r_imp > 0) then
+          Lrad_imp = 0.0
+          if ( units == SI_UNITS ) then
+            call radiation_function_linear(imp_adas(i_imp),imp_cor(i_imp),log10(ne_SI),   &
+                                           log10(Te_corr_eV*EL_CHG/K_BOLTZ),.false.,Lrad_imp)
+            frad_bg = frad_bg + nimp_bg(i_imp) * Lrad_imp
+          else if ( units == JOREK_UNITS ) then
+            call radiation_function_linear(imp_adas(i_imp),imp_cor(i_imp),log10(ne_SI),   &
+                                           log10(Te_corr_eV*EL_CHG/K_BOLTZ),.true.,Lrad_imp)
+            frad_bg = frad_bg + r_imp * Lrad_imp 
+          endif
+        else     
           Lrad_imp = 0.
-        end if
-        if ( units == SI_UNITS ) then
-          frad_bg = nimp_bg * Lrad_imp
-        else if ( units == JOREK_UNITS ) then
-          frad_bg = r_imp * Lrad_imp * coef_rad_imp 
-        endif
-      else     
-        Lrad_imp = 0.
-        frad_bg = 0.
-      end if   
+          frad_bg = frad_bg
+        end if   
+      end do 
     else
-      if ( trim(imp_type) == 'Ar') then ! Hard-coded fitting exists for argon
+      if ( trim(imp_type(1)) == 'Ar') then ! Hard-coded fitting exists for argon
         Arad_bg = 2.4d-31
         Brad_bg = 20.
         Crad_bg = 0.8
         if ( units == SI_UNITS ) then
-          frad_bg = nimp_bg*Arad_bg*exp(-((log(Te_corr_eV)-log(Brad_bg))**2.)/Crad_bg**2.)
+          frad_bg = nimp_bg(1)*Arad_bg*exp(-((log(Te_corr_eV)-log(Brad_bg))**2.)/Crad_bg**2.)
         else if ( units == JOREK_UNITS ) then
-          frad_bg = (2./3.)*(1./(central_mass*MASS_PROTON))*((MU_ZERO*central_mass*MASS_PROTON*central_density*1.d20)**(1.5d0))*nimp_bg*Arad_bg*exp(-((log(Te_corr_eV)-log(Brad_bg))**2.)/Crad_bg**2.)
+          frad_bg = (2./3.)*(1./(central_mass*MASS_PROTON))*((MU_ZERO*central_mass*MASS_PROTON*central_density*1.d20)**(1.5d0))*nimp_bg(1)*Arad_bg*exp(-((log(Te_corr_eV)-log(Brad_bg))**2.)/Crad_bg**2.)
         end if
       else
-        write(*,*) "WARNING: hard-coded fitting doesn't exist for  ", trim(imp_type), ",use open adas instead!"
+        write(*,*) "WARNING: hard-coded fitting doesn't exist for  ", trim(imp_type(1)), ", use open adas instead!"
         stop
       end if      
     end if  
