@@ -627,7 +627,7 @@ subroutine preset_parameters
   D_neutral_p = 1.d-5
   delta_n_convection = 0
   nimp_bg = 0.
-  n_adas = 0
+  n_adas = 1
   adas_dir = ' '
   imp_type = ' '
   use_imp_adas = .true. ! Directly use adas for impurity radiation; hard-coded one exists for argon
