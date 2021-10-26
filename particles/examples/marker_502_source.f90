@@ -579,7 +579,7 @@ do while (.not. sim%stop_now)
         else
           Lrad = 0.d0
           if (T_eV > 1.) &
-            call radiation_function_linear(sim%groups(1)%ad,sim%groups(1)%cor,log10(n_e),log10(T_e),Lrad)
+            call radiation_function_linear(sim%groups(1)%ad,sim%groups(1)%cor,log10(n_e),log10(T_e),.false.,Lrad)
           rad_sink = real(particles(j)%weight,8) * Lrad * n_e * timesteps
 
           call sim%groups(1)%cor%interp_linear(density=log10(n_e),temperature=log10(T_e),p_out=P_tmp)
