@@ -254,7 +254,7 @@ call fields%interp_PRZ(time,i_elm,&
 #endif
           3,st(1),st(2),phi,P,P_s,P_t,P_phi,P_time,R,R_s,R_t,Z,Z_s,Z_t)
 
-select case ( trim(imp_type) )
+select case ( trim(imp_type(1)) )
   case('D2')
     m_i_over_m_imp = central_mass/2.
   case('Ar')

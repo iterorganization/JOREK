@@ -296,7 +296,7 @@ subroutine initialise_particles_marker(particles, node_list, element_list, field
   t_norm = sqrt(MU_ZERO * central_mass * MASS_PROTON * central_density * 1.d20)
   n_norm = central_density * 1.d20
 
-  select case (trim(imp_type))
+  select case (trim(imp_type(1)))
     case('D2')
       m_i_over_m_imp = central_mass/2.
     case('Ar')
@@ -308,7 +308,7 @@ subroutine initialise_particles_marker(particles, node_list, element_list, field
     case('W')
       m_i_over_m_imp = central_mass/184. ! Neon mass = 184 u and main ion (D) mass = 2 u
     case default
-      write(*,*) '!! Impurity type "', trim(imp_type), '" unknown (in mod_initialise_particles.f90) !!'
+      write(*,*) '!! Impurity type "', trim(imp_type(1)), '" unknown (in mod_initialise_particles.f90) !!'
       write(*,*) '=> EXITING!!!'
       call exit(1)
   end select

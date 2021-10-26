@@ -102,7 +102,7 @@ if (restart_particles) then
 else
 ! Set up particles
 
-  select case ( trim(imp_type) )
+  select case ( trim(imp_type(1)) )
     case('D2')
       sim%groups(1)%Z    = -2
       sim%groups(1)%mass = atomic_weights(-2) !< atomic mass units
@@ -119,7 +119,7 @@ else
       sim%groups(1)%ad   = imp_adas(1)
       sim%groups(1)%cor  = imp_cor(1)
     case default
-      write(*,*) '!! Impurity type "', trim(imp_type), '" unknown (in marker_502) !!'
+      write(*,*) '!! Impurity type "', trim(imp_type(1)), '" unknown (in marker_502) !!'
       write(*,*) 'Exiting NOW!!!'
       stop
   end select
