@@ -186,7 +186,11 @@ module mod_impurity
         ! Convert gradient wrt. to T from 1/K into 1/eV
         dLrad_dTe = dLrad_dTe * coef_rad_imp *  EL_CHG / K_BOLTZ 
         ! ...and now from 1/eV into 1/(JOREK units)
-        dLrad_dTe = dLrad_dTe / (2.d0*EL_CHG*MU_ZERO*central_density*1.d20)
+        if (with_TiTe) then
+          dLrad_dTe = dLrad_dTe / (EL_CHG*MU_ZERO*central_density*1.d20)
+        else
+          dLrad_dTe = dLrad_dTe / (2.d0*EL_CHG*MU_ZERO*central_density*1.d20)
+        endif
       end if
     end if
     if (Lrad < 0.) then
