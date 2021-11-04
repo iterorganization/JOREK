@@ -260,11 +260,7 @@ call fields%interp_PRZ(time,i_elm,&
 i_main_imp = 0
 do i_main_imp=1,n_adas
   if (main_imp(i_main_imp) == 1) exit
-  if ((i_main_imp == n_adas) .and. with_impurities) then
-    write(*,*) "ERROR, searched through main_imp and didn't find any while with_impurities=.t., EXITING!!!"
-    write(*,*) "ERROR: main_imp array:", main_imp
-    stop
-  endif
+  if ((i_main_imp == n_adas) .and. with_impurities) stop
 enddo
 !===========end=========================
 select case ( trim(imp_type(i_main_imp)) )
