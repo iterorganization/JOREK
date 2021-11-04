@@ -17,7 +17,7 @@ use phys_module, only: n_particles, nstep_particles, nsubstep_particles, tstep_p
 use phys_module, only: filter_perp, filter_hyper, filter_par, filter_perp_n0, filter_hyper_n0, filter_par_n0
 use phys_module, only: tstep, imp_type, imp_adas, imp_cor, adas_dir, use_marker, restart_particles, index_now
 use phys_module, only: nout, R_geo, using_spi, spi_quantity, xtime_radiation, xtime_rad_power
-use phys_module, only: xtime_E_ion, xtime_E_ion_power, xtime_Ne_imp
+use phys_module, only: xtime_E_ion, xtime_E_ion_power, xtime_Ne_imp, main_imp, n_adas
 use phys_module, only: CENTRAL_MASS, CENTRAL_DENSITY
 use mod_parameters, only: n_plane
 use constants,   only: MU_ZERO, MASS_PROTON, ATOMIC_MASS_UNIT, K_BOLTZ, EL_CHG, PI, TWOPI
@@ -47,7 +47,7 @@ real*8    :: temp(3), T_eV, K_eV, B_norm(3)
 real*8    :: physical_particles, weight
 integer   :: n_particles_local, n_steps, ifail
 integer   :: n_reflect
-integer   :: j, seed, i_rng, n_stream
+integer   :: j, seed, i_rng, n_stream, i_main_imp
 
 logical   :: CE_marker
 
@@ -102,24 +102,35 @@ if (restart_particles) then
 else
 ! Set up particles
 
-  select case ( trim(imp_type(1)) )
+!=========imp_type======================
+  i_main_imp = 0
+  do i_main_imp=1,n_adas
+    if (main_imp(i_main_imp) == 1) exit
+    if ((i_main_imp == n_adas) .and. with_impurities) then
+      write(*,*) "ERROR, searched through main_imp and didn't find any while with_impurities=.t., EXITING!!!"
+      write(*,*) "ERROR: main_imp array:", main_imp
+      stop
+    endif
+  enddo
+!===========end=========================
+  select case ( trim(imp_type(i_main_imp)) )
     case('D2')
       sim%groups(1)%Z    = -2
       sim%groups(1)%mass = atomic_weights(-2) !< atomic mass units
-      sim%groups(1)%ad   = imp_adas(1)
-      sim%groups(1)%cor  = imp_cor(1)
+      sim%groups(1)%ad   = imp_adas(i_main_imp)
+      sim%groups(1)%cor  = imp_cor(i_main_imp)
     case('Ar')
       sim%groups(1)%Z    = 18
       sim%groups(1)%mass = atomic_weights(18) !< atomic mass units
-      sim%groups(1)%ad   = imp_adas(1)
-      sim%groups(1)%cor  = imp_cor(1)
+      sim%groups(1)%ad   = imp_adas(i_main_imp)
+      sim%groups(1)%cor  = imp_cor(i_main_imp)
     case('Ne')
       sim%groups(1)%Z    = 10
       sim%groups(1)%mass = atomic_weights(10) !< atomic mass units
-      sim%groups(1)%ad   = imp_adas(1)
-      sim%groups(1)%cor  = imp_cor(1)
+      sim%groups(1)%ad   = imp_adas(i_main_imp)
+      sim%groups(1)%cor  = imp_cor(i_main_imp)
     case default
-      write(*,*) '!! Impurity type "', trim(imp_type(1)), '" unknown (in marker_502) !!'
+      write(*,*) '!! Impurity type "', trim(imp_type(i_main_imp)), '" unknown (in marker_502) !!'
       write(*,*) 'Exiting NOW!!!'
       stop
   end select

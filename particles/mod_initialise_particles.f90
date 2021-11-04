@@ -238,7 +238,7 @@ subroutine initialise_particles_marker(particles, node_list, element_list, field
   use mod_interp
   use mod_fields
   use constants
-  use phys_module, only: central_density, central_mass, imp_type
+  use phys_module, only: central_density, central_mass, imp_type, n_adas, main_imp
 #ifdef WITH_Neutrals
   use mod_neutral_source, only: total_neutral_source
 #endif
@@ -282,7 +282,7 @@ subroutine initialise_particles_marker(particles, node_list, element_list, field
   class(type_rng), allocatable, dimension(:) :: rngs ! The RNGs for all the threads
   integer, dimension(:), allocatable :: i_to_find
   logical, dimension(:), allocatable :: not_found, is_free
-  integer :: n_free
+  integer :: n_free, i_main_imp
 
   real*8  :: m_i_over_m_imp 
 
@@ -296,7 +296,18 @@ subroutine initialise_particles_marker(particles, node_list, element_list, field
   t_norm = sqrt(MU_ZERO * central_mass * MASS_PROTON * central_density * 1.d20)
   n_norm = central_density * 1.d20
 
-  select case (trim(imp_type(1)))
+!=========imp_type======================
+  i_main_imp = 0
+  do i_main_imp=1,n_adas
+    if (main_imp(i_main_imp) == 1) exit
+    if ((i_main_imp == n_adas) .and. with_impurities) then
+      write(*,*) "ERROR, searched through main_imp and didn't find any while with_impurities=.t., EXITING!!!"
+      write(*,*) "ERROR: main_imp array:", main_imp
+      stop
+    endif
+  enddo
+!===========end=========================
+  select case (trim(imp_type(i_main_imp)))
     case('D2')
       m_i_over_m_imp = central_mass/2.
     case('Ar')
@@ -308,7 +319,7 @@ subroutine initialise_particles_marker(particles, node_list, element_list, field
     case('W')
       m_i_over_m_imp = central_mass/184. ! Neon mass = 184 u and main ion (D) mass = 2 u
     case default
-      write(*,*) '!! Impurity type "', trim(imp_type(1)), '" unknown (in mod_initialise_particles.f90) !!'
+      write(*,*) '!! Impurity type "', trim(imp_type(i_main_imp)), '" unknown (in mod_initialise_particles.f90) !!'
       write(*,*) '=> EXITING!!!'
       call exit(1)
   end select

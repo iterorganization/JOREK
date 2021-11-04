@@ -20,7 +20,7 @@ use phys_module, only: filter_perp, filter_hyper, filter_par, filter_perp_n0, fi
 use phys_module, only: use_rcs, restart_particles, index_now
 use phys_module, only: ns_R, ns_Z, ns_phi, ns_radius, ns_amplitude
 use phys_module, only: tstep, imp_type, imp_adas, imp_cor, adas_dir, xtime_radiation, xtime_rad_power, nout
-use phys_module, only: xtime_E_ion, xtime_E_ion_power
+use phys_module, only: xtime_E_ion, xtime_E_ion_power, main_imp, n_adas
 use phys_module, only: CENTRAL_MASS, CENTRAL_DENSITY
 use constants,   only: MU_ZERO, MASS_PROTON, ATOMIC_MASS_UNIT, K_BOLTZ, EL_CHG
 
@@ -53,6 +53,7 @@ real*8    :: physical_particles, weight
 integer   :: n_particles_local, n_steps, ifail
 integer   :: n_reflect
 integer   :: j, seed, i_rng, n_stream
+integer   :: i_main_imp, i_imp
 
 ! For live updating the rhs of the projection
 real*8  :: R_g, Z_g, R_s, R_t, Z_s, Z_t, xjac, HZ(n_tor), HH(4,4), HH_s(4,4), HH_t(4,4)
@@ -134,35 +135,46 @@ if (restart_particles) then
 
 else
 ! Set up particles
+!=========imp_type======================
+  i_main_imp = 0
+  do i_main_imp=1,n_adas
+    if (main_imp(i_main_imp) == 1) exit
+    if ((i_main_imp == n_adas) .and. with_impurities) then
+      write(*,*) "ERROR, searched through main_imp and didn't find any while with_impurities=.t., EXITING!!!"
+      write(*,*) "ERROR: main_imp array:", main_imp
+      stop
+    endif
+  enddo
+!===========end=========================
 
-  select case ( trim(imp_type(1)) )
+  select case ( trim(imp_type(i_main_imp)) )
     case('D2')
       sim%groups(1)%Z    = -2
       sim%groups(1)%mass = atomic_weights(-2) !< atomic mass units
-      sim%groups(1)%ad   = imp_adas(1)
-      sim%groups(1)%cor  = imp_cor(1)
+      sim%groups(1)%ad   = imp_adas(i_main_imp)
+      sim%groups(1)%cor  = imp_cor(i_main_imp)
     case('Ar')
       sim%groups(1)%Z    = 18
       sim%groups(1)%mass = atomic_weights(18) !< atomic mass units
-      sim%groups(1)%ad   = imp_adas(1)
-      sim%groups(1)%cor  = imp_cor(1)
+      sim%groups(1)%ad   = imp_adas(i_main_imp)
+      sim%groups(1)%cor  = imp_cor(i_main_imp)
     case('Ne')
       sim%groups(1)%Z    = 10
       sim%groups(1)%mass = atomic_weights(10) !< atomic mass units
-      sim%groups(1)%ad   = imp_adas(1)
-      sim%groups(1)%cor  = imp_cor(1)
+      sim%groups(1)%ad   = imp_adas(i_main_imp)
+      sim%groups(1)%cor  = imp_cor(i_main_imp)
     case('Fe')
       sim%groups(1)%Z    = 26
       sim%groups(1)%mass = atomic_weights(26) !< atomic mass units
-      sim%groups(1)%ad   = imp_adas(1)
-      sim%groups(1)%cor  = imp_cor(1)
+      sim%groups(1)%ad   = imp_adas(i_main_imp)
+      sim%groups(1)%cor  = imp_cor(i_main_imp)
     case('W')
       sim%groups(1)%Z    = 74
       sim%groups(1)%mass = atomic_weights(74) !< atomic mass units
-      sim%groups(1)%ad   = imp_adas(1)
-      sim%groups(1)%cor  = imp_cor(1)
+      sim%groups(1)%ad   = imp_adas(i_main_imp)
+      sim%groups(1)%cor  = imp_cor(i_main_imp)
     case default
-      write(*,*) '!! Impurity type "', trim(imp_type(1)), '" unknown (in marker_502) !!'
+      write(*,*) '!! Impurity type "', trim(imp_type(i_main_imp)), '" unknown (in marker_502) !!'
       write(*,*) 'Exiting NOW!!!'
       stop
   end select
