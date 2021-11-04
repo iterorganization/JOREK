@@ -431,7 +431,7 @@ subroutine initialise_particles_marker(particles, node_list, element_list, field
     ! Error: ‘__vtab_mod_particle_types_Particle_kinetic_leapfrog’ not specified in enclosing ‘parallel’
     !$omp parallel default(none) &
     !$omp   shared(particles, node_list, element_list, Rbox, Zbox, PhiBox, t_norm, n_norm, &
-    !$omp          phys_source, m_i_over_m_imp, time, fields, timesteps, n_particle_asn, &
+    !$omp          phys_source, m_i_over_m_imp, time, fields, timesteps, n_particle_asn, i_main_imp,&
     !$omp          rngs, uniform_sampling, n_threads, n_streams, seed, my_id, i_to_find, not_found) &
     !$omp   private(j, i, spi_i, R, Z, phi, i_elm, s, t, ifail, seq, ran, i_thread, P, DUMMY_REAL,   &
     !$omp           source_tmp, source_bg_tmp, V, B, psi, U)
@@ -453,7 +453,7 @@ subroutine initialise_particles_marker(particles, node_list, element_list, field
         if (.not. uniform_sampling) then
           ! Obtain the source term value at randomly generated particle position
 #ifdef WITH_Impurities
-          call total_imp_source(R,Z,phi,source_bg_tmp,source_tmp,m_i_over_m_imp) 
+          call total_imp_source(R,Z,phi,source_bg_tmp,source_tmp,m_i_over_m_imp,i_main_imp) 
 #endif 
 #ifdef WITH_Neutrals
           call total_neutral_source(R,Z,phi,source_tmp) 
