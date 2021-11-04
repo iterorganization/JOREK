@@ -130,6 +130,7 @@ real*8     :: Arad_bg, Brad_bg, Crad_bg, frad_bg, dfrad_bg_dT ! Retain the hard-
 real*8     :: Lrad_imp, dLrad_imp_dT                          ! Radiation rate and its derivative wrt. temperature
 real*8     :: r_imp                                           ! Background impurity density in JOREK unit
 integer    :: i_imp                                           ! Loop for more than one background impurity
+integer    :: i_main_imp                                      ! The index of the main impurity species
 
 
 real*8     :: in_fft(1:n_plane)
@@ -246,6 +247,18 @@ eq_zT           = 0.d0
 
 amu_neo_prof   = 0.d0
 aki_neo_prof   = 0.d0
+
+!=========imp_type======================
+i_main_imp = 0
+do i_main_imp=1,n_adas
+  if (main_imp(i_main_imp) == 1) exit
+  if ((i_main_imp == n_adas) .and. with_impurities) then
+    write(*,*) "ERROR, searched through main_imp and didn't find any while with_impurities=.t., EXITING!!!"
+    write(*,*) "ERROR: main_imp array:", main_imp
+    stop
+  endif
+enddo
+!===========end=========================
 
 do i=1,n_vertex_max
   do j=1,n_order+1
@@ -1122,6 +1135,7 @@ do i=1,n_vertex_max
             frad_bg = 0. 
             dfrad_bg_dT = 0.
             do i_imp =1, n_adas
+              if (i_imp == i_main_imp) cycle
               r_imp = nimp_bg(i_imp) / (1.d20 * central_density)  ! Background impurity density in JU     
               if (ne_SI > ne_SI_min .and. T_rad > Te_eV_min .and. r_imp > 0) then
                 Lrad_imp = 0.0

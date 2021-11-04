@@ -361,6 +361,8 @@ module phys_module
   real*8  :: ksi_ion            !< Energy cost of each ionization
   real*8  :: delta_n_convection !< Switch to activate the convection term for neutrals (at the plasma velocity)
   real*8  :: nimp_bg(n_imp_max) !< Density of background impurities (in \f$m^{-3}\f$)
+  integer :: main_imp(n_imp_max)!< Array to identify whether a imp_type is main fluid species or background species
+                                !< 0 mean background species, 1 mean main fluid species
 
   !> @name Shattered Pellet Injection related input parameters
   ! Note that the SPI share many of the MGI parameters. The code should return to simple MGI upon using_spi = false

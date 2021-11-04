@@ -589,16 +589,17 @@ module mod_expression
     real*8  :: LradDrays_T, LradDcont_T, Sion_T, Srec_T
     real*8  :: dLradDrays_dT, dLradDcont_dT, dSion_dT, dSrec_dT
     real*8  :: ne_SI                              ! Electron density used in radiation rate
+    real*8  :: Lrad_imp, r_imp, i_imp, frad_bg
 #endif
 #if (defined WITH_Neutrals) && (!defined WITH_Impurities)
-    real*8  :: Arad_bg, Brad_bg, Crad_bg, frad_bg
-    real*8  :: Lrad_imp, r_imp, i_imp
+    real*8  :: Arad_bg, Brad_bg, Crad_bg
 #endif
 #ifdef WITH_Impurities
     ! See https://www.jorek.eu/wiki/doku.php?id=model500_501_555 for details
     real*8  :: coef_rad_1, Te_eV
-    real*8  :: T0_corr, r0_corr, rn0_corr
+    real*8  :: Te0_corr, r0_corr, rn0_corr
     ! Atomic physics coefficients:
+    integer :: i_main_imp
     !   -Mass ratio between main ions and impurites (m_i/m_imp)
     real*8  :: m_i_over_m_imp
     !   -Mean impurity ionization state
@@ -642,7 +643,16 @@ module mod_expression
     end if
 
 #ifdef WITH_Impurities
-     select case ( trim(imp_type(1)) )
+     i_main_imp = 0
+     do i_main_imp=1,n_adas
+       if (main_imp(i_main_imp) == 1) exit
+       if ((i_main_imp == n_adas) .and. with_impurities) then
+         write(*,*) "ERROR, searched through main_imp and didn't find any while with_impurities=.t., EXITING!!!"
+         write(*,*) "ERROR: main_imp array:", main_imp
+         stop
+       endif
+     enddo
+     select case ( trim(imp_type(i_main_imp)) )
        case('D2')
          m_i_over_m_imp = central_mass/2.  ! Deuterium mass = 2 u
        case('Ar')
@@ -1490,7 +1500,7 @@ module mod_expression
 
 #if (defined WITH_Neutrals) && (!defined WITH_Impurities)
 
-   Te_corr_eV = corr_neg_temp(T0)/(2.d0*EL_CHG*MU_ZERO*central_density * 1.d20)
+   Te_corr_eV = corr_neg_temp(Te0)/(EL_CHG*MU_ZERO*central_density * 1.d20)
 
    if (use_imp_adas) then
      call atomic_coeff_deuterium(Te0, Sion_T, dSion_dT, Srec_T, dSrec_dT,        &
@@ -1540,11 +1550,11 @@ module mod_expression
 
 #ifdef WITH_Impurities
 
-          T0_corr = corr_neg_temp(T0,(/5.d-1,5.d-1/))
-          Te_corr_eV   = T0_corr/(2.d0*EL_CHG*MU_ZERO*central_density*1.d20)  ! Te in eV
-          Te_eV = T0/(2.d0*EL_CHG*MU_ZERO*central_density * 1.d20)
+          Te0_corr = corr_neg_temp(Te0,(/5.d-1,5.d-1/))
+          Te_corr_eV   = Te0_corr/(EL_CHG*MU_ZERO*central_density*1.d20)  ! Te in eV
+          Te_eV = Te0/(EL_CHG*MU_ZERO*central_density * 1.d20)
   
-          call imp_cor(1)%interp_linear(density=20.,temperature=log10(Te_corr_eV*EL_CHG/K_BOLTZ),z_avg=Z_imp)
+          call imp_cor(i_main_imp)%interp_linear(density=20.,temperature=log10(Te_corr_eV*EL_CHG/K_BOLTZ),z_avg=Z_imp)
 	  
           alpha_imp = 0.5*m_i_over_m_imp*(Z_imp+1.) - 1.
           beta_imp  = m_i_over_m_imp*Z_imp - 1.
@@ -1558,13 +1568,33 @@ module mod_expression
   
           if (ne_SI > ne_SI_min .and. Te_eV > Te_eV_min .and. rn0 > rn0_min) then
             Lrad = 0.
-            call radiation_function(imp_adas(1),imp_cor(1),log10(ne_SI),log10(Te_corr_eV*EL_CHG/K_BOLTZ),Lrad)
+            call radiation_function(imp_adas(i_main_imp),imp_cor(i_main_imp),log10(ne_SI),log10(Te_corr_eV*EL_CHG/K_BOLTZ),Lrad)
             Lrad = Lrad * coef_rad_1
           else
             Lrad = 0.
           end if
   
           ne_SI = ne_SI / 1.d20 / central_density ! Put ne_SI back to JOREK units to have consistent fact_ne factor with other models (see below)
+          frad_bg = 0.
+          do i_imp = 1, n_adas
+            if (i_imp == i_main_imp) cycle
+            r_imp = nimp_bg(i_imp) / (1.d20 * central_density)  ! Background impurity density in JU
+            if (ne_SI > ne_SI_min .and. Te_eV > Te_eV_min .and. r_imp > 0) then
+              Lrad_imp = 0.0
+              if ( units == SI_UNITS ) then
+                call radiation_function_linear(imp_adas(i_imp),imp_cor(i_imp),log10(ne_SI),   &
+                                               log10(Te_corr_eV*EL_CHG/K_BOLTZ),.false.,Lrad_imp)
+                frad_bg = frad_bg + nimp_bg(i_imp) * Lrad_imp
+              else if ( units == JOREK_UNITS ) then
+                call radiation_function_linear(imp_adas(i_imp),imp_cor(i_imp),log10(ne_SI),   &
+                                               log10(Te_corr_eV*EL_CHG/K_BOLTZ),.true.,Lrad_imp)
+                frad_bg = frad_bg + r_imp * Lrad_imp 
+              endif
+            else     
+              Lrad_imp = 0.
+              frad_bg = frad_bg
+            end if   
+          end do 
   
 #endif
 
@@ -1959,7 +1989,7 @@ module mod_expression
 #endif
 #ifdef WITH_Impurities
               case ( 'radiation' )
-                res = (r0_corr + beta_imp*rn0_corr) * rn0_corr * Lrad * fact_rad
+                res = (r0_corr + beta_imp*rn0_corr) * (rn0_corr * Lrad + frad_bg) * fact_rad
 #endif
 
               case default
