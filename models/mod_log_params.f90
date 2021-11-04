@@ -24,7 +24,7 @@ logical, optional             :: short !< commandline short version or run long 
 character(len=512), parameter :: REAL_FMT = "(1X,A, ' = ', 99ES12.4)"
 character(len=512), parameter :: REAL_FMT2 = "(1X,A, ' = ', ES12.4, A)"
 character(len=512), parameter :: INTG_FMT = "(1X,A, ' = ', 100I12)"
-character(len=512), parameter :: INTG_FMT2 = "(1X,A, ' = ', I12, A)"
+character(len=512), parameter :: INTG_FMT2 = "(1X,A,I2,A,' = ', 100I12)"
 character(len=512), parameter :: LOGI_FMT = "(1X,A, ' = ', 10L12)"
 character(len=512), parameter :: REA2_FMT = "(1X,A, ' = ', 4ES12.4, '     ...    ', 4ES12.4)"
 character(len=512), parameter :: REA3_FMT = "(1X,A, ' = ', 9ES12.4, '     ...')"
