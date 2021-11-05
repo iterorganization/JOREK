@@ -890,14 +890,18 @@ do ife = ife_min, ife_max
           eta_T_ohm    = eta_T_ohm * eta_coef
         endif
 
-        if (ne_SI > ne_SI_min .and. Te_eV > Te_eV_min .and. rn0 > rn0_min) then
-          Lrad = 0.0
-          !call radiation_function(imp_adas(i_main_imp),imp_cor(i_main_imp),log10(ne_SI),log10(Te_corr_eV*EL_CHG/K_BOLTZ),Lrad)
-          call radiation_function_linear(imp_adas(i_main_imp),imp_cor(i_main_imp),log10(ne_SI),log10(Te_corr_eV*EL_CHG/K_BOLTZ),.false.,Lrad)
+        if (.not. use_marker) then
+          if (ne_SI > ne_SI_min .and. Te_eV > Te_eV_min .and. rn0 > rn0_min) then
+            Lrad = 0.0
+            !call radiation_function(imp_adas(i_main_imp),imp_cor(i_main_imp),log10(ne_SI),log10(Te_corr_eV*EL_CHG/K_BOLTZ),Lrad)
+            call radiation_function_linear(imp_adas(i_main_imp),imp_cor(i_main_imp),log10(ne_SI),log10(Te_corr_eV*EL_CHG/K_BOLTZ),.false.,Lrad)
+          else
+            Lrad = 0.
+          end if
         else
           Lrad = 0.
-        end if
-
+        endif
+  
         Lrad = Lrad * m_i_over_m_imp
         E_ion = E_ion * m_i_over_m_imp
 
@@ -2162,11 +2166,17 @@ if (my_id .eq. 0) then
   ! Otherwise, obtain the energy from particle modules
   if (index_now > 1 .and. (.not. use_marker)) then
     xtime_radiation(index_now) = xtime_radiation(index_now-1) + t_norm * tstep * total_radiation
+  else if (index_now > 1) then ! Include contribution from both particles and background fluid
+    xtime_radiation(index_now) = xtime_radiation(index_now) + t_norm * tstep * total_radiation
   else if (index_now == 1 .and. (.not. use_marker)) then
     xtime_radiation(index_now) = t_norm * tstep * total_radiation
+  else if (index_now == 1) then
+    xtime_radiation(index_now) = xtime_radiation(index_now) + t_norm * tstep * total_radiation
   end if
   if (index_now > 0 .and. (.not. use_marker)) then
     xtime_rad_power(index_now) = total_radiation
+  else if (index_now > 0) then ! Include contribution from both particles and background fluid
+    xtime_rad_power(index_now) = xtime_rad_power(index_now) + total_radiation
   end if
 
   if (output_prad_phi) then
