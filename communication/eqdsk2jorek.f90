@@ -30,6 +30,9 @@ integer            :: nr, nz, n_psi, nbbs, limitr, i,j, nc, n_tht, n_sol, n_ext,
 character          :: AA*52, tokamak_name*50
 character          :: buffer*80, lf*1, str1*12, str2*24
 
+integer          :: err_alloc
+logical          :: ferr
+real*8,allocatable :: ne_spline(:)
 !----------------------------- read eqdsk file -----------
 
 B_scale = 1.d0/1.d0  ! scaling factor for the vacuum toroidal field 
@@ -143,20 +146,20 @@ enddo
 if (tokamak_name == 'ITER') then
 
   !--------------------close fit to ITER wall
-  ellip  = 2.0
-  tria_u = 0.55
-  tria_l = 0.65
-  quad_u = -0.1
-  quad_l = 0.15
-  n_tht  = 257
-  r0     = 6.2  * R_scale
-  z0     = 0.1  * R_scale
-  a0     = 2.25 * R_scale
+!  ellip  = 2.0
+!  tria_u = 0.55
+!  tria_l = 0.65
+!  quad_u = -0.1
+!  quad_l = 0.15
+!  n_tht  = 257
+!  r0     = 6.2  * R_scale
+!  z0     = 0.1  * R_scale
+!  a0     = 2.25 * R_scale
 
   !-------------------- contour outside ITER wall
   ellip  = 2.1
   tria_u = 0.58
-  tria_l = 0.65
+  tria_l = 0.75!0.65
   quad_u = -0.12
   quad_l = -0.
   n_tht  = 257
@@ -312,6 +315,28 @@ n_ext = n_psi + n_sol
 
 write(*,*) ' n_psi, n_sol, n_ext : ',n_psi, n_sol, n_ext
 
+!===================== Read Spline Fitted Ne profile==============
+
+if (allocated(ne_spline)) then
+  deallocate(ne_spline)
+end if
+allocate (ne_spline(n_ext),stat=err_alloc)  !< Dynamically allocate memeries forshard sizes
+if (err_alloc /= 0) then
+  write(*,*) "Error when trying to dynamically allocate memeries for ne_spline."
+else
+  inquire(file="ne_spline_only.dat", exist=ferr) ! Check if the file exist
+  if (ferr) then
+    open(42,file="ne_spline_only.dat",status="OLD",action="READ")
+    read(42,*)  ne_spline(1:n_ext)
+    close(42)
+  else
+    write(*,*) "WARNING!!! ne_spline file does not exist!"
+    deallocate(ne_spline)
+  end if
+end if
+
+!=====================End of Ne profile===========================
+
 allocate(df2_ext(n_ext),rho_ext(n_ext),T_ext(n_ext),psi_ext(n_ext),p_ext(n_ext))
 
 df2_ext(1:n_psi) = df2(1:n_psi)
@@ -325,7 +350,7 @@ T_ext(n_psi-1:n_ext)   = T_ext(n_psi)
 psi_sep = 1.0d0     ! in normalised psi units
 sig_sep = 0.005     ! in normalised psi units
 rho_bnd = 0.01      ! in jorek units
-T_bnd   = 1.d-5     ! in jorek units
+T_bnd   = 2.d-5     ! in jorek units
 
 psi_ext(1:n_psi) = psi(1:n_psi)
 do i=n_psi+1,n_ext
@@ -337,8 +362,20 @@ zmu0 = 4.d-7 * PI
 do i=1,n_ext
   tanh1 = tanh((psi_ext(i) - psi_sep)/sig_sep)
   df2_ext(i) = df2_ext(i) * (0.5d0 - 0.5d0*tanh1)
-  rho_ext(i) = (rho_ext(i) - rho_bnd) * (0.5d0 - 0.5d0*tanh1) + rho_bnd
-  T_ext(i)   = T_ext(i)   * (0.5d0 - 0.5d0*tanh1) * zmu0 +T_bnd 
+  !rho_ext(i) = (rho_ext(i) - rho_bnd) * (0.5d0 - 0.5d0*tanh1) + rho_bnd
+  if (allocated(ne_spline)) then
+    rho_ext(i) = rho_ext(i) * ne_spline(i) + rho_bnd * (0.5 + 0.5*tanh1)
+    !rho_ext(i) = rho_ext(i) * ne_spline(i) * (0.5d0 - 0.5d0*tanh1) + 1.d-2 * (0.5 + 0.5*tanh1)
+  else
+    rho_ext(i) = rho_ext(i) * (0.5d0 - 0.5d0*tanh1) + rho_bnd * (0.5 + 0.5*tanh1)
+  end if
+  !T_ext(i)   = T_ext(i)   * (0.5d0 - 0.5d0*tanh1) * zmu0 
+  if (allocated(ne_spline)) then
+    T_ext(i)   = T_ext(i) * zmu0 * (0.5d0 - 0.5d0*tanh1) / rho_ext(i) + T_bnd * (0.5 + 0.5*tanh1)
+  else
+    T_ext(i)   = T_ext(i) * zmu0 * (0.5d0 - 0.5d0*tanh1) + T_bnd * (0.5 + 0.5*tanh1)
+  end if
+  !T_ext(i)   = T_ext(i)   * (0.5d0 - 0.5d0*tanh1) * zmu0 +T_bnd 
 !   T_ext(i)   = T_ext(i) / rho_ext(i) * zmu0 + T_bnd 
   p_ext(i)   = rho_ext(i) * T_ext(i)
 enddo
@@ -374,6 +411,16 @@ close(21)
 open(21,file='jorek_temperature')
 do i=1,n_ext
   write(21,*) psi_ext(i),T_ext(i)
+enddo
+close(21)
+open(21,file='jorek_e_temperature')
+do i=1,n_ext
+  write(21,*) psi_ext(i),T_ext(i)/2.
+enddo
+close(21)
+open(21,file='jorek_i_temperature')
+do i=1,n_ext
+  write(21,*) psi_ext(i),T_ext(i)/2.
 enddo
 close(21)
 
@@ -520,7 +567,7 @@ ivtk = 23
 
 write(*,'(A)') ' writing VTK output'
 
-open(unit=ivtk,file='eqdsk.vtk',form='binary',convert='BIG_ENDIAN')
+open(unit=ivtk,file='eqdsk.vtk',form='unformatted',convert='BIG_ENDIAN')
 
 buffer = '# vtk DataFile Version 3.0'//lf                        ; write(ivtk) trim(buffer)
 buffer = 'eqdsk'//lf                                             ; write(ivtk) trim(buffer)
