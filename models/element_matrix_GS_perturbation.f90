@@ -28,7 +28,7 @@ real*8     :: psi_bnd_kl(n_vertex_max,(n_order+1))
 real*8     :: xjac, wst
 real*8     :: ps0_x, ps0_y, v, v_x, v_y, psi, psi_x, psi_y, rhs_ij
 real*8     :: pprime_fact, fact_newton
-integer    :: ms, mt, i, j, k, l, index_ij, index_kl, itype, ivar_in, ivar_out, i_harm, xcase2, nc, ierr
+integer    :: ms, mt, i, j, k, l, index_ij, index_kl, itype, ivar_in, ivar_out, i_harm, xcase2, nc, nj, ierr
 logical    :: xpoint2, newton_method_GS
 real*8     :: Z_xpoint(2),psi_axis,psi_bnd,dj_dpsi,dj_dz, psi_norm, fact_private
 real*8     :: zn, dn_dpsi, dn_dz,  ddn_dpsi,  ddn_dz,  ddn_dpsi_dz,  dn_dpsi3,  dn_dpsi_dz2,  dn_dpsi2_dz
@@ -36,6 +36,7 @@ real*8     :: zT, dT_dpsi, dT_dz,  ddT_dpsi,  ddT_dz,  ddT_dpsi_dz,  dT_dpsi3,  
 real*8     :: zTi,dTi_dpsi,dTi_dz, ddTi_dpsi, ddTi_dz, ddTi_dpsi_dz, dTi_dpsi3, dTi_dpsi_dz2, dTi_dpsi2_dz
 real*8     :: zTe,dTe_dpsi,dTe_dz, ddTe_dpsi, ddTe_dz, ddTe_dpsi_dz, dTe_dpsi3, dTe_dpsi_dz2, dTe_dpsi2_dz
 real*8     :: ddFFprime_dpsi_dz, zFFprime, dFFprime_dpsi,dFFprime_dz, dFFprime_dpsi2,dFFprime_dz2
+real*8     :: radius_rope
 
 
 ELM=0.d0
@@ -151,6 +152,29 @@ do ms=1, n_gauss
         v_y = (- x_t(ms,mt) * h_s(i,j,ms,mt) + x_s(ms,mt) * h_t(i,j,ms,mt) ) * element%size(i,j) / xjac
 
         rhs_ij =  zFFprime / x_g(ms,mt) - (zn * dT_dpsi + dn_dpsi * zT) * x_g(ms,mt) * pprime_fact
+
+        ! --- Add the contribution of extra PF coil currents inside the JOREK domain
+        ! --- This is not the same as free-boundary, but when doing GS inside a RZpsi-contour
+        ! --- that includes PF-coils, these must be included in the equilibrium.
+        if ((.not. restart) .and. (n_pfc .ne. 0)) then
+          do nc=1,n_pfc
+            if (  (x_g(ms,mt) .lt. Rmax_pfc(nc)) .and. (x_g(ms,mt) .gt. Rmin_pfc(nc)) &
+            .and. (y_g(ms,mt) .lt. Zmax_pfc(nc)) .and. (y_g(ms,mt) .gt. Zmin_pfc(nc)) )  then
+              rhs_ij = rhs_ij + current_pfc(nc)
+            endif
+          enddo
+        endif
+
+        ! --- Add a current rope inside the plasma (useful for merging plasma compression)
+        ! --- or isolated blobs simulations
+        if ((.not. restart) .and. (n_jropes .ne. 0)) then
+          do nj=1,n_jropes
+            radius_rope = sqrt((x_g(ms,mt)-R_jropes(nj))**2 + (y_g(ms,mt)-Z_jropes(nj))**2)
+            if (radius_rope .le. w_jropes(nj)) then
+              rhs_ij = current_jropes(nj) * (1.0 - (radius_rope/w_jropes(nj))**2 )**2
+            endif
+          enddo
+        endif
 
         RHS(index_ij) = RHS(index_ij) + v * rhs_ij  * xjac * wst
 

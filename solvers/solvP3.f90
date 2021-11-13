@@ -15,6 +15,11 @@ x3    = 9999.d0
 tol   = 0.d0
 ifail = 0
 
+IF ((ABS(C1)+ABS(C2)+ABS(C3)) .EQ. 0.d0) THEN
+  IFAIL = 1
+  RETURN
+ENDIF
+
 !------------------------------------- 2nd order poly for small c3
 IF (ABS(C3)/(ABS(C1)+ABS(C2)+ABS(C3)) .LT. 1.d-9) THEN
   AA = C2

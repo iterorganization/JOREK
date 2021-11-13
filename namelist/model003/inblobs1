@@ -1,0 +1,72 @@
+&in1
+
+ restart = .f.
+ regrid  = .f.
+ tstep   = 0.01
+ nstep   = 1000
+
+ nout = 10
+
+ fbnd(1)   = 2.
+ fbnd(2:4) = 0.
+ mf        = 0
+
+ equil = .f.
+
+ n_jropes = 2
+
+ R_jropes(1)       = 10.0
+ Z_jropes(1)       = 0.3
+ w_jropes(1)       = 0.1
+ rho_jropes(1)     = 1.0
+ T_jropes(1)       = 1.0
+
+ R_jropes(2)       = 10.0
+ Z_jropes(2)       = -0.3
+ w_jropes(2)       = 0.1
+ rho_jropes(2)     = 1.0
+ T_jropes(2)       = 10.0
+
+
+ xpoint = .f.
+
+ R_begin = 9.5
+ R_end   = 10.5
+ Z_begin = -0.5
+ Z_end   = 0.5
+
+ R_geo = 10.0
+ Z_geo = 0.
+
+ n_R      = 90
+ n_Z      = 90
+ n_radial = 0
+ n_pol    = 0
+ n_flux   = 0
+
+ visco_T_dependent = .f.
+ visco     = 1.d-3
+ visco_num = 1.d-6
+
+ D_perp  = 1.d-4
+ ZK_perp = 1.d-4
+
+ particlesource = 0.d0
+
+ rho_0        = 0.05
+ rho_1        = 0.05
+ rho_coef(1)  = 0.0
+ rho_coef(2)  = 0.0
+ rho_coef(3)  = 0.0
+ rho_coef(4)  = 0.1
+ rho_coef(5)  = 2.0
+
+ T_0       = 0.05
+ T_1       = 0.05
+ T_coef(1) = 0.0
+ T_coef(2) = 0.0
+ T_coef(3) = 0.0
+ T_coef(4) = 0.1
+ T_coef(5) = 2.0
+
+/

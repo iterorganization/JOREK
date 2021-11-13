@@ -329,19 +329,19 @@ do ms=1, n_gauss
           if (with_vpar) then
 
             ! --- Density reflection and minimum particle flux
-            rhs_ij(var_rho)   = + v * density_reflection * r0_corr * vpar0 * ps0_s * normal_sign3 * tstep     &
-                                - v * r0_corr * cs0 * BigR * dl * c_angle * tstep     ! particle flux at 1 degree angle  
+            rhs_ij(var_rho)   = + v * density_reflection * r0      * vpar0 * ps0_s * normal_sign3 * tstep     &
+                                - v * r0      * cs0 * BigR * dl * c_angle * tstep     ! particle flux at 1 degree angle  
 
             ! --- Sheath heat flux (c_angle for mininum heat fluxes at grazing angles)
             if (with_TiTe) then
-              rhs_ij(var_Ti)  = - v * (gamma_sheath_i-1.d0) * r0_corr *Ti0_corr * vpar0 * ps0_s * normal_sign3 * tstep &
-                                - v * (gamma_sheath_i-1.d0) * r0_corr *Ti0_corr * cs0    * BigR * dl * c_angle * tstep  
+              rhs_ij(var_Ti)  = - v * (gamma_sheath_i-1.d0) * r0 * Ti0 * vpar0 * ps0_s * normal_sign3 * tstep &
+                                - v * (gamma_sheath_i-1.d0) * r0 * Ti0 * cs0    * BigR * dl * c_angle * tstep  
 
-              rhs_ij(var_Te)  = - v * (gamma_sheath_e-1.d0) * r0_corr *Te0_corr * vpar0 * ps0_s * normal_sign3 * tstep &
-                                - v * (gamma_sheath_e-1.d0) * r0_corr *Te0_corr * cs0  * BigR * dl * c_angle   * tstep  
+              rhs_ij(var_Te)  = - v * (gamma_sheath_e-1.d0) * r0 * Te0 * vpar0 * ps0_s * normal_sign3 * tstep &
+                                - v * (gamma_sheath_e-1.d0) * r0 * Te0 * cs0  * BigR * dl * c_angle   * tstep  
             else
-              rhs_ij(var_T)   = - v * (gamma_sheath  -1.d0) * r0_corr * T0_corr * vpar0 * ps0_s * normal_sign3 * tstep &
-                                - v * (gamma_sheath  -1.d0) * r0_corr * T0_corr * cs0    * BigR * dl * c_angle * tstep  
+              rhs_ij(var_T)   = - v * (gamma_sheath  -1.d0) * r0 * T0  * vpar0 * ps0_s * normal_sign3 * tstep &
+                                - v * (gamma_sheath  -1.d0) * r0 * T0  * cs0    * BigR * dl * c_angle * tstep  
             endif
 
             ! --- Mach=1 through boundary integral penalization method
@@ -349,9 +349,9 @@ do ms=1, n_gauss
 
             ! --- Fluid neutral reflection
             if (with_neutrals) then 
-              rhs_ij(var_rhon) = rhs_ij(var_rhon)                                                          &
-                               + v * neutral_reflection * r0_corr * vpar0 * ps0_s * normal_sign3 * tstep &
-                               + v * neutral_reflection * r0_corr * cs0 * BigR * dl * c_angle    * tstep ! particle flux at 1 degree angle  
+              rhs_ij(var_rhon) = rhs_ij(var_rhon)                                                   &
+                               + v * neutral_reflection * r0 * vpar0 * ps0_s * normal_sign3 * tstep &
+                               + v * neutral_reflection * r0 * cs0 * BigR * dl * c_angle    * tstep ! particle flux at 1 degree angle  
             endif ! with_neutrals
 
           endif ! with_vpar
@@ -396,46 +396,46 @@ do ms=1, n_gauss
                 if (with_vpar) then
 
                   ! --- Density reflection and minimum particle flux (c_angle)
-                  amat(var_rho,var_psi)   = - v * density_reflection * r0_corr  * vpar0 * psi_s * normal_sign3 * theta * tstep 
-                  amat(var_rho,var_rho)   = - v * density_reflection * rho      * vpar0 * ps0_s * normal_sign3 * theta * tstep &
-                                            + v                      * rho      * cs0   * BigR * dl * c_angle  * theta * tstep 
-                  amat(var_rho,var_vpar)  = - v * density_reflection * r0_corr  * vpar  * ps0_s * normal_sign3 * theta * tstep 
+                  amat(var_rho,var_psi)   = - v * density_reflection * r0  * vpar0 * psi_s * normal_sign3 * theta * tstep 
+                  amat(var_rho,var_rho)   = - v * density_reflection * rho * vpar0 * ps0_s * normal_sign3 * theta * tstep &
+                                            + v                      * rho * cs0   * BigR * dl * c_angle  * theta * tstep 
+                  amat(var_rho,var_vpar)  = - v * density_reflection * r0  * vpar  * ps0_s * normal_sign3 * theta * tstep 
 
                   ! --- Sheath heat flux
                   if (with_TiTe) then                
-                    amat(var_rho,var_Ti)  = + v * r0_corr  * cs_Ti * BigR * dl * c_angle  * theta * tstep
-                    amat(var_rho,var_Te)  = + v * r0_corr  * cs_Te * BigR * dl * c_angle  * theta * tstep
+                    amat(var_rho,var_Ti)  = + v * r0 * cs_Ti * BigR * dl * c_angle  * theta * tstep
+                    amat(var_rho,var_Te)  = + v * r0 * cs_Te * BigR * dl * c_angle  * theta * tstep
                   else
-                    amat(var_rho,var_T)   = + v * r0_corr  * cs_T  * BigR * dl * c_angle  * theta * tstep
+                    amat(var_rho,var_T)   = + v * r0 * cs_T  * BigR * dl * c_angle  * theta * tstep
                   endif
 
                   ! --- Sheath heat flux
                   if (with_TiTe) then                
-                    amat(var_Ti,var_psi)  = + v * (gamma_sheath_i-1.d0) * r0_corr  * Ti0_corr * vpar0 * psi_s * normal_sign3 * theta * tstep 
-                    amat(var_Ti,var_rho)  = + v * (gamma_sheath_i-1.d0) * rho      * Ti0_corr * vpar0 * ps0_s * normal_sign3 * theta * tstep & 
-                                            + v * (gamma_sheath_i-1.d0) * rho      * Ti0_corr * cs0   * BigR  * dl * c_angle * theta * tstep 
-                    amat(var_Ti,var_Ti)   = + v * (gamma_sheath_i-1.d0) * r0_corr  * Ti       * vpar0 * ps0_s * normal_sign3 * theta * tstep & 
-                                            + v * (gamma_sheath_i-1.d0) * r0_corr  * Ti       * cs0   * BigR  * dl * c_angle * theta * tstep &
-                                            + v * (gamma_sheath_i-1.d0) * r0_corr  * Ti0_corr * cs_Ti * BigR  * dl * c_angle * theta * tstep
+                    amat(var_Ti,var_psi)  = + v * (gamma_sheath_i-1.d0) * r0  * Ti0 * vpar0 * psi_s * normal_sign3 * theta * tstep 
+                    amat(var_Ti,var_rho)  = + v * (gamma_sheath_i-1.d0) * rho * Ti0 * vpar0 * ps0_s * normal_sign3 * theta * tstep & 
+                                            + v * (gamma_sheath_i-1.d0) * rho * Ti0 * cs0   * BigR  * dl * c_angle * theta * tstep 
+                    amat(var_Ti,var_Ti)   = + v * (gamma_sheath_i-1.d0) * r0  * Ti  * vpar0 * ps0_s * normal_sign3 * theta * tstep & 
+                                            + v * (gamma_sheath_i-1.d0) * r0  * Ti  * cs0   * BigR  * dl * c_angle * theta * tstep &
+                                            + v * (gamma_sheath_i-1.d0) * r0  * Ti0 * cs_Ti * BigR  * dl * c_angle * theta * tstep
 
-                    amat(var_Te,var_psi)  = + v * (gamma_sheath_e-1.d0) * r0_corr  * Te0_corr * vpar0 * psi_s * normal_sign3 * theta * tstep 
-                    amat(var_Te,var_rho)  = + v * (gamma_sheath_e-1.d0) * rho      * Te0_corr * vpar0 * ps0_s * normal_sign3 * theta * tstep & 
-                                            + v * (gamma_sheath_e-1.d0) * rho      * Te0_corr * cs0   * BigR  * dl * c_angle * theta * tstep 
-                    amat(var_Te,var_Te)   = + v * (gamma_sheath_e-1.d0) * r0_corr  * Te       * vpar0 * ps0_s * normal_sign3 * theta * tstep &
-                                            + v * (gamma_sheath_e-1.d0) * r0_corr  * Te       * cs0   * BigR  * dl * c_angle * theta * tstep &
-                                            + v * (gamma_sheath_e-1.d0) * r0_corr  * Te0_corr * cs_Te * BigR  * dl * c_angle * theta * tstep
+                    amat(var_Te,var_psi)  = + v * (gamma_sheath_e-1.d0) * r0  * Te0 * vpar0 * psi_s * normal_sign3 * theta * tstep 
+                    amat(var_Te,var_rho)  = + v * (gamma_sheath_e-1.d0) * rho * Te0 * vpar0 * ps0_s * normal_sign3 * theta * tstep & 
+                                            + v * (gamma_sheath_e-1.d0) * rho * Te0 * cs0   * BigR  * dl * c_angle * theta * tstep 
+                    amat(var_Te,var_Te)   = + v * (gamma_sheath_e-1.d0) * r0  * Te  * vpar0 * ps0_s * normal_sign3 * theta * tstep &
+                                            + v * (gamma_sheath_e-1.d0) * r0  * Te  * cs0   * BigR  * dl * c_angle * theta * tstep &
+                                            + v * (gamma_sheath_e-1.d0) * r0  * Te0 * cs_Te * BigR  * dl * c_angle * theta * tstep
 
-                    amat(var_Ti,var_vpar) = + v * (gamma_sheath_i-1.d0) * r0_corr  * Ti0_corr * vpar  * ps0_s * normal_sign3 * theta * tstep 
-                    amat(var_Te,var_vpar) = + v * (gamma_sheath_e-1.d0) * r0_corr  * Te0_corr * vpar  * ps0_s * normal_sign3 * theta * tstep 
+                    amat(var_Ti,var_vpar) = + v * (gamma_sheath_i-1.d0) * r0  * Ti0 * vpar  * ps0_s * normal_sign3 * theta * tstep 
+                    amat(var_Te,var_vpar) = + v * (gamma_sheath_e-1.d0) * r0  * Te0 * vpar  * ps0_s * normal_sign3 * theta * tstep 
                   else
-                    amat(var_T,var_psi)   = + v * (gamma_sheath  -1.d0) * r0_corr  *  T0_corr * vpar0 * psi_s * normal_sign3 * theta * tstep 
-                    amat(var_T,var_rho)   = + v * (gamma_sheath  -1.d0) * rho      *  T0_corr * vpar0 * ps0_s * normal_sign3 * theta * tstep &
-                                            + v * (gamma_sheath  -1.d0) * rho      *  T0_corr * cs0   * BigR  * dl * c_angle * theta * tstep 
-                    amat(var_T,var_T)     = + v * (gamma_sheath  -1.d0) * r0_corr  *  T       * vpar0 * ps0_s * normal_sign3 * theta * tstep &
-                                            + v * (gamma_sheath  -1.d0) * r0_corr  *  T       * cs0   * BigR  * dl * c_angle * theta * tstep &
-                                            + v * (gamma_sheath  -1.d0) * r0_corr  *  T0_corr * cs_T  * BigR  * dl * c_angle * theta * tstep
+                    amat(var_T,var_psi)   = + v * (gamma_sheath  -1.d0) * r0  *  T0 * vpar0 * psi_s * normal_sign3 * theta * tstep 
+                    amat(var_T,var_rho)   = + v * (gamma_sheath  -1.d0) * rho *  T0 * vpar0 * ps0_s * normal_sign3 * theta * tstep &
+                                            + v * (gamma_sheath  -1.d0) * rho *  T0 * cs0   * BigR  * dl * c_angle * theta * tstep 
+                    amat(var_T,var_T)     = + v * (gamma_sheath  -1.d0) * r0  *  T  * vpar0 * ps0_s * normal_sign3 * theta * tstep &
+                                            + v * (gamma_sheath  -1.d0) * r0  *  T  * cs0   * BigR  * dl * c_angle * theta * tstep &
+                                            + v * (gamma_sheath  -1.d0) * r0  *  T0 * cs_T  * BigR  * dl * c_angle * theta * tstep
 
-                    amat(var_T,var_vpar)  = + v * (gamma_sheath  -1.d0) * r0_corr   * T0_corr * vpar  * ps0_s * normal_sign3 * theta * tstep 
+                    amat(var_T,var_vpar)  = + v * (gamma_sheath  -1.d0) * r0  * T0  * vpar  * ps0_s * normal_sign3 * theta * tstep 
                   endif ! with_TiTe
 
                   ! --- Mach 1 condition through penalization boundary integral method
@@ -450,19 +450,19 @@ do ms=1, n_gauss
 
                   ! --- Fluid neutral sources and reflection
                   if (with_neutrals) then
-                    amat(var_rhon,var_psi) = - v * neutral_reflection * r0_corr * vpar0 * psi_s * normal_sign3      * theta * tstep 
+                    amat(var_rhon,var_psi) = - v * neutral_reflection * r0  * vpar0 * psi_s * normal_sign3      * theta * tstep 
   
                     amat(var_rhon,var_rho) = - v * neutral_reflection * rho     * vpar0 * ps0_s * normal_sign3      * theta * tstep &
                                              - v * neutral_reflection * rho     * cs0 * BigR * dl * c_angle * theta * tstep 
  
                     if (with_TiTe) then 
-                      amat(var_rhon,var_Ti) = - v * neutral_reflection * r0_corr * cs_Ti * BigR * dl * c_angle * theta * tstep 
-                      amat(var_rhon,var_Te) = - v * neutral_reflection * r0_corr * cs_Te * BigR * dl * c_angle * theta * tstep 
+                      amat(var_rhon,var_Ti) = - v * neutral_reflection * r0 * cs_Ti * BigR * dl * c_angle * theta * tstep 
+                      amat(var_rhon,var_Te) = - v * neutral_reflection * r0 * cs_Te * BigR * dl * c_angle * theta * tstep 
                     else
-                      amat(var_rhon,var_T)  = - v * neutral_reflection * r0_corr * cs_T  * BigR * dl * c_angle * theta * tstep 
+                      amat(var_rhon,var_T)  = - v * neutral_reflection * r0 * cs_T  * BigR * dl * c_angle * theta * tstep 
                     endif
   
-                    amat(var_rhon,var_vpar) = - v * neutral_reflection * r0_corr * vpar  * ps0_s * normal_sign3     * theta * tstep 
+                    amat(var_rhon,var_vpar) = - v * neutral_reflection * r0 * vpar  * ps0_s * normal_sign3     * theta * tstep 
                   endif ! with neutrals
 
                 endif   ! with_vpar

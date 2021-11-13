@@ -234,6 +234,10 @@ write(*,'(1x,a)',advance='no') ' USE_COMPLEX_PRECOND          : '
     write(*,REAL_FMT) 'sig_r                 ', sig_r(:)
     write(*,REAL_FMT) 'xr_tht                ', xr_tht(:)
     write(*,REAL_FMT) 'sig_tht               ', sig_tht(:)
+    write(*,REAL_FMT) 'xr_z                  ', xr_z(:)
+    write(*,REAL_FMT) 'sig_z                 ', sig_z(:)
+    write(*,REAL_FMT) 'bgf_r                 ', bgf_r
+    write(*,REAL_FMT) 'bgf_z                 ', bgf_z
   end if
 
   write(*,INTG_FMT) 'n_tht                 ', n_tht
@@ -310,6 +314,7 @@ write(*,'(1x,a)',advance='no') ' USE_COMPLEX_PRECOND          : '
   write(*,REAL_FMT) 'R_end                 ', R_end
   write(*,REAL_FMT) 'Z_begin               ', Z_begin
   write(*,REAL_FMT) 'Z_end                 ', Z_end
+  write(*,REAL_FMT) 'rect_grid_vac_psi     ', rect_grid_vac_psi
   write(*,REAL_FMT) 'R_geo                 ', R_geo
   write(*,REAL_FMT) 'Z_geo                 ', Z_geo
   write(*,REAL_FMT) 'amin                  ', amin
@@ -716,6 +721,16 @@ write(*,'(1x,a)',advance='no') ' USE_COMPLEX_PRECOND          : '
     write(*,REA3_FMT) 'Zmin_pfc              ', Zmin_pfc(1:min(9,n_pfc))
     write(*,REA3_FMT) 'Zmax_pfc              ', Zmax_pfc(1:min(9,n_pfc))
     write(*,REA3_FMT) 'current_pfc           ', current_pfc(1:min(9,n_pfc))
+  end if
+
+  write(*,INTG_FMT) 'n_jropes              ', n_jropes
+  if ( n_jropes > 0 ) then
+    write(*,REA3_FMT) 'R_jropes              ', R_jropes(1:n_jropes)
+    write(*,REA3_FMT) 'Z_jropes              ', Z_jropes(1:n_jropes)
+    write(*,REA3_FMT) 'w_jropes              ', w_jropes(1:n_jropes)
+    write(*,REA3_FMT) 'current_jropes        ', current_jropes(1:n_jropes)
+    write(*,REA3_FMT) 'rho_jropes            ', rho_jropes(1:n_jropes)
+    write(*,REA3_FMT) 'T_jropes              ', T_jropes(1:n_jropes)
   end if
 
   write(*,LOGI_FMT) 'RMP_on                ', RMP_on

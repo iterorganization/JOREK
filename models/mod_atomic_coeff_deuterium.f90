@@ -3,7 +3,8 @@ module mod_atomic_coeff_deuterium
 
 use mod_openadas
 use constants
-use phys_module, only: central_density, central_mass, gamma, deuterium_adas, deuterium_adas_1e20, old_deuterium_atomic
+use phys_module, only: central_density, central_mass, gamma, deuterium_adas, deuterium_adas_1e20, old_deuterium_atomic, & 
+                       rho_min, rn0_min
 
 implicit none
 
@@ -27,7 +28,8 @@ contains
 ! ---   * Outputs are the normalized coefficients
 ! ---   * NOTE THAT THE DERIVATIVES ARE WITH RESPECT TO THE ELECTRON TEMPERATURE (not T=Te+Ti)
 ! ---   * The coeffiencts are calculated for ne = 1.e20  m^-3 for the fits
-subroutine atomic_coeff_deuterium(Te0, Sion_T, dSion_dT, Srec_T, dSrec_dT, LradDcont_T, dLradDcont_dT, LradDrays_T, dLradDrays_dT, ne0 ) 
+subroutine atomic_coeff_deuterium(Te0, Sion_T, dSion_dT, Srec_T, dSrec_dT, LradDcont_T, dLradDcont_dT, LradDrays_T, dLradDrays_dT, &
+                                  ne0, rn0, correct_neg ) 
 
   implicit none
 
@@ -37,7 +39,9 @@ subroutine atomic_coeff_deuterium(Te0, Sion_T, dSion_dT, Srec_T, dSrec_dT, LradD
   real*8, intent(inout) :: Srec_T, dSrec_dT           ! Normalized recombination coefficient and its temperature derivative
   real*8, intent(inout) :: LradDcont_T, dLradDcont_dT ! Normalized Bremss and recomb radiation coefficient and its temperature derivative
   real*8, intent(inout) :: LradDrays_T, dLradDrays_dT ! Normalized line radiation coefficient and its temperature derivative
-  real*8, optional, intent(in) :: ne0                 ! Electron density in JOREK units (used only for ADAS data)
+  real*8, optional,  intent(in) :: ne0                ! Electron density in JOREK units (used only for ADAS data)
+  real*8, optional,  intent(in) :: rn0                ! Neutral density, required for corrections                
+  logical, optional, intent(in) :: correct_neg        ! Correct coefficients for small or negative densities?       
 
   ! --- Local
   real*8 :: coef_ion_1, coef_ion_2, coef_ion_3, T0 
@@ -258,6 +262,23 @@ subroutine atomic_coeff_deuterium(Te0, Sion_T, dSion_dT, Srec_T, dSrec_dT, LradD
 
   endif
 
+  ! --- Switich off atomic coefficients in case of small or negative densities
+  if ( present(ne0) .and. present(rn0) .and. present(correct_neg) ) then
+    if (correct_neg) then
+      if (ne0 < rho_min) then
+        Sion_T   = 0.d0
+        dSion_dT = 0.d0
+        Srec_T   = 0.d0
+        dSrec_dT = 0.d0
+      endif
+  
+      if (rn0 < rn0_min) then ! don't switch off recombination (it may help increasing again rn0)
+        Sion_T   = 0.d0
+        dSion_dT = 0.d0
+      endif
+    endif
+  endif
+ 
 end subroutine
 
 

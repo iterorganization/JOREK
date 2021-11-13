@@ -47,6 +47,7 @@ namelist /in1/  tstep, nstep, tstep_n, nstep_n,                     &
                 Rmin_pfc, Rmax_pfc, Zmin_pfc, Zmax_pfc, current_pfc,&
                 n_jropes,                                           &
                 R_jropes, Z_jropes, w_jropes, current_jropes,       &
+                rho_jropes, T_jropes,                               &
                 extend_existing_grid, no_mach1_bc,                  &
                 grid_to_wall, RZ_grid_inside_wall, eqdsk_psi_fact,  &
                 RZ_grid_jump_thres,                                 &
@@ -157,7 +158,6 @@ namelist /in1/  tstep, nstep, tstep_n, nstep_n,                     &
                 RMP_psi_cos_file, RMP_psi_sin_file,                 &
                 Number_RMP_harmonics,RMP_har_cos_spectrum,          &
                 RMP_har_sin_spectrum, imp_type, adas_dir, n_adas,   &
-                main_imp,                                           &
                 amix, amix_freeb, equil_accuracy, use_imp_adas,     &
                 equil_accuracy_freeb, current_ref, FB_Ip_position,  &
                 FB_Ip_integral, Z_axis_ref, FB_Zaxis_position,      &
@@ -306,16 +306,6 @@ if ( my_id == 0 ) then
     write(*,*) "ERROR: Only support ADAS data for more than one impurities, through setting use_imp_adas to true, EXITING!"
     stop
   end if
-
- if (any(main_imp > 1) .or. any(main_imp < 0)) then 
-    write(*,*) "ERROR: Illegal value of main_imp array, EXITING!"
-    write(*,*) "ERROR: main_imp array:", main_imp
-    stop
- else if ((sum(main_imp) .ne. 1) .and. with_impurities) then 
-    write(*,*) "ERROR: Currently admiting one and only one main impurity species when with_impurities, EXITING!"
-    write(*,*) "ERROR: main_imp array:", main_imp
-    stop
- end if
 
   if (using_spi) call init_spi_all()
 

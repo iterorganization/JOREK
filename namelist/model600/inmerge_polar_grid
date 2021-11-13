@@ -1,0 +1,132 @@
+ &in1
+
+ ! Special equilibrium for merging plasma ropes based on MAST experiments
+ ! Based on equilibrium from
+ ! http://dx.doi.org/10.1063/1.4830104
+ ! The Pprime and FFprime are zero, and hence the current ropes
+ ! result in a JxB force that causes them to collapse together.
+ ! In other words, this equilibrium does not have a Grad(p) = JxB force balance.
+
+ restart = .f.
+ regrid  = .f.
+ tstep   = 0.1
+ nstep   = 0!300
+ 
+ nout = 10
+
+ fbnd(1)   = 2.
+ fbnd(2:4) = 0.
+ mf        = 0
+ 
+										     
+
+n_jropes = 2
+
+R_jropes(1)       = 0.85
+Z_jropes(1)       = 0.6
+w_jropes(1)       = 0.4
+current_jropes(1) = -1.0 ! 0.8d6 * 4.0 * 3.1415d-7
+
+R_jropes(2)    = 0.85
+Z_jropes(2)    = -0.6
+w_jropes(2)    = 0.4
+current_jropes(2) = -1.0 ! 0.8d6 * 4.0 * 3.1415d-7
+
+										  	    		     
+ R_geo    = 0.85
+ Z_geo    = 0.0
+										  	    		     
+ ellip    = 2.2
+ tria_u   = 0.
+ tria_l   = 0.
+ quad_u   = -0.5
+ quad_l   = -0.5
+ amin     = 0.8
+										  	    		     
+ xampl    = 0.0
+ xsig     = 0.6
+ xwidth   = 1.5
+ xtheta   = 4.7
+ xleft    = 0.0
+ xshift   = 0.0
+ xpoint   = .f.
+ xcase    = 0
+											    		     
+ R_begin  = 0.7
+ R_end    = 1.25
+ Z_begin  = -0.2
+ Z_end    = 0.2
+											    		     
+ F0       = 0.425
+											    		     
+ fix_axis_nodes = .t.
+
+ n_R       = 0!20
+ n_Z       = 0!40
+ n_radial  = 110 ! 50
+ n_pol     = 190 ! 70
+ n_flux    = 0
+											    
+ FF_0         = 0.0
+ FF_1         = 0.0
+ FF_coef(1)   = 0.0
+ FF_coef(2)   = 0.0
+ FF_coef(3)   = 0.0
+ FF_coef(4)   = 1.d-2
+ FF_coef(5)   = 2.d0
+ FF_coef(6)   = 0.0
+ FF_coef(7)   = 2.d0
+ FF_coef(8)   = 1.d-2
+
+ T_0          = 1.e-5
+ T_1          = 1.e-5
+ T_coef(1)    = 0.d0
+ T_coef(2)    = 0.d0
+ T_coef(3)    = 0.d0
+ T_coef(4)    = 1.d-2
+ T_coef(5)    = 1.d+3
+											    
+ central_density = 0.05
+ rho_0        = 1.0
+ rho_1        = 1.0
+ rho_coef(1)  = 0.d0
+ rho_coef(2)  = 0.d0
+ rho_coef(3)  = 0.d0
+ rho_coef(4)  = 1.d-2
+ rho_coef(5)  = 1.d+3
+											    
+ eta            = 1.d-5
+ visco          = 1.d-5
+ visco_par      = 1.d-5
+
+ D_par          = 0.d0
+ D_perp(1)      = 1.d-6
+ D_perp(2)      = 0.9d0
+ D_perp(3)      = 0.13d0
+ D_perp(4)      = 1.d-2
+ D_perp(5)      = 1.d+3
+
+ ZK_par         = 0.d+3
+ ZK_perp(1)     = 1.d-6
+ ZK_perp(2)     = 0.9d0
+ ZK_perp(3)     = 0.08d0
+ ZK_perp(4)     = 1.d-2
+ ZK_perp(5)     = 1.d+3
+
+ eta_num        = 1.d-14
+ visco_num      = 1.d-15
+ D_perp_num     = 1.d-15
+ ZK_perp_num    = 0.d-15
+
+ heatsource     = 0.d0
+ particlesource = 0.d0
+ 
+ /											    
+											    
+											    
+
+
+
+
+
+

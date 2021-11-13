@@ -546,7 +546,7 @@ do i=1,element_list%n_elements
       i_tor_old = i_tor
       i_tor     = 1
       ! compute all derivatives, as in loop below
-      if ((xjac .gt. 1.d-6)) then
+      if ( (xjac .gt. 1.d-6) .and. (jorek_model .ge. 100) ) then
 
         call interp(node_list,element_list,i,var_psi,i_tor,s,t,Ps0,Ps0_s,Ps0_t,Ps0_st,Ps0_ss,Ps0_tt)
         call interp(node_list,element_list,i,var_u,  i_tor,s,t,U0, U0_s, U0_t, U0_st, U0_ss, U0_tt)
@@ -684,6 +684,7 @@ do i=1,element_list%n_elements
           call interp(node_list,element_list,i,m,i_tor,s,t,P,P_s,P_t,P_st,P_ss,P_tt)
           scalars(inode,m) = P * HZ(i_tor,i_plane)
         enddo
+        if (jorek_model .lt. 100) cycle
         
         ! The real current density
         currdens(inode) = -scalars(inode,3)/BigR
@@ -1005,6 +1006,7 @@ do i=1,element_list%n_elements
              call interp(node_list,element_list,i,m,i_tor,s,t,P,P_s,P_t,P_st,P_ss,P_tt)
              scalars(inode,m) = scalars(inode,m) + P * HZ(i_tor,i_plane)
           enddo
+          if (jorek_model .lt. 100) cycle
           
           call interp_delta(node_list,element_list,i,var_psi,i_tor,s,t,dpsi,dPs_s, dPs_t, dPs_st, dPs_ss, dPs_tt)
           call interp_delta(node_list,element_list,i,var_u,  i_tor,s,t,dU,dU_s, dU_t, dU_st, dU_ss, dU_tt)         
@@ -1099,6 +1101,7 @@ do i=1,element_list%n_elements
           endif ! xjac
 
         enddo  ! end loop toroidal harmonics
+        if (jorek_model .lt. 100) cycle
 
         Psi_tot = 0.d0
         do i_tor =1, n_tor
@@ -1242,8 +1245,11 @@ enddo  ! n_elements
       Tion    = corr_neg_temp(T_real8,(/1.d-5,0.3/))/(2.d0)
       Te_corr_eV   = corr_neg_temp(T_real8)/(2.d0*EL_CHG*MU_ZERO*central_density*1.d20)
 
+      r0_real8  = scalars(i,5)
+      rn0_real8 = scalars(i,8)
+
       call atomic_coeff_deuterium(0.5d0*T_real8, Sion_T, dSion_dT, Srec_T, dSrec_dT,        &
-                                  LradDcont_T, dLradDcont_dT, LradDrays_T, dLradDrays_dT ) !< add scalars(i,5) as last optional parameter for density dependence
+                                  LradDcont_T, dLradDcont_dT, LradDrays_T, dLradDrays_dT,r0_real8,rn0_real8,.true. ) !< add scalars(i,5) as last optional parameter for density dependence
 
       eta_Sp = 1.65d-9*17*(1.d-3*Te_corr_eV)**(-1.5d0) &
                               *(central_mass*MASS_PROTON*central_density * 1.d20/MU_ZERO)**(0.5d0)
@@ -1256,7 +1262,6 @@ enddo  ! n_elements
       !--------------------------------------------------------
       ! --- Radiation from background impurity
       !--------------------------------------------------------   
-      r0_real8  = scalars(i,5)
       r0_corr   = corr_neg_dens(r0_real8)
 
       ne_SI = r0_corr * 1.d20 * central_density !electron density (SI)
@@ -1438,11 +1443,10 @@ enddo  ! n_elements
       Tion    = corr_neg_temp(T_real8,(/1.d-5,0.3/))/(2.d0)
       
       r0_real8  = scalars(i,5)
+      rn0_real8 = scalars(i,8)
 
       call atomic_coeff_deuterium(0.5d0*T_real8, Sion_T, dSion_dT, Srec_T, dSrec_dT,        &
-                                  LradDcont_T, dLradDcont_dT, LradDrays_T, dLradDrays_dT, r0_real8 )
-
-      rn0_real8 = scalars(i,8)
+                                  LradDcont_T, dLradDcont_dT, LradDrays_T, dLradDrays_dT, r0_real8, rn0_real8, .true. )
 
       r0_corr   = corr_neg_dens(r0_real8)
       rn0_corr  = corr_neg_dens(rn0_real8, (/ 0.d-5, 1.d-5 /))
@@ -1585,9 +1589,11 @@ if (SI_units) then
       Tion = corr_neg_temp(T_real8,(/1.d-5,0.3/))/(2.d0)
 
       Te_corr_eV = corr_neg_temp(T_real8)/(2.d0*EL_CHG*MU_zero*central_density*1.d20)
+      r0_real8  = scalars(i,5)
+      rn0_real8 = scalars(i,8)
 
       call atomic_coeff_deuterium(0.5d0*scalars(i,6), Sion_T, dSion_dT, Srec_T, dSrec_dT,        &
-                                  LradDcont_T, dLradDcont_dT, LradDrays_T, dLradDrays_dT ) 
+                                  LradDcont_T, dLradDcont_dT, LradDrays_T, dLradDrays_dT, r0_real8,rn0_real8,.true. ) 
 
       eta_Sp = 1.65d-9*17*(1.d-3*Te_corr_eV)**(-1.5d0)
   

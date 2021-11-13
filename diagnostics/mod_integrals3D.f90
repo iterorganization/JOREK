@@ -670,10 +670,14 @@ do ife = ife_min, ife_max
 ! ------------------------------------------
 #if ( (defined WITH_Neutrals) && (! defined WITH_Impurities) )
         ! --- Get ionization, recombination and radiation coefficients for Deuterium 
-        call atomic_coeff_deuterium(0.5d0*T0_corr, Sion_T, dSion_dT, Srec_T, dSrec_dT,        &
-                                            LradDcont_T, dLradDcont_dT, LradDrays_T, dLradDrays_dT, r0 ) 
-      
-      
+#ifdef WITH_TiTe
+        call atomic_coeff_deuterium  (   T0e, Sion_T, dSion_dT, Srec_T, dSrec_dT,        &
+                                            LradDcont_T, dLradDcont_dT, LradDrays_T, dLradDrays_dT, r0, rn0, .true. ) 
+#else
+        call atomic_coeff_deuterium(0.5d0*T0, Sion_T, dSion_dT, Srec_T, dSrec_dT,        &
+                                            LradDcont_T, dLradDcont_dT, LradDrays_T, dLradDrays_dT, r0, rn0, .true. ) 
+#endif
+     
         ! Get coefficient:  Prad,SI = coef_prad_si * Prad,jorek
         coef_prad_si = 1./((GAMMA-1)*MU_ZERO*(MU_ZERO*central_mass*MASS_PROTON*central_density*1.d20)**0.5) 
       
