@@ -114,7 +114,7 @@ real*8     :: coef_rec_1                                      ! Recombination ra
 !   -Radiation from injected gas/impurities
 real*8     :: LradDrays_T, dLradDrays_dT                      ! Line (/rays) radiation rate and its derivative wrt. temperature
 real*8     :: LradDcont_T, dLradDcont_dT                      ! Continuum (Brem.) radiation rate and its derivative wrt. T
-real*8     :: T_rad                                           ! Temperature used in radiation rate
+real*8     :: Te_corr_eV, Te_eV                               ! Temperature used in radiation rate
 real*8     :: ne_SI                                           ! Electron density used in radiation rate
 
 !   -Radiation from background impurities
@@ -761,18 +761,20 @@ do i=1,n_vertex_max
          !-----------------------------------------------------------------
 
           ne_SI = r0_corr * 1.d20 * central_density !electron density (SI)
-          T_rad = T0_corr/(2.d0*EL_CHG*MU_ZERO*central_density*1.d20)  ! Te in eV
+          Te_corr_eV = T0_corr/(2.d0*EL_CHG*MU_ZERO*central_density*1.d20)  ! Te in eV
+
+          Te_eV = T0/(2.d0*EL_CHG*MU_ZERO*central_density*1.d20)  ! Te in eV, uncorrected
 
           if (use_imp_adas) then  ! use open adas by default
             frad_bg = 0. 
             dfrad_bg_dT = 0.
             do i_imp =1, n_adas
               r_imp = nimp_bg(i_imp) / (1.d20 * central_density)  ! Background impurity density in JU     
-              if (ne_SI > ne_SI_min .and. T_rad > Te_eV_min .and. r_imp > 0) then
+              if (ne_SI > ne_SI_min .and. Te_eV > Te_eV_min .and. r_imp > 0) then
                 Lrad_imp = 0.0
                 dLrad_imp_dT = 0.0
                 call radiation_function_linear(imp_adas(i_imp),imp_cor(i_imp),log10(ne_SI),   & 
-                                               log10(T_rad*EL_CHG/K_BOLTZ),.true.,Lrad_imp,dLrad_imp_dT)
+                                               log10(Te_corr_eV*EL_CHG/K_BOLTZ),.true.,Lrad_imp,dLrad_imp_dT)
                 dLrad_imp_dT = dLrad_imp_dT * dT0_corr_dT            
               else     
                 Lrad_imp = 0.
@@ -794,10 +796,10 @@ do i=1,n_vertex_max
               Crad_bg = 0.8
       
               frad_bg     = (2./3.)*(1./(central_mass*MASS_PROTON))*((MU_ZERO*central_mass*MASS_PROTON*central_density*1.d20)**(1.5d0))            &
-                            *nimp_bg(1)*Arad_bg*exp(-((log(T_rad)-log(Brad_bg))**2.)/Crad_bg**2.)
+                            *nimp_bg(1)*Arad_bg*exp(-((log(Te_corr_eV)-log(Brad_bg))**2.)/Crad_bg**2.)
       
               dfrad_bg_dT = -(1./3.)*((MU_ZERO*central_mass*MASS_PROTON*central_density*1.d20)**(0.5d0))*(1./EL_CHG)                               &
-                            *2.*(nimp_bg(1)*Arad_bg/Crad_bg**2.)*(log(T_rad)-log(Brad_bg))*(1./T_rad)*exp(-((log(T_rad)-log(Brad_bg))**2.)/Crad_bg**2.)
+                            *2.*(nimp_bg(1)*Arad_bg/Crad_bg**2.)*(log(Te_corr_eV)-log(Brad_bg))*(1./Te_corr_eV)*exp(-((log(Te_corr_eV)-log(Brad_bg))**2.)/Crad_bg**2.)
             else
               write(*,*) "WARNING: hard-coded fitting doesn't exist for  ", trim(imp_type(1)), ", use open adas instead!"
               stop
