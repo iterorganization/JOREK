@@ -20,6 +20,7 @@ use basis_at_gaussian
 use phys_module
 use pellet_module
 use corr_neg
+use mod_sources
 
 implicit none
 
@@ -39,7 +40,7 @@ integer    :: i, j, ms, mt, mp, k, l, index_ij, index_kl, index, index_k, index_
 integer    :: n_tor_start, n_tor_end, n_tor_local, n_tor_loop
 integer    :: in, im, ij, kl
 real*8     :: wst, xjac, xjac_s, xjac_t, xjac_x, xjac_y, BigR, r2, phi, delta_phi
-real*8     :: particle_source(n_gauss,n_gauss)
+real*8     :: particle_source(n_gauss,n_gauss), heat_source(n_gauss,n_gauss)
 real*8     :: R_axis, Z_axis, psi_axis, psi_bnd, R_xpoint(2), Z_xpoint(2)
 real*8     :: D_prof, theta, zeta, delta_u_x, delta_u_y
 real*8     :: rhs_ij(n_var), rhs_ij_k(n_var)

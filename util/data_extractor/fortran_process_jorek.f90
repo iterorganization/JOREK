@@ -1571,6 +1571,19 @@ subroutine define_jorek_variable_names(jorek_model,variable_names)
     variable_names(1)  = ''
   enddo
 
+  if (jorek_model .eq. 002) then
+    variable_names(1)  = 'Phi'
+    variable_names(2)  = 'w'
+    variable_names(3)  = 'rho'
+  endif
+
+  if (jorek_model .eq. 003) then
+    variable_names(1)  = 'Phi'
+    variable_names(2)  = 'w'
+    variable_names(3)  = 'rho'
+    variable_names(3)  = 'T'
+  endif
+
   if (jorek_model .ge. 199) then
     variable_names(1)  = 'psi'
     variable_names(2)  = 'Phi'

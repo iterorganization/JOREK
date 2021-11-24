@@ -939,6 +939,12 @@ required = 0
     
     if ( freeboundary ) call update_response(my_id,tstep, freeboundary_equil, resistive_wall)
 
+    ! ---- For now running the jorek2_main should not include aux inputs
+    do i = 1, aux_node_list%n_nodes
+      aux_node_list%node(i)%values = 0.d0
+      aux_node_list%node(i)%deltas = 0.d0
+    enddo
+
     if ( my_id == 0 ) then
       write(*,*) '******************************************************'
       write(*,'(A17,3i7,2f14.5,A)') ' *   time step : ',jstep,istep,index_now,tstep,tstep_prev,'  *'
