@@ -191,8 +191,14 @@ pure function proj_Pressure(sim, group, particle)
   class(particle_base), intent(in) :: particle
   real*8 :: proj_Pressure
   select type (p => particle)
+  type is (particle_kinetic)
+    proj_Pressure = sim%groups(group)%mass * atomic_mass_unit * dot_product(p%v,p%v)/3.d0
   type is (particle_kinetic_leapfrog)
     proj_Pressure = sim%groups(group)%mass * atomic_mass_unit * dot_product(p%v,p%v)/3.d0
+  type is (particle_gc_vpar)
+    proj_Pressure = sim%groups(group)%mass * atomic_mass_unit * (p%vpar**2 + 2.d0 * p%mu * p%B_norm)/3.d0
+  type is (particle_gc_Qin)
+    proj_Pressure = sim%groups(group)%mass * atomic_mass_unit * (p%vpar**2 + 2.d0 * p%mu * p%B_norm)/3.d0
   class default
     proj_Pressure = 0.d0
   end select
