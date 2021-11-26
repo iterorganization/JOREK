@@ -405,6 +405,8 @@ subroutine initialise_particles_H_mu_psi(particles, fields, rng_base, mass, T_ma
       allocate(particle_kinetic_leapfrog::particles_tmp(blocksize))
     type is (particle_gc)
       allocate(particle_gc::particles_tmp(blocksize))
+    type is (particle_gc_vpar)
+      allocate(particle_gc_vpar::particles_tmp(blocksize))
     class default
       write(*,*) "ERROR: particle type not supported yet for initialize_particles_H_mu_psi"
       call exit(1)
@@ -555,7 +557,7 @@ subroutine initialise_particles_H_mu_psi(particles, fields, rng_base, mass, T_ma
         select type(p => particles_tmp(i))
         type is (particle_kinetic_leapfrog)
 
-! the generic copy of particle_kinetic_leapfrog, i.e p = ..., seems broken, therefor a using yhe non-generic copy
+! the generic copy of particle_kinetic_leapfrog, i.e p = ..., seems broken, therefor a using the non-generic copy
 
           call copy_particle_kinetic_leapfrog( &
                  kinetic_to_kinetic_leapfrog(gc_to_kinetic(fields%node_list, fields%element_list, particle, chi, B, mass), &
@@ -565,7 +567,15 @@ subroutine initialise_particles_H_mu_psi(particles, fields, rng_base, mass, T_ma
           ! if the kinetic position is not in the grid particles(i)%i_elm the particle is lost
           if (p%i_elm .le. 0) found(i) = .false.
         type is (particle_gc)
-          p = particle
+          p = particle       
+        type is (particle_gc_vpar)
+          p%x      = particle%x
+          p%st     = particle%st
+          p%weight = particle%weight
+          p%i_elm  = particle%i_elm
+          p%vpar   = sqrt(2.d0 * (particle%E - abs(particle%mu) * norm2(B)) * EL_CHG / (mass*ATOMIC_MASS_UNIT)) * sign(1.d0,particle%mu)
+          p%mu     = particle%mu
+          p%B_norm = norm2(B)
         end select
       else
         found(i) = .false.
@@ -590,6 +600,11 @@ subroutine initialise_particles_H_mu_psi(particles, fields, rng_base, mass, T_ma
         type is (particle_gc)
           select type (p2 => particles_tmp(j))
           type is (particle_gc)
+            p1 = p2
+          end select
+        type is (particle_gc_vpar)
+          select type (p2 => particles_tmp(j))
+          type is (particle_gc_vpar)
             p1 = p2
           end select
         end select

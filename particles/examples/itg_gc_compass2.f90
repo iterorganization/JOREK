@@ -84,7 +84,7 @@ n_particle_out = -1
 
 compensate_n0_field = .false.
 
-call sim%initialize(num_groups=2)
+call sim%initialize(num_groups=1)
 
 if (sim%my_id .eq. 0) write(*,*) 'RESTART = ',restart
 
@@ -164,7 +164,7 @@ if (.not. restart_particles) then
 
   allocate(particle_gc_vpar::sim%groups(1)%particles(n_particles_local))
 
-  call initialise_particles_H_mu_psi(sim%groups(1)%particles, sim%fields, sobseq_rng(),sim%groups(2)%mass, &
+  call initialise_particles_H_mu_psi(sim%groups(1)%particles, sim%fields, sobseq_rng(),sim%groups(1)%mass, &
                                      uniform_space=.true., uniform_space_rej_f=f_density, &
                                      uniform_space_rej_vars=[1], charge = 1)
 
