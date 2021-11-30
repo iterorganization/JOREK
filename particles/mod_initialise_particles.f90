@@ -238,6 +238,7 @@ subroutine initialise_particles_H_mu_psi(particles, fields, rng_base, mass, T_ma
   use phys_module, only: F0, central_density
   use mod_coronal
   use mod_boris, only: gc_to_kinetic_leapfrog, kinetic_to_kinetic_leapfrog, gc_to_kinetic
+  use mod_gc_variational, only: convert_gc_to_gc_vpar
   use mpi
   use mod_interp
   implicit none
@@ -569,13 +570,7 @@ subroutine initialise_particles_H_mu_psi(particles, fields, rng_base, mass, T_ma
         type is (particle_gc)
           p = particle       
         type is (particle_gc_vpar)
-          p%x      = particle%x
-          p%st     = particle%st
-          p%weight = particle%weight
-          p%i_elm  = particle%i_elm
-          p%vpar   = sqrt(2.d0 * (particle%E - abs(particle%mu) * norm2(B)) * EL_CHG / (mass*ATOMIC_MASS_UNIT)) * sign(1.d0,particle%mu)
-          p%mu     = particle%mu
-          p%B_norm = norm2(B)
+          call convert_gc_to_gc_vpar(particle, norm2(B), mass, p)
         end select
       else
         found(i) = .false.

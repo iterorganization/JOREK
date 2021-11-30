@@ -167,7 +167,7 @@ if (.not. restart_particles) then
   call initialise_particles_H_mu_psi(sim%groups(1)%particles, sim%fields, sobseq_rng(),sim%groups(1)%mass, &
                                      uniform_space=.true., uniform_space_rej_f=f_density, &
                                      uniform_space_rej_vars=[1], charge = 1)
-
+ 
   call density_integral(sim%fields%node_list,sim%fields%element_list,f_density,min(psi_axis,psi_bnd),max(psi_axis,psi_bnd),total_particles,total_volume) 
   call density_integral(sim%fields%node_list,sim%fields%element_list,f_density,min(psi_axis,psi_bnd),max(psi_axis,psi_bnd),fraction_particles,total_volume)
 
@@ -175,6 +175,10 @@ if (.not. restart_particles) then
   fraction_particles = fraction_particles * zn_norm
   rho_part           = fraction_particles
   if (sim%my_id .eq. 0) write(*,'(A,8e14.6)') ' total/fraction particles, volume : ',total_particles, fraction_particles, total_volume
+
+  call adjust_particle_weights(sim%groups(1)%particles, rho_part)
+  if (sim%my_id .eq. 0) write(*,'(A,2e14.6)') ' Particle density was adjusted to : ', rho_part, sim%groups(1)%particles(1)%weight
+
 
   call with(sim, counter)
 
@@ -493,6 +497,7 @@ if (sim%my_id .eq. 0) write(*,*) 'starting loop gc : ',size(particles,1),n_phase
    do j=1,size(particles,1)
 
     call copy_particle_gc_vpar(particles(j),particle_tmp)
+
     !  i_rng = 1
     !$ i_rng = omp_get_thread_num()+1
 
@@ -531,6 +536,7 @@ if (sim%my_id .eq. 0) write(*,*) 'starting loop gc : ',size(particles,1),n_phase
                 v   = HH(l,m) * sim%fields%element_list%element(i_elm)%size(l,m) * particle_tmp%weight
 
                 do i_tor=1,n_tor
+                  !$omp atomic
                   jorek_feedback%rhs(m,l,i_elm,i_tor,1) = jorek_feedback%rhs(m,l,i_elm,i_tor,1) + HHZ(i_tor) * v  
                 enddo
     

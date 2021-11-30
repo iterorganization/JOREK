@@ -23,8 +23,38 @@ particle_out%vpar  = particle_in%vpar
 particle_out%st    = particle_in%st
 particle_out%q     = particle_in%q
 particle_out%weight= particle_in%weight
+particle_out%B_norm= particle_in%B_norm
 
 return
+end
+
+subroutine convert_gc_to_gc_vpar(particle_in, B_norm, mass, particle_out)
+  implicit none
+
+  type(particle_gc), intent(in) :: particle_in
+  real*8, intent(in)            :: B_norm      !< Norm magnetic field at  guiding (gyro) center position [T]
+  real*8, intent(in)            :: mass        !< Mass of the particle [amu]
+  type(particle_gc_vpar)        :: particle_out
+
+  real*8 :: v2, v_par
+
+  particle_out%i_elm  = particle_in%i_elm
+  particle_out%x      = particle_in%x
+  particle_out%st     = particle_in%st
+  particle_out%q      = particle_in%q
+  particle_out%weight = particle_in%weight
+
+!  out%E  = mass * ATOMIC_MASS_UNIT * 0.5d0 * v2 / EL_CHG ! [eV]
+!  mu     = mass * ATOMIC_MASS_UNIT * 0.5d0 * (v2 - v_par**2)/B_norm/EL_CHG
+
+  v2 = 2.d0 * particle_in%E * EL_CHG / (mass*ATOMIC_MASS_UNIT) ![m/s]
+
+  v_par = sqrt(v2 - 2 * particle_in%mu * B_norm * EL_CHG /  (mass * ATOMIC_MASS_UNIT))    
+
+  particle_out%vpar   = sign(v_par, particle_in%mu)
+  particle_out%mu     = abs(particle_in%mu) * EL_CHG / (mass*ATOMIC_MASS_UNIT)
+  particle_out%B_norm = B_norm
+
 end
 
 subroutine convert_leapfrog_to_gc_vpar(node_list, element_list, particle_in, B, mass, particle_out)

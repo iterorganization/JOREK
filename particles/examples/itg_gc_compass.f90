@@ -167,6 +167,9 @@ if (.not. restart_particles) then
   allocate(particle_kinetic_leapfrog::sim%groups(2)%particles(n_particles_local))
   allocate(particle_gc_vpar::sim%groups(1)%particles(n_particles_local))
 
+  call initialise_particles_H_mu_psi(sim%groups(1)%particles, sim%fields, sobseq_rng(),sim%groups(1)%mass, &
+                                     uniform_space=.true., uniform_space_rej_f=f_density, &
+                                     uniform_space_rej_vars=[1], charge = 1)
   call initialise_particles_H_mu_psi(sim%groups(2)%particles, sim%fields, sobseq_rng(),sim%groups(2)%mass, &
                                      uniform_space=.true., uniform_space_rej_f=f_density, &
                                      uniform_space_rej_vars=[1], charge = 1)
@@ -179,15 +182,18 @@ if (.not. restart_particles) then
   rho_part           = fraction_particles
   if (sim%my_id .eq. 0) write(*,'(A,8e14.6)') ' total/fraction particles, volume : ',total_particles, fraction_particles, total_volume
 
+  call adjust_particle_weights(sim%groups(1)%particles, rho_part)
   call adjust_particle_weights(sim%groups(2)%particles, rho_part)
-  if (sim%my_id .eq. 0) write(*,'(A,2e14.6)') ' Particle density was adjusted to : ', rho_part, sim%groups(2)%particles(1)%weight
+
+  if (sim%my_id .eq. 0) write(*,'(A,2e14.6)') ' Particle density (1) was adjusted to : ', rho_part, sim%groups(1)%particles(1)%weight
+  if (sim%my_id .eq. 0) write(*,'(A,2e14.6)') ' Particle density (2) was adjusted to : ', rho_part, sim%groups(2)%particles(1)%weight
 
   select type (p_lf => sim%groups(2)%particles)
   type is (particle_kinetic_leapfrog)  
     select type (p_gc => sim%groups(1)%particles)
     type is (particle_gc_vpar)  
-  
-      do i=1, n_particles_local
+
+      do i=1, n_particles_local    
         call sim%fields%calc_EBpsiU(sim%time, p_lf(i)%i_elm, p_lf(i)%st, p_lf(i)%x(3), E, B, psi, U)
         call convert_leapfrog_to_gc_vpar(sim%fields%node_list, sim%fields%element_list, p_lf(i), B, sim%groups(1)%mass, p_gc(i))
       enddo
@@ -201,12 +207,12 @@ endif ! not restart
 
 ! SHOULD MAKE PROFILES USING THE MULTIPLE KINETIC POINTS PER GYROCENTRE
 
-project_profiles = new_projection(sim%fields%node_list, sim%fields%element_list, &
-                      filter    = filter_perp,    filter_hyper    = filter_hyper,    filter_parallel    = filter_par, &
-                      filter_n0 = filter_perp_n0, filter_hyper_n0 = filter_hyper_n0, filter_parallel_n0 = filter_par_n0, &
-                      f=[proj_f(proj_one, group = 1),proj_f(proj_Pressure, group = 1)], fractional_digits = 9,  &
-                      do_zonal = .false., calc_integrals=.true., to_vtk=.true., to_h5=.false., basename='profiles', nsub=5)
-call with(sim, project_profiles)
+!project_profiles = new_projection(sim%fields%node_list, sim%fields%element_list, &
+!                      filter    = filter_perp,    filter_hyper    = filter_hyper,    filter_parallel    = filter_par, &
+!                      filter_n0 = filter_perp_n0, filter_hyper_n0 = filter_hyper_n0, filter_parallel_n0 = filter_par_n0, &
+!                      f=[proj_f(proj_one, group = 1),proj_f(proj_Pressure, group = 1)], fractional_digits = 9,  &
+!                      do_zonal = .false., calc_integrals=.true., to_vtk=.true., to_h5=.false., basename='profiles', nsub=5)
+!call with(sim, project_profiles)
 
 !do j=1, project_profiles%node_list%n_nodes
 !  sim%fields%node_list%node(j)%values(1,:,5) = project_profiles%node_list%node(j)%values(1,:,1) / (central_density * 1d20)     
@@ -367,7 +373,7 @@ do i=1, nstep_particles
   
     call export_restart(sim%fields%node_list, sim%fields%element_list, fileout)
 
-    call with(sim, project_profiles)
+!    call with(sim, project_profiles)
 
   endif
 
