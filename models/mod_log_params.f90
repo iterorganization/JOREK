@@ -615,6 +615,7 @@ write(*,'(1x,a)',advance='no') ' USE_COMPLEX_PRECOND          : '
     write(*,REAL_FMT) 'FB_Ip_position        ', FB_Ip_position
     write(*,REAL_FMT) 'FB_Ip_integral        ', FB_Ip_integral
     write(*,REAL_FMT) 'Z_axis_ref            ', Z_axis_ref
+    write(*,REAL_FMT) 'R_axis_ref            ', R_axis_ref
     write(*,REAL_FMT) 'FB_Zaxis_position     ', FB_Zaxis_position
     write(*,REAL_FMT) 'FB_Zaxis_derivative   ', FB_Zaxis_derivative
     write(*,REAL_FMT) 'FB_Zaxis_integral     ', FB_Zaxis_integral
@@ -629,7 +630,9 @@ write(*,'(1x,a)',advance='no') ' USE_COMPLEX_PRECOND          : '
     end do
     write(*,*)
     if ( n_pf_coils > 0 ) &
-      write(*,REAL_FMT,advance='no') 'vert_FB_amp           ', vert_FB_amp(n_pf_coils)
+        write(*,REAL_FMT) 'vert_FB_amp           ', vert_FB_amp(1:n_pf_coils)
+    if ( n_pf_coils > 0 ) &
+        write(*,REAL_FMT) 'rad_FB_amp           ', rad_FB_amp(1:n_pf_coils)
     write(*,REAL_FMT,advance='no') 'pf_coils%pert         '
     do i = 1, n_pf_coils
       write(*,'(10ES12.4)',advance='no') pf_coils(i)%pert

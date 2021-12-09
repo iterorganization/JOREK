@@ -66,7 +66,9 @@ integer, parameter :: var_rho_imp  = sum(merge((/n_var_base+sum(n_var_ext(1:4))+
 integer, parameter :: var_AR   = 0
 integer, parameter :: var_AZ   = 0
 integer, parameter :: var_A3   = 0
-
+integer, parameter :: var_uR   = 0
+integer, parameter :: var_uZ   = 0
+integer, parameter :: var_up   = 0
 ! --- Element matrix and element matrix fft combined?
 logical, parameter :: unified_element_matrix = .true.
 

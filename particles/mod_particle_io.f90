@@ -41,8 +41,9 @@ character(len=particle_type_name_length) :: particle_type_name
 integer                       :: i, j, hdferr, iZ
 type(c_ptr) :: p_ptr
 real*8, dimension(:,:), allocatable :: x, v, x_all, v_all, st, st_all, P1, P1_all
-real*8, dimension(:), allocatable   :: Vpar, E, mu, v1, Vpar_all, E_all, mu_all, v1_all
-real*4, dimension(:), allocatable   :: weight, weight_all, t_birth, t_birth_all
+real*8, dimension(:), allocatable   :: weight,weight_all,Vpar, E, mu, v1, Vpar_all
+real*8, dimension(:), allocatable   :: E_all, mu_all, v1_all
+real*4, dimension(:), allocatable   :: t_birth, t_birth_all
 integer, dimension(:), allocatable  :: i_elm, i_elm_all, i_life, i_life_all
 integer, dimension(:), allocatable  :: q, q_all, lost, lost_all
 
@@ -124,9 +125,9 @@ if (allocated(sim%groups)) then
     do j=1,n_here
       weight(j) = sim%groups(i)%particles(j)%weight
     end do
-    call MPI_Gatherv(weight(:), n_here, MPI_REAL4, &
+    call MPI_Gatherv(weight(:), n_here, MPI_REAL8, &
       weight_all(:), particles_per_proc, [(sum(particles_per_proc(1:i),1), i=0,n_cpu-1)], &
-      MPI_REAL4, 0, MPI_COMM_WORLD, ierr)
+      MPI_REAL8, 0, MPI_COMM_WORLD, ierr)
 
     ! i_elm
     allocate(i_elm(n_here), i_elm_all(n_total))
@@ -401,7 +402,7 @@ if (allocated(sim%groups)) then
     if (my_id .eq. 0) then
       call HDF5_array2D_saving(file,x_all,3,n_total,group_name//"x")
       call HDF5_array2D_saving(file,st_all,2,n_total,group_name//"st")
-      call HDF5_array1D_saving_r4(file,weight_all,n_total,group_name//"weight")
+      call HDF5_array1D_saving(file,weight_all,n_total,group_name//"weight")
       call HDF5_array1D_saving_int(file,i_elm_all,n_total,group_name//"i_elm")
       call HDF5_array1D_saving_int(file,i_life_all,n_total,group_name//"i_life")
       call HDF5_array1D_saving_r4(file,t_birth_all,n_total,group_name//"t_birth")
@@ -567,12 +568,12 @@ do i=1,n
   deallocate(real8_2D)
 
   ! weight
-  allocate(real4_1D(n_here))
-  call HDF5_array1D_reading_r4(file, real4_1D, group_name//"weight",start=[i_here])
+  allocate(real8_1D(n_here))
+  call HDF5_array1D_reading(file, real8_1D, group_name//"weight",start=[i_here])
   do j=1,n_here
-    sim%groups(i)%particles(j)%weight = real4_1D(j)
+    sim%groups(i)%particles(j)%weight = real8_1D(j)
   end do
-  deallocate(real4_1D)
+  deallocate(real8_1D)
   ! i_elm
   allocate(int4_1D(n_here))
   call HDF5_array1D_reading_int(file, int4_1D, group_name//"i_elm", start=[i_here])

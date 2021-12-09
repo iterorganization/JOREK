@@ -55,11 +55,15 @@ program JOREK2
 #ifdef USE_STRUMPACK
   use strumpack_module
 #endif
+#ifdef USE_PASTIX6
+  use mod_pastix, only: pastix_finalize
+#endif
   use preconditioner_module
   use mod_distribute_preconditioner
   use direct_construction_mod
   use centralization_mod
   use mod_exchange_indices
+  use mod_gmres, only: gmres_driver
 
 ! these write additional live data (global data) used when an ECCD current is applied)
 #ifdef JECCD
@@ -95,12 +99,6 @@ program JOREK2
 #include "r3_info.h"
   
   interface
-
-    subroutine gmres_driver(my_id,my_id_n,MPI_COMM_N,MPI_COMM_MASTER,iter_gmres)
-      integer :: my_id, my_id_n, MPI_COMM_N, MPI_COMM_MASTER
-      integer :: iter_gmres
-    end subroutine gmres_driver
-    
     subroutine equilibrium(my_id,node_list,element_list,bnd_node_list,bnd_elm_list,xpoint2,xcase2, nice_q)
       use data_structure
       integer(kind=4),             intent(in)    :: my_id
@@ -271,7 +269,7 @@ required = 0
   call MPI_Barrier(MPI_COMM_WORLD,ierr)
 
 
-#if (!defined (USE_PASTIX))&&(!defined (USE_PASTIX6))
+#if (!defined(USE_PASTIX))&&(!defined(USE_PASTIX6))
   if (use_pastix.or.use_pastix_eq) then
     write(*,*) ' FATAL : use_pastix requires defined USE_PASTIX or USE_PASTIX6'
     call MPI_Abort(MPI_COMM_WORLD, 3, ierr)
@@ -389,13 +387,6 @@ required = 0
     write(*,*) ' FATAL: n_tor_fft_thresh < 2 presently not allowed. Will cause problems for n_tor=1.'
     call MPI_Abort(MPI_COMM_WORLD, 5, ierr)
     stop
-  else if ( use_pastix ) then
-#ifdef USE_PASTIX6
-    if (n_cpu /= ((n_tor-1)/2+1)) then
-      write(*,*) 'FATAL : Pastix6 is not yet MPI parallelised (Pastix 6.0)! Please use #procs = (n_tor+1)/2.'
-      call MPI_Abort(MPI_COMM_WORLD, 6, ierr)
-    endif
-#endif
   else if ( use_wsmp ) then
 #ifdef USE_BLOCK
     write(*,*) 'FATAL : USE_BLOCK=1 in Makefile.inc is currently not possible with use_wsmp'
@@ -440,12 +431,11 @@ required = 0
   write(*,*) 'WARNING: You are not using USE_FFTW=1 which might be inefficient.'
   write(*,*) '  Consider setting USE_FFTW=1 in your Makefile.inc'
 #endif
-#ifndef USE_PASTIX6
   if (use_pastix .and. use_BLR_compression) then
     write(*,*) 'WARNING: PaStiX versions before 6.x do not support BLR compression.'
     write(*,*) '  No compression will be used in this run.'
   endif
-#endif
+
   if (nstep .gt. 0)   call check_preconditioner_consistency
   
   ! --- Initialize live data file which will be filled during the code run
@@ -726,11 +716,10 @@ required = 0
     mumps_par%JOB = -2
     if (my_id == 0) call DMUMPS(mumps_par)
 #endif
-#ifndef USE_PASTIX6
     ! -- For PaStiX solver before version 6.x
     if (allocated(pastix_perm_vars))  call tr_deallocate(pastix_perm_vars,"pastix_perm_vars",CAT_UNKNOWN)
     if (allocated(pastix_iperm_vars)) call tr_deallocate(pastix_iperm_vars,"pastix_iperm_vars",CAT_UNKNOWN)
-#endif
+
   end if if_not_restart
   
   ! --- Print some grid information
@@ -1031,7 +1020,9 @@ required = 0
         call solve_strumpack_all(n_cpu,my_id,index_min(my_id+1),index_max(my_id+1))
 #endif
       elseif (use_pastix) then
+#if defined(USE_PASTIX) || defined(USE_PASTIX6)     
          call solve_pastix_all(n_cpu,my_id,index_min(my_id+1),index_max(my_id+1))
+#endif
       endif
 
     else
@@ -1091,7 +1082,12 @@ required = 0
         call solve_matrix_n_spk(my_id,MPI_COMM_N,MPI_COMM_MASTER,solve_only)
 #endif
       else
+#if defined(USE_PASTIX) || defined(USE_MUMPS)
         call solve_matrix_n(my_id,MPI_COMM_N,MPI_COMM_MASTER,solve_only) ! factorise preconditioning matrices
+#endif
+#if defined(USE_PASTIX6)
+        call solve_matrix_n_ptx(my_id,MPI_COMM_N,MPI_COMM_MASTER,solve_only)
+#endif
       endif
 
 
@@ -1371,9 +1367,14 @@ required = 0
     endif
 #endif
 
-#if defined(USE_PASTIX)||defined(USE_PASTIX6)
+#ifdef USE_PASTIX6
     if (use_pastix) then
-#ifndef USE_PASTIX6
+      call pastix_finalize()
+    endif
+#endif
+
+#if defined(USE_PASTIX)
+    if (use_pastix) then
       ! -- For PaStiX solver before version 6.x
       pastix_iparm(2)     = 7                       ! Clean-up
       pastix_iparm(3)     = 7
@@ -1386,12 +1387,6 @@ required = 0
           DUMMY_INT,DUMMY_INT,DUMMY_REAL,                       &
           pastix_perm_vars,pastix_iperm_vars,mumps_par%rhs,1,pastix_iparm,pastix_dparm)
       endif
-#else
-      ! -- For PaStiX solver version 6.x
-      if (.not. gmres .or. ( (.not. pastix_smp_only) .or. (pastix_smp_only .and. (my_id_n .eq.0)) ) ) then
-        call pastixFinalize(pastix_data)
-      endif
-#endif
     endif
 #endif
 

@@ -47,7 +47,7 @@ real*8     :: zjz, dj_dpsi, dj_dR, dj_dZ, dj_dR_dZ, dj_dR_DR, dj_dZ_dZ, dj_dpsi2
 real*8     :: ps0_s, ps0_t, p_s, p_t, p_ss, p_st, p_tt 
 real*8     :: zj0_s, zj0_t, equil_error, equil_value, ps0_x, ps0_y, Z_s, Z_t, xjac, direction, Btot
 real*8     :: current_tot, current_int, diff, R_xpoint2(2), Z_xpoint2(2)
-real*8     :: sigmas(16), dZ_axis, Z_axis_int, Z_axis_old, area_ref
+real*8     :: sigmas(16), dZ_axis, dR_axis, Z_axis_int, Z_axis_old, R_axis_old, R_axis_int, area_ref
 integer    :: n_grids(12)
 logical    :: freeboundary_equil2
 real*8     :: T_prof, T_0_old, FF_0_old, T_1_old, FF_1_old
@@ -66,7 +66,6 @@ if (my_id .eq. 0) then
   write(*,*) '   Xcase        : ',xcase2
 
   if ((newton_GS_fixbnd .or. newton_GS_freebnd) .and. (use_pastix_eq)) then
-#ifndef USE_PASTIX6
     write(*,*) ' '
     write(*,*) ' WARNING: PASTIX 5 IS NOT EFFICIENT FOR THE GRAD-SHAFRANOV SOLVER'
     write(*,*) '           WITH THE NEWTON METHOD. PLEASE USE PASTIX 6,          '
@@ -74,7 +73,6 @@ if (my_id .eq. 0) then
     write(*,*) '           (add use_mumps_eq=.t. to namelist and  USE_MUMPS = 1  '
     write(*,*) '           in Makefile.inc)                                      '
     write(*,*) ' '
-#endif
   endif
 
   if ((newton_GS_fixbnd .or. newton_GS_freebnd) .and. (.not. xpoint2)) then
@@ -185,7 +183,7 @@ end if ! my_id == 0
 !--------------------------------------- freeboundary equilibrium
 freeboundary_equil = freeboundary_equil2
 
-current_int = 0.d0; Z_axis_int = 0.d0
+current_int = 0.d0; Z_axis_int = 0.d0; R_axis_int = 0.d0
  
 T_0_old = T_0;  FF_0_old = FF_0;  T_1_old = T_1;  FF_1_old = FF_1
 
@@ -303,23 +301,34 @@ if (freeboundary_equil) then
       
       !Vertical feedback - needed for vertically unstable plasmas        
       Z_axis_int = Z_axis_int + (ES%Z_axis - Z_axis_ref)
+      R_axis_int = R_axis_int + (ES%R_axis - R_axis_ref)
       if (iter .eq. 1) then
         dZ_axis = 0.d0
+        dR_axis = 0.d0
       else
         dZ_axis = ES%Z_axis - Z_axis_old
+        dR_axis = ES%R_axis - R_axis_old
       end if
+
     
       if ((mod(iter,n_feedback_vertical) .eq. 0) .and. (iter .ge. start_VFB) .and. (.not. newton_GS_freebnd) ) then
         vertical_FB = FB_Zaxis_position   * (ES%Z_axis-Z_axis_ref) &   ! vertical_FB is used in vacuum_equilibrium.f90 to modify the coils current
                     + FB_Zaxis_integral   * Z_axis_int          &   
                     + FB_Zaxis_derivative * dZ_axis
+        radial_FB = FB_Zaxis_position   * (ES%R_axis-R_axis_ref) &   ! radial_FB is used in vacuum_equilibrium.f90 to modify the coils current
+                    + FB_Zaxis_integral   * R_axis_int          &   
+                    + FB_Zaxis_derivative * dR_axis
+
       endif
         
-        Z_axis_old = ES%Z_axis
+      Z_axis_old = ES%Z_axis
+      R_axis_old = ES%R_axis
        
     end if ! my_id == 0
     
+    if (R_axis_ref<0) radial_FB=0.d0
     call MPI_bcast(vertical_FB, 1, MPI_DOUBLE_PRECISION,  0, MPI_COMM_WORLD,ierr)
+    call MPI_bcast(radial_FB, 1, MPI_DOUBLE_PRECISION,  0, MPI_COMM_WORLD,ierr)
   
     ! --- Iterate equation
     call poisson(my_id,-1,node_list,element_list,bnd_node_list,bnd_elm_list,3,1,1, &

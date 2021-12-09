@@ -188,7 +188,11 @@ contains
             ji = indx0(j)
             if (distribute) then
               nr = ranks_per_family(j)
+#ifdef USE_STRUMPACK              
               ji =  ji + min((irn_glob(i)-Int1)/n_per_rank(j), nr-1) ! row bin index for j-th family
+#elif USE_PASTIX6
+              ji =  ji + min((jcn_glob(i)-Int1)/n_per_rank(j), nr-1) ! column bin index for j-th family
+#endif
             endif
             indx(ji) = indx(ji) + 1
             Asnd_buffer(indx(ji)) = A_glob(i)
@@ -214,7 +218,11 @@ contains
                   ji = indx0(j)
                   if (distribute) then
                     nr = ranks_per_family(j)
+#ifdef USE_STRUMPACK
                     ji =  ji + min((irn_glob(i)-1)/n_per_rank(j), nr-1) ! row bin index for j-th family
+#elif USE_PASTIX6
+                    ji =  ji + min((jcn_glob(i)-1)/n_per_rank(j), nr-1) ! row bin index for j-th family
+#endif                          
                   endif
                   indx(ji) = indx(ji) + 1
                   Asnd_buffer(indx(ji)) = A_glob(i)
@@ -353,7 +361,11 @@ contains
               ji = indx0(j)
               if (distribute) then
                 nr = ranks_per_family(j)
+#ifdef USE_STRUMPACK
                 ji =  ji + min((irn_glob(i)-Int1)/n_per_rank(j), nr-1) ! row bin index for j-th family
+#elif USE_PASTIX6
+                ji =  ji + min((jcn_glob(i)-Int1)/n_per_rank(j), nr-1) ! column bin index for j-th family
+#endif                
               endif
               long_send_counts(ji) = long_send_counts(ji) + 1
             endif

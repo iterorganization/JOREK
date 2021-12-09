@@ -360,7 +360,7 @@ subroutine do_jorek_timestep(this, sim, ev)
   use vacuum
   use vacuum_response,         only: update_response
   use mod_fields_linear
-  use mod_gmres_driver
+  use mod_gmres,               only: gmres_driver
   use mod_expression,          only: exprs_all_int, init_expr
   use mod_integrals3D
   use pellet_module,           only: update_spi
@@ -488,9 +488,13 @@ subroutine do_jorek_timestep(this, sim, ev)
 
   if (.not. gmres) then
     if (use_mumps) then
+#ifdef USE_MUMPS    
       call solve_mumps_all(sim%my_id)
+#endif      
     else
+#if defined(USE_PASTIX) || defined(USE_PASTIX6)    
       call solve_pastix_all(sim%n_cpu,sim%my_id,this%index_min(sim%my_id+1),this%index_max(sim%my_id+1))
+#endif      
     endif
   else
     call clck_time(t0)

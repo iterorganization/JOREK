@@ -19,16 +19,12 @@ use mpi_mod
 use mod_interp
 use mod_basisfunctions
     use mod_integer_types
-#ifdef USE_PASTIX6
-! -- For PaStiX solver version 6.x
-use iso_c_binding
-use pastixf
-use pastix_enums
-use spmf
-#endif
 
 #ifdef USE_STRUMPACK
 use strumpack_module
+#endif
+#ifdef USE_PASTIX6
+use mod_pastix
 #endif
 
 implicit none
@@ -79,17 +75,6 @@ integer, dimension(n_vertex_max) :: node_out
 integer:: nnz, ierr
 integer*8 :: check_data
 character*8 :: type
-
-#ifdef USE_PASTIX6
-! -- For PaStiX solver version 6.x
-integer(c_int)     :: pastix_info
-type(c_ptr)        :: pastix_rhs_ptr
-type(c_ptr)        :: pastix_x_ptr
-real(kind=c_double)    , dimension(:), allocatable, target :: pastix_rhs
-integer(kind=spm_int_t), dimension(:), pointer             :: pastix_colptr
-integer(kind=spm_int_t), dimension(:), pointer             :: pastix_rowptr
-real(kind=c_double)    , dimension(:), pointer             :: pastix_values
-#endif
 
 integer(kind=int_all), parameter   :: Int0=0
 integer(kind=int_all), parameter   :: Int1=1
@@ -456,7 +441,19 @@ if (my_id == 0) then
   endif  
 #endif
 
-#if defined USE_PASTIX  || defined USE_PASTIX6
+#ifdef USE_PASTIX6
+  if (use_pastix_eq) then
+    call pastix_init(MPI_COMM_SELF)
+    call pastix_set_mat(mumps_par%n,mumps_par%nz,mumps_par%irn,mumps_par%jcn,mumps_par%a,1,&
+                        MPI_COMM_SELF,UPDATE=.false.,DISTRIBUTED=.false.,EQUILIBRIUM=.true.)
+    call pastix_analyze()    
+    call pastix_factorize()
+    call pastix_solve(mumps_par%n,mumps_par%rhs,REFINE=.true.)
+    call pastix_finalize() 
+  endif  
+#endif
+
+#if defined USE_PASTIX
   if (use_pastix_eq) then
     if (allocated(sparskit_work)) deallocate(sparskit_work)
     allocate(sparskit_work(mumps_par%N + 1))
@@ -466,7 +463,6 @@ if (my_id == 0) then
     nnz = mumps_par%JCN(mumps_par%N+1) - 1
     write (*,*) "nnz", nnz
 
-#ifndef USE_PASTIX6
   ! -- For PaStiX solver before version 6.x
     call pastix_fortran_checkmatrix(check_data, MPI_COMM_SELF, &
        Int1, pastix_sym, Int1, mumps_par%N, mumps_par%JCN, mumps_par%IRN, mumps_par%A, -Int1, Int1)
@@ -494,45 +490,12 @@ if (my_id == 0) then
     if (.not. allocated(pastix_perm_vars))  call tr_allocate(pastix_perm_vars,Int1,mumps_par%n,"pastix_perm_vars",CAT_UNKNOWN)
     if (.not. allocated(pastix_iperm_vars)) call tr_allocate(pastix_iperm_vars,Int1,mumps_par%n,"pastix_iperm_vars",CAT_UNKNOWN)
 
- 
-#else
-    ! -- For PaStiX solver version 6.x
-    ! Initialise sparse matrix structure  
-    allocate(pastix_spm) ! Replace by tr_allocate etc.?!
-    call spmInit(pastix_spm)
-  
-    pastix_spm%n           =  mumps_par%n
-    pastix_spm%nnz         =  nnz
-    pastix_spm%dof         =  1
-    call spmUpdateComputedFields(pastix_spm)
-    call spmAlloc(pastix_spm)
-  
-    call c_f_pointer(pastix_spm%colptr,pastix_colptr, [pastix_spm%n+1])
-    call c_f_pointer(pastix_spm%rowptr,pastix_rowptr, [pastix_spm%nnz])
-    call c_f_pointer(pastix_spm%values,pastix_values, [mumps_par%nz])
-    
-    pastix_colptr      = mumps_par%jcn 
-    pastix_rowptr      = mumps_par%irn
-    pastix_values      = mumps_par%A
-  
-    ! Check matrix and remove duplicates
-    allocate(pastix_spm_check)
-    call spmCheckAndCorrect(pastix_spm, pastix_spm_check, pastix_info)
-    if (pastix_info .ne. 0) then
-      ! this if clause is always entered since duplicate entries are removed from the matrix
-      call spmExit(pastix_spm)
-      pastix_spm = pastix_spm_check
-    endif
-    deallocate(pastix_spm_check)
-#endif
-
     write(*,*) '***********************************'
     write(*,*) '* initialise PastiX               *'
     write(*,*) '***********************************'
   
     pastix_nthrd     = nbthreads
 
-#ifndef USE_PASTIX6
     ! -- For PaStiX solver before version 6.x
     pastix_iparm(1)  = 0          ! insert default values
     pastix_iparm(2)  = 0          ! initializse
@@ -566,62 +529,18 @@ if (my_id == 0) then
   
     pastix_dparm(6)  = pastix_epsilon    ! error level refinement
     pastix_dparm(11) = pastix_pivot      ! pivot threshold?
-
-#else
-    ! -- For PaStiX solver version 6.x
-    call pastixInitParam(pastix_iparm, pastix_dparm)
-
-    pastix_iparm(IPARM_VERBOSE)               = pastix_verb              
-    pastix_iparm(IPARM_ITERMAX)               = pastix_iter                ! refinement : max number of iterations
-
-    pastix_iparm(IPARM_FACTORIZATION)         = pastix_facto
-    pastix_iparm(IPARM_THREAD_NBR)            = pastix_nthrd               ! number of threads
-    pastix_iparm(IPARM_INCOMPLETE)            = pastix_ricar
-    pastix_iparm(IPARM_LEVEL_OF_FILL)         = pastix_iluk
-    pastix_dparm(DPARM_EPSILON_REFINEMENT)    = pastix_epsilon             ! error level refinement
-    pastix_dparm(DPARM_EPSILON_MAGN_CTRL)     = pastix_pivot               ! pivot threshold
-
-    pastix_iparm(IPARM_MTX_TYPE)              = pastix_sym
-    pastix_iparm(IPARM_AMALGAMATION_LVLCBLK)  = pastix_amalg
-
-! TEMPORARY: not yet relevant for Pastix6 as MPI parallelisation is not implemented
-!#ifdef FUNNELED
-! pastix_iparm(IPARM_THREAD_COMM_MODE)      = PastixThreadFunneled
-!#endif
-
-    call pastixInit(pastix_data, Int0, pastix_iparm, pastix_dparm)    ! TEMPORARY: 0 should be pastix_comm but pastix6 is not yet MPI parallelised!
-#endif
- 
  
     write(*,*) '***********************************'
     write(*,*) '* call PastiX                     *'
     write(*,*) '***********************************'
   
-#ifndef USE_PASTIX6
     ! -- For PaStiX solver before version 6.x
     call pastix_fortran(pastix_data,MPI_COMM_SELF, mumps_par%n, mumps_par%jcn, mumps_par%irn, mumps_par%A, &
        pastix_perm_vars,pastix_iperm_vars,mumps_par%rhs,Int1,pastix_iparm,pastix_dparm)
-#else
-    ! -- For PaStiX solver version 6.x
-    call pastix_task_analyze(pastix_data,pastix_spm,pastix_info)
-    call pastix_task_numfact(pastix_data,pastix_spm,pastix_info)
 
-    pastix_x_ptr = c_loc(mumps_par%rhs)
-    allocate(pastix_rhs(pastix_spm%n))
-    pastix_rhs_ptr = c_loc(pastix_rhs)
-    pastix_rhs = mumps_par%rhs
-    call pastix_task_solve(pastix_data,Int1,pastix_x_ptr,pastix_spm%n,pastix_info)
-    call pastix_task_refine(pastix_data,pastix_spm%n,Int1,pastix_rhs_ptr,pastix_spm%n,pastix_x_ptr,pastix_spm%n,pastix_info)
-    deallocate(pastix_rhs)
-
-    call pastixFinalize(pastix_data)
-    call spmExit(pastix_spm)
-    deallocate(pastix_spm)
-
-#endif
     call tr_print_memsize("PASTIX_For_Poisson")
   endif ! use_pastix_eq
-#endif /* defined(USE_PASTIX) || defined(USE_PASTIX6) */
+#endif /* defined(USE_PASTIX)*/
   
   call tr_debug_write("mumps_par%N",int(mumps_par%N))
   call tr_debug_write("mumps_par%NZ",int(mumps_par%NZ))

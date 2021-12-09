@@ -280,8 +280,10 @@ contains
     enddo
 
     irn(1:nloc+1) = iptr(1:nloc+1)
-    deallocate(iptr)
-
+    
+    deallocate(indmin, indmax, iptr)
+    deallocate(iblock)
+    
     ! check sorting consistency
     if (.false.) then
       do n1 = 1, nloc
@@ -298,11 +300,6 @@ contains
         ni = irn(n1+1) - irn(n1)
         write(*,*) "idum", n1, "iptr", ni, "jcn", jcn(irn(n1+1)-ni:irn(n1+1)-1)
       endif
-    endif
-
-    if (indx.ne.0) then
-      irn = irn - indx
-      jcn = jcn - indx
     endif
 
     call system_clock(count=cc, count_rate=cr); t1 =  real(cc)/cr

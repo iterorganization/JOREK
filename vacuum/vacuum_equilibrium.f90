@@ -336,20 +336,29 @@ module vacuum_equilibrium
   
   
   subroutine equilibrium_VFB(my_id)
-    
+    use mpi_mod
    implicit none
   
    integer, intent(in) :: my_id
 
-   integer  :: i
+   integer  :: i, ierr
    
-    if (my_id == 0) write(*,*) ' vertical_FB = ', vertical_FB
+   if (my_id == 0) write(*,*) ' vertical_FB = ', vertical_FB
+   if (my_id == 0) write(*,*) ' radial_FB = ', radial_FB
    
    do i=1, n_pf_coils
      if( abs(vert_FB_amp(i)) .gt. 1.d-6 ) then
        I_coils(i) =  pf_coils(i)%current * (1 + vert_FB_amp(i) * vertical_FB ) 
        if (my_id == 0) write(*,'(a,I7,a,1es12.4)') 'FB coil ==> I_coil(', i, ') = ', I_coils(i)
      endif
+     if( abs(rad_FB_amp(i)) .gt. 1.d-6 ) then
+       I_coils(i) =  pf_coils(i)%current * (1 + rad_FB_amp(i) * radial_FB ) 
+       if (my_id == 0) write(*,'(a,I7,a,1es12.4)') 'FB coil ==> I_coil(', i, ') = ', I_coils(i)
+     endif
+     if (( abs(vert_FB_amp(i)) .gt. 1.d-6 ) .and. (abs(rad_FB_amp(i)) .gt. 1.d-6 ))  then
+       write(*,*) 'Error: You cannot use the same coil for radial and vertical feedback'
+       call MPI_ABORT(MPI_COMM_WORLD, 1, ierr)
+     end if
    enddo
     
   end subroutine equilibrium_VFB
