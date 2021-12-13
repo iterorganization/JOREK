@@ -529,6 +529,10 @@ do i =1, n_steps
 
 enddo
 
+call fields%calc_RK4(time_0, p_0%i_elm, p_0%st, p_0%x(3), A_0, dA_0, B_0, dB_0, Bnorm_0, dBnorm_0, bn_0, dbn_0, E_0)
+
+p_0%B_norm = norm2(B_0)
+
 call copy_particle_gc_vpar(p_0,particle_gc)
 
 return

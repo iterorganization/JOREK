@@ -18,7 +18,7 @@ use mod_gc_variational
 use nodes_elements
 use mod_jorek_timestepping
 use mod_random_seed
-use mod_interp, only: mode_moivre, interp_RZ, interp_0
+use mod_interp, only: mode_moivre, interp_RZ, interp_0, interp_00
 use mod_basisfunctions
 use basis_at_gaussian
 use phys_module, only: F0, tstep, nstep, nout, restart, rho_0, rho_1, rho_coef
@@ -273,10 +273,6 @@ do i=1, nstep_particles
 
     if (sim%fields%node_list%node(j)%boundary .eq. 0) then
 
-      if (sim%my_id .eq. 0) then
-      if ((j .gt. 2000) .and. (j .lt. 2020)) write(*,'(i6,12e20.12)') j,jorek_feedback%node_list%node(j)%values(2,:,1)
-      endif
-
       do i_tor = 2, n_tor
 
         zne0    = max(0.01, sim%fields%node_list%node(j)%values(1,1,5)) * zn_norm  ! in m^3
@@ -289,30 +285,32 @@ do i=1, nstep_particles
         Te0_t   = sim%fields%node_list%node(j)%values(1,3,6) * Tev_norm
         Te0_st  = sim%fields%node_list%node(j)%values(1,4,6) * Tev_norm
 
-        sim%fields%node_list%node(j)%values(i_tor,1,2) = jorek_feedback%node_list%node(j)%values(i_tor,1,1) * Te0_eV
+        sim%fields%node_list%node(j)%values(i_tor,1:4,2) = jorek_feedback%node_list%node(j)%values(i_tor,1:4,1)
 
-        sim%fields%node_list%node(j)%values(i_tor,2,2) = jorek_feedback%node_list%node(j)%values(i_tor,2,1) * Te0_eV &
-                                                       + jorek_feedback%node_list%node(j)%values(i_tor,1,1) * Te0_s  &
-                                                       - jorek_feedback%node_list%node(j)%values(i_tor,1,1) * Te0_eV * zne0_s / zne0 
+    !    sim%fields%node_list%node(j)%values(i_tor,1,2) = jorek_feedback%node_list%node(j)%values(i_tor,1,1) * Te0_eV
 
-        sim%fields%node_list%node(j)%values(i_tor,3,2) = jorek_feedback%node_list%node(j)%values(i_tor,3,1) * Te0_eV  &
-                                                       + jorek_feedback%node_list%node(j)%values(i_tor,1,1) * Te0_t   &
-                                                       - jorek_feedback%node_list%node(j)%values(i_tor,1,1) * Te0_eV * zne0_t / zne0     
+    !    sim%fields%node_list%node(j)%values(i_tor,2,2) = jorek_feedback%node_list%node(j)%values(i_tor,2,1) * Te0_eV &
+    !                                                   + jorek_feedback%node_list%node(j)%values(i_tor,1,1) * Te0_s  &
+    !                                                   - jorek_feedback%node_list%node(j)%values(i_tor,1,1) * Te0_eV * zne0_s / zne0 
 
-        sim%fields%node_list%node(j)%values(i_tor,4,2) = jorek_feedback%node_list%node(j)%values(i_tor,4,1) * Te0_eV &
-                                                       + jorek_feedback%node_list%node(j)%values(i_tor,1,1) * Te0_st &
-                                                       + jorek_feedback%node_list%node(j)%values(i_tor,2,1) * Te0_t  &
-                                                       + jorek_feedback%node_list%node(j)%values(i_tor,3,1) * Te0_s  &
+    !    sim%fields%node_list%node(j)%values(i_tor,3,2) = jorek_feedback%node_list%node(j)%values(i_tor,3,1) * Te0_eV  &
+    !                                                   + jorek_feedback%node_list%node(j)%values(i_tor,1,1) * Te0_t   &
+    !                                                   - jorek_feedback%node_list%node(j)%values(i_tor,1,1) * Te0_eV * zne0_t / zne0     
 
-                                                       - jorek_feedback%node_list%node(j)%values(i_tor,1,1) * Te0_t  * zne0_s / zne0 &
-                                                       - jorek_feedback%node_list%node(j)%values(i_tor,1,1) * Te0_s  * zne0_t / zne0 &
-                                                       - jorek_feedback%node_list%node(j)%values(i_tor,3,1) * Te0_eV * zne0_s / zne0 &
-                                                       - jorek_feedback%node_list%node(j)%values(i_tor,2,1) * Te0_eV * zne0_t / zne0 &
+    !    sim%fields%node_list%node(j)%values(i_tor,4,2) = jorek_feedback%node_list%node(j)%values(i_tor,4,1) * Te0_eV &
+    !                                                   + jorek_feedback%node_list%node(j)%values(i_tor,1,1) * Te0_st &
+    !                                                   + jorek_feedback%node_list%node(j)%values(i_tor,2,1) * Te0_t  &
+    !                                                   + jorek_feedback%node_list%node(j)%values(i_tor,3,1) * Te0_s  &
 
-                                                       + jorek_feedback%node_list%node(j)%values(i_tor,1,1) / (zne0**2) &
-                                                           * (2.d0 * zne0_s  * zne0_t - zne0 * zne0_st) * Te0_eV  
+    !                                                   - jorek_feedback%node_list%node(j)%values(i_tor,1,1) * Te0_t  * zne0_s / zne0 &
+    !                                                   - jorek_feedback%node_list%node(j)%values(i_tor,1,1) * Te0_s  * zne0_t / zne0 &
+    !                                                   - jorek_feedback%node_list%node(j)%values(i_tor,3,1) * Te0_eV * zne0_s / zne0 &
+    !                                                   - jorek_feedback%node_list%node(j)%values(i_tor,2,1) * Te0_eV * zne0_t / zne0 &
 
-        sim%fields%node_list%node(j)%values(i_tor,:,2) = sim%fields%node_list%node(j)%values(i_tor,:,2) / (F0 * zne0) * t_norm
+    !                                                   + jorek_feedback%node_list%node(j)%values(i_tor,1,1) / (zne0**2) &
+    !                                                   * (2.d0 * zne0_s  * zne0_t - zne0 * zne0_st) * Te0_eV  
+
+    !    sim%fields%node_list%node(j)%values(i_tor,:,2) = sim%fields%node_list%node(j)%values(i_tor,:,2) / (F0 * zne0) * t_norm
       
       enddo
 
@@ -451,12 +449,12 @@ logical, intent(in)    :: update
 
 real*8,allocatable :: feedback_rhs(:,:,:,:,:)
 
-real*8    :: n_norm, rho_norm, t_norm, v_norm, E_norm, M_norm
+real*8    :: n_norm, rho_norm, t_norm, v_norm, E_norm, M_norm, TeV_norm
 real*8    :: energy_local, energy_total, potential_energy_local, potential_energy_total
 real*8    :: t, E(3), B(3), psi, U, zne0, Te0, rz_old(2), st_old(2)
 real*8    :: v_temp(3), T_eV, K_eV
 real*8    :: v, v_s, v_t, v_R, v_Z
-real*8    :: R_g, Z_g, R_s, R_t, Z_s, Z_t, xjac
+real*8    :: P(2), R_g, Z_g, R_s, R_t, Z_s, Z_t, xjac
 real*8    :: HHZ(n_tor), HHZ_p(n_tor), HH(4,4), HH_s(4,4), HH_t(4,4)
 !$ real*8 :: w0, w1, mmm(3)
 
@@ -474,6 +472,7 @@ t_norm   = sqrt((MU_ZERO * rho_norm))                           ! t_SI   = t_nor
 v_norm   = 1.d0 / t_norm                                        ! V_SI   = v_norm * v_jorek
 E_norm   = 1.5d0 / MU_ZERO                                      ! E_SI   = E_norm * E_jorek
 M_norm   = rho_norm * v_norm                                    ! momentum normalisation
+Tev_norm  = 1.d0 / (2.d0 * EL_CHG * MU_ZERO * zn_norm)          ! T_ev [eV] = Tev_norm * T_jorek
 
 jorek_feedback%rhs_gather_time = jorek_feedback%rhs_gather_time + n_steps * timesteps
 
@@ -502,16 +501,17 @@ if (sim%my_id .eq. 0) write(*,*) 'starting loop gc : ',size(particles,1),n_phase
 #endif
    !$omp schedule(dynamic,10)                                                     &
    !$omp shared(sim, particles, n_steps, timesteps, particle_start_time, update,  &
-   !$omp rho_norm, t_norm, v_norm, E_norm, M_norm, N_norm, n_phases,              &
+   !$omp rho_norm, t_norm, v_norm, E_norm, M_norm, N_norm, Tev_norm, n_phases,    &
    !$omp central_density, central_mass, F0)                                       &
    !$omp private(particle_tmp, i_rng, i,j,k,l,m, t, E, B, psi, U, rz_old, st_old, &
-   !$omp i_elm_old, i_elm, zne0, Te0, p_orbit,                                    & 
-   !$omp R_g, R_s, R_t, Z_g, Z_s, Z_t, xjac, HH, HH_s, HH_t, index_lm,            &
+   !$omp i_elm_old, i_elm, zne0, Te0_eV, p_orbit,                                 & 
+   !$omp P, R_g, R_s, R_t, Z_g, Z_s, Z_t, xjac, HH, HH_s, HH_t, index_lm,         &
    !$omp ifail, v, v_s, v_t, v_R, v_Z, HHZ, HHZ_p)                                &
    !$omp reduction(+:feedback_rhs, energy_local, potential_energy_local)
    do j=1,size(particles,1)
 
-!   write(*,'(A,2i6,12e20.12)') 'particle :', j,particles(j)%i_elm,particles(j)%x,particles(j)%vpar, particles(j)%mu
+!      write(*,'(A,2i6,12e20.12)') 'particle :', j,particles(j)%i_elm,particles(j)%x,particles(j)%vpar, particles(j)%mu
+
 
     call copy_particle_gc_vpar(particles(j),particle_tmp)
 
@@ -546,18 +546,23 @@ if (sim%my_id .eq. 0) write(*,*) 'starting loop gc : ',size(particles,1),n_phase
 
 !           zne0 = f_density(1, [psi], [0.d0,0.d0,0.d0]) * central_density * 1d20
 !           zne0 = central_density * 1d20
-!           call sim%fields%calc_NeTe(t, p_orbit(i)%i_elm, p_orbit%st, p_orbit%x(3), zne0, Te0)
-!           zne0   = 4.66e19  ! for GENE benchmark
+!           zne0 = 4.66e19  ! for GENE benchmark
+!            call sim%fields%calc_NeTe(t, p_orbit(i)%i_elm, p_orbit(i)%st, p_orbit(i)%x(3), zne0, Te0_eV)
+            call interp_00(sim%fields%node_list, sim%fields%element_list, p_orbit(i)%i_elm, [5,6], 2, p_orbit(i)%st(1), p_orbit(i)%st(2), P)
+            zne0   = P(1) * n_norm
+            Te0_eV = P(2) * Tev_norm
   
             do l=1,n_vertex_max
               do m=1,n_order+1
   
                 index_lm = (l-1)*(n_order+1) + m
   
-                v   = HH(l,m) * sim%fields%element_list%element(i_elm)%size(l,m) * particle_tmp%weight
+                v   = HH(l,m) * sim%fields%element_list%element(i_elm)%size(l,m) * particle_tmp%weight 
 
                 do i_tor=1,n_tor
-                  feedback_rhs(m,l,i_elm,i_tor,1) = feedback_rhs(m,l,i_elm,i_tor,1) + HHZ(i_tor) * v  
+                  feedback_rhs(m,l,i_elm,i_tor,1) = feedback_rhs(m,l,i_elm,i_tor,1) &
+                  
+                                                  + HHZ(i_tor) * v * Te0_eV / (F0 * zne0) * t_norm
                 enddo
     
               enddo   !< order

@@ -5,12 +5,13 @@ use mod_basisfunctions
 use mod_parameters, only: n_period, n_tor
 implicit none
 private
-public :: interp !< interp a specific harmonic in finite elements
-public :: interp_delta !< interp a specific harmonic in finite elements, of the deltas
-public :: interp_0 !< interp variable only, no derivatives at a specific position in domain
+public :: interp         !< interp a specific harmonic in finite elements
+public :: interp_delta   !< interp a specific harmonic in finite elements, of the deltas
+public :: interp_0       !< interp variable only, no derivatives at a specific position in domain
+public :: interp_00      !< interp variable only, no derivatives at a specific position in domain (n=0 only)
 public :: interp_0_delta !< interp variable only, no derivatives at a specific position in domain, of the deltas
-public :: interp_RZ !< Interpolate space only
-public :: interp_PRZ !< interp variable + pos at values or deltas
+public :: interp_RZ      !< Interpolate space only
+public :: interp_PRZ     !< interp variable + pos at values or deltas
 public :: sincosperiod_moivre, mode_moivre !< public for regtesting, used by interp_PRZ
 
 interface interp_RZ
@@ -18,7 +19,7 @@ interface interp_RZ
 end interface interp_RZ
 
 interface interp_PRZ
-  module procedure interp_PRZ_0, interp_PRZ_1, interp_PRZ_2
+  module procedure interp_PRZ_0, interp_PRZ_1, interp_PRZ_2, interp_PRZ_00
 end interface interp_PRZ
 
 contains
@@ -456,7 +457,66 @@ do kv = 1,n_vertex_max  ! 4 vertices
 end do
 end subroutine interp_0
 
+!> This subroutine interpolates some variables at a specific position within one element at a given position (s,t), for n=0 pnly
+pure subroutine interp_00(node_list, element_list, i_elm, i_v, n_v, s, t, P)
+type (type_node_list),    intent(in)  :: node_list
+type (type_element_list), intent(in)  :: element_list
+integer,                  intent(in)  :: i_elm
+integer,                  intent(in)  :: n_v, i_v(n_v)
+real*8,                   intent(in)  :: s, t
+real*8,                   intent(out) :: P(n_v)
 
+real*8  :: H(4,4)
+integer :: kv, iv, kf, m, i
+
+call basisfunctions(s,t,H)
+
+P = 0.d0
+
+do kv = 1,n_vertex_max  ! 4 vertices
+  iv = element_list%element(i_elm)%vertex(kv)  ! the node number
+  do kf = 1, n_order+1       ! 4 basis functions
+    do i = 1, n_v
+      P(i)    = P(i)   + node_list%node(iv)%values(1,kf,i_v(i)) * element_list%element(i_elm)%size(kv,kf) * H(kv,kf)
+    end do
+  end do
+end do
+end subroutine interp_00
+
+pure subroutine interp_PRZ_00(node_list, element_list, i_elm, i_v, n_v, s, t, P, P_s, P_t, R_s, R_t, Z_s, Z_t)
+type (type_node_list),    intent(in)  :: node_list
+type (type_element_list), intent(in)  :: element_list
+integer,                  intent(in)  :: i_elm
+integer,                  intent(in)  :: n_v, i_v(n_v)
+real*8,                   intent(in)  :: s, t
+real*8,                   intent(out) :: P(n_v), P_s(n_v), P_t(n_v), R_s, R_t, Z_s, Z_t
+
+real*8  :: H(4,4), H_s(4,4), H_t(4,4)
+integer :: kv, iv, kf, m, i, i_harm
+
+call basisfunctions(s,t,H, H_s, H_t)
+
+i_harm = 1
+P      = 0.d0
+
+do kv = 1,n_vertex_max  ! 4 vertices
+
+  iv = element_list%element(i_elm)%vertex(kv)  ! the node number
+
+  do kf = 1, n_order+1       ! 4 basis functions
+
+    R_s = R_s + node_list%node(iv)%x(1,kf,1) * element_list%element(i_elm)%size(kv,kf) * H_s(kv,kf)
+    R_t = R_t + node_list%node(iv)%x(1,kf,1) * element_list%element(i_elm)%size(kv,kf) * H_t(kv,kf)
+    Z_s = Z_s + node_list%node(iv)%x(1,kf,2) * element_list%element(i_elm)%size(kv,kf) * H_s(kv,kf)
+    Z_t = Z_t + node_list%node(iv)%x(1,kf,2) * element_list%element(i_elm)%size(kv,kf) * H_t(kv,kf)
+    
+    do i = 1, n_v
+      P(i)    = P(i)   + node_list%node(iv)%values(i_harm,kf,i_v(i)) * element_list%element(i_elm)%size(kv,kf) * H(kv,kf)
+    end do
+
+  end do
+end do
+end subroutine interp_PRZ_00
 
 !> This subroutine interpolates some variables at a specific position within one element at a given position (s,t)
 !> of the deltas, not the values

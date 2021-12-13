@@ -637,6 +637,7 @@ subroutine project_only(this, sim)
     id_master_in_world = in/2 * this%m_cpu
     index_n = in/2 + 1
     call MPI_Reduce(my_rhs(:,index_n),this%mumps_par%rhs,this%mumps_par%n*this%mumps_par%nrhs, MPI_REAL8, MPI_SUM, id_master_in_world, this%mpi_comm_world, ierr)
+    if (this%my_id .eq. 0) write(*,'(A,i3,8e20.12)') 'RHS ',in,minval(this%mumps_par%rhs),maxval(this%mumps_par%rhs)
   enddo
 
   if ((this%my_id .eq. 0) .and. (this%do_zonal)) then   
@@ -977,7 +978,7 @@ end subroutine save_to_h5
 subroutine prepare_mumps_par(node_list, element_list, n_tor_local, i_tor_local,           &
                              this_mpi_comm_world, this_mpi_comm_n, this_mpi_comm_master,  &
                              mumps_par, filter, filter_hyper, filter_parallel,            &
-                             skip_factorisation)
+                             skip_factorisation, do_ion_polarisation, ion_mass)
 use phys_module, only : F0, TWOPI, mode
 use data_structure
 use basis_at_gaussian
@@ -995,6 +996,8 @@ real*8, intent(in)                   :: filter
 real*8, intent(in)                   :: filter_hyper
 real*8, intent(in)                   :: filter_parallel
 logical, intent(in), optional        :: skip_factorisation
+logical, intent(in), optional        :: do_ion_polarisation
+real*8, intent(in), optional         :: ion_mass ! [atomic_mass units]
 
 type (type_element)      :: element
 type (type_node)         :: nodes(n_vertex_max)
@@ -1004,15 +1007,31 @@ real*8     :: wgauss2(n_gauss)
 real*8, dimension(n_gauss,n_gauss) :: x_g,   x_s,   x_t,   x_ss,   x_tt,   x_st
 real*8, dimension(n_gauss,n_gauss) :: y_g,   y_s,   y_t,   y_ss,   y_tt,   y_st
 real*8, dimension(n_gauss,n_gauss) :: psi_g, psi_s, psi_t, psi_ss, psi_tt, psi_st
+real*8, dimension(n_gauss,n_gauss) :: zn0_g, zn0_s, zn0_t, T0_g,   T0_s,   T0_t
 real*8     :: v, v_s, v_t, v_ss, v_st, v_tt, v_x, v_y, v_xx, v_yy, v_p
 real*8     :: p, p_s, p_t, p_ss, p_st, p_tt, p_x, p_y, p_xx, p_yy, p_p
-real*8     :: wst, area, volume, xjac, xjac_x, xjac_y, psi_x, psi_y
-real*8     :: Bgrad_p, Bgrad_v_star, BB2
+real*8     :: wst, area, volume, xjac, xjac_x, xjac_y, psi_x, psi_y, T0_x, T0_y, zn0_x, zn0_y
+real*8     :: Bgrad_p, Bgrad_v_star, BB2, t0, t1, filter_polarisation, v_pol_x, v_pol_y
 integer    :: i, j, k, l, m, in, im, ilarge, index_large_i, index_large_k, inode, knode
 integer    :: nz_AA, n_AA, nz_bnd, i_elm, index_ij, index_kl, im_index, in_index, index1
 integer    :: ms, mt, mp, my_id, my_id_n, my_id_master, ierr, MPI_COMM_MUMPS
-logical    :: apply_dirichlet_condition
+integer    :: ivar_psi, ivar_rho, ivar_T
+integer    :: this_n_cpu, this_n_cpu_mumps
+logical    :: apply_dirichlet_condition, do_ion_pol
 logical    :: halt(size(IEEE_USUAL,1))
+
+call cpu_time(t0)
+
+ivar_psi = 1
+ivar_rho = 5
+ivar_T   = 6
+
+do_ion_pol = .false.
+if (present(do_ion_polarisation)) then
+  if (present(ion_mass)) then
+    do_ion_pol = .true.
+  endif
+endif
 
 ! We need a separate communicator to be able to run multiple MUMPSes
 call MPI_Comm_dup(this_mpi_comm_n, MPI_COMM_MUMPS, ierr)
@@ -1026,6 +1045,8 @@ mumps_par%PAR  = 1
 call DMUMPS(mumps_par)
 call MPI_COMM_RANK(this_mpi_comm_world,  my_id, ierr)
 call MPI_COMM_RANK(mumps_par%COMM,       my_id_n, ierr)
+call MPI_COMM_SIZE(this_mpi_comm_world,  this_n_cpu, ierr)
+call MPI_COMM_SIZE(mumps_par%COMM,       this_n_cpu_mumps, ierr)
 
 nz_AA = 4 * element_list%n_elements * (n_vertex_max * (n_order+1))**2
 n_AA  = 2 * maxval(node_list%node(1:node_list%n_nodes)%index(4))
@@ -1064,7 +1085,9 @@ if (my_id_n .eq. 0) then
   write(*,*) '**************************************************'
   write(*,'(A,i2,A)') ' * constructing particle projection matrix (n=',mode(i_tor_local),') *'
   write(*,*) '**************************************************'
-  write(*,*) ' n_AA = ',n_AA, n_tor_local
+  write(*,*) mode(i_tor_local),' n_AA = ',n_AA, n_tor_local
+  write(*,*) mode(i_tor_local),' my_id, my_id_n (comm_mumps) : ',my_id, my_id_n
+  write(*,*) mode(i_tor_local),' comm size                   : ',this_n_cpu, this_n_cpu_mumps
   write(*,'(2i3,A,3e12.4)') my_id,my_id_n,'  filters       ',filter, filter_hyper, filter_parallel
 
   if (apply_dirichlet_condition) write(*,*) 'applying Dirichlet conditions'
@@ -1075,12 +1098,15 @@ if (my_id_n .eq. 0) then
 !$omp parallel do default(none) &
 !$omp shared(element_list, node_list, n_tor_local, i_tor_local,                     &
 !$omp        H, H_s, H_t, H_ss, H_st, H_tt, Hz, Hz_p, mumps_par, wgauss2,           &
+!$omp        ivar_psi, ivar_rho, ivar_T, do_ion_pol, ion_mass,                      &
 !$omp        filter, filter_hyper, filter_parallel, F0, my_id_master)               &
 #endif
 !$omp private(ELM, i_elm, element, nodes, i, j, k, l, ms, mt, in, im, mp,           &
 !$omp         x_g, x_s, x_t, x_ss, x_st, x_tt,                                      &
 !$omp         y_g, y_s, y_t, y_ss, y_st, y_tt,                                      &
 !$omp         psi_g, psi_s, psi_t, psi_ss, psi_tt, psi_st,                          &
+!$omp         zn0_g, zn0_s, zn0_t, zn0_x, zn0_y, v_pol_x, v_pol_y,                  &
+!$omp         T0_g, T0_s, T0_t, T0_x, T0_y, filter_polarisation,                    &
 !$omp         v, v_s, v_t, v_ss, v_st, v_tt, v_x, v_y, v_xx, v_yy, v_p,             &
 !$omp         p, p_s, p_t, p_ss, p_st, p_tt, p_x, p_y, p_xx, p_yy, p_p,             &
 !$omp         wst, xjac, xjac_x, xjac_y, psi_x, psi_y, BB2, Bgrad_p, Bgrad_v_star,  &
@@ -1100,7 +1126,7 @@ do i_elm=1,element_list%n_elements
   x_g = 0.d0;   x_s = 0.d0;   x_t = 0.d0;   x_ss = 0.d0;   x_st = 0.d0;   x_tt = 0.d0
   y_g = 0.d0;   y_s = 0.d0;   y_t = 0.d0;   y_ss = 0.d0;   y_st = 0.d0;   y_tt = 0.d0
   psi_g = 0.d0; psi_s = 0.d0; psi_t = 0.d0; psi_ss = 0.d0; psi_st = 0.d0; psi_tt = 0.d0
-
+  
   do i=1,n_vertex_max
     do j=1,n_order+1
       do ms=1, n_gauss
@@ -1133,6 +1159,29 @@ do i_elm=1,element_list%n_elements
     enddo
   enddo
 
+  if (do_ion_pol) then
+
+    zn0_g = 0.d0; zn0_s = 0.d0; zn0_t = 0.d0; T0_g = 0.d0; T0_s = 0.d0; T0_t = 0.d0
+
+    do i=1,n_vertex_max
+      do j=1,n_order+1
+        do ms=1, n_gauss
+          do mt=1, n_gauss
+        
+            zn0_g(ms,mt) = zn0_g(ms,mt) + nodes(i)%values(ivar_rho,j,1) * element%size(i,j) * H(i,j,ms,mt)
+            zn0_s(ms,mt) = zn0_s(ms,mt) + nodes(i)%values(ivar_rho,j,1) * element%size(i,j) * H_s(i,j,ms,mt)
+            zn0_t(ms,mt) = zn0_t(ms,mt) + nodes(i)%values(ivar_rho,j,1) * element%size(i,j) * H_t(i,j,ms,mt)
+
+            T0_g(ms,mt)  = T0_g(ms,mt)  + nodes(i)%values(ivar_T,j,1) * element%size(i,j) * H(i,j,ms,mt)
+            T0_s(ms,mt)  = T0_s(ms,mt)  + nodes(i)%values(ivar_T,j,1) * element%size(i,j) * H_s(i,j,ms,mt)
+            T0_t(ms,mt)  = T0_t(ms,mt)  + nodes(i)%values(ivar_T,j,1) * element%size(i,j) * H_t(i,j,ms,mt)
+
+          enddo
+        enddo
+      enddo
+    enddo
+  endif
+
   do ms=1, n_gauss
     do mt=1, n_gauss
 
@@ -1152,6 +1201,12 @@ do i_elm=1,element_list%n_elements
 
       BB2 = 1.d0
       if (filter_parallel .gt. 0.d0) BB2 = (F0*F0 + psi_x * psi_x + psi_y * psi_y )/x_g(ms,mt)**2
+
+      filter_polarisation = 0.d0
+      if (do_ion_pol) then
+        filter_polarisation = ion_mass * ATOMIC_MASS_UNIT / (EL_CHG * F0 / x_g(ms,mt))**2
+        write(*,*) 'POLARISATION ',filter_polarisation
+      endif  
 
       do mp = 1, n_plane
 
@@ -1190,6 +1245,16 @@ do i_elm=1,element_list%n_elements
               Bgrad_v_star = 0.d0
               if (filter_parallel .gt. 0.d0) Bgrad_v_star = ( F0 / x_g(ms,mt) * v_p  +  v_x  * psi_y - v_y  * psi_x ) / x_g(ms,mt)
 
+              v_pol_x = 0.d0; v_pol_y = 0.d0
+              if (do_ion_pol) then
+                zn0_x = (  y_t(ms,mt) * zn0_s(ms,mt) - y_s(ms,mt) * zn0_t(ms,mt)) / xjac
+                zn0_y = (- x_t(ms,mt) * zn0_s(ms,mt) + x_s(ms,mt) * zn0_t(ms,mt)) / xjac
+                T0_x  = (  y_t(ms,mt) * T0_s(ms,mt)  - y_s(ms,mt) * T0_t(ms,mt))  / xjac
+                T0_y  = (- x_t(ms,mt) * T0_s(ms,mt)  + x_s(ms,mt) * T0_t(ms,mt))  / xjac
+ 
+                v_pol_x = T0_g(ms,mt) * v_x + v * (T0_x - T0_g(ms,mt) * zn0_x / zn0_g(ms,mt)) 
+                v_pol_y = T0_g(ms,mt) * v_y + v * (T0_y - T0_g(ms,mt) * zn0_y / zn0_g(ms,mt)) 
+              endif
 
               do k=1,n_vertex_max
                 do l=1,n_order+1
@@ -1233,7 +1298,9 @@ do i_elm=1,element_list%n_elements
 
                                            + filter_hyper    * (v_xx + v_x/x_g(ms,mt) + v_yy)*(p_xx + p_x/x_g(ms,mt) + p_yy) * xjac * x_g(ms,mt) * wst &
 
-                                           + filter_parallel * Bgrad_v_star * Bgrad_p / BB2 * xjac * x_g(ms,mt) * wst
+                                           + filter_parallel * Bgrad_v_star * Bgrad_p / BB2 * xjac * x_g(ms,mt) * wst &
+
+                                           + filter_polarisation * (v_pol_x * p_x + v_pol_y * p_y) * x_g(ms,mt) * wst! should be perpedicular gradient
                   enddo
                 enddo
               enddo
@@ -1362,6 +1429,9 @@ else
   call ieee_set_halting_mode(IEEE_USUAL, halt)
 endif
 
+call cpu_time(t1)
+write(*,*) mode(i_tor_local),my_id,my_id_n,' cpu time : ',t1-t0
+
 end subroutine prepare_mumps_par
 
 
@@ -1401,14 +1471,17 @@ real*8, dimension(n_gauss,n_gauss) :: psi_g, psi_s, psi_t, psi_ss, psi_tt, psi_s
 real*8     :: v, v_s, v_t, v_ss, v_st, v_tt, v_x, v_y, v_xx, v_yy, v_p
 real*8     :: p, p_s, p_t, p_ss, p_st, p_tt, p_x, p_y, p_xx, p_yy, p_p
 real*8     :: wst, xjac, xjac_x, xjac_y, psi_x, psi_y
-real*8     :: Bgrad_p, Bgrad_v_star, BB2
+real*8     :: Bgrad_p, Bgrad_v_star, BB2, t0, t1
 real*8     :: filter_n0, filter_hyper_n0, filter_parallel_n0, zonal_factor
 integer    :: i, j, k, l, m, in, im, ilarge, index_large_i, index_large_k, inode, knode
 integer    :: nz_AA, n_AA, nz_bnd, i_elm, index_ij, index_kl, im_index, in_index, index1, index2, index_rhs
 integer    :: ms, mt, mp, my_id, my_id_n, my_id_master, ierr, MPI_COMM_MUMPS
+integer    :: this_n_cpu, this_n_cpu_mumps
 logical    :: halt(size(IEEE_USUAL,1))
 logical    :: apply_dirichlet_condition, apply_zonal
 real*8, dimension(n_vertex_max,n_order+1) :: basisfunction_volume
+
+call cpu_time(t0)
 
 ! We need a separate communicator to be able to run multiple MUMPSes
 call MPI_Comm_dup(this_mpi_comm_n, MPI_COMM_MUMPS, ierr)
@@ -1474,8 +1547,10 @@ if (my_id_n .eq. 0) then
   write(*,*) '*************************************************'
   write(*,*) '* constructing particle projection matrix (n=0) *'
   write(*,*) '*************************************************'
-  write(*,*)  ' n_AA = ',n_AA
-  write(*,'(2I3,A,3e12.4)') my_id, my_id_n,'  filters (n=0) : ',filter_n0, filter_hyper_n0, filter_parallel_n0
+  write(*,*) 'n=0,  n_AA = ',n_AA, n_tor_local
+  write(*,*) 'n=0,  my_id, my_id_n (comm_mumps) : ',my_id, my_id_n
+  write(*,*) 'n=0,  comm size                   : ',this_n_cpu, this_n_cpu_mumps
+  write(*,'(A,3e12.4)') 'filters (n=0) : ',filter_n0, filter_hyper_n0, filter_parallel_n0
   
   if (apply_zonal)               write(*,*) 'using n=0 zonal flow equations'
   if (apply_dirichlet_condition) write(*,*) 'applying Dirichlet conditions'
@@ -1798,6 +1873,9 @@ else
   call DMUMPS(mumps_par)
   call ieee_set_halting_mode(IEEE_USUAL, halt)
 endif
+
+call cpu_time(t1)
+write(*,*) ' n=0, ',my_id, my_id_n,' cpu time : ',t1-t0
 
 end subroutine prepare_mumps_par_n0
 
