@@ -1,7 +1,7 @@
 &in1
 
- use_mumps = .true.
- use_pastix = .false.
+ use_mumps = .false.
+ use_pastix = .true.
  restart = .f.
  regrid  = .f.
  refinement=.false.

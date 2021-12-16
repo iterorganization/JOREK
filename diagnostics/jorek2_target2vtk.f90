@@ -378,7 +378,7 @@ do m=1, n_plane
 
             scalars(inode,5) = - (rho * Vpar * psi_s * normal)                  / R / sqrt(R_s**2 + Z_s**2)
 
-            scalars(inode,6) = - gamma_sheath*(rho * T * Vpar * psi_s * normal) / R / sqrt(R_s**2 + Z_s**2)
+            scalars(inode,6) = - (gamma_sheath -1.d0+gamma)*(rho * T * Vpar * psi_s * normal) / R / sqrt(R_s**2 + Z_s**2)
 
             if (abs(xjac) .gt. 1.d-7) then
 

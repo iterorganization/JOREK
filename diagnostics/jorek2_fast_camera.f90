@@ -1025,7 +1025,7 @@ subroutine wall_intersection(Rl,Zl, i_int, R_int, Z_int, ifail)
   ! --- Routine variables
   real*8, dimension(2), intent(in)  :: Rl,Zl
   integer,              intent(out) :: i_int
-  real*8, dimension(2), intent(out) :: R_int,Z_int
+  real*8,               intent(out) :: R_int,Z_int
   integer,              intent(out) :: ifail
 
   ! --- Internal variables
