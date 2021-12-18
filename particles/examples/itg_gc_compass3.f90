@@ -167,7 +167,7 @@ if (.not. restart_particles) then
   call initialise_particles_H_mu_psi(sim%groups(1)%particles, sim%fields, sobseq_rng(),sim%groups(1)%mass, &
                                      uniform_space=.true., uniform_space_rej_f=f_density, &
                                      uniform_space_rej_vars=[1], charge = 1)
- 
+
   call density_integral(sim%fields%node_list,sim%fields%element_list,f_density,min(psi_axis,psi_bnd),max(psi_axis,psi_bnd),total_particles,total_volume) 
   call density_integral(sim%fields%node_list,sim%fields%element_list,f_density,min(psi_axis,psi_bnd),max(psi_axis,psi_bnd),fraction_particles,total_volume)
 
@@ -200,7 +200,8 @@ if (nstep .gt. 0) then
                      filter    = filter_perp,    filter_hyper    = filter_hyper,    filter_parallel    = filter_par,    &
                      filter_n0 = filter_perp_n0, filter_hyper_n0 = filter_hyper_n0, filter_parallel_n0 = filter_par_n0, &
                      fractional_digits = 9, &
-                     do_zonal = .false., calc_integrals=.false., to_vtk=.false., to_h5 = .false., basename='projections')
+                     do_zonal = .false., calc_integrals=.false., to_vtk=.false., to_h5 = .false., basename='projections', &
+                     do_ion_polarisation = .true., ion_mass=sim%groups(1)%mass)
 
   allocate(jorek_feedback%rhs(n_order+1, n_vertex_max, sim%fields%element_list%n_elements, n_tor, 1))
   jorek_feedback%rhs = 0.d0
@@ -485,7 +486,7 @@ energy_local       = 0.d0
 potential_energy_local = 0.d0
 
 n_phases = 8
-allocate(p_orbit(n_phases))
+allocate(p_orbit(max(1,n_phases)))
 
 call with(sim, counter)
 
@@ -510,9 +511,6 @@ if (sim%my_id .eq. 0) write(*,*) 'starting loop gc : ',size(particles,1),n_phase
    !$omp reduction(+:feedback_rhs, energy_local, potential_energy_local)
    do j=1,size(particles,1)
 
-!      write(*,'(A,2i6,12e20.12)') 'particle :', j,particles(j)%i_elm,particles(j)%x,particles(j)%vpar, particles(j)%mu
-
-
     call copy_particle_gc_vpar(particles(j),particle_tmp)
 
     !  i_rng = 1
@@ -532,9 +530,9 @@ if (sim%my_id .eq. 0) write(*,*) 'starting loop gc : ',size(particles,1),n_phase
         
         if (ifail .ne. 0) cycle
 
-        do i=1, n_phases
+        do i=1, max(n_phases,1)
 
-          potential_energy_local = potential_energy_local + EL_CHG * p_orbit(i)%q * F0 * U / real(n_phases,8) 
+          potential_energy_local = potential_energy_local + EL_CHG * p_orbit(i)%q * F0 * U / real(max(n_phases,1),8) 
 
           if (p_orbit(i)%i_elm .gt. 0) then
 
@@ -579,11 +577,12 @@ if (sim%my_id .eq. 0) write(*,*) 'starting loop gc : ',size(particles,1),n_phase
 
   t = particle_start_time + n_steps*timesteps
 
-  jorek_feedback%rhs = feedback_rhs /real(n_phases,8)
+  jorek_feedback%rhs = feedback_rhs /real(max(n_phases,1),8)
  
   deallocate(feedback_rhs)
 
-  write(*,*) 'minmax rhs :',minval(jorek_feedback%rhs), maxval(jorek_feedback%rhs)
+  !write(*,'(i3,A,2e20.12,10i6)') sim%my_id,'minmax rhs :',minval(jorek_feedback%rhs), maxval(jorek_feedback%rhs), minloc(jorek_feedback%rhs), maxloc(jorek_feedback%rhs)
+
 
   call MPI_REDUCE(energy_local, energy_total, 1, MPI_DOUBLE_PRECISION, MPI_SUM, 0, MPI_COMM_WORLD, ierr)
   call MPI_REDUCE(potential_energy_local, potential_energy_total, 1, MPI_DOUBLE_PRECISION, MPI_SUM, 0, MPI_COMM_WORLD, ierr)

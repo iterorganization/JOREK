@@ -25,7 +25,7 @@ use mod_particle_sim
 use mod_particle_types
 use mod_fields
 use mod_vtk
-use constants, only : el_chg, atomic_mass_unit
+use constants, only : el_chg, atomic_mass_unit, mu_zero
 
 implicit none
 include 'dmumps_struc.h'        ! MUMPS include files defining its datastructure
@@ -76,6 +76,9 @@ type, extends(io_action) :: projection
   real*8 :: scaling_integral_weights    !< multiplication factor to subtract integral_weights from rhs(n=0)
 
   logical,public :: do_zonal = .false.  !< solve zonal flow system for n=0 (instead of usual projection)
+  logical,public :: do_ion_polarisation = .false.  !< add ion polarisation term to filter_perp (for gyro (guiding) centre particles)
+
+  real*8         :: ion_mass            !< ion mass used in the ion polarisation term
 
   !> Output storage (optional)
   type(vtk_grid), allocatable, private :: vtk_grid !< if allocated output to vtk
@@ -312,11 +315,12 @@ end function new_proj_f
 
 !> Constructor for project_particles
 !> Be sure to use keyword arguments when initializing, to avoid confusion
-function new_projection(node_list, element_list,                                                    &
-                        filter,    filter_hyper,    filter_parallel,                                &
-                        filter_n0, filter_hyper_n0, filter_parallel_n0,                             &
-                        f, do_zonal, to_h5, to_vtk,                                                 &
-                        nsub, filename, basename, decimal_digits, fractional_digits, calc_integrals &
+function new_projection(node_list, element_list,                                                     &
+                        filter,    filter_hyper,    filter_parallel,                                 &
+                        filter_n0, filter_hyper_n0, filter_parallel_n0,                              &
+                        f, do_zonal, to_h5, to_vtk,                                                  &
+                        nsub, filename, basename, decimal_digits, fractional_digits, calc_integrals, &
+                        do_ion_polarisation, ion_mass                                                &
                         ) result(new)
   use mpi_mod
   !use mod_parameters, only n_node_max
@@ -335,6 +339,8 @@ function new_projection(node_list, element_list,                                
   integer, intent(in), optional          :: decimal_digits
   integer, intent(in), optional          :: fractional_digits
   logical, intent(in), optional          :: calc_integrals !< After projecting, calculate and print the integral of each projected quantity
+  logical, intent(in), optional          :: do_ion_polarisation
+  real*8,  intent(in), optional          :: ion_mass
 
   integer              :: ierr, my_nsub, inode, n_masters, i
   integer, allocatable :: i_tor(:)
@@ -395,16 +401,19 @@ function new_projection(node_list, element_list,                                
   new%filter_n0          = 0.d0
   new%filter_hyper_n0    = 0.d0
   new%filter_parallel_n0 = 0.d0
+  new%do_ion_polarisation = .false.
+  new%ion_mass           = 0.d0
+  new%do_zonal           = .false.
 
-  if (present(filter))             new%filter             = filter
-  if (present(filter_hyper))       new%filter_hyper       = filter_hyper
-  if (present(filter_parallel))    new%filter_parallel    = filter_parallel
-  if (present(filter_n0))          new%filter_n0          = filter_n0
-  if (present(filter_hyper_n0))    new%filter_hyper_n0    = filter_hyper_n0
-  if (present(filter_parallel_n0)) new%filter_parallel_n0 = filter_parallel_n0
-
-  new%do_zonal = .false.
-  if (present(do_zonal)) new%do_zonal = do_zonal
+  if (present(filter))              new%filter             = filter
+  if (present(filter_hyper))        new%filter_hyper       = filter_hyper
+  if (present(filter_parallel))     new%filter_parallel    = filter_parallel
+  if (present(filter_n0))           new%filter_n0          = filter_n0
+  if (present(filter_hyper_n0))     new%filter_hyper_n0    = filter_hyper_n0
+  if (present(filter_parallel_n0))  new%filter_parallel_n0 = filter_parallel_n0
+  if (present(do_zonal))            new%do_zonal = do_zonal
+  if (present(do_ion_polarisation)) new%do_ion_polarisation = do_ion_polarisation
+  if (present(ion_mass))            new%ion_mass          = ion_mass
 
   if (present(to_vtk)) then
     if (to_vtk) then
@@ -443,7 +452,8 @@ function new_projection(node_list, element_list,                                
 
     call prepare_mumps_par(node_list, element_list, new%n_tor_local, new%i_tor_local,            &
                            new%mpi_comm_world, new%mpi_comm_n, new%mpi_comm_master,              &
-                           new%mumps_par, new%filter, new%filter_hyper, new%filter_parallel)
+                           new%mumps_par, new%filter, new%filter_hyper, new%filter_parallel,     &
+                           do_ion_polarisation=new%do_ion_polarisation, ion_mass=new%ion_mass)
 
     new%n_dof = new%mumps_par%n / new%n_tor_local
 
@@ -637,7 +647,7 @@ subroutine project_only(this, sim)
     id_master_in_world = in/2 * this%m_cpu
     index_n = in/2 + 1
     call MPI_Reduce(my_rhs(:,index_n),this%mumps_par%rhs,this%mumps_par%n*this%mumps_par%nrhs, MPI_REAL8, MPI_SUM, id_master_in_world, this%mpi_comm_world, ierr)
-    if (this%my_id .eq. 0) write(*,'(A,i3,8e20.12)') 'RHS ',in,minval(this%mumps_par%rhs),maxval(this%mumps_par%rhs)
+    if (this%my_id .eq. 0) write(*,'(i3,A,i3,2e20.12,8i6)') id_master_in_world,'RHS ',in,minval(this%mumps_par%rhs),maxval(this%mumps_par%rhs), minloc(this%mumps_par%rhs),maxloc(this%mumps_par%rhs)
   enddo
 
   if ((this%my_id .eq. 0) .and. (this%do_zonal)) then   
@@ -984,6 +994,7 @@ use data_structure
 use basis_at_gaussian
 use mod_basisfunctions
 use mpi_mod
+use phys_module,  only : central_density
 use, intrinsic :: ieee_exceptions
 implicit none
 
@@ -1051,7 +1062,7 @@ call MPI_COMM_SIZE(mumps_par%COMM,       this_n_cpu_mumps, ierr)
 nz_AA = 4 * element_list%n_elements * (n_vertex_max * (n_order+1))**2
 n_AA  = 2 * maxval(node_list%node(1:node_list%n_nodes)%index(4))
 
-apply_dirichlet_condition = .false.
+apply_dirichlet_condition = .true.
 
 nz_bnd = 0
 if (apply_dirichlet_condition) then
@@ -1098,7 +1109,7 @@ if (my_id_n .eq. 0) then
 !$omp parallel do default(none) &
 !$omp shared(element_list, node_list, n_tor_local, i_tor_local,                     &
 !$omp        H, H_s, H_t, H_ss, H_st, H_tt, Hz, Hz_p, mumps_par, wgauss2,           &
-!$omp        ivar_psi, ivar_rho, ivar_T, do_ion_pol, ion_mass,                      &
+!$omp        ivar_psi, ivar_rho, ivar_T, do_ion_pol, ion_mass, central_density,     &
 !$omp        filter, filter_hyper, filter_parallel, F0, my_id_master)               &
 #endif
 !$omp private(ELM, i_elm, element, nodes, i, j, k, l, ms, mt, in, im, mp,           &
@@ -1161,26 +1172,34 @@ do i_elm=1,element_list%n_elements
 
   if (do_ion_pol) then
 
+    !- first in jorek units
     zn0_g = 0.d0; zn0_s = 0.d0; zn0_t = 0.d0; T0_g = 0.d0; T0_s = 0.d0; T0_t = 0.d0
-
+    
     do i=1,n_vertex_max
       do j=1,n_order+1
         do ms=1, n_gauss
           do mt=1, n_gauss
         
-            zn0_g(ms,mt) = zn0_g(ms,mt) + nodes(i)%values(ivar_rho,j,1) * element%size(i,j) * H(i,j,ms,mt)
-            zn0_s(ms,mt) = zn0_s(ms,mt) + nodes(i)%values(ivar_rho,j,1) * element%size(i,j) * H_s(i,j,ms,mt)
-            zn0_t(ms,mt) = zn0_t(ms,mt) + nodes(i)%values(ivar_rho,j,1) * element%size(i,j) * H_t(i,j,ms,mt)
+            zn0_g(ms,mt) = zn0_g(ms,mt) + nodes(i)%values(1,j,ivar_rho) * element%size(i,j) * H(i,j,ms,mt)
+            zn0_s(ms,mt) = zn0_s(ms,mt) + nodes(i)%values(1,j,ivar_rho) * element%size(i,j) * H_s(i,j,ms,mt)
+            zn0_t(ms,mt) = zn0_t(ms,mt) + nodes(i)%values(1,j,ivar_rho) * element%size(i,j) * H_t(i,j,ms,mt)
 
-            T0_g(ms,mt)  = T0_g(ms,mt)  + nodes(i)%values(ivar_T,j,1) * element%size(i,j) * H(i,j,ms,mt)
-            T0_s(ms,mt)  = T0_s(ms,mt)  + nodes(i)%values(ivar_T,j,1) * element%size(i,j) * H_s(i,j,ms,mt)
-            T0_t(ms,mt)  = T0_t(ms,mt)  + nodes(i)%values(ivar_T,j,1) * element%size(i,j) * H_t(i,j,ms,mt)
+            T0_g(ms,mt)  = T0_g(ms,mt)  + nodes(i)%values(1,j,ivar_T) * element%size(i,j) * H(i,j,ms,mt)
+            T0_s(ms,mt)  = T0_s(ms,mt)  + nodes(i)%values(1,j,ivar_T) * element%size(i,j) * H_s(i,j,ms,mt)
+            T0_t(ms,mt)  = T0_t(ms,mt)  + nodes(i)%values(1,j,ivar_T) * element%size(i,j) * H_t(i,j,ms,mt)
 
           enddo
         enddo
       enddo
     enddo
   endif
+  ! unnormalise to [1/m^3] and [eV]
+  zn0_g  = zn0_g  * CENTRAL_DENSITY * 1.d20
+  zn0_s  = zn0_s  * CENTRAL_DENSITY * 1.d20
+  zn0_t  = zn0_t  * CENTRAL_DENSITY * 1.d20
+  T0_g   = T0_g   / (CENTRAL_DENSITY * 1.d20 * MU_ZERO * EL_CHG)
+  T0_s   = T0_s   / (CENTRAL_DENSITY * 1.d20 * MU_ZERO * EL_CHG)
+  T0_t   = T0_t   / (CENTRAL_DENSITY * 1.d20 * MU_ZERO * EL_CHG)
 
   do ms=1, n_gauss
     do mt=1, n_gauss
@@ -1204,8 +1223,8 @@ do i_elm=1,element_list%n_elements
 
       filter_polarisation = 0.d0
       if (do_ion_pol) then
-        filter_polarisation = ion_mass * ATOMIC_MASS_UNIT / (EL_CHG * F0 / x_g(ms,mt))**2
-        write(*,*) 'POLARISATION ',filter_polarisation
+        filter_polarisation = ion_mass * ATOMIC_MASS_UNIT / (EL_CHG * F0**2 / x_g(ms,mt)**2)
+!        write(*,'(A,8e16.8)') 'POLARISATION ',filter_polarisation * T0_g(1,1)
       endif  
 
       do mp = 1, n_plane
@@ -1347,7 +1366,6 @@ do i_elm=1,element_list%n_elements
                      + (i-1)  * 4 * n_vertex_max*(n_order+1)**2    &
                      
                      + (i_elm-1)*(4 * (n_vertex_max*(n_order+1))**2 )
-
 !$omp critical
               mumps_par%irn(ilarge) = index_large_i
               mumps_par%jcn(ilarge) = index_large_k
@@ -1362,6 +1380,7 @@ do i_elm=1,element_list%n_elements
   enddo
 enddo
 !$omp end parallel do
+
 ilarge = nz_AA
 
 if (apply_dirichlet_condition) then
@@ -1372,7 +1391,7 @@ if (apply_dirichlet_condition) then
         (node_list%node(i)%boundary .eq. 5) .or. (node_list%node(i)%boundary .eq. 9)) then
 
       do j=1,3,2             ! order
-        do k=1,2             ! variables
+        do k=1,n_tor_local   ! harmonics
 
           index1 = node_list%node(i)%index(j)
 
@@ -1381,6 +1400,7 @@ if (apply_dirichlet_condition) then
           mumps_par%irn(ilarge) = 2*(index1-1) + k
           mumps_par%jcn(ilarge) = 2*(index1-1) + k
           mumps_par%A(ilarge)   = 1.d12
+
         enddo
       enddo
 
@@ -1388,7 +1408,7 @@ if (apply_dirichlet_condition) then
             (node_list%node(i)%boundary .eq. 4) .or. (node_list%node(i)%boundary .eq. 9)) then
 
       do j=1,2               ! order
-        do k=1,2             ! variables
+        do k=1,n_tor_local   ! harmonics
 
           index1 = node_list%node(i)%index(j)
 
