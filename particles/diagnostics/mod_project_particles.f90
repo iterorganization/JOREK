@@ -1023,6 +1023,7 @@ real*8     :: v, v_s, v_t, v_ss, v_st, v_tt, v_x, v_y, v_xx, v_yy, v_p
 real*8     :: p, p_s, p_t, p_ss, p_st, p_tt, p_x, p_y, p_xx, p_yy, p_p
 real*8     :: wst, area, volume, xjac, xjac_x, xjac_y, psi_x, psi_y, T0_x, T0_y, zn0_x, zn0_y
 real*8     :: Bgrad_p, Bgrad_v_star, BB2, t0, t1, filter_polarisation, v_pol_x, v_pol_y
+real*8     :: zn_norm, Tev_norm
 integer    :: i, j, k, l, m, in, im, ilarge, index_large_i, index_large_k, inode, knode
 integer    :: nz_AA, n_AA, nz_bnd, i_elm, index_ij, index_kl, im_index, in_index, index1
 integer    :: ms, mt, mp, my_id, my_id_n, my_id_master, ierr, MPI_COMM_MUMPS
@@ -1040,7 +1041,7 @@ ivar_T   = 6
 do_ion_pol = .false.
 if (present(do_ion_polarisation)) then
   if (present(ion_mass)) then
-    do_ion_pol = .true.
+    if (do_ion_polarisation) do_ion_pol = .true.
   endif
 endif
 
@@ -1101,13 +1102,14 @@ if (my_id_n .eq. 0) then
   write(*,*) mode(i_tor_local),' comm size                   : ',this_n_cpu, this_n_cpu_mumps
   write(*,'(2i3,A,3e12.4)') my_id,my_id_n,'  filters       ',filter, filter_hyper, filter_parallel
 
+  if (do_ion_pol) write(*,'(2i3,A,3e12.4)') my_id,my_id_n,'  using ion polarisation term : ion mass =',ion_mass
   if (apply_dirichlet_condition) write(*,*) 'applying Dirichlet conditions'
 
 #ifdef __GFORTRAN__
 !$omp parallel do default(shared) &
 #else
 !$omp parallel do default(none) &
-!$omp shared(element_list, node_list, n_tor_local, i_tor_local,                     &
+!$omp shared(element_list, node_list, n_tor_local, i_tor_local, zn_norm, Tev_norm,  &
 !$omp        H, H_s, H_t, H_ss, H_st, H_tt, Hz, Hz_p, mumps_par, wgauss2,           &
 !$omp        ivar_psi, ivar_rho, ivar_T, do_ion_pol, ion_mass, central_density,     &
 !$omp        filter, filter_hyper, filter_parallel, F0, my_id_master)               &
@@ -1194,12 +1196,15 @@ do i_elm=1,element_list%n_elements
     enddo
   endif
   ! unnormalise to [1/m^3] and [eV]
-  zn0_g  = zn0_g  * CENTRAL_DENSITY * 1.d20
-  zn0_s  = zn0_s  * CENTRAL_DENSITY * 1.d20
-  zn0_t  = zn0_t  * CENTRAL_DENSITY * 1.d20
-  T0_g   = T0_g   / (CENTRAL_DENSITY * 1.d20 * MU_ZERO * EL_CHG)
-  T0_s   = T0_s   / (CENTRAL_DENSITY * 1.d20 * MU_ZERO * EL_CHG)
-  T0_t   = T0_t   / (CENTRAL_DENSITY * 1.d20 * MU_ZERO * EL_CHG)
+  zn_norm  = CENTRAL_DENSITY * 1.d20
+  Tev_norm = 1.d0 / (2.d0 * EL_CHG * MU_ZERO * zn_norm)          ! T_ev [eV] = Tev_norm * T_jorek
+
+  zn0_g  = zn0_g * zn_norm  
+  zn0_s  = zn0_s * zn_norm
+  zn0_t  = zn0_t * zn_norm
+  T0_g   = T0_g  * TeV_norm
+  T0_s   = T0_s  * Tev_norm
+  T0_t   = T0_t  * Tev_norm
 
   do ms=1, n_gauss
     do mt=1, n_gauss
@@ -1218,12 +1223,11 @@ do i_elm=1,element_list%n_elements
       psi_x = (  y_t(ms,mt) * psi_s(ms,mt) - y_s(ms,mt) * psi_t(ms,mt)) / xjac
       psi_y = (- x_t(ms,mt) * psi_s(ms,mt) + x_s(ms,mt) * psi_t(ms,mt)) / xjac
 
-      BB2 = 1.d0
-      if (filter_parallel .gt. 0.d0) BB2 = (F0*F0 + psi_x * psi_x + psi_y * psi_y )/x_g(ms,mt)**2
+      BB2 = (F0*F0 + psi_x * psi_x + psi_y * psi_y )/x_g(ms,mt)**2
 
       filter_polarisation = 0.d0
       if (do_ion_pol) then
-        filter_polarisation = ion_mass * ATOMIC_MASS_UNIT / (EL_CHG * F0**2 / x_g(ms,mt)**2)
+        filter_polarisation = ion_mass * ATOMIC_MASS_UNIT / (EL_CHG * BB2 )
 !        write(*,'(A,8e16.8)') 'POLARISATION ',filter_polarisation * T0_g(1,1)
       endif  
 
@@ -1313,13 +1317,13 @@ do i_elm=1,element_list%n_elements
                     
                                            + p * v * xjac * x_g(ms,mt) * wst &
 
-                                           + filter          * (p_x * v_x + p_y * v_y) * xjac * x_g(ms,mt) * wst &
+                                           + filter          * (p_x * v_x + p_y * v_y)             * xjac * x_g(ms,mt) * wst &
 
                                            + filter_hyper    * (v_xx + v_x/x_g(ms,mt) + v_yy)*(p_xx + p_x/x_g(ms,mt) + p_yy) * xjac * x_g(ms,mt) * wst &
 
-                                           + filter_parallel * Bgrad_v_star * Bgrad_p / BB2 * xjac * x_g(ms,mt) * wst &
+                                           + filter_parallel * Bgrad_v_star * Bgrad_p / BB2        * xjac * x_g(ms,mt) * wst &
 
-                                           + filter_polarisation * (v_pol_x * p_x + v_pol_y * p_y) * x_g(ms,mt) * wst! should be perpedicular gradient
+                                           + filter_polarisation * (v_pol_x * p_x + v_pol_y * p_y) * xjac * x_g(ms,mt) * wst! should be perpedicular gradient
                   enddo
                 enddo
               enddo

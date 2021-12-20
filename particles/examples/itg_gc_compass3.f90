@@ -287,31 +287,6 @@ do i=1, nstep_particles
         Te0_st  = sim%fields%node_list%node(j)%values(1,4,6) * Tev_norm
 
         sim%fields%node_list%node(j)%values(i_tor,1:4,2) = jorek_feedback%node_list%node(j)%values(i_tor,1:4,1)
-
-    !    sim%fields%node_list%node(j)%values(i_tor,1,2) = jorek_feedback%node_list%node(j)%values(i_tor,1,1) * Te0_eV
-
-    !    sim%fields%node_list%node(j)%values(i_tor,2,2) = jorek_feedback%node_list%node(j)%values(i_tor,2,1) * Te0_eV &
-    !                                                   + jorek_feedback%node_list%node(j)%values(i_tor,1,1) * Te0_s  &
-    !                                                   - jorek_feedback%node_list%node(j)%values(i_tor,1,1) * Te0_eV * zne0_s / zne0 
-
-    !    sim%fields%node_list%node(j)%values(i_tor,3,2) = jorek_feedback%node_list%node(j)%values(i_tor,3,1) * Te0_eV  &
-    !                                                   + jorek_feedback%node_list%node(j)%values(i_tor,1,1) * Te0_t   &
-    !                                                   - jorek_feedback%node_list%node(j)%values(i_tor,1,1) * Te0_eV * zne0_t / zne0     
-
-    !    sim%fields%node_list%node(j)%values(i_tor,4,2) = jorek_feedback%node_list%node(j)%values(i_tor,4,1) * Te0_eV &
-    !                                                   + jorek_feedback%node_list%node(j)%values(i_tor,1,1) * Te0_st &
-    !                                                   + jorek_feedback%node_list%node(j)%values(i_tor,2,1) * Te0_t  &
-    !                                                   + jorek_feedback%node_list%node(j)%values(i_tor,3,1) * Te0_s  &
-
-    !                                                   - jorek_feedback%node_list%node(j)%values(i_tor,1,1) * Te0_t  * zne0_s / zne0 &
-    !                                                   - jorek_feedback%node_list%node(j)%values(i_tor,1,1) * Te0_s  * zne0_t / zne0 &
-    !                                                   - jorek_feedback%node_list%node(j)%values(i_tor,3,1) * Te0_eV * zne0_s / zne0 &
-    !                                                   - jorek_feedback%node_list%node(j)%values(i_tor,2,1) * Te0_eV * zne0_t / zne0 &
-
-    !                                                   + jorek_feedback%node_list%node(j)%values(i_tor,1,1) / (zne0**2) &
-    !                                                   * (2.d0 * zne0_s  * zne0_t - zne0 * zne0_st) * Te0_eV  
-
-    !    sim%fields%node_list%node(j)%values(i_tor,:,2) = sim%fields%node_list%node(j)%values(i_tor,:,2) / (F0 * zne0) * t_norm
       
       enddo
 
@@ -462,7 +437,7 @@ real*8    :: HHZ(n_tor), HHZ_p(n_tor), HH(4,4), HH_s(4,4), HH_t(4,4)
 integer, intent(in)   :: n_steps
 integer   :: i, j, k, l, m, i_elm_old, i_elm 
 integer   :: seed, i_rng, n_stream, ierr, nthreads
-integer   :: i_tor, index_lm, i_elm_temp, n_phases
+integer   :: i_tor, index_lm, i_elm_temp, n_phases, n_orbit
 integer   :: ifail
 
 !$ w0 = omp_get_wtime()
@@ -485,8 +460,9 @@ feedback_rhs       = 0.d0
 energy_local       = 0.d0
 potential_energy_local = 0.d0
 
-n_phases = 8
-allocate(p_orbit(max(1,n_phases)))
+n_orbit  = 8              ! number of points on the gyro orbit for averaging (n_orbit=0 take gyro-centre only)
+n_phases = max(n_orbit,1)
+allocate(p_orbit(n_phases))
 
 call with(sim, counter)
 
@@ -503,7 +479,7 @@ if (sim%my_id .eq. 0) write(*,*) 'starting loop gc : ',size(particles,1),n_phase
    !$omp schedule(dynamic,10)                                                     &
    !$omp shared(sim, particles, n_steps, timesteps, particle_start_time, update,  &
    !$omp rho_norm, t_norm, v_norm, E_norm, M_norm, N_norm, Tev_norm, n_phases,    &
-   !$omp central_density, central_mass, F0)                                       &
+   !$omp n_orbit, central_density, central_mass, F0)                                       &
    !$omp private(particle_tmp, i_rng, i,j,k,l,m, t, E, B, psi, U, rz_old, st_old, &
    !$omp i_elm_old, i_elm, zne0, Te0_eV, p_orbit,                                 & 
    !$omp P, R_g, R_s, R_t, Z_g, Z_s, Z_t, xjac, HH, HH_s, HH_t, index_lm,         &
@@ -516,7 +492,7 @@ if (sim%my_id .eq. 0) write(*,*) 'starting loop gc : ',size(particles,1),n_phase
     !  i_rng = 1
     !$ i_rng = omp_get_thread_num()+1
 
-      call push_gc_rk4(sim%fields, particle_tmp, sim%groups(1)%mass, timesteps, n_steps, n_phases) ! add B to output of push_gc_rk4
+      call push_gc_rk4(sim%fields, particle_tmp, sim%groups(1)%mass, timesteps, n_steps, n_orbit) ! add B to output of push_gc_rk4
 
       call copy_particle_gc_vpar(particle_tmp, particles(j))
 
@@ -530,9 +506,9 @@ if (sim%my_id .eq. 0) write(*,*) 'starting loop gc : ',size(particles,1),n_phase
         
         if (ifail .ne. 0) cycle
 
-        do i=1, max(n_phases,1)
+        do i=1, n_phases
 
-          potential_energy_local = potential_energy_local + EL_CHG * p_orbit(i)%q * F0 * U / real(max(n_phases,1),8) 
+          potential_energy_local = potential_energy_local + EL_CHG * p_orbit(i)%q * F0 * U / real(n_phases,8) 
 
           if (p_orbit(i)%i_elm .gt. 0) then
 
@@ -555,12 +531,11 @@ if (sim%my_id .eq. 0) write(*,*) 'starting loop gc : ',size(particles,1),n_phase
   
                 index_lm = (l-1)*(n_order+1) + m
   
-                v   = HH(l,m) * sim%fields%element_list%element(i_elm)%size(l,m) * particle_tmp%weight 
+                v   = HH(l,m) * sim%fields%element_list%element(i_elm)%size(l,m) * particle_tmp%weight &
+                    * Te0_eV / (F0 * zne0) * t_norm
 
                 do i_tor=1,n_tor
-                  feedback_rhs(m,l,i_elm,i_tor,1) = feedback_rhs(m,l,i_elm,i_tor,1) &
-                  
-                                                  + HHZ(i_tor) * v * Te0_eV / (F0 * zne0) * t_norm
+                  feedback_rhs(m,l,i_elm,i_tor,1) = feedback_rhs(m,l,i_elm,i_tor,1) + HHZ(i_tor) * v 
                 enddo
     
               enddo   !< order
@@ -577,12 +552,9 @@ if (sim%my_id .eq. 0) write(*,*) 'starting loop gc : ',size(particles,1),n_phase
 
   t = particle_start_time + n_steps*timesteps
 
-  jorek_feedback%rhs = feedback_rhs /real(max(n_phases,1),8)
+  jorek_feedback%rhs = feedback_rhs /real(n_phases,8)
  
   deallocate(feedback_rhs)
-
-  !write(*,'(i3,A,2e20.12,10i6)') sim%my_id,'minmax rhs :',minval(jorek_feedback%rhs), maxval(jorek_feedback%rhs), minloc(jorek_feedback%rhs), maxloc(jorek_feedback%rhs)
-
 
   call MPI_REDUCE(energy_local, energy_total, 1, MPI_DOUBLE_PRECISION, MPI_SUM, 0, MPI_COMM_WORLD, ierr)
   call MPI_REDUCE(potential_energy_local, potential_energy_total, 1, MPI_DOUBLE_PRECISION, MPI_SUM, 0, MPI_COMM_WORLD, ierr)
