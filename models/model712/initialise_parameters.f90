@@ -110,11 +110,11 @@ namelist /in1/  tstep, nstep, tstep_n, nstep_n,                     &
                 wall_file,                                          &
                 first_target_point, last_target_point,              &
                 n_limiter, R_limiter, Z_limiter,                    &
-                spi_tor_rot, tor_frequency,                         &
+                spi_tor_rot, tor_frequency, spi_num_vol,            &
                 NEO, neo_file, aki_neo_const, amu_neo_const,        &
                 D_neutral_x, D_neutral_y, D_neutral_p,              &
                 neutral_reflection,                                 &
-                ns_deltaphi, ksi_ion, spi_rnd_seed,                 &
+                ns_deltaphi, ns_deltaminrad, ksi_ion, spi_rnd_seed, &
                 ns_amplitude, ns_R, ns_Z, ns_phi, ns_radius,        &
                 spi_Vel_Rref,spi_Vel_Zref, using_spi, n_spi, n_inj, &
                 spi_Vel_RxZref, spi_quantity, spi_abl_model,        &
@@ -134,7 +134,13 @@ namelist /in1/  tstep, nstep, tstep_n, nstep_n,                     &
                 psi_offset_freeb, diag_coils, rmp_coils,            &
                 voltage_coils, vert_FB_amp, find_pf_coil_currents,  &
                 delta_psi_GS, newton_GS_fixbnd, newton_GS_freebnd,  &
-                pastix_maxthrd, centralize_harm_mat
+                pastix_maxthrd, centralize_harm_mat,                &
+                n_particles, tstep_particles, nstep_particles,      & !Particles extension
+                nsubstep_particles, restart_particles,              &
+                filter_perp,    filter_hyper,    filter_par,        &
+                filter_perp_n0, filter_hyper_n0, filter_par_n0,     &
+                use_cx, use_sputtering, use_ionisation,             &
+                use_ncs, use_pcs, use_ccs
 
 if (my_id .eq. 0) then
 

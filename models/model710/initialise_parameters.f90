@@ -113,8 +113,13 @@ namelist /in1/  tstep, nstep, tstep_n, nstep_n,                     &
                 autodistribute_modes, modes_per_family,             &
                 mode_families_modes, n_mode_families,               &
                 weights_per_family, autodistribute_ranks,           &
-                ranks_per_family
-
+                ranks_per_family,                                   &
+                n_particles, tstep_particles, nstep_particles,      & !Particles extension
+                nsubstep_particles, restart_particles,              &
+                filter_perp,    filter_hyper,    filter_par,        &
+                filter_perp_n0, filter_hyper_n0, filter_par_n0,     &
+                use_cx, use_sputtering, use_ionisation,             &
+                use_ncs, use_pcs, use_ccs
 
 
 if (my_id .eq. 0) then

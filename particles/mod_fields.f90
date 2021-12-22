@@ -23,6 +23,7 @@ type, abstract :: fields_base
     procedure, public :: calc_NeTe_imp
     procedure, public :: calc_EBpsiU
     procedure, public :: calc_VBpsiU
+    procedure, public :: calc_F_profile
     procedure, public :: calc_gyro_average_E
     procedure, public :: calc_Qin, calc_Qin_analytic, check_consistency_Qin
     procedure, public :: calc_rk4, calc_RK4_analytic, check_consistency_RK4 
@@ -70,61 +71,129 @@ contains
 !> Calculates the electric and magnetic fields at a specific position
 !> in the jorek element `i_elm` at `st`.
 pure subroutine calc_EBpsiU(fields, time, i_elm, st, phi, E, B, psi, U)
-use phys_module, only: F0, mode, central_mass, central_density
-use constants, only: mu_zero, mass_proton
-use mod_coordinate_transforms, only: transform_derivatives_st_to_RZ
-! Routine parameters
-class(fields_base), intent(in) :: fields
-real*8, intent(in)  :: time
-integer, intent(in) :: i_elm !< JOREK element index
-real*8, intent(in)  :: st(2) !< element-local coordinates
-real*8, intent(in)  :: phi !< toroidal angle
-real*8, intent(out) :: E(3) !< Electric field [V/m]
-real*8, intent(out) :: B(3) !< Magnetic field [T]
-real*8, intent(out) :: psi !< psi in JOREK units
-real*8, intent(out) :: u !< velocity stream function in m/s
-
-! Internal parameters
-integer, parameter :: i_var(2) = [1,2]
-real*8             :: P(2), P_s(2), P_t(2), P_phi(2), P_time(2) ! Placeholder for evaluating variables and derivatives locally
-! Values
-real*8             :: R, R_s, R_t, Z, Z_s, Z_t
-! Others
-real*8             :: inv_st_jac, R_inv
-real*8             :: psi_R, psi_Z, U_R, U_Z, U_phi, t_norm
-
-t_norm  = sqrt(mu_zero * mass_proton * central_mass * central_density * 1.d20) ! 1 jorek time unit in seconds
-
-! Interpolate the fields to get psi and U at the current position (and the
-! changes u_n - u(n-1))
-call fields%interp_PRZ(time, i_elm, i_var, 2, st(1), st(2), phi, P, P_s, P_t, P_phi, P_time, R, R_s, R_t, Z, Z_s, Z_t)
-
-R_inv = 1.d0/R
-inv_st_jac = 1.d0/(R_s * Z_t - R_t * Z_s)
-
-! Calculate the derivatives to R and Z
-psi_R    = (  P_s(1) * Z_t - P_t(1) * Z_s ) * inv_st_jac
-psi_Z    = (- P_s(1) * R_t + P_t(1) * R_s ) * inv_st_jac
-U_R      = (  P_s(2) * Z_t - P_t(2) * Z_s ) * inv_st_jac
-U_Z      = (- P_s(2) * R_t + P_t(2) * R_s ) * inv_st_jac
-U_phi    = P_phi(2)
-
-! Update psi and U
-psi = P(1)
-U   = P(2)/t_norm
-
-! Set dpsi/dt to 0 if flag is true
-if(fields%flag_zero_dpsidt) P_time(1) = 0.d0
-
-! Calculate the magnetic field (see http://jorek.eu/wiki/doku.php?id=reduced_mhd)
-B     = [+psi_Z, -psi_R, F0] * R_inv
-
-! The local electric field, obtained from E=-Grad (u F0)-\partial_t A
-! See http://jorek.eu/wiki/doku.php?id=u_phi
-E     = [-F0*U_R, -F0*U_Z, -F0*U_phi*R_inv]/t_norm
-E(3)  = E(3) - R_inv*P_time(1) ! because this is not normalized with t_norm
-
+  use phys_module, only: F0, mode, central_mass, central_density
+  use constants, only: mu_zero, mass_proton
+  use mod_coordinate_transforms, only: transform_derivatives_st_to_RZ
+  ! Routine parameters
+  class(fields_base), intent(in) :: fields
+  real*8, intent(in)  :: time
+  integer, intent(in) :: i_elm !< JOREK element index
+  real*8, intent(in)  :: st(2) !< element-local coordinates
+  real*8, intent(in)  :: phi !< toroidal angle
+  real*8, intent(out) :: E(3) !< Electric field [V/m]
+  real*8, intent(out) :: B(3) !< Magnetic field [T]
+  real*8, intent(out) :: psi !< psi in JOREK units
+  real*8, intent(out) :: u !< velocity stream function in m/s
+  
+  ! Internal parameters
+#ifdef fullmhd
+  integer, parameter :: i_var(3) = [1,2,3]
+  real*8             :: P(3), P_s(3), P_t(3), P_phi(3), P_time(3) !Placeholders, differ in full MHD
+  real*8             :: A3, AR, AZ, A3_R, A3_Z, A3_t, AR_Z, AR_p, AR_t, AZ_R, AZ_P,AZ_t, Fprof
+#else
+  integer, parameter :: i_var(2) = [1,2]
+  real*8             :: P(2), P_s(2), P_t(2), P_phi(2), P_time(2) ! Placeholder for evaluating variables and derivatives locally
+#endif
+  ! Values
+  real*8             :: R, R_s, R_t, Z, Z_s, Z_t
+  ! Others
+  real*8             :: inv_st_jac, R_inv
+  real*8             :: psi_R, psi_Z, U_R, U_Z, U_phi, t_norm
+  
+  t_norm  = sqrt(mu_zero * mass_proton * central_mass * central_density * 1.d20) ! 1 jorek time unit in seconds
+  
+  ! Interpolate the fields to get psi and U at the current position (and the
+  ! changes u_n - u(n-1))
+  
+  
+#ifdef fullmhd
+  call fields%calc_F_profile(i_elm,st(1),st(2),phi,Fprof)
+  !In full MHD equations are easier,
+  ! B = F/R e_\phi  + curl A
+  ! E=\partial_t A
+  !
+  !Interpolating A^3=psi=1, AR=2, AZ=3, including time derivatives
+  call fields%interp_PRZ(time, i_elm, i_var,3, st(1), st(2), phi, P, P_s, P_t, P_phi, P_time, R, R_s, R_t, Z, Z_s, Z_t)
+  
+  R_inv = 1.d0/R
+  inv_st_jac = 1.d0/(R_s * Z_t - R_t * Z_s)
+  A3=P(1)
+  AR=P(2)
+  AZ=P(3)
+  !Derivatives of A3
+  A3_R    = (  P_s(1) * Z_t - P_t(1) * Z_s ) * inv_st_jac
+  A3_Z    = (- P_s(1) * R_t + P_t(1) * R_s ) * inv_st_jac
+  A3_t    = P_time(1)
+  !Derivatives of AR
+  AR_Z    = (- P_s(2) * R_t + P_t(2) * R_s ) * inv_st_jac
+  AR_p    = P_phi(2)
+  AR_t    = P_time(2)
+  !Derivatives of AZ
+  AZ_R    = (  P_s(3) * Z_t - P_t(3) * Z_s ) * inv_st_jac
+  AZ_p    = P_phi(3)
+  AZ_t    = P_time(3)
+  
+  B=[(A3_Z-AZ_p)*R_inv, (AR_p-A3_R)*R_inv, AZ_R-AR_Z + Fprof*R_inv]
+  E=[-AR_t, -AZ_t, -R_inv*A3_t]
+#else
+  call fields%interp_PRZ(time, i_elm, i_var, 2, st(1), st(2), phi, P, P_s, P_t, P_phi, P_time, R, R_s, R_t, Z, Z_s, Z_t)
+  ! Calculate the derivatives to R and Z
+  
+  R_inv = 1.d0/R
+  inv_st_jac = 1.d0/(R_s * Z_t - R_t * Z_s)
+  psi_R    = (  P_s(1) * Z_t - P_t(1) * Z_s ) * inv_st_jac
+  psi_Z    = (- P_s(1) * R_t + P_t(1) * R_s ) * inv_st_jac
+  U_R      = (  P_s(2) * Z_t - P_t(2) * Z_s ) * inv_st_jac
+  U_Z      = (- P_s(2) * R_t + P_t(2) * R_s ) * inv_st_jac
+  U_phi    = P_phi(2)
+  
+  ! Update psi and U
+  psi = P(1)
+  U   = P(2)/t_norm
+  
+  ! Set dpsi/dt to 0 if flag is true
+  if(fields%flag_zero_dpsidt) P_time(1) = 0.d0
+  
+  ! Calculate the magnetic field (see http://jorek.eu/wiki/doku.php?id=reduced_mhd)
+  B     = [+psi_Z, -psi_R, F0] * R_inv
+  
+  ! The local electric field, obtained from E=-Grad (u F0)-\partial_t A
+  ! See http://jorek.eu/wiki/doku.php?id=u_phi
+  E     = [-F0*U_R, -F0*U_Z, -F0*U_phi*R_inv]/t_norm
+  E(3)  = E(3) - R_inv*P_time(1) ! because this is not normalized with t_norm
+  
+#endif
+  
 end subroutine calc_EBpsiU
+  
+pure subroutine calc_F_profile(fields,i_elm,s,t,phi,Fprof)
+  use data_structure
+  use phys_module, only : mode, F0
+  use mod_basisfunctions
+  class(fields_base),         intent(in)     :: fields
+  integer,                    intent(in)     :: i_elm
+  real*8,                     intent(in)     :: s,t, phi
+  real*8,                     intent(out)    :: Fprof
+  !Internal variables
+  integer           :: i,j,i_tor, iv, i_harm
+  real*8            :: Fprof_temp
+  real*8            :: H(4,4), H_s(4,4),H_t(4,4),ss
+#ifdef fullmhd
+  Fprof_temp=0.d0
+  call basisfunctions3(s,t,H,H_s,H_t)
+  do i = 1, n_vertex_max
+     iv=fields%element_list%element(i_elm)%vertex(i)
+     do j=1, n_order+1
+        ss=fields%element_list%element(i_elm)%size(i,j)
+        Fprof_temp = Fprof_temp +fields%node_list%node(iv)%Fprof_eq(j)*ss*H(i,j)
+     enddo!order
+  enddo  !number of vertices
+  Fprof=Fprof_temp
+#else
+  Fprof=F0 !In reduced MHD, there is no F profile. 
+#endif
+  
+end subroutine calc_F_profile
 
 !> Calculates the electric and magnetic fields at a specific position
 !> in the jorek element `i_elm` at `st`.

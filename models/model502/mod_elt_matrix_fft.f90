@@ -1160,7 +1160,7 @@ do ms=1, n_gauss
 !    model, we should add more arguments to inj_source       !
 !============================================================!
 
-     call total_imp_source(x_g(ms,mt),y_g(ms,mt),phi,source_bg,source_imp,m_i_over_m_imp,i_main_imp)
+     call total_imp_source(x_g(ms,mt),y_g(ms,mt),phi,ps0,source_bg,source_imp,m_i_over_m_imp,i_main_imp)
 
      ! This is to detect N/A
      if (source_imp /= source_imp .or. source_bg /= source_bg) then

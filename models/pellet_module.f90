@@ -20,9 +20,9 @@ module pellet_module
   real*8, allocatable  :: xtime_pellet_psi(:)
   real*8, allocatable  :: xtime_pellet_particles(:)
   real*8, allocatable  :: xtime_phys_ablation(:)
-  
+
   contains
-  
+
   subroutine pellet_source2(pellet_amplitude,pellet_R,pellet_Z,pellet_psi,pellet_phi, &
                             pellet_radius, pellet_delta_psi, pellet_sig, pellet_length, pellet_ellipse, pellet_theta, &
                             R,Z,psi,phi, r0, T0, central_density, pellet_particles, pellet_density, pellet_volume, &
@@ -206,12 +206,13 @@ module pellet_module
   
     ! --- Local variables
     real*8  :: V_normalisation, density, density_in, density_out, pressure,pressure_in,pressure_out
+    real*8  :: kin_par_tot, kin_par_in, kin_par_out, mom_par_tot, mom_par_in, mom_par_out
     
     real*8  :: R_out, Z_out
     integer :: i_elm, ifail, i, ierr, i_p
     integer :: i_main_imp 
     
-    real*8, dimension(3) :: P, P_s, P_t, P_phi
+    real*8, dimension(4) :: P, P_s, P_t, P_phi
     real*8  :: R, R_s, R_t, Z, Z_s, Z_t
     real*8  :: s_out,t_out
     
@@ -219,6 +220,8 @@ module pellet_module
     real*8  :: t_norm, B0, nu
     real*8  :: spi_delta_phi, spi_Vel_R_tmp, spi_Vel_phi_tmp, spi_phi_inj
     real*8  :: spi_density_tmp
+    real*8  :: V_ns
+    real*8  :: xjac, psi_R, psi_Z
     
     !   -Mean impurity ionization state and related quantities
     real*8  :: Z_imp, beta_imp, mu_imp
@@ -261,7 +264,7 @@ module pellet_module
       spi_Vel_phi_tmp          = pellets(i_p)%spi_Vel_RxZ * cos(spi_delta_phi) &
                                  - pellets(i_p)%spi_Vel_R * sin(spi_delta_phi)
       spi_Vel_phi_tmp          = spi_Vel_phi_tmp / pellets(i_p)%spi_R
-  
+
       pellets(i_p)%spi_R       = pellets(i_p)%spi_R + spi_Vel_R_tmp * tstep / V_normalisation
       pellets(i_p)%spi_Z       = pellets(i_p)%spi_Z + pellets(i_p)%spi_Vel_Z * tstep / V_normalisation
       pellets(i_p)%spi_phi     = pellets(i_p)%spi_phi + spi_Vel_phi_tmp * tstep / V_normalisation
@@ -332,13 +335,19 @@ module pellet_module
 
 #if ((defined WITH_Impurities) || (defined WITH_Neutrals))
 #ifdef WITH_TiTe
-        call interp_PRZ(node_list,element_list,i_elm,[var_rho,var_Te,var_rhon],3,s_out,t_out,pellets(i_p)%spi_phi,&
+        call interp_PRZ(node_list,element_list,i_elm,[var_rho,var_Te,var_rhon,1],4,s_out,t_out,pellets(i_p)%spi_phi,&
                         P,P_s,P_t,P_phi,R,R_s,R_t,Z,Z_s,Z_t)
 #else /* WITH_TiTe */
-        call interp_PRZ(node_list,element_list,i_elm,[var_rho,var_T,var_rhon],3,s_out,t_out,pellets(i_p)%spi_phi,&
+        call interp_PRZ(node_list,element_list,i_elm,[var_rho,var_T,var_rhon,1],4,s_out,t_out,pellets(i_p)%spi_phi,&
                         P,P_s,P_t,P_phi,R,R_s,R_t,Z,Z_s,Z_t)
 #endif /* WITH_TiTe */
 #endif /* ((defined WITH_Impurities) || (defined WITH_Neutrals)) */
+
+        xjac  = R_s * Z_t - R_t * Z_s
+        psi_R = (  P_s(4) * Z_t - P_t(4) * Z_s ) / xjac
+        psi_Z = (- P_s(4) * R_t + P_t(4) * R_s ) / xjac
+        pellets(i_p)%spi_psi = P(4)
+        pellets(i_p)%spi_grad_psi = sqrt(psi_R**2 + psi_Z**2)
 
         ! Now, P(1) represents mass density and P(2) represents temperature, P(3)
         ! is the impurity density
@@ -515,21 +524,6 @@ module pellet_module
       ns_phi_rotate  = ns_phi_rotate + tor_frequency * 2. * PI * tstep / V_normalisation
     end if
   
-    if (my_id == 0 .and. mod(index_now,20) == 0) then
-  
-      do i=1, 20 !n_spi
-        i_p = i - 1 + n_spi_begin
-        if (pellets(i_p)%spi_radius > 0.0) then
-          write(*,*) "Pellet number: ", i_p
-          write(*,*) "Pellet coordinates (R,Z,phi) = ", pellets(i_p)%spi_R, pellets(i_p)%spi_Z, pellets(i_p)%spi_phi
-          write(*,*) "Pellet velocity (R,Z,phi) = ", pellets(i_p)%spi_Vel_R, pellets(i_p)%spi_Vel_Z, &
-                                                     pellets(i_p)%spi_Vel_RxZ
-          write(*,*) "Pellet ablation (radius,abl) = ", pellets(i_p)%spi_radius, pellets(i_p)%spi_abl
-          write(*,*) "Pellet species = ", pellets(i_p)%spi_species
-        end if
-      end do
-    end if
-
   return  
   end subroutine update_spi
 
@@ -860,6 +854,9 @@ module pellet_module
         pellets(i_p)%spi_Vel_Z   = spi_Vel_Z_tmp
         pellets(i_p)%spi_Vel_RxZ = spi_Vel_RxZ_tmp
         pellets(i_p)%spi_abl     = 0.0
+        pellets(i_p)%spi_vol     = 0.0
+        pellets(i_p)%spi_psi     = 0.0
+        pellets(i_p)%spi_grad_psi= 0.0
 
         write(*,'(A,I5,5ES10.2)') ' *** SHATTERED PELLET PARAMETERS :',i_p, pellets(i_p)%spi_R, pellets(i_p)%spi_Z, &
                               pellets(i_p)%spi_Vel_R, pellets(i_p)%spi_Vel_Z, pellets(i_p)%spi_radius
@@ -1204,6 +1201,9 @@ module pellet_module
         pellets(i_p)%spi_Vel_RxZ = - spi_Vel_phi_tmp(i)
         pellets(i_p)%spi_radius  =   spi_radius_tmp(i)
         pellets(i_p)%spi_abl     =   0.d0
+        pellets(i_p)%spi_vol     =   0.d0
+        pellets(i_p)%spi_psi     =   0.d0
+        pellets(i_p)%spi_grad_psi=   0.d0
 
         write(*,'(A,I5,5ES10.2)') ' *** SHATTERED PELLET PARAMETERS :',i_p, pellets(i_p)%spi_R, pellets(i_p)%spi_Z, &
                               pellets(i_p)%spi_Vel_R, pellets(i_p)%spi_Vel_Z, pellets(i_p)%spi_radius
@@ -1246,11 +1246,12 @@ module pellet_module
     integer, save         :: dtype
     logical, save         :: dtype_set = .false.
   
-    integer :: len(10) = (/1,1,1,1,1,1,1,1,1,1/), t(10) = (/ &
+    integer :: len(13) = (/1,1,1,1,1,1,1,1,1,1,1,1,1/), t(13) = (/ &
       MPI_REAL8,MPI_REAL8,MPI_REAL8,MPI_REAL8,MPI_REAL8, &
-      MPI_REAL8,MPI_REAL8,MPI_REAL8,MPI_REAL8,MPI_REAL8/) ! MPI_INTEGER1 == MPI_LOGICAL1
+      MPI_REAL8,MPI_REAL8,MPI_REAL8,MPI_REAL8,MPI_REAL8, &
+      MPI_REAL8,MPI_REAL8,MPI_REAL8/) ! MPI_INTEGER1 == MPI_LOGICAL1
   
-    integer(kind=MPI_ADDRESS_KIND) :: base, disp(10)
+    integer(kind=MPI_ADDRESS_KIND) :: base, disp(13)
     type(type_SPI) :: sample_pellet
   
     dtype_out = dtype
@@ -1268,12 +1269,15 @@ module pellet_module
     call MPI_Get_address(sample_pellet%spi_radius,  disp(8), ierr)
     call MPI_Get_address(sample_pellet%spi_abl,     disp(9), ierr)
     call MPI_Get_address(sample_pellet%spi_species, disp(10),ierr)
+    call MPI_Get_address(sample_pellet%spi_vol,     disp(11),ierr)
+    call MPI_Get_address(sample_pellet%spi_psi,     disp(12),ierr)
+    call MPI_Get_address(sample_pellet%spi_grad_psi,disp(13),ierr)
   
     ! Rebase to particle memory beginning
     disp = disp - base
   
     ! Commit the structured type
-    call MPI_Type_create_struct(10, len, disp, t, dtype, ierr)
+    call MPI_Type_create_struct(13, len, disp, t, dtype, ierr)
     call MPI_Type_commit(dtype, ierr)
   
     ! Set the save bit

@@ -752,7 +752,7 @@ do i=1,n_vertex_max
 
           source_neutral = 0.d0                   
      
-          call total_neutral_source(x_g(ms,mt),y_g(ms,mt),phi,source_neutral)
+          call total_neutral_source(x_g(ms,mt),y_g(ms,mt),phi,ps0,source_neutral)
      
           source_neutral = max(source_neutral,0.)
       
