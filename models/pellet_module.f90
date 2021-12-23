@@ -335,10 +335,10 @@ module pellet_module
 
 #if ((defined WITH_Impurities) || (defined WITH_Neutrals))
 #ifdef WITH_TiTe
-        call interp_PRZ(node_list,element_list,i_elm,[var_rho,var_Te,var_rhon,1],4,s_out,t_out,pellets(i_p)%spi_phi,&
+        call interp_PRZ(node_list,element_list,i_elm,[var_rho,var_Te,var_rhon,var_psi],4,s_out,t_out,pellets(i_p)%spi_phi,&
                         P,P_s,P_t,P_phi,R,R_s,R_t,Z,Z_s,Z_t)
 #else /* WITH_TiTe */
-        call interp_PRZ(node_list,element_list,i_elm,[var_rho,var_T,var_rhon,1],4,s_out,t_out,pellets(i_p)%spi_phi,&
+        call interp_PRZ(node_list,element_list,i_elm,[var_rho,var_T,var_rhon,var_psi],4,s_out,t_out,pellets(i_p)%spi_phi,&
                         P,P_s,P_t,P_phi,R,R_s,R_t,Z,Z_s,Z_t)
 #endif /* WITH_TiTe */
 #endif /* ((defined WITH_Impurities) || (defined WITH_Neutrals)) */

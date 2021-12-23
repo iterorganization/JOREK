@@ -25,6 +25,18 @@ module mod_initialise_particles
       integer, intent(inout) :: ielm_out
       integer, intent(out)   :: ifail
     end subroutine find_RZ
+    subroutine interp_PRZ(node_list, element_list, i_elm, i_v, n_v, s, t, phi, P, P_s, P_t, P_phi, R, R_s, R_t, Z, Z_s, Z_t)
+    
+      use data_structure
+      type (type_node_list),    intent(in)  :: node_list
+      type (type_element_list), intent(in)  :: element_list
+      integer,                  intent(in)  :: i_elm
+      integer,                  intent(in)  :: n_v, i_v(n_v)
+      real*8,                   intent(in)  :: s, t, phi
+      real*8,                   intent(out) :: P(n_v), P_s(n_v), P_t(n_v)
+      real*8,                   intent(out) :: R, R_s, R_t, Z, Z_s, Z_t
+      real*8,                   intent(out) :: P_phi(n_v)
+    end subroutine interp_PRZ
     function rej_f(n, P, gradP)
       integer, intent(in) :: n
       real*8, dimension(n), intent(in) :: P
@@ -450,11 +462,12 @@ subroutine initialise_particles_marker(particles, node_list, element_list, field
       call transform_uniform_cylindrical(ran(1:3), Rbox, Zbox, PhiBox, R, Z, phi)
   
       call find_RZ(node_list,element_list,R,Z,DUMMY_REAL,DUMMY_REAL,i_elm,s,t,ifail)
+      call interp_PRZ(node_list, element_list,i_elm,[var_psi],1,DUMMY_REAL,DUMMY_REAL,DUMMY_REAL,psi, DUMMY_REAL, DUMMY_REAL, DUMMY_REAL, DUMMY_REAL,DUMMY_REAL,DUMMY_REAL,DUMMY_REAL,DUMMY_REAL,DUMMY_REAL)
       if (ifail .eq. 0) then
         if (.not. uniform_sampling) then
           ! Obtain the source term value at randomly generated particle position
 #ifdef WITH_Impurities
-          call total_imp_source(R,Z,phi,source_bg_tmp,source_tmp,m_i_over_m_imp,i_main_imp) 
+          call total_imp_source(R,Z,phi,psi,source_bg_tmp,source_tmp,m_i_over_m_imp,i_main_imp) 
 #endif 
 #ifdef WITH_Neutrals
           call total_neutral_source(R,Z,phi,source_tmp) 
