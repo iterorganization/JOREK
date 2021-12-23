@@ -25,17 +25,6 @@ module mod_initialise_particles
       integer, intent(inout) :: ielm_out
       integer, intent(out)   :: ifail
     end subroutine find_RZ
-    subroutine interp_PRZ(node_list, element_list, i_elm, i_v, n_v, s, t, phi, P, P_s, P_t, P_phi, R, R_s, R_t, Z, Z_s, Z_t)
-      use data_structure
-      type (type_node_list),    intent(in)  :: node_list
-      type (type_element_list), intent(in)  :: element_list
-      integer,                  intent(in)  :: i_elm
-      integer,                  intent(in)  :: n_v, i_v(n_v)
-      real*8,                   intent(in)  :: s, t, phi
-      real*8,                   intent(out) :: P(n_v), P_s(n_v), P_t(n_v)
-      real*8,                   intent(out) :: R, R_s, R_t, Z, Z_s, Z_t
-      real*8,                   intent(out) :: P_phi(n_v)
-    end subroutine interp_PRZ
     function rej_f(n, P, gradP)
       integer, intent(in) :: n
       real*8, dimension(n), intent(in) :: P
@@ -278,6 +267,8 @@ subroutine initialise_particles_marker(particles, node_list, element_list, field
 
   ! Internal variables
   real*8  :: R, Z, phi, s, t, DUMMY_REAL
+  real*8  :: R_s, R_t, Z_s, Z_t, R_i, Z_i, xjac
+  real*8, dimension(1)                :: P, P_s, P_t, P_phi
   real*8  :: Rbox(2), Zbox(2), Phibox(2)
   integer :: i, j, k, ifail, spi_i
   real*8  :: ran(4)
@@ -290,7 +281,6 @@ subroutine initialise_particles_marker(particles, node_list, element_list, field
   logical :: uniform_sampling
   integer :: my_id, n_cpu
   integer :: seed
-  real*8, dimension(:), allocatable :: P
   class(type_rng), allocatable, dimension(:) :: rngs ! The RNGs for all the threads
   integer, dimension(:), allocatable :: i_to_find
   logical, dimension(:), allocatable :: not_found, is_free
@@ -445,8 +435,9 @@ subroutine initialise_particles_marker(particles, node_list, element_list, field
     !$omp   shared(particles, node_list, element_list, Rbox, Zbox, PhiBox, t_norm, n_norm, &
     !$omp          phys_source, m_i_over_m_imp, time, fields, timesteps, n_particle_asn, i_main_imp,&
     !$omp          rngs, uniform_sampling, n_threads, n_streams, seed, my_id, i_to_find, not_found) &
-    !$omp   private(j, i, spi_i, R, Z, phi, i_elm, s, t, ifail, seq, ran, i_thread, P, DUMMY_REAL,   &
-    !$omp           source_tmp, source_bg_tmp, V, B, psi, U)
+    !$omp   private(j, i, spi_i, R, Z, phi, i_elm, s, t, ifail, seq, ran, i_thread, DUMMY_REAL,   &
+    !$omp           source_tmp, source_bg_tmp, V, B, psi, U, P, P_s, P_t, P_phi,                  &
+    !$omp           R_s, R_t, Z_s, Z_t, R_i, Z_i)
     i_thread = 0
     !$ i_thread=omp_get_thread_num()
     !$omp do
@@ -461,7 +452,7 @@ subroutine initialise_particles_marker(particles, node_list, element_list, field
       call transform_uniform_cylindrical(ran(1:3), Rbox, Zbox, PhiBox, R, Z, phi)
   
       call find_RZ(node_list,element_list,R,Z,DUMMY_REAL,DUMMY_REAL,i_elm,s,t,ifail)
-      call interp_PRZ(node_list, element_list,i_elm,[var_psi],1,DUMMY_REAL,DUMMY_REAL,DUMMY_REAL,psi, DUMMY_REAL, DUMMY_REAL, DUMMY_REAL, DUMMY_REAL,DUMMY_REAL,DUMMY_REAL,DUMMY_REAL,DUMMY_REAL,DUMMY_REAL)
+      call interp_PRZ(node_list, element_list,i_elm,[var_psi],1,s,t,phi,P,P_s,P_t,P_phi,R,R_s,R_t,Z,Z_s,Z_t)
       if (ifail .eq. 0) then
         if (.not. uniform_sampling) then
           ! Obtain the source term value at randomly generated particle position
