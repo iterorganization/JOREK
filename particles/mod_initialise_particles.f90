@@ -12,7 +12,7 @@ module mod_initialise_particles
   public set_velocity_from_T, domain_bounding_box, initialise_particles_H_mu_psi
   public initialise_particles_H_mu_psi_phiplanes
   public set_particle_weights_canonical_maxwellian, normalize_with_projection
-  public weigh_with_interp_f
+  public weigh_with_interp_f, initialise_particles_marker
   public normalize_with_projection_at_gc
 
   interface
@@ -26,7 +26,6 @@ module mod_initialise_particles
       integer, intent(out)   :: ifail
     end subroutine find_RZ
     subroutine interp_PRZ(node_list, element_list, i_elm, i_v, n_v, s, t, phi, P, P_s, P_t, P_phi, R, R_s, R_t, Z, Z_s, Z_t)
-    
       use data_structure
       type (type_node_list),    intent(in)  :: node_list
       type (type_element_list), intent(in)  :: element_list
