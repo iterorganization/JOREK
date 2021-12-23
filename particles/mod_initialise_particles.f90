@@ -457,7 +457,7 @@ subroutine initialise_particles_marker(particles, node_list, element_list, field
         if (.not. uniform_sampling) then
           ! Obtain the source term value at randomly generated particle position
 #ifdef WITH_Impurities
-          call total_imp_source(R,Z,phi,psi,source_bg_tmp,source_tmp,m_i_over_m_imp,i_main_imp) 
+          call total_imp_source(R,Z,phi,P(1),source_bg_tmp,source_tmp,m_i_over_m_imp,i_main_imp) 
 #endif 
 #ifdef WITH_Neutrals
           call total_neutral_source(R,Z,phi,source_tmp) 
