@@ -452,11 +452,11 @@ subroutine initialise_particles_marker(particles, node_list, element_list, field
       call transform_uniform_cylindrical(ran(1:3), Rbox, Zbox, PhiBox, R, Z, phi)
   
       call find_RZ(node_list,element_list,R,Z,DUMMY_REAL,DUMMY_REAL,i_elm,s,t,ifail)
-      call interp_PRZ(node_list, element_list,i_elm,[var_psi],1,s,t,phi,P,P_s,P_t,P_phi,R,R_s,R_t,Z,Z_s,Z_t)
       if (ifail .eq. 0) then
         if (.not. uniform_sampling) then
           ! Obtain the source term value at randomly generated particle position
 #ifdef WITH_Impurities
+          call interp_PRZ(node_list, element_list,i_elm,[var_psi],1,s,t,phi,P,P_s,P_t,P_phi,R,R_s,R_t,Z,Z_s,Z_t)
           call total_imp_source(R,Z,phi,P(1),source_bg_tmp,source_tmp,m_i_over_m_imp,i_main_imp) 
 #endif 
 #ifdef WITH_Neutrals
