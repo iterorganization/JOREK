@@ -142,6 +142,8 @@ type is (particle_gc_vpar)
         call sim%fields%calc_RK4(sim%time, p_gc(1)%i_elm, p_gc(1)%st, p_gc(1)%x(3), A, dA, B, dB, Bnorm, dBnorm, bn, dbn, E)
       !  call sim%fields%calc_RK4_analytic(p_gc(1)%x(1), p_gc(1)%x(2), p_gc(1)%x(3), A, dA, B, dB, Bnorm, dBnorm, bn, dbn, E)
 
+        p_gc(1)%B_norm = bn
+
         v_perp = sqrt(2.d0*norm2(B)*p_gc(1)%mu)
         larmor_radius = v_perp / norm2(B) /qom
         write(*,'(A,3e18.10)') ' perpendicular velocity at (R,Z)=(1.05,0) : ',v_perp
@@ -198,7 +200,8 @@ type is (particle_gc_vpar)
 !        call sim%fields%calc_RK4_analytic(p_gc(1)%x(1), p_gc(1)%x(2), p_gc(1)%x(3), A, dA, B, dB, Bnorm, dBnorm, bn, dbn, E)
 
         p_phi_gc_start  = p_gc(1)%x(1) * ( p_gc(1)%vpar * Bnorm(3) + qom * A(3))
-        energy_gc_start = 0.5d0 * p_gc(1)%vpar**2 + p_gc(1)%mu * bn
+!        energy_gc_start = 0.5d0 * p_gc(1)%vpar**2 + p_gc(1)%mu * bn
+        energy_gc_start = 0.5d0 * p_gc(1)%vpar**2 + p_gc(1)%mu * p_gc(1)%B_norm
 
         write(*,'(A,12e18.10)') ' RK4 start : ',p_gc(1)%x,p_gc(1)%vpar, p_phi_gc_start, energy_gc_start
        
@@ -263,7 +266,7 @@ do i=1, nstep_particles
  !   write(112,'(3e18.10)') (p_orbit(j)%x,j=1,n_phases)
 
     p_phi_gc  = p_gc(1)%x(1) * ( p_gc(1)%vpar * Bnorm(3) + qom * A(3))
-    energy_gc = 0.5d0 * p_gc(1)%vpar**2 + p_gc(1)%mu * bn
+    energy_gc = 0.5d0 * p_gc(1)%vpar**2 + p_gc(1)%mu * p_gc(1)%B_norm
 
     error_W_rk4(i) = abs((energy_gc - energy_gc_start)/energy_gc_start)
     error_P_rk4(i) = abs((P_phi_gc  - P_phi_gc_start) /P_phi_gc_start)

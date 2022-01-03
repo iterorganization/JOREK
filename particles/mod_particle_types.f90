@@ -50,9 +50,10 @@ module mod_particle_types
 
   !> A simple guiding-center particle type.
   type, extends(particle_base) :: particle_gc_vpar
-    real*8    :: vpar = 0.d0 !< Guiding centre parallel velocity [m/s]
-    real*8    :: mu   = 0.d0 !< The magnetic moment [eV/T] 
-    integer*1 :: q    = 0_1  !< Charge [e]
+    real*8    :: vpar   = 0.d0 !< Guiding centre parallel velocity [m/s]
+    real*8    :: mu     = 0.d0 !< The magnetic moment [eV/T] 
+    real*8    :: B_norm = 0.d0 !< norm of total magnetic field [T]
+    integer*1 :: q      = 0_1  !< Charge [e]
   end type particle_gc_vpar
 
   !> A simple guiding-center particle type.
@@ -177,6 +178,7 @@ contains
         p_out%B_hat_prev = [0.d0, 0.d0, 0.d0]
         p_out%v = 0.d0
       end select
+
     type is (particle_gc)
       select type (p_in => particle_in)
       type is (particle_gc)
@@ -188,6 +190,21 @@ contains
         p_out%mu = 0.d0
         p_out%q  = 0
       end select
+
+    type is (particle_gc_vpar)
+      select type (p_in => particle_in)
+      type is (particle_gc_vpar)
+        p_out%vpar   = p_in%vpar
+        p_out%mu     = p_in%mu
+        p_out%q      = p_in%q
+        p_out%B_norm = p_in%B_norm
+      class default
+        p_out%vpar   = 0.d0
+        p_out%mu     = 0.d0
+        p_out%q      = 0
+        p_out%B_norm = 0.d0
+      end select
+
     type is (particle_kinetic)
       select type (p_in => particle_in)
       type is (particle_kinetic)
@@ -197,6 +214,7 @@ contains
         p_out%v  = [0.d0, 0.d0, 0.d0]
         p_out%q  = 0
       end select
+
     type is (particle_kinetic_leapfrog)
       select type (p_in => particle_in)
       type is (particle_kinetic_leapfrog)
@@ -207,6 +225,7 @@ contains
         p_out%v  = [0.d0, 0.d0, 0.d0]
         p_out%q  = 0
       end select
+
     type is (particle_kinetic_relativistic)
       select type (p_in => particle_in)
       type is (particle_kinetic_relativistic)
@@ -216,7 +235,8 @@ contains
         p_out%p = [0.d0,0.d0,0.d0]
         p_out%q = 0
       end select     
-     type is (particle_gc_relativistic)
+
+    type is (particle_gc_relativistic)
        select type (p_in => particle_in)
        type is (particle_gc_relativistic)
          p_out%p = p_in%p

@@ -392,7 +392,7 @@ pure subroutine calc_gyro_average_E(fields, time, particles, n_phases, E_average
   real*8             :: E(3), R, R_s, R_t, Z, Z_s, Z_t
   real*8             :: inv_st_jac, R_inv
   real*8             :: U, U_R, U_Z, U_phi, t_norm
-  integer            :: i
+  integer            :: i, n_average
 
   !!!!!!!!!!!!! careful Ptime is not yet defined !!!!!!!!!!!!!!!!!!!!!!
  
@@ -404,8 +404,11 @@ pure subroutine calc_gyro_average_E(fields, time, particles, n_phases, E_average
   ! changes u_n - u(n-1))
   
   E_average = 0.d0
+  n_average = 0
 
   do i=1, n_phases
+
+    if (particles(i)%i_elm .lt. 0) cycle
 
     call fields%interp_PRZ(time, particles(i)%i_elm, i_var, 1, particles(i)%st(1), particles(i)%st(2), particles(i)%x(3), P, P_s, P_t, P_phi, P_time, R, R_s, R_t, Z, Z_s, Z_t)
   
@@ -427,10 +430,11 @@ pure subroutine calc_gyro_average_E(fields, time, particles, n_phases, E_average
     E(3)  = E(3) - R_inv*P_time(1) ! because this is not normalized with t_norm
   
     E_average = E_average + E
+    n_average = n_average + 1
 
   enddo
 
-  E_average = E_average / real(n_phases,8)
+  E_average = E_average / real(n_average,8)
 
 end subroutine calc_gyro_average_E
 

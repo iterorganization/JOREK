@@ -23,8 +23,38 @@ particle_out%vpar  = particle_in%vpar
 particle_out%st    = particle_in%st
 particle_out%q     = particle_in%q
 particle_out%weight= particle_in%weight
+particle_out%B_norm= particle_in%B_norm
 
 return
+end
+
+subroutine convert_gc_to_gc_vpar(particle_in, B_norm, mass, particle_out)
+  implicit none
+
+  type(particle_gc), intent(in) :: particle_in
+  real*8, intent(in)            :: B_norm      !< Norm magnetic field at  guiding (gyro) center position [T]
+  real*8, intent(in)            :: mass        !< Mass of the particle [amu]
+  type(particle_gc_vpar)        :: particle_out
+
+  real*8 :: v2, v_par
+
+  particle_out%i_elm  = particle_in%i_elm
+  particle_out%x      = particle_in%x
+  particle_out%st     = particle_in%st
+  particle_out%q      = particle_in%q
+  particle_out%weight = particle_in%weight
+
+!  out%E  = mass * ATOMIC_MASS_UNIT * 0.5d0 * v2 / EL_CHG ! [eV]
+!  mu     = mass * ATOMIC_MASS_UNIT * 0.5d0 * (v2 - v_par**2)/B_norm/EL_CHG
+
+  v2 = 2.d0 * particle_in%E * EL_CHG / (mass*ATOMIC_MASS_UNIT) ![m/s]
+
+  v_par = sqrt(v2 - 2.d0 * abs(particle_in%mu) * B_norm * EL_CHG /  (mass * ATOMIC_MASS_UNIT))    
+
+  particle_out%vpar   = sign(v_par, particle_in%mu)
+  particle_out%mu     = abs(particle_in%mu) * EL_CHG / (mass*ATOMIC_MASS_UNIT)
+  particle_out%B_norm = B_norm
+
 end
 
 subroutine convert_leapfrog_to_gc_vpar(node_list, element_list, particle_in, B, mass, particle_out)
@@ -391,7 +421,7 @@ enddo
 return
 end
 
-subroutine push_gc_rk4(fields, particle_gc, mass, timestep, n_steps, n_gyro_phases)
+subroutine push_gc_rk4(fields, particle_gc, mass, timestep, n_steps, n_gyro_phases, gyro_shift)
 use nodes_elements
 use mod_find_rz_nearby
 use mod_fields, only: fields_base
@@ -402,6 +432,7 @@ real*8, intent(in)     :: timestep      ! [s]
 real*8, intent(in)     :: mass          ! [amu]
 integer, intent(in)    :: n_steps       ! number of time steps 
 integer, intent(in)    :: n_gyro_phases ! number of gyro phases for gyro-averaging
+real*8, intent(out), optional :: gyro_shift(3) ! shift of the gyro centre from guiding centre
 
 real*8 :: A_0(3), dA_0(3,3), B_0(3), dB_0(3,3), bn_0, dbn_0(3), Bnorm_0(3), dBnorm_0(3,3), E_0(3)
 real*8 :: A_1(3), dA_1(3,3), B_1(3), dB_1(3,3), bn_1, dbn_1(3), Bnorm_1(3), dBnorm_1(3,3), E_1(3)
@@ -416,6 +447,8 @@ type(particle_kinetic_leapfrog), allocatable  :: p_orbit(:)
 integer :: i, ifail, n_phases
 
 qom = particle_gc%q * EL_CHG / (mass * ATOMIC_MASS_UNIT) 
+
+if (present(gyro_shift)) gyro_shift = 0.d0
 
 if (particle_gc%i_elm .le. 0) return
 
@@ -499,6 +532,16 @@ do i =1, n_steps
 
 enddo
 
+call fields%calc_RK4(time_0, p_0%i_elm, p_0%st, p_0%x(3), A_0, dA_0, B_0, dB_0, Bnorm_0, dBnorm_0, bn_0, dbn_0, E_0)
+
+if (present(gyro_shift)) then
+  call convert_gc_vpar_to_kinetic(node_list, element_list, p_0, B_0, mass, n_gyro_phases, p_orbit, ifail)
+  call fields%calc_gyro_average_E(time_0, p_orbit, n_gyro_phases, E_0)
+  gyro_shift = (E_0 - dot_product(E_0,B_0)*B_0/bn_0**2) / bn_0**2 * mass*ATOMIC_MASS_UNIT / EL_CHG
+endif
+
+p_0%B_norm = norm2(B_0)
+
 call copy_particle_gc_vpar(p_0,particle_gc)
 
 return
@@ -534,6 +577,30 @@ real*8 :: Bstar(3), Estar(3), Bpar_star, delta_x(3), delta_u
         
   delta_x = (Bstar * vpar  - cross(Bnorm, Estar)) / Bpar_star
   delta_u = dot_product(Bstar,Estar) * qom        / Bpar_star
+
+  delta_x(3) = delta_x(3) / x(1)
+
+return
+end
+
+subroutine rk4_step2(x, vpar, qom, zmu, E, B, Bnorm, dBnorm, dB, delta_x, delta_u)
+! identical to rk4_step (but can be useful to identify different velicity contributions)
+implicit none
+real*8 :: x(3), vpar, qom, zmu, A(3), dA(3,3), E(3), Bnorm(3), dBnorm(3,3), B(3), dB(3)
+real*8 :: Bstar(3), Estar(3), Bpar_star, delta_x(3), delta_u
+real*8 :: Bn, v_E(3), v_gradB(3), v_curvature(3)
+  
+  Bn        = norm2(B)
+  Bstar     = B + vpar * rot_tmp(x,Bnorm,dBnorm) / qom
+  Bpar_star = dot_product(Bstar,Bnorm)
+  Estar     = E - zmu * dB /qom
+
+  v_E         =           - cross(B,E)  / Bn**2
+  v_gradB     = zmu / qom * cross(B,dB) / Bn**2
+  v_curvature = vpar**2 / (Bn * qom) * (rot_tmp(x,Bnorm,dBnorm) - dot_product(rot_tmp(x,Bnorm,dBnorm),Bnorm)* Bnorm)
+        
+  delta_x = Bnorm * vpar  + Bn / Bpar_star * (v_gradB + v_E + v_curvature)
+  delta_u = - dot_product(Bnorm + Bn/(vpar*Bpar_star) * (v_gradB + v_E + v_curvature) , zmu * dB - qom * E)
 
   delta_x(3) = delta_x(3) / x(1)
 
