@@ -10,7 +10,6 @@ module mod_initialise_particles
   private
   public initialise_particles, no_transform, adjust_particle_weights
   public set_velocity_from_T, domain_bounding_box, initialise_particles_H_mu_psi
-  public initialise_particles_H_mu_psi_phiplanes
   public set_particle_weights_canonical_maxwellian, normalize_with_projection
   public weigh_with_interp_f, initialise_particles_marker
   public normalize_with_projection_at_gc
