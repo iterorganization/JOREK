@@ -6,7 +6,6 @@ end module
 program itg_loop
 
 use particle_tracer
-use mod_pusher_tools, only : particle_position_to_gc
 use mod_particle_diagnostics
 use mpi
 use mod_atomic_elements
@@ -14,7 +13,6 @@ use mod_particle_io
 use mod_event
 use mod_project_particles
 use mod_particle_loop
-use mod_gc_variational
 use nodes_elements
 use mod_jorek_timestepping
 use mod_random_seed
@@ -155,7 +153,7 @@ psi_start = psi_axis + (psi_bnd - psi_axis) * psi_n_start
 psi_end   = psi_axis + (psi_bnd - psi_axis) * psi_n_end
 
 psi_25    = psi_axis + 0.25d0 * (psi_bnd - psi_axis)
-psi_30    = psi_axis + 0.30d0 * (psi_bnd - psi_axis)
+psi_30    = psi_axis + 0.30d0 * (psi_bnd - psi_axis)  ! s=0.55 to 0.68
 psi_45    = psi_axis + 0.45d0 * (psi_bnd - psi_axis)
 psi_60    = psi_axis + 0.60d0 * (psi_bnd - psi_axis)
 
@@ -169,7 +167,7 @@ if (.not. restart_particles) then
   
   if (sim%my_id .eq. 0) write(*,'(A,e12.4)') ' ion mass : ',sim%groups(1)%mass
 
-  allocate(particle_gc_vpar::sim%groups(1)%particles(n_particles_local))
+  allocate(particle_kinetic_leapfrog::sim%groups(1)%particles(n_particles_local))
 
   call initialise_particles_H_mu_psi(sim%groups(1)%particles, sim%fields, sobseq_rng(),sim%groups(1)%mass, &
                                      uniform_space=.true., uniform_space_rej_f=f_density, &
@@ -188,6 +186,10 @@ if (.not. restart_particles) then
 
 
   call with(sim, counter)
+  select type (p => sim%groups(1)%particles)
+  type is (particle_kinetic_leapfrog)  
+    call boris_all_initial_half_step_backwards_RZPhi(p, sim%groups(1)%mass, sim%fields, sim%time, timesteps)
+  end select
 
 endif ! not restart
 
@@ -208,7 +210,7 @@ if (nstep .gt. 0) then
                      filter_n0 = filter_perp_n0, filter_hyper_n0 = filter_hyper_n0, filter_parallel_n0 = filter_par_n0, &
                      fractional_digits = 9, &
                      do_zonal = .false., calc_integrals=.false., to_vtk=.false., to_h5 = .false., basename='projections', &
-                     do_ion_polarisation = .true., ion_mass=sim%groups(1)%mass)
+                     do_ion_polarisation = .false., ion_mass=sim%groups(1)%mass)
 
   allocate(jorek_feedback%rhs(n_order+1, n_vertex_max, sim%fields%element_list%n_elements, n_tor, 1))
   jorek_feedback%rhs = 0.d0
@@ -228,7 +230,7 @@ endif
 allocate(rhs_nodes(4,sim%fields%node_list%n_nodes),rhs_nodes_local(4,sim%fields%node_list%n_nodes))
 
 node_start = 1
-node_end   = sim%fields%node_list%n_nodes
+node_end   = sim%fields%node_list%n_nodes !- 3*128
 
 if (sim%my_id .eq. 0) then
   
@@ -259,8 +261,8 @@ do i=1, nstep_particles
 
   index_now = index_now + 1
 
-  call loop_particle_gc_local(sim, jorek_feedback, timesteps, n_steps, particle_start_time, .true.)
- 
+  call loop_particle_local(sim, jorek_feedback, timesteps, n_steps, particle_start_time, .true.)
+
   sim%time = particle_start_time + timesteps * n_steps
 
   if (sim%my_id == 0) xtime(index_now) = sim%time
@@ -277,10 +279,10 @@ do i=1, nstep_particles
  
   call with(sim, jorek_feedback)
 
-  
+
   do j=1, jorek_feedback%node_list%n_nodes - 1280
     if (sim%fields%node_list%node(j)%boundary .eq. 0) then
-      sim%fields%node_list%node(j)%values(2:n_tor,1:4,2) = jorek_feedback%node_list%node(j)%values(2:n_tor,1:4,1)     
+      sim%fields%node_list%node(j)%values(2:n_tor,1:4,2) = jorek_feedback%node_list%node(j)%values(2:n_tor,1:4,1)
     else
       sim%fields%node_list%node(j)%values(:,:,2) = 0.d0
     endif
@@ -291,15 +293,15 @@ do i=1, nstep_particles
                                                         sim%fields%node_list%node(i_diagno(3))%values(1:n_tor,1,2)  
 
 
-  if (sim%my_id .eq. 0) then
+  if ((sim%my_id .eq. 0) .and. (mod(index_now,50).eq. 0 )) then
     call itg_energy(node_list,element_list,min(psi_start,psi_end),max(psi_start,psi_end),W_kin,W_tot)
-    energies(:,1,index_now) = W_kin(:)
-    call write_live_data(index_now)
-
     call itg_energy(node_list,element_list,min(psi_30,  psi_45),max(psi_30,  psi_45),W_kin_mode,W_tot_mode)
     call itg_energy(node_list,element_list,min(psi_axis,psi_25),max(psi_axis,psi_25),W_kin25,W_tot25)
     call itg_energy(node_list,element_list,min(psi_bnd, psi_60),max(psi_bnd, psi_60),W_kin60,W_tot60)
 
+
+    energies(:,1,index_now) = W_kin(:)
+    call write_live_data(index_now)
     if (index_now > index_start+1) then
       growth_kin = 0.d0
       if (energies(n_tor,1,index_now-1) .gt. 0.d0) then
@@ -399,7 +401,7 @@ pure function f_itg(n, P, grad_P) result(f)
 end function f_itg
 
 
-subroutine loop_particle_gc_local(sim, jorek_feedback, timesteps, n_steps, particle_start_time, update)
+subroutine loop_particle_local(sim, jorek_feedback, timesteps, n_steps, particle_start_time, update)
 use mod_project_particles
 use mod_random_seed
 use mod_interp, only: sincosperiod_moivre
@@ -411,8 +413,7 @@ implicit none
 class(particle_sim), target, intent(inout)    :: sim
 type(projection), target, intent(inout)       :: jorek_feedback
 type(count_action)                            :: counter
-type(particle_gc_vpar)                        :: particle_tmp
-type(particle_kinetic_leapfrog), allocatable  :: p_orbit(:) 
+type(particle_kinetic_leapfrog)               :: particle_tmp
 
 real*8, intent(in)     :: timesteps, particle_start_time 
 logical, intent(in)    :: update
@@ -422,7 +423,7 @@ real*8,allocatable :: feedback_rhs(:,:,:,:,:)
 real*8    :: n_norm, rho_norm, t_norm, v_norm, E_norm, M_norm, TeV_norm
 real*8    :: energy_local, energy_total, potential_energy_local, potential_energy_total
 real*8    :: t, E(3), B(3), psi, U, zne0, Te0, rz_old(2), st_old(2)
-real*8    :: v_temp(3), T_eV, K_eV, gyro_shift(3)
+real*8    :: v_temp(3), T_eV, K_eV
 real*8    :: v, v_s, v_t, v_R, v_Z
 real*8    :: P(2), R_g, Z_g, R_s, R_t, Z_s, Z_t, xjac
 real*8    :: HHZ(n_tor), HHZ_p(n_tor), HH(4,4), HH_s(4,4), HH_t(4,4)
@@ -431,8 +432,8 @@ real*8    :: HHZ(n_tor), HHZ_p(n_tor), HH(4,4), HH_s(4,4), HH_t(4,4)
 integer, intent(in)   :: n_steps
 integer   :: i, j, k, l, m, i_elm_old, i_elm 
 integer   :: seed, i_rng, n_stream, ierr, nthreads
-integer   :: i_tor, index_lm, i_elm_temp, n_phases, n_orbit
-integer   :: ifail, sum_ifail, total_ifail
+integer   :: i_tor, index_lm, i_elm_temp
+integer   :: ifail
 
 !$ w0 = omp_get_wtime()
 
@@ -454,105 +455,100 @@ feedback_rhs       = 0.d0
 energy_local       = 0.d0
 potential_energy_local = 0.d0
 
-n_orbit  = 8              ! number of points on the gyro orbit for averaging (n_orbit=0 take gyro-centre only)
-n_phases = max(n_orbit,1)
-allocate(p_orbit(n_phases))
-
 call with(sim, counter)
 
 select type (particles => sim%groups(1)%particles)
-type is (particle_gc_vpar)
+type is (particle_kinetic_leapfrog)
 
-if (sim%my_id .eq. 0) write(*,*) 'starting loop gc : ',size(particles,1),n_phases
-
-sum_ifail = 0
+if (sim%my_id .eq. 0) write(*,*) 'starting loop kinetic : ',size(particles,1)
 
 #ifdef __GFORTRAN__
-   !$omp parallel do default(shared) & ! workaround for Error: �__vtab_mod_pcg32_rng_Pcg32_rng� not specified in enclosing �parallel�
+  !$omp parallel do default(shared) & ! workaround for Error: �__vtab_mod_pcg32_rng_Pcg32_rng� not specified in enclosing �parallel�
 #else
-   !$omp parallel do default(none) &
+  !$omp parallel do default(none) &
 #endif
-   !$omp schedule(dynamic,10)                                                     &
-   !$omp shared(sim, particles, n_steps, timesteps, particle_start_time, update,  &
-   !$omp rho_norm, t_norm, v_norm, E_norm, M_norm, N_norm, Tev_norm, n_phases,    &
-   !$omp n_orbit, central_density, central_mass, F0)                              &
-   !$omp private(particle_tmp, i_rng, i,j,k,l,m, t, E, B, psi, U, rz_old, st_old, &
-   !$omp i_elm_old, i_elm, zne0, Te0_eV, p_orbit, gyro_shift,                     & 
-   !$omp P, R_g, R_s, R_t, Z_g, Z_s, Z_t, xjac, HH, HH_s, HH_t, index_lm,         &
-   !$omp ifail, v, v_s, v_t, v_R, v_Z, HHZ, HHZ_p)                                &
-   !$omp reduction(+:feedback_rhs, energy_local, potential_energy_local,sum_ifail)
-   do j=1,size(particles,1)
+  !$omp schedule(dynamic,10)                                                     &
+  !$omp shared(sim, particles, n_steps, timesteps, particle_start_time, update,  &
+  !$omp rho_norm, t_norm, v_norm, E_norm, M_norm, N_norm, Tev_norm,              &
+  !$omp central_density, central_mass, F0)                                       &
+  !$omp private(particle_tmp, i_rng, i,j,k,l,m, t, E, B, psi, U, rz_old, st_old, &
+  !$omp i_elm_old, i_elm, zne0, Te0_eV,                                          & 
+  !$omp P, R_g, R_s, R_t, Z_g, Z_s, Z_t, xjac, HH, HH_s, HH_t, index_lm,         &
+  !$omp ifail, v, v_s, v_t, v_R, v_Z, HHZ, HHZ_p)                                &
+  !$omp reduction(+:feedback_rhs, energy_local, potential_energy_local)
+  do j=1,size(particles,1)
 
-    call copy_particle_gc_vpar(particles(j),particle_tmp)
+    call copy_particle_kinetic_leapfrog(particles(j),particle_tmp)
 
     !  i_rng = 1
     !$ i_rng = omp_get_thread_num()+1
-      
-      call push_gc_rk4(sim%fields, particle_tmp, sim%groups(1)%mass, timesteps, n_steps, n_orbit, gyro_shift) ! add B to output of push_gc_rk4
+
+    do k=1,n_steps
+  
+      if (particle_tmp%i_elm .le. 0) exit
+  
+        t = particle_start_time + (k-1)*timesteps
+  
+        call sim%fields%calc_EBpsiU(t, particle_tmp%i_elm, particle_tmp%st, particle_tmp%x(3), E, B, psi, U)
+  
+        rz_old    = particle_tmp%x(1:2)
+        st_old    = particle_tmp%st
+        i_elm_old = particle_tmp%i_elm
+                    
+        call boris_push_cylindrical(particle_tmp, sim%groups(1)%mass, E, B, timesteps)
+  
+        call find_RZ_nearby(sim%fields%node_list, sim%fields%element_list, rz_old(1), rz_old(2), st_old(1), st_old(2), i_elm_old, &
+                           particle_tmp%x(1), particle_tmp%x(2), particle_tmp%st(1), particle_tmp%st(2), particle_tmp%i_elm, ifail)
+            
+      end do ! steps
+
+!      if (sim%my_id .eq. 0) write(102,'(3e18.10)') particle_tmp%x
+!      if (sim%my_id .eq. 1) write(103,'(3e18.10)') particle_tmp%x
 
       if (update) then
         if (particle_tmp%i_elm .gt. 0) then
-          call copy_particle_gc_vpar(particle_tmp, particles(j))
+          call copy_particle_kinetic_leapfrog(particle_tmp, particles(j))
         else
-          call copy_particle_gc_vpar(particles(j),particle_tmp)
+          call copy_particle_kinetic_leapfrog(particles(j),particle_tmp)
         endif
       endif
 
+      i_elm = particle_tmp%i_elm
+  
       if (particle_tmp%i_elm .gt. 0) then
+        
+        ! the kinetic and potential energy should really be calculated at a half step time difference (leap frog scheme, see orbits.f90)
+        energy_local           = energy_local           + 0.5d0 * dot_product(particle_tmp%v,particle_tmp%v) * particle_tmp%weight
+        potential_energy_local = potential_energy_local + EL_CHG * particle_tmp%q * F0 * U 
 
-        energy_local = energy_local + (0.5d0 * particle_tmp%vpar**2 + particle_tmp%mu * particle_tmp%B_norm) * particle_tmp%weight
 
-        call sim%fields%calc_EBpsiU(sim%time, particle_tmp%i_elm, particle_tmp%st, particle_tmp%x(3), E, B, psi, U)
-
-        particle_tmp%x(1:2) = particle_tmp%x(1:2) - gyro_shift(1:2)
-        particle_tmp%x(3)   = particle_tmp%x(3)   - gyro_shift(3) / particle_tmp%x(1)
-
-        call convert_gc_vpar_to_kinetic(sim%fields%node_list, sim%fields%element_list, particle_tmp, B, sim%groups(1)%mass, n_phases, p_orbit, ifail)
-
-        if (ifail .lt. 0) then
-          sum_ifail = sum_ifail + 1
-          cycle
-        endif
-
-        do i=1, n_phases
-
-!          if ((sim%my_id .eq. 0) .and. (j.eq. 1)) write(100,'(3e18.10)') p_orbit(i)%x
-!          if ((sim%my_id .eq. 1) .and. (j.eq. 1)) write(101,'(3e18.10)') p_orbit(i)%x
-
-          potential_energy_local = potential_energy_local + EL_CHG * p_orbit(i)%q * F0 * U / real(n_phases,8) 
-
-          if (p_orbit(i)%i_elm .gt. 0) then
-
-            i_elm = p_orbit(i)%i_elm
-
-            call basisfunctions(p_orbit(i)%st(1), p_orbit(i)%st(2), HH, HH_s, HH_t)
+        call basisfunctions(particle_tmp%st(1), particle_tmp%st(2), HH, HH_s, HH_t)
   
-            call mode_moivre(p_orbit(i)%x(3), HHZ)
+        call mode_moivre(particle_tmp%x(3), HHZ)
 
-!            call sim%fields%calc_NeTe(t, p_orbit(i)%i_elm, p_orbit(i)%st, p_orbit(i)%x(3), zne0, Te0_eV)
+!        zne0 = f_density(1, [psi], [0.d0,0.d0,0.d0]) * central_density * 1d20
+!        zne0 = central_density * 1d20
 
-            call interp_00(sim%fields%node_list, sim%fields%element_list, p_orbit(i)%i_elm, [5,6], 2, p_orbit(i)%st(1), p_orbit(i)%st(2), P)
-            zne0   = P(1) * n_norm
-            Te0_eV = P(2) * Tev_norm
+        call interp_00(sim%fields%node_list, sim%fields%element_list, particle_tmp%i_elm, [5,6], 2, particle_tmp%st(1), particle_tmp%st(2), P)
+        zne0   = P(1) * n_norm
+        Te0_eV = P(2) * Tev_norm
+
+!       zne0   = 4.66e19  ! for GENE benchmark
+!       Te0_eV = 2250.d0  ! for GENE benchmark
+
+        do l=1,n_vertex_max
+          do m=1,n_order+1
   
-!            zne0   = 4.66e19  ! for GENE benchmark
-!            Te0_eV = 2250.d0  ! for GENE benchmark
-
-            do l=1,n_vertex_max
-              do m=1,n_order+1
+            index_lm = (l-1)*(n_order+1) + m
   
-                index_lm = (l-1)*(n_order+1) + m
-  
-                v = HH(l,m) * sim%fields%element_list%element(i_elm)%size(l,m) * particle_tmp%weight &
-                    * Te0_eV / (F0 * zne0) * t_norm
+            v = HH(l,m) * sim%fields%element_list%element(i_elm)%size(l,m) * particle_tmp%weight &
+              * Te0_eV / (F0 * zne0) * t_norm
 
-                feedback_rhs(m,l,i_elm,1:n_tor,1) = feedback_rhs(m,l,i_elm,1:n_tor,1) + HHZ(1:n_tor) * v     
-
-              enddo   !< order
-            enddo     !< vertex
-          endif
-        enddo       !< phases of gc orbit
-
+            feedback_rhs(m,l,i_elm,1:n_tor,1) = feedback_rhs(m,l,i_elm,1:n_tor,1) + HHZ(1:n_tor) * v 
+    
+          enddo   !< order
+        enddo     !< vertex
+      
       endif
   
     end do   ! particles
@@ -562,25 +558,22 @@ sum_ifail = 0
 
   t = particle_start_time + n_steps*timesteps
 
-  jorek_feedback%rhs = feedback_rhs /real(n_phases,8)
+  jorek_feedback%rhs = feedback_rhs
  
   deallocate(feedback_rhs)
 
-  call MPI_REDUCE(sum_ifail, total_ifail, 1, MPI_INTEGER, MPI_SUM, 0, MPI_COMM_WORLD, ierr)
-  if (sim%my_id .eq. 0) write(*,'(A,i12)') ' ifail : ',total_ifail
-
-  call MPI_REDUCE(energy_local, energy_total, 1, MPI_DOUBLE_PRECISION, MPI_SUM, 0, MPI_COMM_WORLD, ierr)
-  call MPI_REDUCE(potential_energy_local, potential_energy_total, 1, MPI_DOUBLE_PRECISION, MPI_SUM, 0, MPI_COMM_WORLD, ierr)
-  if (sim%my_id .eq. 0) write(*,'(A,2e16.8)') ' Particle energy : ',energy_total * sim%groups(1)%mass * ATOMIC_MASS_UNIT, potential_energy_total
+!  call MPI_REDUCE(energy_local, energy_total, 1, MPI_DOUBLE_PRECISION, MPI_SUM, 0, MPI_COMM_WORLD, ierr)
+!  call MPI_REDUCE(potential_energy_local, potential_energy_total, 1, MPI_DOUBLE_PRECISION, MPI_SUM, 0, MPI_COMM_WORLD, ierr)
+!  if (sim%my_id .eq. 0) write(*,'(A,2e16.8)') ' Particle energy : ',energy_total * sim%groups(1)%mass * ATOMIC_MASS_UNIT, potential_energy_total
 
   !  write(*,*) 'CAREFUL: averaging over n_steps : ',n_steps
   !  jorek_feedback%rhs = jorek_feedback%rhs / real(n_steps,8)
  
   !$ w1 = omp_get_wtime()
   !$ mmm = mpi_minmeanmax(w1-w0)
-  !$ if (sim%my_id .eq. 0) write(*,"(A,3f9.4,A)") " Particle stepping complete in ", mmm, "s"
+  !$ if (sim%my_id .eq. 0) write(*,"(A,3f9.4,A)") " Particle stepping complete !in ", mmm, "s"
 
-  if (sim%my_id .eq. 0) write(*,*) 'done loop_particle_gc_local'
+  if (sim%my_id .eq. 0) write(*,*) 'done loop_particle_local'
   
 end subroutine
 
