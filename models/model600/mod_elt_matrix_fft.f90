@@ -802,7 +802,7 @@ do i=1,n_vertex_max
                 ZKi_par_T   = Zk_par_max
                 dZKi_par_dT = 0.d0
               endif
-              if ( xpoint2 .and. (Ti0 .lt. T_min) ) then
+              if (Ti0 .lt. T_min) then
                 ZKi_par_T   = ZK_i_par * (max(Ti0,T_min)/Ti_0)**(+2.5d0)
                 dZKi_par_dT = 0.d0
               endif
@@ -813,7 +813,7 @@ do i=1,n_vertex_max
                 ZKe_par_T   = Zk_par_max
                 dZKe_par_dT = 0.d0
               endif
-              if ( xpoint2 .and. (Te0 .lt. T_min) ) then
+              if (Te0 .lt. T_min) then
                 ZKe_par_T   = ZK_e_par * (max(Te0,T_min)/Te_0)**(+2.5d0)
                 dZKe_par_dT = 0.d0
               endif
@@ -891,7 +891,7 @@ do i=1,n_vertex_max
                 ZK_par_T   = Zk_par_max
                 dZK_par_dT = 0.d0
               endif
-              if ( xpoint2 .and. (T0 .lt. T_min) ) then
+              if (T0 .lt. T_min) then
                 ZK_par_T   = ZK_par * (max(T0,T_min)/T_0)**(+2.5d0)
                 dZK_par_dT = 0.d0
               endif
@@ -935,7 +935,7 @@ do i=1,n_vertex_max
             deta_dT_ohm   = 0.d0
           end if
 
-          if ( eta_T_dependent .and.  xpoint2 .and. (T_or_Te .lt. T_min) ) then
+          if ( eta_T_dependent .and. (T_or_Te .lt. T_min) ) then
             eta_T     = eta       * (max(T_or_Te,T_min)/T_or_Te_0)**(-1.5d0)
             deta_dT   = 0.d0
             d2eta_d2T = 0.d0
@@ -949,7 +949,7 @@ do i=1,n_vertex_max
             visco_T     =   visco * (T_or_Te_corr/T_or_Te_0)**(-1.5d0)
             dvisco_dT   = - visco * (1.5d0)  * T_or_Te_corr**(-2.5d0) * T_or_Te_0**(1.5d0)
             d2visco_dT2 =   visco * (3.75d0) * T_or_Te_corr**(-3.5d0) * T_or_Te_0**(1.5d0)
-            if ( xpoint2 .and. (T_or_Te .lt. T_min) ) then
+            if (T_or_Te .lt. T_min) then
               visco_T     = visco  * (max(T_or_Te,T_min)/T_or_Te_0)**(-1.5d0)
               dvisco_dT   = 0.d0
               d2visco_dT2 = 0.d0
@@ -966,7 +966,7 @@ do i=1,n_vertex_max
           if ( eta_num_T_dependent ) then
             eta_num_T     =   eta_num   * (T_or_Te_corr/T_or_Te_0)**(-3.d0)
             deta_num_dT   = - eta_num   * (3.d0)  * T_or_Te_corr**(-4.d0) * T_or_Te_0**(3.d0)
-            if ( xpoint2 .and. (T_or_Te .lt. T_min) ) then
+            if (T_or_Te .lt. T_min) then
               eta_num_T     = eta_num    * (max(T_or_Te,T_min)/T_or_Te_0)**(-3.d0)
               deta_num_dT   = 0.d0
             endif
@@ -979,7 +979,7 @@ do i=1,n_vertex_max
           if ( visco_num_T_dependent ) then
             visco_num_T     =   visco_num   * (T_or_Te_corr/T_or_Te_0)**(-3.d0)
             dvisco_num_dT   = - visco_num   * (3.d0)  * T_or_Te_corr**(-4.d0) * T_or_Te_0**(3.d0)
-            if ( xpoint2 .and. (T_or_Te .lt. T_min) ) then
+            if (T_or_Te .lt. T_min) then
               visco_num_T     = visco_num    * (max(T_or_Te,T_min)/T_or_Te_0)**(-3.d0)
               dvisco_num_dT   = 0.d0
             endif
@@ -1034,25 +1034,23 @@ do i=1,n_vertex_max
           end if
 
           ! --- Increase diffusivity if very small density/temperature
-          if (xpoint2) then
-            if (r0 .lt. D_prof_neg_thresh)  then
-              D_prof  = D_prof_neg
-            endif
-
-            if ( with_TiTe ) then ! (with_TiTe) ****************************************************
-              if (Te0 .lt. ZK_prof_neg_thresh) then
-                ZKe_prof = ZK_prof_neg
-              endif
-              if (Ti0 .lt. ZK_prof_neg_thresh) then
-                ZKi_prof = ZK_prof_neg
-              endif
-            else ! (with_TiTe), i.e. with single temperature ***************************************
-              if (T0 .lt. ZK_prof_neg_thresh) then
-                ZK_prof = ZK_prof_neg
-              endif
-            endif ! (with_TiTe) ********************************************************************
-
+          if (r0 .lt. D_prof_neg_thresh)  then
+            D_prof  = D_prof_neg
           endif
+
+          if ( with_TiTe ) then ! (with_TiTe) ****************************************************
+            if (Te0 .lt. ZK_prof_neg_thresh) then
+              ZKe_prof = ZK_prof_neg
+            endif
+            if (Ti0 .lt. ZK_prof_neg_thresh) then
+              ZKi_prof = ZK_prof_neg
+            endif
+          else ! (with_TiTe), i.e. with single temperature ***************************************
+            if (T0 .lt. ZK_prof_neg_thresh) then
+              ZK_prof = ZK_prof_neg
+            endif
+          endif ! (with_TiTe) ********************************************************************
+
 
           phi       = 2.d0*PI*float(mp-1)/float(n_plane) / float(n_period)
           delta_phi = 2.d0*PI/float(n_plane) / float(n_period)
