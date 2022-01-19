@@ -217,7 +217,7 @@ use mod_basisfunctions
 use corr_neg, only: corr_neg_dens
 use phys_module, only: tstep, use_ncs, use_pcs, use_ccs, use_marker
 use phys_module, only: pellets, n_spi_tot, ns_amplitude, n_inj, t_ns, t_now
-use phys_module, only: ng_radius_ratio, ns_radius, ng_radius_min, ns_R, ns_Z, ns_phi
+use phys_module, only: ng_radius_ratio, ns_radius, ng_radius_min, ns_R, ns_Z, ns_phi, D_prof_neg
 use phys_module, only: CENTRAL_MASS, CENTRAL_DENSITY, GAMMA
 use constants,   only: MU_ZERO, MASS_PROTON, ATOMIC_MASS_UNIT, K_BOLTZ, EL_CHG
 use mod_integrals3D, only: int3d_new
@@ -466,7 +466,7 @@ do while (.not. sim%stop_now)
 #else
     !$omp shared(sim, particles, n_particles, n_steps, timesteps, rng, particle_start_time, &
 #endif
-    !$omp rho_norm, t_norm, v_norm, E_norm, M_norm, N_norm, P_Z, E_ion_tot,                 &
+    !$omp rho_norm, t_norm, v_norm, E_norm, M_norm, N_norm, P_Z, E_ion_tot, D_prof_neg,     &
     !$omp use_ncs, use_marker, n_particles_add_local, CE_marker, aux_node_list,element_list,&
     !$omp CENTRAL_DENSITY, CENTRAL_MASS)                    &
     !$omp private(i_rng, i,j,k,l,m, t, E, B, psi, U, rz_old, st_old, P_ion, P_rcb, iZ, P_tmp,&
@@ -505,13 +505,13 @@ do while (.not. sim%stop_now)
         n_imp_tmp = corr_neg_dens(n_imp_tmp, (/ 1.d-1, 1.d-1 /),1.d-3)
         Z_imp_tmp = Z_imp_tmp / n_imp_tmp
 
-        !xjac      = R_s * Z_t - R_t * Z_s
+        xjac      = R_s * Z_t - R_t * Z_s
 
-        !grad_n_imp_tmp = n_norm*[(  P_s(2) * Z_t - P_t(2) * Z_s)/ xjac, &
-        !                         (- P_s(2) * R_t + P_t(2) * R_s)/ xjac, &
-        !                         P_phi(2)/R_g] 
-        !grad_n_imp_tmp = (grad_n_imp_tmp - grad_n_imp_fluid) / n_norm ! Normalize to JOREK unit
-        grad_n_imp_tmp = grad_n_imp_fluid / max(n_rho_imp,1.d12) ! Extract the length scale of density gradient
+        grad_n_imp_tmp = n_norm*[(  P_s(2) * Z_t - P_t(2) * Z_s)/ xjac, &
+                                 (- P_s(2) * R_t + P_t(2) * R_s)/ xjac, &
+                                 P_phi(2)/R_g] 
+        grad_n_imp_tmp = (grad_n_imp_tmp - grad_n_imp_fluid) / max((P(2)*n_norm)-n_rho_imp,1.d10) ! Normalize to JOREK unit
+        !grad_n_imp_tmp = grad_n_imp_fluid / max(n_rho_imp,1.d12) ! Extract the length scale of density gradient
 
         call interp_PRZ(sim%fields%node_list,element_list,particles(j)%i_elm,[var_psi,var_rhon],2,particles(j)%st(1),&
                         particles(j)%st(2), particles(j)%x(3), P,P_s,P_t,P_phi,R_g,R_s,R_t,Z_g,Z_s,Z_t)
