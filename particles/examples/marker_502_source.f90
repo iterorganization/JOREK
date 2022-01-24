@@ -18,7 +18,7 @@ use phys_module, only: filter_perp, filter_hyper, filter_par, filter_perp_n0, fi
 use phys_module, only: tstep, imp_type, imp_adas, imp_cor, adas_dir, use_marker, restart_particles, index_now
 use phys_module, only: nout, R_geo, using_spi, spi_quantity, xtime_radiation, xtime_rad_power
 use phys_module, only: xtime_E_ion, xtime_E_ion_power, xtime_Ne_imp, main_imp, n_adas
-use phys_module, only: CENTRAL_MASS, CENTRAL_DENSITY
+use phys_module, only: CENTRAL_MASS, CENTRAL_DENSITY, diff_diffusive_flux
 use mod_parameters, only: n_plane
 use constants,   only: MU_ZERO, MASS_PROTON, ATOMIC_MASS_UNIT, K_BOLTZ, EL_CHG, PI, TWOPI
 
@@ -468,7 +468,7 @@ do while (.not. sim%stop_now)
 #endif
     !$omp rho_norm, t_norm, v_norm, E_norm, M_norm, N_norm, P_Z, E_ion_tot, D_prof_neg,     &
     !$omp use_ncs, use_marker, n_particles_add_local, CE_marker, aux_node_list,element_list,&
-    !$omp CENTRAL_DENSITY, CENTRAL_MASS)                    &
+    !$omp CENTRAL_DENSITY, CENTRAL_MASS, diff_diffusive_flux)                    &
     !$omp private(i_rng, i,j,k,l,m, t, E, B, psi, U, rz_old, st_old, P_ion, P_rcb, iZ, P_tmp,&
     !$omp i_elm_old, n_rho, T_e, ion_rate, ion_prob, ion_source, ion_energy, kinetic_energy,& 
     !$omp rec_rate, dEion_dt, ion_rec_ran, Z_imp, Z_eff, N_imp, Lrad, rad_sink, V, n_rho_imp,& 
@@ -510,8 +510,11 @@ do while (.not. sim%stop_now)
         grad_n_imp_tmp = n_norm*[(  P_s(2) * Z_t - P_t(2) * Z_s)/ xjac, &
                                  (- P_s(2) * R_t + P_t(2) * R_s)/ xjac, &
                                  P_phi(2)/R_g] 
-        grad_n_imp_tmp = (grad_n_imp_tmp - grad_n_imp_fluid) / max((P(2)*n_norm)-n_rho_imp,1.d12) ! Normalize to JOREK unit
-        !grad_n_imp_tmp = grad_n_imp_fluid / max(n_rho_imp,1.d12) ! Extract the length scale of density gradient
+        if (diff_diffusive_flux) then
+          grad_n_imp_tmp = (grad_n_imp_tmp - grad_n_imp_fluid) / max((P(2)*n_norm)-n_rho_imp,1.d16) ! Normalize to JOREK unit
+        else
+          grad_n_imp_tmp = grad_n_imp_fluid / max(n_rho_imp,1.d12) ! Extract the length scale of density gradient
+        endif
 
         call interp_PRZ(sim%fields%node_list,element_list,particles(j)%i_elm,[var_psi,var_rhon],2,particles(j)%st(1),&
                         particles(j)%st(2), particles(j)%x(3), P,P_s,P_t,P_phi,R_g,R_s,R_t,Z_g,Z_s,Z_t)

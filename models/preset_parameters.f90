@@ -692,6 +692,7 @@ subroutine preset_parameters
   use_pcs           = .false.
   use_cx            = .false.
   use_marker        = .false.
+  diff_diffusive_flux  = .false.
   use_sputtering    = .false.
   use_ionisation    = .false.
   n_particles       = 0.0

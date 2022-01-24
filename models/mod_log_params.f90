@@ -789,6 +789,7 @@ write(*,'(1x,a)',advance='no') ' USE_BICGSTAB : '
      write(*,LOGI_FMT) 'JET_MGI             ',  JET_MGI
      write(*,LOGI_FMT) 'ASDEX_MGI           ',  ASDEX_MGI
      write(*,LOGI_FMT) 'use_marker          ',  use_marker
+     write(*,LOGI_FMT) 'diff_diffusive_flux ',  diff_diffusive_flux
      write(*,REAL_FMT) 'A_Dmv               ',  A_Dmv
      write(*,REAL_FMT) 'K_Dmv               ',  K_Dmv
      write(*,REAL_FMT) 'V_Dmv               ',  V_Dmv
