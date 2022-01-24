@@ -510,7 +510,7 @@ do while (.not. sim%stop_now)
         grad_n_imp_tmp = n_norm*[(  P_s(2) * Z_t - P_t(2) * Z_s)/ xjac, &
                                  (- P_s(2) * R_t + P_t(2) * R_s)/ xjac, &
                                  P_phi(2)/R_g] 
-        grad_n_imp_tmp = (grad_n_imp_tmp - grad_n_imp_fluid) / max((P(2)*n_norm)-n_rho_imp,1.d10) ! Normalize to JOREK unit
+        grad_n_imp_tmp = (grad_n_imp_tmp - grad_n_imp_fluid) / max((P(2)*n_norm)-n_rho_imp,1.d12) ! Normalize to JOREK unit
         !grad_n_imp_tmp = grad_n_imp_fluid / max(n_rho_imp,1.d12) ! Extract the length scale of density gradient
 
         call interp_PRZ(sim%fields%node_list,element_list,particles(j)%i_elm,[var_psi,var_rhon],2,particles(j)%st(1),&
