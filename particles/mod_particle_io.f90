@@ -41,8 +41,8 @@ character(len=particle_type_name_length) :: particle_type_name
 integer                       :: i, j, hdferr, iZ
 type(c_ptr) :: p_ptr
 real*8, dimension(:,:), allocatable :: x, v, x_all, v_all, st, st_all, P1, P1_all
-real*8, dimension(:), allocatable   :: weight,weight_all,Vpar, E, mu, v1, Vpar_all
-real*8, dimension(:), allocatable   :: E_all, mu_all, v1_all
+real*8, dimension(:), allocatable   :: Vpar, E, mu, v1, Vpar_all, E_all, mu_all, v1_all
+real*8, dimension(:), allocatable   :: weight, weight_all
 real*4, dimension(:), allocatable   :: t_birth, t_birth_all
 integer, dimension(:), allocatable  :: i_elm, i_elm_all, i_life, i_life_all
 integer, dimension(:), allocatable  :: q, q_all, lost, lost_all
