@@ -34,7 +34,7 @@ integer,allocatable   :: ien (:,:)
 integer, parameter    :: ivtk = 22 ! an arbitrary unit number for the VTK output file
 integer               :: i, j, k, m, etype, irst, int, i_var, i_tor, i_tor_old, i_plane, index, index_node, my_id
 character             :: buffer*80, lf*1, str1*12, str2*12
-character*12, allocatable :: scalar_names(:), vector_names(:)
+character*36, allocatable :: scalar_names(:), vector_names(:)
 real*8                :: s, t
 real*8                :: P,P_s,P_t,P_st,P_ss,P_tt
 real*8                :: R,R_s,R_t,R_st,R_ss,R_tt

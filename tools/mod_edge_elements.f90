@@ -85,7 +85,7 @@ type :: edge_elements_patch
   
   integer, allocatable :: ien(:,:) !< connectivity in vtk file (4,nel)
   real*4, dimension(:,:), allocatable :: scalars !< (nnos,n_scalars)
-  character(len=12), dimension(:), allocatable :: scalar_names !< (n_scalars)
+  character(len=36), dimension(:), allocatable :: scalar_names !< (n_scalars)
 end type edge_elements_patch
 
 type :: edge_elements
@@ -273,7 +273,7 @@ subroutine write(this, filename)
   integer :: n_scalars, nnos, nel, n_rows, n_cols
   integer :: n_scalars_i, nnos_i, nel_i
   real*4, allocatable :: vectors(:,:,:)
-  character*12, allocatable :: vector_names(:)
+  character*36, allocatable :: vector_names(:)
   real*4, allocatable :: xyz(:,:)
   integer, allocatable :: ien(:,:)
   real*4, allocatable :: scalars(:,:)

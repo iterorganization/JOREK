@@ -232,7 +232,7 @@ integer, intent(in) :: ien(:,:)
 integer :: nnos, i, j, k, l, m, inode, ivar, ielm, i_elm
 real*4, allocatable :: scalars(:,:), vectors(:,:,:)
 integer :: n_scalars, n_vectors = 0
-character*12, allocatable :: vector_names(:), scalar_names(:)
+character*36, allocatable :: vector_names(:), scalar_names(:)
 type(type_element) :: element
 type(type_node)    :: nodes(4)
 real*8, dimension(n_gauss,n_gauss) :: x_s, x_t, y_s, y_t

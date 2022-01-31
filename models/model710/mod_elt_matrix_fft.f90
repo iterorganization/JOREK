@@ -49,6 +49,7 @@ real*8, dimension(n_plane,n_var,n_gauss,n_gauss), intent(inout) :: eq_g, eq_s, e
 real*8, dimension(n_plane,n_var,n_gauss,n_gauss), intent(inout) :: eq_p
 real*8, dimension(n_plane,n_var,n_gauss,n_gauss), intent(inout) :: eq_ss, eq_st, eq_tt
 real*8, dimension(n_plane,n_var,n_gauss,n_gauss), intent(inout) :: delta_g, delta_s, delta_t
+real*8, dimension(n_plane,n_var,n_gauss,n_gauss) :: eq_aux_g, eq_aux_s, eq_aux_t, eq_aux_p
 
 ! --- Variables outside the OMP loop
 integer    :: n_tor_start, n_tor_end, n_tor_local
@@ -303,6 +304,19 @@ real*8     :: Qvisc_T_UZ__p, Qvisc_T_UZ__n
 real*8     :: Qvisc_T_Up__p, Qvisc_T_Up__n
 real*8     :: Qvisc_T_T__p,  Qvisc_T_T__n
 
+! --- Auxiliary values of pressure coupling
+real*8     :: aux_PIRR, aux_PIRR_s, aux_PIRR_t, aux_PIRR_R, aux_PIRR_Z,aux_PIRR_p
+real*8     :: aux_PIZZ, aux_PIZZ_s, aux_PIZZ_t, aux_PIZZ_R, aux_PIZZ_Z,aux_PIZZ_p
+real*8     :: aux_PIPP, aux_PIPP_s, aux_PIPP_t, aux_PIPP_R, aux_PIPP_Z,aux_PIPP_p
+real*8     :: aux_PIZR, aux_PIZR_s, aux_PIZR_t, aux_PIZR_R, aux_PIZR_Z,aux_PIZR_p
+real*8     :: aux_PIRP, aux_PIRP_s, aux_PIRP_t, aux_PIRP_R, aux_PIRP_Z,aux_PIRP_p
+real*8     :: aux_PIZP, aux_PIZP_s, aux_PIZP_t, aux_PIZP_R, aux_PIZP_Z,aux_PIZP_p
+real*8     :: aux_divPIR_perp, aux_divPIZ_perp,     aux_divPIp_perp
+real*8     :: aux_divPIR,      aux_divPIZ,          aux_divPIp
+real*8     :: aux_BdivPI
+
+
+
 ! --- fourth order stabilization (numerical diffusion terms)
 real*8     :: lap_Vstar, lap_bf
 real*8     :: lap_AR, lap_AZ, lap_A3
@@ -338,6 +352,11 @@ eta_ARAZ  = 0.d0  ! =0.0 to switch off resistive   terms for AR and AZ equations
 tauIC_ARAZ= 0.d0  ! =0.0 to switch off diamagnetic terms for AR and AZ equations
 if (eta_ARAZ_on  ) eta_ARAZ   = 1.d0 ! switched on by default
 if (tauIC_ARAZ_on) tauIC_ARAZ = 1.d0 ! switched on by default
+if (.not. present(aux_nodes)) then
+  do i=1,n_vertex_max
+    aux_nodes(i)%values(:,:,:) = 0.d0
+  enddo
+endif
 
 ! --- Info about ViscType:
 ! --- =0  : Full-MHD resistivity
@@ -385,6 +404,10 @@ Pvec_prev = 0.d0
 Qvec_p    = 0.d0
 Qvec_k    = 0.d0
 
+!Pressure coupling should be 0
+aux_divPIR_perp = 0.d0 
+aux_divPIZ_perp = 0.d0     
+aux_divPIp_perp = 0.d0
 ! --- Implicit scheme
 theta = time_evol_theta
 !zeta  = time_evol_zeta
@@ -448,10 +471,15 @@ TG_NUM    = 0.0
 ! --- RZ variables, Equations variables, and GS-Equilibrium variables
 x_g  = 0.d0; x_s  = 0.d0; x_t  = 0.d0; x_ss = 0.d0; x_st = 0.d0; x_tt = 0.d0 
 y_g  = 0.d0; y_s  = 0.d0; y_t  = 0.d0; y_ss = 0.d0; y_st = 0.d0; y_tt = 0.d0
+
+
 eq_g = 0.d0; eq_s = 0.d0; eq_t = 0.d0; eq_p = 0.d0; eq_ss = 0.d0; eq_st = 0.d0; eq_tt = 0.d0
+eq_aux_g = 0.d0; eq_aux_s = 0.d0; eq_aux_t = 0.d0; eq_aux_p = 0.d0;
+
 psi_axisym = 0.d0 ; psi_axisym_s = 0.d0 ; psi_axisym_t = 0.d0
 delta_g = 0.d0; delta_s = 0.d0; delta_t = 0.d0
 Fprofile= 0.d0
+
 do i=1,n_vertex_max
   do j=1,n_order+1
     do ms=1, n_gauss
@@ -498,6 +526,13 @@ do i=1,n_vertex_max
               eq_ss(mp,k,ms,mt) = eq_ss(mp,k,ms,mt) + nodes(i)%values(in,j,k) * element%size(i,j) * H_ss(i,j,ms,mt)* HZ(in,mp)
               eq_st(mp,k,ms,mt) = eq_st(mp,k,ms,mt) + nodes(i)%values(in,j,k) * element%size(i,j) * H_st(i,j,ms,mt)* HZ(in,mp)
               eq_tt(mp,k,ms,mt) = eq_tt(mp,k,ms,mt) + nodes(i)%values(in,j,k) * element%size(i,j) * H_tt(i,j,ms,mt)* HZ(in,mp)
+              
+              if (present(aux_nodes)) then
+                eq_aux_g(mp,k,ms,mt) =  eq_aux_g(mp,k,ms,mt) + aux_nodes(i)%values(in,j,k) * element%size(i,j) * H(i,j,ms,mt)   * HZ(in,mp)
+                eq_aux_s(mp,k,ms,mt) =  eq_aux_s(mp,k,ms,mt) + aux_nodes(i)%values(in,j,k) * element%size(i,j) * H_s(i,j,ms,mt) * HZ(in,mp)
+                eq_aux_t(mp,k,ms,mt) =  eq_aux_t(mp,k,ms,mt) + aux_nodes(i)%values(in,j,k) * element%size(i,j) * H_t(i,j,ms,mt) * HZ(in,mp)
+                eq_aux_p(mp,k,ms,mt) =  eq_aux_p(mp,k,ms,mt) + aux_nodes(i)%values(in,j,k) * element%size(i,j) * H(i,j,ms,mt)   * HZ_p(in,mp)
+              endif
 
               delta_g(mp,k,ms,mt) = delta_g(mp,k,ms,mt) + nodes(i)%deltas(in,j,k) * element%size(i,j) * H(i,j,ms,mt)   * HZ(in,mp)
               delta_s(mp,k,ms,mt) = delta_s(mp,k,ms,mt) + nodes(i)%deltas(in,j,k) * element%size(i,j) * H_s(i,j,ms,mt) * HZ(in,mp)
@@ -926,6 +961,68 @@ do i=1,n_vertex_max
           divU     = UR0_R + UR0/R + UZ0_Z + Up0_p/R
           divRhoU  = rho0 * divU + UgradRho
 
+          ! --- Anisotropic pressure coupling scheme
+          if (use_pcs) then
+             aux_PIRR    = eq_aux_g(mp,1,ms,mt);
+             aux_PIRR_s  = eq_aux_s(mp,1,ms,mt);
+             aux_PIRR_t  = eq_aux_t(mp,1,ms,mt);
+             aux_PIRR_R  = (   y_t(ms,mt) * aux_PIRR_s - y_s(ms,mt) * aux_PIRR_t ) / xjac
+             aux_PIRR_Z  = ( - x_t(ms,mt) * aux_PIRR_s + x_s(ms,mt) * aux_PIRR_t ) / xjac
+             aux_PIRR_p  = eq_aux_p(mp,1,ms,mt);
+
+             aux_PIZZ    = eq_aux_g(mp,2,ms,mt);
+             aux_PIZZ_s  = eq_aux_s(mp,2,ms,mt);
+             aux_PIZZ_t  = eq_aux_t(mp,2,ms,mt);
+             aux_PIZZ_R  = (   y_t(ms,mt) * aux_PIZZ_s - y_s(ms,mt) * aux_PIZZ_t ) / xjac
+             aux_PIZZ_Z  = ( - x_t(ms,mt) * aux_PIZZ_s + x_s(ms,mt) * aux_PIZZ_t ) / xjac
+             aux_PIZZ_p  = eq_aux_p(mp,2,ms,mt);
+             
+             aux_PIPP    = eq_aux_g(mp,3,ms,mt);
+             aux_PIPP_s  = eq_aux_s(mp,3,ms,mt);
+             aux_PIPP_t  = eq_aux_t(mp,3,ms,mt);
+             aux_PIPP_R  = (   y_t(ms,mt) * aux_PIPP_s - y_s(ms,mt) * aux_PIPP_t ) / xjac
+             aux_PIPP_Z  = ( - x_t(ms,mt) * aux_PIPP_s + x_s(ms,mt) * aux_PIPP_t ) / xjac
+             aux_PIPP_p  = eq_aux_p(mp,3,ms,mt);             
+
+             aux_PIZR    = eq_aux_g(mp,4,ms,mt);
+             aux_PIZR_s  = eq_aux_s(mp,4,ms,mt);
+             aux_PIZR_t  = eq_aux_t(mp,4,ms,mt);
+             aux_PIZR_R  = (   y_t(ms,mt) * aux_PIZR_s - y_s(ms,mt) * aux_PIZR_t ) / xjac
+             aux_PIZR_Z  = ( - x_t(ms,mt) * aux_PIZR_s + x_s(ms,mt) * aux_PIZR_t ) / xjac
+             aux_PIZR_p  = eq_aux_p(mp,4,ms,mt);             
+
+             aux_PIRP    = eq_aux_g(mp,5,ms,mt);
+             aux_PIRP_s  = eq_aux_s(mp,5,ms,mt);
+             aux_PIRP_t  = eq_aux_t(mp,5,ms,mt);
+             aux_PIRP_R  = (   y_t(ms,mt) * aux_PIRP_s - y_s(ms,mt) * aux_PIRP_t ) / xjac
+             aux_PIRP_Z  = ( - x_t(ms,mt) * aux_PIRP_s + x_s(ms,mt) * aux_PIRP_t ) / xjac
+             aux_PIRP_p  = eq_aux_p(mp,5,ms,mt);             
+
+             aux_PIZP    = eq_aux_g(mp,6,ms,mt);
+             aux_PIZP_s  = eq_aux_s(mp,6,ms,mt);
+             aux_PIZP_t  = eq_aux_t(mp,6,ms,mt);
+             aux_PIZP_R  = (   y_t(ms,mt) * aux_PIZP_s - y_s(ms,mt) * aux_PIZP_t ) / xjac
+             aux_PIZP_Z  = ( - x_t(ms,mt) * aux_PIZP_s + x_s(ms,mt) * aux_PIZP_t ) / xjac
+             aux_PIZP_p  = eq_aux_p(mp,6,ms,mt);
+
+             !See https://www.jorek.eu/wiki/doku.php?id=coordinates, div Pi (tensor)
+             !such that R component=alpha, Z component=beta, phi component=gamma, in physical components
+             !These calculations are the same in reduced MHD. Only the way in which these terms enter
+             !the projected equations differs.
+             aux_divPIR  = aux_PIRR_R + aux_PIZR_Z + (aux_PIRP_p + aux_PIRR - aux_PIPP) / R
+             aux_divPIZ  = aux_PIZZ_Z + aux_PIZR_R + (aux_PIZP_p + aux_PIZR) / R
+             aux_divPIp  = aux_PIPP_p / R + aux_PIRP_R + aux_PIZP_Z + 2.d0 / R * aux_PIRP
+  
+             ! B. div P
+             aux_BdivPI      = BR0 * aux_divPIR + BZ0 * aux_divPIZ + Bp0 * aux_divPIp
+             
+             aux_divPIR_perp = aux_divPIR - BR0 / BB2 * aux_BdivPI
+             aux_divPIZ_perp = aux_divPIZ - BZ0 / BB2 * aux_BdivPI
+             aux_divPIp_perp = aux_divPIp - Bp0 / BB2 * aux_BdivPI
+     
+             
+          endif
+          
           ! --- Diamagnetic velocity Vdia = tau / (rho*BB2) * B x grad(p)
           ! --- Note-1: Phi component defined as physical component VdiaP*e_phi, like V and B
           ! --- Note-2: Factor of F0 is here so that we have the same definition of tau_IC in RMHD and FMHD
@@ -1234,7 +1331,8 @@ do i=1,n_vertex_max
                                 + visco_T * Qvisc_UR__p &
                                 - v * PneoR             &
                                 - v * particle_source(ms,mt) * UR0 &
-                                - visco_num * lap_Vstar * lap_UR
+                                - visco_num * lap_Vstar * lap_UR &
+                                - v * aux_divPIR_perp                                
             Qvec_k(var_UR)    = + JxB_UR__k             &
                                 + visco_T * Qvisc_UR__k
 
@@ -1249,7 +1347,8 @@ do i=1,n_vertex_max
                               + visco_T * Qvisc_UZ__p &
                               - v * PneoZ             &
                               - v * particle_source(ms,mt) * UZ0 &
-                              - visco_num * lap_Vstar * lap_UZ
+                              - visco_num * lap_Vstar * lap_UZ &                        
+                              - v * aux_divPIZ_perp
             Qvec_k(var_UZ)  = + JxB_UZ__k             &
                               + visco_T * Qvisc_UZ__k
                            

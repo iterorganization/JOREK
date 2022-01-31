@@ -78,6 +78,7 @@ real*8  :: psi_axisym(n_gauss,n_gauss)
 real*8  :: x_g_1D(n_gauss),  x_s_1D(n_gauss),   x_t_1D(n_gauss)
 real*8  :: y_g_1D(n_gauss),  y_s_1D(n_gauss),   y_t_1D(n_gauss)
 real*8  :: eq_g_1D(n_plane,0:n_var,n_gauss), eq_s_1D(n_plane,0:n_var,n_gauss)
+real*8  :: delta_g_1D(n_plane,0:n_var,n_gauss)
 real*8  :: eq_t_1D(n_plane,0:n_var,n_gauss), eq_p_1D(n_plane,0:n_var,n_gauss)
 real*8  :: eq_aux_g_1D(n_plane,0:n_var,n_gauss), eq_aux_s_1D(n_plane,0:n_var,n_gauss)
 real*8  :: eq_aux_t_1D(n_plane,0:n_var,n_gauss), eq_aux_p_1D(n_plane,0:n_var,n_gauss)
@@ -1285,7 +1286,7 @@ do m_bndelem = 1, bnd_elm_list%n_bnd_elements
   x_g_1D(:)  = 0.d0; x_s_1D(:)  = 0.d0;  x_t_1D(:)    = 0.d0;
   y_g_1D(:)  = 0.d0; y_s_1D(:)  = 0.d0;  y_t_1D(:)    = 0.d0;
 
-  eq_g_1D(:,:,:) = 0.d0; eq_s_1D(:,:,:) = 0.d0;
+  eq_g_1D(:,:,:) = 0.d0; eq_s_1D(:,:,:) = 0.d0; delta_g_1D(:,:,:) = 0.d0;
   eq_aux_g_1D(:,:,:) = 0.d0; eq_aux_s_1D(:,:,:) = 0.d0;
 
   do k_vertex = 1, 2
@@ -1306,6 +1307,7 @@ do m_bndelem = 1, bnd_elm_list%n_bnd_elements
           do in=1,n_tor
             eq_g_1D(mp,k,:) = eq_g_1D(mp,k,:) + node_k%values(in,k_dir,k) * k_size * H1(k_vertex,k_dof,:)   * HZ(in,mp)
             eq_s_1D(mp,k,:) = eq_s_1D(mp,k,:) + node_k%values(in,k_dir,k) * k_size * H1_s(k_vertex,k_dof,:) * HZ(in,mp)
+            delta_g_1D(mp,k,:) = delta_g_1D(mp,k,:) + node_k%deltas(in,k_dir,k) * k_size * H1(k_vertex,k_dof,:)   * HZ(in,mp)
             if (use_marker) then
               eq_aux_g_1D(mp,k,:) = eq_aux_g_1D(mp,k,:) + aux_node_k%values(in,k_dir,k) * k_size * H1(k_vertex,k_dof,:)   * HZ(in,mp)
               eq_aux_s_1D(mp,k,:) = eq_aux_s_1D(mp,k,:) + aux_node_k%values(in,k_dir,k) * k_size * H1_s(k_vertex,k_dof,:) * HZ(in,mp)
@@ -1687,8 +1689,9 @@ do m_bndelem = 1, bnd_elm_list%n_bnd_elements
       viscopar_f  = visco_par * (F0/BigR)**2.d0 *  (vpar_x*grad_t(1) + vpar_y *grad_t(2) ) &
                   * sign_out  * BigR * vpar0
 
-      dpsi_dt     = BigR*(psi_s*u_t - psi_t*u_s)/xjac + eta_T*(zj0-current_source) - F0*u_p 
-      poynting_tmp= dpsi_dt * (dpsidx*grad_t(1) + dpsidy*grad_t(2)) * sign_out / BigR 
+!      dpsi_dt     = BigR*(psi_s*u_t - psi_t*u_s)/xjac + eta_T*(zj0-current_source) - F0*u_p 
+      dpsi_dt      = delta_g_1D(mp, var_psi, ms) / tstep  
+      poynting_tmp = dpsi_dt * (dpsidx*grad_t(1) + dpsidy*grad_t(2)) * sign_out / BigR 
 
 
       vn_p0         = vn_p0          +   pflow      * wgauss(ms) * delta_phi 

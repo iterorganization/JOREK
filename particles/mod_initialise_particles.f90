@@ -563,8 +563,11 @@ subroutine initialise_particles_H_mu_psi(particles, fields, rng_base, mass, T_ma
   real*8  :: R, Z, inv_st_jac, psi_r, psi_z, B(3)
 #ifdef fullmhd
   real*8    :: A3, AR, AZ, A3_R, A3_Z, AR_Z, AR_p, AZ_R, AZ_P, Fprof
-#endif
+  real*8, dimension(3)                :: P, P_s, P_t, P_phi
+#else 
   real*8, dimension(1)                :: P, P_s, P_t, P_phi
+#endif
+  
   real*8, dimension(:), allocatable   :: P2
   real*8, dimension(:,:), allocatable :: grad_P2
   real*8  :: R_s, R_t, Z_s, Z_t, R_i, Z_i, xjac
@@ -799,7 +802,7 @@ subroutine initialise_particles_H_mu_psi(particles, fields, rng_base, mass, T_ma
         ! 1. Get B at this position
 #ifdef fullmhd
         call interp_PRZ(fields%node_list, fields%element_list,i_elm,[var_A3,var_AR,var_AZ],3,s,t,phi,P, P_s, P_t, P_phi, R,R_s,R_t,Z,Z_s,Z_t)
-        call fields%calc_F_profile(i_elm,s,s,phi,Fprof)
+        call fields%calc_F_profile(i_elm,s,t,phi,Fprof)
         inv_st_jac = 1.d0/(R_s * Z_t - R_t * Z_s)
         A3=P(1)
         AR=P(2)
@@ -926,6 +929,485 @@ subroutine initialise_particles_H_mu_psi(particles, fields, rng_base, mass, T_ma
 
   end do
 end subroutine initialise_particles_H_mu_psi
+
+!> Subroutine for initialising particles in  mu, (psi, theta|R, Z), phi, gamma (gyrophase) space.
+!! Optionally either only at a uniformly distributed n_phi_planes_in set of planes or with
+!! multiple marker particles per guiding centre particle.
+subroutine initialise_particles_H_mu_psi_phiplanes(particles, fields, rng_base, mass, T_maxwell, &
+  Theta_transform, Psi_transform, alpha, E_max, include_vpar, uniform_space, &
+  uniform_space_rej_f, uniform_space_rej_vars, cor, charge, n_phi_planes_in,n_gyro_orbit_in)
+  use mod_rng
+  use mod_fields
+  use mod_random_seed
+  use mod_sampling
+  use constants
+  use phys_module, only: F0, central_density
+  use mod_coronal
+  use mod_boris, only: gc_to_kinetic_leapfrog, kinetic_to_kinetic_leapfrog, gc_to_kinetic
+  use mpi
+  use mod_interp
+  implicit none
+  class(particle_base), dimension(:), intent(inout) :: particles
+  class(fields_base),    intent(in)                 :: fields
+  class(type_rng),       intent(in)                 :: rng_base !< What type of random number generator to use (will be reseeded here)
+  real*8,                intent(in)                 :: mass
+  real*8,                external,   optional       :: Theta_transform !< Function to transform 0-1 to the theta-domain
+  real*8,                external,   optional       :: Psi_transform !< Function to transform 0-1 to the Psi-domain
+  !< if om               itted, determine auttically from node_list
+  real*8,                intent(in), optional       :: alpha !< Make more fast (>0) or slow (<0) particles and weigh them appropriately
+  real*8,                intent(in), optional       :: E_max !< If alpha=1 we select particles from a block-distribution, up to E_max
+  logical,               intent(in), optional       :: include_vpar !< Initialize particles with local parallel velocity
+  logical,               intent(in), optional       :: uniform_space !< Do not
+  !< use {psi,theta}_transform if present bute rejection sampling in RZ
+  procedure(rej_f),                  optional       :: uniform_space_rej_f !< Merge variables into a single criterium between 0 and 1 for rej.  sampling
+  !< Special values: 0 = 1, -1 = R, -2 = Z, - Phi. Must be in ascending order!
+  integer, dimension(:), intent(in), optional       :: uniform_space_rej_vars !< Variables to use for uniform_space_rej_f
+  type(coronal),         intent(in), optional       :: cor !< Coronal equilibrium datatype for this particle. If unset, do not alter q
+  integer,               intent(in), optional       :: charge !< Use this if cor is not present
+  real*8,                intent(in), optional       :: T_Maxwell !< constant Maxwellian temperature [eV]
+  integer,               intent(in), optional       :: n_phi_planes_in !Amount of phi planes
+  integer,               intent(in), optional       :: n_gyro_orbit_in !Amount of phi planes
+
+  ! Internal variables
+  type(particle_gc) :: particle
+  class(type_rng), allocatable :: rng
+  real*8  :: ran(8)
+  real*8  :: H, muB, chi
+  real*8  :: psi, psimin, psimax, theta, phi
+  real*8  :: R, Z, inv_st_jac, psi_r, psi_z, B(3)
+#ifdef fullmhd
+  real*8    :: A3, AR, AZ, A3_R, A3_Z, AR_Z, AR_p, AZ_R, AZ_P, Fprof
+  real*8, dimension(3)                :: P, P_s, P_t, P_phi
+#else 
+  real*8, dimension(1)                :: P, P_s, P_t, P_phi
+#endif
+  real*8, dimension(:), allocatable   :: P2
+  real*8, dimension(:,:), allocatable :: grad_P2
+  real*8  :: R_s, R_t, Z_s, Z_t, R_i, Z_i, xjac
+  real*8  :: s, t, u_init_max, temp, u
+  real*8  :: psi_axis, R_axis, Z_axis, s_axis, t_axis
+  integer :: i_elm, i, j, k, ifail, my_id, n_cpu, ierr, n_mhd, n_geom
+  real*8, dimension(fields%element_list%n_elements,2)    :: psi_minmax_list
+  real*8, allocatable, dimension(:,:)             :: rans
+  class(particle_base), dimension(:), allocatable :: particles_tmp
+  logical, dimension(:), allocatable              :: found
+  real*8  :: t0, t1
+  real*8  :: Rbox(2), Zbox(2), DUMMY_R, DUMMY_Z
+  integer :: blocksize, prev_blocksize, particles_to_do_local, particles_done_local, blocksize_tmp
+  integer :: to_find, n_tries_now, n_found
+  logical :: all_done, init_uniform_space, my_include_vpar
+  logical :: init_phiplanes, init_gyro_orbit
+  real*8  :: my_alpha
+  integer :: n_phi_planes,i_phi_planes, n_gyro_orbit, i_gyro_temp, i_gyro_orbit
+
+  init_uniform_space = .false.
+  if (present(uniform_space) .and. uniform_space) then
+    init_uniform_space = .true.
+    call domain_bounding_box(fields%node_list, fields%element_list, Rbox(1), Rbox(2), Zbox(1), Zbox(2))
+  end if
+
+  my_include_vpar = .false.
+  if (present(include_vpar)) my_include_vpar = include_vpar
+  ! Check if we are in the 3,4,5 series of models
+  if (my_include_vpar .and. .not. with_Vpar) then
+    write(*,*) "WARNING: This model, ", jorek_model, "does not support parallel flows, disabling"
+    my_include_vpar = .false.
+  end if
+
+  !Phi planes
+  init_phiplanes= .false.
+  if (present(n_phi_planes_in)) then
+    n_phi_planes=n_phi_planes_in
+    init_phiplanes = .true.
+    write(*,"(A,I4,A)") "WARNING: Initializing on ",n_phi_planes," planes around the torus"
+  else
+    n_phi_planes=1 !In this case, the loops aren't there
+  endif
+  !Gyro orbits
+  init_gyro_orbit=.false.
+  if (present(n_gyro_orbit_in)) then
+    n_gyro_orbit=n_gyro_orbit_in
+    init_gyro_orbit = .true.
+    write(*,"(A,I4,A)") "WARNING: Initializing ",n_gyro_orbit," particles per guiding centre"
+  else
+    n_gyro_orbit=1 !In this case, the loops aren't there
+  endif
+
+  if (present(uniform_space_rej_f)) then
+    if (.not. present(uniform_space_rej_vars)) then
+      write(*,*) "ERROR: if sampling function f is present variables must be given"
+      call MPI_ABORT(MPI_COMM_WORLD, 10, ifail)
+    end if
+
+    ! Get the number of mhd variables to use
+    allocate(P2(size(uniform_space_rej_vars,1)))
+
+    n_mhd  = count(uniform_space_rej_vars .gt. 0)
+    n_geom = size(uniform_space_rej_vars, 1) - n_mhd
+
+    allocate(grad_P2(3,size(uniform_space_rej_vars,1)))
+
+  else
+    n_mhd = 0
+    n_geom = 0
+  end if
+
+  if (present(alpha)) then
+    write(*,*) "alpha not implemented yet"
+    call exit(1)
+    if (alpha .eq. 1.d0 .and. .not. present(E_max)) then
+      write(*,*) "E_max is required if alpha=1"
+      call exit(1)
+    end if
+    my_alpha = alpha
+  else
+    my_alpha = 0.d0
+  end if
+
+  call MPI_COMM_RANK(MPI_COMM_WORLD, my_id, ierr)
+  call MPI_COMM_SIZE(MPI_COMM_WORLD, n_cpu, ierr)
+
+  if (.not. init_uniform_space) then
+    psimin= 1d10
+    psimax=-1d10
+    ! Preparatory work: determine psi_min,max
+#ifdef __GFORTRAN__
+    !$omp parallel do default(shared) &
+#else
+    !$omp parallel do default(none) &
+#endif
+    !$omp shared(fields,  psi_minmax_list) &
+    !$omp private(i_elm) reduction(min:psimin) &
+    !$omp reduction(max:psimax)
+    do i_elm=1, fields%element_list%n_elements
+      call psi_minmax(fields%node_list, fields%element_list, i_elm, psi_minmax_list(i_elm,1), psi_minmax_list(i_elm,2))
+      psimin = min(psi_minmax_list(i_elm,1),psimin)
+      psimax = max(psi_minmax_list(i_elm,2),psimax)
+    end do
+    !$omp end parallel do
+  end if
+
+  ! Preparatory work: setup RNG
+  allocate(rng,source=rng_base)
+  call rng%initialize(8, random_seed(), 1, 1, ifail)
+
+  ! Preparatory work: get R_axis, Z_axis
+  call find_axis(my_id, fields%node_list, fields%element_list, psi_axis, R_axis, Z_axis, i_elm, s_axis, t_axis, ifail)
+
+  ! Preset i_elm to 0 so that by default particles are lost
+  particles(:)%i_elm = 0
+
+  ! Assume equal number of particles everywhere
+  particles_to_do_local  = size(particles)!/n_phi_planes !this is the local version
+  particles_done_local   = 0
+  prev_blocksize = 0 ! initial block size
+  all_done = .false.
+  !particles are stored locally
+
+  do while (.not. all_done)
+    to_find = (particles_to_do_local-particles_done_local)
+    n_tries_now = to_find
+    ! Add a little bit extra to cut off tail of 1/x^n
+    if (n_tries_now .lt. 64 .and. n_tries_now .gt. 0) n_tries_now = 64
+
+    ! Calculate starting-point for this block
+    ! random numbers are generated in blocks per mpi process
+    ! blocks are grouped in a superblock of block*n_cpu size
+    ! blocks must be equal size
+    ! we communicate a blocksize here, and keep a running index of the previous starting points
+    ! make this the biggest of n_tries_now
+    call MPI_AllReduce(n_tries_now, blocksize, 1, MPI_INTEGER, MPI_MAX, MPI_COMM_WORLD, ierr)
+
+    call rng%jump_ahead((n_cpu-my_id-1)*prev_blocksize + my_id*blocksize)
+
+    prev_blocksize = blocksize
+
+    ! Generate the random numbers
+    call cpu_time(t0)
+    allocate(rans(8,blocksize))
+    do i=1,blocksize
+      call rng%next(rans(:,i))
+    end do
+    call cpu_time(t1)
+
+    ! Allocate some temporary storage
+    select type (particles)
+      type is (particle_kinetic)
+        write(*,*) "ERROR: particle_kinetic not supported yet for initialize_particles_H_mu_psi"
+      type is (particle_kinetic_leapfrog)
+        allocate(particle_kinetic_leapfrog::particles_tmp(blocksize))
+      type is (particle_gc)
+        allocate(particle_gc::particles_tmp(blocksize))
+      class default
+        write(*,*) "ERROR: particle type not supported yet for initialize_particles_H_mu_psi"
+        call exit(1)
+    end select
+    !allocate(particles_tmp(blocksize), mold=particles) ! this does not work in ifort 17
+    allocate(found(blocksize))
+    !If we are initializing with gyro orbits, use reduced blocksize.
+    if(init_gyro_orbit) then
+      blocksize_tmp=floor(float(blocksize)/float(n_gyro_orbit))
+    else
+      blocksize_tmp=blocksize
+    endif
+    
+    !If initializatin on a set of phi planes, make blocksize a multiple of the amount of phi planes
+    if(init_phiplanes) then 
+      blocksize_tmp=blocksize_tmp-modulo(blocksize_tmp,n_phi_planes)
+      !Subtract as to keep within the bound of the blocksize array
+    endif 
+#ifdef __GFORTRAN__
+    !$omp parallel do default(shared) &
+#else
+    !$omp parallel do default(none) &
+#endif
+    !$omp   private(i, psi, theta, phi, i_elm, s, t, R, Z, R_s, R_t, Z_s, Z_t, P2, &
+    !$omp           R_i, Z_i, xjac, grad_P2, u,  &
+#ifdef fullmhd
+    !$omp          A3, AR, AZ, A3_R, A3_Z, AR_Z, AR_p, AZ_R, AZ_P, Fprof, &
+#endif
+    !$omp           P, P_s, P_t, P_phi, inv_st_jac, psi_R, psi_Z, B, H, muB, chi, ran, particle, temp, ifail, DUMMY_R, DUMMY_Z,i_phi_planes,&
+    !$omp           i_gyro_orbit, i_gyro_temp)&
+    !$omp   shared(particles_tmp, psimax, psimin, found, F0, cor, mass, charge, T_Maxwell, &
+    !$omp          fields, psi_minmax_list, rans, R_axis, Z_axis, blocksize, init_phiplanes,init_gyro_orbit, n_gyro_orbit,blocksize_tmp,&
+    !$omp          my_include_vpar, central_density, init_uniform_space, Rbox, Zbox, uniform_space_rej_vars, n_geom, n_mhd,n_phi_planes,my_id)
+    do i=1,blocksize_tmp
+
+      ran(:) = rans(:,i)
+
+      if (init_uniform_space) then
+        if( init_phiplanes) then
+          !Plane initialization, all particles sampled on the 0 plane.
+          call transform_uniform_cylindrical([ran(3),ran(4),ran(5)], Rbox, Zbox, [0.d0,0.d0], R, Z, phi)
+        else
+          call transform_uniform_cylindrical([ran(3),ran(4),ran(5)], Rbox, Zbox, [0.d0,TWOPI], R, Z, phi)
+        endif
+
+
+        call find_RZ(fields%node_list, fields%element_list,R,Z,DUMMY_R,DUMMY_Z,i_elm,s,t,ifail)
+
+        if (present(uniform_space_rej_f) .and. i_elm .ne. 0) then
+
+          do k=1,n_geom
+            select case (uniform_space_rej_vars(k))
+              case (0);  P2(k) = 1.d0;
+              case (-1); P2(k) = R;
+              case (-2); P2(k) = Z;
+              case (-3); P2(k) = phi;
+            end select
+          end do
+
+          do k=1,n_geom
+            select case (uniform_space_rej_vars(k))
+              case (0);  grad_P2(:,k) = 0.d0; ! 0
+              case (-1); grad_P2(:,k) = [1.d0,0.d0,0.d0]; ! R
+              case (-2); grad_P2(:,k) = [0.d0,1.d0,0.d0]; ! Z
+              case (-3); grad_P2(:,k) = [0.d0,0.d0,1.d0]; ! phi
+            end select
+          end do
+
+          if (n_mhd .ge. 1) then
+
+            call interp_PRZ(fields%node_list, fields%element_list,i_elm,                        &
+              uniform_space_rej_vars(n_geom+1:n_geom+n_mhd),n_mhd,s,t,phi,        &
+              P2(n_geom+1:n_geom+n_mhd), grad_P2(1,n_geom+1:n_geom+n_mhd),        &
+              grad_P2(2,n_geom+1:n_geom+n_mhd), grad_P2(3,n_geom+1:n_geom+n_mhd), &
+              R_i, R_s, R_t, Z_i, Z_s, Z_t)
+
+            xjac = R_s*Z_t - R_t*Z_s
+
+            do k=1,n_mhd
+              grad_P2(1:2,n_geom+k) = [Z_t * grad_P2(1,n_geom+k) - Z_s * grad_P2(2,n_geom+k), &
+                -R_t * grad_P2(1,n_geom+k) + R_s * grad_P2(2,n_geom+k)]/xjac
+            end do
+
+          end if
+
+          if (uniform_space_rej_f(size(uniform_space_rej_vars), P2, grad_P2) .lt. ran(7)) i_elm = 0
+        end if
+
+      else
+
+        if (present(Psi_transform)) then
+          psi = Psi_transform(ran(3))
+        else
+          psi = (psimax-psimin)*ran(3)+psimin
+        end if
+
+        ! Try to find this position
+        if (present(Theta_transform)) then
+          theta = Theta_transform(ran(4))
+        else
+          theta = TWOPI*ran(4)
+        end if
+
+        phi =TWOPI*ran(5)
+        ! 1. Find R, Z corresponding to psi, theta
+        call find_theta_psi(fields%node_list, fields%element_list,psi_minmax_list,theta,psi,phi,R_axis,Z_axis,i_elm,s,t,R,Z)
+      end if
+      ! By this point i_elm, s, t, R, Z, phi must be set
+
+      if (i_elm .ne. 0) then
+        !Can only set found later
+        ! If we are here a suitable position has been found
+        particle%weight = 1. ! This is needed because the initializing values for
+        ! the particles are not being used always!
+        particle%i_elm = i_elm
+        particle%st    = [s,t]
+        particle%x     = [R,Z,phi]
+
+        ! 1. Get B at this position
+
+        !Changed for Full MHD. Note that in equilibrium, these are basically equivalent (no AR & AZ). If initializing on non-equilibrium
+        !fluid states, these corrections are needed.
+#ifdef fullmhd
+        call interp_PRZ(fields%node_list, fields%element_list,i_elm,[var_A3,var_AR,var_AZ],3,s,t,phi,P, P_s, P_t, P_phi, R,R_s,R_t,Z,Z_s,Z_t)
+        call fields%calc_F_profile(i_elm,s,t,phi,Fprof)
+        inv_st_jac = 1.d0/(R_s * Z_t - R_t * Z_s)
+        A3=P(1)
+        AR=P(2)
+        AZ=P(3)
+        !Derivatives of A3
+        A3_R    = (  P_s(1) * Z_t - P_t(1) * Z_s ) * inv_st_jac
+        A3_Z    = (- P_s(1) * R_t + P_t(1) * R_s ) * inv_st_jac
+
+        !Derivatives of AR
+        AR_Z    = (- P_s(2) * R_t + P_t(2) * R_s ) * inv_st_jac
+        AR_p    = P_phi(2)
+
+        !Derivatives of AZ
+        AZ_R    = (  P_s(3) * Z_t - P_t(3) * Z_s ) * inv_st_jac
+        AZ_p    = P_phi(3)
+        B=[(A3_Z-AZ_p)/R, (AR_p-A3_R)/R, AZ_R-AR_Z + Fprof/R]
+        ! 2. Calculate E and mu, save in particle
+        call interp_PRZ(fields%node_list, fields%element_list,i_elm,[var_T],1,s,t,phi,P, P_s, P_t, P_phi, R,R_s,R_t,Z,Z_s,Z_t)
+#else
+        call interp_PRZ(fields%node_list, fields%element_list,i_elm,[1],1,s,t,phi,P, P_s, P_t, P_phi, R,R_s,R_t,Z,Z_s,Z_t)
+        inv_st_jac = 1.d0/(R_s * Z_t - R_t * Z_s)
+        psi_R    = (  P_s(1) * Z_t - P_t(1) * Z_s ) * inv_st_jac
+        psi_Z    = (- P_s(1) * R_t + P_t(1) * R_s ) * inv_st_jac
+        ! Calculate the magnetic field (see http://jorek.eu/wiki/doku.php?id=reduced_mhd)
+        B        = [+psi_Z, -psi_R, F0] / R
+
+        ! 2. Calculate E and mu, save in particle
+        call interp_PRZ(fields%node_list, fields%element_list,i_elm,[6],1,s,t,phi,P, P_s, P_t, P_phi, R,R_s,R_t,Z,Z_s,Z_t)
+
+#endif
+        if (present(T_Maxwell)) then
+          temp = T_Maxwell
+        else
+          temp = P(1)/(2.d0*MU_ZERO*central_density*1.d20*EL_CHG) ! [eV]
+#ifdef WITH_TiTe
+          temp = temp*2d0 ! P(1) contains the ion temperature in this model, reverse previous correction
+#endif
+        endif
+
+        H = temp*0.5d0*sample_chi_squared_3(ran(1))
+        ! Solve now for u = 1-sqrt(1-x) (CDF of beta(1,1/2) distribution)
+        ! Inverse gives: 1-(1-u**2) = x or x = 2u - u**2
+        ! mu*B = v_par and mu*B/H = v_per**2/(v_per**2+v_par**2) ~ beta(1,1/2); where H is the total kinetic energy.
+        ! ran(2) must be modified to randomize velocity properly, stored in u
+        ! u and the sign for muB both need to have the same ran(2)
+        u = 2*mod(ran(2),0.5d0)
+        muB = sign(H*(2.d0*u-u**2), ran(2)-0.5d0)
+        if (my_include_vpar) then
+          call interp_PRZ(fields%node_list, fields%element_list,i_elm,[7],1,s,t,phi,P, P_s, P_t, P_phi, R,R_s,R_t,Z,Z_s,Z_t)
+          ! Convert to sqrt of parallel energy
+          P(1) = P(1)*sqrt(mass*ATOMIC_MASS_UNIT/EL_CHG)
+          H = H + P(1)*(P(1) + 2.d0*sign(sqrt(H-muB),muB))
+        end if
+
+        particle%E  = H
+        particle%mu = muB/norm2(B)
+
+        ! 3. Calculate charge (if cor is present)
+        if (present(cor)) then
+          particle%q = int(q_coronal(fields%node_list, fields%element_list, s, t, phi, i_elm, cor, ran(8)),1)
+        else
+          if (present(charge)) then
+            particle%q = int(charge,1)
+          else
+            particle%q = int(1,1) ! default value, warn here maybe?
+          end if
+        end if
+
+        ! 4. Output to particles (dependent on type of particle)
+        chi = TWOPI*ran(6)
+        do i_gyro_orbit=1,n_gyro_orbit
+          i_gyro_temp=(i-1)*n_gyro_orbit+i_gyro_orbit
+
+          if (i*n_gyro_orbit .gt. blocksize) exit
+          select type(p => particles_tmp(i_gyro_temp))
+            type is (particle_kinetic_leapfrog)
+
+              ! the generic copy of particle_kinetic_leapfrog, i.e p = ..., seems broken, therefore using the non-generic copy
+
+              call copy_particle_kinetic_leapfrog( &
+                kinetic_to_kinetic_leapfrog(gc_to_kinetic(fields%node_list, fields%element_list, particle, TWOPI*REAL(i_gyro_orbit)/REAL(n_gyro_orbit)+chi, B, mass), &
+                [0.d0, 0.d0, 0.d0], B, mass, dt=0.d0), &
+                p )
+
+              ! if the kinetic position is not in the grid particles(i)%i_elm the particle is lost
+              found(i_gyro_temp) = .true.
+              if (p%i_elm .le. 0) found(i_gyro_temp) = .false.
+
+            type is (particle_gc)
+              p = particle
+          end select !particle type
+        end do !n_gyro_orbit
+
+      else
+        do i_gyro_orbit=1,n_gyro_orbit
+          found((i-1)*n_gyro_orbit+i_gyro_orbit) = .false. !if gyro_orbit initialized, need to set a range as not found
+        enddo
+      end if
+    end do
+
+    !$omp end parallel do
+
+    ! How many particles have we found?
+    n_found = count(found)
+    write(*,*) my_id, "tried to find ", to_find, " found: ", n_found
+
+    i=1
+    do j=1,size(particles_tmp)
+      if (found(j)) then
+        do i_phi_planes=1,n_phi_planes
+          if (i .gt. to_find) exit
+          select type(p1 => particles(particles_done_local+i))
+            type is (particle_kinetic_leapfrog)
+              select type (p2 => particles_tmp(j))
+                type is (particle_kinetic_leapfrog)
+                  if (init_phiplanes) then
+                    p2%x(3)=p2%x(3)+TWOPI/REAL(n_phi_planes) !+= because particles are tilted wrt poloidal plane due to B != B_phi
+                    !p2 is modified by this staement, keeps pointing to the same particle -> add 2\pi /n_phi_planes every time.
+                  endif
+                  p1 = p2
+              end select
+            type is (particle_gc)
+              select type (p2 => particles_tmp(j))
+                type is (particle_gc)
+                  if (init_phiplanes) then
+                    p2%x(3)=p2%x(3)+TWOPI/REAL(n_phi_planes)
+                  endif
+                  p1 = p2
+              end select
+          end select
+          i = i+1
+        enddo !phi planes
+      end if !found particle
+    end do !particles in particle_tmp
+
+    particles_done_local = particles_done_local + i-1
+
+    deallocate(rans, found, particles_tmp)
+
+    ! check if everyone is done
+    call MPI_AllReduce(particles_to_do_local .eq. particles_done_local, all_done, &
+      1, MPI_LOGICAL, MPI_LAND, MPI_COMM_WORLD, ierr)
+  end do
+
+end subroutine initialise_particles_H_mu_psi_phiplanes
 
 !> Calculate the particle weights according to the canonical maxwellian distribution function
 !> (no electric fields):

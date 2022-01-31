@@ -406,6 +406,14 @@ subroutine do_jorek_timestep(this, sim, ev)
     return
   end if
   tstep = dt_jorek !< Update the jorek timestep for use in mod_elt_matrix
+  !< Update the jorek previous timestep for use in mod_elt_matrix. 
+  !< If ommited, certain models (e.g. 710+) will divide by zero. Not fully tested.
+  if ( this%istep -1 > 0) then
+    tstep_prev = get_tstep_n(this%istep-1) 
+  else
+    tstep_prev = tstep
+    write(*,*) "INFO: tstep_prev set to tstep at first iteration"
+  endif
   dt = dt_jorek * sim%t_norm
 
   if (.not. this%setup_done) then

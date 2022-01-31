@@ -247,9 +247,17 @@ module phys_module
   
   !> @name Hyper-resistivity, -viscosity and -diffusivities
   real*8  :: eta_num, visco_num, visco_par_num, D_perp_num, Zk_perp_num, Dn_perp_num, Zk_i_perp_num, Zk_e_perp_num
+
+  !> @name Shock-capturing terms
+  logical :: use_sc  !< Use shock-capturing stabilization
+  real*8  :: D_perp_sc_num, D_par_sc_num, Dn_pol_sc_num, Dn_p_sc_num
+  real*8  :: ZK_perp_sc_num, ZK_par_sc_num, ZK_i_perp_sc_num, ZK_i_par_sc_num, ZK_e_perp_sc_num, ZK_e_par_sc_num
+  real*8  :: visco_sc_num, visco_par_sc_num
+
   logical :: eta_num_T_dependent  !< Hyper-resistivity dependent on temperature? Otherwise constant.
   logical :: visco_num_T_dependent!< Hyper-visocsity dependent on temperature? Otherwise constant.
-  
+  logical :: add_sources_in_sc    !< Whether to add effect of sources in shock-capturing stabilization or not
+
   !> @name Timestepping parameters
   real*8  :: tstep             		!< Size of the timesteps (\f$ \Delta t \f$)
   real*8  :: tstep_prev                 !< Previous time-step if using variable dt Gears
@@ -812,6 +820,7 @@ module phys_module
   logical :: use_rcs          ! use radiative coupling of particles
   logical :: use_ccs          ! use current coupling scheme for fast particles
   logical :: use_pcs          ! use pressure coupling scheme for fast particles
+  logical :: use_pcs_full     ! use full tensor pressure coupling scheme for fast particles
   logical :: use_cx           ! switch on sputtering         (in particle module)
   logical :: use_marker       ! This flag determines whether to use marker particles to treat impurity
   logical :: diff_diffusive_flux ! This flag determines whether to use the differential diffusive flux for marker partircles

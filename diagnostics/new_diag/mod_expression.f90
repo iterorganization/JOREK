@@ -715,6 +715,8 @@ module mod_expression
         
         ! --- 2D Jacobian
         xjac   = R_s * Z_t - R_t * Z_s
+        if ( abs(xjac) < 1d-10) xjac = 1.d-10*sign(1.d0,xjac)
+
         xjac_R = ( R_ss * Z_t**2 - 2*R_st * Z_s*Z_t + R_tt * Z_s**2 + R_s * (Z_st*Z_t - Z_tt*Z_s )   &
                  + R_t * (Z_st*Z_s - Z_ss*Z_t ) ) / xjac
         xjac_Z = ( Z_ss * R_t**2 - 2*Z_st * R_s*R_t + Z_tt * R_s**2 + Z_s * (R_st*R_t - R_tt*R_s )   &

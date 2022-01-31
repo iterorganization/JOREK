@@ -2030,7 +2030,7 @@ integer, intent(in) :: ien(:,:)
 integer :: nnos, i, j, k, l, m, inode, ivar
 real*4, allocatable :: scalars(:,:), vectors(:,:,:)
 integer :: n_scalars, n_vectors = 0
-character*12, allocatable :: vector_names(:), scalar_names(:)
+character*36, allocatable :: vector_names(:), scalar_names(:)
 real*8 :: s, t
 real*8 :: P, P_s, P_t, P_st, P_ss, P_tt
 

@@ -21,7 +21,8 @@ module exec_commands
   use mod_poloidal_currents 
   use mod_bootstrap_functions
   use mod_impurity, only: init_imp_adas 
-  
+  use mod_model_settings
+ 
   implicit none
   
   
@@ -211,6 +212,8 @@ module exec_commands
           call select_si_units(command, ierr)
         case ( 'for-si-units' )
           call select_loop_si_units(command, ierr)
+        case ( 'RHS_terms_vtk' )
+          call RHS_terms_vtk(command, first_step, ierr)
         case ( 'spi-state' )
           call spi_state(command, first_step, ierr)
         case ( 'shards' )
@@ -232,7 +235,7 @@ module exec_commands
           'jorek-units', 'jnorm_bnd_curr', 'si-units', 'grid', 'grid_diagnostics', 'rectangle',    &
           'rectangular_torus', 'energy_spectrum', 'average_h5', 'I_halo_TPF', 'spi-state',         &
           'shards', 'zeroD_quantities', 'boundary_quantities', 'find_q_surface', 'midplane2d',     &
-          'expressions_four')
+          'expressions_four', 'RHS_terms_vtk')
           call add_to_command_queue(command, ierr)
         case ( 'help' )
           call help(command, ierr)
@@ -2645,8 +2648,754 @@ module exec_commands
     
   end subroutine fluxsurfaces
   
+
+
+
+
+  
+  !> Output vtk file of individual terms of the RHS in elm_matrix 
+  subroutine RHS_terms_vtk(command, first_step, ierr)
+
+    use mod_vtk
+    use mod_elt_matrix_fft
+    use mumps_module
+    use pastix_module
+    use mod_coicsr
+    use mod_clock
+    use omp_lib
+    use basis_at_gaussian 
+    use mod_openadas, only : read_adf11
+    use mod_atomic_coeff_deuterium, only: ad_deuterium 
+    use mpi_mod
+    use mod_impurity, only: init_imp_adas
+ 
+    implicit none
+  
+#include "r3_info.h"
+   
+    ! --- Routine parameters
+    type(type_command), intent(in)  :: command     !< Command to be executed
+    logical,            intent(in)  :: first_step  !< First time step of a for loop?
+    integer,            intent(out) :: ierr        !< Error flag
+    
+    ! --- Local variables
+    real*8  :: eq_index 
+
+    type (type_element)                   :: element
+    type (type_node)                      :: nodes(n_vertex_max)
+  
+    type(t_pol_pos_list) :: pol_pos_list
+    type(t_tor_pos_list) :: tor_pos_list
+
+    integer,allocatable  :: ien (:,:)
+    real*4,allocatable   :: xyz (:,:), scalars(:,:), scalars_o(:,:)
+    character*36, allocatable :: scalar_names(:), scalar_names_o(:)
+  
+    integer  :: n_AA, nz_AA, index_RHS0
+    integer :: k_tor, i, j, k, l, n(4), ife, m, iv, inode, index_node, index_total
+    integer :: omp_nthreads, omp_tid, n_tor_local, i_order, index_large_i, index_ij
+    integer :: index_RHS, k_var, i_tor, i_term, term_count, nsub, nnos, ielm, it_o
+    integer :: i_bs, j_bs, ms, mt, n_basis, info
+    integer ::  i_elm, in, im, mp, index_kl, ilarge, in_index, knode, im_index, index_large_k 
+    integer, allocatable :: ipiv(:)
+    logical :: get_terms 
+    real*8,   allocatable :: result(:,:,:,:), res2d(:,:,:)
+    real*8,   allocatable :: rhs(:,:), BSmat(:,:), BSmat_elm(:,:), BSmat_tmp(:,:)
+    real*8  :: rhs_term(n_vertex_max*(n_order+1))
+    real*8  :: wst, wgauss2(n_gauss), phi_val, xjac
+    real*8, allocatable     :: ELM(:,:), A_tmp(:), rhs_save(:)
+    real*8, dimension(n_gauss,n_gauss) :: x_g,   x_s,   x_t,   x_ss,   x_tt,   x_st
+    real*8, dimension(n_gauss,n_gauss) :: y_g,   y_s,   y_t,   y_ss,   y_tt,   y_st
+    integer :: dim0, dim1, dim2, only_itor
+    character(len=64)       :: file_name, label 
+    integer   :: required,provided,StatInfo
+#ifdef USE_FFTW
+    real*8     :: in_fft(1:n_plane)
+    complex*16 :: out_fft(1:n_plane)
+#endif
+    real*8 :: tsecond, sum_rhs, ftor 
+    type(clcktype)           :: t_itstart, t0, t1
+    TYPE(type_thread_buffer), dimension(:), allocatable :: test_struct 
+  integer   :: MPI_COMM_N, MPI_GROUP_MASTER, MPI_GROUP_WORLD, MPI_COMM_MASTER, MPI_COMM_TRANS
+  integer   :: my_id, my_id_n, my_id_master
+  integer   :: i_rank(n_tor), n_cpu, n_cpu_n, n_cpu_master, m_cpu, n_masters, n_cpu_trans, my_id_trans
+  integer*4 :: rank, comm_size 
+  integer   :: nnz
+  integer*8 :: check_data
+  integer, allocatable :: irn_tmp(:), jcn_tmp(:)
+  integer(kind=int_all), parameter   :: Int0=0
+  integer(kind=int_all), parameter   :: Int1=1
+
+
+  if ((jorek_model/=500) .and. (jorek_model/=600)) then
+    write(*,*) 'Sorry RHS diagnostic is only available for models 500 and 600!'
+    stop
+  endif
+
+#if (JOREK_MODEL == 500) || (JOREK_MODEL==600)    
+    
+    ! --- Initialize FFTW
+#ifdef USE_FFTW
+    call dfftw_plan_dft_r2c_1d(fftw_plan,n_plane,in_fft,out_fft,FFTW_PATIENT)
+#endif
+
+#ifdef FUNNELED
+    required = MPI_THREAD_FUNNELED
+#else
+    required = MPI_THREAD_MULTIPLE
+#endif
+    if (first_step) then
+      call MPI_Init_thread(required, provided, StatInfo)
+    endif
+
+    ! --- Determine number of MPI procs
+    call MPI_COMM_SIZE(MPI_COMM_WORLD, comm_size, ierr)
+    n_cpu = comm_size
+  
+    ! --- Determine ID of each MPI proc
+    call MPI_COMM_RANK(MPI_COMM_WORLD, rank, ierr)
+    my_id = rank
+
+    ! --- Some checks
+    call check_args(command%n_args,ierr,0,1);  if ( ierr /= 0 ) return
+    call check_step_imported(ierr);            if ( ierr /= 0 ) return
+
+    nsub      = get_int_setting('nsub_vtk'      , ierr);  if ( ierr /= 0 ) return
+    phi_val   = get_int_setting('vtk_phi_value' , ierr);  if ( ierr /= 0 ) return
+    only_itor = get_int_setting('only_itor'     , ierr);  if ( ierr /= 0 ) return
+
+    if (first_step) then
+      ! --- Initialize ADAS
+#if (defined WITH_Neutrals) || (defined WITH_Impurities)
+      ! --- Read ADAS data and generate coronal equilibrium if needed
+      call init_imp_adas(my_id)
+#else
+      if (use_imp_adas .and. (nimp_bg(1) > 0.d0)) then
+        call init_imp_adas(my_id)
+      endif
+#endif
+    endif 
+
+    if (command%n_args > 0) then    
+      eq_index  = to_int(command%args(1), ierr); 
+    endif
+
+    n_basis = n_vertex_max*(n_order+1)
+    allocate( BSmat(n_basis, n_basis), BSmat_elm(n_basis, n_basis), ipiv(n_basis))
+    allocate( BSmat_tmp(n_basis, n_basis))
+
+    call assign_term_names()
+
+    ! --- Initialize clock
+    call clck_init()
+    call r3_info_init ()
+
+    call init_threads()  ! for OMP threads
+
+    ! --- Allocate and initialize thread structure for calling elm_matrix
+    if (allocated(test_struct))  deallocate(test_struct)
+    allocate(test_struct(nbthreads))
+  
+    dim0 = n_tor*n_vertex_max*(n_order+1)*n_var
+    dim1 = n_plane
+    dim2 = n_vertex_max*n_var*(n_order+1)
+ 
+    do i = 1, nbthreads
+  
+      allocate(test_struct(i)%ELM_p( dim1, dim2, dim2) )
+      allocate(test_struct(i)%ELM_n( dim1, dim2, dim2) )
+      allocate(test_struct(i)%ELM_k( dim1, dim2, dim2) )
+      allocate(test_struct(i)%ELM_kn(dim1, dim2, dim2) )
+      allocate(test_struct(i)%RHS_p( dim1, dim2      ) )
+      allocate(test_struct(i)%RHS_k( dim1, dim2      ) )
+      allocate(test_struct(i)%ELM(   dim0, dim0      ) )
+      allocate(test_struct(i)%RHS(   dim0            ) )
+  
+      test_struct(i)%ELM_p   = 0.d0
+      test_struct(i)%ELM_n   = 0.d0
+      test_struct(i)%ELM_k   = 0.d0
+      test_struct(i)%ELM_kn  = 0.d0
+      test_struct(i)%RHS_p   = 0.d0
+      test_struct(i)%RHS_k   = 0.d0
+      test_struct(i)%ELM     = 0.d0
+      test_struct(i)%RHS     = 0.d0
+  
+      allocate(test_struct(i)%eq_g    (n_plane,n_var,n_gauss,n_gauss) )
+      allocate(test_struct(i)%eq_s    (n_plane,n_var,n_gauss,n_gauss) )
+      allocate(test_struct(i)%eq_t    (n_plane,n_var,n_gauss,n_gauss) )
+      allocate(test_struct(i)%eq_p    (n_plane,n_var,n_gauss,n_gauss) )
+      allocate(test_struct(i)%eq_ss   (n_plane,n_var,n_gauss,n_gauss) )
+      allocate(test_struct(i)%eq_st   (n_plane,n_var,n_gauss,n_gauss) )
+      allocate(test_struct(i)%eq_tt   (n_plane,n_var,n_gauss,n_gauss) )
+      allocate(test_struct(i)%eq_pp   (n_plane,n_var,n_gauss,n_gauss) )
+      allocate(test_struct(i)%delta_g (n_plane,n_var,n_gauss,n_gauss) )
+      allocate(test_struct(i)%delta_s (n_plane,n_var,n_gauss,n_gauss) )
+      allocate(test_struct(i)%delta_t (n_plane,n_var,n_gauss,n_gauss) )
+  
+      test_struct(i)%eq_g    = 0.d0
+      test_struct(i)%eq_s    = 0.d0
+      test_struct(i)%eq_t    = 0.d0
+      test_struct(i)%eq_p    = 0.d0
+      test_struct(i)%eq_ss   = 0.d0
+      test_struct(i)%eq_st   = 0.d0
+      test_struct(i)%eq_tt   = 0.d0
+      test_struct(i)%eq_pp   = 0.d0
+      test_struct(i)%delta_g = 0.d0
+      test_struct(i)%delta_s = 0.d0
+      test_struct(i)%delta_t = 0.d0
+    end do
+
+  
+    write(*,*) '******************************************************'
+    write(*,*) '**** RHS diagnostic for term visualization in vtk ****'
+    write(*,*) '******************************************************'
+    write(*,*) ''
+    write(*,*) '  OpenMP threads = ', nbthreads
+    write(*,*) ''
+  
+    ! --- Initialize time stepping parameters
+    call update_time_evol_params()
+  
+    if ( index_start <= 1 ) then
+      tstep_prev = tstep
+    else
+      tstep_prev = xtime(index_start) - xtime(index_start-1)
+    end if
   
   
+    ! --- Calculate DOFs
+    index_total = -1
+    do inode=1,node_list%n_nodes
+      index_total = max(index_total,maxval(node_list%node(inode)%index))
+    enddo
+    node_list%n_dof = index_total * n_tor * n_var
+  
+    allocate(rhs(max_terms,node_list%n_dof))
+  
+    ! --- Create grid points and save them for the vtk
+    nnos    = nsub*nsub*element_list%n_elements
+    allocate(xyz(3,nnos))
+    xyz     = 0
+  
+  
+    call create_pol_pos(pol_pos_list, ierr, node_list, element_list, ES, grid=.true., nsub=nsub)
+    call create_tor_pos(tor_pos_list, ierr, nphi=1, phi=phi_val)
+  
+    do i = 1, pol_pos_list%n_pos(1)
+      do j = 1, pol_pos_list%n_pos(2)
+        xyz(1:3,i) = (/ pol_pos_list%pos(i,j)%R, pol_pos_list%pos(i,j)%Z, 0.d0 /)
+      enddo
+    enddo
+   
+    ! --- Create vtk grid indices
+    allocate(ien(4,(nsub-1)*(nsub-1)*element_list%n_elements))
+    ielm  = 0
+    inode = 0
+    ien   = 0
+  
+    do i=1,element_list%n_elements
+  
+      do j=1,nsub
+        do k=1,nsub
+          inode       = inode +1
+        enddo
+      enddo
+  
+      do j=1,nsub-1
+        do k=1,nsub-1
+          ielm        = ielm  +1
+          ien(1,ielm) = inode - nsub*nsub + nsub*(j-1) + k-1       ! indices for VTK
+          ien(2,ielm) = inode - nsub*nsub + nsub*(j  ) + k-1
+          ien(3,ielm) = inode - nsub*nsub + nsub*(j  ) + k
+          ien(4,ielm) = inode - nsub*nsub + nsub*(j-1) + k
+        enddo
+      enddo
+    enddo
+  
+    ! ------------------------- 
+    ! --- Collect RHS terms ---
+    ! -------------------------
+
+    rhs = 0.0d0 
+  
+    call clck_time_barrier(t0)
+  
+    write(*,*) '  Starting element loop with elm_matrix calls, this may take a while...'
+  
+    ! --- Declare shared and private variables for omp
+    !$omp parallel default(none) &
+    !$omp   shared(element_list,node_list, ES, get_terms, BSmat, n_basis,              &
+    !$omp          xpoint,xcase, rhs, my_id, test_struct,n_tor_fft_thresh)             &
+    !$omp   private(ife,iv,inode,element,nodes,i_order, info,                     &
+    !$omp           index_large_i,index_ij, index_node, BSmat_elm, rhs_term,           &
+    !$omp           omp_nthreads,omp_tid, i_term, i,j,k,l,i_bs,j_bs,ftor,ipiv,BSmat_tmp  )
+  
+   ! --- omp id
+#ifdef _OPENMP
+    omp_nthreads = omp_get_num_threads()
+    omp_tid      = 1+omp_get_thread_num()
+#else
+    omp_nthreads = 1
+    omp_tid      = 1
+#endif
+  
+    !$omp do schedule(runtime)
+    do ife = 1, element_list%n_elements 
+      
+      element = element_list%element(ife)
+
+       
+      do iv = 1, n_vertex_max
+        inode     = element%vertex(iv)
+        nodes(iv) = node_list%node(inode)
+      enddo
+
+      call element_matrix_fft(element,nodes, xpoint, xcase, ES%R_axis, ES%Z_axis, ES%psi_axis, ES%psi_bnd,   &
+       ES%R_xpoint, ES%Z_xpoint, test_struct(omp_tid)%ELM, test_struct(omp_tid)%RHS, omp_tid,       &
+       test_struct(omp_tid)%ELM_p, test_struct(omp_tid)%ELM_n, test_struct(omp_tid)%ELM_k,  &
+       test_struct(omp_tid)%ELM_kn, test_struct(omp_tid)%RHS_p, test_struct(omp_tid)%RHS_k, &
+       test_struct(omp_tid)%eq_g, test_struct(omp_tid)%eq_s, test_struct(omp_tid)%eq_t,     &
+       test_struct(omp_tid)%eq_p, test_struct(omp_tid)%eq_ss, test_struct(omp_tid)%eq_st,   &
+       test_struct(omp_tid)%eq_tt, test_struct(omp_tid)%delta_g,                              &
+       test_struct(omp_tid)%delta_s, test_struct(omp_tid)%delta_t, 1, n_tor, get_terms=get_terms)
+
+      do i_term=1, max_terms
+  
+        do iv=1,n_vertex_max
+      
+          inode = element%vertex(iv)
+      
+          do i_order = 1, n_order+1
+      
+            index_node = node_list%node(inode)%index(i_order)
+      
+            index_large_i = n_tor * n_var * (index_node - 1)
+      
+            do j = 1, n_var * n_tor
+      
+              index_ij = n_tor * n_var * (n_order+1) * (iv-1) + n_tor * n_var * (i_order-1) + j   ! index in the ELM matrix
+              
+             !$omp atomic
+              rhs(i_term, index_large_i+j) = rhs(i_term, index_large_i+j) + test_struct(omp_tid)%ELM(i_term, index_ij) 
+             !$omp end atomic
+            enddo 
+      
+          enddo ! order
+        enddo ! vertex
+  
+      enddo ! terms
+    
+    enddo ! --- elements
+    !$omp end do
+    !$omp end parallel
+    ! ----------------------------- 
+    ! --- End collect RHS terms ---
+    ! -----------------------------
+
+    call clck_time_barrier(t1)
+    call clck_ldiff(t0,t1,tsecond)
+    write(*,*) ''
+    write(*,*) '  Element loop finished in ', tsecond, ' s'
+    write(*,*) ''
+ 
+
+    ! ---- Solver preparation (to obtain node coefficients from the RHS) -------------
+#if USE_MUMPS
+    call MPI_COMM_GROUP(MPI_COMM_WORLD,MPI_GROUP_WORLD,ierr)
+    call MPI_GROUP_INCL(MPI_GROUP_WORLD,1,[0],MPI_GROUP_MUMPS_EQUIL,ierr)
+    call MPI_COMM_CREATE(MPI_COMM_WORLD,MPI_GROUP_MUMPS_EQUIL,MPI_COMM_MUMPS_EQUIL,ierr)
+    if (first_step) then
+      if (my_id == 0) call initialise_mumps(MPI_COMM_MUMPS_EQUIL)
+    endif
+#endif
+
+
+#if defined(USE_PASTIX) || defined(USE_MUMPS)
+    nz_AA = element_list%n_elements * (n_vertex_max * (n_order+1))**2
+    n_AA  = maxval(node_list%node(1:node_list%n_nodes)%index(4))
+
+    if (associated(mumps_par%A))     call tr_deallocatep(mumps_par%irn,"mumps_par%irn",CAT_DMATRIX)
+    if (associated(mumps_par%rhs))   call tr_deallocatep(mumps_par%jcn,"mumps_par%jcn",CAT_DMATRIX)
+    if (associated(mumps_par%irn))   call tr_deallocatep(mumps_par%A,"mumps_par%A",CAT_DMATRIX)
+    if (associated(mumps_par%jcn))   call tr_deallocatep(mumps_par%rhs,"mumps_par%rhs",CAT_DMATRIX)
+ 
+    call tr_allocatep(mumps_par%A,1,nz_AA,"mumps_par%A",CAT_DMATRIX)
+    call tr_allocatep(mumps_par%rhs,1,n_AA,"mumps_par%rhs",CAT_DMATRIX)
+    call tr_allocatep(mumps_par%irn,1,nz_AA,"mumps_par%irn",CAT_DMATRIX)
+    call tr_allocatep(mumps_par%jcn,1,nz_AA,"mumps_par%jcn",CAT_DMATRIX)
+ 
+    mumps_par%n  = n_AA
+    mumps_par%nz = nz_AA
+
+    mumps_par%irn = 0
+    mumps_par%jcn = 0
+    mumps_par%A   = 0.d0
+    mumps_par%RHS = 0.d0
+
+#if USE_MUMPS 
+    mumps_par%JOB = 6
+    mumps_par%SYM = 0
+    mumps_par%icntl(7) = 4  
+#endif
+
+#endif
+    ! ----- End solver preparation 
+
+    ! --- Obtain A matrix used to find node coefficients 
+    wgauss2 = wgauss
+    ilarge  = 0
+
+    allocate(ELM(n_vertex_max*(n_order+1), n_vertex_max*(n_order+1)))
+
+    do i_elm=1,element_list%n_elements
+      
+      ELM = 0.d0
+      element = element_list%element(i_elm)
+
+      do m=1,n_vertex_max
+        nodes(m) = node_list%node(element%vertex(m))
+      enddo
+
+      x_g = 0.d0;   x_s = 0.d0;   x_t = 0.d0;   x_ss = 0.d0;   x_st = 0.d0;   x_tt = 0.d0
+      y_g = 0.d0;   y_s = 0.d0;   y_t = 0.d0;   y_ss = 0.d0;   y_st = 0.d0;   y_tt = 0.d0
+ 
+      do i=1,n_vertex_max
+        do j=1,n_order+1
+          do ms=1, n_gauss
+            do mt=1, n_gauss
+              x_g(ms,mt)  = x_g(ms,mt)  + nodes(i)%x(1,j,1) * element%size(i,j) * H(i,j,ms,mt)
+              x_s(ms,mt)  = x_s(ms,mt)  + nodes(i)%x(1,j,1) * element%size(i,j) * H_s(i,j,ms,mt)
+              x_t(ms,mt)  = x_t(ms,mt)  + nodes(i)%x(1,j,1) * element%size(i,j) * H_t(i,j,ms,mt)
+    
+              x_ss(ms,mt) = x_ss(ms,mt) + nodes(i)%x(1,j,1) * element%size(i,j) * H_ss(i,j,ms,mt)
+              x_st(ms,mt) = x_st(ms,mt) + nodes(i)%x(1,j,1) * element%size(i,j) * H_st(i,j,ms,mt)
+              x_tt(ms,mt) = x_tt(ms,mt) + nodes(i)%x(1,j,1) * element%size(i,j) * H_tt(i,j,ms,mt)
+    
+              y_g(ms,mt)  = y_g(ms,mt)  + nodes(i)%x(1,j,2) * element%size(i,j) * H(i,j,ms,mt)
+              y_s(ms,mt)  = y_s(ms,mt)  + nodes(i)%x(1,j,2) * element%size(i,j) * H_s(i,j,ms,mt)
+              y_t(ms,mt)  = y_t(ms,mt)  + nodes(i)%x(1,j,2) * element%size(i,j) * H_t(i,j,ms,mt)
+    
+              y_ss(ms,mt) = y_ss(ms,mt) + nodes(i)%x(1,j,2) * element%size(i,j) * H_ss(i,j,ms,mt)
+              y_st(ms,mt) = y_st(ms,mt) + nodes(i)%x(1,j,2) * element%size(i,j) * H_st(i,j,ms,mt)
+              y_tt(ms,mt) = y_tt(ms,mt) + nodes(i)%x(1,j,2) * element%size(i,j) * H_tt(i,j,ms,mt)
+            enddo
+          enddo
+        enddo
+      enddo
+
+   
+      do ms=1, n_gauss
+        do mt=1, n_gauss
+    
+          wst  = wgauss2(ms)*wgauss2(mt)
+          xjac =  x_s(ms,mt)*y_t(ms,mt) - x_t(ms,mt)*y_s(ms,mt)
+   
+          do i=1,n_vertex_max
+            do j=1,n_order+1
+    
+              index_ij = (n_order+1)*(i-1) + j   ! index in the ELM matrix
+    
+              do k=1,n_vertex_max
+                do l=1,n_order+1
+    
+                  index_kl = (n_order+1)*(k-1) + l   ! index in the ELM matrix
+    
+                  ELM(index_ij,index_kl) = ELM(index_ij,index_kl)    &
+                                         + xjac*x_g(ms,mt)*H(i,j,ms,mt) * h(k,l,ms,mt) * element%size(i,j)*element%size(k,l) * wst 
+                enddo
+              enddo
+            enddo
+          enddo
+        enddo
+      enddo
+    
+      ! Save contribution of this element in solver (MUMPS) format
+      do i=1,n_vertex_max
+    
+        inode = element_list%element(i_elm)%vertex(i)
+      
+        do j=1,n_order+1
+            
+            index_ij = (n_order+1)*(i-1) + j    ! index in the ELM matrix
+    
+            index_large_i = node_list%node(inode)%index(j)  ! base index in the main matrix
+    
+            do k=1,n_vertex_max
+          
+              knode = element_list%element(i_elm)%vertex(k)
+            
+              do l=1,n_order+1
+                
+                  index_kl = (n_order+1)*(k-1) + l    ! index in the ELM matrix
+    
+                  index_large_k = node_list%node(knode)%index(l)   ! base index in the main matrix
+    
+                  ilarge = ilarge + 1
+    
+                  mumps_par%irn(ilarge) = index_large_i
+                  mumps_par%jcn(ilarge) = index_large_k
+                  mumps_par%A(ilarge)   = ELM(index_ij,index_kl) 
+    
+            enddo
+          enddo
+        enddo
+      enddo
+    enddo
+    ! --- End obtain A matrix to find node coefficients
+ 
+    allocate(A_tmp(nz_AA), irn_tmp(nz_AA), jcn_tmp(nz_AA))
+    allocate(rhs_save(n_AA))
+    A_tmp   = mumps_par%A
+    irn_tmp = mumps_par%irn
+    jcn_tmp = mumps_par%jcn
+    rhs_save= 0.d0
+  
+    term_count = 0  ! Counts terms with non-zero RHS
+  
+    write(*,*) '  Looking for non-zero terms to plot in vtk...'            
+    write(*,*) ''
+    write(*,*) '  Variable index     Term index '
+  
+    ! Export non-zero terms to vtk
+    do k_var=1, n_var
+
+      if (command%n_args == 1) then
+        if (k_var /= eq_index) cycle
+      endif
+
+      do i_term=1, max_terms
+       
+        if (trim(term_names(k_var, i_term))=='') cycle
+
+        sum_rhs = 0.d0
+ 
+        ! get RHS of individual harmonics for each term
+        do i_tor=1, n_tor
+
+          if (only_itor >= 0) then
+            if (only_itor /= i_tor) cycle
+          endif
+
+          ! --- Factor coming from Fourier transform
+          if (i_tor>1) then
+            ftor=2.d0
+          else
+            ftor=1.d0
+          endif
+
+          ! --- Collect RHS for a single harmonic
+          do inode=1,node_list%n_nodes
+            do i_order=1, n_order+1
+              index_node = node_list%node(inode)%index(i_order)
+              index_RHS  = n_tor*n_var*(index_node - 1) + n_tor*(k_var-1) + i_tor 
+              index_RHS0 = index_node 
+              rhs_save(index_RHS0) = rhs(i_term, index_RHS) / n_plane * ftor
+            enddo
+          enddo
+
+          ! --- Find node values        
+#if USE_MUMPS
+          mumps_par%A   = A_tmp
+          mumps_par%rhs = rhs_save
+          call DMUMPS(mumps_par)
+#elif USE_PASTIX
+
+          nz_AA = element_list%n_elements * (n_vertex_max * (n_order+1))**2
+          n_AA  = maxval(node_list%node(1:node_list%n_nodes)%index(4))
+      
+          if (associated(mumps_par%A))     call tr_deallocatep(mumps_par%irn,"mumps_par%irn",CAT_DMATRIX)
+          if (associated(mumps_par%rhs))   call tr_deallocatep(mumps_par%jcn,"mumps_par%jcn",CAT_DMATRIX)
+          if (associated(mumps_par%irn))   call tr_deallocatep(mumps_par%A,"mumps_par%A",CAT_DMATRIX)
+          if (associated(mumps_par%jcn))   call tr_deallocatep(mumps_par%rhs,"mumps_par%rhs",CAT_DMATRIX)
+      
+          call tr_allocatep(mumps_par%A,1,nz_AA,"mumps_par%A",CAT_DMATRIX)
+          call tr_allocatep(mumps_par%rhs,1,n_AA,"mumps_par%rhs",CAT_DMATRIX)
+          call tr_allocatep(mumps_par%irn,1,nz_AA,"mumps_par%irn",CAT_DMATRIX)
+          call tr_allocatep(mumps_par%jcn,1,nz_AA,"mumps_par%jcn",CAT_DMATRIX)
+       
+          mumps_par%n  = n_AA
+          mumps_par%nz = nz_AA
+      
+          mumps_par%irn = 0
+          mumps_par%jcn = 0
+          mumps_par%A   = 0.d0
+          mumps_par%RHS = 0.d0
+      
+          mumps_par%A   = A_tmp 
+          mumps_par%irn = irn_tmp 
+          mumps_par%jcn = jcn_tmp 
+          mumps_par%RHS = rhs_save 
+      
+          if (first_step) then
+            pastix_initialised = .false.
+            pastix_analysed    = .false.
+          endif
+      
+          if (allocated(pastix_perm_vars))  call tr_deallocate(pastix_perm_vars,"pastix_perm_vars",CAT_UNKNOWN)
+          if (allocated(pastix_iperm_vars)) call tr_deallocate(pastix_iperm_vars,"pastix_iperm_vars",CAT_UNKNOWN)
+      
+          if (allocated(sparskit_work)) deallocate(sparskit_work)
+          allocate(sparskit_work(mumps_par%N + 1))
+          call coicsr(mumps_par%N,mumps_par%NZ,1,mumps_par%A,mumps_par%IRN,mumps_par%JCN,sparskit_work)
+          if (allocated(sparskit_work)) deallocate(sparskit_work)
+           
+          nnz = mumps_par%JCN(mumps_par%N+1) - 1
+      
+        ! -- For PaStiX solver before version 6.x
+          call pastix_fortran_checkmatrix(check_data, MPI_COMM_SELF, &
+             Int1, pastix_sym, Int1, mumps_par%N, mumps_par%JCN, mumps_par%IRN, mumps_par%A, -Int1, Int1)
+      
+          mumps_par%NZ = mumps_par%JCN(mumps_par%N+1) - 1
+      
+          if (mumps_par%NZ /= nnz ) then
+             write (*,*) "associated (mumps_par%IRN)", associated (mumps_par%IRN)
+             if (associated (mumps_par%IRN)) call tr_deallocatep(mumps_par%IRN,"mumps_par%IRN",CAT_DMATRIX)
+             if (associated (mumps_par%A)  ) call tr_deallocatep(mumps_par%A,"mumps_par%A",CAT_DMATRIX)
+             call tr_allocatep(mumps_par%IRN,Int1,mumps_par%NZ,"mumps_par%IRN",CAT_DMATRIX)
+             call tr_allocatep(mumps_par%A,Int1,mumps_par%NZ,"mumps_par%A",CAT_DMATRIX)
+             call pastix_fortran_checkmatrix_end(check_data, &
+                Int1, mumps_par%IRN,mumps_par%A, Int1)
+          endif
+        
+          if (   allocated(pastix_perm_vars) .and.     &
+               & size(pastix_perm_vars) /= mumps_par%N) then 
+             call tr_deallocate(pastix_perm_vars,"pastix_perm_vars",CAT_UNKNOWN)
+          end if
+          
+          if (   allocated(pastix_iperm_vars) .and.     &
+               & size(pastix_iperm_vars) /= mumps_par%N) then 
+             call tr_deallocate(pastix_iperm_vars,"pastix_iperm_vars",CAT_UNKNOWN)
+          end if
+      
+          if (.not. allocated(pastix_perm_vars))  call tr_allocate(pastix_perm_vars,Int1,mumps_par%n,"pastix_perm_vars",CAT_UNKNOWN)
+          if (.not. allocated(pastix_iperm_vars)) call tr_allocate(pastix_iperm_vars,Int1,mumps_par%n,"pastix_iperm_vars",CAT_UNKNOWN)
+      
+          pastix_nthrd     = nbthreads
+      
+          ! -- For PaStiX solver before version 6.x
+          pastix_iparm(1)  = 0          ! insert default values
+          pastix_iparm(2)  = 0          ! initializse
+          pastix_iparm(3)  = 0
+#ifdef FUNNELED
+          pastix_iparm(52) = 2
+#endif
+        
+          pastix_data = 0
+      
+          call pastix_fortran(pastix_data,MPI_COMM_SELF,mumps_par%n,mumps_par%jcn,mumps_par%irn,mumps_par%A, &
+             pastix_perm_vars,pastix_iperm_vars,mumps_par%rhs,Int1,pastix_iparm,pastix_dparm)
+        
+          pastix_iparm(2) = 1
+          pastix_iparm(3) = 7
+          pastix_iparm(6) = pastix_iter           ! refinement : max number of iterations
+        
+          pastix_iparm(7)  = 1                    ! force check
+        
+          pastix_iparm(31) = pastix_facto
+          pastix_iparm(35) = pastix_nthrd         ! numthreads : number of threads
+          pastix_iparm(39) = pastix_rhs           ! right hand side (0 : use RHS)
+          pastix_iparm(37) = pastix_iluk 
+          pastix_iparm(41) = pastix_sym
+        
+          pastix_iparm(42) = pastix_ricar
+          pastix_iparm(14) = pastix_amalg
+        
+#ifdef FUNNELED
+          pastix_iparm(52) = 2
+#endif
+        
+          pastix_dparm(6)  = pastix_epsilon    ! error level refinement
+          pastix_dparm(11) = pastix_pivot      ! pivot threshold?
+        
+          ! -- For PaStiX solver before version 6.x
+          call pastix_fortran(pastix_data,MPI_COMM_SELF, mumps_par%n, mumps_par%jcn, mumps_par%irn, mumps_par%A, &
+             pastix_perm_vars,pastix_iperm_vars,mumps_par%rhs,Int1,pastix_iparm,pastix_dparm)
+#endif
+
+          do i = 1, pol_pos_list%n_pos(1)
+    
+            do iv=1, n_vertex_max
+    
+              do i_order=1, n_order+1
+              
+                index_node = pol_pos_list%pos(i,1)%nodes(iv)%index(i_order)
+       
+                index_RHS0 = index_node
+            
+                pol_pos_list%pos(i,1)%nodes(iv)%values(i_tor, i_order, 1)  = mumps_par%RHS(index_RHS0) 
+      
+                sum_rhs = sum_rhs + abs(mumps_par%RHS(index_RHS0))
+              enddo
+            enddo
+          enddo
+ 
+        enddo ! n_tor 
+ 
+ 
+        if (sum_rhs < 1.d-30) cycle
+ 
+        term_count = term_count + 1
+  
+        write(*,'(2i15.2)')  k_var, i_term
+        
+        it_o = term_count - 1
+        if (term_count/=1) then 
+          scalars_o(:, 1:it_o) = scalars(:,1:it_o)
+          scalar_names_o(1:it_o) = scalar_names(1:it_o)
+        endif
+  
+        if (allocated(scalars))      deallocate(scalars)
+        if (allocated(scalar_names)) deallocate(scalar_names)
+        allocate(  scalars(nnos,1:term_count),   scalar_names(term_count))
+  
+        ! --- Evaluate RHS term (Psi) in the grid points
+        expr_list = exprs((/'Psi       '/), 1, 0)
+  
+        call eval_expr(ES, JOREK_UNITS, expr_list, pol_pos_list, tor_pos_list, result, ierr)
+        call reduce_result_to_2d(ierr, result, res2d, i1=1)
+  
+        ! --- Save RHS values into scalar vtk vector 
+        scalars(:,term_count)    = res2d(:,1,1)
+        write (label,'(a, i2.2, a, i3.3)') 'RHS_', k_var, '_', i_term
+        scalar_names(term_count) = trim(term_names(k_var, i_term))
+  
+        ! Recover old values (to append the array in fortran...) 
+        if (term_count/=1) then
+          scalars(:, 1:it_o) = scalars_o(:,1:it_o)
+          scalar_names(1:it_o) = scalar_names_o(1:it_o)
+        endif
+  
+        if (allocated(scalars_o))      deallocate(scalars_o)
+        if (allocated(scalar_names_o)) deallocate(scalar_names_o)
+        allocate(scalars_o(nnos,1:term_count), scalar_names_o(term_count))
+        scalars_o(:, 1:term_count) = scalars(:,1:term_count)
+        scalar_names_o(1:term_count) = scalar_names(1:term_count)
+  
+      enddo    ! --- max terms
+  
+    enddo  ! --- variables
+  
+    write(*,*) ''
+    write(*,*) '  Writing non-zero terms to vtk...'
+  
+    write (file_name,'(2a, i5.5, a)') trim(DIR),'RHS.', index_start, '.vtk'
+    call write_vtk(file_name,xyz,ien,9,scalar_names,scalars)
+  
+    write(*,*) '  Finished writing vtk'
+   
+    deallocate(rhs, scalars, scalar_names, scalars_o, scalar_names_o, result, res2d, test_struct)
+
+#ifdef USE_FFTW
+    call dfftw_destroy_plan(fftw_plan)
+#endif
+    
+#endif  
+
+  end subroutine RHS_terms_vtk   
+  
+
+
+
   
   
   !> Output the separatrix.
