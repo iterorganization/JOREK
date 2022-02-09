@@ -68,7 +68,6 @@ real*8     :: r0_corr, T0_corr, rn0_corr
 real*8  :: local_radiation, local_E_ion, total_radiation, total_E_ion
 real*8  :: local_radiation_phi(n_plane), total_radiation_phi(n_plane)
 ! Atomic physics coefficients:
-integer    :: i_main_imp
 !   -Mass ratio between main ions and impurites (m_i/m_imp)
 real*8  :: m_i_over_m_imp
 !   -Mean impurity ionization state
@@ -107,19 +106,6 @@ part_src_in  = 0.d0
 part_src_out = 0.d0
 
 Bgeo = F0 / R_geo
-#ifdef WITH_Impurities
-!=========imp_type======================
-i_main_imp = 0
-do i_main_imp=1,n_adas
-  if (main_imp(i_main_imp) == 1) exit
-  if ((i_main_imp == n_adas) .and. with_impurities) then
-    write(*,*) "ERROR, searched through main_imp and didn't find any while with_impurities=.t., EXITING!!!"
-    write(*,*) "ERROR: main_imp array:", main_imp
-    stop
-  endif
-enddo
-!===========end=========================
-#endif
 
 do ife =1, element_list%n_elements
 
@@ -208,7 +194,7 @@ do ife =1, element_list%n_elements
       ! Atomic physics parameters for Impurities
       !-------------------------------------------
 
-      select case ( trim(imp_type(i_main_imp)) )
+      select case ( trim(imp_type(index_main_imp)) )
         case('D2')
           m_i_over_m_imp = central_mass/2.  ! Deuterium mass = 2 u
         case('Ar')
@@ -220,7 +206,7 @@ do ife =1, element_list%n_elements
         case('W')
           m_i_over_m_imp = central_mass/184. ! Neon mass = 184 u
         case default
-          write(*,*) '!! Gas type "', trim(imp_type(i_main_imp)), '" unknown (in mod_injection_source.f90) !!'
+          write(*,*) '!! Gas type "', trim(imp_type(index_main_imp)), '" unknown (in mod_injection_source.f90) !!'
           write(*,*) '=> We assume the gas is D2.'
           m_i_over_m_imp = central_mass/2.
       end select
@@ -229,28 +215,28 @@ do ife =1, element_list%n_elements
       Te_corr_eV = T0_corr/(2.d0*EL_CHG*MU_ZERO*central_density*1.d20)
       Te_eV = T_00/(2.d0*EL_CHG*MU_ZERO*central_density*1.d20)
    
-      if (allocated(imp_adas(i_main_imp)%ionisation_energy)) then
+      if (allocated(imp_adas(index_main_imp)%ionisation_energy)) then
    
         if (allocated(P_imp)) deallocate(P_imp)
  
-        allocate(P_imp(0:imp_adas(i_main_imp)%n_Z))
+        allocate(P_imp(0:imp_adas(index_main_imp)%n_Z))
    
-        call imp_cor(i_main_imp)%interp_linear(density=20.,temperature=log10(Te_corr_eV*EL_CHG/K_BOLTZ),&
+        call imp_cor(index_main_imp)%interp_linear(density=20.,temperature=log10(Te_corr_eV*EL_CHG/K_BOLTZ),&
                                       p_out=P_imp,z_avg=Z_imp)
    
         ! Calculate the ionization potential energy and its derivative wrt. temperature
         E_ion     = 0.
         E_ion_bg  = 13.6
-        do ion_i=1, imp_adas(i_main_imp)%n_Z
+        do ion_i=1, imp_adas(index_main_imp)%n_Z
           do ion_k=1, ion_i
-            E_ion     = E_ion + P_imp(ion_i)*imp_adas(i_main_imp)%ionisation_energy(ion_k)
+            E_ion     = E_ion + P_imp(ion_i)*imp_adas(index_main_imp)%ionisation_energy(ion_k)
           end do
         end do
         ! Convert from eV to SI unit
         E_ion     = E_ion * EL_CHG
         E_ion_bg  = E_ion_bg * EL_CHG
       else
-        call imp_cor(i_main_imp)%interp_linear(density=20.,temperature=log10(Te_corr_eV*EL_CHG/K_BOLTZ),z_avg=Z_imp)
+        call imp_cor(index_main_imp)%interp_linear(density=20.,temperature=log10(Te_corr_eV*EL_CHG/K_BOLTZ),z_avg=Z_imp)
         E_ion     = 0.
         E_ion_bg  = 0.
       end if

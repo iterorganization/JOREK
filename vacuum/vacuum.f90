@@ -72,6 +72,7 @@ module vacuum
   real*8              :: FB_Zaxis_position               !< Amplification factor for Zaxis feedback (see [[jorek-starwall-faqs|fbnd_eq_FAQs]])
   real*8              :: FB_Zaxis_derivative             !< Amplification factor for Zaxis feedback (see [[jorek-starwall-faqs|fbnd_eq_FAQs]])
   real*8              :: FB_Zaxis_integral               !< Amplification factor for Zaxis feedback (see [[jorek-starwall-faqs|fbnd_eq_FAQs]])
+  real*8              :: cte_current_FB_fact             !< Constant factor that scales FF'& T profiles before freebnd GS iterations (switches off current FB) 
   integer             :: start_VFB                       !< Iteration for starting vertical feedback (see [[jorek-starwall-faqs|fbnd_eq_FAQs]])
   integer             :: n_feedback_current              !< Feedback will be performed each n_... iterations (see [[jorek-starwall-faqs|fbnd_eq_FAQs]])
   integer             :: n_feedback_vertical             !< Feedback will be performed each n_... iterations (see [[jorek-starwall-faqs|fbnd_eq_FAQs]])
@@ -420,6 +421,7 @@ module vacuum
     wall_resistivity_fact= 1.d0
         
     current_ref          = 1.d22
+    cte_current_FB_fact  = -1d99
     FB_Ip_position       = 0.2d0
     FB_Ip_integral       = 0.01d0
     n_feedback_current   = 2

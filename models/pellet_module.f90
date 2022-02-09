@@ -194,7 +194,7 @@ module pellet_module
     use phys_module, only: pellets, imp_type, central_density, central_mass, spi_abl_model, spi_tor_rot,      &
                            ns_phi_rotate, tor_frequency, tstep, pellet_density, pellet_density_bg,            &
                            index_now, xtime_spi_ablation, xtime_spi_ablation_bg, xtime_spi_ablation_rate,&
-                           xtime_spi_ablation_bg_rate, F0, R_geo, imp_cor, main_imp, n_adas
+                           xtime_spi_ablation_bg_rate, F0, R_geo, imp_cor, index_main_imp, n_adas
     use mpi_mod
     use corr_neg
     
@@ -210,7 +210,6 @@ module pellet_module
     
     real*8  :: R_out, Z_out
     integer :: i_elm, ifail, i, ierr, i_p
-    integer :: i_main_imp 
     
     real*8, dimension(4) :: P, P_s, P_t, P_phi
     real*8  :: R, R_s, R_t, Z, Z_s, Z_t
@@ -229,16 +228,6 @@ module pellet_module
     integer, intent(in) :: i_inj
     integer, intent(in) :: n_spi_begin
   
-    i_main_imp = 0
-    do i_main_imp=1,n_adas
-      if (main_imp(i_main_imp) == 1) exit
-      if ((i_main_imp == n_adas) .and. with_impurities) then
-        write(*,*) "ERROR, searched through main_imp and didn't find any while with_impurities=.t., EXITING!!!"
-        write(*,*) "ERROR: main_imp array:", main_imp
-        stop
-      endif
-    enddo
-
     spi_delta_phi   = 0.
     spi_Vel_R_tmp   = 0.
     spi_Vel_phi_tmp = 0.
@@ -384,7 +373,7 @@ module pellet_module
             write(*,*) "Check Point, n_SI, T_eV = ", n_SI, T_eV
           end if
         else if (spi_abl_model == 2) then
-          select case ( trim(imp_type(i_main_imp)) )
+          select case ( trim(imp_type(index_main_imp)) )
             case('D2')
               ne_SI   = n_SI
               ! The scaling law is in gauss unit
@@ -393,7 +382,7 @@ module pellet_module
             case('Ar')
               if (T_eV >= 1.) then
                 ! As with element_matrix, mimick density as 1.d20
-                call imp_cor(i_main_imp)%interp(density=20.,temperature=log10(T_eV*EL_CHG/K_BOLTZ),z_out=Z_imp)
+                call imp_cor(index_main_imp)%interp(density=20.,temperature=log10(T_eV*EL_CHG/K_BOLTZ),z_out=Z_imp)
               else
                 Z_imp = 0.
               end if
@@ -414,7 +403,7 @@ module pellet_module
             case('Ne')
               if (T_eV >= 1.) then
                 ! As with element_matrix, mimick density as 1.d20
-                call imp_cor(i_main_imp)%interp(density=20.,temperature=log10(T_eV*EL_CHG/K_BOLTZ),z_out=Z_imp)
+                call imp_cor(index_main_imp)%interp(density=20.,temperature=log10(T_eV*EL_CHG/K_BOLTZ),z_out=Z_imp)
               else
                 Z_imp = 0.
               end if
@@ -435,7 +424,7 @@ module pellet_module
                                        * ((ne_SI*1.d-6)**0.455) * (T_eV**1.679)
               end if
             case default
-              write(*,*) '!! Gas type "', trim(imp_type(i_main_imp)), '" unknown !!'
+              write(*,*) '!! Gas type "', trim(imp_type(index_main_imp)), '" unknown !!'
               write(*,*) '=> We assume the gas is D2.'
               pellets(i_p)%spi_abl = 3.9d14 * ((pellets(i_p)%spi_radius*1.d2)**1.455) &
                                      * ((n_SI*1.d-6)**0.455) * (T_eV**1.679)
@@ -444,14 +433,14 @@ module pellet_module
             write(*,*) "Check Point, ne_SI, T_eV = ", ne_SI, T_eV
           end if
         else if (spi_abl_model == 3) then
-          select case ( trim(imp_type(i_main_imp)) )
+          select case ( trim(imp_type(index_main_imp)) )
             case('D2') ! We temporarily wusing D2 ablation rate for H2 ablation here
               pellets(i_p)%spi_abl = 39.0023 * 2. * MOLE_NUMBER * ((pellets(i_p)%spi_radius*1.d2 / 0.2)**(4./3.)) &
                                      * ((n_SI*1.d-20)**(1./3.)) * ((T_eV/2.d3)**(5./3.)) / 4.0282
             case('Ar')  ! Argon and H2/D2 formed separately
               if (T_eV >= 1.) then
                 ! As with element_matrix, mimick density as 1.d20
-                call imp_cor(i_main_imp)%interp(density=20.,temperature=log10(T_eV*EL_CHG/K_BOLTZ),z_out=Z_imp)
+                call imp_cor(index_main_imp)%interp(density=20.,temperature=log10(T_eV*EL_CHG/K_BOLTZ),z_out=Z_imp)
               else
                 Z_imp = 0.
               end if
@@ -471,7 +460,7 @@ module pellet_module
             case('Ne')  ! Neond and H2/D2 mixed together
               if (T_eV >= 1.) then
                 ! As with element_matrix, mimick density as 1.d20
-                call imp_cor(i_main_imp)%interp(density=20.,temperature=log10(T_eV*EL_CHG/K_BOLTZ),z_out=Z_imp)
+                call imp_cor(index_main_imp)%interp(density=20.,temperature=log10(T_eV*EL_CHG/K_BOLTZ),z_out=Z_imp)
               else
                 Z_imp = 0.
               end if
@@ -487,7 +476,7 @@ module pellet_module
                                        * ((ne_SI*1.d-20)**(1./3.)) * ((T_eV/2.d3)**(5./3.)) &
                                        / (20.183*pellets(i_p)%spi_species + 2.0141*(1.-pellets(i_p)%spi_species)) 
             case default
-              write(*,*) '!! Gas type "', trim(imp_type(i_main_imp)), '" unknown !!'
+              write(*,*) '!! Gas type "', trim(imp_type(index_main_imp)), '" unknown !!'
               write(*,*) '=> We assume the gas is D2.'
               pellets(i_p)%spi_abl = 39.0023 * 2. * MOLE_NUMBER * ((pellets(i_p)%spi_radius*1.d2 / 0.2)**(4./3.)) &
                                      * ((n_SI*1.d-20)**(1./3.)) * ((T_eV/2.d3)**(5./3.)) / 4.0282
@@ -587,7 +576,7 @@ module pellet_module
     use data_structure
     use phys_module, only: pellets, imp_type, central_density, central_mass, pellet_density, pellet_density_bg,&
                            spi_rnd_seed, spi_angle, xtime_spi_ablation, xtime_spi_ablation_bg, xtime_spi_ablation_rate,&
-                           xtime_spi_ablation_bg_rate, nstep, spi_shard_file, spi_abl_model, n_spi_tot, main_imp,&
+                           xtime_spi_ablation_bg_rate, nstep, spi_shard_file, spi_abl_model, n_spi_tot, index_main_imp,&
                            n_adas
     use mpi_mod
     use corr_neg
@@ -595,7 +584,6 @@ module pellet_module
     implicit none
     
     integer             :: i, i_p
-    integer             :: i_main_imp 
     logical             :: ferr
     
     real*8  :: spi_gd_angle_01, spi_gd_angle_02        ! The dispersion angles for each shard
@@ -630,16 +618,6 @@ module pellet_module
 
     integer, intent(in) :: n_spi
     integer, intent(in) :: n_spi_begin
-
-    i_main_imp = 0
-    do i_main_imp=1,n_adas
-      if (main_imp(i_main_imp) == 1) exit
-      if ((i_main_imp == n_adas) .and. with_impurities) then
-        write(*,*) "ERROR, searched through main_imp and didn't find any while with_impurities=.t., EXITING!!!"
-        write(*,*) "ERROR: main_imp array:", main_imp
-        stop
-      endif
-    enddo
 
     if (n_spi >= 1) then
       if (allocated(shard_size)) deallocate(shard_size)
@@ -693,7 +671,7 @@ module pellet_module
         stop
       end if
 
-      select case ( trim(imp_type(i_main_imp)) ) 
+      select case ( trim(imp_type(index_main_imp)) ) 
         case('D2')
           write(*,*) "Injection of D2 species should be done by spi_quantity_bg, please revise input file accordingly."
           stop
@@ -745,7 +723,7 @@ module pellet_module
             N_shard_norm = N_shard_norm + (4./3.) * PI * (shard_size(i)**3) * spi_density_tmp *1.d20
           end do
         case default
-          write(*,*) '!! Gas type "', trim(imp_type(i_main_imp)), '" unknown !!'
+          write(*,*) '!! Gas type "', trim(imp_type(index_main_imp)), '" unknown !!'
           write(*,*) '=> We assume the gas is D2.'
           write(*,*) "Injection of D2 species should be done by spi_quantity_bg, please revise input file accordingly."
           stop
@@ -901,7 +879,7 @@ module pellet_module
     use data_structure
     use phys_module, only: pellets, imp_type, pellet_density, pellet_density_bg,  xtime_spi_ablation,           &
                            xtime_spi_ablation_bg, xtime_spi_ablation_rate, xtime_spi_ablation_bg_rate, nstep,   &
-                           spi_plume_file, spi_plume_hdf5, spi_abl_model, n_spi_tot, n_adas, main_imp,          &
+                           spi_plume_file, spi_plume_hdf5, spi_abl_model, n_spi_tot, n_adas, index_main_imp,    &
                            spi_tor_rot, ns_phi_rotate, tor_frequency
     use mpi_mod
 #ifdef USE_HDF5
@@ -927,7 +905,6 @@ module pellet_module
     real*8              :: real_spi_quantity(2)
 
     integer             :: i, i_p
-    integer             :: i_main_imp 
  
     logical             :: ferr
 
@@ -946,16 +923,6 @@ module pellet_module
     write(*,'(4(A18))') "'spi_Vel_Rref',","'spi_Vel_Zref'  ,","'spi_Vel_RxZref',","'spi_Vel_diff'   "
     write(*,'(2(A18))') "'spi_L_inj'   ,","'spi_L_inj_diff' "
     write(*,'(1(A18))') "'spi_angle'    "
-
-    i_main_imp = 0
-    do i_main_imp=1,n_adas
-      if (main_imp(i_main_imp) == 1) exit
-      if ((i_main_imp == n_adas) .and. with_impurities) then
-        write(*,*) "ERROR, searched through main_imp and didn't find any while with_impurities=.t., EXITING!!!"
-        write(*,*) "ERROR: main_imp array:", main_imp
-        stop
-      endif
-    enddo
 
     if (n_spi >= 1) then
 
@@ -1119,7 +1086,7 @@ module pellet_module
 
       real_spi_quantity = 0.d0
 
-      select case ( trim(imp_type(i_main_imp)) )
+      select case ( trim(imp_type(index_main_imp)) )
         case('D2')
           write(*,*) "Injection of D2 species should be done by spi_quantity_bg, please revise input file accordingly."
           stop
@@ -1177,7 +1144,7 @@ module pellet_module
             end if
           end do
         case default
-          write(*,*) '!! Gas type "', trim(imp_type(i_main_imp)), '" unknown !!'
+          write(*,*) '!! Gas type "', trim(imp_type(index_main_imp)), '" unknown !!'
           write(*,*) '=> We assume the gas is D2.'
           write(*,*) "Injection of D2 species should be done by spi_quantity_bg, please revise input file accordingly."
           stop
