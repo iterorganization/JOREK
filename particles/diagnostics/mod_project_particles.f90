@@ -475,6 +475,7 @@ end subroutine close_mumps
 
 subroutine project(this, sim, ev)
   use mod_event
+  use phys_module, only: nout, index_now
   class(projection), intent(inout)     :: this
   type(particle_sim), intent(inout)    :: sim
   type(event), intent(inout), optional :: ev
@@ -486,10 +487,16 @@ subroutine project(this, sim, ev)
   call project_only(this, sim)
 
   ! Save output if requested
-  if (this%to_h5) call save_to_h5(this, sim)
+  if (this%to_h5) then
+   if (mod(index_now,nout) == 0) then
+     call save_to_h5(this, sim, index_now)
+   end if
+  end if
   if (allocated(this%vtk_grid)) then
-    call save_to_vtk(this, sim)
-  endif
+    if (mod(index_now,nout) == 0) then
+      call save_to_vtk(this, sim)
+    end if
+  end if
 
   ! Clean up storage
   if (allocated(this%rhs)) this%rhs = 0.d0
@@ -938,23 +945,26 @@ end subroutine save_to_vtk
 
 
 !> Action for projecting all particles and writing output to a hdf5 file
-subroutine save_to_h5(this, sim)
+subroutine save_to_h5(this, sim, index_now)
   use mpi_mod
   use mod_event
   !$ use omp_lib
-  class(projection), intent(inout)  :: this
-  type(particle_sim), intent(inout)    :: sim
+  class(projection),  intent(inout)  :: this
+  type(particle_sim), intent(inout)  :: sim
+  integer,            intent(in)     :: index_now
   integer :: my_id, ierr, n_proj
   character(len=120) :: filename
   real*8 :: t0, t1, ostart, oend
 
   this%extension = '.h5'
 
-  if (len_trim(this%filename) .eq. 0) then
-    filename = this%get_filename(sim%time)
-  else
-    filename = this%filename
-  end if
+!  if (len_trim(this%filename) .eq. 0) then
+!    filename = this%get_filename(sim%time)
+!  else
+!    filename = this%filename
+!  end if
+  write(filename,'(A13,i5.5)') 'aux_node_list',index_now  ! temporary base name for aux_node_list
+  filename = trim(filename)//'.h5'
 
   call cpu_time(t0)
   !$ ostart = omp_get_wtime()
@@ -1197,17 +1207,17 @@ do i_elm=1,element_list%n_elements
         enddo
       enddo
     enddo
-  endif
-  ! unnormalise to [1/m^3] and [eV]
-  zn_norm  = CENTRAL_DENSITY * 1.d20
-  Tev_norm = 1.d0 / (2.d0 * EL_CHG * MU_ZERO * zn_norm)          ! T_ev [eV] = Tev_norm * T_jorek
+    ! unnormalise to [1/m^3] and [eV]
+    zn_norm  = CENTRAL_DENSITY * 1.d20
+    Tev_norm = 1.d0 / (2.d0 * EL_CHG * MU_ZERO * zn_norm)          ! T_ev [eV] = Tev_norm * T_jorek
 
-  zn0_g  = zn0_g * zn_norm  
-  zn0_s  = zn0_s * zn_norm
-  zn0_t  = zn0_t * zn_norm
-  T0_g   = T0_g  * TeV_norm
-  T0_s   = T0_s  * Tev_norm
-  T0_t   = T0_t  * Tev_norm
+    zn0_g  = zn0_g * zn_norm  
+    zn0_s  = zn0_s * zn_norm
+    zn0_t  = zn0_t * zn_norm
+    T0_g   = T0_g  * TeV_norm
+    T0_s   = T0_s  * Tev_norm
+    T0_t   = T0_t  * Tev_norm
+  end if
 
   do ms=1, n_gauss
     do mt=1, n_gauss

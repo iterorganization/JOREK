@@ -24,6 +24,7 @@ use mod_atomic_coeff_deuterium, only : ad_deuterium , atomic_coeff_deuterium
 implicit none
 
 type (type_node_list)   ,     pointer :: node_list
+type (type_node_list)   ,     pointer :: aux_node_list
 type (type_element_list),     pointer :: element_list
 type (type_bnd_element_list), pointer :: bnd_elm_list    
 type (type_bnd_node_list),    pointer :: bnd_node_list 
@@ -84,14 +85,15 @@ real*8                :: E_phi, E_R, E_Z, dU_x, dU_y, Jpol_R, Jpol_Z, FFp
 real*8                :: xjac, xjac_x, xjac_y, v_perp, Psi_J, R_p, error, Btot, BigR
 real*8                :: particle_source, D_prof, ZK_prof, source_pellet, ZKpar_T
 integer               :: n_fluxes, n_neo, n_bfield, n_vfield,n_pellet,n_bootstrap, n_psi_norm, n_Efield
-integer               :: n_Jpol
+integer               :: n_Jpol, n_aux
 integer               :: s_fluxes, s_neo, s_bfield, s_vfield,s_pellet,s_bootstrap, s_psi_norm, s_Efield
-integer               :: s_Jpol
+integer               :: s_Jpol, s_aux
 real*8                :: Jb,rho_norm,t_norm
 integer               :: i_elm_axis, i_elm_xpoint(2), k_tor, ifail, ierr
 logical               :: without_n0_mode, SI_units
 logical               :: include_fluxes, include_neo, include_magnetic_field, include_velocity_field
 logical               :: include_bootstrap, include_psi_norm, include_electric_field, include_Jpol, RphiZ_coords
+logical               :: include_projections
 real*8                :: toroidal_angle
 
 real*8                :: Er, psi_abs, Vtheta, Btheta, Mach_par,Mach_pol,Vsound, Vneo
@@ -156,7 +158,8 @@ real*8  :: Rp, Zp, Rmin, Rmax, Zmin, Zmax, s_out, t_out, R_out, Z_out
 
 namelist /vtk_params/ nsub, i_tor, i_plane, without_n0_mode, SI_units, &
                       include_fluxes, include_neo, include_magnetic_field, include_velocity_field,&
-                      include_bootstrap, include_psi_norm, include_electric_field, include_Jpol, RphiZ_coords
+                      include_bootstrap, include_psi_norm, include_electric_field, include_Jpol, include_projections,&
+                      RphiZ_coords
 
 
 write(*,*) '***************************************'
@@ -177,6 +180,7 @@ write(*,*) '***************************************'
 call flush_it(6)
 
 allocate(node_list)
+allocate(aux_node_list)
 allocate(element_list)
 allocate(bnd_elm_list)
 allocate(bnd_node_list)
@@ -199,6 +203,7 @@ include_electric_field = .false. ! include vector of E-field (or not), evaluated
 include_Jpol           = .false. ! include poloidal current vector (J_phi=0 for visualization)
 include_bootstrap      = .false. ! include bootstrap current and averaged current
 include_psi_norm       = .true.  ! include normalized flux
+include_projections    = .false. ! include projections from particles
 RphiZ_coords           = .false. ! use xyz transformation (R,0,Z) instead of (R,Z,0)
 
 #if (defined WITH_Neutrals) || (defined WITH_Impurities)
@@ -300,6 +305,11 @@ if (include_psi_norm) then
    s_psi_norm = n_scalars
    n_scalars  = n_scalars + n_psi_norm
 endif
+if (include_projections) then
+  n_aux     = n_var
+  s_aux     = n_scalars
+  n_scalars = n_scalars + n_aux
+end if
 
 #if (defined WITH_Neutrals) && (!defined WITH_Impurities)
     n_radiation = 0
@@ -438,6 +448,13 @@ endif
  endif
 
 #endif
+
+if (include_projections) then
+  do i = 1, n_var
+    write(scalar_names(s_aux+i), '(A4,i2.2)') 'aux_', i
+  end do
+end if
+
 #ifdef WITH_Impurities
  if (include_radiation) then
      scalar_names(s_radiation+1:s_radiation+n_radiation) &
@@ -462,6 +479,9 @@ do k_tor=1, n_tor
   mode(k_tor) = + int(k_tor / 2) * n_period
 enddo
 
+if (include_projections) then
+  call import_hdf5_restart_aux(aux_node_list, 'aux_node_list_restart.h5', rst_format, ierr)
+end if
 
 call import_restart(node_list, element_list, 'jorek_restart', rst_format, ierr, .true.)
 
@@ -685,6 +705,14 @@ do i=1,element_list%n_elements
           call interp(node_list,element_list,i,m,i_tor,s,t,P,P_s,P_t,P_st,P_ss,P_tt)
           scalars(inode,m) = P * HZ(i_tor,i_plane)
         enddo
+
+        if (include_projections) then
+          do m=1,n_var
+            call interp(aux_node_list,element_list,i,m,i_tor,s,t,P,P_s,P_t,P_st,P_ss,P_tt)
+            scalars(inode,s_aux+m) = P * HZ(i_tor,i_plane)
+          end do
+        end if
+
         if (jorek_model .lt. 100) cycle
         
         ! The real current density
@@ -1007,6 +1035,14 @@ do i=1,element_list%n_elements
              call interp(node_list,element_list,i,m,i_tor,s,t,P,P_s,P_t,P_st,P_ss,P_tt)
              scalars(inode,m) = scalars(inode,m) + P * HZ(i_tor,i_plane)
           enddo
+
+          if (include_projections) then
+            do m=1,n_var
+              call interp(aux_node_list,element_list,i,m,i_tor,s,t,P,P_s,P_t,P_st,P_ss,P_tt)
+              scalars(inode,s_aux+m) = scalars(inode,s_aux+m) + P * HZ(i_tor,i_plane)
+            end do
+          end if
+
           if (jorek_model .lt. 100) cycle
           
           call interp_delta(node_list,element_list,i,var_psi,i_tor,s,t,dpsi,dPs_s, dPs_t, dPs_st, dPs_ss, dPs_tt)

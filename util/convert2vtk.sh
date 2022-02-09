@@ -60,6 +60,7 @@ function usage () {
   echo "  -[no]psiN                   Include normalized poloidal flux or not [default: on] (2D VTK ONLY)"
   echo "  -bootstrap                  Include bootstrap current decomposition [default: off] (2D VTK ONLY)"
   echo "  -RphiZ_coords               (R,phi,Z) coordinate system instead of (R,Z,phi) in the VTK file"
+  echo "  -projections                Include particle projections (2D VTK ONLY)"
   echo ""
   echo "  binary                      executable (jorek2vtk, jorek2vtk_3d, jorek2_target2vtk)"
   echo "  infile                      Input file of the corresponding JOREK run"
@@ -139,7 +140,10 @@ function do_convert () {
   if ( [ ! -e $targetFile ] || [ "$file" -nt "$targetFile" ] ) \
     &&  ( [ ! -z "$select_arguments" ] || [ `is_selected $stepnum` == "yes" ] ) ; then
     rm -f jorek_restart.${RST_TYPE}
+    rm -f aux_node_list_restart.${RST_TYPE}
+
     ln -s $file jorek_restart.${RST_TYPE}
+    ln -s "../../aux_node_list${stepnum}.${RST_TYPE}" aux_node_list_restart.${RST_TYPE}
     for copyfile in $copyfiles; do
       cp $startDir/$copyfile .
     done
@@ -194,6 +198,7 @@ include_velocity_field="" # include vector of velocity field (or not)
 include_electric_field="" # include vector of electric field (or not)
 include_Jpol=""           # include vector of poloidal currents (or not)
 include_bootstrap=""      # include bootstrap current and averaged current
+include_projections=""    # include particle projections
 include_psi_norm=".true." # include normalized flux
 RphiZ_coords=".false."    # use (R,0,Z) xyz coordinates instead of (R,Z,0)
 while [ $# -gt 1 ]; do
@@ -275,6 +280,10 @@ while [ $# -gt 1 ]; do
     writenml="yes"
   elif [ "$1" == "-bootstrap" ]; then
     include_bootstrap=".true."
+    shift 1
+    writenml="yes"
+  elif [ "$1" == "-projections" ]; then
+    include_projections=".true."
     shift 1
     writenml="yes"
   elif [ "$1" == "-nopsiN" ] || [ "$1" == "-nopsi_norm" ]; then
@@ -520,6 +529,9 @@ if [ "$writenml" == "yes" ]; then
   fi
   if [ ! -z "$include_bootstrap" ]; then
     echo "  include_bootstrap = $include_bootstrap" >> $vtk_nml
+  fi
+  if [ ! -z "$include_projections" ]; then
+    echo "  include_projections = $include_projections" >> $vtk_nml
   fi
   if [ ! -z "$include_psi_norm" ]; then
     echo "  include_psi_norm = $include_psi_norm" >> $vtk_nml
