@@ -19,12 +19,16 @@ fi
 
 TGZFILE="${TESTNAME}${VERSION}.tgz"
 
-if [ ! -f ${TGZFILE} ]; then 
-  echo "Downloading ${TGZFILE}"
-  wget -q --user=nrt --password=nrt_21745XtL ${DAV_URL}/${TGZFILE}
-  returncode=$?
-  if [ $returncode -ne 0 ]; then
-    cat <<EOF
+if [ -f ${TGZFILE} ]; then
+  rm -f ${TGZFILE}.bck
+  mv ${TGZFILE} $TGZFILE}.bck
+fi
+
+echo "Downloading ${TGZFILE}"
+wget -q --user=nrt --password=nrt_21745XtL ${DAV_URL}/${TGZFILE}
+returncode=$?
+if [ $returncode -ne 0 ]; then
+  cat <<EOF
 ####################################################################
   Failed to automatically download from web site.
   Please download reference data ${TGZFILE} yourself 
@@ -33,17 +37,7 @@ if [ ! -f ${TGZFILE} ]; then
   Launch this script again to decompress the archive.
 ####################################################################
 EOF
-    exit 1
-  fi
-else 
-    cat <<EOF
-####################################################################
- No downloading performed because ${TGZFILE} already
- exists, remove it if you want to download:
-   rm testcases/${TESTNAME}/${TGZFILE}
-####################################################################
-EOF
-    exit 1
+  exit 1
 fi
 
 echo "Uncompress ${TGZFILE}"

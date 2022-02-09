@@ -287,6 +287,8 @@ if (freeboundary_equil) then
       if ((mod(iter,n_feedback_current) .eq. 0) .and. (.not. newton_GS_freebnd)) then
         current_FB_fact  = current_FB_fact * (1. - FB_Ip_position * (current_tot-current_ref)/current_ref &
                                                  - FB_Ip_integral *  current_int/current_ref   )
+      else if ( cte_current_FB_fact > -1.d90 ) then
+        current_FB_fact  = cte_current_FB_fact
       endif
       
       !-------------- Multiplying FF' and p' profiles by the same factor to scale total current -------------------------

@@ -186,12 +186,11 @@ real*8, allocatable :: local_source_volume(:)
 ! See https://www.jorek.eu/wiki/doku.php?id=model500_501_555 for details
 #ifdef WITH_Impurities
 ! Atomic physics coefficients:
-integer :: i_main_imp
 !   -Mass ratio between main ions and impurites (m_i/m_imp)
 real*8  :: m_i_over_m_imp, m_imp
 !   -Mean impurity ionization state
 real*8  :: Z_imp, dZ_imp_dT, T0_Zimp, alpha_Zimp, Z_eff, eta_coef, ne_JOREK, dne_JOREK_dx, dne_JOREK_dy
-real*8  :: Z_eff_imp 
+real*8  :: Z_eff_imp, Z_eff, eta_coef 
 !   -Corrected plasma temperature and density for radiation calculation
 real*8  :: dT0e_corr_dT, Ti_corr_eV
 !   -Temporary variable for charge state distribution
@@ -339,19 +338,6 @@ if (using_spi) then
 end if
 
 #endif
-#ifdef WITH_Impurities
-!=========imp_type======================
-i_main_imp = 0
-do i_main_imp=1,n_adas
-  if (main_imp(i_main_imp) == 1) exit
-  if ((i_main_imp == n_adas) .and. with_impurities) then
-    write(*,*) "ERROR, searched through main_imp and didn't find any while with_impurities=.t., EXITING!!!"
-    write(*,*) "ERROR: main_imp array:", main_imp
-    stop
-  endif
-enddo
-!===========end=========================
-#endif
 
 delta_phi     = 2.d0 * PI / float(n_plane) / float(n_period)
 
@@ -392,7 +378,7 @@ ife_max   = min((my_id +1) * ife_delta, element_list%n_elements)
 !$omp          ksi_ion, GAMMA, use_imp_adas,                                                   &
 #endif
 #if (defined WITH_Impurities)
-!$omp          i_main_imp,                                                                     &
+!$omp          index_main_imp,                                                                 &
 #endif
 !$omp          T_1, T_max_eta, T_max_eta_ohm, eta_T_dependent,                                 &
 !$omp          wgauss_copy, varmin, varmax)                                                    &
@@ -778,7 +764,7 @@ do ife = ife_min, ife_max
         ! Atomic physics parameters for Impurities
         !-------------------------------------------
 
-        select case ( trim(imp_type(i_main_imp)) )
+        select case ( trim(imp_type(index_main_imp)) )
           case('D2')
             m_i_over_m_imp = central_mass/2.  ! Deuterium mass = 2 u
             m_imp          = 2.
@@ -793,7 +779,7 @@ do ife = ife_min, ife_max
           case('W')
             m_i_over_m_imp = central_mass/184. ! Neon mass = 184 u
           case default
-            write(*,*) '!! Gas type "', trim(imp_type(i_main_imp)), '" unknown (in mod_injection_source.f90) !!'
+            write(*,*) '!! Gas type "', trim(imp_type(index_main_imp)), '" unknown (in mod_injection_source.f90) !!'
             write(*,*) '=> We assume the gas is D2.'
             m_i_over_m_imp = central_mass/2.
             m_imp          = 2.
@@ -826,18 +812,18 @@ do ife = ife_min, ife_max
 
         if (.not. (use_marker .or. use_rcs)) then   
           if (allocated(P_imp)) deallocate(P_imp)
-          allocate(P_imp(0:imp_adas(i_main_imp)%n_Z))
-          call imp_cor(i_main_imp)%interp_linear(density=20.,temperature=log10(Te_corr_eV*EL_CHG/K_BOLTZ),&
+          allocate(P_imp(0:imp_adas(index_main_imp)%n_Z))
+          call imp_cor(index_main_imp)%interp_linear(density=20.,temperature=log10(Te_corr_eV*EL_CHG/K_BOLTZ),&
                                         p_out=P_imp,z_avg=Z_imp, z_avg_Te=dZ_imp_dT)
   
-          if (allocated(imp_adas(i_main_imp)%ionisation_energy)) then
+          if (allocated(imp_adas(index_main_imp)%ionisation_energy)) then
      
             ! Calculate the ionization potential energy and its derivative wrt. temperature
             E_ion     = 0.
             E_ion_bg  = 13.6
-            do ion_i=1, imp_adas(i_main_imp)%n_Z
+            do ion_i=1, imp_adas(index_main_imp)%n_Z
               do ion_k=1, ion_i
-                E_ion     = E_ion + P_imp(ion_i)*imp_adas(i_main_imp)%ionisation_energy(ion_k)
+                E_ion     = E_ion + P_imp(ion_i)*imp_adas(index_main_imp)%ionisation_energy(ion_k)
               end do
             end do
             ! Convert from eV to SI unit
@@ -913,7 +899,7 @@ do ife = ife_min, ife_max
      
           ! First get the value of Z_eff
           Z_eff        = r0_corr - rn0_corr
-          do ion_i=1, imp_adas(i_main_imp)%n_Z
+          do ion_i=1, imp_adas(index_main_imp)%n_Z
             Z_eff      = Z_eff + m_i_over_m_imp * rn0_corr * P_imp(ion_i) * real(ion_i,8)**2
             Z_eff_imp  = Z_eff_imp + P_imp(ion_i) * real(ion_i,8)**2 ! The summation of normalized nZ**2 for impurity
           end do
@@ -937,8 +923,8 @@ do ife = ife_min, ife_max
         if (.not. use_marker) then
           if (ne_SI > ne_SI_min .and. Te_eV > Te_eV_min .and. rn0 > rn0_min) then
             Lrad = 0.0
-            !call radiation_function(imp_adas(i_main_imp),imp_cor(i_main_imp),log10(ne_SI),log10(Te_corr_eV*EL_CHG/K_BOLTZ),Lrad)
-            call radiation_function_linear(imp_adas(i_main_imp),imp_cor(i_main_imp),log10(ne_SI),log10(Te_corr_eV*EL_CHG/K_BOLTZ),.false.,Lrad)
+            !call radiation_function(imp_adas(index_main_imp),imp_cor(index_main_imp),log10(ne_SI),log10(Te_corr_eV*EL_CHG/K_BOLTZ),Lrad)
+            call radiation_function_linear(imp_adas(index_main_imp),imp_cor(index_main_imp),log10(ne_SI),log10(Te_corr_eV*EL_CHG/K_BOLTZ),.false.,Lrad)
           else
             Lrad = 0.
           end if
@@ -951,7 +937,7 @@ do ife = ife_min, ife_max
 
         frad_bg = 0. 
         do i_imp = 1, n_adas     
-          if (i_imp == i_main_imp) cycle
+          if (i_imp == index_main_imp) cycle
           if (ne_SI > ne_SI_min .and. Te_eV > Te_eV_min .and. nimp_bg(i_imp) > 0) then
             Lrad_imp = 0.0
             call radiation_function_linear(imp_adas(i_imp),imp_cor(i_imp),log10(ne_SI),    & 
@@ -1186,7 +1172,7 @@ do ife = ife_min, ife_max
         source_imp = 0.d0
         source_bg  = 0.d0
 
-        call total_imp_source(x_g(ms,mt),y_g(ms,mt),phi,ps0,source_bg,source_imp,m_i_over_m_imp,i_main_imp)
+        call total_imp_source(x_g(ms,mt),y_g(ms,mt),phi,ps0,source_bg,source_imp,m_i_over_m_imp,index_main_imp)
 
         ! Frictional heat source
         fric_disp     =   0.5 * BigR**2 * (u0_x**2.0 + u0_y**2.0) * (source_bg + source_imp)&
@@ -1535,7 +1521,7 @@ do m_bndelem = 1, bnd_elm_list%n_bnd_elements
       ! Atomic physics parameters for Impurities
       !-------------------------------------------
 
-      select case ( trim(imp_type(i_main_imp)) )
+      select case ( trim(imp_type(index_main_imp)) )
         case('D2')
           m_i_over_m_imp = central_mass/2.  ! Deuterium mass = 2 u
         case('Ar')
@@ -1547,7 +1533,7 @@ do m_bndelem = 1, bnd_elm_list%n_bnd_elements
         case('W')
           m_i_over_m_imp = central_mass/184. ! Neon mass = 184 u
         case default
-          write(*,*) '!! Gas type "', trim(imp_type(i_main_imp)), '" unknown (in mod_injection_source.f90) !!'
+          write(*,*) '!! Gas type "', trim(imp_type(index_main_imp)), '" unknown (in mod_injection_source.f90) !!'
           write(*,*) '=> We assume the gas is D2.'
           m_i_over_m_imp = central_mass/2.
       end select
@@ -1559,8 +1545,8 @@ do m_bndelem = 1, bnd_elm_list%n_bnd_elements
 
       if (.not. use_marker) then   
         if (allocated(P_imp)) deallocate(P_imp)
-        allocate(P_imp(0:imp_adas(i_main_imp)%n_Z))
-        call imp_cor(i_main_imp)%interp_linear(density=20.,temperature=log10(Te_corr_eV*EL_CHG/K_BOLTZ),&
+        allocate(P_imp(0:imp_adas(index_main_imp)%n_Z))
+        call imp_cor(index_main_imp)%interp_linear(density=20.,temperature=log10(Te_corr_eV*EL_CHG/K_BOLTZ),&
                                       p_out=P_imp,z_avg=Z_imp,z_avg_Te=dZ_imp_dT)
         ! Convert gradient in T(K) in to gradient in T (eV)
         dZ_imp_dT = dZ_imp_dT *EL_CHG / K_BOLTZ
@@ -1629,7 +1615,7 @@ do m_bndelem = 1, bnd_elm_list%n_bnd_elements
   
         ! First get the value of Z_eff
         Z_eff        = r0_corr - rn0_corr
-        do ion_i=1, imp_adas(i_main_imp)%n_Z
+        do ion_i=1, imp_adas(index_main_imp)%n_Z
           Z_eff      = Z_eff + m_i_over_m_imp * rn0_corr * P_imp(ion_i) * real(ion_i,8)**2
         end do
         Z_eff        = Z_eff / ne_JOREK

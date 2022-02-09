@@ -115,7 +115,7 @@ real*8     :: t_norm
 real*8     :: Dn0x, Dn0y, Dn0p
 
 ! Atomic physics coefficients:
-integer    :: i_main_imp, i_imp
+integer    :: i_imp
 !   -Mass ratio between main ions and impurites (m_i/m_imp)
 real*8     :: m_i_over_m_imp
 !   -Mean impurity ionization state
@@ -220,18 +220,6 @@ eq_zTe          = 0.d0
 aux_rho0  = 0.d0; aux_T0    = 0.d0; aux_Vpar0 = 0.d0; aux_dEion_dT = 0.0; aux_rad = 0.0
 aux_P0    = 0.d0; aux_P0_s  = 0.d0; aux_P0_t  = 0.d0; aux_P0_p  = 0.d0
 aux_q0    = 0.d0; aux_jx0   = 0.d0; aux_jy0   = 0.d0; aux_jz0   = 0.d0; aux_jz0_pcs = 0.d0
-
-!=========imp_type======================
-i_main_imp = 0
-do i_main_imp=1,n_adas
-  if (main_imp(i_main_imp) == 1) exit
-  if ((i_main_imp == n_adas) .and. with_impurities) then
-    write(*,*) "ERROR, searched through main_imp and didn't find any while with_impurities=.t., EXITING!!!"
-    write(*,*) "ERROR: main_imp array:", main_imp
-    stop
-  endif
-enddo
-!===========end=========================
 
 do i=1,n_vertex_max
  do j=1,n_order+1
@@ -747,7 +735,7 @@ do ms=1, n_gauss
      ! --- Impurity related things
      ! -------------------------------
 
-     select case ( trim(imp_type(i_main_imp)) )
+     select case ( trim(imp_type(index_main_imp)) )
        case('D2')
          m_i_over_m_imp = central_mass/2.  ! Deuterium mass = 2 u
        case('Ar')
@@ -759,7 +747,7 @@ do ms=1, n_gauss
        case('W')
          m_i_over_m_imp = central_mass/184. ! Neon mass = 184 u and main ion (D) mass = 2 u
        case default
-         write(*,*) '!! Gas type "', trim(imp_type(i_main_imp)), '" unknown (in mod_injection_source.f90) !!'
+         write(*,*) '!! Gas type "', trim(imp_type(index_main_imp)), '" unknown (in mod_injection_source.f90) !!'
          write(*,*) '=> We assume the gas is D2.'
          m_i_over_m_imp = central_mass/2.
      end select
@@ -796,19 +784,19 @@ do ms=1, n_gauss
      ! We get the charge state distribution assuming n_e=10^20/m^3.
      ! Later maybe we should implement an iterative method.
 
-     if (allocated(imp_adas(i_main_imp)%ionisation_energy) .and. (.not. use_marker)) then
+     if (allocated(imp_adas(index_main_imp)%ionisation_energy) .and. (.not. use_marker)) then
 
        if (allocated(P_imp)) deallocate(P_imp)
        if (allocated(dP_imp_dT)) deallocate(dP_imp_dT)
 
-       allocate(P_imp(0:imp_adas(i_main_imp)%n_Z))
-       allocate(dP_imp_dT(0:imp_adas(i_main_imp)%n_Z))
+       allocate(P_imp(0:imp_adas(index_main_imp)%n_Z))
+       allocate(dP_imp_dT(0:imp_adas(index_main_imp)%n_Z))
 
-!       call imp_cor(i_main_imp)%interp(density=20.,temperature=log10(Te_corr_eV*EL_CHG/K_BOLTZ),           &
+!       call imp_cor(index_main_imp)%interp(density=20.,temperature=log10(Te_corr_eV*EL_CHG/K_BOLTZ),           &
 !                              p_out=P_imp,p_Te_out=dP_imp_dT,z_out=Z_imp,z_Te_out=dZ_imp_dT, &
 !                              z_TeTe_out=d2Z_imp_dT2)
 
-       call imp_cor(i_main_imp)%interp_linear(density=20.,temperature=log10(Te_corr_eV*EL_CHG/K_BOLTZ),&
+       call imp_cor(index_main_imp)%interp_linear(density=20.,temperature=log10(Te_corr_eV*EL_CHG/K_BOLTZ),&
                               p_out=P_imp,p_Te_out=dP_imp_dT,z_avg=Z_imp,z_avg_Te=dZ_imp_dT, &
                               z_avg_TeTe=d2Z_imp_dT2)
 
@@ -819,10 +807,10 @@ do ms=1, n_gauss
                         !  but the difference is small.)       
 
        ! In eV
-       do ion_i=1, imp_adas(i_main_imp)%n_Z
+       do ion_i=1, imp_adas(index_main_imp)%n_Z
          do ion_k=1, ion_i
-           E_ion     = E_ion + P_imp(ion_i)*imp_adas(i_main_imp)%ionisation_energy(ion_k)
-           dE_ion_dT = dE_ion_dT + dP_imp_dT(ion_i)*imp_adas(i_main_imp)%ionisation_energy(ion_k)
+           E_ion     = E_ion + P_imp(ion_i)*imp_adas(index_main_imp)%ionisation_energy(ion_k)
+           dE_ion_dT = dE_ion_dT + dP_imp_dT(ion_i)*imp_adas(index_main_imp)%ionisation_energy(ion_k)
          end do
        end do
        
@@ -838,12 +826,12 @@ do ms=1, n_gauss
        if (allocated(P_imp)) deallocate(P_imp)
        if (allocated(dP_imp_dT)) deallocate(dP_imp_dT)
 
-       allocate(P_imp(0:imp_adas(i_main_imp)%n_Z))
-       allocate(dP_imp_dT(0:imp_adas(i_main_imp)%n_Z))
+       allocate(P_imp(0:imp_adas(index_main_imp)%n_Z))
+       allocate(dP_imp_dT(0:imp_adas(index_main_imp)%n_Z))
 
-!       call imp_cor(i_main_imp)%interp(density=20.,temperature=log10(Te_corr_eV*EL_CHG/K_BOLTZ),&
+!       call imp_cor(index_main_imp)%interp(density=20.,temperature=log10(Te_corr_eV*EL_CHG/K_BOLTZ),&
 !                                          z_out=Z_imp,z_Te_out=dZ_imp_dT,z_TeTe_out=d2Z_imp_dT2)
-       call imp_cor(i_main_imp)%interp_linear(density=20.,temperature=log10(Te_corr_eV*EL_CHG/K_BOLTZ),&
+       call imp_cor(index_main_imp)%interp_linear(density=20.,temperature=log10(Te_corr_eV*EL_CHG/K_BOLTZ),&
                                      p_out=P_imp,p_Te_out=dP_imp_dT,                          &
                                      z_avg=Z_imp,z_avg_Te=dZ_imp_dT,z_avg_TeTe=d2Z_imp_dT2)
        E_ion     = 0.
@@ -945,16 +933,16 @@ do ms=1, n_gauss
   
        ! First get the value of Z_eff
        Z_eff        = r0_corr - rn0_corr
-       do ion_i=1, imp_adas(i_main_imp)%n_Z
+       do ion_i=1, imp_adas(index_main_imp)%n_Z
          Z_eff      = Z_eff + m_i_over_m_imp * rn0_corr * P_imp(ion_i) * real(ion_i,8)**2
        end do
        Z_eff        = Z_eff / ne_JOREK
        if (Z_eff < 1.) Z_eff = 1.
-       if (Z_eff > (imp_adas(i_main_imp)%n_Z)**2) Z_eff = (imp_adas(i_main_imp)%n_Z)**2
+       if (Z_eff > (imp_adas(index_main_imp)%n_Z)**2) Z_eff = (imp_adas(index_main_imp)%n_Z)**2
        
        ! Then three(!) gradients
        if (Z_eff >= 1.) then
-         do ion_i=1, imp_adas(i_main_imp)%n_Z
+         do ion_i=1, imp_adas(index_main_imp)%n_Z
            dZ_eff_dT  = dZ_eff_dT + m_i_over_m_imp * rn0_corr * dP_imp_dT(ion_i) * real(ion_i,8)**2
          end do
          dZ_eff_dT    = dZ_eff_dT / ne_JOREK
@@ -963,7 +951,7 @@ do ms=1, n_gauss
          dZ_eff_dr0   = (1. - Z_eff)/ne_JOREK
     
          dZ_eff_drn0  = dZ_eff_drn0 - 1.
-         do ion_i=1, imp_adas(i_main_imp)%n_Z
+         do ion_i=1, imp_adas(index_main_imp)%n_Z
            dZ_eff_drn0= dZ_eff_drn0 + m_i_over_m_imp * P_imp(ion_i) * real(ion_i,8)**2
          end do
          dZ_eff_drn0  = dZ_eff_drn0 / ne_JOREK
@@ -1009,7 +997,7 @@ do ms=1, n_gauss
          Lrad = 0.0
          dLrad_dT = 0.0
   
-         call radiation_function_linear(imp_adas(i_main_imp),imp_cor(i_main_imp),log10(ne_SI),log10(Te_corr_eV*EL_CHG/K_BOLTZ),.true.,Lrad,dLrad_dT)
+         call radiation_function_linear(imp_adas(index_main_imp),imp_cor(index_main_imp),log10(ne_SI),log10(Te_corr_eV*EL_CHG/K_BOLTZ),.true.,Lrad,dLrad_dT)
   
          Lrad = Lrad * m_i_over_m_imp 
          dLrad_dT = dLrad_dT * m_i_over_m_imp * dT0_corr_dT 
@@ -1042,7 +1030,7 @@ do ms=1, n_gauss
      source_imp = 0.d0                    
      source_bg  = 0.d0
 
-     call total_imp_source(x_g(ms,mt),y_g(ms,mt),phi,ps0,source_bg,source_imp,m_i_over_m_imp,i_main_imp)
+     call total_imp_source(x_g(ms,mt),y_g(ms,mt),phi,ps0,source_bg,source_imp,m_i_over_m_imp,index_main_imp)
 
      ! This is to detect N/A
      if (source_imp /= source_imp .or. source_bg /= source_bg) then
@@ -1066,7 +1054,7 @@ do ms=1, n_gauss
     frad_bg = 0.
     dfrad_bg_dT = 0.
     do i_imp =1, n_adas
-      if (i_imp == i_main_imp) cycle
+      if (i_imp == index_main_imp) cycle
       r_imp = nimp_bg(i_imp) / (1.d20 * central_density)  ! Background impurity density in JU
       if (ne_SI > ne_SI_min .and. Te_eV > Te_eV_min .and. r_imp > 0) then
         Lrad_imp_bg = 0.0
@@ -1980,8 +1968,8 @@ do ms=1, n_gauss
                               * rho * (T0_x * ps0_y - T0_y * ps0_x + F0 / BigR * T0_p)                        &
                               * ( v_x * ps0_y -  v_y * ps0_x + F0 / BigR * v_p) * xjac * theta * tstep * tstep &
 
-                           + v * BigR * rho * rn0_corr * Lrad                                   * xjac * theta * tstep &
-                           + v * BigR * rho * frad_bg                                           * xjac * theta * tstep &
+                           + v * BigR * rho * dr0_corr_dn * rn0_corr * Lrad                     * xjac * theta * tstep &
+                           + v * BigR * rho * dr0_corr_dn * frad_bg                             * xjac * theta * tstep &
                         ! New term from Z_eff
                            - v * BigR * rho * (GAMMA - 1.) * deta_dr0_ohm * (zj0/BigR)**2    * xjac * theta * tstep &
 !=============== The ionization potential energy term=========================
@@ -2083,7 +2071,7 @@ do ms=1, n_gauss
                            - v * BigR * T * (GAMMA - 1.) * deta_dT_ohm * (zj0/BigR)**2        * xjac * theta * tstep  &
                            + v * BigR * T * (r0_corr + beta_imp*rn0_corr) * rn0_corr * dLrad_dT  * xjac * theta * tstep  &
                            + v * BigR * T * dbeta_imp_dT * rn0_corr**2 * Lrad                    * xjac * theta * tstep  &
-                           + v * BigR * T * (r0 + beta_imp*rn0) * dfrad_bg_dT                    * xjac * theta * tstep  &
+                           + v * BigR * T * (r0_corr + beta_imp*rn0_corr) * dfrad_bg_dT                    * xjac * theta * tstep  &
                            + v * BigR * T * dbeta_imp_dT * rn0 * frad_bg                         * xjac * theta * tstep
 
                  amat_67 = + v * (r0 + rn0 * alpha_imp_bis) * F0 / BigR * Vpar * T0_p       * xjac * theta * tstep &
@@ -2203,8 +2191,8 @@ do ms=1, n_gauss
                            + v * alpha_imp * rhon * GAMMA * T0 * (vpar0_s * ps0_t - vpar0_t * ps0_s)        * theta * tstep &
                            + v * alpha_imp * rhon * GAMMA * T0 * F0 / BigR * vpar0_p                 * xjac * theta * tstep &
 
-                           + v * BigR * rhon * (r0_corr + 2*beta_imp*rn0_corr) * Lrad                          * xjac * theta * tstep &
-                           + v * BigR * rhon * beta_imp * frad_bg                                              * xjac * theta * tstep
+                           + v * BigR * rhon * drn0_corr_dn * (r0_corr + 2*beta_imp*rn0_corr) * Lrad * xjac * theta * tstep &
+                           + v * BigR * rhon * drn0_corr_dn * beta_imp * frad_bg                     * xjac * theta * tstep
 
 !###################################################################################################
 !#  equation 7   parallel velocity equation                                                        #

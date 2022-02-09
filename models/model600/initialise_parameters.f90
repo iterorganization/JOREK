@@ -157,7 +157,7 @@ namelist /in1/  tstep, nstep, tstep_n, nstep_n,                     &
                 RMP_psi_cos_file, RMP_psi_sin_file,                 &
                 Number_RMP_harmonics,RMP_har_cos_spectrum,          &
                 RMP_har_sin_spectrum, imp_type, adas_dir, n_adas,   &
-                main_imp,                                           &
+                index_main_imp,                                     &
                 amix, amix_freeb, equil_accuracy, use_imp_adas,     &
                 equil_accuracy_freeb, current_ref, FB_Ip_position,  &
                 FB_Ip_integral, Z_axis_ref, FB_Zaxis_position,      &
@@ -190,7 +190,7 @@ namelist /in1/  tstep, nstep, tstep_n, nstep_n,                     &
                 D_perp_sc_num, D_par_sc_num, ZK_perp_sc_num,        &
                 ZK_par_sc_num, ZK_i_perp_sc_num, ZK_i_par_sc_num,   &
                 ZK_e_perp_sc_num, ZK_e_par_sc_num, visco_par_sc_num,&
-                Dn_pol_sc_num, Dn_p_sc_num
+                Dn_pol_sc_num, Dn_p_sc_num, cte_current_FB_fact
       
 if (my_id .eq. 0) then
 
@@ -312,13 +312,9 @@ if ( my_id == 0 ) then
     stop
   end if
 
- if (any(main_imp > 1) .or. any(main_imp < 0)) then 
-    write(*,*) "ERROR: Illegal value of main_imp array, EXITING!"
-    write(*,*) "ERROR: main_imp array:", main_imp
-    stop
- else if ((sum(main_imp) .ne. 1) .and. with_impurities) then 
-    write(*,*) "ERROR: Currently admiting one and only one main impurity species when with_impurities, EXITING!"
-    write(*,*) "ERROR: main_imp array:", main_imp
+ if (index_main_imp < 0 .or. index_main_imp > n_adas) then 
+    write(*,*) "ERROR: Illegal value of index_main_imp, EXITING!"
+    write(*,*) "ERROR: index_main_imp:", index_main_imp
     stop
  end if
 

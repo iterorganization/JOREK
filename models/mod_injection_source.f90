@@ -95,8 +95,8 @@ module mod_injection_source
     logical, intent(in) :: ASDEX_MGI
     real*8, intent(out) :: rhon_source  ! This is in number density
     real*8, intent(in)  :: ns_tor_norm
-    integer, intent(in) :: i_main_imp
     real*8, intent(in)  :: source_volume ! numerically integrated gas source volume (if larger than 0.)
+    integer, intent(in) :: i_main_imp
 
     select case ( trim(imp_type(i_main_imp)) )
       case('D2')
@@ -364,7 +364,7 @@ module mod_injection_source
 
           call inj_source(spi_abl_tmp,spi_R_tmp,spi_Z_tmp,spi_phi_tmp,spi_psi_tmp,spi_grad_psi_tmp, &
                         ng_radius,ns_deltaphi,ns_deltaminrad,ns_tor_norm,                           &
-                        A_Dmv,K_Dmv,V_Dmv,P_Dmv,t_ns(i_inj),0., R, Z, phi, psi,   &
+                        A_Dmv,K_Dmv,V_Dmv,P_Dmv,t_ns(i_inj),0., R, Z, phi, psi,                     &
                         source_tmp,t_now,JET_MGI,ASDEX_MGI,central_density,central_mass,spi_vol_tmp,i_main_imp)
         end if
 
@@ -384,8 +384,8 @@ module mod_injection_source
 
         call inj_source(ns_amplitude(i_inj),ns_R(i_inj),ns_Z(i_inj),ns_phi(i_inj),spi_psi_tmp,spi_grad_psi_tmp, &
                         ns_radius,ns_deltaphi,ns_deltaminrad,ns_tor_norm, &
-                        A_Dmv,K_Dmv,V_Dmv,P_Dmv,t_ns(i_inj),L_tube,R,Z,phi, psi, source_tmp,&
-                        t_now, JET_MGI,ASDEX_MGI,central_density,central_mass,spi_vol_tmp,i_main_imp)
+                        A_Dmv,K_Dmv,V_Dmv,P_Dmv,t_ns(i_inj),L_tube,R,Z,phi,psi, &
+                        source_tmp, t_now, JET_MGI,ASDEX_MGI,central_density,central_mass, spi_vol_tmp,i_main_imp)
 
         source_impurity = source_impurity + source_tmp
       end do

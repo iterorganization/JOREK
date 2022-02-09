@@ -122,7 +122,7 @@ namelist /in1/  tstep, nstep, tstep_n, nstep_n,                     &
                 K_Dmv, A_Dmv, L_tube, V_Dmv, P_Dmv,                 &
                 spi_Vel_diff, t_ns, JET_MGI, ASDEX_MGI,             &
                 imp_type, delta_n_convection, nimp_bg, n_adas,      &
-                main_imp,                                           &
+                index_main_imp,                                     &
                 adas_dir, output_prad_phi,                          &
                 RMP_on, RMP_har_cos,RMP_har_sin, spi_shard_file,    &
                 spi_plume_file, spi_plume_hdf5,                     &
@@ -153,7 +153,7 @@ namelist /in1/  tstep, nstep, tstep_n, nstep_n,                     &
                 autodistribute_modes, modes_per_family,             &
                 mode_families_modes, n_mode_families,               &
                 weights_per_family, autodistribute_ranks,           &
-                ranks_per_family
+                ranks_per_family, cte_current_FB_fact
 
 
 if (my_id .eq. 0) then
@@ -269,13 +269,9 @@ if (my_id .eq. 0) then
     stop
   end if
 
- if (any(main_imp > 1) .or. any(main_imp < 0)) then 
-    write(*,*) "ERROR: Illegal value of main_imp array, EXITING!"
-    write(*,*) "ERROR: main_imp array:", main_imp
-    stop
- else if ((sum(main_imp) .ne. 1) .and. with_impurities) then 
-    write(*,*) "ERROR: Currently admiting one and only one main impurity species when with_impurities, EXITING!"
-    write(*,*) "ERROR: main_imp array:", main_imp
+ if (index_main_imp < 0 .or. index_main_imp > n_adas) then 
+    write(*,*) "ERROR: Illegal value of index_main_imp, EXITING!"
+    write(*,*) "ERROR: index_main_imp:", index_main_imp
     stop
  end if
 
