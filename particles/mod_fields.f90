@@ -298,7 +298,7 @@ pure subroutine calc_NeTe(fields, time, i_elm, st, phi, n_e, T_e, grad_T_e)
 end subroutine calc_NeTe
 
 pure subroutine calc_NeTe_imp(fields, time, i_elm, st, phi, n_bg, n_imp, T_e, grad_n_imp, grad_T_e)
-use phys_module, only: central_density, imp_type, central_mass, main_imp, n_adas
+use phys_module, only: central_density, imp_type, central_mass, index_main_imp, n_adas
 use constants
 use mod_parameters
 class(fields_base), intent(in)                    :: fields
@@ -315,8 +315,6 @@ real*8               :: R, R_s, R_t, Z, Z_s, Z_t, xjac, m_i_over_m_imp
 real*8 :: T_norm !< temperature normalisation
 real*8 :: n_norm !< temperature normalisation
 
-integer :: i_main_imp
-
 call fields%interp_PRZ(time,i_elm,&
 #ifdef WITH_TiTe
       [var_rho,var_Te, var_rhon],& ! electron temperature
@@ -325,14 +323,7 @@ call fields%interp_PRZ(time,i_elm,&
 #endif
           3,st(1),st(2),phi,P,P_s,P_t,P_phi,P_time,R,R_s,R_t,Z,Z_s,Z_t)
 
-!=========imp_type======================
-i_main_imp = 0
-do i_main_imp=1,n_adas
-  if (main_imp(i_main_imp) == 1) exit
-  if ((i_main_imp == n_adas) .and. with_impurities) stop
-enddo
-!===========end=========================
-select case ( trim(imp_type(i_main_imp)) )
+select case ( trim(imp_type(index_main_imp)) )
   case('D2')
     m_i_over_m_imp = central_mass/2.
   case('Ar')

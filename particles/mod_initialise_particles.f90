@@ -238,7 +238,7 @@ subroutine initialise_particles_marker(particles, node_list, element_list, field
   use mod_interp
   use mod_fields
   use constants
-  use phys_module, only: central_density, central_mass, imp_type, n_adas, main_imp
+  use phys_module, only: central_density, central_mass, imp_type, n_adas, index_main_imp
 #ifdef WITH_Neutrals
   use mod_neutral_source, only: total_neutral_source
 #endif
@@ -283,7 +283,7 @@ subroutine initialise_particles_marker(particles, node_list, element_list, field
   class(type_rng), allocatable, dimension(:) :: rngs ! The RNGs for all the threads
   integer, dimension(:), allocatable :: i_to_find
   logical, dimension(:), allocatable :: not_found, is_free
-  integer :: n_free, i_main_imp
+  integer :: n_free
 
   real*8  :: m_i_over_m_imp 
 
@@ -297,18 +297,7 @@ subroutine initialise_particles_marker(particles, node_list, element_list, field
   t_norm = sqrt(MU_ZERO * central_mass * MASS_PROTON * central_density * 1.d20)
   n_norm = central_density * 1.d20
 
-!=========imp_type======================
-  i_main_imp = 0
-  do i_main_imp=1,n_adas
-    if (main_imp(i_main_imp) == 1) exit
-    if ((i_main_imp == n_adas) .and. with_impurities) then
-      write(*,*) "ERROR, searched through main_imp and didn't find any while with_impurities=.t., EXITING!!!"
-      write(*,*) "ERROR: main_imp array:", main_imp
-      stop
-    endif
-  enddo
-!===========end=========================
-  select case (trim(imp_type(i_main_imp)))
+  select case (trim(imp_type(index_main_imp)))
     case('D2')
       m_i_over_m_imp = central_mass/2.
     case('Ar')
@@ -320,7 +309,7 @@ subroutine initialise_particles_marker(particles, node_list, element_list, field
     case('W')
       m_i_over_m_imp = central_mass/184. ! Neon mass = 184 u and main ion (D) mass = 2 u
     case default
-      write(*,*) '!! Impurity type "', trim(imp_type(i_main_imp)), '" unknown (in mod_initialise_particles.f90) !!'
+      write(*,*) '!! Impurity type "', trim(imp_type(index_main_imp)), '" unknown (in mod_initialise_particles.f90) !!'
       write(*,*) '=> EXITING!!!'
       call exit(1)
   end select
@@ -432,7 +421,7 @@ subroutine initialise_particles_marker(particles, node_list, element_list, field
     ! Error: ‘__vtab_mod_particle_types_Particle_kinetic_leapfrog’ not specified in enclosing ‘parallel’
     !$omp parallel default(none) &
     !$omp   shared(particles, node_list, element_list, Rbox, Zbox, PhiBox, t_norm, n_norm, &
-    !$omp          phys_source, m_i_over_m_imp, time, fields, timesteps, n_particle_asn, i_main_imp,&
+    !$omp          phys_source, m_i_over_m_imp, time, fields, timesteps, n_particle_asn, index_main_imp,&
     !$omp          rngs, uniform_sampling, n_threads, n_streams, seed, my_id, i_to_find, not_found) &
     !$omp   private(j, i, spi_i, R, Z, phi, i_elm, s, t, ifail, seq, ran, i_thread, DUMMY_REAL,   &
     !$omp           source_tmp, source_bg_tmp, V, B, psi, U, P, P_s, P_t, P_phi,                  &
@@ -456,7 +445,7 @@ subroutine initialise_particles_marker(particles, node_list, element_list, field
           ! Obtain the source term value at randomly generated particle position
 #ifdef WITH_Impurities
           call interp_PRZ(node_list, element_list,i_elm,[var_psi],1,s,t,phi,P,P_s,P_t,P_phi,R,R_s,R_t,Z,Z_s,Z_t)
-          call total_imp_source(R,Z,phi,P(1),source_bg_tmp,source_tmp,m_i_over_m_imp,i_main_imp) 
+          call total_imp_source(R,Z,phi,P(1),source_bg_tmp,source_tmp,m_i_over_m_imp,index_main_imp) 
 #endif 
 #ifdef WITH_Neutrals
           call total_neutral_source(R,Z,phi,source_tmp) 
