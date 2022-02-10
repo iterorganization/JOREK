@@ -307,7 +307,11 @@ type is (particle_kinetic_leapfrog)
  !$omp parallel do default(none) &
 #endif
  !$omp schedule(dynamic,10) &
+#ifdef __GFORTRAN__
+ !$omp shared(sim, n_steps, timesteps, rng, particle_start_time,        &
+#else
  !$omp shared(sim, particles, n_steps, timesteps, rng, particle_start_time,        &
+#endif
  !$omp rho_norm, t_norm, v_norm, E_norm, M_norm, N_norm,                           &
  !$omp jorek_feedback, CENTRAL_DENSITY, CENTRAL_MASS)                              &
  !$omp private(particle_tmp, i_rng, i,j,k,l,m, t, E, B, psi, U, rz_old, st_old,    &
@@ -448,7 +452,11 @@ subroutine loop_particle_gc_local(sim, jorek_feedback, rng, timesteps, n_steps, 
  !$omp parallel do default(none) &
 #endif
  !$omp schedule(dynamic,10) &
+#ifdef __GFORTRAN__
+ !$omp shared(sim, n_steps, timesteps, rng, particle_start_time,        &
+#else
  !$omp shared(sim, particles, n_steps, timesteps, rng, particle_start_time,        &
+#endif
  !$omp rho_norm, t_norm, v_norm, E_norm, M_norm, N_norm, n_phases,                 &
  !$omp jorek_feedback, CENTRAL_DENSITY, CENTRAL_MASS)                              &
  !$omp private(particle_tmp, p_orbit, i_rng, i,j,k,l,m, t, E, B, psi, U, Bn,       &
