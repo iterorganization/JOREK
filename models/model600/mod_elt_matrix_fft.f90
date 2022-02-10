@@ -2101,27 +2101,6 @@ do i=1,n_vertex_max
                                 * BigR * xjac * tstep * theta
                     endif
 
-                    if (with_vpar) then
-                       ! New terms coming from -(\partial_t \rho + \nabla \cdot (\rho \mathbf{v})) \mathbf{v} in RHS of momentum equation
-                       ! (see wiki: https://www.jorek.eu/wiki/doku.php?id=model500_501_555#equations):	     	    	     	  
-                      amat(var_u,var_vpar) =   amat(var_u,var_vpar)   &
-                            - BigR * vpar * F0 * r0_p                          * (v_x * u0_x + v_y * u0_y) * xjac * theta * tstep &
-                            - BigR**2 * r0 * (vpar_x * ps0_y - vpar_y * ps0_x) * (v_x * u0_x + v_y * u0_y) * xjac * theta * tstep &
-                            - BigR**2 * vpar * (r0_x * ps0_y - r0_y * ps0_x)   * (v_x * u0_x + v_y * u0_y) * xjac * theta * tstep
-
-             ! New term coming from -(\partial_t \rho + \nabla \cdot (\rho \mathbf{v})) \mathbf{v} in RHS of momentum equation
-             ! (see wiki: https://www.jorek.eu/wiki/doku.php?id=model500_501_555#equations):	 
-                      amat_n(var_u,var_vpar) = - BigR * r0 * F0 * vpar_p * (v_x * u0_x + v_y * u0_y) * xjac * theta * tstep
-                    endif ! /with_vpar
-
-
-                    amat(var_u,var_T) = - BigR**2 * (v_s * r0_t * T   - v_t * r0_s * T)           * theta * tstep  &
-                                        - BigR**2 * (v_s * r0   * T_t - v_t * r0   * T_s)         * theta * tstep  &
-
-                                + dvisco_dT * T * ( v_x * w0_x + v_y * w0_y ) * BigR * xjac * theta * tstep  &
- 
-                                - d2visco_dT2*T * bigR * W_dia   * (v_x*Ti0_x + v_y*Ti0_y)  * xjac * theta * tstep  &
-                                - dvisco_dT*T   * bigR * W_dia   * (v_xx + v_x/bigR + v_yy) * xjac * theta * tstep
                   end if ! (with_TiTe) *************************************************************
 
                   if (with_vpar) then
