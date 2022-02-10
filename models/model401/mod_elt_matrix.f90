@@ -5,7 +5,7 @@
 module mod_elt_matrix
 contains
 
-  subroutine element_matrix(element, nodes, xpoint2, xcase2, R_axis, Z_axis, psi_axis, psi_bnd, R_xpoint, Z_xpoint, ELM, RHS, tid, i_tor_min, i_tor_max)
+  subroutine element_matrix(element, nodes, xpoint2, xcase2, R_axis, Z_axis, psi_axis, psi_bnd, R_xpoint, Z_xpoint, ELM, RHS, tid, i_tor_min, i_tor_max, aux_nodes)
   !--------------------------------------------------------------------------
   ! This is just a wrapper to the real routine since I combined both into one
   !--------------------------------------------------------------------------

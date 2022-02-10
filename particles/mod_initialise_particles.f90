@@ -12,7 +12,7 @@ module mod_initialise_particles
   public set_velocity_from_T, domain_bounding_box, initialise_particles_H_mu_psi
   public set_particle_weights_canonical_maxwellian, normalize_with_projection
   public weigh_with_interp_f, initialise_particles_marker
-  public normalize_with_projection_at_gc
+  public normalize_with_projection_at_gc, initialise_particles_H_mu_psi_phiplanes
 
   interface
     subroutine find_RZ(node_list,element_list,R_find,Z_find,R_out,Z_out,ielm_out,s_out,t_out,ifail)
