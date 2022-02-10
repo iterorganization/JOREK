@@ -665,7 +665,11 @@ subroutine loop_particle_local(sim, jorek_feedback, timesteps, n_steps, particle
   !$omp parallel do default(none) &
 #endif
   !$omp schedule(dynamic,10)                                                     &
+#ifdef __GFORTRAN__
+  !$omp shared(sim, n_steps, timesteps, particle_start_time, update,  &
+#else
   !$omp shared(sim, particles, n_steps, timesteps, particle_start_time, update,  &
+#endif
   !$omp rho_norm, t_norm, v_norm, E_norm, M_norm, N_norm,                        &
   !$omp central_density, central_mass)                                           &
   !$omp private(particle_tmp, i_rng, i,j,k,l,m, t, E, B, psi, U, rz_old, st_old, &
