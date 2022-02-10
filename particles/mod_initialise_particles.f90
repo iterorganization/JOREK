@@ -448,7 +448,7 @@ subroutine initialise_particles_marker(particles, node_list, element_list, field
           call total_imp_source(R,Z,phi,P(1),source_bg_tmp,source_tmp,m_i_over_m_imp,index_main_imp) 
 #endif 
 #ifdef WITH_Neutrals
-          call total_neutral_source(R,Z,phi,source_tmp) 
+          call total_neutral_source(R,Z,phi,P(1),source_tmp) 
 #endif 
           if (present(transform_rej_f)) then
             if (ran(4) .lt. transform_rej_f(source_tmp,(phys_source*t_norm/n_norm))) then
