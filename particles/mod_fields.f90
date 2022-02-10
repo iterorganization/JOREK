@@ -273,19 +273,19 @@ pure subroutine calc_NeTe(fields, time, i_elm, st, phi, n_e, T_e, grad_T_e)
   real*8               :: R, R_s, R_t, Z, Z_s, Z_t, xjac
   real*8 :: T_norm !< temperature normalisation
   
-  #ifdef WITH_TiTe
+#ifdef WITH_TiTe
   ! electron temperature
   call fields%interp_PRZ(time,i_elm,[var_rho,var_Te],2,st(1),st(2),phi,P,P_s,P_t,P_phi,P_time,R,R_s,R_t,Z,Z_s,Z_t) 
-  #else
+#else
   ! electron temperature + ion temperature (assumed equal)
   call fields%interp_PRZ(time,i_elm,[var_rho,var_T],2,st(1),st(2),phi,P,P_s,P_t,P_phi,P_time,R,R_s,R_t,Z,Z_s,Z_t)
-  #endif
+#endif
   
   n_e = max(central_density * P(1) * 1d20,1d16)                         ! plasma density [1/m^3], capped against negative
   T_norm = (1.d0/K_BOLTZ/(2.d0*MU_ZERO*central_density*1.d20))
-  #ifdef WITH_TiTe
+#ifdef WITH_TiTe
   T_norm = T_norm*2.d0 ! P(1) contains the electron temperature, reverse previous correction
-  #endif
+#endif
   T_e = max(P(2)*T_norm, 1.d0) ! temperature capped against going negative
 
   if (present(grad_T_e)) then
