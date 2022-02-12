@@ -115,6 +115,7 @@ real*8     :: BR0, BR0_AR,    BR0_AZ__n, BR0_A3
 real*8     :: BZ0, BZ0_AR__n, BZ0_AZ,    BZ0_A3
 real*8     :: Bp0, Bp0_AR,    Bp0_AZ,    Bp0_A3
 real*8     :: BB2, BB2_AR__p, BB2_AR__n, BB2_AZ__p, BB2_AZ__n, BB2_A3
+real*8     :: Bp00
 
 real*8     :: BgradT, BgradT_AR__p, BgradT_AR__n, BgradT_AZ__p, BgradT_AZ__n, BgradT_A3, BgradT_T__p, BgradT_T__n
 
@@ -594,6 +595,10 @@ do ms=1, n_gauss
       ! --- Poloidal current sources
       current_source_JR(ms,mt) = + (ES%psi_bnd_init - ES%psi_axis_init) / (psi_bnd - psi_axis) * psi_axisym_Z(ms,mt) * dF_dpsi / R
       current_source_JZ(ms,mt) = - (ES%psi_bnd_init - ES%psi_axis_init) / (psi_bnd - psi_axis) * psi_axisym_R(ms,mt) * dF_dpsi / R
+      if (eta_ARAZ_simple) then
+        current_source_JR(ms,mt) = 0.d0
+        current_source_JZ(ms,mt) = 0.d0
+      endif
     endif
     call sources(xpoint2, xcase2, Z, Z_xpoint, psi_axisym(ms,mt),psi_axis,psi_bnd,particle_source(ms,mt),heat_source(ms,mt))
     ! --- Bootstrap current 
@@ -945,6 +950,24 @@ do i=1,n_vertex_max
           Bp0 = ( AZ0_R - AR0_Z )    + Fprof / R
           BB2 = Bp0**2 + BR0**2 + BZ0**2
 
+          ! --- RESISTIVITY SWITCHES FOR AR AND AZ EQUATIONS
+          ! --- 1.
+          ! --- Default set-up is eta_ARAZ_on = .true.
+          ! --- In this case, the same resistivity is used for all AR,AZ,A3 components
+          ! --- 2.
+          ! --- If (eta_ARAZ_on = .true.) and (eta_ARAZ_simple = .true.), then the Fprof component of Bphi is removed from the resistive term.
+          ! --- Note that in a stationary equilibrium, the Fprof component of Bphi from the current and the current source should exactly cancel anyway.
+          ! --- However, this Fprof component can lead to strong noise at high resistivity, so it is often better to remove it.
+          ! --- 3.
+          ! --- If (eta_ARAZ_on = .false.), then resistivity is switched off by default for the AR and AZ equations.
+          ! --- However, regardless of which eta-model is used for A3, (ie. eta_T_dependent or not), you can still set eta_ARAZ_const 
+          ! --- which will use a constant resistivity at the level eta_ARAZ_const.
+          ! --- 4.
+
+          ! --- Toroidal magnetic field without F contribution (for eta_ARAZ_simple)
+          Bp00 = Bp0
+          if (eta_ARAZ_simple) Bp00 = ( AZ0_R - AR0_Z )
+
           ! --- B.grad and V.grad
           BgradT   = BR0 * T0_R   + BZ0 * T0_Z   + Bp0 * T0_p   / R
           UgradT   = UR0 * T0_R   + UZ0 * T0_Z   + Up0 * T0_p   / R
@@ -1288,8 +1311,9 @@ do i=1,n_vertex_max
 
             Qvec_p(var_AR) = + v * (UZ0 * Bp0 - Up0 * BZ0)                             &
                              + tauIC_ARAZ * v * tau_IC*F0/rho0_corr/BB2 * BR0 * BgradP &
-                             + eta_ARAZ * v * (eta_Z * Bp0 - eta_p * BZ0 / R )         &
-                             - eta_ARAZ * eta_T * ( - v_Z * Bp0 )                      &
+                             + eta_ARAZ * v * (eta_Z * Bp00 - eta_p * BZ0 / R )        &
+                             - eta_ARAZ * eta_T * ( - v_Z * Bp00 )                     &
+                             - eta_ARAZ_const   * ( - v_Z * Bp00)                      &
                              + eta_ARAZ * eta_T * v * current_source_JR(ms,mt)         &
                              + eta_ARAZ * eta_num * lap_Vstar * lap_AR
             Qvec_k(var_AR) = - eta_ARAZ * eta_T * ( + v_p * BZ0 / R)
@@ -1301,8 +1325,9 @@ do i=1,n_vertex_max
 
             Qvec_p(var_AZ) = + v * (Up0 * BR0 - UR0 * Bp0)                             &
                              + tauIC_ARAZ * v * tau_IC*F0/rho0_corr/BB2 * BZ0 * BgradP &
-                             + eta_ARAZ * v * (eta_p / R * BR0 - eta_R * Bp0)          &
-                             - eta_ARAZ * eta_T * ( + v_R * Bp0 )                      &
+                             + eta_ARAZ * v * (eta_p / R * BR0 - eta_R * Bp00)         &
+                             - eta_ARAZ * eta_T * ( + v_R * Bp00)                      &
+                             - eta_ARAZ_const   * ( + v_R * Bp00)                      &
                              + eta_ARAZ * eta_T * v * current_source_JZ(ms,mt)         &
                              + eta_ARAZ * eta_num * lap_Vstar * lap_AZ
             Qvec_k(var_AZ) = - eta_ARAZ * eta_T * ( - v_p * BR0 / R)
@@ -2207,6 +2232,7 @@ do i=1,n_vertex_max
                                            - tauIC_ARAZ * v * tau_IC*F0/rho0_corr/BB2**2 * BR0 * BgradP * BB2_AR__p &
                                            + eta_ARAZ * v * (eta_Z * Bp0_AR ) &
                                            - eta_ARAZ * eta_T * ( - v_Z * Bp0_AR ) &
+                                           - eta_ARAZ_const   * ( - v_Z * Bp0_AR ) &
                                            + eta_ARAZ * eta_num * lap_Vstar * lap_bf
                   Qjac_n (var_AR,var_AR) = + v * (- Up0   * BZ0_AR__n     ) &
                                            + tauIC_ARAZ * v * tau_IC*F0/rho0_corr/BB2    * BR0 * BgradP_AR__n &
@@ -2218,7 +2244,8 @@ do i=1,n_vertex_max
                                            + tauIC_ARAZ * v * tau_IC*F0/rho0_corr/BB2    * BR0 * BgradP_AZ__p &
                                            - tauIC_ARAZ * v * tau_IC*F0/rho0_corr/BB2**2 * BR0 * BgradP * BB2_AZ__p &
                                            + eta_ARAZ * v * (eta_Z * Bp0_AZ - eta_p * BZ0_AZ / R ) &
-                                           - eta_ARAZ * eta_T * ( - v_Z * Bp0_AZ )
+                                           - eta_ARAZ * eta_T * ( - v_Z * Bp0_AZ ) &
+                                           - eta_ARAZ_const   * ( - v_Z * Bp0_AZ )
                   Qjac_n (var_AR,var_AZ) = + tauIC_ARAZ * v * tau_IC*F0/rho0_corr/BB2    * BR0_AZ__n * BgradP &
                                            + tauIC_ARAZ * v * tau_IC*F0/rho0_corr/BB2    * BR0       * BgradP_AZ__n &
                                            - tauIC_ARAZ * v * tau_IC*F0/rho0_corr/BB2**2 * BR0       * BgradP * BB2_AZ__n
@@ -2229,7 +2256,8 @@ do i=1,n_vertex_max
                                            + tauIC_ARAZ * v * tau_IC*F0/rho0_corr/BB2    * BR0    * BgradP_A3 &
                                            - tauIC_ARAZ * v * tau_IC*F0/rho0_corr/BB2**2 * BR0    * BgradP * BB2_A3 &
                                            + eta_ARAZ * v * (eta_Z * Bp0_A3 - eta_p * BZ0_A3 / R ) &
-                                           - eta_ARAZ * eta_T * ( - v_Z * Bp0_A3 )
+                                           - eta_ARAZ * eta_T * ( - v_Z * Bp0_A3 ) &
+                                           - eta_ARAZ_const   * ( - v_Z * Bp0_A3 )
                   Qjac_k (var_AR,var_A3) = - eta_ARAZ * eta_T * ( + v_p * BZ0_A3 / R)
 
                   Qjac_p (var_AR,var_UZ) = + v * (  UZ * Bp0)
@@ -2240,8 +2268,8 @@ do i=1,n_vertex_max
                   Qjac_n (var_AR,var_rho)= - tauIC_ARAZ * v * tau_IC*F0/rho0_corr   /BB2 * BR0 * BgradP_rho__n
 
                   Qjac_p (var_AR,var_T ) = + tauIC_ARAZ * v * tau_IC*F0/rho0_corr/BB2 * BR0 * BgradP_T__p &
-                                           + eta_ARAZ * v * (eta_Z_T * Bp0 - eta_p_T__p * BZ0 / R ) &
-                                           - eta_ARAZ * eta_T_T * ( - v_Z * Bp0 )                   &
+                                           + eta_ARAZ * v * (eta_Z_T * Bp00 - eta_p_T__p * BZ0 / R ) &
+                                           - eta_ARAZ * eta_T_T * ( - v_Z * Bp00 )                   &
                                            + eta_ARAZ * eta_T_T * v * current_source_JR(ms,mt)
                   Qjac_n (var_AR,var_T ) = + tauIC_ARAZ * v * tau_IC*F0/rho0_corr/BB2 * BR0 * BgradP_T__n &
                                            + eta_ARAZ * v * (              - eta_p_T__n * BZ0 / R )
@@ -2256,7 +2284,8 @@ do i=1,n_vertex_max
                                            + tauIC_ARAZ * v * tau_IC*F0/rho0_corr/BB2    * BZ0 * BgradP_AR__p &
                                            - tauIC_ARAZ * v * tau_IC*F0/rho0_corr/BB2**2 * BZ0 * BgradP * BB2_AR__p &
                                            + eta_ARAZ * v * (eta_p / R * BR0_AR - eta_R * Bp0_AR) &
-                                           - eta_ARAZ * eta_T * ( + v_R * Bp0_AR )
+                                           - eta_ARAZ * eta_T * ( + v_R * Bp0_AR ) &
+                                           - eta_ARAZ_const   * ( + v_R * Bp0_AR )
                   Qjac_n (var_AZ,var_AR) = + tauIC_ARAZ * v * tau_IC*F0/rho0_corr/BB2    * BZ0_AR__n * BgradP &
                                            + tauIC_ARAZ * v * tau_IC*F0/rho0_corr/BB2    * BZ0       * BgradP_AR__n &
                                            - tauIC_ARAZ * v * tau_IC*F0/rho0_corr/BB2**2 * BZ0       * BgradP * BB2_AR__n
@@ -2267,6 +2296,7 @@ do i=1,n_vertex_max
                                            - tauIC_ARAZ * v * tau_IC*F0/rho0_corr/BB2**2 * BZ0 * BgradP * BB2_AZ__p &
                                            + eta_ARAZ * v * (- eta_R * Bp0_AZ) &
                                            - eta_ARAZ * eta_T * ( + v_R * Bp0_AZ ) &
+                                           - eta_ARAZ_const   * ( + v_R * Bp0_AZ ) &
                                            + eta_ARAZ * eta_num * lap_Vstar * lap_bf
                   Qjac_n (var_AZ,var_AZ) = + v * (Up0 * BR0_AZ__n)       &
                                            + tauIC_ARAZ * v * tau_IC*F0/rho0_corr/BB2    * BZ0 * BgradP_AZ__n &
@@ -2279,7 +2309,8 @@ do i=1,n_vertex_max
                                            + tauIC_ARAZ * v * tau_IC*F0/rho0_corr/BB2    * BZ0    * BgradP_A3 &
                                            - tauIC_ARAZ * v * tau_IC*F0/rho0_corr/BB2**2 * BZ0    * BgradP * BB2_A3 &
                                            + eta_ARAZ * v * (eta_p / R * BR0_A3 - eta_R * Bp0_A3) &
-                                           - eta_ARAZ * eta_T * ( + v_R * Bp0_A3 )
+                                           - eta_ARAZ * eta_T * ( + v_R * Bp0_A3 ) &
+                                           - eta_ARAZ_const   * ( + v_R * Bp0_A3 )
                   Qjac_k (var_AZ,var_A3) = - eta_ARAZ * eta_T * ( - v_p * BR0_A3 / R)
 
                   Qjac_p (var_AZ,var_UR) = + v * (- UR * Bp0)
@@ -2290,8 +2321,8 @@ do i=1,n_vertex_max
                   Qjac_n (var_AZ,var_rho)= + tauIC_ARAZ * v * tau_IC*F0/rho0_corr   /BB2 * BZ0 * BgradP_rho__n
 
                   Qjac_p (var_AZ,var_T ) = + tauIC_ARAZ * v * tau_IC*F0/rho0_corr/BB2 * BZ0 * BgradP_T__p &
-                                           + eta_ARAZ * v * (eta_p_T__p / R * BR0 - eta_R_T * Bp0) &
-                                           - eta_ARAZ * eta_T_T * ( + v_R * Bp0 )                  &
+                                           + eta_ARAZ * v * (eta_p_T__p / R * BR0 - eta_R_T * Bp00) &
+                                           - eta_ARAZ * eta_T_T * ( + v_R * Bp00 )                  &
                                            + eta_ARAZ * eta_T_T * v * current_source_JZ(ms,mt)
                   Qjac_n (var_AZ,var_T ) = + tauIC_ARAZ * v * tau_IC*F0/rho0_corr/BB2 * BZ0 * BgradP_T__n &
                                            + eta_ARAZ * v * (eta_p_T__n / R * BR0 )
