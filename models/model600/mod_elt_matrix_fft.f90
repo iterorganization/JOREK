@@ -1199,10 +1199,6 @@ do i=1,n_vertex_max
 
           end if
 
-          if (with_TiTe) then            
-            dfrad_bg_dT      = dfrad_bg_dT * 2.d0  ! --- Transform derivatives on T to Te
-          endif
-  
          ! For shock capturing stabilization
          tau_sc = 0.d0
          if (use_sc) call calculate_sc_quantities()

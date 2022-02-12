@@ -129,7 +129,7 @@ module mod_impurity
 
   end subroutine radiation_function
 
-  subroutine radiation_function_linear(ad,cor, density, temperature, opt_ju, Lrad, dLrad_dTe)
+  subroutine radiation_function_linear(ad,cor, density, temperature, opt_ju, Lrad, dLrad_dT)
 
     use phys_module
     use mod_openadas
@@ -145,7 +145,7 @@ module mod_impurity
     logical, intent(in)         :: opt_ju !Convert outputs into jorek units if .true.
 
     real*8, intent(out)         :: Lrad ! value of radiation function
-    real*8, intent(out), optional :: dLrad_dTe ! derivatives of radiation functioni
+    real*8, intent(out), optional :: dLrad_dT ! derivative of radiation function wrt. T if with_TiTe=.f. and wrt. Te if with_TiTe=.t.
 
     real*8                      :: rad!Local density multiplied radiation function
     real*8                      :: radRB, radLT
@@ -157,7 +157,7 @@ module mod_impurity
     
     call cor%interp_linear(density,temperature,rad_out=rad)
     Lrad = rad / (10.0**density) ! This is to recover the radiation coefficient
-    if (present(dLrad_dTe)) then
+    if (present(dLrad_dT)) then
       call cor%interp_linear(density,temperature,p_out=p,p_Te_out=p_Te)
       dradRB_dT = ad%PRB%interp_grad_T(density,temperature) !Loglog gradient still!!!
       dradLT_dT = ad%PLT%interp_grad_T(density,temperature) !Loglog gradient still!!!
@@ -170,7 +170,7 @@ module mod_impurity
         drad_dT(iz) = dradRB_dT(iz) * radRB / (10.0**temperature) &
                       + dradLT_dT(iz) * radLT / (10.0**temperature) ! Convert to normal gradient
       enddo ! radiation emitted by atoms at level iz     
-      if (present(dLrad_dTe)) dLrad_dTe = dot_product(p_Te,rad_p) + dot_product(p,drad_dT)
+      if (present(dLrad_dT)) dLrad_dT = dot_product(p_Te,rad_p) + dot_product(p,drad_dT)
     end if
 
     !---------------------------------------------------------------------------                  
@@ -182,27 +182,27 @@ module mod_impurity
 
     if (opt_ju) then !Convert to JOREK units
       Lrad = Lrad * coef_rad_imp
-      if (present(dLrad_dTe)) then
+      if (present(dLrad_dT)) then
         ! Convert gradient wrt. to T from 1/K into 1/eV
-        dLrad_dTe = dLrad_dTe * coef_rad_imp *  EL_CHG / K_BOLTZ 
+        dLrad_dT = dLrad_dT * coef_rad_imp *  EL_CHG / K_BOLTZ 
         ! ...and now from 1/eV into 1/(JOREK units)
         if (with_TiTe) then
-          dLrad_dTe = dLrad_dTe / (EL_CHG*MU_ZERO*central_density*1.d20)
+          dLrad_dT = dLrad_dT / (EL_CHG*MU_ZERO*central_density*1.d20)
         else
-          dLrad_dTe = dLrad_dTe / (2.d0*EL_CHG*MU_ZERO*central_density*1.d20)
+          dLrad_dT = dLrad_dT / (2.d0*EL_CHG*MU_ZERO*central_density*1.d20)
         endif
       end if
     end if
     if (Lrad < 0.) then
       Lrad = 0.
-      if (present(dLrad_dTe)) dLrad_dTe = 0.
+      if (present(dLrad_dT)) dLrad_dT = 0.
     end if  
     if (Lrad/=Lrad) then
       write(*,*) "WARNING: Lrad ", Lrad
       stop
     end if
-    if (present(dLrad_dTe) .and. dLrad_dTe/=dLrad_dTe) then
-      write(*,*) "WARNING: dLrad_dTe ", dLrad_dTe
+    if (present(dLrad_dT) .and. dLrad_dT/=dLrad_dT) then
+      write(*,*) "WARNING: dLrad_dT ", dLrad_dT
       stop
     end if
   end subroutine radiation_function_linear

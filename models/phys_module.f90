@@ -77,7 +77,25 @@ module phys_module
   logical :: equil                !< compute equilibrium
   logical :: no_mach1_bc          !< Never apply Mach-1 BCs
   logical :: Mach1_openBC         !< Full-MHD: Apply Mach-1 BCs inside mod_boundary_matrix_open.f90 (or mod_boundary_conditions.f90)
-  logical :: eta_ARAZ_on          !< Full-MHD: to switch on/off resistive   terms for AR and AZ equations
+
+  ! --- RESISTIVITY SWITCHES FOR AR AND AZ EQUATIONS
+  ! --- 1.
+  ! --- Default set-up is eta_ARAZ_on = .true.
+  ! --- In this case, the same resistivity is used for all AR,AZ,A3 components
+  ! --- 2.
+  ! --- If (eta_ARAZ_on = .true.) and (eta_ARAZ_simple = .true.), then the Fprof component of Bphi is removed from the resistive term.
+  ! --- Note that in a stationary equilibrium, the Fprof component of Bphi from the current and the current source should exactly cancel anyway.
+  ! --- However, this Fprof component can lead to strong noise at high resistivity, so it is often better to remove it.
+  ! --- 3.
+  ! --- If (eta_ARAZ_on = .false.), then resistivity is switched off by default for the AR and AZ equations.
+  ! --- However, regardless of which eta-model is used for A3, (ie. eta_T_dependent or not), you can still set eta_ARAZ_const 
+  ! --- which will use a constant resistivity at the level eta_ARAZ_const.
+  ! --- 4.
+  ! --- Here again, setting (eta_ARAZ_simple = .true.) with eta_ARAZ_const removes the Fprof dependence of Bphi in the resistive term and the current term for AR&AZ
+  real*8  :: eta_ARAZ_const       !< Use uniform resistivity for AR and AZ equations, used only if eta_ARAZ_on=.false.
+  logical :: eta_ARAZ_on          !< Full-MHD: to switch on/off resistive terms for AR and AZ equations
+  logical :: eta_ARAZ_simple      !< Full-MHD: remove the Fprof dependence of Bphi in the resistive terms for AR and AZ (which should be compensated by current source anyway)
+
   logical :: tauIC_ARAZ_on        !< Full-MHD: to switch on/off diamagnetic terms for AR and AZ equations
   logical :: bench_without_plot   !< if .true., do not produce certain output plots (e.g., for benchmarking)
   logical :: gmres                !< Use iterative GMRES solver
