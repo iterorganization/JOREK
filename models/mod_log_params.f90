@@ -535,10 +535,21 @@ write(*,'(1x,a)',advance='no') ' USE_BICGSTAB : '
   write(*,LOGI_FMT) 'linear_run            ', linear_run
   write(*,REAL_FMT) 'D_prof_neg            ', D_prof_neg
   write(*,REAL_FMT) 'D_prof_neg_thresh     ', D_prof_neg_thresh
-  write(*,REAL_FMT) 'ZK_prof_neg           ', ZK_prof_neg
-  write(*,REAL_FMT) 'ZK_par_neg            ', ZK_par_neg
-  write(*,REAL_FMT) 'ZK_prof_neg_thresh    ', ZK_prof_neg_thresh
-  write(*,REAL_FMT) 'ZK_par_neg_thresh     ', ZK_par_neg_thresh
+  if (with_TiTe) then
+    write(*,REAL_FMT) 'ZK_e_prof_neg           ', ZK_e_prof_neg
+    write(*,REAL_FMT) 'ZK_e_par_neg            ', ZK_e_par_neg
+    write(*,REAL_FMT) 'ZK_e_prof_neg_thresh    ', ZK_e_prof_neg_thresh
+    write(*,REAL_FMT) 'ZK_e_par_neg_thresh     ', ZK_e_par_neg_thresh
+    write(*,REAL_FMT) 'ZK_i_prof_neg           ', ZK_i_prof_neg
+    write(*,REAL_FMT) 'ZK_i_par_neg            ', ZK_i_par_neg
+    write(*,REAL_FMT) 'ZK_i_prof_neg_thresh    ', ZK_i_prof_neg_thresh
+    write(*,REAL_FMT) 'ZK_i_par_neg_thresh     ', ZK_i_par_neg_thresh
+  else
+    write(*,REAL_FMT) 'ZK_prof_neg           ', ZK_prof_neg
+    write(*,REAL_FMT) 'ZK_par_neg            ', ZK_par_neg
+    write(*,REAL_FMT) 'ZK_prof_neg_thresh    ', ZK_prof_neg_thresh
+    write(*,REAL_FMT) 'ZK_par_neg_thresh     ', ZK_par_neg_thresh
+  endif
   write(*,REAL_FMT) 'D_imp_extra_R         ', D_imp_extra_R
   write(*,REAL_FMT) 'D_imp_extra_Z         ', D_imp_extra_Z
   write(*,REAL_FMT) 'D_imp_extra_p         ', D_imp_extra_p

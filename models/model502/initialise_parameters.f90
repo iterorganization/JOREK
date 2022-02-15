@@ -107,11 +107,12 @@ namelist /in1/  tstep, nstep, tstep_n, nstep_n,                     &
                 first_target_point, last_target_point,              &
                 R_Z_psi_bnd_file, wall_file,time_evol_scheme,       &
                 spi_tor_rot, tor_frequency, spi_num_vol,            &
-                ZK_par_neg_thresh,                                  &
+                ZK_e_par_neg_thresh, ZK_i_par_neg_thresh,           &
                 corr_neg_temp_coef, corr_neg_dens_coef,             &
-                D_prof_neg, ZK_prof_neg, ZK_par_neg,                &
-                D_prof_neg_thresh, ZK_prof_neg_thresh, T_min,       &
-                ne_SI_min, Te_eV_min, rn0_min,                      &
+                D_prof_neg, ZK_i_prof_neg, ZK_i_par_neg,            &
+                ZK_e_prof_neg, ZK_e_par_neg,                        &
+                D_prof_neg_thresh, ZK_e_prof_neg_thresh, T_min,     &
+                ne_SI_min, Te_eV_min, rn0_min, ZK_i_prof_neg_thresh,&
                 D_imp_extra_R, D_imp_extra_Z, D_imp_extra_p,        &
                 D_imp_extra_neg, D_imp_extra_neg_thresh,            &
                 imp_reflection, neutral_reflection, rho_min,        &
