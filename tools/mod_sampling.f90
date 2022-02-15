@@ -42,6 +42,11 @@ module mod_sampling
     module procedure normal_vectors_frisvad
   end interface normal_vectors
 
+  interface transform_uniform_cylindrical
+    module procedure transform_uniform_cylindrical_scalar
+    module procedure transform_uniform_cylindrical_square
+  end interface transform_uniform_cylindrical
+
   interface sample_uniform_cone
     module procedure sample_uniform_standard_cone
     module procedure sample_uniform_direction_cone
@@ -70,7 +75,7 @@ module mod_sampling
 contains
   !> Transform three uniform random numbers in [0,1] to 
   !> Uniform random numbers in cylindrical coordinates (R,Z,Phi)
-  pure subroutine transform_uniform_cylindrical(ran3, Rbox, Zbox, Phibox, R, Z, Phi)
+  pure subroutine transform_uniform_cylindrical_scalar(ran3, Rbox, Zbox, Phibox, R, Z, Phi)
     implicit none
     real*8, dimension(3), intent(in) :: ran3
     real*8, intent(in), dimension(2) :: Rbox, Zbox, Phibox
@@ -80,7 +85,26 @@ contains
     R   = sqrt(ran3(1) * (Rbox(2)**2-Rbox(1)**2) + Rbox(1)**2)
     Z   = (Zbox(2)-Zbox(1))*ran3(2) + Zbox(1)
     phi = (Phibox(2)-Phibox(1))*ran3(3) + Phibox(1)
-  end subroutine transform_uniform_cylindrical
+  end subroutine transform_uniform_cylindrical_scalar
+
+  !> Transform three uniform random numbers in [0,1] to 
+  !> uniform random numbers in cylindrical coordinates (R,Z,phi)
+  !> inputs:
+  !>   ran3:   (real8)(3) array of three random numbers within [0,1]
+  !>   Rbox2:  (real8)(2) squared of the major radius bounding box
+  !>   Zbox:   (real8)(2) bounding box of the vertical position
+  !>   phibox: (real8)(2) bounding box of the toroidal angle
+  !> outputs:
+  !>   RZPhi:  (real8)(3) uniform sample in cilyndrical coordinates
+  pure subroutine transform_uniform_cylindrical_square(ran3,Rbox2,Zbox,phibox,RZPhi)
+    implicit none
+    real*8,dimension(3),intent(in)  :: ran3
+    real*8,dimension(2),intent(in)  :: Rbox2,Zbox,phibox
+    real*8,dimension(3),intent(out) :: RZPhi
+    RZPhi = (/sqrt(Rbox2(1)+(Rbox2(2)-Rbox2(1))*ran3(1)),&
+            Zbox(1)+(Zbox(2)-Zbox(1))*ran3(2),&
+            phibox(1)+(phibox(2)-phibox(1))*ran3(3)/)
+  end subroutine transform_uniform_cylindrical_square
 
   !> Transform 2N uniform random numbers in [0,1] to
   !> gaussian-distributed random numbers with mean 0 and sigma 1
