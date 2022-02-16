@@ -1057,15 +1057,24 @@ do i=1,n_vertex_max
           endif
 
           if ( with_TiTe ) then ! (with_TiTe) ****************************************************
-            if (Te0 .lt. ZK_prof_neg_thresh) then
-              ZKe_prof = ZK_prof_neg
+            if (Ti0 .lt. ZK_i_prof_neg_thresh) then
+              ZKi_prof = ZK_i_prof_neg
+            end if
+            if (Ti0 .lt. ZK_i_par_neg_thresh) then
+              ZKi_par_T = ZK_i_par_neg
             endif
-            if (Ti0 .lt. ZK_prof_neg_thresh) then
-              ZKi_prof = ZK_prof_neg
+            if (Te0 .lt. ZK_e_prof_neg_thresh) then
+              ZKe_prof = ZK_e_prof_neg
+            end if
+            if (Te0 .lt. ZK_e_par_neg_thresh) then
+              ZKe_par_T = ZK_e_par_neg
             endif
           else ! (with_TiTe), i.e. with single temperature ***************************************
             if (T0 .lt. ZK_prof_neg_thresh) then
               ZK_prof = ZK_prof_neg
+            end if
+            if (T0 .lt. ZK_par_neg_thresh) then
+              ZK_par_T = ZK_par_neg
             endif
           endif ! (with_TiTe) ********************************************************************
 
