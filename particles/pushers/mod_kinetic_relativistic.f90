@@ -10,13 +10,15 @@ use constants, only: EL_CHG,ATOMIC_MASS_UNIT,SPEED_OF_LIGHT
 implicit none
 
 private
-public volume_preserving_push_cartesian,volume_preserving_push_jorek
-public relativistic_kinetic_to_particle
-public gc_to_relativistic_kinetic
-public relativistic_kinetic_to_relativistic_gc
-public runge_kutta_fixed_dt_relativistic_particle_push
-public runge_kutta_fixed_dt_relativistic_particle_push_jorek
-public volume_preserving_push_analytical
+public :: volume_preserving_push_cartesian,volume_preserving_push_jorek
+public :: relativistic_kinetic_to_particle
+public :: gc_to_relativistic_kinetic
+public :: relativistic_kinetic_to_relativistic_gc
+public :: runge_kutta_fixed_dt_relativistic_particle_push
+public :: runge_kutta_fixed_dt_relativistic_particle_push_jorek
+public :: volume_preserving_push_analytical
+public :: kinetic_relativistic_momentum_spherical_to_cart
+public :: momentum_relativistic_kinetic_to_relativistic_gc
 
 contains
 
@@ -609,9 +611,10 @@ end subroutine relativistic_kinetic_to_particle
 function relativistic_kinetic_to_relativistic_gc(node_list,element_list, &
   in,mass,B) result(out)
   !> load modules
-  use data_structure
+  use data_structure,            only: type_node_list
+  use data_structure,            only: type_element_list
   use mod_coordinate_transforms, only: vector_cartesian_to_cylindrical
-  use mod_pusher_tools, only: particle_position_to_gc
+  use mod_pusher_tools,          only: particle_position_to_gc
   implicit none
   !> declare input variables
   type(type_node_list), intent(in)                :: node_list
@@ -623,30 +626,18 @@ function relativistic_kinetic_to_relativistic_gc(node_list,element_list, &
   type(particle_gc_relativistic)                  :: out
   !> delcare internal variables
   real(kind=8)                                    :: norm_B
-  real(kind=8), dimension(3)                      :: B_hat, p_perp
+  real(kind=8), dimension(3)                      :: B_hat
 
   !> compute magnetic field direction and intensity
   norm_B = sqrt(B(1)*B(1)+B(2)*B(2)+B(3)*B(3))
   B_hat = B/norm_B
 
-  !> copy base particle fields
-  out = in
+  !> copy base particle fields and charge
+  out = in; out%q = in%q
 
-  !> copy charge
-  out%q = in%q
-
-  !> extract momenta in cylindrical coordinates
-  p_perp = vector_cartesian_to_cylindrical(in%x(3),in%p)
-
-  !> compute parallel momentum
-  out%p(1) = p_perp(1)*B_hat(1)+p_perp(2)*B_hat(2)+p_perp(3)*B_hat(3)
-
-  !> compute perpendicular momenta
-  p_perp = p_perp - out%p(1)*B_hat
-
-  !> compute magnetic moment
-  out%p(2) = (p_perp(1)*p_perp(1)+p_perp(2)*p_perp(2)+&
-       p_perp(3)*p_perp(3))/(2.d0*norm_B*mass)
+  !> compute gc parallel momentum and magnetic moment
+  out%p = momentum_relativistic_kinetic_to_relativistic_gc(&
+  mass,in%p,in%x(3),norm_B,B_hat)
 
   !> compute GC position
   if(out%q.ne.0) then
@@ -656,6 +647,36 @@ function relativistic_kinetic_to_relativistic_gc(node_list,element_list, &
   endif
   
 end function relativistic_kinetic_to_relativistic_gc
+
+!---------------------------------------------------------------------------
+!> return relativistic gc momentum from kinetic relativistic momentum
+!> inputs:
+!>   mass:   (real8) particle mass in AMU
+!>   p_kin:  (real8)(3) relativistic kinetic momentum
+!>   phi:    (real8) particle toroidal angle
+!>   B_norm: (real8) intensity of the magnetic field vector
+!>   B_hat:  (real8)(3) normalised magnetic field vector
+!> outputs:
+!>   p_gc:  (real8)(2) relativistic guiding center momentum
+function momentum_relativistic_kinetic_to_relativistic_gc(&
+  mass,p_kin,phi,B_norm,B_hat) result(p_gc)
+  use mod_coordinate_transforms, only: vector_cartesian_to_cylindrical
+  implicit none
+  !> inputs:
+  real*8,intent(in) :: mass,phi,B_norm
+  real*8,dimension(3),intent(in) :: p_kin,B_hat
+  !> outputs:
+  real*8,dimension(2) :: p_gc
+  !> variables:
+  real*8,dimension(3) :: p_loc
+  !> transform momentum from cartesian to cylindrical
+  p_loc = vector_cartesian_to_cylindrical(phi,p_kin)
+  !> compute parallel momentum
+  p_gc(1) = p_loc(1)*B_hat(1)+p_loc(2)*B_hat(2)+p_loc(3)*B_hat(3)
+  !> compute magnetic moment
+  p_loc = p_loc - p_gc(1)*B_hat
+  p_gc(2) = (p_loc(1)*p_loc(1)+p_loc(2)*p_loc(2)+p_loc(3)*p_loc(3))/(2.d0*mass*B_norm)
+end function momentum_relativistic_kinetic_to_relativistic_gc
 
 !---------------------------------------------------------------------------
 
@@ -739,8 +760,8 @@ end function relativistic_kinetic_to_gc
 function gc_to_relativistic_kinetic(node_list,element_list,in,time,mass,chi,B) result(out)
   use data_structure
   use mod_coordinate_transforms, only: vector_cylindrical_to_cartesian
-  use mod_pusher_tools, only: get_orthonormals
-  use mod_pusher_tools, only: gc_position_to_particle
+  use mod_pusher_tools,          only: get_orthonormals
+  use mod_pusher_tools,          only: gc_position_to_particle
   ! declare input variables
   type(type_node_list), intent(in)       :: node_list
   type(type_element_list), intent(in)    :: element_list
@@ -790,5 +811,42 @@ function gc_to_relativistic_kinetic(node_list,element_list,in,time,mass,chi,B) r
   out%p = vector_cylindrical_to_cartesian(out%x(3),out%p)
 end function gc_to_relativistic_kinetic
 
+!---------------------------------------------------------------------------
+!> transform the kinetic relativistic particle momentum from spherical
+!> to cartesian coordinates
+!> inputs:
+!>   sign_theta: (integer) sign of the pitch angle
+!>   phi:        (real8) particle toroidal angle
+!>   ppitchgyro: (real8)(3) relativistic momentum in cylindrial coords.
+!>               1- nrom of the particle momentum
+!>               2- cosinus pitch angle cos(theta) = p*B_hat
+!>               3- gyro angle
+!>   B_hat:      (real8)(3) normalised magnetic vector
+!> outputs:
+!>   p_kin:      (real8)(3) relativistic kinetic momentum
+!>               in cartesian coordinates
+function kinetic_relativistic_momentum_spherical_to_cart(sign_theta,phi,&
+ppitchgyro,B_hat) result(p_kin)
+  use mod_coordinate_transforms, only: vector_cylindrical_to_cartesian
+  use mod_pusher_tools,          only: get_orthonormals
+  implicit none
+  !> inputs:
+  integer,intent(in)             :: sign_theta
+  real*8,intent(in)              :: phi
+  real*8,dimension(3),intent(in) :: ppitchgyro,B_hat
+  !> outputs:
+  real*8,dimension(3) :: p_kin
+  !> variables:
+  real*8,dimension(3) :: e2,e3
+  !> compute orthonormal basis
+  call get_orthonormals(B_hat,e2,e3)
+  !> compute momentum in cylindrical coordinates
+  p_kin = ppitchgyro(1)*(ppitchgyro(2)*B_hat + real(sign_theta,kind=8)*&
+  sqrt(1.d0-ppitchgyro(2)*ppitchgyro(2))*(&
+  e2*cos(ppitchgyro(3)) + e3*sin(ppitchgyro(3))))
+  !> tranform to cylindrical coordinates
+  p_kin = vector_cylindrical_to_cartesian(phi,p_kin)
+end function kinetic_relativistic_momentum_spherical_to_cart
 
+!---------------------------------------------------------------------------
 end module mod_kinetic_relativistic
