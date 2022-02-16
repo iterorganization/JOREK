@@ -38,7 +38,7 @@ subroutine run_fruit_kinetic_relativistic()
   write(*,'(/A)') "  ... setting-up: kinetic relativistic tests"
   call setup
   write(*,'(/A)') "  ... running: kinetic relativistic tests"
-  call test_relativistic_kinetic_orbital_basis
+  call test_dummy
   write(*,'(/A)') "  ... tearing-up: kinetic relativistic tests"
   call teardown
 end subroutine run_fruit_kinetic_relativistic
@@ -93,27 +93,11 @@ subroutine teardown()
 end subroutine teardown
 
 !> Tests ----------------------------------------------
-!> Test cartesian orbital basis for relativistic 
-!> full orbit particles
-subroutine test_relativistic_kinetic_orbital_basis()
-  use mod_kinetic_relativistic, only: compute_relativistic_kinetic_orbital_basis_cartesian
+subroutine test_dummy()
+  use mod_kinetic_relativistic
   implicit none
-  !> variables
-  real*8,dimension(3) :: T_cart,N_cart,B_cart
-
-  !> compute the orbital basis
-  call compute_relativistic_kinetic_orbital_basis_cartesian(&
-  particle,mass,E_field_cart,B_field_cart,T_cart,N_cart,B_cart)
-  !> test orthonormality
-  call test_orthonormality_basis(T_cart,N_cart,B_cart,tol_basis)
-  !> test solution
-  call assert_equals(T_cart,T_cart_sol,3,tol_basis,& 
-  "Error relativistic kinetic orbital basis: T direction mismatch!")
-  call assert_equals(N_cart,N_cart_sol,3,tol_basis,& 
-  "Error relativistic kinetic orbital basis: N direction mismatch!")
-  call assert_equals(B_cart,B_cart_sol,3,tol_basis,& 
-  "Error relativistic kinetic orbital basis: B direction mismatch!")
-end subroutine test_relativistic_kinetic_orbital_basis
+  write(*,'(/A)') "particle kinetic dummy test"
+end subroutine test_dummy
 
 !> Tools ----------------------------------------------
 !> check the orthonormality of a basis
