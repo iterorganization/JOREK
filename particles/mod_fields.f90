@@ -17,17 +17,15 @@ module mod_fields
     logical                              :: static=.false. !< if true do not time interpolate
     logical                              :: flag_zero_dpsidt=.false. !< if true, P_time(1) = dpsi/dt = 0
   contains
-    procedure(interp_PRZ), deferred, public   :: interp_PRZ
-    procedure(interp_PRZ_2), deferred, public :: interp_PRZ_2
+    procedure(interp_PRZ), deferred, public     :: interp_PRZ
+    procedure(interp_PRZ_2), deferred, public   :: interp_PRZ_2
+    procedure, public :: calc_EBpsiU => calc_EBpsiU_jorek
     procedure, public :: calc_NeTe
-    procedure, public :: calc_EBpsiU
     procedure, public :: calc_F_profile
     procedure, public :: calc_gyro_average_E
     procedure, public :: calc_Qin, calc_Qin_analytic, check_consistency_Qin
     procedure, public :: calc_rk4, calc_RK4_analytic, check_consistency_RK4
-    procedure, public :: calc_EBNormBGradBCurlbDbdt
-    procedure, public :: calc_analytical_EBpsiU
-    procedure, public :: calc_analytical_EBNormBGradBCurlbDbdt
+    procedure, public :: calc_EBNormBGradBCurlbDbdt => calc_EBNormBGradBCurlbDbdt_jorek
     procedure, public :: set_flag_dpsidt
   end type fields_base
 
@@ -68,7 +66,7 @@ module mod_fields
 contains
 !> Calculates the electric and magnetic fields at a specific position
 !> in the jorek element `i_elm` at `st`.
-pure subroutine calc_EBpsiU(fields, time, i_elm, st, phi, E, B, psi, U)
+pure subroutine calc_EBpsiU_jorek(fields, time, i_elm, st, phi, E, B, psi, U)
   use phys_module, only: F0, mode, central_mass, central_density
   use constants, only: mu_zero, mass_proton
   use mod_coordinate_transforms, only: transform_derivatives_st_to_RZ
@@ -162,7 +160,7 @@ pure subroutine calc_EBpsiU(fields, time, i_elm, st, phi, E, B, psi, U)
 
 #endif
 
-end subroutine calc_EBpsiU
+end subroutine calc_EBpsiU_jorek
 
 pure subroutine calc_F_profile(fields,i_elm,s,t,phi,Fprof)
   use data_structure
@@ -1029,8 +1027,8 @@ end subroutine check_consistency_Qin
 !>   gradB:  (real8)(3) gradient of the magnetic field intensity in T/m
 !>   curlb:  (real8)(3) curl of the magnetic field direction in 1/m
 !>   dbdt:   (real8)(3) magnetic field direction time derivative in 1/s
-pure subroutine calc_EBNormBGradBCurlbDbdt(fields,time,i_elm,st,phi,E,b, &
-  normB,gradB,curlb,dbdt)
+pure subroutine calc_EBNormBGradBCurlbDbdt_jorek(fields,time,i_elm,st,&
+  phi,E,b,normB,gradB,curlb,dbdt)
   !> load modules
   use phys_module, only: F0, mode, central_mass, central_density
   use constants, only: mu_zero,mass_proton
@@ -1127,99 +1125,7 @@ pure subroutine calc_EBNormBGradBCurlbDbdt(fields,time,i_elm,st,phi,E,b, &
   dbdt = ((b(2)*psi_RZ(8)-b(1)*psi_RZ(9))*b +    &
     [psi_RZ(9),-psi_RZ(8),0.d0])*normB_inv*R_inv
 
-end subroutine calc_EBNormBGradBCurlbDbdt
-
-!> Subroutine to ocompute analytical magnetic and electric fields
-!> for testing integrators. The electric field is set to zero
-!> while a tokamak-like magnetic field with a poloidal flux of
-!> 0.5*B0*((R-R0)**2+(Z-Z0)**2) is used.
-!> inputs:
-!>   RZ: (real8) particle poloidal plane position
-!> outputs:
-!>   B:   (real8)(3) magnetic field
-!>   E:   (real8)(3) electric field
-!>   psi: (real8) poloidal flux
-pure subroutine calc_analytical_EBpsiU(fields,RZ,E,B,psi,U)
-  implicit none
-  !> declare parameters
-  real(kind=8), parameter :: B0=2.5d0 !< axis magnetic field in [T]
-  real(kind=8), parameter :: U0=0.d0 !< reference electric potential
-  !> set magnetic axis position
-  real(kind=8), dimension(2), parameter :: RZ0=[3.d0,0.d0]
-  !> delcare input variables
-  class(fields_base), intent(in) :: fields
-  real(kind=8), dimension(2), intent(in) :: RZ
-  !> declare output variables:
-  real(kind=8), intent(out) :: psi, U
-  real(kind=8), dimension(3), intent(out) :: E, B
-
-  !> computing magnetic field
-  B = B0*[RZ(2)-RZ0(2),RZ0(1)-RZ(1),RZ0(1)]/RZ(1)
-
-  !> computing electric field
-  E = U0*[0.d0,0.d0,0.d0]
-
-  !> compute psi
-  psi = 0.5*B0*(dot_product(RZ-RZ0,RZ-RZ0))
-
-  !> compute U
-  U = U0
-
-end subroutine calc_analytical_EBpsiU
-
-!> This procedure computes analytical guiding ceneter
-!> fields for a static electromagnetic field. The
-!> electric field is set to zero while a tokamak-like
-!> magnetic field with a poloidal flux of:
-!> psi = 0.5*B0*((R-R0)**2 + (Z-Z0)**2) is used.
-!> inputs:
-!>   RZ: (real8)(2) particle position in the poloidal plane
-!> outputs:
-!>   E:     (real8)(3) electric field
-!>   b:     (real8)(3) magnetic field direction
-!>   normB: (real8) magnetic intensity
-!>   gradB: (real8)(3) gradient of the magnetic intensity
-!>   curlb: (real8)(3) curl of the magnetic direction
-!>   dbdt:  (real8)(3) magnetic direction time variation
-pure subroutine calc_analytical_EBNormBGradBCurlbDbdt(fields, &
-  RZ,E,b,normB,gradB,curlb,dbdt)
-  use mod_math_operators, only: cross_product
-  implicit none
-  !> define parameters
-  real(kind=8), parameter               :: B0=2.5d0 !< axis magnetic field in [T]
-  real(kind=8), parameter               :: U0=0.d0  !< reference electric potential
-  real(kind=8), dimension(2), parameter :: RZ0=[3.d0,0.d0]
-  !> input variables
-  class(fields_base), intent(in)         :: fields
-  real(kind=8), dimension(2), intent(in) :: RZ
-  !> output variables
-  real(kind=8), intent(out)               :: normB
-  real(kind=8), dimension(3), intent(out) :: E, b, gradB, curlb, dbdt
-
-  !> compute electric field
-  E = U0*[0.d0,0.d0,0.d0]
-
-  !> compute magnetic field
-  b = B0*[RZ(2)-RZ0(2),RZ0(1)-RZ(1),RZ0(1)]/RZ(1)
-
-  !> compute norm of the magnetic field
-  normB = sqrt(b(1)*b(1)+b(2)*b(2)+b(3)*b(3))
-
-  !> compute gradient of the magnetic field
-  gradB = [B0*B0*(RZ(1)-RZ0(1))-normB*normB*RZ(1), &
-    B0*B0*(RZ(2)-RZ0(2)),0.d0]/(normB*RZ(1)*RZ(1))
-
-  !> compute the magetic direction
-  b = b/normB
-
-  !> compute the curl of the magnetic field directon
-  curlb = (cross_product(b,gradB) -                 &
-    [0.d0,0.d0,(RZ(1)+RZ0(1))/(RZ(1)*RZ(1))])/normB
-
-  !> compute magnetic field time derivative
-  dbdt = [0.d0,0.d0,0.d0]
-
-end subroutine calc_analytical_EBNormBGradBCurlbDbdt
+end subroutine calc_EBNormBGradBCurlbDbdt_jorek
 
 ! This subroutine sets a flag to force dpsi/dt to 0
 pure subroutine set_flag_dpsidt(this,flag_dpsidt_to_zero)

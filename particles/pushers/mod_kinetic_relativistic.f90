@@ -220,7 +220,7 @@ end subroutine volume_preserving_radiation_push_jorek
 !> magnetic and electric fields. Not for production.
 !> inputs:
 !>   particle: (particle_kinetic_relativistic) particle to integrate
-!>   fields:   (fields_base) jorek fields
+!>   fields:   (fields_analytical) analytical magnetic and electric fields
 !>   mass:     (real8) particle mass
 !>   time:     (real8) time integration 
 !>   timestep: (real8) time step
@@ -228,7 +228,7 @@ end subroutine volume_preserving_radiation_push_jorek
 !>   particle: (particle_kinetic_relativistic) integrated particle
 pure subroutine volume_preserving_push_analytical(particle,fields,&
      mass,time,timestep)
-  use mod_fields
+  use mod_fields_analytical,     only: fields_analytical
   use mod_coordinate_transforms, only: cartesian_to_cylindrical
   use mod_coordinate_transforms, only: cylindrical_to_cartesian
   use mod_coordinate_transforms, only: vector_cylindrical_to_cartesian
@@ -236,7 +236,7 @@ pure subroutine volume_preserving_push_analytical(particle,fields,&
   !> declare input/output varibales
   type(particle_kinetic_relativistic),intent(inout) :: particle
   !> declare inputs
-  class(fields_base),intent(in) :: fields
+  type(fields_analytical),intent(in) :: fields
   real(kind=8),intent(in) :: mass,time,timestep
   !> declare variables
   real(kind=8) :: scaling_factor,psi,U
@@ -250,7 +250,8 @@ pure subroutine volume_preserving_push_analytical(particle,fields,&
   !> convert back the position to cylindrical coordinates
   particle%x = cartesian_to_cylindrical(half_position)
   !> compute the analytical electromagnetic fields
-  call fields%calc_analytical_EBpsiU(particle%x(1:2),E,B,psi,U)
+  call fields%calc_EBpsiU(time,particle%i_elm,particle%x(1:2),&
+  particle%x(3),E,B,psi,U)
   !> apply the secon VPA step
   call volume_preserving_second_half_step_jorek(particle,&
        half_position,scaling_factor,&
@@ -466,7 +467,7 @@ end subroutine compute_relativistic_particle_derivatives_jorek
 !> This procedure computes derivatives for the Runge-Kutta full orbit integrator
 !> of relativistic particles in analytical fields.
 !> inputs:
-!>   fields:           (fields_base) analytical fields
+!>   fields:           (fields_analytical) analytical electric & magnetic fields
 !>   n_variables:      (integer) number of variables describing the particle = 6
 !>   n_int_parameters: (integer) number of integer parameters = 1
 !>   n_real_paramters: (integer) number of real parameters = 1
@@ -486,7 +487,8 @@ subroutine  compute_relativistic_particle_derivatives(fields,n_variables, &
   int_parameters,real_parameters,derivatives,ifail)
   !> load modules
   use mod_coordinate_transforms, only: vector_cylindrical_to_cartesian
-  use mod_fields, only: fields_base
+  use mod_fields,                only: fields_base
+  use mod_fields_analytical,     only: fields_analytical
   implicit none
   !> declare input variables
   class(fields_base), intent(in)                         :: fields
@@ -503,7 +505,10 @@ subroutine  compute_relativistic_particle_derivatives(fields,n_variables, &
   real(kind=8), dimension(3) :: E, B
 
   !> compute electromagnetic fields at current RK step
-  call fields%calc_analytical_EBpsiU(solution(1:2),E,B,psi,U)
+  select type(flds=>fields)
+  type is (fields_analytical)
+    call flds%calc_EBpsiU(t,0,solution(1:2),solution(3),E,B,psi,U)
+  end select  
 
   !> compute RHS terms of relativistic equations of motion needed for RK integration
   derivatives = compute_relativistic_particle_rhs(int_parameters(1), &

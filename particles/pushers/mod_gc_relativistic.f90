@@ -521,7 +521,8 @@ contains
     n_int_parameters,n_real_parameters,t,solution_old,solution,           &
     int_parameters,real_parameters,derivatives,ifail)
     !> load modules
-    use mod_fields, only: fields_base
+    use mod_fields_analytical, only: fields_analytical
+    use mod_fields,            only: fields_base
     implicit none
     !> declare input variables
     class(fields_base), intent(in)                         :: fields
@@ -538,8 +539,11 @@ contains
     real(kind=8), dimension(3) :: E, b, gradB, curlb, dbdt
 
     !> compute required fields at GC position
-    call fields%calc_analytical_EBNormBGradBCurlbDbdt(solution(1:2),E,b,normB, &
-         gradB,curlb,dbdt)
+    select type(flds=>fields)
+    type is (fields_analytical)
+      call flds%calc_EBNormBGradBCurlbDbdt(t,0,solution(1:2),&
+           solution(3),E,b,normB,gradB,curlb,dbdt)
+    end select
 	 
     !> compute RHS of GC evolution (Cary-Brizard) equations
     derivatives = compute_relativistic_gc_rhs(int_parameters(1),real_parameters(1), &
