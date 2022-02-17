@@ -54,6 +54,7 @@ module phys_module
   real*8  :: min_sheath_angle     !< For sheath boundary conditions: Minimum incident angle for heat and particle fluxes (in degrees)
   integer :: mode(n_tor)          !< Toroidal mode number corresponding to the JOREK modes, e.g., for n_period=8 and n_tor=3, mode(:)=0,8,8
   integer :: nout                 !< Output a restart file every nout timesteps
+  integer :: nout_particles       !< Output particle information every nout_particles time step (only for diagnostics)
   integer :: xcase                !< 1->LowerXpoint. 2->UpperXpoint. 3->doubleNull
   real*8  :: SDN_threshold        !< threshold, in absolute psi, for a symmetric-double-null grid construction
   integer :: rst_format           !< 0 == old format, 1 == new format for restart file

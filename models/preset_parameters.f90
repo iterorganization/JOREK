@@ -490,6 +490,7 @@ subroutine preset_parameters
   index_start = 0
 
   nout = 9999999
+  nout_particles = 9999999
 
   rst_hdf5 = 1   ! =0,restart with binary files; =1, with HDF5 files
 

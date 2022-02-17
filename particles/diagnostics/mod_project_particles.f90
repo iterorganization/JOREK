@@ -475,7 +475,7 @@ end subroutine close_mumps
 
 subroutine project(this, sim, ev)
   use mod_event
-  use phys_module, only: nout, index_now
+  use phys_module, only: nout_particles, index_now
   class(projection), intent(inout)     :: this
   type(particle_sim), intent(inout)    :: sim
   type(event), intent(inout), optional :: ev
@@ -488,12 +488,12 @@ subroutine project(this, sim, ev)
 
   ! Save output if requested
   if (this%to_h5) then
-   if (mod(index_now,nout) == 0) then
-     call save_to_h5(this, sim, index_now)
-   end if
+    if (mod(index_now,nout_particles) == 0) then
+      call save_to_h5(this, sim, index_now)
+    end if
   end if
   if (allocated(this%vtk_grid)) then
-    if (mod(index_now,nout) == 0) then
+    if (mod(index_now,nout_particles) == 0) then
       call save_to_vtk(this, sim)
     end if
   end if
