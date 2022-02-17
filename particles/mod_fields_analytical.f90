@@ -17,10 +17,43 @@ type,extends(fields_base) :: fields_analytical
   procedure,public :: interp_PRZ_2 => interp_PRZ_2_dummy
   procedure,public :: calc_EBPsiU  => calc_EBPsiU_parabolic
   procedure,public :: calc_EBNormBGradBCurlbDbdt => calc_EBNormBGradBCurlbDbdt_parabolic
+  procedure,public :: init_fields  => init_fields_analytical 
 end type fields_analytical
 !> Interfaces -----------------------------------------
 contains
 !> Procedures -----------------------------------------
+!> Initialise the fields analytical object
+!> inputs:
+!>   fields:       (fields_analytical) fields to be initialised
+!>   n_int_param:  (integer) N# integer parameters, must be 0
+!>   n_real_param: (integer) N# real parameters, must be 4
+!>   int_param:    (integer)(n_int_param) integer parameters
+!>   real_param:   (real8)(n_real_param) real parameters:
+!>                 1-2: R,Z position of the magnetic axis
+!>                 3:   toroidal magnetic field at the magnetic axis
+!>                 4:   reference electric potential intensity
+!> outputs:
+!>   fields:       (fields_analytical) initialised fields
+subroutine init_fields_analytical(fields,n_int_param,&
+n_real_param,int_param,real_param)
+  implicit none
+  !> inputs-outputs:
+  class(fields_analytical),intent(inout) :: fields
+  !> inputs:
+  integer :: n_int_param,n_real_param
+  integer,dimension(n_int_param),intent(in) :: int_param
+  real*8,dimension(n_real_param),intent(in) :: real_param
+  !> check if the number of parameters are correct and initialise
+  fields%RZ0 = (/3.d0,0.d0/); fields%B0 = 3.d0; fields%U0 = 0.d0;
+  if((n_int_param.eq.0).and.(n_real_param.eq.4)) then
+    write(*,'(/A)') "Error initialise fields analytical: size input parameters mismatch!"
+    write(*,'(/A)') "use default parameters"
+    return
+  endif
+  fields%RZ0 = real_param(1:2); fields%B0 = real_param(3); 
+  fields%U0 = real_param(4)
+end subroutine init_fields_analytical
+
 !> Subroutine to ocompute analytical magnetic and electric fields
 !> for testing integrators. !> electric field is toroidal 
 !> with intensity U*R0/R while a tokamak-like magnetic field with 
