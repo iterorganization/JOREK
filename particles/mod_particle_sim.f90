@@ -35,6 +35,8 @@ type :: particle_sim
 contains
   procedure :: finalize
   procedure :: initialize
+  procedure,pass(sim) :: set_t_norm  !< set the jorek time unit
+  procedure,pass(sim) :: allocate_groups
 end type particle_sim
 
 contains
@@ -70,7 +72,7 @@ subroutine initialize(sim, num_groups, skip_jorek2help)
   sim%wtime_start = MPI_Wtime() ! accurate up to the network latency (fine for times measured in seconds)
 
   if (provided .ne. required .and. sim%my_id .eq. 0) write(*,*) "WARNING: provided(", provided, ") != required(", required, ")"
-  allocate(sim%groups(num_groups))
+  call sim%allocate_groups(num_groups)
   call MPI_GET_PROCESSOR_NAME(name,resultlength,ierr)
   write(*,'(A,I5,2A)') '#MPI id, ProcessorName ', sim%my_id, ': ', name
   
@@ -92,7 +94,7 @@ subroutine initialize(sim, num_groups, skip_jorek2help)
   call broadcast_phys(sim%my_id)
 
   ! Set up normalisation factors
-  sim%t_norm = sqrt(MU_ZERO * central_mass * MASS_PROTON * central_density * 1.d20)
+  call sim%set_t_norm()
 
   ! Initialise the gaussian points at basis functions
   call initialise_basis
@@ -110,4 +112,33 @@ subroutine finalize(sim)
   end if
   call MPI_Finalize(ierr)
 end subroutine
+
+!> allocate groups, if allocated, deallocate groups first
+!> except is there is not changes in the group size
+subroutine allocate_groups(sim,n_groups)
+  implicit none
+  !> inputs-outpus
+  class(particle_sim),intent(inout) :: sim
+  !> inputs
+  integer,intent(in) :: n_groups
+  if(.not.allocated(sim%groups)) then
+    allocate(sim%groups(n_groups))
+  elseif(size(sim%groups).ne.n_groups) then
+    deallocate(sim%groups); allocate(sim%groups(n_groups));
+  endif
+end subroutine allocate_groups
+
+!> set the t_norm value
+!> inputs:
+!>   sim: (particle_sim) the particle simulation
+!> outputs:
+!>   sim: (particle_sim) the particle simulation
+subroutine set_t_norm(sim)
+  use phys_module, only: central_mass, central_density
+  use constants, only: MU_ZERO, MASS_PROTON
+  implicit none
+  ! input-outputs
+  class(particle_sim), intent(inout) :: sim
+  sim%t_norm = sqrt(MU_ZERO * central_mass * MASS_PROTON * central_density * 1.d20)
+end subroutine set_t_norm
 end module mod_particle_sim

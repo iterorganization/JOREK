@@ -5,6 +5,10 @@
 module mod_particle_types
   implicit none
   private
+  public :: particle_base_id,particle_fieldline_id,particle_gc_id
+  public :: particle_gc_vpar_id,particle_gc_Qin_id,particle_kinetic_id
+  public :: particle_kinetic_leapfrog_id,particle_kinetic_relativistic_id
+  public :: particle_gc_relativistic_id
   public :: particle_base, particle_kinetic, particle_kinetic_leapfrog
   public :: particle_gc, particle_fieldline
   public :: particle_kinetic_relativistic, particle_gc_relativistic
@@ -13,6 +17,14 @@ module mod_particle_types
   public :: copy_particle
   public :: copy_particle_base
   public :: copy_particle_kinetic_leapfrog
+
+  !> define a code for each particle type
+  enum, bind(C) 
+    enumerator :: particle_base_id=0,particle_fieldline_id,particle_gc_id,&
+                  particle_gc_vpar_id,particle_gc_Qin_id,particle_kinetic_id,&
+                  particle_kinetic_leapfrog_id,particle_kinetic_relativistic_id,&
+                  particle_gc_relativistic_id
+  endenum
 
   !> The base type for all other particles. Includes only the position and weight elements
   !> Integration in a 2D finite element method is included in the form of 2 coordinates
