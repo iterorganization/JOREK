@@ -667,7 +667,7 @@ function momentum_relativistic_kinetic_to_relativistic_gc(&
   mass,p_kin,phi,B_norm,B_hat) result(p_gc)
   use mod_coordinate_transforms, only: vector_cartesian_to_cylindrical
   implicit none
-  !> inputs:
+  !> inputs:/
   real*8,intent(in) :: mass,phi,B_norm
   real*8,dimension(3),intent(in) :: p_kin,B_hat
   !> outputs:

@@ -203,7 +203,7 @@ subroutine allocate_one_particle_list_from_types(n_groups,n_particles,p_types,gr
       allocate(particle_kinetic_leapfrog::groups(ii)%particles(n_particles(ii)))
     elseif(p_types(ii).eq.particle_kinetic_relativistic_id) then
       allocate(particle_kinetic_relativistic::groups(ii)%particles(n_particles(ii)))
-    elseif(p_types(ii).eq.particle_kinetic_relativistic_id) then 
+    elseif(p_types(ii).eq.particle_gc_relativistic_id) then 
       allocate(particle_gc_relativistic::groups(ii)%particles(n_particles(ii)))
     elseif(p_types(ii).eq.particle_gc_Qin_id) then
       allocate(particle_gc_Qin::groups(ii)%particles(n_particles(ii)))

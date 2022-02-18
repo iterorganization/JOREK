@@ -46,7 +46,7 @@ n_real_param,int_param,real_param)
   real*8,dimension(n_real_param),intent(in) :: real_param
   !> check if the number of parameters are correct and initialise
   fields%RZ0 = (/3.d0,0.d0/); fields%B0 = 3.d0; fields%U0 = 0.d0;
-  if((n_int_param.eq.0).and.(n_real_param.eq.4)) then
+  if(.not.((n_int_param.eq.0).and.(n_real_param.eq.4))) then
     write(*,'(/A)') "Error initialise fields analytical: size input parameters mismatch!"
     write(*,'(/A)') "use default parameters"
     return
