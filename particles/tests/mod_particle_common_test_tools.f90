@@ -2,6 +2,7 @@
 !> procedure used for initialising and finalising particle data
 !> for unit testing
 module mod_particle_common_test_tools
+use constants, only: PI,TWOPI
 implicit none
 
 private
@@ -9,7 +10,9 @@ public :: n_particle_types
 public :: q_interval,i_elm_interval,i_life_interval,sim_time_interval
 public :: t_birth_interval,st_interval,mass_interval,v_interval
 public :: Ekin_interval,mu_interval,Bnorm_interval,weight_interval
-public :: x_lowbnd,x_uppbnd,vp3d_lowbnd,vp3d_uppbnd,ABE_lowbnd,ABE_uppbnd
+public :: RZ0_uppbnd,RZ0_lowbnd,BE0_uppbnd,BE0_lowbnd,x_lowbnd
+public :: x_uppbnd,vp3d_lowbnd,vp3d_uppbnd,ABE_lowbnd,ABE_uppbnd
+public :: EThetaChi_RE_lowbnd,EThetaChi_RE_uppbnd
 public :: fill_particles,invalidate_particles,obtain_active_particle_ids
 public :: fill_groups,fill_particle_base,fill_particle_fieldline
 public :: fill_particle_gc,fill_particle_gc_vpar,fill_particle_gc_Qin
@@ -33,12 +36,19 @@ real*8,dimension(2),parameter    :: Ekin_interval=(/0.d0,1.d7/)
 real*8,dimension(2),parameter    :: mu_interval=(/0.d0,1.d-5/)
 real*8,dimension(2),parameter    :: Bnorm_interval=(/0.d0,1.4d1/)
 real*8,dimension(2),parameter    :: weight_interval=(/0.d0,1.d3/)
+real*8,dimension(2),parameter    :: RZ0_lowbnd=(/1.d-1,-2.5d0/)
+real*8,dimension(2),parameter    :: RZ0_uppbnd=(/6.5d0,2.5d0/)
+real*8,dimension(2),parameter    :: BE0_lowbnd=(/1.d-1,-2.5d0/)
+real*8,dimension(2),parameter    :: BE0_uppbnd=(/6.d0,2.5d0/)
 real*8,dimension(3),parameter    :: x_lowbnd=(/-5.d2,-1.d2,1.d0/)
 real*8,dimension(3),parameter    :: x_uppbnd=(/7.d2,2.d2,4.d2/)
 real*8,dimension(3),parameter    :: vp3d_lowbnd=(/-1.25d3,-7.5d2,-8.d1/)
 real*8,dimension(3),parameter    :: vp3d_uppbnd=(/7.5d1,2.35d2,4.85d3/)
 real*8,dimension(3),parameter    :: ABE_lowbnd=(/-2.67d0,-9.85d0,0.35d0/)
 real*8,dimension(3),parameter    :: ABE_uppbnd=(/0.78d0,2.35d0,5.67d0/)
+!> variables for RE tests
+real*8,dimension(3),parameter    :: EThetaChi_RE_lowbnd=(/1.d5,0.d0,0.d0/)
+real*8,dimension(3),parameter    :: EThetaChi_RE_uppbnd=(/5.d7,PI,TWOPI/)
 
 !> Interfaces -------------------------------------------------
 interface fill_groups

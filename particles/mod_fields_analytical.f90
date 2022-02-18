@@ -18,6 +18,7 @@ type,extends(fields_base) :: fields_analytical
   procedure,public :: calc_EBPsiU  => calc_EBPsiU_parabolic
   procedure,public :: calc_EBNormBGradBCurlbDbdt => calc_EBNormBGradBCurlbDbdt_parabolic
   procedure,public :: init_fields  => init_fields_analytical 
+  procedure,public :: deallocate_fields => deallocate_fields_analytical
 end type fields_analytical
 !> Interfaces -----------------------------------------
 contains
@@ -53,6 +54,14 @@ n_real_param,int_param,real_param)
   fields%RZ0 = real_param(1:2); fields%B0 = real_param(3); 
   fields%U0 = real_param(4)
 end subroutine init_fields_analytical
+
+!> clean-up fields analytical
+subroutine deallocate_fields_analytical(fields)
+  implicit none
+  class(fields_analytical),intent(inout) :: fields
+  !> cleanup all parameperts
+  fields%RZ0=0.d0; fields%B0=0.d0; fields%U0=0.d0;
+end subroutine deallocate_fields_analytical
 
 !> Subroutine to ocompute analytical magnetic and electric fields
 !> for testing integrators. !> electric field is toroidal 
