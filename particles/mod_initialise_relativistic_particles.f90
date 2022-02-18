@@ -206,18 +206,18 @@ end subroutine sampling_cartesian_p_gc_relativistic
 !> uniform sampling of the energy, pitch angle
 !> and gyro angle for kinetic relativistic particles
 !> inputs:
-!>   particle:      (particle_kinetic_relativistic) particle to be sampled
-!>   fields:          (fields_base) MHD fields type object
-!>   rand:          (real8)(3) random numbers
-!>   sign_theta:    (integer) sign of the pitch angle
-!>   time:          (real8) time of the initialisation
-!>   R_cube_int:    (real8)(2) cube of the major radius sampling interval
-!>   cos_theta_int: (real8)(2) cosinus of the pitch angle sampling interval
-!>   gyro_int:      (real8)(2) gyro angle sampling interval
+!>   particle:       (particle_kinetic_relativistic) particle to be sampled
+!>   fields:         (fields_base) MHD fields type object
+!>   rand:           (real8)(4) random numbers
+!>   sign_theta_int: (integer)(2) sign of the pitch angle interval
+!>   time:           (real8) time of the initialisation
+!>   R_cube_int:     (real8)(2) cube of the major radius sampling interval
+!>   cos_theta_int:  (real8)(2) cosinus of the pitch angle sampling interval
+!>   gyro_int:       (real8)(2) gyro angle sampling interval
 !> outputs:
 !>   particle: (particle_kinetic_relativistic) particle with sampled momentum
 subroutine sampling_uniform_ppitchgyro_kinetic_relativistic(particle,&
-fields,rand,sign_theta,time,R_cube_int,cos_theta_int,gyro_int)
+fields,rand,sign_theta_int,time,R_cube_int,cos_theta_int,gyro_int)
   use mod_sampling,             only: sample_uniform_sphere_corona_rcosphi
   use mod_particle_types,       only: particle_kinetic_relativistic
   use mod_fields,               only: fields_base
@@ -227,11 +227,12 @@ fields,rand,sign_theta,time,R_cube_int,cos_theta_int,gyro_int)
   type(particle_kinetic_relativistic),intent(inout) :: particle
   class(fields_base),intent(inout) :: fields
   !> inputs:
-  integer,intent(in)             :: sign_theta
-  real*8,intent(in)              :: time
-  real*8,dimension(2),intent(in) :: R_cube_int,cos_theta_int,gyro_int
-  real*8,dimension(3),intent(in) :: rand
+  integer,dimension(2),intent(in) :: sign_theta_int
+  real*8,intent(in)               :: time
+  real*8,dimension(2),intent(in)  :: R_cube_int,cos_theta_int,gyro_int
+  real*8,dimension(4),intent(in)  :: rand
   !> variables:
+  integer             :: sign_theta
   real*8              :: psi,U
   real*8,dimension(3) :: B,E,rpitchgyro
   !> compute the magnetic field direction
@@ -239,8 +240,10 @@ fields,rand,sign_theta,time,R_cube_int,cos_theta_int,gyro_int)
   particle%x(3),E,B,psi,U)
   B = B/sqrt(B(1)*B(1)+B(2)*B(2)+B(3)*B(3))
   !> sample the momentum in spherical coordinates
+  sign_theta = sign_theta_int(1)
+  if(rand(1).gt.5.d-1) sign_theta = sign_theta_int(2)
   rpitchgyro = sample_uniform_sphere_corona_rcosphi(R_cube_int,&
-  cos_theta_int,gyro_int,rand)
+  cos_theta_int,gyro_int,rand(2:4))
   !> compute the particle kinetic momentum
   particle%p = kinetic_relativistic_momentum_spherical_to_cart(&
   sign_theta,particle%x(3),particle%p,B)
@@ -249,19 +252,19 @@ end subroutine sampling_uniform_ppitchgyro_kinetic_relativistic
 !> uniform sampling of the energy, pitch angle
 !> and gyro angle for gc relativistic particles
 !> inputs:
-!>   particle:      (particle_gc_relativistic) particle to be sampled
-!>   fields:          (fields_base) MHD fields type object
-!>   rand:          (real8)(3) random numbers
-!>   sign_theta:    (integer) sign of the pitch angle
-!>   mass:          (real8) particle mass in AMU
-!>   time:          (real8) time of the initialisation
-!>   R_cube_int:    (real8)(2) cube of the major radius sampling interval
-!>   cos_theta_int: (real8)(2) cosinus of the pitch angle sampling interval
-!>   gyro_int:      (real8)(2) gyro angle sampling interval
+!>   particle:       (particle_gc_relativistic) particle to be sampled
+!>   fields:         (fields_base) MHD fields type object
+!>   rand:           (real8)(4) random numbers
+!>   sign_theta_int: (integer)(2) sign of the pitch angle interval
+!>   mass:           (real8) particle mass in AMU
+!>   time:           (real8) time of the initialisation
+!>   R_cube_int:     (real8)(2) cube of the major radius sampling interval
+!>   cos_theta_int:  (real8)(2) cosinus of the pitch angle sampling interval
+!>   gyro_int:       (real8)(2) gyro angle sampling interval
 !> outputs:
 !>   particle: (particle_gc_relativistic) particle with sampled momentum
 subroutine sampling_uniform_ppitchgyro_gc_relativistic(gc,fields,&
-rand,sign_theta,mass,time,R_cube_int,cos_theta_int,gyro_int)
+rand,sign_theta_int,mass,time,R_cube_int,cos_theta_int,gyro_int)
   use mod_sampling,             only: sample_uniform_sphere_corona_rcosphi
   use mod_particle_types,       only: particle_gc_relativistic
   use mod_fields,               only: fields_base
@@ -272,11 +275,12 @@ rand,sign_theta,mass,time,R_cube_int,cos_theta_int,gyro_int)
   type(particle_gc_relativistic),intent(inout) :: gc
   class(fields_base),intent(inout) :: fields
   !> inputs:
-  integer,intent(in) :: sign_theta
-  real*8,intent(in)  :: time,mass
-  real*8,dimension(2),intent(in) :: R_cube_int,cos_theta_int,gyro_int
-  real*8,dimension(3),intent(in) :: rand
+  integer,dimension(2),intent(in) :: sign_theta_int
+  real*8,intent(in)               :: time,mass
+  real*8,dimension(2),intent(in)  :: R_cube_int,cos_theta_int,gyro_int
+  real*8,dimension(4),intent(in)  :: rand
   !> variables
+  integer             :: sign_theta
   real*8              :: B_norm,psi,U
   real*8,dimension(3) :: p_kin,B,E
   !> compute magnetic field direction
@@ -284,8 +288,10 @@ rand,sign_theta,mass,time,R_cube_int,cos_theta_int,gyro_int)
   E,B,psi,U)
   B_norm = sqrt(B(1)*B(1)+B(2)*B(2)+B(3)*B(3)); B = B/B_norm;
   !> sample the momentum in spherical coordinates
+  sign_theta = sign_theta_int(1)
+  if(rand(1).gt.5.d-1) sign_theta = sign_theta_int(2)
   p_kin = sample_uniform_sphere_corona_rcosphi(R_cube_int,&
-  cos_theta_int,gyro_int,rand)
+  cos_theta_int,gyro_int,rand(2:4))
   !> compute the particle kinetic momentum
   p_kin = kinetic_relativistic_momentum_spherical_to_cart(&
   sign_theta,gc%x(3),p_kin,B)
