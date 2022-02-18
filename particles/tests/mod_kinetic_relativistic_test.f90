@@ -95,6 +95,7 @@ end subroutine teardown
 !> Tests ----------------------------------------------
 subroutine test_dummy()
   use mod_kinetic_relativistic
+  use mod_gc_relativistic
   implicit none
   write(*,'(/A)') "particle kinetic dummy test"
 end subroutine test_dummy
