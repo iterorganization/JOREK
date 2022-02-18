@@ -8,6 +8,7 @@ private
 #ifdef UNIT_TESTS
 public :: sample_position_uniformly_cylinder
 public :: sample_position_uniformly_psi_theta
+public :: sampling_cartesian_p_kinetic_relativistic
 public :: sampling_cartesian_p_gc_relativistic
 public :: sampling_uniform_ppitchgyro_kinetic_relativistic
 public :: sampling_uniform_ppitchgyro_gc_relativistic
@@ -149,7 +150,7 @@ end subroutine sample_position_uniformly_psi_theta
 !>                    2- px,py,pz momentum upper intervals
 !> outputs:
 !>   particle: (particle_base) particle with sample momenta
-subroutine sampling_certesiam_p_kinetic_relativistic(particle,&
+subroutine sampling_cartesian_p_kinetic_relativistic(particle,&
 rand,pxpypz_interval)
   use mod_particle_types, only: particle_kinetic_relativistic
   implicit none
@@ -161,7 +162,7 @@ rand,pxpypz_interval)
   !> sample the cartesian momentum
   !> WARNING: the momentum must be in unit of AMU
   particle%p = pxpypz_interval(:,1)+(pxpypz_interval(:,2)-pxpypz_interval(:,1))*rand
-end subroutine sampling_certesiam_p_kinetic_relativistic
+end subroutine sampling_cartesian_p_kinetic_relativistic
 
 !> uniform sampling of the cartesiam momentum 
 !> for gc relativistic particles

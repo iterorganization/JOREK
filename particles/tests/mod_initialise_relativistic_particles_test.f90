@@ -29,7 +29,7 @@ subroutine run_fruit_initialise_relativistic_particles()
   write(*,'(/A)') "  ... setting-up: initialise relativistic particles tests"
   call setup
   write(*,'(/A)') "  ... running: initialise relativistic particles tests"
-  call test_dummy
+  call test_sampling_cartesian_p_kinetic_relativistic
   write(*,'(/A)') "  ... tearing-down: initialise relativistic particles tests"
   call teardown
 end subroutine run_fruit_initialise_relativistic_particles
@@ -71,6 +71,38 @@ subroutine teardown()
 end subroutine teardown
 
 !> Tests ------------------------------------------------------
+!> test initialisation particle momentum between limits
+subroutine test_sampling_cartesian_p_kinetic_relativistic()
+  use mod_gnu_rng,                           only: gnu_rng_interval
+  use mod_particle_common_test_tools,        only: vp3d_lowbnd,vp3d_uppbnd
+  use mod_initialise_relativistic_particles, only: sampling_cartesian_p_kinetic_relativistic
+  implicit none
+  !> variables:
+  integer :: ii,jj
+  real*8,dimension(3)  :: rand
+  real*8,dimension(3,2) :: pxpypz_int
+  logical,dimension(:),allocatable :: success
+  !> initialisation
+  pxpypz_int(:,1) = vp3d_lowbnd; pxpypz_int(:,2) = vp3d_uppbnd;
+  !> the the random kinetic particle initialisation 
+  do ii=1,n_groups
+    select type (p_list=>groups_sol(ii)%particles)
+    type is (particle_kinetic_relativistic)
+      allocate(success(n_particles(ii))); success = .false.;
+      do jj=1,n_particles(ii)
+        call random_number(rand)
+        call sampling_cartesian_p_kinetic_relativistic(p_list(jj),rand,pxpypz_int)
+        success(jj) = &
+        ((p_list(jj)%p(1).ge.pxpypz_int(1,1)).and.(p_list(jj)%p(1).le.pxpypz_int(1,2))).and.&
+        ((p_list(jj)%p(2).ge.pxpypz_int(2,1)).and.(p_list(jj)%p(2).le.pxpypz_int(2,2))).and.&
+        ((p_list(jj)%p(3).ge.pxpypz_int(3,1)).and.(p_list(jj)%p(3).le.pxpypz_int(3,2)))
+        p_list(jj)%p =0.d0
+      enddo
+      call assert_true(all(success),"Errror sampling cart. p kinetic relat.: momenta not in bound!")
+      deallocate(success)
+    end select
+  enddo
+end subroutine test_sampling_cartesian_p_kinetic_relativistic
 
 !> dummy test procedure
 subroutine test_dummy()
