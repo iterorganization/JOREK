@@ -55,7 +55,7 @@ subroutine setup()
   use mod_sampling,                   only: sample_uniform_sphere_corona_rthetaphi
   use mod_particle_common_test_tools, only: EThetaChi_RE_lowbnd
   use mod_particle_common_test_tools, only: EThetaChi_RE_uppbnd
-  use mod_particle_common_test_tools, only: RZPhi_lowbnd,RZPhi_uppbnd
+  use mod_particle_common_test_tools, only: RZ0_lowbnd,RZ0_uppbnd
   use mod_particle_common_test_tools, only: BE0_lowbnd,BE0_uppbnd
   use mod_pusher_tools,               only: get_orthonormals
   implicit none
@@ -71,7 +71,7 @@ subroutine setup()
   call random_number(rand)
   sign_theta_sol = -1; if(rand.gt.5.d-1) sign_theta_sol=1
   call random_number(rand); phi_sol=TWOPI*rand
-  call gnu_rng_interval(2,RZPhi_lowbnd,RZPhi_uppbnd,real_param(1:2))
+  call gnu_rng_interval(2,RZ0_lowbnd,RZ0_uppbnd,real_param)
   call gnu_rng_interval(2,BE0_lowbnd,BE0_uppbnd,real_param(3:4))
   call fields_sol%init_fields(0,4,int_param,real_param)
   call fields_sol%calc_EBPsiU(time_sol,i_elm_zero,st_zero,&

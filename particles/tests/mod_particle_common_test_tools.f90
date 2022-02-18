@@ -12,7 +12,7 @@ public :: t_birth_interval,st_interval,mass_interval,v_interval
 public :: Ekin_interval,mu_interval,Bnorm_interval,weight_interval
 public :: x_lowbnd,x_uppbnd,vp3d_lowbnd,vp3d_uppbnd,ABE_lowbnd,ABE_uppbnd
 public :: RZPhi_lowbnd,RZPhi_uppbnd,BE0_lowbnd,BE0_uppbnd
-public :: EThetaChi_RE_lowbnd,EThetaChi_RE_uppbnd
+public :: RZ0_lowbnd,RZ0_uppbnd,EThetaChi_RE_lowbnd,EThetaChi_RE_uppbnd
 public :: fill_particles,invalidate_particles,obtain_active_particle_ids
 public :: fill_groups,fill_particle_base,fill_particle_fieldline
 public :: fill_particle_gc,fill_particle_gc_vpar,fill_particle_gc_Qin
@@ -54,6 +54,8 @@ real*8,parameter :: B0=3.5d0 !< toroidal magnetic field on axis
 real*8,parameter :: R0=3.d0  !< axis major radius
 real*8,parameter :: Z0=1.d-1 !< axis vertical position
 real*8,parameter :: E0=5.3d0 !< toroidal electric field on axis
+real*8,dimension(2),parameter :: RZ0_lowbnd=(/5.d-1,-1.5d0/)
+real*8,dimension(2),parameter :: RZ0_uppbnd=(/6.d0,1.5d0/)
 real*8,dimension(2),parameter :: BE0_lowbnd=(/1.d-1,-5.2d0/)
 real*8,dimension(2),parameter :: BE0_uppbnd=(/6.d0,5.2d0/)
 real*8,parameter,dimension(3) :: EThetaChi_RE_lowbnd=(/1.d5,0.d0,0.d0/) !< for RE
