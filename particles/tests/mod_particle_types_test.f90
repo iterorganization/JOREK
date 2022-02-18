@@ -52,7 +52,7 @@ subroutine setup()
 
   !> fill-up the group and particle base variables
   call fill_groups(n_particle_types,groups_sol)
-  call fill_particles(n_particle_types,n_particles,groups_sol)
+  call fill_particles(n_particle_types,groups_sol)
   
   !> get particle charges
   call obtain_particle_charges(n_particle_types,n_particles,particle_charge_list_sol,groups_sol)
