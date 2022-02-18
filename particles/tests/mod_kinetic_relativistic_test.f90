@@ -71,7 +71,7 @@ subroutine setup()
   call random_number(rand)
   sign_theta_sol = -1; if(rand.gt.5.d-1) sign_theta_sol=1
   call random_number(rand); phi_sol=TWOPI*rand
-  call gnu_rng_interval(2,RZ0_lowbnd,RZ0_uppbnd,real_param)
+  call gnu_rng_interval(2,RZ0_lowbnd,RZ0_uppbnd,real_param(1:2))
   call gnu_rng_interval(2,BE0_lowbnd,BE0_uppbnd,real_param(3:4))
   call fields_sol%init_fields(0,4,int_param,real_param)
   call fields_sol%calc_EBPsiU(time_sol,i_elm_zero,st_zero,&
