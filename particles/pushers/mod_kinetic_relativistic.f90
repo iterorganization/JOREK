@@ -820,7 +820,6 @@ end function gc_to_relativistic_kinetic
 !> transform the kinetic relativistic particle momentum from spherical
 !> to cartesian coordinates
 !> inputs:
-!>   sign_theta: (integer) sign of the pitch angle
 !>   phi:        (real8) particle toroidal angle
 !>   ppitchgyro: (real8)(3) relativistic momentum in cylindrial coords.
 !>               1- nrom of the particle momentum
@@ -830,13 +829,12 @@ end function gc_to_relativistic_kinetic
 !> outputs:
 !>   p_kin:      (real8)(3) relativistic kinetic momentum
 !>               in cartesian coordinates
-function kinetic_relativistic_momentum_spherical_to_cart(sign_theta,phi,&
+function kinetic_relativistic_momentum_spherical_to_cart(phi,&
 ppitchgyro,B_hat) result(p_kin)
   use mod_coordinate_transforms, only: vector_cylindrical_to_cartesian
   use mod_pusher_tools,          only: get_orthonormals
   implicit none
   !> inputs:
-  integer,intent(in)             :: sign_theta
   real*8,intent(in)              :: phi
   real*8,dimension(3),intent(in) :: ppitchgyro,B_hat
   !> outputs:
@@ -846,7 +844,7 @@ ppitchgyro,B_hat) result(p_kin)
   !> compute orthonormal basis
   call get_orthonormals(B_hat,e2,e3)
   !> compute momentum in cylindrical coordinates
-  p_kin = ppitchgyro(1)*(ppitchgyro(2)*B_hat + real(sign_theta,kind=8)*&
+  p_kin = ppitchgyro(1)*(ppitchgyro(2)*B_hat + &
   sqrt(1.d0-ppitchgyro(2)*ppitchgyro(2))*(&
   e2*cos(ppitchgyro(3)) + e3*sin(ppitchgyro(3))))
   !> tranform to cylindrical coordinates

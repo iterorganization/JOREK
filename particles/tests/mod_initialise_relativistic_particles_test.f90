@@ -109,7 +109,6 @@ end subroutine test_sampling_cartesian_p_kinetic_relativistic
 
 !> test initialisation gc momentum between limits
 subroutine test_sampling_cartesian_gc_kinetic_relativistic()
-  use constants,                             only: TWOPI
   use mod_gnu_rng,                           only: gnu_rng_interval
   use mod_coordinate_transforms,             only: vector_cylindrical_to_cartesian
   use mod_particle_common_test_tools,        only: RZPhi_lowbnd,RZPhi_uppbnd
@@ -170,6 +169,55 @@ subroutine test_sampling_cartesian_gc_kinetic_relativistic()
     end select
   enddo
 end subroutine test_sampling_cartesian_gc_kinetic_relativistic
+
+!> test initialisation relativistic kinetic particle momentum from
+!> momentum intensity, pitch and gyro angles
+subroutine test_sampling_uniform_ppitchgyro_kinetic_relativistic()
+  use constants,                             only: SPEED_OF_LIGHT
+  use mod_coordinate_transforms,             only: vector_cylindrical_to_cartesian
+  use mod_gnu_rng,                           only: gnu_rng_interval
+  use mod_particle_common_test_tools,        only: RZPhi_lowbnd,RZPhi_uppbnd
+  use mod_particle_common_test_tools,        only: EThetaChi_RE_lowbnd,EThetaChi_RE_uppbnd
+  use mod_initialise_relativistic_particles, only: sampling_uniform_ppitchgyro_kinetic_relativistic
+  implicit none
+  !> variabes:
+  integer :: ii,jj
+  real*8 :: psi,U,B_norm
+  real*8,dimension(2) :: p_int,costheta_int,gyro_int
+  real*8,dimension(3) :: rand,RZPhi,B,E
+  real*8,dimension(3,2) :: EThetaChi
+  logical,dimension(:),allocatable :: success
+  !> initialisations
+  costheta_int= (/cos(EThetaChi_RE_lowbnd(2)),cos(EThetaChi_RE_uppbnd(2))/); 
+  gyro_int = (/EThetaChi_RE_lowbnd(3),EThetaChi_RE_uppbnd(3)/);
+  call gnu_rng_interval(2,RZPhi_lowbnd,RZPhi_uppbnd,RZPhi)
+  call fields_sol%calc_EBPsiU(time_sol,0,RZPhi(1:2),RZPhi(3),&
+  E,B,psi,U); B_norm = norm2(B); B = B/B_norm; 
+  B = vector_cylindrical_to_cartesian(RZPhi(3),B)
+  !> loop on the particles
+  do ii=1,n_groups
+    select type (p_list=>groups_sol(ii)%particles)
+    type is (particle_kinetic_relativistic)
+      p_int = (/EThetaChi_RE_lowbnd(1),EThetaChi_RE_uppbnd(1)/)/&
+      (groups_sol(ii)%mass*SPEED_OF_LIGHT*SPEED_OF_LIGHT)
+      p_int = p_int*p_int; p_int = sqrt((/p_int(1)-1.d0,p_int(2)-1.d0/));
+      p_int = SPEED_OF_LIGHT*groups_sol(ii)%mass*p_int; p_int = p_int**3.d0;
+      allocate(success(n_particles(ii)))
+      !> loop on the particles
+      do jj=1,n_particles(ii)
+        !> initialising particles
+        call random_number(rand)
+        p_list(jj)%x=RZPhi; p_list(jj)%st=RZPhi(1:2); p_list(jj)%i_elm=0;
+        call sampling_uniform_ppitchgyro_kinetic_relativistic(p_list(jj),&
+        fields_sol,rand,time_sol,p_int,costheta_int,gyro_int)
+        !> TODO: check solotion
+        !> cleaning particles
+        p_list(jj)%x=0.d0; p_list(jj)%st=0.d0; p_list(jj)%p=0.d0;
+      enddo
+      deallocate(success)
+    end select
+  enddo
+end subroutine test_sampling_uniform_ppitchgyro_kinetic_relativistic
 
 !> dummy test procedure
 subroutine test_dummy()

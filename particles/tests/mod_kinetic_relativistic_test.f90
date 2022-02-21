@@ -21,7 +21,6 @@ real*8,dimension(2),parameter :: st_zero=0.d0
 !> polar and azimuthal angle intervals
 type(fields_analytical)             :: fields_sol
 type(particle_kinetic_relativistic) :: particle
-integer :: sign_theta_sol
 real*8 :: phi_sol
 !> orbital basis in cartesian coordinates
 real*8,dimension(2) :: p_gc_sol !< guiding center momentum
@@ -69,7 +68,6 @@ subroutine setup()
 
   !> initialise electring and magnetic field
   call random_number(rand)
-  sign_theta_sol = -1; if(rand.gt.5.d-1) sign_theta_sol=1
   call random_number(rand); phi_sol=TWOPI*rand
   call gnu_rng_interval(2,RZ0_lowbnd,RZ0_uppbnd,real_param(1:2))
   call gnu_rng_interval(2,BE0_lowbnd,BE0_uppbnd,real_param(3:4))
@@ -91,7 +89,6 @@ subroutine setup()
   call random_number(rand3)
   pThetaChi_sol = sample_uniform_sphere_corona_rthetaphi(p_interval*p_interval*p_interval,&
   costheta_interval,(/EThetaChi_RE_lowbnd(3),EThetaChi_RE_uppbnd(3)/),rand3)
-  pThetaChi_sol = pThetaChi_sol*real(sign_theta_sol,kind=8)
   particle%p = pthetaChi_sol(1)*(e1_mag_cart*cos(pThetaChi_sol(2)) +&
   sin(pThetaChi_sol(2))*(e2_mag_cart*cos(pThetaChi_sol(3))+e3_mag_cart*sin(pThetaChi_sol(3))))  
   particle%q=q
@@ -155,7 +152,7 @@ subroutine test_kinetic_relat_momentum_spherical_cart()
   call fields_sol%calc_EBPsiU(time_sol,i_elm_zero,st_zero,&
   phi_sol,E,B,psi,U)
   p_kin_test = kinetic_relativistic_momentum_spherical_to_cart(&
-  sign_theta_sol,phi_sol,pThetaChi_sol,B/norm2(B))
+  phi_sol,pThetaChi_sol,B/norm2(B))
   !> checks
   call assert_equals(p_kin_test,particle%p,3,tol_real8,&
   "Error kinetic relat. momentum spherical to cartesian: momenta mismatch!")
