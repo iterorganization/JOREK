@@ -63,6 +63,17 @@ interface
     real*8                  :: psimin,psimax
     integer                 :: i_elm
   end subroutine psi_minmax
+
+  !> find maximum and minimum values of the major radius and 
+  !> vertical position
+  subroutine RZ_minmax(node_list,element_list,i_elm,Rmin,Rmax,Zmin,Zmax)
+    use data_structure
+    implicit none
+    type(type_node_list),intent(in)    :: node_list
+    type(type_element_list),intent(in) :: element_list
+    integer,intent(in)                 :: i_elm
+    real*8,intent(out)                 :: Rmin,Rmax,Zmin,Zmax
+  end subroutine RZ_minmax
 end interface
 contains
 !> Procedures ---------------------------------------------
