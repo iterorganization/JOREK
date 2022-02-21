@@ -33,6 +33,7 @@ subroutine run_fruit_initialise_relativistic_particles()
   write(*,'(/A)') "  ... running: initialise relativistic particles tests"
   call test_sampling_cartesian_p_kinetic_relativistic
   call test_sampling_cartesian_gc_kinetic_relativistic
+  call test_sampling_uniform_ppitchgyro_kinetic_relativistic
   write(*,'(/A)') "  ... tearing-down: initialise relativistic particles tests"
   call teardown
 end subroutine run_fruit_initialise_relativistic_particles
@@ -173,18 +174,19 @@ end subroutine test_sampling_cartesian_gc_kinetic_relativistic
 !> test initialisation relativistic kinetic particle momentum from
 !> momentum intensity, pitch and gyro angles
 subroutine test_sampling_uniform_ppitchgyro_kinetic_relativistic()
-  use constants,                             only: SPEED_OF_LIGHT
+  use constants,                             only: PI,SPEED_OF_LIGHT,ATOMIC_MASS_UNIT,EL_CHG
   use mod_coordinate_transforms,             only: vector_cylindrical_to_cartesian
   use mod_gnu_rng,                           only: gnu_rng_interval
+  use mod_pusher_tools,                      only: get_orthonormals
   use mod_particle_common_test_tools,        only: RZPhi_lowbnd,RZPhi_uppbnd
   use mod_particle_common_test_tools,        only: EThetaChi_RE_lowbnd,EThetaChi_RE_uppbnd
   use mod_initialise_relativistic_particles, only: sampling_uniform_ppitchgyro_kinetic_relativistic
   implicit none
   !> variabes:
   integer :: ii,jj
-  real*8 :: psi,U,B_norm
+  real*8 :: psi,U,B_norm,p_norm_test,theta_test,gyro_test
   real*8,dimension(2) :: p_int,costheta_int,gyro_int
-  real*8,dimension(3) :: rand,RZPhi,B,E
+  real*8,dimension(3) :: rand,RZPhi,B,E,e2,e3
   real*8,dimension(3,2) :: EThetaChi
   logical,dimension(:),allocatable :: success
   !> initialisations
@@ -193,15 +195,17 @@ subroutine test_sampling_uniform_ppitchgyro_kinetic_relativistic()
   call gnu_rng_interval(2,RZPhi_lowbnd,RZPhi_uppbnd,RZPhi)
   call fields_sol%calc_EBPsiU(time_sol,0,RZPhi(1:2),RZPhi(3),&
   E,B,psi,U); B_norm = norm2(B); B = B/B_norm; 
-  B = vector_cylindrical_to_cartesian(RZPhi(3),B)
+  B = vector_cylindrical_to_cartesian(RZPhi(3),B);
+  !> compute orthogonal coordinate system
+  call get_orthonormals(B,e2,e3)
   !> loop on the particles
   do ii=1,n_groups
     select type (p_list=>groups_sol(ii)%particles)
     type is (particle_kinetic_relativistic)
-      p_int = (/EThetaChi_RE_lowbnd(1),EThetaChi_RE_uppbnd(1)/)/&
-      (groups_sol(ii)%mass*SPEED_OF_LIGHT*SPEED_OF_LIGHT)
-      p_int = p_int*p_int; p_int = sqrt((/p_int(1)-1.d0,p_int(2)-1.d0/));
-      p_int = SPEED_OF_LIGHT*groups_sol(ii)%mass*p_int; p_int = p_int**3.d0;
+      p_int = (EL_CHG*(/EThetaChi_RE_lowbnd(1),EThetaChi_RE_uppbnd(1)/))/&
+      (ATOMIC_MASS_UNIT*groups_sol(ii)%mass*SPEED_OF_LIGHT*SPEED_OF_LIGHT)
+      p_int = (p_int+1.d0)*(p_int+1.0); p_int = sqrt(p_int-1.d0);
+      p_int = SPEED_OF_LIGHT*groups_sol(ii)%mass*p_int;
       allocate(success(n_particles(ii)))
       !> loop on the particles
       do jj=1,n_particles(ii)
@@ -209,11 +213,21 @@ subroutine test_sampling_uniform_ppitchgyro_kinetic_relativistic()
         call random_number(rand)
         p_list(jj)%x=RZPhi; p_list(jj)%st=RZPhi(1:2); p_list(jj)%i_elm=0;
         call sampling_uniform_ppitchgyro_kinetic_relativistic(p_list(jj),&
-        fields_sol,rand,time_sol,p_int,costheta_int,gyro_int)
-        !> TODO: check solotion
+        fields_sol,rand,time_sol,p_int**3.d0,costheta_int,gyro_int)
+        !> check solotion
+        p_norm_test = norm2(p_list(jj)%p);
+        theta_test = acos(dot_product(p_list(jj)%p,B)/p_norm_test)
+        gyro_test  = PI+atan2(dot_product(p_list(jj)%p,e3),dot_product(p_list(jj)%p,e2))
+        success(jj) = ((p_norm_test.ge.p_int(1)).and.(p_norm_test.le.p_int(2))).and.&
+                      ((theta_test.ge.(EThetaChi_RE_lowbnd(2))).and.&
+                      (theta_test.le.EThetaChi_RE_uppbnd(2))).and.&
+                      ((gyro_test.ge.EThetaChi_RE_lowbnd(3)).and.&
+                      (gyro_test.le.EThetaChi_RE_uppbnd(3)))
         !> cleaning particles
         p_list(jj)%x=0.d0; p_list(jj)%st=0.d0; p_list(jj)%p=0.d0;
       enddo
+      call assert_true(all(success),&
+      "Error sampling uniform p, pitch, gyro kinetic relat.: momenta not in bound!")
       deallocate(success)
     end select
   enddo

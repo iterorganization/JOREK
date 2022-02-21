@@ -58,8 +58,8 @@ real*8,dimension(2),parameter :: RZ0_lowbnd=(/5.d-1,-1.5d0/)
 real*8,dimension(2),parameter :: RZ0_uppbnd=(/6.d0,1.5d0/)
 real*8,dimension(2),parameter :: BE0_lowbnd=(/1.d-1,-5.2d0/)
 real*8,dimension(2),parameter :: BE0_uppbnd=(/6.d0,5.2d0/)
-real*8,parameter,dimension(3) :: EThetaChi_RE_lowbnd=(/1.d5,0.d0,0.d0/) !< for RE
-real*8,parameter,dimension(3) :: EThetaChi_RE_uppbnd=(/5.d7,PI,2.d0*PI/) !< for RE
+real*8,parameter,dimension(3) :: EThetaChi_RE_lowbnd=(/1.d5,PI/3.d0,0.d0/) !< for RE
+real*8,parameter,dimension(3) :: EThetaChi_RE_uppbnd=(/5.d7,2.d0*PI/3.d0,2.d0*PI/) !< for RE
 !> Interfaces -------------------------------------------------
 interface allocate_one_particle_list_type
   module procedure allocate_one_particle_list_all_types

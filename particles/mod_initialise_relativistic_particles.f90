@@ -232,13 +232,13 @@ fields,rand,time,R_cube_int,cos_theta_int,gyro_int)
   real*8,dimension(3),intent(in)  :: rand
   !> variables:
   real*8              :: psi,U
-  real*8,dimension(3) :: B,E,rpitchgyro
+  real*8,dimension(3) :: B,E
   !> compute the magnetic field direction
   call fields%calc_EBpsiU(time,particle%i_elm,particle%st,&
   particle%x(3),E,B,psi,U)
   B = B/sqrt(B(1)*B(1)+B(2)*B(2)+B(3)*B(3))
   !> sample the momentum in spherical coordinates
-  rpitchgyro = sample_uniform_sphere_corona_rcosphi(R_cube_int,&
+  particle%p = sample_uniform_sphere_corona_rcosphi(R_cube_int,&
   cos_theta_int,gyro_int,rand)
   !> compute the particle kinetic momentum
   particle%p = kinetic_relativistic_momentum_spherical_to_cart(&
