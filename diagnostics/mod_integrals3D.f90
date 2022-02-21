@@ -2030,6 +2030,23 @@ if (my_id .eq. 0) then
       case ( 'TPF_halo' )
         res(iexpr+1) = TPF 
 
+      case ( 'LCFS_Rgeo' )
+        res(iexpr+1) = ES%LCFS_Rgeo 
+
+      case ( 'LCFS_a' )
+        res(iexpr+1) = ES%LCFS_a
+
+      case ( 'LCFS_epsilon' )
+        res(iexpr+1) = ES%LCFS_epsilon
+
+      case ( 'LCFS_kappa' )
+        res(iexpr+1) = ES%LCFS_kappa
+
+      case ( 'LCFS_deltaU' )
+        res(iexpr+1) = ES%LCFS_deltaU 
+
+      case ( 'LCFS_deltaL' )
+        res(iexpr+1) = ES%LCFS_deltaL
 
     end select
             

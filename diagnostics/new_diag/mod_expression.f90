@@ -301,6 +301,12 @@ module mod_expression
     call add(exprs_all_int, 'q99         ', 'Safety factor at psin=0.99                            ')
     call add(exprs_all_int, 'I_halo      ', 'Total poloidal halo currents                          ')
     call add(exprs_all_int, 'TPF_halo    ', 'Toroidal peaking factor of the poloidal halos         ')
+    call add(exprs_all_int, 'LCFS_Rgeo   ', 'Major radius          (as in PPCF 55 (2013) 095009)   ')
+    call add(exprs_all_int, 'LCFS_a      ', 'Minor radius          (as in PPCF 55 (2013) 095009)   ')
+    call add(exprs_all_int, 'LCFS_epsilon', 'Inverse aspect ratio  (as in PPCF 55 (2013) 095009)   ')
+    call add(exprs_all_int, 'LCFS_kappa  ', 'Elongation            (as in PPCF 55 (2013) 095009)   ')
+    call add(exprs_all_int, 'LCFS_deltaU ', 'Upper triangularity   (as in PPCF 55 (2013) 095009)   ')
+    call add(exprs_all_int, 'LCFS_deltaL ', 'Lower triangularity   (as in PPCF 55 (2013) 095009)   ')
 
     call add(exprs_all_four, 'absolute    ', 'Absolute value of 2D Fourier analysis                 ')
     call add(exprs_all_four, 'real        ', 'Real part      of 2D Fourier analysis                 ')
