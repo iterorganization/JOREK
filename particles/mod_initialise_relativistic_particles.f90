@@ -12,6 +12,7 @@ public :: sampling_cartesian_p_kinetic_relativistic
 public :: sampling_cartesian_p_gc_relativistic
 public :: sampling_uniform_ppitchgyro_kinetic_relativistic
 public :: sampling_uniform_ppitchgyro_gc_relativistic
+public :: init_particle_base_to_zero
 #endif
 
 !> Variables and datatypes --------------------------------
@@ -289,6 +290,20 @@ rand,mass,time,R_cube_int,cos_theta_int,gyro_int)
   gc%p = momentum_relativistic_kinetic_to_relativistic_gc(mass,&
   p_kin,gc%x(3),B_norm,B)
 end subroutine sampling_uniform_ppitchgyro_gc_relativistic
+
+!> initialise particle base fields with unit particle weight
+!> inputs:
+!>   p_inout: (particle_base) particle to be initialised to zero
+!> outputs:
+!>   p_inout: (particlle_base) initialised particle to zero
+subroutine init_particle_base_to_zero(p_inout)
+  use mod_particle_types, only: particle_base
+  implicit none
+  class(particle_base),intent(inout) :: p_inout
+  !> reset the particle base fields
+  p_inout%x=0.d0; p_inout%st=0.d0; p_inout%weight=1.d0;
+  p_inout%i_elm=0; p_inout%i_life=0; p_inout%t_birth=0.d0;
+end subroutine init_particle_base_to_zero
 
 !>---------------------------------------------------------
 end module mod_initialise_relativistic_particles

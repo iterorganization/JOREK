@@ -36,6 +36,7 @@ subroutine run_fruit_initialise_relativistic_particles()
   call test_sampling_cartesian_gc_kinetic_relativistic
   call test_sampling_uniform_ppitchgyro_kinetic_relativistic
   call test_sampling_uniform_ppitchgyro_gc_relativistic
+  call test_particle_base_init_to_zero
   write(*,'(/A)') "  ... tearing-down: initialise relativistic particles tests"
   call teardown
 end subroutine run_fruit_initialise_relativistic_particles
@@ -290,6 +291,58 @@ subroutine test_sampling_uniform_ppitchgyro_gc_relativistic()
     end select
   enddo
 end subroutine test_sampling_uniform_ppitchgyro_gc_relativistic
+
+!> test initialisation of particles to zero
+subroutine test_particle_base_init_to_zero()
+  use mod_initialise_relativistic_particles, only: init_particle_base_to_zero
+  implicit none
+  !> variables:
+  integer :: ii,jj
+  integer,dimension(:),allocatable  :: i_elm_sol,i_life_sol,i_elm_test,i_life_test
+  real*4,dimension(:),allocatable   :: t_birth_sol,t_birth_test
+  real*8,dimension(:),allocatable   :: weight_sol,weight_test
+  real*8,dimension(:,:),allocatable :: x_sol,st_sol,x_test,st_test
+  !> test initialisation to zero
+  do ii=1,n_groups
+    allocate(i_elm_sol(n_particles(ii)));   allocate(i_elm_test(n_particles(ii)));
+    allocate(i_life_sol(n_particles(ii)));  allocate(i_life_test(n_particles(ii)));
+    allocate(t_birth_sol(n_particles(ii))); allocate(t_birth_test(n_particles(ii)));
+    allocate(weight_sol(n_particles(ii)));  allocate(weight_test(n_particles(ii)));
+    allocate(x_sol(3,n_particles(ii)));     allocate(x_test(3,n_particles(ii)));
+    allocate(st_sol(2,n_particles(ii)));      allocate(st_test(2,n_particles(ii)));
+    i_elm_sol=0; i_life_sol=0; t_birth_sol=0.d0; weight_sol=1.d0; x_sol=0.d0; st_sol=0.d0;
+    !> initialise particle to zero
+    do jj=1,n_particles(ii)
+      call init_particle_base_to_zero(groups_sol(ii)%particles(jj))
+      i_elm_test(jj)   = groups_sol(ii)%particles(jj)%i_elm
+      i_life_test(jj)  = groups_sol(ii)%particles(jj)%i_life
+      t_birth_test(jj) = groups_sol(ii)%particles(jj)%t_birth
+      weight_test(jj)  = groups_sol(ii)%particles(jj)%weight
+      x_test(:,jj)     = groups_sol(ii)%particles(jj)%x
+      st_test(:,jj)    = groups_sol(ii)%particles(jj)%st
+    enddo
+    !> checks
+    call assert_equals(i_elm_test,i_elm_sol,n_particles(ii),&
+    "initialise particle base to zero: mismatch!")
+    call assert_equals(i_life_test,i_life_sol,n_particles(ii),&
+    "initialise particle base to zero: mismatch!")
+    call assert_equals(t_birth_test,t_birth_sol,n_particles(ii),&
+    "initialise particle base to zero: mismatch!")
+    call assert_equals(weight_test,weight_sol,n_particles(ii),&
+    "initialise particle base to zero: mismatch!")
+    call assert_equals(x_test,x_sol,3,n_particles(ii),&
+    "initialise particle base to zero: x mismatch!")
+    call assert_equals(st_test,st_sol,2,n_particles(ii),&
+    "initialise particle base to zero: st mismatch!")
+    !> cleanups
+    deallocate(i_elm_sol);   deallocate(i_elm_test);
+    deallocate(i_life_sol);  deallocate(i_life_test);
+    deallocate(t_birth_sol); deallocate(t_birth_test);
+    deallocate(weight_sol);  deallocate(weight_test);
+    deallocate(x_sol);       deallocate(x_test);
+    deallocate(st_sol);      deallocate(st_test);
+  enddo
+end subroutine test_particle_base_init_to_zero
 
 !> dummy test procedure
 subroutine test_dummy()
