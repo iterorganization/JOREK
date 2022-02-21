@@ -14,6 +14,7 @@ public :: run_fruit_initialise_relativistic_particles
 
 !> Variables and datatypes ------------------------------------
 integer,parameter  :: n_groups=2
+integer,parameter  :: n_samples=343
 integer,dimension(n_groups),parameter    :: n_particles=(/123,234/)
 integer,dimension(n_groups),parameter    :: p_types_sol=(/&
                       particle_kinetic_relativistic_id,&
@@ -37,6 +38,7 @@ subroutine run_fruit_initialise_relativistic_particles()
   call test_sampling_uniform_ppitchgyro_kinetic_relativistic
   call test_sampling_uniform_ppitchgyro_gc_relativistic
   call test_particle_base_init_to_zero
+  call test_sampling_uniform_charge
   write(*,'(/A)') "  ... tearing-down: initialise relativistic particles tests"
   call teardown
 end subroutine run_fruit_initialise_relativistic_particles
@@ -343,6 +345,35 @@ subroutine test_particle_base_init_to_zero()
     deallocate(st_sol);      deallocate(st_test);
   enddo
 end subroutine test_particle_base_init_to_zero
+
+!> test uniform random sampling
+subroutine test_sampling_uniform_charge()
+  use mod_particle_common_test_tools,        only: q1_pos_interval
+  use mod_particle_common_test_tools,        only: q1_neg_interval
+  use mod_particle_common_test_tools,        only: q1_posneg_interval
+  use mod_initialise_relativistic_particles, only: sampling_uniform_charge
+  implicit none
+  !> variables
+  integer                      :: ii,jj
+  integer*1                    :: q1_test
+  integer*1,dimension(2,5)     :: q1_intervals
+  logical,dimension(n_samples) :: success
+  real*8                       :: rand
+  !> initialisation
+  q1_intervals(:,1)=(/1,1/); q1_intervals(:,2)=(/-1,-1/);
+  q1_intervals(:,3)=q1_pos_interval; q1_intervals(:,4)=q1_neg_interval;
+  q1_intervals(:,5) = q1_posneg_interval;
+  !> test charge sampling
+  do ii=1,size(q1_intervals,2)
+    do jj=1,n_samples
+      call random_number(rand)
+      q1_test = sampling_uniform_charge(rand,q1_intervals(:,ii))
+      success(jj) = (q1_test.ge.q1_intervals(1,ii)).and.(q1_test.le.q1_intervals(2,ii))
+    enddo
+    !> checks
+    call assert_true(all(success),"Error sampling uniform charge: charges not in interval!")
+  enddo
+end subroutine test_sampling_uniform_charge
 
 !> dummy test procedure
 subroutine test_dummy()

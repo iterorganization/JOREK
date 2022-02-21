@@ -12,6 +12,7 @@ public :: sampling_cartesian_p_kinetic_relativistic
 public :: sampling_cartesian_p_gc_relativistic
 public :: sampling_uniform_ppitchgyro_kinetic_relativistic
 public :: sampling_uniform_ppitchgyro_gc_relativistic
+public :: sampling_uniform_charge
 public :: init_particle_base_to_zero
 #endif
 
@@ -291,6 +292,23 @@ rand,mass,time,R_cube_int,cos_theta_int,gyro_int)
   p_kin,gc%x(3),B_norm,B)
 end subroutine sampling_uniform_ppitchgyro_gc_relativistic
 
+!> sampling particle charge
+!> inputs:
+!>   rand:  (real8) random number
+!>   q_int: (integer1)(2) charge interval
+!> outputs:
+!>   q:     (integer1) selected charge
+function sampling_uniform_charge(rand,q_int) result(q)
+  implicit none
+  !> inputs:
+  integer*1,dimension(2),intent(in) :: q_int
+  real*8,intent(in)                 :: rand
+  !> outputs:
+  integer*1 :: q
+  q = floor(real(q_int(1),kind=8)+(real(q_int(2),kind=8)-&
+  real(q_int(1),kind=8)+1.d0)*rand,kind=1)
+end function sampling_uniform_charge
+
 !> initialise particle base fields with unit particle weight
 !> inputs:
 !>   p_inout: (particle_base) particle to be initialised to zero
@@ -304,6 +322,7 @@ subroutine init_particle_base_to_zero(p_inout)
   p_inout%x=0.d0; p_inout%st=0.d0; p_inout%weight=1.d0;
   p_inout%i_elm=0; p_inout%i_life=0; p_inout%t_birth=0.d0;
 end subroutine init_particle_base_to_zero
+
 
 !>---------------------------------------------------------
 end module mod_initialise_relativistic_particles

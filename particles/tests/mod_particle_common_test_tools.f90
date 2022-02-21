@@ -13,6 +13,7 @@ public :: Ekin_interval,mu_interval,Bnorm_interval,weight_interval
 public :: x_lowbnd,x_uppbnd,vp3d_lowbnd,vp3d_uppbnd,ABE_lowbnd,ABE_uppbnd
 public :: RZPhi_lowbnd,RZPhi_uppbnd,BE0_lowbnd,BE0_uppbnd
 public :: RZ0_lowbnd,RZ0_uppbnd,EThetaChi_RE_lowbnd,EThetaChi_RE_uppbnd
+public :: q1_pos_interval,q1_neg_interval,q1_posneg_interval
 public :: fill_particles,invalidate_particles,obtain_active_particle_ids
 public :: fill_groups,fill_particle_base,fill_particle_fieldline
 public :: fill_particle_gc,fill_particle_gc_vpar,fill_particle_gc_Qin
@@ -27,6 +28,9 @@ public :: fill_particle_simulations_no_init
 
 !> Variables --------------------------------------------------
 integer,parameter :: n_particle_types=8
+integer*1,dimension(2),parameter :: q1_pos_interval=(/1,14/)
+integer*1,dimension(2),parameter :: q1_neg_interval=(/-12,-1/)
+integer*1,dimension(2),parameter :: q1_posneg_interval=(/-23,43/)
 integer,dimension(2),parameter   :: rng_seed_interval=(/-1234,9876/)
 integer,dimension(2),parameter   :: q_interval=(/1,100/)
 integer,dimension(2),parameter   :: i_elm_interval=(/1,1000000/)
