@@ -14,6 +14,10 @@ public :: sampling_uniform_ppitchgyro_kinetic_relativistic
 public :: sampling_uniform_ppitchgyro_gc_relativistic
 public :: sampling_uniform_charge
 public :: init_particle_base_to_zero
+public :: find_RZPhi_minmax_global
+public :: check_RZPhi_interval
+public :: find_psi_maxmin_global_list
+public :: check_psi_interval
 #endif
 
 !> Variables and datatypes --------------------------------
@@ -308,6 +312,109 @@ function sampling_uniform_charge(rand,q_int) result(q)
   q = floor(real(q_int(1),kind=8)+(real(q_int(2),kind=8)-&
   real(q_int(1),kind=8)+1.d0)*rand,kind=1)
 end function sampling_uniform_charge
+
+!> find the bounding box in RZ
+!> inputs:
+!>   fields: (fields_base) MHD fields object
+!> outputs:
+!>   R_minmax:   (real8)(2) minimum and maximum major radius (global)
+!>   Z_minmax:   (real8)(2) minimum and maximum vertical coord. (global)
+!>   phi_minmax: (real8)(2) minimum and maximum toroidal angle (global)
+subroutine find_RZPhi_minmax_global(R_minmax,Z_minmax,phi_minmax,fields)
+  use constants,  only: TWOPI
+  use mod_fields, only: fields_base
+  implicit none
+  !> inputs:
+  class(fields_base),intent(in)   :: fields
+  !> outputs:
+  real*8,dimension(2),intent(out) :: R_minmax,Z_minmax,phi_minmax
+  !> variables:
+  integer :: ii
+  real*8 :: R_min_elem,R_max_elem,Z_min_elem,Z_max_elem
+  !> find bounding box
+  R_minmax=(/1.d16,-1.d16/); Z_minmax=R_minmax; phi_minmax=(/0.d0,TWOPI/);
+  do ii=1,fields%element_list%n_elements
+    call RZ_minmax(fields%node_list,fields%element_list,ii,&
+    R_min_elem,R_max_elem,Z_min_elem,Z_max_elem)
+    R_minmax(1) = min(R_min_elem,R_minmax(1))
+    R_minmax(2) = max(R_max_elem,R_minmax(2))
+    Z_minmax(1) = min(Z_min_elem,Z_minmax(1))
+    Z_minmax(2) = max(Z_max_elem,Z_minmax(2))
+  enddo
+end subroutine find_RZPhi_minmax_global
+
+!> check RZPhi interval in bounding box
+!> inputs:
+!>  R_box:      (real8)(2) major radius box for uniform sampling
+!>  Z_box:      (real8)(2) vertical coord. box for uniform sampling
+!>  phi_box:    (real8)(2) toroidal angle box for uniform sampling
+!>  R_minmax:   (real8)(2) minimum and maximum major radius (global)
+!>  Z_minmax:   (real8)(2) minimum and maximum vertical coord. (global)
+!>  phi_minmax: (real8)(2) minimum and maximum toroidal angle (global)
+!> outputs:
+!>  R_box:      (real8)(2) major radius box for uniform sampling
+!>  Z_box:      (real8)(2) vertical coord. box for uniform sampling
+!>  phi_box:    (real8)(2) toroidal angle box for uniform sampling
+subroutine check_RZPhi_interval(R_box,Z_box,Phi_box,&
+R_minmax,Z_minmax,Phi_minmax)
+  implicit none
+  !> input-outputs:
+  real*8,dimension(2),intent(inout) :: R_box,Z_box,phi_box
+  !> inputs:
+  real*8,dimension(2),intent(in)    :: R_minmax,Z_minmax,phi_minmax
+  !> check boundin boxes limits
+  R_box(1)=max(R_box(1),R_minmax(1)); R_box(2)=min(R_box(2),R_minmax(2));
+  Z_box(1)=max(Z_box(1),Z_minmax(1)); Z_box(2)=min(Z_box(2),Z_minmax(2));
+  phi_box(1)=max(phi_box(1),phi_minmax(1)); phi_box(2)=min(phi_box(2),phi_minmax(2));
+end subroutine check_RZPhi_interval
+
+!> find maximum and minimum poloidal flux: global and per element
+!> inputs:
+!>   fields: (fields_base) MHD fields object
+!> outputs:
+!>   psi_minmax_global: (real8)(2) maximum and minimum poloidal fluxes
+!>   psi_minmax_list:   (real8)(n_elements,2) maxmum and minimum
+!>                      poloidal fluxes for each mesh element
+subroutine find_psi_maxmin_global_list(psi_minmax_global,&
+psi_minmax_list,fields)
+  use mod_fields, only: fields_base
+  implicit none
+  !> inputs:
+  class(fields_base),intent(in) :: fields
+  !> outputs:
+  real*8,dimension(2),intent(out) :: psi_minmax_global
+  real*8,dimension(fields%element_list%n_elements,2),intent(out) :: psi_minmax_list
+  !> variables
+  integer :: ii
+  !> compute maximum and minimum of the poloidal flux
+  psi_minmax_global=(/1.d16,-1.d16/)
+  do ii=1,fields%element_list%n_elements
+    call psi_minmax(fields%node_list,fields%element_list,ii,&
+    psi_minmax_list(ii,1),psi_minmax_list(ii,2))
+    psi_minmax_global(1) = min(psi_minmax_global(1),psi_minmax_list(ii,1))
+    psi_minmax_global(2) = min(psi_minmax_global(2),psi_minmax_list(ii,2))
+  enddo
+end subroutine find_psi_maxmin_global_list
+
+!> denormalise and check the poloidal flux interval
+!> inputs:
+!>   psi_box:      (real8)(2) poloidal flux bounding box (minimum-maximum)
+!>   psi_axis:     (real8) poloidal flux at the magnetic axis
+!>   psi_boundary: (real8) poloidal flux at the plasma boundary
+!> outputs:
+!>   psi_box:      (real8)(2) poloidal flux bounding box (minimum-maximum)
+subroutine check_psi_interval(psi_box,psi_axis,psi_boundary,psi_minmax)
+  implicit none
+  !> inputs-outputs:
+  real*8,dimension(2),intent(inout) :: psi_box
+  !> inputs:
+  real*8,intent(in)              :: psi_axis,psi_boundary
+  real*8,dimension(2),intent(in) :: psi_minmax
+  !> denormalize and check boundaries
+  psi_box = psi_box*(psi_boundary-psi_axis)+psi_axis
+  psi_box(1) = max(psi_box(1),psi_minmax(1))
+  psi_box(2) = min(psi_box(2),psi_minmax(2))
+end subroutine check_psi_interval
 
 !> initialise particle base fields with unit particle weight
 !> inputs:

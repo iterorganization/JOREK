@@ -1,6 +1,7 @@
 !> test the initialisation routines for relativistic particles
 module mod_initialise_relativistic_particles_test
 use fruit
+use constants,             only: PI,TWOPI
 use mod_particle_sim,      only: particle_group
 use mod_particle_types,    only: particle_kinetic_relativistic_id
 use mod_particle_types,    only: particle_gc_relativistic_id
@@ -19,8 +20,21 @@ integer,dimension(n_groups),parameter    :: n_particles=(/123,234/)
 integer,dimension(n_groups),parameter    :: p_types_sol=(/&
                       particle_kinetic_relativistic_id,&
                       particle_gc_relativistic_id/)
-real*8,parameter                         :: tol_real8=1.d-13
+real*8,parameter                         :: tol_real8=5.d-13
 real*8,parameter                         :: time_sol=0.d0
+real*8,dimension(2),parameter            :: psi_big_sol=(/-2.d1,3.d2/)
+real*8,dimension(2),parameter            :: psi_small_sol=(/0.d0,1.d0/)
+real*8,dimension(2),parameter            :: psi_axisbnd=(/-1.d0,2.5d0/)
+real*8,dimension(2),parameter            :: R_big_sol=(/1.d-1,3.d2/)
+real*8,dimension(2),parameter            :: R_small_sol=(/1.d0,2.5d0/)
+real*8,dimension(2),parameter            :: Z_big_sol=(/-3.d1,3.d1/)
+real*8,dimension(2),parameter            :: Z_small_sol=(/-1.d0,2.5d0/)
+real*8,dimension(2),parameter            :: phi_big_sol=(/-3.d1,3.d1/)
+real*8,dimension(2),parameter            :: phi_small_sol=(/PI/6.d0,TWOPI/3.d0/)
+real*8,dimension(2),parameter            :: psi_minmax=(/-5.d0,1.d1/)
+real*8,dimension(2),parameter            :: R_minmax=(/5.d-1,1.d1/)
+real*8,dimension(2),parameter            :: Z_minmax=(/-1.d1,1.d1/)
+real*8,dimension(2),parameter            :: phi_minmax=(/0.d0,TWOPI/)
 type(particle_group),dimension(n_groups) :: groups_sol
 type(fields_analytical)                  :: fields_sol
 !> Interfaces--------------------------------------------------
@@ -39,6 +53,8 @@ subroutine run_fruit_initialise_relativistic_particles()
   call test_sampling_uniform_ppitchgyro_gc_relativistic
   call test_particle_base_init_to_zero
   call test_sampling_uniform_charge
+  call test_check_psi_interval
+  call test_check_RZPhi_interval
   write(*,'(/A)') "  ... tearing-down: initialise relativistic particles tests"
   call teardown
 end subroutine run_fruit_initialise_relativistic_particles
@@ -374,6 +390,86 @@ subroutine test_sampling_uniform_charge()
     call assert_true(all(success),"Error sampling uniform charge: charges not in interval!")
   enddo
 end subroutine test_sampling_uniform_charge
+
+!> test min max and renormalization of psi bound
+subroutine test_check_psi_interval()
+  use mod_initialise_relativistic_particles, only: check_psi_interval
+  implicit none
+  !> variables:
+  real*8,dimension(2) :: psi_test
+  !> check complete inflow
+  psi_test = psi_small_sol
+  call check_psi_interval(psi_test,psi_axisbnd(1),psi_axisbnd(2),psi_minmax)
+  call assert_equals(psi_test,psi_axisbnd,2,&
+  "Error check psi interval: psi inflow test mismatch!")
+  !> check complete overflow
+  psi_test = psi_big_sol
+  call check_psi_interval(psi_test,psi_axisbnd(1),psi_axisbnd(2),psi_minmax)
+  call assert_equals(psi_test,psi_minmax,2,&
+  "Error check psi interval: psi overflow test mismatch!")
+  !> checke underflow min and inflow max
+  psi_test = (/psi_big_sol(1),psi_small_sol(2)/)
+  call check_psi_interval(psi_test,psi_axisbnd(1),psi_axisbnd(2),psi_minmax)
+  call assert_equals(psi_test,(/psi_minmax(1),psi_axisbnd(2)/),2,&
+  "Error check psi interval: psi min underflow test mismatch!")
+  !> check inflow min and overflow max
+  psi_test = (/psi_small_sol(1),psi_big_sol(2)/)
+  call check_psi_interval(psi_test,psi_axisbnd(1),psi_axisbnd(2),psi_minmax)
+  call assert_equals(psi_test,(/psi_axisbnd(1),psi_minmax(2)/),2,&
+  "Error check psi interval: psi max overflow test mismatch!")
+end subroutine test_check_psi_interval
+
+!> test RZPhi min max bounding
+subroutine test_check_RZPhi_interval()
+  use mod_initialise_relativistic_particles, only: check_RZPhi_interval
+  implicit none
+  !> variables
+  real*8,dimension(2) :: R_test,Z_test,phi_test
+  !> check complete inflow
+  R_test=R_small_sol;Z_test=Z_small_sol;phi_test=phi_small_sol;
+  call check_RZPhi_interval(R_test,Z_test,phi_test,&
+  R_minmax,Z_minmax,phi_minmax)
+  call assert_equals(R_test,R_small_sol,2,&
+  "Error check RZPhi interval: R inflow test mismatch!")
+  call assert_equals(Z_test,Z_small_sol,2,&
+  "Error check RZPhi interval: Z inflow test mismatch!")
+  call assert_equals(phi_test,phi_small_sol,2,&
+  "Error check RZPhi interval: phi inflow test mismatch!")
+  !> check complete overflow
+  R_test=R_big_sol;Z_test=Z_big_sol;phi_test=phi_big_sol;
+  call check_RZPhi_interval(R_test,Z_test,phi_test,&
+  R_minmax,Z_minmax,phi_minmax)
+  call assert_equals(R_test,R_minmax,2,&
+  "Error check RZPhi interval: R overflow test mismatch!")
+  call assert_equals(Z_test,Z_minmax,2,&
+  "Error check RZPhi interval: Z overflow test mismatch!")
+  call assert_equals(phi_test,phi_minmax,2,&
+  "Error check RZPhi interval: phi overflow test mismatch!")
+  !> check min underflow and max inflow
+  R_test=(/R_big_sol(1),R_small_sol(2)/)
+  Z_test=(/Z_big_sol(1),Z_small_sol(2)/)
+  phi_test=(/phi_big_sol(1),phi_small_sol(2)/)
+  call check_RZPhi_interval(R_test,Z_test,phi_test,&
+  R_minmax,Z_minmax,phi_minmax)
+  call assert_equals(R_test,(/R_minmax(1),R_small_sol(2)/),2,&
+  "Error check RZPhi interval: R underflow test mismatch!")
+  call assert_equals(Z_test,(/Z_minmax(1),Z_small_sol(2)/),2,&
+  "Error check RZPhi interval: Z underflow test mismatch!")
+  call assert_equals(phi_test,(/phi_minmax(1),phi_small_sol(2)/),2,&
+  "Error check RZPhi interval: phi underflow test mismatch!")
+  !> check min inflow and max overflow
+  R_test=(/R_small_sol(1),R_big_sol(2)/)
+  Z_test=(/Z_small_sol(1),Z_big_sol(2)/)
+  phi_test=(/phi_small_sol(1),phi_big_sol(2)/)
+  call check_RZPhi_interval(R_test,Z_test,phi_test,&
+  R_minmax,Z_minmax,phi_minmax)
+  call assert_equals(R_test,(/R_small_sol(1),R_minmax(2)/),2,&
+  "Error check RZPhi interval: R overflow test mismatch!")
+  call assert_equals(Z_test,(/Z_small_sol(1),Z_minmax(2)/),2,&
+  "Error check RZPhi interval: Z overflow test mismatch!")
+  call assert_equals(phi_test,(/phi_small_sol(1),phi_minmax(2)/),2,&
+  "Error check RZPhi interval: phi overflow test mismatch!")
+end subroutine test_check_RZPhi_interval
 
 !> dummy test procedure
 subroutine test_dummy()
