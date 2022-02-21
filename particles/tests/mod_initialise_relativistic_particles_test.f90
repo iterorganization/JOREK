@@ -31,9 +31,11 @@ subroutine run_fruit_initialise_relativistic_particles()
   write(*,'(/A)') "  ... setting-up: initialise relativistic particles tests"
   call setup
   write(*,'(/A)') "  ... running: initialise relativistic particles tests"
+  call test_dummy
   call test_sampling_cartesian_p_kinetic_relativistic
   call test_sampling_cartesian_gc_kinetic_relativistic
   call test_sampling_uniform_ppitchgyro_kinetic_relativistic
+  call test_sampling_uniform_ppitchgyro_gc_relativistic
   write(*,'(/A)') "  ... tearing-down: initialise relativistic particles tests"
   call teardown
 end subroutine run_fruit_initialise_relativistic_particles
@@ -227,26 +229,76 @@ subroutine test_sampling_uniform_ppitchgyro_kinetic_relativistic()
         p_list(jj)%x=0.d0; p_list(jj)%st=0.d0; p_list(jj)%p=0.d0;
       enddo
       call assert_true(all(success),&
-      "Error sampling uniform p, pitch, gyro kinetic relat.: momenta not in bound!")
+      "Error sampling particle uniform p, pitch, gyro kinetic relat.: momenta not in bound!")
       deallocate(success)
     end select
   enddo
 end subroutine test_sampling_uniform_ppitchgyro_kinetic_relativistic
+
+!> test the initialisation of relativistic kinetic gcs from relativistic kinetic
+!> particles using spherical coordinates
+subroutine test_sampling_uniform_ppitchgyro_gc_relativistic()
+  use constants,                             only: PI,SPEED_OF_LIGHT,ATOMIC_MASS_UNIT,EL_CHG
+  use mod_coordinate_transforms,             only: vector_cylindrical_to_cartesian
+  use mod_gnu_rng,                           only: gnu_rng_interval
+  use mod_particle_common_test_tools,        only: RZPhi_lowbnd,RZPhi_uppbnd
+  use mod_particle_common_test_tools,        only: EThetaChi_RE_lowbnd,EThetaChi_RE_uppbnd
+  use mod_initialise_relativistic_particles, only: sampling_uniform_ppitchgyro_gc_relativistic
+  implicit none
+  !> variabes:
+  integer :: ii,jj
+  real*8 :: psi,U,B_norm,p_norm_test,theta_test,theta_test_2
+  real*8,dimension(2) :: p_int,costheta_int,gyro_int
+  real*8,dimension(3) :: rand,RZPhi,B,E,e2,e3
+  real*8,dimension(3,2) :: EThetaChi
+  logical,dimension(:),allocatable :: success
+  !> initialisation
+  costheta_int= (/cos(EThetaChi_RE_lowbnd(2)),cos(EThetaChi_RE_uppbnd(2))/); 
+  gyro_int = (/EThetaChi_RE_lowbnd(3),EThetaChi_RE_uppbnd(3)/);
+  call gnu_rng_interval(2,RZPhi_lowbnd,RZPhi_uppbnd,RZPhi)
+  call fields_sol%calc_EBPsiU(time_sol,0,RZPhi(1:2),RZPhi(3),&
+  E,B,psi,U); B_norm = norm2(B); B = B/B_norm; 
+  B = vector_cylindrical_to_cartesian(RZPhi(3),B);
+  do ii=1,n_groups
+    select type (p_list=>groups_sol(ii)%particles)
+    type is (particle_gc_relativistic)
+      p_int = (EL_CHG*(/EThetaChi_RE_lowbnd(1),EThetaChi_RE_uppbnd(1)/))/&
+      (ATOMIC_MASS_UNIT*groups_sol(ii)%mass*SPEED_OF_LIGHT*SPEED_OF_LIGHT)
+      p_int = (p_int+1.d0)*(p_int+1.0); p_int = sqrt(p_int-1.d0);
+      p_int = SPEED_OF_LIGHT*groups_sol(ii)%mass*p_int;
+      allocate(success(n_particles(ii)))
+      do jj=1,n_particles(ii)
+        !> initialising particles
+        call random_number(rand)
+        p_list(jj)%x=RZPhi; p_list(jj)%st=RZPhi(1:2); p_list(jj)%i_elm=0;
+        call sampling_uniform_ppitchgyro_gc_relativistic(p_list(jj),fields_sol,&
+        rand,groups_sol(ii)%mass,time_sol,p_int**3.d0,costheta_int,gyro_int)
+        !> checks
+        p_norm_test = sqrt(p_list(jj)%p(1)*p_list(jj)%p(1) + &
+        p_list(jj)%p(2)*2.d0*B_norm*groups_sol(ii)%mass) 
+        theta_test = acos(p_list(jj)%p(1)/p_norm_test)
+        theta_test_2 = asin(sqrt(p_list(jj)%p(2)*2.d0*B_norm*groups_sol(ii)%mass)/p_norm_test)
+        success(jj) = ((p_norm_test.ge.p_int(1)).and.(p_norm_test.le.p_int(2))).and.&
+                      ((theta_test.ge.(EThetaChi_RE_lowbnd(2))).and.&
+                      (theta_test.le.EThetaChi_RE_uppbnd(2))).and.&
+                      ((theta_test_2.ge.EThetaChi_RE_lowbnd(2)).and.&
+                      (theta_test_2.le.EThetaChi_RE_uppbnd(2)))
+      enddo
+      call assert_true(all(success),&
+      "Error sampling gc uniform p, pitch, gyro kinetic relat.: momenta not in bound!")
+      deallocate(success)
+    end select
+  enddo
+end subroutine test_sampling_uniform_ppitchgyro_gc_relativistic
 
 !> dummy test procedure
 subroutine test_dummy()
   use mod_initialise_relativistic_particles
   use mod_fields_analytical, only: fields_analytical
   implicit none
-  type(fields_analytical) :: fields
-  real*8 :: psi,U
-  real*8,dimension(3) :: B,E
-  write(*,'(/A)') "initialise relativistic particle dummy test"
-  call fields%calc_EBPsiU(0.d0,0,(/0.d0,0.d0/),0.d0,B,E,psi,U)
-  write(*,*) "fields analytical B: ",B
-  write(*,*) "fields analytical E: ",E
-  write(*,*) "fields analytical psi: ",psi
-  write(*,*) "fields analytical U: ",U
+  logical :: success
+  success=.true.
+  call assert_true(success,"Dummy test")
 end subroutine test_dummy
 
 !> Tools ------------------------------------------------------
