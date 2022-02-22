@@ -5,8 +5,14 @@ use constants,             only: PI,TWOPI
 use mod_particle_sim,      only: particle_group
 use mod_particle_types,    only: particle_kinetic_relativistic_id
 use mod_particle_types,    only: particle_gc_relativistic_id
+use mod_particle_types,    only: particle_kinetic_id
+use mod_particle_types,    only: particle_kinetic_leapfrog_id
+use mod_particle_types,    only: particle_gc_vpar_id
 use mod_particle_types,    only: particle_kinetic_relativistic
 use mod_particle_types,    only: particle_gc_relativistic
+use mod_particle_types,    only: particle_kinetic
+use mod_particle_types,    only: particle_kinetic_leapfrog
+use mod_particle_types,    only: particle_gc_vpar
 use mod_fields_analytical, only: fields_analytical
 implicit none
 
@@ -15,36 +21,47 @@ public :: run_fruit_initialise_relativistic_particles
 
 !> Variables and datatypes ------------------------------------
 integer,parameter  :: n_groups=2
+integer,parameter  :: n_groups_2=5
 integer,parameter  :: n_samples=343
-integer,dimension(n_groups),parameter    :: n_particles=(/123,234/)
-integer,dimension(n_groups),parameter    :: p_types_sol=(/&
+integer,dimension(n_groups),parameter      :: n_particles=(/123,234/)
+integer,dimension(n_groups),parameter      :: p_types_sol=(/&
                       particle_kinetic_relativistic_id,&
                       particle_gc_relativistic_id/)
-real*8,parameter                         :: tol_real8=5.d-13
-real*8,parameter                         :: time_sol=0.d0
-real*8,parameter                         :: p_neg=-2.d0
-real*8,dimension(2),parameter            :: psi_big_sol=(/-2.d1,3.d2/)
-real*8,dimension(2),parameter            :: psi_small_sol=(/0.d0,1.d0/)
-real*8,dimension(2),parameter            :: psi_axisbnd=(/-1.d0,2.5d0/)
-real*8,dimension(2),parameter            :: R_big_sol=(/1.d-1,3.d2/)
-real*8,dimension(2),parameter            :: R_small_sol=(/1.d0,2.5d0/)
-real*8,dimension(2),parameter            :: Z_big_sol=(/-3.d1,3.d1/)
-real*8,dimension(2),parameter            :: Z_small_sol=(/-1.d0,2.5d0/)
-real*8,dimension(2),parameter            :: theta_big_sol=(/-3.d1,3.d1/)
-real*8,dimension(2),parameter            :: theta_small_sol=(/PI/6.d0,TWOPI/3.d0/)
-real*8,dimension(2),parameter            :: phi_big_sol=(/-3.d1,3.d1/)
-real*8,dimension(2),parameter            :: phi_small_sol=(/PI/6.d0,TWOPI/3.d0/)
-real*8,dimension(2),parameter            :: pitch_small_sol=(/PI/6.d0,2.d0*PI/3.d0/)
-real*8,dimension(2),parameter            :: gyro_small_sol=(/PI/6.d0,3.d0*PI/2.d0/)
-real*8,dimension(2),parameter            :: pitch_big_sol=(/-PI/2.d0,TWOPI/)
-real*8,dimension(2),parameter            :: gyro_big_sol=(/-PI/2.d0,3.d0*PI/)
-real*8,dimension(2),parameter            :: psi_minmax=(/-5.d0,1.d1/)
-real*8,dimension(2),parameter            :: R_minmax=(/5.d-1,1.d1/)
-real*8,dimension(2),parameter            :: Z_minmax=(/-1.d1,1.d1/)
-real*8,dimension(2),parameter            :: theta_minmax=(/0.d0,TWOPI/)
-real*8,dimension(2),parameter            :: phi_minmax=(/0.d0,TWOPI/)
-type(particle_group),dimension(n_groups) :: groups_sol
-type(fields_analytical)                  :: fields_sol
+integer,dimension(n_groups_2),parameter    :: n_particles_2=(/1,1,1,1,1/)
+integer,dimension(n_groups_2),parameter    :: p_types_2_sol=(/&
+                      particle_kinetic_id,&
+                      particle_kinetic_relativistic_id,&
+                      particle_kinetic_leapfrog_id,&
+                      particle_gc_relativistic_id,&
+                      particle_gc_vpar_id/)
+integer,parameter                          :: n_active_groups_2_sol=2
+integer,dimension(n_groups_2),parameter    :: active_group_ids_2_sol=(/2,4,0,0,0/)
+real*8,parameter                           :: tol_real8=5.d-13
+real*8,parameter                           :: time_sol=0.d0
+real*8,parameter                           :: p_neg=-2.d0
+real*8,dimension(2),parameter              :: psi_big_sol=(/-2.d1,3.d2/)
+real*8,dimension(2),parameter              :: psi_small_sol=(/0.d0,1.d0/)
+real*8,dimension(2),parameter              :: psi_axisbnd=(/-1.d0,2.5d0/)
+real*8,dimension(2),parameter              :: R_big_sol=(/1.d-1,3.d2/)
+real*8,dimension(2),parameter              :: R_small_sol=(/1.d0,2.5d0/)
+real*8,dimension(2),parameter              :: Z_big_sol=(/-3.d1,3.d1/)
+real*8,dimension(2),parameter              :: Z_small_sol=(/-1.d0,2.5d0/)
+real*8,dimension(2),parameter              :: theta_big_sol=(/-3.d1,3.d1/)
+real*8,dimension(2),parameter              :: theta_small_sol=(/PI/6.d0,TWOPI/3.d0/)
+real*8,dimension(2),parameter              :: phi_big_sol=(/-3.d1,3.d1/)
+real*8,dimension(2),parameter              :: phi_small_sol=(/PI/6.d0,TWOPI/3.d0/)
+real*8,dimension(2),parameter              :: pitch_small_sol=(/PI/6.d0,2.d0*PI/3.d0/)
+real*8,dimension(2),parameter              :: gyro_small_sol=(/PI/6.d0,3.d0*PI/2.d0/)
+real*8,dimension(2),parameter              :: pitch_big_sol=(/-PI/2.d0,TWOPI/)
+real*8,dimension(2),parameter              :: gyro_big_sol=(/-PI/2.d0,3.d0*PI/)
+real*8,dimension(2),parameter              :: psi_minmax=(/-5.d0,1.d1/)
+real*8,dimension(2),parameter              :: R_minmax=(/5.d-1,1.d1/)
+real*8,dimension(2),parameter              :: Z_minmax=(/-1.d1,1.d1/)
+real*8,dimension(2),parameter              :: theta_minmax=(/0.d0,TWOPI/)
+real*8,dimension(2),parameter              :: phi_minmax=(/0.d0,TWOPI/)
+type(particle_group),dimension(n_groups)   :: groups_sol
+type(particle_group),dimension(n_groups_2) :: groups_2_sol
+type(fields_analytical)                    :: fields_sol
 !> Interfaces--------------------------------------------------
 contains
 !> Fruit basket -----------------------------------------------
@@ -55,6 +72,7 @@ subroutine run_fruit_initialise_relativistic_particles()
   call setup
   write(*,'(/A)') "  ... running: initialise relativistic particles tests"
   call test_dummy
+  call test_find_relativistic_kinetic_gc_groups
   call test_sampling_cartesian_p_kinetic_relativistic
   call test_sampling_cartesian_gc_kinetic_relativistic
   call test_sampling_uniform_ppitchgyro_kinetic_relativistic
@@ -85,6 +103,8 @@ subroutine setup()
   !> allocate particle lists
   call allocate_one_particle_list_type(n_groups,n_particles,&
   p_types_sol,groups_sol,ifail)
+  call allocate_one_particle_list_type(n_groups_2,n_particles_2,&
+  p_types_2_sol,groups_2_sol,ifail)
   !> initialise the group masses as runaway
   call fill_mass_RE(n_groups,groups_sol)
   !> initialise particle fields
@@ -105,6 +125,23 @@ subroutine teardown()
 end subroutine teardown
 
 !> Tests ------------------------------------------------------
+!> test routine used for finding relativistic particles
+subroutine test_find_relativistic_kinetic_gc_groups()
+  use mod_initialise_relativistic_particles, only: find_relativistic_kinetic_gc_groups 
+  implicit none
+  !> variables
+  integer :: n_active_groups_2_test
+  integer,dimension(n_groups_2) :: active_group_ids_2_test
+  !> extract relativitic groups
+  call find_relativistic_kinetic_gc_groups(n_groups_2,groups_2_sol,&
+  n_active_groups_2_test,active_group_ids_2_test)
+  !> checks
+  call assert_equals(n_active_groups_2_test,n_active_groups_2_sol,&
+  "Error find relativistic particle groups: N# active groups mismatch!")
+  call assert_equals(active_group_ids_2_test,active_group_ids_2_sol,n_groups_2,&
+  "Error find relativistic particle groups: active group ids mismatch!")
+end subroutine test_find_relativistic_kinetic_gc_groups
+
 !> test initialisation particle momentum between limits
 subroutine test_sampling_cartesian_p_kinetic_relativistic()
   use mod_gnu_rng,                           only: gnu_rng_interval

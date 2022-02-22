@@ -348,7 +348,7 @@ groups,n_active_groups,active_group_ids)
   !> variables
   integer :: ii
   !> initialisation
-  active_group_ids = 0
+  n_active_groups = 0; active_group_ids = 0;
   !> find relativistic particles
   do ii=1,n_groups
     select type (p_list=>groups(ii)%particles)
