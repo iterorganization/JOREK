@@ -29,11 +29,14 @@ real*8,dimension(2),parameter            :: R_big_sol=(/1.d-1,3.d2/)
 real*8,dimension(2),parameter            :: R_small_sol=(/1.d0,2.5d0/)
 real*8,dimension(2),parameter            :: Z_big_sol=(/-3.d1,3.d1/)
 real*8,dimension(2),parameter            :: Z_small_sol=(/-1.d0,2.5d0/)
+real*8,dimension(2),parameter            :: theta_big_sol=(/-3.d1,3.d1/)
+real*8,dimension(2),parameter            :: theta_small_sol=(/PI/6.d0,TWOPI/3.d0/)
 real*8,dimension(2),parameter            :: phi_big_sol=(/-3.d1,3.d1/)
 real*8,dimension(2),parameter            :: phi_small_sol=(/PI/6.d0,TWOPI/3.d0/)
 real*8,dimension(2),parameter            :: psi_minmax=(/-5.d0,1.d1/)
 real*8,dimension(2),parameter            :: R_minmax=(/5.d-1,1.d1/)
 real*8,dimension(2),parameter            :: Z_minmax=(/-1.d1,1.d1/)
+real*8,dimension(2),parameter            :: theta_minmax=(/0.d0,TWOPI/)
 real*8,dimension(2),parameter            :: phi_minmax=(/0.d0,TWOPI/)
 type(particle_group),dimension(n_groups) :: groups_sol
 type(fields_analytical)                  :: fields_sol
@@ -393,30 +396,54 @@ end subroutine test_sampling_uniform_charge
 
 !> test min max and renormalization of psi bound
 subroutine test_check_psi_interval()
-  use mod_initialise_relativistic_particles, only: check_psi_interval
+  use mod_initialise_relativistic_particles, only: check_psithetaphi_interval
   implicit none
   !> variables:
-  real*8,dimension(2) :: psi_test
+  real*8,dimension(2) :: psi_test,theta_test,phi_test
   !> check complete inflow
-  psi_test = psi_small_sol
-  call check_psi_interval(psi_test,psi_axisbnd(1),psi_axisbnd(2),psi_minmax)
+  psi_test=psi_small_sol; theta_test=theta_small_sol; phi_test=phi_small_sol;
+  call check_psithetaphi_interval(psi_test,theta_test,phi_test,psi_axisbnd(1),&
+  psi_axisbnd(2),psi_minmax,theta_minmax,phi_minmax)
   call assert_equals(psi_test,psi_axisbnd,2,&
-  "Error check psi interval: psi inflow test mismatch!")
+  "Error check psi-theta-phi interval: psi inflow test mismatch!")
+  call assert_equals(theta_test,theta_small_sol,2,&
+  "Error check psi-theta-phi interval: theta inflow test mismatch!")
+  call assert_equals(phi_test,phi_small_sol,2,&
+  "Error check psi-theta-phi interval: phi inflow test mismatch!")
   !> check complete overflow
-  psi_test = psi_big_sol
-  call check_psi_interval(psi_test,psi_axisbnd(1),psi_axisbnd(2),psi_minmax)
+  psi_test=psi_big_sol; theta_test=theta_big_sol; phi_test=phi_big_sol;
+  call check_psithetaphi_interval(psi_test,theta_test,phi_test,&
+  psi_axisbnd(1),psi_axisbnd(2),psi_minmax,theta_minmax,phi_minmax)
   call assert_equals(psi_test,psi_minmax,2,&
-  "Error check psi interval: psi overflow test mismatch!")
+  "Error check psi-theta-phi interval: psi overflow test mismatch!")
+  call assert_equals(theta_test,theta_minmax,2,&
+  "Error check psi-theta-phi interval: theta overflow test mismatch!")
+  call assert_equals(phi_test,phi_minmax,2,&
+  "Error check psi-theta-phi interval: phi overflow test mismatch!")
   !> checke underflow min and inflow max
-  psi_test = (/psi_big_sol(1),psi_small_sol(2)/)
-  call check_psi_interval(psi_test,psi_axisbnd(1),psi_axisbnd(2),psi_minmax)
+  psi_test=(/psi_big_sol(1),psi_small_sol(2)/)
+  theta_test=(/theta_big_sol(1),theta_small_sol(2)/)
+  phi_test=(/phi_big_sol(1),phi_small_sol(2)/)
+  call check_psithetaphi_interval(psi_test,theta_test,phi_test,&
+  psi_axisbnd(1),psi_axisbnd(2),psi_minmax,theta_minmax,phi_minmax)
   call assert_equals(psi_test,(/psi_minmax(1),psi_axisbnd(2)/),2,&
-  "Error check psi interval: psi min underflow test mismatch!")
+  "Error check psi-theta-phi interval: psi min underflow test mismatch!")
+  call assert_equals(theta_test,(/theta_minmax(1),theta_small_sol(2)/),2,&
+  "Error check psi-theta-phi interval: theta min underflow test mismatch!")
+  call assert_equals(phi_test,(/phi_minmax(1),phi_small_sol(2)/),2,&
+  "Error check psi-theta-phi interval: phi min underflow test mismatch!")
   !> check inflow min and overflow max
-  psi_test = (/psi_small_sol(1),psi_big_sol(2)/)
-  call check_psi_interval(psi_test,psi_axisbnd(1),psi_axisbnd(2),psi_minmax)
+  psi_test=(/psi_small_sol(1),psi_big_sol(2)/)
+  theta_test=(/theta_small_sol(1),theta_big_sol(2)/)
+  phi_test=(/phi_small_sol(1),phi_big_sol(2)/)
+  call check_psithetaphi_interval(psi_test,theta_test,phi_test,&
+  psi_axisbnd(1),psi_axisbnd(2),psi_minmax,theta_minmax,phi_minmax)
   call assert_equals(psi_test,(/psi_axisbnd(1),psi_minmax(2)/),2,&
-  "Error check psi interval: psi max overflow test mismatch!")
+  "Error check psi-theta-phi interval: psi max overflow test mismatch!")
+  call assert_equals(theta_test,(/theta_small_sol(1),theta_minmax(2)/),2,&
+  "Error check psi-theta-phi interval: theta max overflow test mismatch!")
+  call assert_equals(phi_test,(/phi_small_sol(1),phi_minmax(2)/),2,&
+  "Error check psi-theta-phi interval: phi max overflow test mismatch!")
 end subroutine test_check_psi_interval
 
 !> test RZPhi min max bounding

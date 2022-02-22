@@ -16,8 +16,9 @@ public :: sampling_uniform_charge
 public :: init_particle_base_to_zero
 public :: find_RZPhi_minmax_global
 public :: check_RZPhi_interval
-public :: find_psi_maxmin_global_list
-public :: check_psi_interval
+public :: find_psithetaphi_maxmin_global_list
+public :: check_psithetaphi_interval
+public :: check_ppitchgyro_intervals
 #endif
 
 !> Variables and datatypes --------------------------------
@@ -77,6 +78,8 @@ interface
 end interface
 contains
 !> Procedures ---------------------------------------------
+
+
 !> sample particles in the physical space. Particles
 !> are distributed uniformely in the physical space
 !> using the cylindrical coordinates.
@@ -386,18 +389,23 @@ end subroutine check_RZPhi_interval
 !>   psi_minmax_global: (real8)(2) maximum and minimum poloidal fluxes
 !>   psi_minmax_list:   (real8)(n_elements,2) maxmum and minimum
 !>                      poloidal fluxes for each mesh element
-subroutine find_psi_maxmin_global_list(psi_minmax_global,&
-psi_minmax_list,fields)
+!>   theta_minmax:      (real8)(2) maximum and minimum poloidal angle
+!>   phi_minmax:        (real8)(2) maximum and minimum toroidal angle
+subroutine find_psithetaphi_maxmin_global_list(psi_minmax_global,&
+psi_minmax_list,theta_minmax,phi_minmax,fields)
+  use constants,  only: TWOPI
   use mod_fields, only: fields_base
   implicit none
   !> inputs:
   class(fields_base),intent(in) :: fields
   !> outputs:
-  real*8,dimension(2),intent(out) :: psi_minmax_global
+  real*8,dimension(2),intent(out) :: psi_minmax_global,theta_minmax
+  real*8,dimension(2),intent(out) :: phi_minmax
   real*8,dimension(fields%element_list%n_elements,2),intent(out) :: psi_minmax_list
   !> variables
   integer :: ii
   !> compute maximum and minimum of the poloidal flux
+  theta_minmax = (/0.d0,TWOPI/); phi_minmax = (/0.d0,TWOPI/);
   psi_minmax_global=(/1.d16,-1.d16/)
   do ii=1,fields%element_list%n_elements
     call psi_minmax(fields%node_list,fields%element_list,ii,&
@@ -405,27 +413,69 @@ psi_minmax_list,fields)
     psi_minmax_global(1) = min(psi_minmax_global(1),psi_minmax_list(ii,1))
     psi_minmax_global(2) = min(psi_minmax_global(2),psi_minmax_list(ii,2))
   enddo
-end subroutine find_psi_maxmin_global_list
+end subroutine find_psithetaphi_maxmin_global_list
 
 !> denormalise and check the poloidal flux interval
 !> inputs:
-!>   psi_box:      (real8)(2) poloidal flux bounding box (minimum-maximum)
+!>   psi_box:      (real8)(2) poloidal flux bounding box
+!>   theta_box:    (real8)(2) poloidal angle bounding box
+!>   phi_box:      (real8)(2) toroidal angle bounding box
 !>   psi_axis:     (real8) poloidal flux at the magnetic axis
 !>   psi_boundary: (real8) poloidal flux at the plasma boundary
+!>   psi_minmax:   (real8)(2) minimum-maximum poloidal flux
+!>   theta_minmax: (real8)(2) minimum-maxumum poloidal angle
+!>   phi_minmax:   (real8)(2) minimum-maximum toroidal angle
 !> outputs:
-!>   psi_box:      (real8)(2) poloidal flux bounding box (minimum-maximum)
-subroutine check_psi_interval(psi_box,psi_axis,psi_boundary,psi_minmax)
+!>   psi_box:      (real8)(2) poloidal flux bounding box
+!>   theta_box:    (real8)(2) poloidal angle bounding box
+!>   phi_box:      (real8)(2) toroidal angle bounding box
+subroutine check_psithetaphi_interval(psi_box,theta_box,phi_box,&
+psi_axis,psi_boundary,psi_minmax,theta_minmax,phi_minmax)
   implicit none
   !> inputs-outputs:
-  real*8,dimension(2),intent(inout) :: psi_box
+  real*8,dimension(2),intent(inout) :: psi_box,theta_box,phi_box
   !> inputs:
   real*8,intent(in)              :: psi_axis,psi_boundary
-  real*8,dimension(2),intent(in) :: psi_minmax
+  real*8,dimension(2),intent(in) :: psi_minmax,theta_minmax,phi_minmax
   !> denormalize and check boundaries
-  psi_box = psi_box*(psi_boundary-psi_axis)+psi_axis
-  psi_box(1) = max(psi_box(1),psi_minmax(1))
-  psi_box(2) = min(psi_box(2),psi_minmax(2))
-end subroutine check_psi_interval
+  psi_box      = psi_box*(psi_boundary-psi_axis)+psi_axis
+  psi_box(1)   = max(psi_box(1),psi_minmax(1))
+  psi_box(2)   = min(psi_box(2),psi_minmax(2))
+  theta_box(1) = max(theta_box(1),theta_minmax(1))
+  theta_box(2) = min(theta_box(2),theta_minmax(2))
+  phi_box(1)   = max(phi_box(1),phi_minmax(1))
+  phi_box(2)   = min(phi_box(2),phi_minmax(2))
+end subroutine check_psithetaphi_interval
+
+!> compute the momentum from particle energy and check bounds
+!> inputs:
+!> outputs:
+subroutine check_ppitchgyro_intervals(p_interval,&
+pitch_interval,gyro_interval,mass)
+  use constants, only: PI,TWOPI
+  use constants, only: EL_CHG,ATOMIC_MASS_UNIT,SPEED_OF_LIGHT
+  implicit none
+  !> inputs-outputs:
+  real*8,dimension(2),intent(inout) :: p_interval,pitch_interval
+  real*8,dimension(2),intent(inout) :: gyro_interval
+  !> inputs:
+  real*8,intent(in) :: mass
+  !> variables:
+  real*8 :: E0
+  !> check if the energy is not smaller thant the rest energy in eV
+  E0 = ATOMIC_MASS_UNIT*mass*SPEED_OF_LIGHT*SPEED_OF_LIGHT
+  p_interval = (p_interval/E0)-1.d0;
+  if(p_interval(1).le.0.d0) p_interval(1) = 1.d-13
+  if(p_interval(2).le.0.d0) p_interval(2) = 1.d-13
+  !> transform the energy in momentum intensity
+  p_interval = mass*SPEED_OF_LIGHT*sqrt(p_interval*p_interval)
+  !> check the pitch angle
+  pitch_interval(1) = max(pitch_interval(1),0.d0)
+  pitch_interval(2) = min(pitch_interval(2),PI)
+  !> check the pitch angle
+  gyro_interval(1) = max(gyro_interval(1),0.d0)
+  gyro_interval(2) = min(gyro_interval(2),TWOPI)
+end subroutine check_ppitchgyro_intervals
 
 !> initialise particle base fields with unit particle weight
 !> inputs:
