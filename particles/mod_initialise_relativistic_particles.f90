@@ -18,7 +18,7 @@ public :: find_RZPhi_minmax_global
 public :: check_RZPhi_interval
 public :: find_psithetaphi_maxmin_global_list
 public :: check_psithetaphi_interval
-public :: check_ppitchgyro_intervals
+public :: check_ppitchgyro_interval
 #endif
 
 !> Variables and datatypes --------------------------------
@@ -450,7 +450,7 @@ end subroutine check_psithetaphi_interval
 !> compute the momentum from particle energy and check bounds
 !> inputs:
 !> outputs:
-subroutine check_ppitchgyro_intervals(p_interval,&
+subroutine check_ppitchgyro_interval(p_interval,&
 pitch_interval,gyro_interval,mass)
   use constants, only: PI,TWOPI
   use constants, only: EL_CHG,ATOMIC_MASS_UNIT,SPEED_OF_LIGHT
@@ -463,19 +463,19 @@ pitch_interval,gyro_interval,mass)
   !> variables:
   real*8 :: E0
   !> check if the energy is not smaller thant the rest energy in eV
-  E0 = ATOMIC_MASS_UNIT*mass*SPEED_OF_LIGHT*SPEED_OF_LIGHT
-  p_interval = (p_interval/E0)-1.d0;
-  if(p_interval(1).le.0.d0) p_interval(1) = 1.d-13
-  if(p_interval(2).le.0.d0) p_interval(2) = 1.d-13
+  E0 = (ATOMIC_MASS_UNIT*mass*SPEED_OF_LIGHT*SPEED_OF_LIGHT)/EL_CHG
+  p_interval = (p_interval/E0);
+  if(p_interval(1).le.0.d0) p_interval(1) = 1.d0+1.d-13
+  if(p_interval(2).le.0.d0) p_interval(2) = 1.d0+1.d-13
   !> transform the energy in momentum intensity
-  p_interval = mass*SPEED_OF_LIGHT*sqrt(p_interval*p_interval)
+  p_interval = mass*SPEED_OF_LIGHT*sqrt(p_interval*p_interval-1.d0)
   !> check the pitch angle
   pitch_interval(1) = max(pitch_interval(1),0.d0)
   pitch_interval(2) = min(pitch_interval(2),PI)
   !> check the pitch angle
   gyro_interval(1) = max(gyro_interval(1),0.d0)
   gyro_interval(2) = min(gyro_interval(2),TWOPI)
-end subroutine check_ppitchgyro_intervals
+end subroutine check_ppitchgyro_interval
 
 !> initialise particle base fields with unit particle weight
 !> inputs:
