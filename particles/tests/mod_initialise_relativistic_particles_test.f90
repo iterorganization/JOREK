@@ -63,7 +63,7 @@ subroutine run_fruit_initialise_relativistic_particles()
   call test_sampling_uniform_charge
   call test_check_psithetaphi_interval
   call test_check_RZPhi_interval
-  call test_check_ppitchgyro_interval
+  call test_check_energypitchgyro_interval
   write(*,'(/A)') "  ... tearing-down: initialise relativistic particles tests"
   call teardown
 end subroutine run_fruit_initialise_relativistic_particles
@@ -505,14 +505,14 @@ subroutine test_check_RZPhi_interval()
 end subroutine test_check_RZPhi_interval
 
 !> test the momentum, pitch and gyro angles bounding box tests
-subroutine test_check_ppitchgyro_interval()
+subroutine test_check_energypitchgyro_interval()
   use constants, only: ATOMIC_MASS_UNIT,SPEED_OF_LIGHT,EL_CHG
   use mod_particle_common_test_tools, only: EThetaChi_RE_lowbnd,EThetaChi_RE_uppbnd
-  use mod_initialise_relativistic_particles, only: check_ppitchgyro_interval
+  use mod_initialise_relativistic_particles, only: check_energypitchgyro_interval
   implicit none
   !> variables:
   real*8 :: E0
-  real*8,dimension(2) :: p_small_sol,p_test,pitch_test,gyro_test
+  real*8,dimension(2) :: p_small_sol,e_test,p_test,pitch_test,gyro_test
   !> computes momentum for solution
   E0 = (groups_sol(1)%mass*ATOMIC_MASS_UNIT*&
   SPEED_OF_LIGHT*SPEED_OF_LIGHT)/EL_CHG
@@ -520,9 +520,10 @@ subroutine test_check_ppitchgyro_interval()
   (/((EThetaChi_RE_lowbnd(1)/E0 + 1.d0)**2.d0)-1.d0,&
   ((EThetaChi_RE_uppbnd(1)/E0 + 1.d0)**2.d0)-1.d0/))
   !> check complete inflow
-  p_test=(/EThetaChi_RE_lowbnd(1),EThetaChi_RE_uppbnd(1)/)+E0;
+  e_test=(/EThetaChi_RE_lowbnd(1),EThetaChi_RE_uppbnd(1)/)+E0;
   pitch_test=pitch_small_sol;gyro_test=gyro_small_sol;
-  call check_ppitchgyro_interval(p_test,pitch_test,gyro_test,groups_sol(1)%mass)
+  call check_energypitchgyro_interval(e_test,p_test,&
+  pitch_test,gyro_test,groups_sol(1)%mass)
   call assert_equals(p_test,p_small_sol,2,&
   "Error check p-pitch-gyro interval: p inflow test mismatch!")
   call assert_equals(pitch_test,theta_small_sol,2,&
@@ -530,8 +531,9 @@ subroutine test_check_ppitchgyro_interval()
   call assert_equals(gyro_test,gyro_small_sol,2,&
   "Error check p-pitch-gyro interval: gyro inflow test mismatch!")
   !> check complete overflow
-  p_test=(/p_neg,p_neg/);pitch_test=pitch_big_sol;gyro_test=gyro_big_sol;
-  call check_ppitchgyro_interval(p_test,pitch_test,gyro_test,groups_sol(1)%mass)
+  e_test=(/p_neg,p_neg/);pitch_test=pitch_big_sol;gyro_test=gyro_big_sol;
+  call check_energypitchgyro_interval(e_test,p_test,&
+  pitch_test,gyro_test,groups_sol(1)%mass)
   call assert_true(all(p_test.gt.0.d0),&
   "Error check p-pitch-gyro interval: overflow negative momentum found!")
   call assert_equals(pitch_test,(/0.d0,PI/),2,&
@@ -539,10 +541,11 @@ subroutine test_check_ppitchgyro_interval()
   call assert_equals(gyro_test,(/0.d0,TWOPI/),2,&
   "Error check p-pitch-gyro interval: gyro overflow test mismatch!")
   !> check min underflow and max inflow
-  p_test=(/p_neg,EThetaChi_RE_uppbnd(1)+E0/)
+  e_test=(/p_neg,EThetaChi_RE_uppbnd(1)+E0/)
   pitch_test=(/pitch_big_sol(1),pitch_small_sol(2)/)
   gyro_test=(/gyro_big_sol(1),gyro_small_sol(2)/)
-  call check_ppitchgyro_interval(p_test,pitch_test,gyro_test,groups_sol(1)%mass)
+  call check_energypitchgyro_interval(e_test,p_test,&
+  pitch_test,gyro_test,groups_sol(1)%mass)
   call assert_true(all(p_test.gt.0.d0),&
   "Error check p-pitch-gyro interval: underflow negative momentum found!")
   call assert_equals(p_test(2),p_small_sol(2),&
@@ -552,10 +555,11 @@ subroutine test_check_ppitchgyro_interval()
   call assert_equals(gyro_test,(/0.d0,gyro_small_sol(2)/),2,&
   "Error check p-pitch-gyro interval: gyro underflow test mismatch!")
   !> check min inflow and max overflow
-  p_test=(/EThetaChi_RE_lowbnd(1)+E0,p_neg/)
+  e_test=(/EThetaChi_RE_lowbnd(1)+E0,p_neg/)
   pitch_test=(/pitch_small_sol(1),pitch_big_sol(2)/)
   gyro_test=(/gyro_small_sol(1),gyro_big_sol(2)/)
-  call check_ppitchgyro_interval(p_test,pitch_test,gyro_test,groups_sol(1)%mass)
+  call check_energypitchgyro_interval(e_test,p_test,&
+  pitch_test,gyro_test,groups_sol(1)%mass)
   call assert_true(all(p_test.gt.0.d0),&
   "Error check p-pitch-gyro interval: half overflow negative momentum found!")
   call assert_equals(p_test(1),p_small_sol(1),&
@@ -564,7 +568,7 @@ subroutine test_check_ppitchgyro_interval()
   "Error check p-pitch-gyro interval: half pitch overflow test mismatch!")
   call assert_equals(gyro_test,(/gyro_small_sol(1),phi_minmax(2)/),2,&
   "Error check p-pitch-gyro interval: half gyro overflow test mismatch!")
-end subroutine test_check_ppitchgyro_interval
+end subroutine test_check_energypitchgyro_interval
 
 !> dummy test procedure
 subroutine test_dummy()

@@ -5,6 +5,7 @@
 module mod_initialise_relativistic_particles
 implicit none
 private
+public :: init_p_gc_relativistic_psithetaphi_energypitchgyro
 #ifdef UNIT_TESTS
 public :: sample_position_uniformly_cylinder
 public :: sample_position_uniformly_psi_theta
@@ -18,7 +19,7 @@ public :: find_RZPhi_minmax_global
 public :: check_RZPhi_interval
 public :: find_psithetaphi_maxmin_global_list
 public :: check_psithetaphi_interval
-public :: check_ppitchgyro_interval
+public :: check_energypitchgyro_interval
 #endif
 
 !> Variables and datatypes --------------------------------
@@ -78,7 +79,63 @@ interface
 end interface
 contains
 !> Procedures ---------------------------------------------
+!> initialise kinetic particle relativistic in poloidal
+!> flux, poloidal and toroidal angle while in the
+!> velocity space the energy, pitch and gyro angles
+!> coordinates are use
+!> inputs:
+!>   groups:     (particle_group)(:)(allocatable) group to initialise
+!>   fields:     (fields_base) jorek fields base type
+!>   rng_type:   (type_rng) type of random number generator
+!>   psi_box:    (real8)(2) normalised poloidal flux box for sampling
+!>   theta_box:  (real8)(2) poloidal angle box for sampling
+!>   phi_box:    (real8)(2) toroidal angle box for sampling
+!>   energy_box: (real8)(2) energy box for sampling in eV
+!>   pitch_box:  (real8)(2) pitch angle box for sampling 
+!>   gyro_box:   (real8)(2) gyro angle box for sampling
+!>   my_id:      (integer) MPI task id
+!>   n_tasks:    (integer) number of MPI tasks
+!>   ifail:      (integer) error code, 0-success
+!> outputs:
+!>   groups:     (particle_group)(:)(allocatable) initialised group
+!>   fields:     (fields_base) jorek fields base type
+!>   psi_box:    (real8)(2) normalised poloidal flux box for sampling
+!>   theta_box:  (real8)(2) poloidal angle box for sampling
+!>   phi_box:    (real8)(2) toroidal angle box for sampling
+!>   energy_box: (real8)(2) energy box for sampling in eV
+!>   pitch_box:  (real8)(2) pitch angle box for sampling 
+!>   gyro_box:   (real8)(2) gyro angle box for sampling
+!>   ifail:      (integer) error code, 0-success
+subroutine init_p_gc_relativistic_psithetaphi_energypitchgyro(&
+groups,fields,rng_type,psi_box,theta_box,phi_box,&
+energy_box,pitch_box,gyro_box,my_id,n_tasks,ifail)
+  use mod_rng,            only: type_rng
+  use mod_rng,            only: setup_shared_rngs
+  use mod_fields,         only: fields_base
+  use mod_particle_sim,   only: particle_group
+  use mod_particle_types, only: particle_kinetic_relativistic
+  implicit none
+  !> inputs-outputs:
+  class(particle_group),dimension(:),allocatable,intent(inout) :: groups
+  class(fields_base),intent(inout)                             :: fields
+  integer,intent(in)                :: ifail
+  real*8,dimension(2),intent(inout) :: psi_box,theta_box,phi_box
+  real*8,dimension(2),intent(inout) :: energy_box,pitch_box,gyro_box
+  !> inputs:
+  class(type_rng),intent(in) :: rng_type
+  integer,intent(in)         :: my_id,n_tasks
+  !> variables:
+  class(type_rng),dimension(:),allocatable :: rngs
+  integer :: ii,jj
+  real*8,dimension(2) :: psi_minmax_global,theta_minmax,phi_minmax
+  real*8,dimension(fields%element_list%n_elements,2) :: psi_minmax_list
 
+  !> extract bounding boxes
+  call find_psithetaphi_maxmin_global_list(psi_minmax_global,&
+  psi_minmax_list,theta_minmax,phi_minmax,fields)
+  !> check bounding boxes in physical and velocity spaces
+
+end subroutine init_p_gc_relativistic_psithetaphi_energypitchgyro
 
 !> sample particles in the physical space. Particles
 !> are distributed uniformely in the physical space
@@ -449,22 +506,32 @@ end subroutine check_psithetaphi_interval
 
 !> compute the momentum from particle energy and check bounds
 !> inputs:
+!>   e_interval:     (real8)(2) energy interval in eV
+!>   pitch_interval: (real8)(2) pitch angle interval
+!>   gyro_interval:  (real8)(2) gyro angle interval
+!>   mass:           (real8) particle mass in AMU
 !> outputs:
-subroutine check_ppitchgyro_interval(p_interval,&
+!>   p_interval:     (real8)(2) momentum interval in AMU*m/s
+!>   pitch_interval: (real8)(2) pitch angle interval
+!>   gyro_interval:  (real8)(2) gyro angle interval
+subroutine check_energypitchgyro_interval(e_interval,p_interval,&
 pitch_interval,gyro_interval,mass)
   use constants, only: PI,TWOPI
   use constants, only: EL_CHG,ATOMIC_MASS_UNIT,SPEED_OF_LIGHT
   implicit none
   !> inputs-outputs:
-  real*8,dimension(2),intent(inout) :: p_interval,pitch_interval
+  real*8,dimension(2),intent(inout) :: pitch_interval
   real*8,dimension(2),intent(inout) :: gyro_interval
   !> inputs:
-  real*8,intent(in) :: mass
+  real*8,intent(in)   :: mass
+  real*8,dimension(2) :: e_interval
+  !> outpus:
+  real*8,dimension(2) :: p_interval
   !> variables:
   real*8 :: E0
   !> check if the energy is not smaller thant the rest energy in eV
   E0 = (ATOMIC_MASS_UNIT*mass*SPEED_OF_LIGHT*SPEED_OF_LIGHT)/EL_CHG
-  p_interval = (p_interval/E0);
+  p_interval = (e_interval/E0);
   if(p_interval(1).le.0.d0) p_interval(1) = 1.d0+1.d-13
   if(p_interval(2).le.0.d0) p_interval(2) = 1.d0+1.d-13
   !> transform the energy in momentum intensity
@@ -475,7 +542,7 @@ pitch_interval,gyro_interval,mass)
   !> check the pitch angle
   gyro_interval(1) = max(gyro_interval(1),0.d0)
   gyro_interval(2) = min(gyro_interval(2),TWOPI)
-end subroutine check_ppitchgyro_interval
+end subroutine check_energypitchgyro_interval
 
 !> initialise particle base fields with unit particle weight
 !> inputs:
