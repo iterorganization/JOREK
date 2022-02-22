@@ -5,7 +5,7 @@
 module mod_initialise_relativistic_particles
 implicit none
 private
-public :: init_p_gc_relativistic_psithetaphi_energypitchgyro
+public :: init_p_relativistic_psithetaphi_energypitchgyro
 #ifdef UNIT_TESTS
 public :: sample_position_uniformly_cylinder
 public :: sample_position_uniformly_psi_theta
@@ -84,58 +84,118 @@ contains
 !> velocity space the energy, pitch and gyro angles
 !> coordinates are use
 !> inputs:
-!>   groups:     (particle_group)(:)(allocatable) group to initialise
-!>   fields:     (fields_base) jorek fields base type
-!>   rng_type:   (type_rng) type of random number generator
-!>   psi_box:    (real8)(2) normalised poloidal flux box for sampling
-!>   theta_box:  (real8)(2) poloidal angle box for sampling
-!>   phi_box:    (real8)(2) toroidal angle box for sampling
-!>   energy_box: (real8)(2) energy box for sampling in eV
-!>   pitch_box:  (real8)(2) pitch angle box for sampling 
-!>   gyro_box:   (real8)(2) gyro angle box for sampling
-!>   my_id:      (integer) MPI task id
-!>   n_tasks:    (integer) number of MPI tasks
-!>   ifail:      (integer) error code, 0-success
+!>   groups:          (particle_group)(:)(allocatable) group to initialise
+!>   fields:          (fields_base) jorek fields base type
+!>   eq_info:         (t_equil_state) information on the equilibrium
+!>   rng_type:        (type_rng) type of random number generator
+!>   eq_info:         (t_equil_info) information on the equilibrium
+!>   time:            (real8) time of the interpolation
+!>   psithetaphi_box: (real8)(2) normalised (1,:) poloidal flux box,
+!>                    (2,:) poloidal and (3,:) toroidal angles
+!>   energy_box:      (real8)(2) energy box for sampling in eV
+!>   pitch_box:       (real8)(2) pitch angle box for sampling 
+!>   gyro_box:        (real8)(2) gyro angle box for sampling
+!>   q_box:           (integer1)(2) minimum and maximum particle chatge
 !> outputs:
-!>   groups:     (particle_group)(:)(allocatable) initialised group
-!>   fields:     (fields_base) jorek fields base type
-!>   psi_box:    (real8)(2) normalised poloidal flux box for sampling
-!>   theta_box:  (real8)(2) poloidal angle box for sampling
-!>   phi_box:    (real8)(2) toroidal angle box for sampling
-!>   energy_box: (real8)(2) energy box for sampling in eV
-!>   pitch_box:  (real8)(2) pitch angle box for sampling 
-!>   gyro_box:   (real8)(2) gyro angle box for sampling
-!>   ifail:      (integer) error code, 0-success
-subroutine init_p_gc_relativistic_psithetaphi_energypitchgyro(&
-groups,fields,rng_type,psi_box,theta_box,phi_box,&
-energy_box,pitch_box,gyro_box,my_id,n_tasks,ifail)
+!>   groups:          (particle_group)(:)(allocatable) initialised group
+!>   fields:          (fields_base) jorek fields base type
+!>   psithetaphi_box: (real8)(2) normalised (1,:) poloidal flux box,
+!>                    (2,:) poloidal and (3,:) toroidal angles
+!>   energy_box:      (real8)(2) energy box for sampling in eV
+!>   pitch_box:       (real8)(2) pitch angle box for sampling 
+!>   gyro_box:        (real8)(2) gyro angle box for sampling
+subroutine init_p_relativistic_psithetaphi_energypitchgyro(&
+groups,fields,eq_info,time,rng_type,psithetaphi_box,&
+energy_box,pitch_box,gyro_box,q_box)
   use mod_rng,            only: type_rng
   use mod_rng,            only: setup_shared_rngs
+  use equil_info,         only: t_equil_state
   use mod_fields,         only: fields_base
   use mod_particle_sim,   only: particle_group
   use mod_particle_types, only: particle_kinetic_relativistic
+  !$ use omp_lib
   implicit none
   !> inputs-outputs:
   class(particle_group),dimension(:),allocatable,intent(inout) :: groups
   class(fields_base),intent(inout)                             :: fields
-  integer,intent(in)                :: ifail
-  real*8,dimension(2),intent(inout) :: psi_box,theta_box,phi_box
-  real*8,dimension(2),intent(inout) :: energy_box,pitch_box,gyro_box
+  real*8,dimension(2,3),intent(inout) :: psithetaphi_box
+  real*8,dimension(2),intent(inout)   :: energy_box,pitch_box,gyro_box
   !> inputs:
-  class(type_rng),intent(in) :: rng_type
-  integer,intent(in)         :: my_id,n_tasks
+  type(t_equil_state),intent(in) :: eq_info
+  class(type_rng),intent(in)     :: rng_type
+  integer*1,dimension(2)         :: q_box
+  real*8                         :: time
   !> variables:
   class(type_rng),dimension(:),allocatable :: rngs
-  integer :: ii,jj
-  real*8,dimension(2) :: psi_minmax_global,theta_minmax,phi_minmax
+  integer :: ii,jj,kk,n_groups,thread_id,maxit
+  real*8,dimension(2)   :: cospitch_box,psi_minmax_global
+  real*8,dimension(2)   :: theta_minmax,phi_minmax
+  real*8,dimension(7)   :: rands
+  real*8,dimension(:),allocatable   :: n_particles
+  real*8,dimension(:,:),allocatable :: momentum_box
   real*8,dimension(fields%element_list%n_elements,2) :: psi_minmax_list
 
+  !> initialisation
+  maxit=1000000; n_groups=size(groups); allocate(momentum_box(2,n_groups));
   !> extract bounding boxes
   call find_psithetaphi_maxmin_global_list(psi_minmax_global,&
   psi_minmax_list,theta_minmax,phi_minmax,fields)
   !> check bounding boxes in physical and velocity spaces
+  call check_psithetaphi_interval(psithetaphi_box(1,:),&
+  psithetaphi_box(2,:),psithetaphi_box(3,:),eq_info%Psi_axis,&
+  eq_info%Psi_bnd,psi_minmax_list,theta_minmax,phi_minmax)
+  do ii=1,n_groups
+    select type(p_list=>groups(ii)%particles)
+    type is (particle_kinetic_relativistic)
+      call check_energypitchgyro_interval(energy_box,&
+      momentum_box(:,ii),pitch_box,gyro_box,groups(ii)%mass)
+    end select
+  enddo
+  !> compute the cube of the momentum and the cosinus of the pitch angle
+  momentum_box = momentum_box**3.d0; cospitch_box = cos(pitch_box);
+  !> initialise random number generator
+  call setup_shared_rngs(7,rng_type,rngs) 
 
-end subroutine init_p_gc_relativistic_psithetaphi_energypitchgyro
+  !$omp parallel default(private) firstprivate(n_groups,maxit) &
+  !$omp shared(groups,rngs,fields,psithetaphi_box,psi_minmax_list,&
+  !$omp eq_info,time,momentum_box,cospitch_box,gyro_box,q_box)
+  !> initialise the the relativistic and particle lists
+  thread_id = 1;
+  !$ thread_id = omp_get_thread_num()
+  !$omp single
+  do ii=1,n_groups
+    select type(p_list=>groups(ii)%particles)
+    type is (particle_kinetic_relativistic)
+      do jj=1,size(p_list)
+        !$omp task
+        !> initialise particle to 0
+        call init_particle_base_to_zero(p_list(jj))
+        !> while loop until a valid element is not found
+        kk = 0;
+        do while((p_list(jj)%i_elm.le.0).and.(kk.le.maxit))
+          call rngs(thread_id)%next(rands)
+          call sample_position_uniformly_psi_theta(&
+               p_list(jj),fields%node_list,fields%element_list,&
+               rands(1:3),psithetaphi_box,psi_minmax_list,&
+               (/eq_info%R_axis,eq_info%Z_axis/))
+          kk = kk + 1
+        enddo
+        !> if valid, initialise both velocity space and charge
+        if(p_list(jj)%i_elm.gt.0) then
+          call sampling_uniform_ppitchgyro_kinetic_relativistic(p_list(jj),&
+          fields,rands(4:6),time,momentum_box,cospitch_box,gyro_box)
+          p_list(jj)%q = sampling_uniform_charge(rands(7),q_box) 
+        endif
+        !$omp end task
+      enddo
+    end select
+  enddo
+  !$omp end single
+  !$omp end parallel
+
+  !> cleanup
+  deallocate(momentum_box)
+end subroutine init_p_relativistic_psithetaphi_energypitchgyro
 
 !> sample particles in the physical space. Particles
 !> are distributed uniformely in the physical space
