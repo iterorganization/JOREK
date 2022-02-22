@@ -83,6 +83,12 @@ end subroutine setup_shared_rngs_one_seed
 
 !> setup shared rngs using different seeds for different tasks
 !> this is only used for increasing the rng entropy
+!> inputs:
+!>   n_dim:    (integer) dimension of the random number to be generated
+!>   rng_type: (type_rng) type of random number generator
+!>   rngs:     (type_rng)(:)(allocatable) random number generators
+!> outputs:
+!>   rngs:     (type_rng)(:)(allocatable) random number generators
 subroutine setup_shared_rngs_multiple_seeds(n_dim,rng_type,rngs)
   use mpi
   !$ use omp_lib
@@ -96,7 +102,6 @@ subroutine setup_shared_rngs_multiple_seeds(n_dim,rng_type,rngs)
   integer :: ii,n_stream,n_streams_total,my_id,n_tasks,ierr
   integer,dimension(:),allocatable :: n_streams,seeds
   real*8,dimension(:),allocatable  :: rands
-
   !> initialisation
   call MPI_Comm_Rank(MPI_COMM_WORLD,my_id,ierr)
   call MPI_Comm_Size(MPI_COMM_WORLD,n_tasks,ierr)
