@@ -5,8 +5,10 @@
 module mod_initialise_relativistic_particles
 implicit none
 private
-public :: init_p_relativistic_psithetaphi_energypitchgyro
+public :: init_p_gc_relativistic_psithetaphi_energypitchgyro
+public :: init_p_gc_relativistic_RZPhi_energypitchgyro
 #ifdef UNIT_TESTS
+public :: find_relativistic_kinetic_gc_groups
 public :: sample_position_uniformly_cylinder
 public :: sample_position_uniformly_psi_theta
 public :: sampling_cartesian_p_kinetic_relativistic
@@ -104,7 +106,7 @@ contains
 !>   energy_box:      (real8)(2) energy box for sampling in eV
 !>   pitch_box:       (real8)(2) pitch angle box for sampling 
 !>   gyro_box:        (real8)(2) gyro angle box for sampling
-subroutine init_p_relativistic_psithetaphi_energypitchgyro(&
+subroutine init_p_gc_relativistic_psithetaphi_energypitchgyro(&
 groups,fields,eq_info,time,rng_type,psithetaphi_box,&
 energy_box,pitch_box,gyro_box,q_box)
   use mod_rng,            only: type_rng
@@ -113,6 +115,7 @@ energy_box,pitch_box,gyro_box,q_box)
   use mod_fields,         only: fields_base
   use mod_particle_sim,   only: particle_group
   use mod_particle_types, only: particle_kinetic_relativistic
+  use mod_particle_types, only: particle_gc_relativistic
   !$ use omp_lib
   implicit none
   !> inputs-outputs:
@@ -121,22 +124,26 @@ energy_box,pitch_box,gyro_box,q_box)
   real*8,dimension(2,3),intent(inout) :: psithetaphi_box
   real*8,dimension(2),intent(inout)   :: energy_box,pitch_box,gyro_box
   !> inputs:
-  type(t_equil_state),intent(in) :: eq_info
-  class(type_rng),intent(in)     :: rng_type
-  integer*1,dimension(2)         :: q_box
-  real*8                         :: time
+  type(t_equil_state),intent(in)    :: eq_info
+  class(type_rng),intent(in)        :: rng_type
+  integer*1,dimension(2),intent(in) :: q_box
+  real*8,intent(in)                 :: time
   !> variables:
   class(type_rng),dimension(:),allocatable :: rngs
-  integer :: ii,jj,kk,n_groups,thread_id,maxit
+  logical :: excute
+  integer :: ii,jj,kk,n_groups,thread_id,maxit,n_active_groups
+  integer,dimension(:),allocatable :: active_group_ids
   real*8,dimension(2)   :: cospitch_box,psi_minmax_global
   real*8,dimension(2)   :: theta_minmax,phi_minmax
   real*8,dimension(7)   :: rands
-  real*8,dimension(:),allocatable   :: n_particles
   real*8,dimension(:,:),allocatable :: momentum_box
   real*8,dimension(fields%element_list%n_elements,2) :: psi_minmax_list
 
   !> initialisation
-  maxit=1000000; n_groups=size(groups); allocate(momentum_box(2,n_groups));
+  maxit=1000000; n_groups=size(groups); n_active_groups=0; 
+  allocate(active_group_ids(n_groups)); allocate(momentum_box(2,n_groups));
+  call find_relativistic_kinetic_gc_groups(n_groups,groups,&
+  n_active_groups,active_group_ids)
   !> extract bounding boxes
   call find_psithetaphi_maxmin_global_list(psi_minmax_global,&
   psi_minmax_list,theta_minmax,phi_minmax,fields)
@@ -144,58 +151,216 @@ energy_box,pitch_box,gyro_box,q_box)
   call check_psithetaphi_interval(psithetaphi_box(1,:),&
   psithetaphi_box(2,:),psithetaphi_box(3,:),eq_info%Psi_axis,&
   eq_info%Psi_bnd,psi_minmax_list,theta_minmax,phi_minmax)
-  do ii=1,n_groups
-    select type(p_list=>groups(ii)%particles)
-    type is (particle_kinetic_relativistic)
-      call check_energypitchgyro_interval(energy_box,&
-      momentum_box(:,ii),pitch_box,gyro_box,groups(ii)%mass)
-    end select
+  do ii=1,n_active_groups
+    call check_energypitchgyro_interval(energy_box,momentum_box(:,ii),&
+    pitch_box,gyro_box,groups(active_group_ids(ii))%mass)
   enddo
   !> compute the cube of the momentum and the cosinus of the pitch angle
   momentum_box = momentum_box**3.d0; cospitch_box = cos(pitch_box);
   !> initialise random number generator
   call setup_shared_rngs(7,rng_type,rngs) 
 
-  !$omp parallel default(private) firstprivate(n_groups,maxit) &
-  !$omp shared(groups,rngs,fields,psithetaphi_box,psi_minmax_list,&
-  !$omp eq_info,time,momentum_box,cospitch_box,gyro_box,q_box)
+  !$omp parallel default(private) firstprivate(n_active_groups,&
+  !$omp active_group_ids,maxit) shared(groups,rngs,fields,&
+  !$omp psithetaphi_box,psi_minmax_list,eq_info,time,momentum_box,&
+  !$omp cospitch_box,gyro_box,q_box)
   !> initialise the the relativistic and particle lists
   thread_id = 1;
   !$ thread_id = omp_get_thread_num()
   !$omp single
-  do ii=1,n_groups
-    select type(p_list=>groups(ii)%particles)
-    type is (particle_kinetic_relativistic)
-      do jj=1,size(p_list)
-        !$omp task
-        !> initialise particle to 0
-        call init_particle_base_to_zero(p_list(jj))
-        !> while loop until a valid element is not found
-        kk = 0;
-        do while((p_list(jj)%i_elm.le.0).and.(kk.le.maxit))
-          call rngs(thread_id)%next(rands)
-          call sample_position_uniformly_psi_theta(&
-               p_list(jj),fields%node_list,fields%element_list,&
-               rands(1:3),psithetaphi_box,psi_minmax_list,&
-               (/eq_info%R_axis,eq_info%Z_axis/))
+  do ii=1,n_active_groups
+    do jj=1,size(groups(active_group_ids(ii))%particles)
+      !$omp task
+      !> initialise particle to 0
+      call init_particle_base_to_zero(groups(active_group_ids(ii))%particles(jj))
+      !> while loop until a valid element is not found
+      kk = 0;
+      do while((groups(active_group_ids(ii))%particles(jj)%i_elm.le.0).and.(kk.le.maxit))
+        call rngs(thread_id)%next(rands)
+        call sample_position_uniformly_psi_theta(&
+               groups(active_group_ids(ii))%particles(jj),fields%node_list,&
+               fields%element_list,rands(1:3),psithetaphi_box,&
+               psi_minmax_list,(/eq_info%R_axis,eq_info%Z_axis/))
           kk = kk + 1
         enddo
         !> if valid, initialise both velocity space and charge
-        if(p_list(jj)%i_elm.gt.0) then
-          call sampling_uniform_ppitchgyro_kinetic_relativistic(p_list(jj),&
-          fields,rands(4:6),time,momentum_box,cospitch_box,gyro_box)
-          p_list(jj)%q = sampling_uniform_charge(rands(7),q_box) 
+        if(groups(active_group_ids(ii))%particles(jj)%i_elm.gt.0) then
+          select type (particle=>groups(active_group_ids(ii))%particles(jj))
+          type is (particle_kinetic_relativistic)
+            call sampling_uniform_ppitchgyro_kinetic_relativistic(particle,&
+            fields,rands(4:6),time,momentum_box,cospitch_box,gyro_box)
+            particle%q = sampling_uniform_charge(rands(7),q_box)
+          type is (particle_gc_relativistic)
+            call sampling_uniform_ppitchgyro_gc_relativistic(particle,fields,&
+            rands(4:6),groups(active_group_ids(ii))%mass,time,&
+            momentum_box,cospitch_box,gyro_box)
+            particle%q = sampling_uniform_charge(rands(7),q_box)
+          end select 
         endif
         !$omp end task
       enddo
-    end select
   enddo
   !$omp end single
   !$omp end parallel
 
   !> cleanup
-  deallocate(momentum_box)
-end subroutine init_p_relativistic_psithetaphi_energypitchgyro
+  deallocate(active_group_ids); deallocate(momentum_box);
+end subroutine init_p_gc_relativistic_psithetaphi_energypitchgyro
+
+!> initialise kinetic particle relativistic in major radius
+!> verticla coordinate and toroidal angle while in the
+!> velocity space the energy, pitch and gyro angles
+!> coordinates are use
+!> inputs:
+!>   groups:     (particle_group)(:)(allocatable) group to initialise
+!>   fields:     (fields_base) jorek fields base type
+!>   eq_info:    (t_equil_state) information on the equilibrium
+!>   rng_type:   (type_rng) type of random number generator
+!>   time:       (real8) time of the interpolation
+!>   R_box:      (real8)(2) major radius box
+!>   Z_box:      (real8)(2) vertical coordinate box
+!>   phi_box     (real8)(2) toroidal angles box
+!>   energy_box: (real8)(2) energy box for sampling in eV
+!>   pitch_box:  (real8)(2) pitch angle box for sampling 
+!>   gyro_box:   (real8)(2) gyro angle box for sampling
+!>   q_box:      (integer1)(2) minimum and maximum particle chatge
+!> outputs:
+!>   groups:     (particle_group)(:)(allocatable) initialised group
+!>   fields:     (fields_base) jorek fields base type
+!>   R_box:      (real8)(2) major radius box
+!>   Z_box:      (real8)(2) vertical coordinate box
+!>   phi_box     (real8)(2) toroidal angles box
+!>   energy_box: (real8)(2) energy box for sampling in eV
+!>   pitch_box:  (real8)(2) pitch angle box for sampling 
+!>   gyro_box:   (real8)(2) gyro angle box for sampling
+subroutine init_p_gc_relativistic_RZPhi_energypitchgyro(&
+groups,fields,time,rng_type,R_box,Z_box,phi_box,&
+energy_box,pitch_box,gyro_box,q_box)
+  use mod_rng,            only: type_rng
+  use mod_rng,            only: setup_shared_rngs
+  use mod_fields,         only: fields_base
+  use mod_particle_sim,   only: particle_group
+  use mod_particle_types, only: particle_kinetic_relativistic
+  use mod_particle_types, only: particle_gc_relativistic
+  !$ use omp_lib
+  implicit none
+  !> inputs-outputs:
+  class(particle_group),dimension(:),allocatable,intent(inout) :: groups
+  class(fields_base),intent(inout)                             :: fields
+  real*8,dimension(2),intent(inout) :: R_box,Z_box,phi_box
+  real*8,dimension(2),intent(inout) :: energy_box,pitch_box,gyro_box
+  !> inputs:
+  class(type_rng),intent(in)        :: rng_type
+  integer*1,dimension(2),intent(in) :: q_box
+  real*8,intent(in)                 :: time
+  !> variables:
+  class(type_rng),dimension(:),allocatable :: rngs
+  integer :: ii,jj,kk,n_groups,thread_id,maxit,n_active_groups
+  integer,dimension(:),allocatable :: active_group_ids 
+  real*8,dimension(2)   :: cospitch_box,R_minmax,R2_box
+  real*8,dimension(2)   :: Z_minmax,phi_minmax
+  real*8,dimension(7)   :: rands
+  real*8,dimension(:,:),allocatable :: momentum_box
+
+  !> initialisation
+  maxit=1000000; n_groups=size(groups); n_active_groups=0; 
+  allocate(active_group_ids(n_groups)); allocate(momentum_box(2,n_groups));
+  !> extract bounding maximum and minimum boxes
+  call find_RZPhi_minmax_global(R_minmax,Z_minmax,phi_minmax,fields)
+  !> check bounding boxes
+  call check_RZPhi_interval(R_box,Z_box,phi_box,R_minmax,Z_minmax,phi_minmax)
+  do ii=1,n_active_groups
+    call check_energypitchgyro_interval(energy_box,momentum_box(:,ii),&
+    pitch_box,gyro_box,groups(active_group_ids(ii))%mass)
+  enddo
+  !> compute the cube of the momentum and the cosinus of the pitch angle
+  R2_box = R_box*R_box
+  momentum_box = momentum_box**3.d0; cospitch_box = cos(pitch_box);
+  !> initialise random number generator
+  call setup_shared_rngs(7,rng_type,rngs)
+
+  !> fill particle list
+  !$omp parallel default(private) firstprivate(n_groups,maxit) &
+  !$omp shared(groups,fields,R2_box,Z_box,phi_box,time,&
+  !$omp momentum_box,cospitch_box,gyro_box,q_box)
+  thread_id = 1;
+  !$ thread_id = omp_get_thread_num()
+  !$omp single
+  do ii=1,n_active_groups
+    do jj=1,size(groups(active_group_ids(ii))%particles)
+      !$omp task
+      !> initialise particle to 0
+      call init_particle_base_to_zero(groups(active_group_ids(ii))%particles(jj))
+      !> while loop until a valid element is not found
+      kk = 0;
+      do while((groups(active_group_ids(ii))%particles(jj)%i_elm.le.0).and.(kk.le.maxit))
+        call rngs(thread_id)%next(rands)
+        call sample_position_uniformly_cylinder(&
+        groups(active_group_ids(ii))%particles(jj),&
+        fields%node_list,fields%element_list,rands(1:3),&
+        R2_box,Z_box,phi_box)
+        kk = kk + 1
+      enddo
+      !> if valid, initialise both velocity space and charge
+      if(groups(active_group_ids(ii))%particles(jj)%i_elm.gt.0) then
+        select type (particle=>groups(active_group_ids(ii))%particles(jj))
+        type is (particle_kinetic_relativistic)
+          call sampling_uniform_ppitchgyro_kinetic_relativistic(particle,&
+          fields,rands(4:6),time,momentum_box,cospitch_box,gyro_box)
+          particle%q = sampling_uniform_charge(rands(7),q_box)
+        type is (particle_gc_relativistic)
+          call sampling_uniform_ppitchgyro_gc_relativistic(particle,fields,&
+          rands(4:6),groups(active_group_ids(ii))%mass,time,&
+          momentum_box,cospitch_box,gyro_box)
+          particle%q = sampling_uniform_charge(rands(7),q_box)
+        end select 
+      endif
+      !$omp end task
+    enddo
+  enddo
+  !$omp end single
+  !$omp end parallel
+
+  !> cleanup
+  deallocate(active_group_ids); deallocate(momentum_box);
+end subroutine init_p_gc_relativistic_RZPhi_energypitchgyro
+
+!> find number and id of groups being reltivistic
+!> kinetic or relativistic gc
+!> inputs:
+!>   n_groups: (integer) number of groups
+!>   groups:   (particle_groups) particle groups
+!> outputs:
+!>   n_active_groups:  (integer) number of relativistic groups
+!>   active_group_ids: (integer)(n_groups) id of relativitic group
+subroutine find_relativistic_kinetic_gc_groups(n_groups,&
+groups,n_active_groups,active_group_ids)
+  use mod_particle_sim,   only: particle_group
+  use mod_particle_types, only: particle_kinetic_relativistic
+  use mod_particle_types, only: particle_gc_relativistic
+  implicit none
+  !> inputs:
+  class(particle_group),dimension(n_groups),intent(in) :: groups
+  integer,intent(in) :: n_groups
+  !> outputs:
+  integer,intent(out)                     :: n_active_groups
+  integer,dimension(n_groups),intent(out) :: active_group_ids
+  !> variables
+  integer :: ii
+  !> initialisation
+  active_group_ids = 0
+  !> find relativistic particles
+  do ii=1,n_groups
+    select type (p_list=>groups(ii)%particles)
+    type is (particle_kinetic_relativistic)
+      n_active_groups = n_active_groups + 1
+      active_group_ids(n_active_groups) = ii
+    type is (particle_gc_relativistic)
+      n_active_groups = n_active_groups + 1
+      active_group_ids(n_active_groups) = ii
+    end select
+  enddo
+end subroutine find_relativistic_kinetic_gc_groups
 
 !> sample particles in the physical space. Particles
 !> are distributed uniformely in the physical space
@@ -348,13 +513,13 @@ end subroutine sampling_cartesian_p_gc_relativistic
 !>   fields:         (fields_base) MHD fields type object
 !>   rand:           (real8)(3) random numbers
 !>   time:           (real8) time of the initialisation
-!>   R_cube_int:     (real8)(2) cube of the major radius sampling interval
+!>   p_cube_int:     (real8)(2) cube of the particle momentum sampling interval
 !>   cos_theta_int:  (real8)(2) cosinus of the pitch angle sampling interval
 !>   gyro_int:       (real8)(2) gyro angle sampling interval
 !> outputs:
 !>   particle: (particle_kinetic_relativistic) particle with sampled momentum
 subroutine sampling_uniform_ppitchgyro_kinetic_relativistic(particle,&
-fields,rand,time,R_cube_int,cos_theta_int,gyro_int)
+fields,rand,time,p_cube_int,cos_theta_int,gyro_int)
   use mod_sampling,             only: sample_uniform_sphere_corona_rcosphi
   use mod_particle_types,       only: particle_kinetic_relativistic
   use mod_fields,               only: fields_base
@@ -365,7 +530,7 @@ fields,rand,time,R_cube_int,cos_theta_int,gyro_int)
   class(fields_base),intent(inout) :: fields
   !> inputs:
   real*8,intent(in)               :: time
-  real*8,dimension(2),intent(in)  :: R_cube_int,cos_theta_int,gyro_int
+  real*8,dimension(2),intent(in)  :: p_cube_int,cos_theta_int,gyro_int
   real*8,dimension(3),intent(in)  :: rand
   !> variables:
   real*8              :: psi,U
@@ -375,7 +540,7 @@ fields,rand,time,R_cube_int,cos_theta_int,gyro_int)
   particle%x(3),E,B,psi,U)
   B = B/sqrt(B(1)*B(1)+B(2)*B(2)+B(3)*B(3))
   !> sample the momentum in spherical coordinates
-  particle%p = sample_uniform_sphere_corona_rcosphi(R_cube_int,&
+  particle%p = sample_uniform_sphere_corona_rcosphi(p_cube_int,&
   cos_theta_int,gyro_int,rand)
   !> compute the particle kinetic momentum
   particle%p = kinetic_relativistic_momentum_spherical_to_cart(&
@@ -390,13 +555,13 @@ end subroutine sampling_uniform_ppitchgyro_kinetic_relativistic
 !>   rand:           (real8)(3) random numbers
 !>   mass:           (real8) particle mass in AMU
 !>   time:           (real8) time of the initialisation
-!>   R_cube_int:     (real8)(2) cube of the major radius sampling interval
+!>   p_cube_int:     (real8)(2) cube of the gc momentum sampling interval
 !>   cos_theta_int:  (real8)(2) cosinus of the pitch angle sampling interval
 !>   gyro_int:       (real8)(2) gyro angle sampling interval
 !> outputs:
 !>   particle: (particle_gc_relativistic) particle with sampled momentum
 subroutine sampling_uniform_ppitchgyro_gc_relativistic(gc,fields,&
-rand,mass,time,R_cube_int,cos_theta_int,gyro_int)
+rand,mass,time,p_cube_int,cos_theta_int,gyro_int)
   use mod_sampling,             only: sample_uniform_sphere_corona_rcosphi
   use mod_particle_types,       only: particle_gc_relativistic
   use mod_fields,               only: fields_base
@@ -408,7 +573,7 @@ rand,mass,time,R_cube_int,cos_theta_int,gyro_int)
   class(fields_base),intent(inout) :: fields
   !> inputs:
   real*8,intent(in)               :: time,mass
-  real*8,dimension(2),intent(in)  :: R_cube_int,cos_theta_int,gyro_int
+  real*8,dimension(2),intent(in)  :: p_cube_int,cos_theta_int,gyro_int
   real*8,dimension(3),intent(in)  :: rand
   !> variables
   real*8              :: B_norm,psi,U
@@ -418,7 +583,7 @@ rand,mass,time,R_cube_int,cos_theta_int,gyro_int)
   E,B,psi,U)
   B_norm = sqrt(B(1)*B(1)+B(2)*B(2)+B(3)*B(3)); B = B/B_norm;
   !> sample the momentum in spherical coordinates
-  p_kin = sample_uniform_sphere_corona_rcosphi(R_cube_int,&
+  p_kin = sample_uniform_sphere_corona_rcosphi(p_cube_int,&
   cos_theta_int,gyro_int,rand)
   !> compute the particle kinetic momentum
   p_kin = kinetic_relativistic_momentum_spherical_to_cart(gc%x(3),p_kin,B)
