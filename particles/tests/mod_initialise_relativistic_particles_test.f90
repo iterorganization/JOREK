@@ -13,6 +13,7 @@ use mod_particle_types,    only: particle_gc_relativistic
 use mod_particle_types,    only: particle_kinetic
 use mod_particle_types,    only: particle_kinetic_leapfrog
 use mod_particle_types,    only: particle_gc_vpar
+use mod_fields_linear,     only: jorek_fields_interp_linear
 use mod_fields_analytical, only: fields_analytical
 implicit none
 
@@ -20,6 +21,7 @@ private
 public :: run_fruit_initialise_relativistic_particles
 
 !> Variables and datatypes ------------------------------------
+character(len=17),parameter :: fields_eq_name_sol="test_jorek_fields"
 integer,parameter  :: n_groups=2
 integer,parameter  :: n_groups_2=5
 integer,parameter  :: n_samples=343
@@ -37,6 +39,7 @@ integer,dimension(n_groups_2),parameter    :: p_types_2_sol=(/&
 integer,parameter                          :: n_active_groups_2_sol=2
 integer,dimension(n_groups_2),parameter    :: active_group_ids_2_sol=(/2,4,0,0,0/)
 real*8,parameter                           :: tol_real8=5.d-13
+real*8,parameter                           :: tol_interp_real8=7.5d-10
 real*8,parameter                           :: time_sol=0.d0
 real*8,parameter                           :: p_neg=-2.d0
 real*8,dimension(2),parameter              :: psi_big_sol=(/-2.d1,3.d2/)
@@ -59,9 +62,16 @@ real*8,dimension(2),parameter              :: R_minmax=(/5.d-1,1.d1/)
 real*8,dimension(2),parameter              :: Z_minmax=(/-1.d1,1.d1/)
 real*8,dimension(2),parameter              :: theta_minmax=(/0.d0,TWOPI/)
 real*8,dimension(2),parameter              :: phi_minmax=(/0.d0,TWOPI/)
+real*8,dimension(2),parameter              :: R_box_fraction_sol=(/0.22,0.34/)
+real*8,dimension(2),parameter              :: Z_box_fraction_sol=(/0.41,0.73/)
 type(particle_group),dimension(n_groups)   :: groups_sol
 type(particle_group),dimension(n_groups_2) :: groups_2_sol
 type(fields_analytical)                    :: fields_sol
+type(jorek_fields_interp_linear)           :: fields_linear_sol
+real*8,dimension(2)                        :: R_box_jorek_sol
+real*8,dimension(2)                        :: Z_box_jorek_sol
+real*8,dimension(2)                        :: R_minmax_jorek_sol
+real*8,dimension(2)                        :: Z_minmax_jorek_sol
 !> Interfaces--------------------------------------------------
 contains
 !> Fruit basket -----------------------------------------------
@@ -70,9 +80,13 @@ subroutine run_fruit_initialise_relativistic_particles()
   implicit none
   write(*,'(/A)') "  ... setting-up: initialise relativistic particles tests"
   call setup
+  call setup_jorek_simulation
+  call setup_init_intervals
   write(*,'(/A)') "  ... running: initialise relativistic particles tests"
   call test_dummy
   call test_find_relativistic_kinetic_gc_groups
+  call test_find_RZPhi_minmax_global
+  call test_sample_position_uniformly_cylinder
   call test_sampling_cartesian_p_kinetic_relativistic
   call test_sampling_cartesian_gc_kinetic_relativistic
   call test_sampling_uniform_ppitchgyro_kinetic_relativistic
@@ -113,6 +127,57 @@ subroutine setup()
   call fields_sol%init_fields(0,4,int_param,real_param)
 end subroutine setup
 
+!> set-up a jorek simulation reading directly from a input
+!> and restart file. No mpi is expected for this tests hence
+!> the mpi rank is set to 0
+subroutine setup_jorek_simulation()
+  use mod_fields_linear, only: read_jorek_fields_interp_linear
+  use mod_particle_sim,  only: particle_sim
+  use mod_event,         only: event,with
+  implicit none
+  !> variables
+  type(particle_sim)              :: sim_particles
+  type(event),dimension(1),target :: events
+  !> initialise particle simulation and all jorek fields
+  call sim_particles%initialize(0,.true.); sim_particles%time=time_sol;
+  !> set-up the read event
+  events = [event(read_jorek_fields_interp_linear(basename=fields_eq_name_sol,i=-1))]
+  !> read the fields from jorek restart file
+  call with(sim_particles,events,at=0.d0)
+  !> copy particle field to external structure
+  select type(fields=>sim_particles%fields)
+  type is (jorek_fields_interp_linear)
+    fields_linear_sol = fields
+  end select
+  !> cleanup fields
+  call sim_particles%finalize
+end subroutine setup_jorek_simulation
+
+!> setup initialisation intervals
+subroutine setup_init_intervals()
+  implicit none
+  !> variables:
+  integer :: ii
+  real*8 :: R_min,R_max,Z_min,Z_max
+  !> compute minimum and maximum RZ jorek mesh
+  R_minmax_jorek_sol = (/1.d21,-1.d21/); 
+  Z_minmax_jorek_sol = (/1.d21,-1.d21/);
+  do ii=1,fields_linear_sol%element_list%n_elements
+    call RZ_minmax(fields_linear_sol%node_list,&
+    fields_linear_sol%element_list,ii,R_min,R_max,Z_min,Z_max)
+    R_minmax_jorek_sol(1) = min(R_min,R_minmax_jorek_sol(1))
+    R_minmax_jorek_sol(2) = max(R_max,R_minmax_jorek_sol(2))
+    Z_minmax_jorek_sol(1) = min(Z_min,Z_minmax_jorek_sol(1))
+    Z_minmax_jorek_sol(2) = max(Z_max,Z_minmax_jorek_sol(2))
+  enddo
+  R_box_jorek_sol = R_minmax_jorek_sol*R_box_fraction_sol 
+  R_box_jorek_sol = 5.d-1*sum(R_minmax_jorek_sol) + &
+  5.d-1*(R_box_jorek_sol(2)-R_box_jorek_sol(1))*(/-1.d0,1.d0/)
+  Z_box_jorek_sol = Z_minmax_jorek_sol*Z_box_fraction_sol
+  Z_box_jorek_sol = 5.d-1*sum(Z_minmax_jorek_sol) + &
+  5.d-1*(Z_box_jorek_sol(2)-Z_box_jorek_sol(1))*(/-1.d0,1.d0/)
+end subroutine setup_init_intervals
+
 !> tear-down test feature
 subroutine teardown()
   implicit none
@@ -141,6 +206,71 @@ subroutine test_find_relativistic_kinetic_gc_groups()
   call assert_equals(active_group_ids_2_test,active_group_ids_2_sol,n_groups_2,&
   "Error find relativistic particle groups: active group ids mismatch!")
 end subroutine test_find_relativistic_kinetic_gc_groups
+
+!> test find R,Z min mac
+subroutine test_find_RZPhi_minmax_global()
+  use mod_initialise_relativistic_particles, only: find_RZPhi_minmax_global
+  implicit none
+  real*8,dimension(2) :: R_minmax_test,Z_minmax_test,phi_minmax_test
+  !> test
+  call find_RZPhi_minmax_global(R_minmax_test,Z_minmax_test,&
+  phi_minmax_test,fields_linear_sol)
+  !> checks
+  call assert_equals(R_minmax_test,R_minmax_jorek_sol,2,&
+  "Error find RZPhi minmax global: R minmax mismatch!")
+  call assert_equals(Z_minmax_test,Z_minmax_jorek_sol,2,&
+  "Error find RZPhi minmax global: Z minmax mismatch!")
+  call assert_equals(phi_minmax_test,phi_minmax,2,&
+  "Error find RZPhi minmax global: phi minmax mismatch!")
+end subroutine test_find_RZPhi_minmax_global
+
+!> test initialise particles in R,Z,phi coordinates
+subroutine test_sample_position_uniformly_cylinder()
+  use mod_interp, only: interp_RZ
+  use mod_initialise_relativistic_particles, only: sample_position_uniformly_cylinder
+  implicit none
+  !> variables
+  integer :: ii,jj,it,maxit
+  real*8 :: R_test,Z_test
+  real*8,dimension(2) :: R2_box
+  real*8,dimension(3) :: rands
+  type(particle_kinetic_relativistic) :: p_test
+  logical,dimension(:),allocatable    :: success
+  real*8,dimension(:),allocatable     :: errors,zeros
+  !> initialisation
+  maxit=100; R2_box = R_box_jorek_sol*R_box_jorek_sol
+  !> loop for initialising particles
+  do ii=1,n_groups
+    allocate(success(n_particles(ii))); allocate(errors(n_particles(ii)));
+    allocate(zeros(n_particles(ii))); errors=1.d16; zeros=0.d0;
+    do jj=1,n_particles(ii)
+      p_test%i_elm=0; it=0
+      do while((p_test%i_elm.le.0).and.(it.le.maxit))
+        call random_number(rands)
+        call sample_position_uniformly_cylinder(p_test,&
+        fields_linear_sol%node_list,fields_linear_sol%element_list,&
+        rands,R2_box,Z_box_jorek_sol,phi_small_sol)
+        it = it+1
+      enddo
+      success(jj) = (p_test%i_elm.gt.0).and.&
+      (p_test%x(1).ge.R_box_jorek_sol(1)).and.(p_test%x(1).le.R_box_jorek_sol(2)).and.&
+      (p_test%x(2).ge.Z_box_jorek_sol(1)).and.(p_test%x(2).le.Z_box_jorek_sol(2)).and.&
+      (p_test%x(3).ge.phi_small_sol(1)).and.(p_test%x(3).le.phi_small_sol(2))
+      if(p_test%i_elm.le.0) cycle
+      call interp_RZ(fields_linear_sol%node_list,&
+      fields_linear_sol%element_list,p_test%i_elm,&
+      p_test%st(1),p_test%st(2),R_test,Z_test)
+      errors(jj) = max(abs(p_test%x(1)-R_test),abs(p_test%x(2)-Z_test))
+    enddo
+    call assert_true(all(success),&
+    "Error sample position uniformly cylinder: R,Z,Phi not in bound!")
+    call assert_equals(errors,zeros,n_particles(ii),tol_interp_real8,&
+    "Error sample position uniformly cylinder: R,Z mismatch!")
+    deallocate(success); deallocate(errors); deallocate(zeros);
+  enddo
+end subroutine test_sample_position_uniformly_cylinder
+
+!> test initialise particles within psi,theta,phi bounds
 
 !> test initialisation particle momentum between limits
 subroutine test_sampling_cartesian_p_kinetic_relativistic()
