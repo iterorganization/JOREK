@@ -19,7 +19,7 @@ public :: sampling_uniform_charge
 public :: init_particle_base_to_zero
 public :: find_RZPhi_minmax_global
 public :: check_RZPhi_interval
-public :: find_psithetaphi_maxmin_global_list
+public :: find_psithetaphi_minmax_global_list
 public :: check_psithetaphi_interval
 public :: check_energypitchgyro_interval
 #endif
@@ -145,7 +145,7 @@ energy_box,pitch_box,gyro_box,q_box)
   call find_relativistic_kinetic_gc_groups(n_groups,groups,&
   n_active_groups,active_group_ids)
   !> extract bounding boxes
-  call find_psithetaphi_maxmin_global_list(psi_minmax_global,&
+  call find_psithetaphi_minmax_global_list(psi_minmax_global,&
   psi_minmax_list,theta_minmax,phi_minmax,fields)
   !> check bounding boxes in physical and velocity spaces
   call check_psithetaphi_interval(psithetaphi_box(1,:),&
@@ -675,7 +675,7 @@ end subroutine check_RZPhi_interval
 !>                      poloidal fluxes for each mesh element
 !>   theta_minmax:      (real8)(2) maximum and minimum poloidal angle
 !>   phi_minmax:        (real8)(2) maximum and minimum toroidal angle
-subroutine find_psithetaphi_maxmin_global_list(psi_minmax_global,&
+subroutine find_psithetaphi_minmax_global_list(psi_minmax_global,&
 psi_minmax_list,theta_minmax,phi_minmax,fields)
   use constants,  only: TWOPI
   use mod_fields, only: fields_base
@@ -695,9 +695,9 @@ psi_minmax_list,theta_minmax,phi_minmax,fields)
     call psi_minmax(fields%node_list,fields%element_list,ii,&
     psi_minmax_list(ii,1),psi_minmax_list(ii,2))
     psi_minmax_global(1) = min(psi_minmax_global(1),psi_minmax_list(ii,1))
-    psi_minmax_global(2) = min(psi_minmax_global(2),psi_minmax_list(ii,2))
+    psi_minmax_global(2) = max(psi_minmax_global(2),psi_minmax_list(ii,2))
   enddo
-end subroutine find_psithetaphi_maxmin_global_list
+end subroutine find_psithetaphi_minmax_global_list
 
 !> denormalise and check the poloidal flux interval
 !> inputs:

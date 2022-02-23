@@ -72,6 +72,8 @@ real*8,dimension(2)                        :: R_box_jorek_sol
 real*8,dimension(2)                        :: Z_box_jorek_sol
 real*8,dimension(2)                        :: R_minmax_jorek_sol
 real*8,dimension(2)                        :: Z_minmax_jorek_sol
+real*8,dimension(2)                        :: psi_minmax_global_jorek_sol
+real*8,dimension(:,:),allocatable          :: psi_minmax_list_jorek_sol
 !> Interfaces--------------------------------------------------
 contains
 !> Fruit basket -----------------------------------------------
@@ -86,6 +88,7 @@ subroutine run_fruit_initialise_relativistic_particles()
   call test_dummy
   call test_find_relativistic_kinetic_gc_groups
   call test_find_RZPhi_minmax_global
+  call test_find_psithetaphi_minmax_global_list
   call test_sample_position_uniformly_cylinder
   call test_sampling_cartesian_p_kinetic_relativistic
   call test_sampling_cartesian_gc_kinetic_relativistic
@@ -159,9 +162,14 @@ subroutine setup_init_intervals()
   !> variables:
   integer :: ii
   real*8 :: R_min,R_max,Z_min,Z_max
+  !> initialisations
+  allocate(psi_minmax_list_jorek_sol(fields_linear_sol%element_list%n_elements,2))
   !> compute minimum and maximum RZ jorek mesh
   R_minmax_jorek_sol = (/1.d21,-1.d21/); 
   Z_minmax_jorek_sol = (/1.d21,-1.d21/);
+  psi_minmax_global_jorek_sol = (/1.d21,-1.d21/);
+  psi_minmax_list_jorek_sol(:,1) = 1.d21
+  psi_minmax_list_jorek_sol(:,2) = -1.d21
   do ii=1,fields_linear_sol%element_list%n_elements
     call RZ_minmax(fields_linear_sol%node_list,&
     fields_linear_sol%element_list,ii,R_min,R_max,Z_min,Z_max)
@@ -169,6 +177,12 @@ subroutine setup_init_intervals()
     R_minmax_jorek_sol(2) = max(R_max,R_minmax_jorek_sol(2))
     Z_minmax_jorek_sol(1) = min(Z_min,Z_minmax_jorek_sol(1))
     Z_minmax_jorek_sol(2) = max(Z_max,Z_minmax_jorek_sol(2))
+    call psi_minmax(fields_linear_sol%node_list,fields_linear_sol%element_list,&
+    ii,psi_minmax_list_jorek_sol(ii,1),psi_minmax_list_jorek_sol(ii,2))
+    psi_minmax_global_jorek_sol(1) = min(psi_minmax_global_jorek_sol(1),&
+    psi_minmax_list_jorek_sol(ii,1))
+    psi_minmax_global_jorek_sol(2) = max(psi_minmax_global_jorek_sol(2),&
+    psi_minmax_list_jorek_sol(ii,2))
   enddo
   R_box_jorek_sol = R_minmax_jorek_sol*R_box_fraction_sol 
   R_box_jorek_sol = 5.d-1*sum(R_minmax_jorek_sol) + &
@@ -187,6 +201,7 @@ subroutine teardown()
   do ii=1,n_groups; groups_sol(ii)%mass=0.d0; enddo
   !> cleanup fields
   call fields_sol%deallocate_fields()
+  deallocate(psi_minmax_list_jorek_sol)
 end subroutine teardown
 
 !> Tests ------------------------------------------------------
@@ -207,7 +222,7 @@ subroutine test_find_relativistic_kinetic_gc_groups()
   "Error find relativistic particle groups: active group ids mismatch!")
 end subroutine test_find_relativistic_kinetic_gc_groups
 
-!> test find R,Z min mac
+!> test find R,Z min max
 subroutine test_find_RZPhi_minmax_global()
   use mod_initialise_relativistic_particles, only: find_RZPhi_minmax_global
   implicit none
@@ -223,6 +238,27 @@ subroutine test_find_RZPhi_minmax_global()
   call assert_equals(phi_minmax_test,phi_minmax,2,&
   "Error find RZPhi minmax global: phi minmax mismatch!")
 end subroutine test_find_RZPhi_minmax_global
+
+!> test find poloidal flux, angle and toroidal angle minmax
+subroutine test_find_psithetaphi_minmax_global_list()
+  use mod_initialise_relativistic_particles, only: find_psithetaphi_minmax_global_list
+  implicit none
+  real*8,dimension(2) :: psi_minmax_global_test,theta_minmax_test,phi_minmax_test
+  real*8,dimension(fields_linear_sol%element_list%n_elements,2) :: psi_minmax_list_test
+  !> compute maximum and minimum
+  call find_psithetaphi_minmax_global_list(psi_minmax_global_test,&
+  psi_minmax_list_test,theta_minmax_test,phi_minmax_test,fields_linear_sol)
+  !> checks
+  call assert_equals(psi_minmax_global_test,psi_minmax_global_jorek_sol,2,&
+  "Error find psi,theta,phi minmax global: psi global minmax mismatch!")
+  call assert_equals(psi_minmax_list_test,psi_minmax_list_jorek_sol,&
+  fields_linear_sol%element_list%n_elements,2,&
+  "Error find psi,theta,phi minmax global: psi list minmax mismatch!")
+  call assert_equals(theta_minmax_test,theta_minmax,2,&
+  "Error find psi,theta,phi minmax global: theta minmax mismatch!")
+  call assert_equals(phi_minmax_test,phi_minmax,2,&
+  "Error find psi,theta,phi minmax global: phi minmax mismatch!")
+end subroutine test_find_psithetaphi_minmax_global_list
 
 !> test initialise particles in R,Z,phi coordinates
 subroutine test_sample_position_uniformly_cylinder()
