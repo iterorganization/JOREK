@@ -265,6 +265,8 @@ energy_box,pitch_box,gyro_box,q_box)
   !> initialisation
   maxit=1000000; n_groups=size(groups); n_active_groups=0; 
   allocate(active_group_ids(n_groups)); allocate(momentum_box(2,n_groups));
+  call find_relativistic_kinetic_gc_groups(n_groups,groups,&
+  n_active_groups,active_group_ids)
   !> extract bounding maximum and minimum boxes
   call find_RZPhi_minmax_global(R_minmax,Z_minmax,phi_minmax,fields)
   !> check bounding boxes
@@ -280,9 +282,9 @@ energy_box,pitch_box,gyro_box,q_box)
   call setup_shared_rngs(7,rng_type,rngs)
 
   !> fill particle list
-  !$omp parallel default(private) firstprivate(n_groups,maxit) &
-  !$omp shared(groups,fields,R2_box,Z_box,phi_box,time,&
-  !$omp momentum_box,cospitch_box,gyro_box,q_box)
+  !$omp parallel default(private) firstprivate(n_active_groups,&
+  !$omp maxit,active_group_ids) shared(groups,fields,rngs,R2_box,&
+  !$omp Z_box,phi_box,time,momentum_box,cospitch_box,gyro_box,q_box)
   thread_id = 1;
   !$ thread_id = omp_get_thread_num()
   !$omp single
