@@ -22,6 +22,8 @@ public :: check_RZPhi_interval
 public :: find_psithetaphi_minmax_global_list
 public :: check_thetapsiphi_interval
 public :: check_energypitchgyro_interval
+public :: init_particle_kinetic_relativistic_to_zero
+public :: init_particle_gc_relativistic_to_zero
 #endif
 
 !> Variables and datatypes --------------------------------
@@ -785,6 +787,33 @@ subroutine init_particle_base_to_zero(p_inout)
   p_inout%i_elm=0; p_inout%i_life=0; p_inout%t_birth=0.d0;
 end subroutine init_particle_base_to_zero
 
+!> initialise particle kinetic relativistic fields with unit particle weight
+!> inputs:
+!>   p_inout: (particle_kinetic_relativistic) particle to be initialised to zero
+!> outputs:
+!>   p_inout: (particlle_kinetic_relativistic) initialised particle to zero
+subroutine init_particle_kinetic_relativistic_to_zero(p_inout)
+  use mod_particle_types, only: particle_kinetic_relativistic
+  implicit none
+  type(particle_kinetic_relativistic),intent(inout) :: p_inout
+  !> reset particle kinetic relativistic
+  call init_particle_base_to_zero(p_inout)
+  p_inout%p = 0.d0; p_inout%q = 0;
+end subroutine init_particle_kinetic_relativistic_to_zero
+
+!> initialise particle gc relativistic fields with unit particle weight
+!> inputs:
+!>   p_inout: (particle_gc_relativistic) particle to be initialised to zero
+!> outputs:
+!>   p_inout: (particlle_gc_relativistic) initialised particle to zero
+subroutine init_particle_gc_relativistic_to_zero(p_inout)
+  use mod_particle_types, only: particle_gc_relativistic
+  implicit none
+  type(particle_gc_relativistic),intent(inout) :: p_inout
+  !> reset particle gc relativistic
+  call init_particle_base_to_zero(p_inout)
+  p_inout%p = 0.d0; p_inout%q = 0;
+end subroutine init_particle_gc_relativistic_to_zero
 
 !>---------------------------------------------------------
 end module mod_initialise_relativistic_particles
