@@ -22,9 +22,11 @@ public :: run_fruit_initialise_relativistic_particles
 
 !> Variables and datatypes ------------------------------------
 character(len=17),parameter :: fields_eq_name_sol="test_jorek_fields"
+integer,parameter  :: n_v=1
 integer,parameter  :: n_groups=2
 integer,parameter  :: n_groups_2=5
 integer,parameter  :: n_samples=343
+integer,parameter,dimension(n_v)           :: i_psi=(/1/)
 integer,dimension(n_groups),parameter      :: n_particles=(/123,234/)
 integer,dimension(n_groups),parameter      :: p_types_sol=(/&
                       particle_kinetic_relativistic_id,&
@@ -43,7 +45,7 @@ real*8,parameter                           :: tol_interp_real8=7.5d-10
 real*8,parameter                           :: time_sol=0.d0
 real*8,parameter                           :: p_neg=-2.d0
 real*8,dimension(2),parameter              :: psi_big_sol=(/-2.d1,3.d2/)
-real*8,dimension(2),parameter              :: psi_small_sol=(/0.d0,1.d0/)
+real*8,dimension(2),parameter              :: psi_small_sol=(/1.d-1,9.d-1/)
 real*8,dimension(2),parameter              :: psi_axisbnd=(/-1.d0,2.5d0/)
 real*8,dimension(2),parameter              :: R_big_sol=(/1.d-1,3.d2/)
 real*8,dimension(2),parameter              :: R_small_sol=(/1.d0,2.5d0/)
@@ -89,6 +91,7 @@ subroutine run_fruit_initialise_relativistic_particles()
   call test_find_relativistic_kinetic_gc_groups
   call test_find_RZPhi_minmax_global
   call test_find_psithetaphi_minmax_global_list
+  call test_sample_position_uniformly_psi_theta_phi
   call test_sample_position_uniformly_cylinder
   call test_sampling_cartesian_p_kinetic_relativistic
   call test_sampling_cartesian_gc_kinetic_relativistic
@@ -321,12 +324,57 @@ end subroutine test_sample_position_uniformly_cylinder
 
 !> test initialise particles within psi,theta,phi bounds
 subroutine test_sample_position_uniformly_psi_theta_phi()
+  use mod_interp, only: interp_PRZ
   use equil_info, only: ES
   use mod_initialise_relativistic_particles, only: sample_position_uniformly_psi_theta_phi
   implicit none
   !> variables
-  real*8,dimension(3,2) :: thetpsiphi_box
+  integer                             :: ii,jj,it,maxit
+  real*8                              :: deltapsi,R_test,Z_test
+  real*8,dimension(n_v)               :: psi_test
+  real*8,dimension(3)                 :: rands
+  real*8,dimension(3,2)               :: thetapsiphi_box
   type(particle_kinetic_relativistic) :: p_test
+  logical,dimension(:),allocatable    :: success
+  real*8,dimension(:),allocatable     :: errors,zeros
+  !> initialisation
+  maxit = 100000
+  !> denormalise the psi_box and store everything in the thetapsiphi variable
+  deltapsi = ES%psi_bnd-ES%psi_axis
+  thetapsiphi_box(1,:) = theta_small_sol
+  thetapsiphi_box(2,:) = ES%psi_axis + deltapsi*psi_small_sol
+  thetapsiphi_box(3,:) = phi_small_sol
+  !> loop for computing the particle position and check the bound
+  do ii=1,n_groups
+    allocate(success(n_particles(ii))); success = .false.; 
+    allocate(errors(n_particles(ii)));  errors = 1.d21; 
+    allocate(zeros(n_particles(ii)));   zeros = 0.d0;
+    do jj=1,n_particles(ii)
+      p_test%i_elm = 0; it = 0;
+      do while((p_test%i_elm.le.0).and.(it.le.maxit))
+        call random_number(rands)
+        call sample_position_uniformly_psi_theta_phi(p_test,&
+        fields_linear_sol%node_list,fields_linear_sol%element_list,rands,&
+        thetapsiphi_box,psi_minmax_list_jorek_sol,(/ES%R_axis,ES%Z_axis/))
+        it = it+1
+      enddo
+      !> check end errors
+      if(p_test%i_elm.gt.0) then
+        call interp_PRZ(fields_linear_sol%node_list,fields_linear_sol%element_list,&
+        p_test%i_elm,i_psi,n_v,p_test%st(1),p_test%st(2),p_test%x(3),psi_test,R_test,Z_test)
+        psi_test = (psi_test-ES%psi_axis)/deltapsi
+        success(jj) = ((psi_test(1).ge.psi_small_sol(1)).and.&
+        (psi_test(1).le.psi_small_sol(2))).and.&
+        ((p_test%x(3).ge.phi_small_sol(1)).and.(p_test%x(3).le.phi_small_sol(2)))
+        errors(jj) = max(abs(p_test%x(1)-R_test),abs(p_test%x(2)-Z_test)) 
+      endif
+    enddo
+    call assert_true(all(success),&
+    "Error sample position uniformly psi-theta-phi: psi,phi not in bound!")
+    call assert_equals(errors,zeros,n_particles(ii),tol_interp_real8,&
+    "Error sample position uniformly psi-theta-phi: R,Z mismatch!")
+    deallocate(success); deallocate(errors); deallocate(zeros);
+  enddo
 end subroutine test_sample_position_uniformly_psi_theta_phi
 
 !> test initialisation particle momentum between limits
@@ -629,12 +677,13 @@ subroutine test_check_thetapsiphi_interval()
   use mod_initialise_relativistic_particles, only: check_thetapsiphi_interval
   implicit none
   !> variables:
-  real*8,dimension(2) :: psi_test,theta_test,phi_test
+  real*8,dimension(2) :: psi_local_sol,psi_test,theta_test,phi_test
   !> check complete inflow
+  psi_local_sol = psi_axisbnd(1)+(psi_axisbnd(2)-psi_axisbnd(1))*psi_small_sol
   psi_test=psi_small_sol; theta_test=theta_small_sol; phi_test=phi_small_sol;
   call check_thetapsiphi_interval(theta_test,psi_test,phi_test,psi_axisbnd(1),&
   psi_axisbnd(2),psi_minmax_sol,theta_minmax,phi_minmax)
-  call assert_equals(psi_test,psi_axisbnd,2,&
+  call assert_equals(psi_test,psi_local_sol,2,&
   "Error check psi-theta-phi interval: psi inflow test mismatch!")
   call assert_equals(theta_test,theta_small_sol,2,&
   "Error check psi-theta-phi interval: theta inflow test mismatch!")
@@ -656,7 +705,7 @@ subroutine test_check_thetapsiphi_interval()
   phi_test=(/phi_big_sol(1),phi_small_sol(2)/)
   call check_thetapsiphi_interval(theta_test,psi_test,phi_test,&
   psi_axisbnd(1),psi_axisbnd(2),psi_minmax_sol,theta_minmax,phi_minmax)
-  call assert_equals(psi_test,(/psi_minmax_sol(1),psi_axisbnd(2)/),2,&
+  call assert_equals(psi_test,(/psi_minmax_sol(1),psi_local_sol(2)/),2,&
   "Error check psi-theta-phi interval: psi min underflow test mismatch!")
   call assert_equals(theta_test,(/theta_minmax(1),theta_small_sol(2)/),2,&
   "Error check psi-theta-phi interval: theta min underflow test mismatch!")
@@ -668,7 +717,7 @@ subroutine test_check_thetapsiphi_interval()
   phi_test=(/phi_small_sol(1),phi_big_sol(2)/)
   call check_thetapsiphi_interval(theta_test,psi_test,phi_test,&
   psi_axisbnd(1),psi_axisbnd(2),psi_minmax_sol,theta_minmax,phi_minmax)
-  call assert_equals(psi_test,(/psi_axisbnd(1),psi_minmax_sol(2)/),2,&
+  call assert_equals(psi_test,(/psi_local_sol(1),psi_minmax_sol(2)/),2,&
   "Error check psi-theta-phi interval: psi max overflow test mismatch!")
   call assert_equals(theta_test,(/theta_small_sol(1),theta_minmax(2)/),2,&
   "Error check psi-theta-phi interval: theta max overflow test mismatch!")
