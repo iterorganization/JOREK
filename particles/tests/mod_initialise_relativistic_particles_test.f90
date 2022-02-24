@@ -66,7 +66,7 @@ real*8,dimension(2),parameter              :: theta_minmax=(/0.d0,TWOPI/)
 real*8,dimension(2),parameter              :: phi_minmax=(/0.d0,TWOPI/)
 real*8,dimension(2),parameter              :: R_box_fraction_sol=(/0.22,0.34/)
 real*8,dimension(2),parameter              :: Z_box_fraction_sol=(/0.41,0.73/)
-type(particle_group),dimension(n_groups)   :: groups_sol
+type(particle_group),dimension(:),allocatable   :: groups_sol
 type(particle_group),dimension(n_groups_2) :: groups_2_sol
 type(fields_analytical)                    :: fields_sol
 type(jorek_fields_interp_linear)           :: fields_linear_sol
@@ -120,6 +120,8 @@ subroutine setup()
   integer :: ifail
   integer,dimension(0) :: int_param
   real*8,dimension(4)  :: real_param 
+  !> allocate groups
+  allocate(groups_sol(n_groups))
   !> allocate particle lists
   call allocate_one_particle_list_type(n_groups,n_particles,&
   p_types_sol,groups_sol,ifail)
@@ -214,7 +216,7 @@ subroutine teardown()
   !> variables
   integer :: ii
   !> clean particle group
-  do ii=1,n_groups; groups_sol(ii)%mass=0.d0; enddo
+  deallocate(groups_sol)
   !> cleanup fields
   call fields_sol%deallocate_fields()
   deallocate(psi_minmax_list_jorek_sol)
@@ -376,6 +378,31 @@ subroutine test_sample_position_uniformly_psi_theta_phi()
     deallocate(success); deallocate(errors); deallocate(zeros);
   enddo
 end subroutine test_sample_position_uniformly_psi_theta_phi
+
+!> test particle kinetic and gc relativistic psithetaphi and energypitchgyro intervals
+subroutine test_init_gc_relativistic_psithetaphi_energypitchgyro()
+  use mod_pcg32_rng,                         only: pcg32_rng
+  use mod_interp,                            only: interp_PRZ
+  use equil_info,                            only: ES
+  use mod_particle_common_test_tools,        only: EThetaChi_RE_lowbnd,EThetaChi_RE_uppbnd
+  use mod_particle_common_test_tools,        only: q1_posneg_interval
+  use mod_initialise_relativistic_particles, only: init_p_gc_relativistic_psithetaphi_energypitchgyro
+  implicit none
+  !> variables:
+  real*8,dimension(2)   :: energy_box,pitch_box,gyro_box
+  real*8,dimension(3,2) :: thetapsiphi_norm_box
+  !> initialisation:
+  thetapsiphi_norm_box(1,:) = theta_small_sol
+  thetapsiphi_norm_box(2,:) = psi_small_sol
+  thetapsiphi_norm_box(3,:) = phi_small_sol
+  energy_box = (/EThetaChi_RE_lowbnd(1),EThetaChi_RE_uppbnd(1)/)
+  pitch_box  = (/EThetaChi_RE_lowbnd(2),EThetaChi_RE_uppbnd(2)/)
+  gyro_box   = (/EThetaChi_RE_lowbnd(3),EThetaChi_RE_uppbnd(3)/)
+  !> initialise particle groups
+  call init_p_gc_relativistic_psithetaphi_energypitchgyro(groups_sol,&
+  fields_linear_sol,ES,time_sol,pcg32_rng(),thetapsiphi_norm_box,&
+  energy_box,pitch_box,gyro_box,q1_posneg_interval)
+end subroutine test_init_gc_relativistic_psithetaphi_energypitchgyro
 
 !> test initialisation particle momentum between limits
 subroutine test_sampling_cartesian_p_kinetic_relativistic()
