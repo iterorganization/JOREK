@@ -10,7 +10,7 @@ public :: init_p_gc_relativistic_RZPhi_energypitchgyro
 #ifdef UNIT_TESTS
 public :: find_relativistic_kinetic_gc_groups
 public :: sample_position_uniformly_cylinder
-public :: sample_position_uniformly_psi_theta
+public :: sample_position_uniformly_psi_theta_phi
 public :: sampling_cartesian_p_kinetic_relativistic
 public :: sampling_cartesian_p_gc_relativistic
 public :: sampling_uniform_ppitchgyro_kinetic_relativistic
@@ -20,7 +20,7 @@ public :: init_particle_base_to_zero
 public :: find_RZPhi_minmax_global
 public :: check_RZPhi_interval
 public :: find_psithetaphi_minmax_global_list
-public :: check_psithetaphi_interval
+public :: check_thetapsiphi_interval
 public :: check_energypitchgyro_interval
 #endif
 
@@ -92,8 +92,8 @@ contains
 !>   rng_type:        (type_rng) type of random number generator
 !>   eq_info:         (t_equil_info) information on the equilibrium
 !>   time:            (real8) time of the interpolation
-!>   psithetaphi_box: (real8)(2) normalised (1,:) poloidal flux box,
-!>                    (2,:) poloidal and (3,:) toroidal angles
+!>   thetapsiphi_box: (real8)(3,2) normalised (1,:) poloidal angle box,
+!>                    (2,:) poloidal flux and (3,:) toroidal angle boxes
 !>   energy_box:      (real8)(2) energy box for sampling in eV
 !>   pitch_box:       (real8)(2) pitch angle box for sampling 
 !>   gyro_box:        (real8)(2) gyro angle box for sampling
@@ -101,13 +101,13 @@ contains
 !> outputs:
 !>   groups:          (particle_group)(:)(allocatable) initialised group
 !>   fields:          (fields_base) jorek fields base type
-!>   psithetaphi_box: (real8)(2) normalised (1,:) poloidal flux box,
-!>                    (2,:) poloidal and (3,:) toroidal angles
+!>   thetapsiphi_box: (real8)(3,2) normalised (1,:) poloidal angle box,
+!>                    (2,:) poloidal flux and (3,:) toroidal angle boxes
 !>   energy_box:      (real8)(2) energy box for sampling in eV
 !>   pitch_box:       (real8)(2) pitch angle box for sampling 
 !>   gyro_box:        (real8)(2) gyro angle box for sampling
 subroutine init_p_gc_relativistic_psithetaphi_energypitchgyro(&
-groups,fields,eq_info,time,rng_type,psithetaphi_box,&
+groups,fields,eq_info,time,rng_type,thetapsiphi_box,&
 energy_box,pitch_box,gyro_box,q_box)
   use mod_rng,            only: type_rng
   use mod_rng,            only: setup_shared_rngs
@@ -121,7 +121,7 @@ energy_box,pitch_box,gyro_box,q_box)
   !> inputs-outputs:
   class(particle_group),dimension(:),allocatable,intent(inout) :: groups
   class(fields_base),intent(inout)                             :: fields
-  real*8,dimension(2,3),intent(inout) :: psithetaphi_box
+  real*8,dimension(2,3),intent(inout) :: thetapsiphi_box
   real*8,dimension(2),intent(inout)   :: energy_box,pitch_box,gyro_box
   !> inputs:
   type(t_equil_state),intent(in)    :: eq_info
@@ -148,8 +148,8 @@ energy_box,pitch_box,gyro_box,q_box)
   call find_psithetaphi_minmax_global_list(psi_minmax_global,&
   psi_minmax_list,theta_minmax,phi_minmax,fields)
   !> check bounding boxes in physical and velocity spaces
-  call check_psithetaphi_interval(psithetaphi_box(1,:),&
-  psithetaphi_box(2,:),psithetaphi_box(3,:),eq_info%Psi_axis,&
+  call check_thetapsiphi_interval(thetapsiphi_box(1,:),&
+  thetapsiphi_box(2,:),thetapsiphi_box(3,:),eq_info%Psi_axis,&
   eq_info%Psi_bnd,psi_minmax_list,theta_minmax,phi_minmax)
   do ii=1,n_active_groups
     call check_energypitchgyro_interval(energy_box,momentum_box(:,ii),&
@@ -162,7 +162,7 @@ energy_box,pitch_box,gyro_box,q_box)
 
   !$omp parallel default(private) firstprivate(n_active_groups,&
   !$omp active_group_ids,maxit) shared(groups,rngs,fields,&
-  !$omp psithetaphi_box,psi_minmax_list,eq_info,time,momentum_box,&
+  !$omp thetapsiphi_box,psi_minmax_list,eq_info,time,momentum_box,&
   !$omp cospitch_box,gyro_box,q_box)
   !> initialise the the relativistic and particle lists
   thread_id = 1;
@@ -177,9 +177,9 @@ energy_box,pitch_box,gyro_box,q_box)
       kk = 0;
       do while((groups(active_group_ids(ii))%particles(jj)%i_elm.le.0).and.(kk.le.maxit))
         call rngs(thread_id)%next(rands)
-        call sample_position_uniformly_psi_theta(&
+        call sample_position_uniformly_psi_theta_phi(&
                groups(active_group_ids(ii))%particles(jj),fields%node_list,&
-               fields%element_list,rands(1:3),psithetaphi_box,&
+               fields%element_list,rands(1:3),thetapsiphi_box,&
                psi_minmax_list,(/eq_info%R_axis,eq_info%Z_axis/))
           kk = kk + 1
         enddo
@@ -413,14 +413,14 @@ end subroutine sample_position_uniformly_cylinder
 !>   element_list:       (type_element_list) jorek element list
 !>   rand:               (real8)(3) random numbers
 !>   thetapsiphi_bound:  (real8)(3,2) sampling box boundaries
-!>                       1) minimum theta,psi,phi boundary
-!>                       2) maximum theta,psi,phi boundary
+!>                       :,1) minimum theta,psi,phi boundary
+!>                       :,2) maximum theta,psi,phi boundary
 !>   psi_element_minmax: (real8)(n_elements,2) minimum and 
 !>                       maximum value of psi per each element
 !>   RZ_axis:            (real8)(2) 1)-R 2)-Z magnetic axis coords.
 !> outputs: 
 !>   particle:           (particle_base) sampled particle
-subroutine sample_position_uniformly_psi_theta(&
+subroutine sample_position_uniformly_psi_theta_phi(&
 particle,node_list,element_list,rand,&
 thetapsiphi_bound,psi_element_minmax,RZ_axis)
   use data_structure,     only: type_node_list
@@ -442,7 +442,7 @@ thetapsiphi_bound,psi_element_minmax,RZ_axis)
   call find_theta_psi(node_list,element_list,psi_element_minmax,&
   particle%x(1),particle%x(2),particle%x(3),RZ_axis(1),RZ_axis(2),&
   particle%i_elm,particle%st(1),particle%st(2),particle%x(1),particle%x(2))
-end subroutine sample_position_uniformly_psi_theta
+end subroutine sample_position_uniformly_psi_theta_phi
 
 !> uniform sampling of the cartesian momentum
 !> for kinetic relativistic particles
@@ -701,8 +701,8 @@ end subroutine find_psithetaphi_minmax_global_list
 
 !> denormalise and check the poloidal flux interval
 !> inputs:
-!>   psi_box:      (real8)(2) poloidal flux bounding box
 !>   theta_box:    (real8)(2) poloidal angle bounding box
+!>   psi_box:      (real8)(2) poloidal flux bounding box
 !>   phi_box:      (real8)(2) toroidal angle bounding box
 !>   psi_axis:     (real8) poloidal flux at the magnetic axis
 !>   psi_boundary: (real8) poloidal flux at the plasma boundary
@@ -710,14 +710,14 @@ end subroutine find_psithetaphi_minmax_global_list
 !>   theta_minmax: (real8)(2) minimum-maxumum poloidal angle
 !>   phi_minmax:   (real8)(2) minimum-maximum toroidal angle
 !> outputs:
-!>   psi_box:      (real8)(2) poloidal flux bounding box
 !>   theta_box:    (real8)(2) poloidal angle bounding box
+!>   psi_box:      (real8)(2) poloidal flux bounding box
 !>   phi_box:      (real8)(2) toroidal angle bounding box
-subroutine check_psithetaphi_interval(psi_box,theta_box,phi_box,&
+subroutine check_thetapsiphi_interval(theta_box,psi_box,phi_box,&
 psi_axis,psi_boundary,psi_minmax,theta_minmax,phi_minmax)
   implicit none
   !> inputs-outputs:
-  real*8,dimension(2),intent(inout) :: psi_box,theta_box,phi_box
+  real*8,dimension(2),intent(inout) :: theta_box,psi_box,phi_box
   !> inputs:
   real*8,intent(in)              :: psi_axis,psi_boundary
   real*8,dimension(2),intent(in) :: psi_minmax,theta_minmax,phi_minmax
@@ -729,7 +729,7 @@ psi_axis,psi_boundary,psi_minmax,theta_minmax,phi_minmax)
   theta_box(2) = min(theta_box(2),theta_minmax(2))
   phi_box(1)   = max(phi_box(1),phi_minmax(1))
   phi_box(2)   = min(phi_box(2),phi_minmax(2))
-end subroutine check_psithetaphi_interval
+end subroutine check_thetapsiphi_interval
 
 !> compute the momentum from particle energy and check bounds
 !> inputs:
