@@ -105,7 +105,7 @@ subroutine setup_shared_rngs_multiple_seeds(n_dim,rng_type,rngs)
   !> initialisation
   call MPI_Comm_Rank(MPI_COMM_WORLD,my_id,ierr)
   call MPI_Comm_Size(MPI_COMM_WORLD,n_tasks,ierr)
-  allocate(seeds(n_tasks)); allocate(n_streams(n_tasks))
+  allocate(seeds(n_tasks)); allocate(n_streams(n_tasks)); allocate(rands(n_tasks));
   n_stream = 1
   !$ n_stream = omp_get_max_threads()
   allocate(rngs(n_stream),source=rng_type)
@@ -120,10 +120,10 @@ subroutine setup_shared_rngs_multiple_seeds(n_dim,rng_type,rngs)
   n_streams_total = sum(n_streams)
   !> initialise the rngs with different seeds
   do ii=1,n_stream
-    call rngs(ii)%initialize(n_dim,seeds(my_id),n_streams_total,sum(n_streams(1:my_id))+1)
+    call rngs(ii)%initialize(n_dim,seeds(my_id+1),n_streams_total,sum(n_streams(1:my_id+1))+ii)
   enddo
   !> cleanup
-  deallocate(seeds); deallocate(n_streams);
+  deallocate(seeds); deallocate(n_streams); deallocate(rands);
 end subroutine setup_shared_rngs_multiple_seeds 
 
 end module mod_rng
