@@ -119,8 +119,8 @@ energy_box,pitch_box,gyro_box,q_box)
   !$ use omp_lib
   implicit none
   !> inputs-outputs:
-  type(particle_group),dimension(:),allocatable,intent(inout) :: groups
-  class(fields_base),intent(inout)                            :: fields
+  class(particle_group),dimension(:),allocatable,intent(inout) :: groups
+  class(fields_base),intent(inout)                             :: fields
   real*8,dimension(2,3),intent(inout) :: thetapsiphi_box
   real*8,dimension(2),intent(inout)   :: energy_box,pitch_box,gyro_box
   !> inputs:

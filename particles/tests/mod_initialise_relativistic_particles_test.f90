@@ -66,16 +66,16 @@ real*8,dimension(2),parameter              :: theta_minmax=(/0.d0,TWOPI/)
 real*8,dimension(2),parameter              :: phi_minmax=(/0.d0,TWOPI/)
 real*8,dimension(2),parameter              :: R_box_fraction_sol=(/0.22,0.34/)
 real*8,dimension(2),parameter              :: Z_box_fraction_sol=(/0.41,0.73/)
-type(particle_group),dimension(:),allocatable   :: groups_sol
-type(particle_group),dimension(n_groups_2) :: groups_2_sol
-type(fields_analytical)                    :: fields_sol
-type(jorek_fields_interp_linear)           :: fields_linear_sol
-real*8,dimension(2)                        :: R_box_jorek_sol
-real*8,dimension(2)                        :: Z_box_jorek_sol
-real*8,dimension(2)                        :: R_minmax_jorek_sol
-real*8,dimension(2)                        :: Z_minmax_jorek_sol
-real*8,dimension(2)                        :: psi_minmax_global_jorek_sol
-real*8,dimension(:,:),allocatable          :: psi_minmax_list_jorek_sol
+class(particle_group),dimension(:),allocatable :: groups_sol
+type(particle_group),dimension(n_groups_2)     :: groups_2_sol
+type(fields_analytical)                        :: fields_sol
+type(jorek_fields_interp_linear)               :: fields_linear_sol
+real*8,dimension(2)                            :: R_box_jorek_sol
+real*8,dimension(2)                            :: Z_box_jorek_sol
+real*8,dimension(2)                            :: R_minmax_jorek_sol
+real*8,dimension(2)                            :: Z_minmax_jorek_sol
+real*8,dimension(2)                            :: psi_minmax_global_jorek_sol
+real*8,dimension(:,:),allocatable              :: psi_minmax_list_jorek_sol
 !> Interfaces--------------------------------------------------
 contains
 !> Fruit basket -----------------------------------------------
