@@ -57,7 +57,7 @@ real*8,dimension(2),parameter              :: pitch_small_sol=(/PI/6.d0,2.d0*PI/
 real*8,dimension(2),parameter              :: gyro_small_sol=(/PI/6.d0,3.d0*PI/2.d0/)
 real*8,dimension(2),parameter              :: pitch_big_sol=(/-PI/2.d0,TWOPI/)
 real*8,dimension(2),parameter              :: gyro_big_sol=(/-PI/2.d0,3.d0*PI/)
-real*8,dimension(2),parameter              :: psi_minmax=(/-5.d0,1.d1/)
+real*8,dimension(2),parameter              :: psi_minmax_sol=(/-5.d0,1.d1/)
 real*8,dimension(2),parameter              :: R_minmax=(/5.d-1,1.d1/)
 real*8,dimension(2),parameter              :: Z_minmax=(/-1.d1,1.d1/)
 real*8,dimension(2),parameter              :: theta_minmax=(/0.d0,TWOPI/)
@@ -612,7 +612,7 @@ subroutine test_check_psithetaphi_interval()
   !> check complete inflow
   psi_test=psi_small_sol; theta_test=theta_small_sol; phi_test=phi_small_sol;
   call check_psithetaphi_interval(psi_test,theta_test,phi_test,psi_axisbnd(1),&
-  psi_axisbnd(2),psi_minmax,theta_minmax,phi_minmax)
+  psi_axisbnd(2),psi_minmax_sol,theta_minmax,phi_minmax)
   call assert_equals(psi_test,psi_axisbnd,2,&
   "Error check psi-theta-phi interval: psi inflow test mismatch!")
   call assert_equals(theta_test,theta_small_sol,2,&
@@ -622,8 +622,8 @@ subroutine test_check_psithetaphi_interval()
   !> check complete overflow
   psi_test=psi_big_sol; theta_test=theta_big_sol; phi_test=phi_big_sol;
   call check_psithetaphi_interval(psi_test,theta_test,phi_test,&
-  psi_axisbnd(1),psi_axisbnd(2),psi_minmax,theta_minmax,phi_minmax)
-  call assert_equals(psi_test,psi_minmax,2,&
+  psi_axisbnd(1),psi_axisbnd(2),psi_minmax_sol,theta_minmax,phi_minmax)
+  call assert_equals(psi_test,psi_minmax_sol,2,&
   "Error check psi-theta-phi interval: psi overflow test mismatch!")
   call assert_equals(theta_test,theta_minmax,2,&
   "Error check psi-theta-phi interval: theta overflow test mismatch!")
@@ -634,8 +634,8 @@ subroutine test_check_psithetaphi_interval()
   theta_test=(/theta_big_sol(1),theta_small_sol(2)/)
   phi_test=(/phi_big_sol(1),phi_small_sol(2)/)
   call check_psithetaphi_interval(psi_test,theta_test,phi_test,&
-  psi_axisbnd(1),psi_axisbnd(2),psi_minmax,theta_minmax,phi_minmax)
-  call assert_equals(psi_test,(/psi_minmax(1),psi_axisbnd(2)/),2,&
+  psi_axisbnd(1),psi_axisbnd(2),psi_minmax_sol,theta_minmax,phi_minmax)
+  call assert_equals(psi_test,(/psi_minmax_sol(1),psi_axisbnd(2)/),2,&
   "Error check psi-theta-phi interval: psi min underflow test mismatch!")
   call assert_equals(theta_test,(/theta_minmax(1),theta_small_sol(2)/),2,&
   "Error check psi-theta-phi interval: theta min underflow test mismatch!")
@@ -646,8 +646,8 @@ subroutine test_check_psithetaphi_interval()
   theta_test=(/theta_small_sol(1),theta_big_sol(2)/)
   phi_test=(/phi_small_sol(1),phi_big_sol(2)/)
   call check_psithetaphi_interval(psi_test,theta_test,phi_test,&
-  psi_axisbnd(1),psi_axisbnd(2),psi_minmax,theta_minmax,phi_minmax)
-  call assert_equals(psi_test,(/psi_axisbnd(1),psi_minmax(2)/),2,&
+  psi_axisbnd(1),psi_axisbnd(2),psi_minmax_sol,theta_minmax,phi_minmax)
+  call assert_equals(psi_test,(/psi_axisbnd(1),psi_minmax_sol(2)/),2,&
   "Error check psi-theta-phi interval: psi max overflow test mismatch!")
   call assert_equals(theta_test,(/theta_small_sol(1),theta_minmax(2)/),2,&
   "Error check psi-theta-phi interval: theta max overflow test mismatch!")
@@ -727,8 +727,8 @@ subroutine test_check_energypitchgyro_interval()
   pitch_test=pitch_small_sol;gyro_test=gyro_small_sol;
   call check_energypitchgyro_interval(e_test,p_test,&
   pitch_test,gyro_test,groups_sol(1)%mass)
-  call assert_equals(p_test,p_small_sol,2,&
-  "Error check p-pitch-gyro interval: p inflow test mismatch!")
+  call assert_equals(abs((p_test-p_small_sol)/p_small_sol),(/0.d0,0.d0/),&
+  2,tol_real8,"Error check p-pitch-gyro interval: p inflow test mismatch!")
   call assert_equals(pitch_test,theta_small_sol,2,&
   "Error check p-pitch-gyro interval: theta inflow test mismatch!")
   call assert_equals(gyro_test,gyro_small_sol,2,&
@@ -765,7 +765,7 @@ subroutine test_check_energypitchgyro_interval()
   pitch_test,gyro_test,groups_sol(1)%mass)
   call assert_true(all(p_test.gt.0.d0),&
   "Error check p-pitch-gyro interval: half overflow negative momentum found!")
-  call assert_equals(p_test(1),p_small_sol(1),&
+  call assert_equals(abs((p_test(1)-p_small_sol(1))/p_small_sol(1)),0.d0,tol_real8,&
   "Error check p-pitch-gyro interval: half overflow momenum mismatch!")
   call assert_equals(pitch_test,(/pitch_small_sol(1),PI/),2,&
   "Error check p-pitch-gyro interval: half pitch overflow test mismatch!")
