@@ -5,12 +5,14 @@
 module mod_initialise_relativistic_particles
 implicit none
 private
+public :: accept_function
 public :: init_p_gc_relativistic_psithetaphi_energypitchgyro
 public :: init_p_gc_relativistic_RZPhi_energypitchgyro
 #ifdef UNIT_TESTS
 public :: find_relativistic_kinetic_gc_groups
 public :: sample_position_uniformly_cylinder
 public :: sample_position_uniformly_psi_theta_phi
+public :: sample_position_acceptreject_from_fluid_profiles
 public :: sampling_cartesian_p_kinetic_relativistic
 public :: sampling_cartesian_p_gc_relativistic
 public :: sampling_uniform_ppitchgyro_kinetic_relativistic
@@ -28,6 +30,25 @@ public :: init_particle_gc_relativistic_to_zero
 
 !> Variables and datatypes --------------------------------
 !> Interfaces ---------------------------------------------
+abstract interface
+  !> function for acceptance rejection method it accepts 
+  !> a list of critieria between [0,1] and a random number
+  !> between [0,1] and return true is the value is accpeted
+  !> inputs:
+  !>   n_criteria: (integer) number of criteria
+  !>   criteria:   (real8)(n_criteria) criteria in [0,1]
+  !>   rand:       (real8) random number in [0,1]
+  !> outputs:
+  !>   success:    (logical) true if accepted
+  function accept_function(n_values,values,rand) result(success)
+    implicit none
+    integer,intent(in)                    :: n_values
+    real*8,intent(in)                     :: rand
+    real*8,dimension(n_values),intent(in) :: values
+    logical                               :: success
+  end function accept_function
+end interface
+
 interface
   !> interface of the find RZ procedure
   subroutine find_RZ(node_list,element_list,R_find,Z_find,&
@@ -460,6 +481,46 @@ psi_element_minmax,RZ_axis,ifail)
   psi_test = (psi_test-thetapsiphi_bound(2,1))/(thetapsiphi_bound(2,2)-thetapsiphi_bound(2,1))
   if((psi_test(1).lt.0.d0).or.(psi_test(1).gt.1.d0)) ifail=.true.;
 end subroutine sample_position_uniformly_psi_theta_phi
+
+!> Sample position from fluid profiles using the accept-reject method.
+!> Proper profile normalization must be provided so that the 
+!> normalised profile is included within [0,1]
+!> inputs:
+!>   particle:   (particle_base) particle to be initialised
+!>   fields:     (fields_base) jorek fields object
+!>   n_rngs:     (integer) number of random number generator
+!>   n_profiles: (integer) number of profiles to use
+!>   rngs:       (n_rngs) random number generators
+!>   prof_norms: (real8)(n_profiles,2) profile normalization
+!>               1: minimum value, 2: extension: maximum-minimum
+!>   accept:     (accept_function) accept function: takes as arguments
+!>               a random number and a set of values within [0,1] and
+!>               returns true if the variable is accepted
+!> outputs:
+!>   particle: (particle_base) initialised particle
+!>   rngs:     (n_rngs) random number generators
+!>   accept:   (accept_function) accept function: takes as arguments
+!>             a random number and a set of values within [0,1] and
+!>             returns true if the variable is accepted
+subroutine sample_position_acceptreject_from_fluid_profiles(particle,&
+fields,n_rngs,n_profiles,rngs,prof_norms,accept)
+  use mod_fields,         only: fields_base
+  use mod_rng,            only: type_rng
+  use mod_particle_types, only: particle_base
+  implicit none
+  !> inputs:
+  class(fields_base),intent(in)                   :: fields
+  integer,intent(in)                              :: n_rngs,n_profiles
+  real*8,dimension(n_profiles),intent(in)         :: prof_norms
+  !> inputs-outputs:
+  class(particle_base),intent(inout)              :: particle
+  class(type_rng),dimension(n_rngs),intent(inout) :: rngs
+  procedure(accept_function)                      :: accept
+  !> varibales
+  integer :: maxit
+  !> initialisations
+  maxit = 100000
+end subroutine sample_position_acceptreject_from_fluid_profiles
 
 !> uniform sampling of the cartesian momentum
 !> for kinetic relativistic particles
