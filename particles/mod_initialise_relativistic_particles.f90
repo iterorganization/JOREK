@@ -169,11 +169,11 @@ energy_kin_box,pitch_box,gyro_box,q_box)
   !$omp cospitch_box,gyro_box,q_box)
   !> initialise the the relativistic and particle lists
   thread_id = 1;
-  !$ thread_id = omp_get_thread_num()
   !$omp single
   do ii=1,n_active_groups
     do jj=1,size(groups(active_group_ids(ii))%particles)
       !$omp task
+      !$ thread_id = omp_get_thread_num()+1
       !> initialise particle to 0
       call init_particle_base_to_zero(groups(active_group_ids(ii))%particles(jj))
       !> while loop until a valid element is not found
@@ -287,11 +287,11 @@ energy_kin_box,pitch_box,gyro_box,q_box)
   !$omp maxit,active_group_ids) shared(groups,fields,rngs,R2_box,&
   !$omp Z_box,phi_box,time,momentum_box,cospitch_box,gyro_box,q_box)
   thread_id = 1;
-  !$ thread_id = omp_get_thread_num()
   !$omp single
   do ii=1,n_active_groups
     do jj=1,size(groups(active_group_ids(ii))%particles)
       !$omp task
+      !$ thread_id = omp_get_thread_num()+1
       !> initialise particle to 0
       call init_particle_base_to_zero(groups(active_group_ids(ii))%particles(jj))
       !> while loop until a valid element is not found
