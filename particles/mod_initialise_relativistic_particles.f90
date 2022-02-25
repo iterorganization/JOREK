@@ -457,8 +457,8 @@ psi_element_minmax,RZ_axis,ifail)
   call interp_PRZ(node_list,element_list,particle%i_elm,(/1/),1,&
   particle%st(1),particle%st(2),particle%x(3),psi_test,R_test,Z_test) 
   !> it does not work for psi box values of different sign!
-  psi_test = (psi_test-thetapsiphi_bound(2,1))
-  if((psi_test(1).lt.0.d0).or.(psi_test(1).gt.(thetapsiphi_bound(2,2)-thetapsiphi_bound(2,1)))) ifail=.true.;
+  psi_test = (psi_test-thetapsiphi_bound(2,1))/(thetapsiphi_bound(2,2)-thetapsiphi_bound(2,1))
+  if((psi_test(1).lt.0.d0).or.(psi_test(1).gt.1.d0)) ifail=.true.;
 end subroutine sample_position_uniformly_psi_theta_phi
 
 !> uniform sampling of the cartesian momentum
