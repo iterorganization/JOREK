@@ -45,7 +45,7 @@ real*8,parameter                           :: tol_interp_real8=7.5d-10
 real*8,parameter                           :: time_sol=0.d0
 real*8,parameter                           :: p_neg=-2.d0
 real*8,dimension(2),parameter              :: psi_big_sol=(/-2.d1,3.d2/)
-real*8,dimension(2),parameter              :: psi_small_sol=(/1.d-1,9.d-1/)
+real*8,dimension(2),parameter              :: psi_small_sol=(/3.d-1,6.d-1/)
 real*8,dimension(2),parameter              :: psi_axisbnd=(/-1.d0,2.5d0/)
 real*8,dimension(2),parameter              :: R_big_sol=(/1.d-1,3.d2/)
 real*8,dimension(2),parameter              :: R_small_sol=(/1.d0,2.5d0/)
@@ -102,7 +102,7 @@ subroutine run_fruit_initialise_relativistic_particles()
   call test_sampling_uniform_charge
   call test_check_thetapsiphi_interval
   call test_check_RZPhi_interval
-  call test_check_energypitchgyro_interval
+  call test_check_energykinpitchgyro_interval
   write(*,'(/A)') "  ... tearing-down: initialise relativistic particles tests"
   call teardown
 end subroutine run_fruit_initialise_relativistic_particles
@@ -330,6 +330,7 @@ subroutine test_sample_position_uniformly_psi_theta_phi()
   use mod_initialise_relativistic_particles, only: sample_position_uniformly_psi_theta_phi
   implicit none
   !> variables
+  logical                             :: ifail
   integer                             :: ii,jj,it,maxit
   real*8                              :: R_test,Z_test
   real*8,dimension(n_v)               :: psi_test
@@ -349,12 +350,12 @@ subroutine test_sample_position_uniformly_psi_theta_phi()
     allocate(success(n_particles(ii))); allocate(errors(n_particles(ii)));
     allocate(zeros(n_particles(ii)));   zeros = 0.d0;
     do jj=1,n_particles(ii)
-      p_test%i_elm = 0; it = 0;
-      do while((p_test%i_elm.le.0).and.(it.le.maxit))
+      p_test%i_elm = 0; it = 0; ifail = .true.;
+      do while(ifail.and.(p_test%i_elm.le.0).and.(it.le.maxit))
         call random_number(rands)
         call sample_position_uniformly_psi_theta_phi(p_test,&
         fields_linear_sol%node_list,fields_linear_sol%element_list,rands,&
-        thetapsiphi_box,psi_minmax_list_jorek_sol,(/ES%R_axis,ES%Z_axis/))
+        thetapsiphi_box,psi_minmax_list_jorek_sol,(/ES%R_axis,ES%Z_axis/),ifail)
         it = it+1
       enddo
       !> check end errors
@@ -372,6 +373,7 @@ end subroutine test_sample_position_uniformly_psi_theta_phi
 !> test particle kinetic and gc relativistic psithetaphi and energypitchgyro intervals
 subroutine test_init_gc_relativistic_psithetaphi_energypitchgyro()
   use constants, only: EL_CHG,ATOMIC_MASS_UNIT,SPEED_OF_LIGHT
+  use mod_coordinate_transforms,             only: vector_cylindrical_to_cartesian
   use mod_pcg32_rng,                         only: pcg32_rng
   use mod_interp,                            only: interp_PRZ
   use equil_info,                            only: ES
@@ -433,6 +435,7 @@ subroutine test_init_gc_relativistic_psithetaphi_energypitchgyro()
         groups_sol(ii)%particles(jj)%i_elm,groups_sol(ii)%particles(jj)%st,&
         groups_sol(ii)%particles(jj)%x(3),E,B,psi_2,U)
         B_norm = norm2(B); B = B/B_norm;
+        B = vector_cylindrical_to_cartesian(groups_sol(ii)%particles(jj)%x(3),B)
         call get_orthonormals(B,e2,e3)
         !> check momentum and charge solutions
         select type(p_test=>groups_sol(ii)%particles(jj))
@@ -853,10 +856,10 @@ subroutine test_check_RZPhi_interval()
 end subroutine test_check_RZPhi_interval
 
 !> test the momentum, pitch and gyro angles bounding box tests
-subroutine test_check_energypitchgyro_interval()
+subroutine test_check_energykinpitchgyro_interval()
   use constants, only: ATOMIC_MASS_UNIT,SPEED_OF_LIGHT,EL_CHG
   use mod_particle_common_test_tools, only: EThetaChi_RE_lowbnd,EThetaChi_RE_uppbnd
-  use mod_initialise_relativistic_particles, only: check_energypitchgyro_interval
+  use mod_initialise_relativistic_particles, only: check_energykinpitchgyro_interval
   implicit none
   !> variables:
   real*8 :: E0
@@ -868,9 +871,9 @@ subroutine test_check_energypitchgyro_interval()
   (/((EThetaChi_RE_lowbnd(1)/E0 + 1.d0)**2.d0)-1.d0,&
   ((EThetaChi_RE_uppbnd(1)/E0 + 1.d0)**2.d0)-1.d0/))
   !> check complete inflow
-  e_test=(/EThetaChi_RE_lowbnd(1),EThetaChi_RE_uppbnd(1)/)+E0;
+  e_test=(/EThetaChi_RE_lowbnd(1),EThetaChi_RE_uppbnd(1)/);
   pitch_test=pitch_small_sol;gyro_test=gyro_small_sol;
-  call check_energypitchgyro_interval(e_test,p_test,&
+  call check_energykinpitchgyro_interval(e_test,p_test,&
   pitch_test,gyro_test,groups_sol(1)%mass)
   call assert_equals(abs((p_test-p_small_sol)/p_small_sol),(/0.d0,0.d0/),&
   2,tol_real8,"Error check p-pitch-gyro interval: p inflow test mismatch!")
@@ -880,7 +883,7 @@ subroutine test_check_energypitchgyro_interval()
   "Error check p-pitch-gyro interval: gyro inflow test mismatch!")
   !> check complete overflow
   e_test=(/p_neg,p_neg/);pitch_test=pitch_big_sol;gyro_test=gyro_big_sol;
-  call check_energypitchgyro_interval(e_test,p_test,&
+  call check_energykinpitchgyro_interval(e_test,p_test,&
   pitch_test,gyro_test,groups_sol(1)%mass)
   call assert_true(all(p_test.gt.0.d0),&
   "Error check p-pitch-gyro interval: overflow negative momentum found!")
@@ -889,10 +892,10 @@ subroutine test_check_energypitchgyro_interval()
   call assert_equals(gyro_test,(/0.d0,TWOPI/),2,&
   "Error check p-pitch-gyro interval: gyro overflow test mismatch!")
   !> check min underflow and max inflow
-  e_test=(/p_neg,EThetaChi_RE_uppbnd(1)+E0/)
+  e_test=(/p_neg,EThetaChi_RE_uppbnd(1)/)
   pitch_test=(/pitch_big_sol(1),pitch_small_sol(2)/)
   gyro_test=(/gyro_big_sol(1),gyro_small_sol(2)/)
-  call check_energypitchgyro_interval(e_test,p_test,&
+  call check_energykinpitchgyro_interval(e_test,p_test,&
   pitch_test,gyro_test,groups_sol(1)%mass)
   call assert_true(all(p_test.gt.0.d0),&
   "Error check p-pitch-gyro interval: underflow negative momentum found!")
@@ -903,10 +906,10 @@ subroutine test_check_energypitchgyro_interval()
   call assert_equals(gyro_test,(/0.d0,gyro_small_sol(2)/),2,&
   "Error check p-pitch-gyro interval: gyro underflow test mismatch!")
   !> check min inflow and max overflow
-  e_test=(/EThetaChi_RE_lowbnd(1)+E0,p_neg/)
+  e_test=(/EThetaChi_RE_lowbnd(1),p_neg/)
   pitch_test=(/pitch_small_sol(1),pitch_big_sol(2)/)
   gyro_test=(/gyro_small_sol(1),gyro_big_sol(2)/)
-  call check_energypitchgyro_interval(e_test,p_test,&
+  call check_energykinpitchgyro_interval(e_test,p_test,&
   pitch_test,gyro_test,groups_sol(1)%mass)
   call assert_true(all(p_test.gt.0.d0),&
   "Error check p-pitch-gyro interval: half overflow negative momentum found!")
@@ -916,7 +919,7 @@ subroutine test_check_energypitchgyro_interval()
   "Error check p-pitch-gyro interval: half pitch overflow test mismatch!")
   call assert_equals(gyro_test,(/gyro_small_sol(1),phi_minmax(2)/),2,&
   "Error check p-pitch-gyro interval: half gyro overflow test mismatch!")
-end subroutine test_check_energypitchgyro_interval
+end subroutine test_check_energykinpitchgyro_interval
 
 !> dummy test procedure
 subroutine test_dummy()
@@ -971,8 +974,8 @@ fields,eq_info,psi_box,phi_box,success,error)
     psi_test = (psi_test-eq_info%psi_axis)/(eq_info%psi_bnd-eq_info%psi_axis)
     success = ((psi_test(1).ge.psi_box(1)).and.(psi_test(1).le.psi_box(2))).and.&
     ((p_test%x(3).ge.phi_box(1)).and.(p_test%x(3).le.phi_box(2)))
-    error = max(abs(p_test%x(1)-R_test),abs(p_test%x(2)-Z_test)) 
-   endif
+    error = max(abs(p_test%x(1)-R_test),abs(p_test%x(2)-Z_test))
+  endif
 end subroutine test_position_in_psi_phi_box
 
 !> test if the kinetic particle momentum is within the momentum,

@@ -21,7 +21,7 @@ public :: find_RZPhi_minmax_global
 public :: check_RZPhi_interval
 public :: find_psithetaphi_minmax_global_list
 public :: check_thetapsiphi_interval
-public :: check_energypitchgyro_interval
+public :: check_energykinpitchgyro_interval
 public :: init_particle_kinetic_relativistic_to_zero
 public :: init_particle_gc_relativistic_to_zero
 #endif
@@ -45,7 +45,7 @@ interface
 
   !> interface of the find theta psi procedure
   subroutine find_theta_psi(node_list,element_list,psi_minmax,&
-  theta,psi,phi,R_axis,Z_axis,i_elm,s,t,R,Z)
+  theta,psi,phi,R_axis,Z_axis,i_elm,s,t,R,Z,verbose_in)
     use data_structure
     implicit none
     !> inputs:
@@ -55,6 +55,7 @@ interface
     real*8,intent(in)                  :: theta,psi,phi
     real*8,intent(in)                  :: R_axis,Z_axis
     integer,intent(in)                 :: i_elm
+    logical,intent(in),optional        :: verbose_in
     !> outputs:
     real*8,intent(out)                 :: s,t,R,Z 
   end subroutine find_theta_psi
@@ -96,7 +97,7 @@ contains
 !>   time:            (real8) time of the interpolation
 !>   thetapsiphi_box: (real8)(3,2) normalised (1,:) poloidal angle box,
 !>                    (2,:) poloidal flux and (3,:) toroidal angle boxes
-!>   energy_box:      (real8)(2) energy box for sampling in eV
+!>   energy_kin_box:  (real8)(2) kinetic energy box for sampling in eV
 !>   pitch_box:       (real8)(2) pitch angle box for sampling 
 !>   gyro_box:        (real8)(2) gyro angle box for sampling
 !>   q_box:           (integer1)(2) minimum and maximum particle chatge
@@ -110,7 +111,7 @@ contains
 !>   gyro_box:        (real8)(2) gyro angle box for sampling
 subroutine init_p_gc_relativistic_psithetaphi_energypitchgyro(&
 groups,fields,eq_info,time,rng_type,thetapsiphi_box,&
-energy_box,pitch_box,gyro_box,q_box)
+energy_kin_box,pitch_box,gyro_box,q_box)
   use mod_rng,            only: type_rng
   use mod_rng,            only: setup_shared_rngs
   use equil_info,         only: t_equil_state
@@ -123,8 +124,8 @@ energy_box,pitch_box,gyro_box,q_box)
   !> inputs-outputs:
   class(particle_group),dimension(:),allocatable,intent(inout) :: groups
   class(fields_base),intent(inout)                             :: fields
-  real*8,dimension(2,3),intent(inout) :: thetapsiphi_box
-  real*8,dimension(2),intent(inout)   :: energy_box,pitch_box,gyro_box
+  real*8,dimension(3,2),intent(inout) :: thetapsiphi_box
+  real*8,dimension(2),intent(inout)   :: energy_kin_box,pitch_box,gyro_box
   !> inputs:
   type(t_equil_state),intent(in)    :: eq_info
   class(type_rng),intent(in)        :: rng_type
@@ -132,7 +133,7 @@ energy_box,pitch_box,gyro_box,q_box)
   real*8,intent(in)                 :: time
   !> variables:
   class(type_rng),dimension(:),allocatable :: rngs
-  logical :: excute
+  logical :: ifail
   integer :: ii,jj,kk,n_groups,thread_id,maxit,n_active_groups
   integer,dimension(:),allocatable :: active_group_ids
   real*8,dimension(2)   :: cospitch_box,psi_minmax_global
@@ -152,9 +153,9 @@ energy_box,pitch_box,gyro_box,q_box)
   !> check bounding boxes in physical and velocity spaces
   call check_thetapsiphi_interval(thetapsiphi_box(1,:),&
   thetapsiphi_box(2,:),thetapsiphi_box(3,:),eq_info%Psi_axis,&
-  eq_info%Psi_bnd,psi_minmax_list,theta_minmax,phi_minmax)
+  eq_info%Psi_bnd,psi_minmax_global,theta_minmax,phi_minmax)
   do ii=1,n_active_groups
-    call check_energypitchgyro_interval(energy_box,momentum_box(:,ii),&
+    call check_energykinpitchgyro_interval(energy_kin_box,momentum_box(:,ii),&
     pitch_box,gyro_box,groups(active_group_ids(ii))%mass)
   enddo
   !> compute the cube of the momentum and the cosinus of the pitch angle
@@ -176,29 +177,27 @@ energy_box,pitch_box,gyro_box,q_box)
       !> initialise particle to 0
       call init_particle_base_to_zero(groups(active_group_ids(ii))%particles(jj))
       !> while loop until a valid element is not found
-      kk = 0;
-      do while((groups(active_group_ids(ii))%particles(jj)%i_elm.le.0).and.(kk.le.maxit))
+      kk = 0; ifail = .true.;
+      do while(ifail.and.(kk.le.maxit))
         call rngs(thread_id)%next(rands)
         call sample_position_uniformly_psi_theta_phi(&
-               groups(active_group_ids(ii))%particles(jj),fields%node_list,&
-               fields%element_list,rands(1:3),thetapsiphi_box,&
-               psi_minmax_list,(/eq_info%R_axis,eq_info%Z_axis/))
+             groups(active_group_ids(ii))%particles(jj),fields%node_list,&
+             fields%element_list,rands(1:3),thetapsiphi_box,&
+             psi_minmax_list,(/eq_info%R_axis,eq_info%Z_axis/),ifail)
           kk = kk + 1
         enddo
         !> if valid, initialise both velocity space and charge
-        if(groups(active_group_ids(ii))%particles(jj)%i_elm.gt.0) then
-          select type (particle=>groups(active_group_ids(ii))%particles(jj))
-          type is (particle_kinetic_relativistic)
-            call sampling_uniform_ppitchgyro_kinetic_relativistic(particle,&
-            fields,rands(4:6),time,momentum_box,cospitch_box,gyro_box)
-            particle%q = sampling_uniform_charge(rands(7),q_box)
-          type is (particle_gc_relativistic)
-            call sampling_uniform_ppitchgyro_gc_relativistic(particle,fields,&
-            rands(4:6),groups(active_group_ids(ii))%mass,time,&
-            momentum_box,cospitch_box,gyro_box)
-            particle%q = sampling_uniform_charge(rands(7),q_box)
-          end select 
-        endif
+        select type (particle=>groups(active_group_ids(ii))%particles(jj))
+        type is (particle_kinetic_relativistic)
+          call sampling_uniform_ppitchgyro_kinetic_relativistic(particle,&
+          fields,rands(4:6),time,momentum_box,cospitch_box,gyro_box)
+          particle%q = sampling_uniform_charge(rands(7),q_box)
+        type is (particle_gc_relativistic)
+          call sampling_uniform_ppitchgyro_gc_relativistic(particle,fields,&
+          rands(4:6),groups(active_group_ids(ii))%mass,time,&
+          momentum_box,cospitch_box,gyro_box)
+          particle%q = sampling_uniform_charge(rands(7),q_box)
+        end select 
         !$omp end task
       enddo
   enddo
@@ -214,30 +213,30 @@ end subroutine init_p_gc_relativistic_psithetaphi_energypitchgyro
 !> velocity space the energy, pitch and gyro angles
 !> coordinates are use
 !> inputs:
-!>   groups:     (particle_group)(:)(allocatable) group to initialise
-!>   fields:     (fields_base) jorek fields base type
-!>   eq_info:    (t_equil_state) information on the equilibrium
-!>   rng_type:   (type_rng) type of random number generator
-!>   time:       (real8) time of the interpolation
-!>   R_box:      (real8)(2) major radius box
-!>   Z_box:      (real8)(2) vertical coordinate box
-!>   phi_box     (real8)(2) toroidal angles box
-!>   energy_box: (real8)(2) energy box for sampling in eV
-!>   pitch_box:  (real8)(2) pitch angle box for sampling 
-!>   gyro_box:   (real8)(2) gyro angle box for sampling
-!>   q_box:      (integer1)(2) minimum and maximum particle chatge
+!>   groups:         (particle_group)(:)(allocatable) group to initialise
+!>   fields:         (fields_base) jorek fields base type
+!>   eq_info:        (t_equil_state) information on the equilibrium
+!>   rng_type:       (type_rng) type of random number generator
+!>   time:           (real8) time of the interpolation
+!>   R_box:          (real8)(2) major radius box
+!>   Z_box:          (real8)(2) vertical coordinate box
+!>   phi_box         (real8)(2) toroidal angles box
+!>   energy_kin_box: (real8)(2) kinetic energy box for sampling in eV
+!>   pitch_box:      (real8)(2) pitch angle box for sampling 
+!>   gyro_box:       (real8)(2) gyro angle box for sampling
+!>   q_box:          (integer1)(2) minimum and maximum particle chatge
 !> outputs:
-!>   groups:     (particle_group)(:)(allocatable) initialised group
-!>   fields:     (fields_base) jorek fields base type
-!>   R_box:      (real8)(2) major radius box
-!>   Z_box:      (real8)(2) vertical coordinate box
-!>   phi_box     (real8)(2) toroidal angles box
-!>   energy_box: (real8)(2) energy box for sampling in eV
-!>   pitch_box:  (real8)(2) pitch angle box for sampling 
-!>   gyro_box:   (real8)(2) gyro angle box for sampling
+!>   groups:         (particle_group)(:)(allocatable) initialised group
+!>   fields:         (fields_base) jorek fields base type
+!>   R_box:          (real8)(2) major radius box
+!>   Z_box:          (real8)(2) vertical coordinate box
+!>   phi_box         (real8)(2) toroidal angles box
+!>   energy_box:     (real8)(2) energy box for sampling in eV
+!>   pitch_box:      (real8)(2) pitch angle box for sampling 
+!>   gyro_box:       (real8)(2) gyro angle box for sampling
 subroutine init_p_gc_relativistic_RZPhi_energypitchgyro(&
 groups,fields,time,rng_type,R_box,Z_box,phi_box,&
-energy_box,pitch_box,gyro_box,q_box)
+energy_kin_box,pitch_box,gyro_box,q_box)
   use mod_rng,            only: type_rng
   use mod_rng,            only: setup_shared_rngs
   use mod_fields,         only: fields_base
@@ -250,7 +249,7 @@ energy_box,pitch_box,gyro_box,q_box)
   class(particle_group),dimension(:),allocatable,intent(inout) :: groups
   class(fields_base),intent(inout)                             :: fields
   real*8,dimension(2),intent(inout) :: R_box,Z_box,phi_box
-  real*8,dimension(2),intent(inout) :: energy_box,pitch_box,gyro_box
+  real*8,dimension(2),intent(inout) :: energy_kin_box,pitch_box,gyro_box
   !> inputs:
   class(type_rng),intent(in)        :: rng_type
   integer*1,dimension(2),intent(in) :: q_box
@@ -274,7 +273,7 @@ energy_box,pitch_box,gyro_box,q_box)
   !> check bounding boxes
   call check_RZPhi_interval(R_box,Z_box,phi_box,R_minmax,Z_minmax,phi_minmax)
   do ii=1,n_active_groups
-    call check_energypitchgyro_interval(energy_box,momentum_box(:,ii),&
+    call check_energykinpitchgyro_interval(energy_kin_box,momentum_box(:,ii),&
     pitch_box,gyro_box,groups(active_group_ids(ii))%mass)
   enddo
   !> compute the cube of the momentum and the cosinus of the pitch angle
@@ -422,11 +421,13 @@ end subroutine sample_position_uniformly_cylinder
 !>   RZ_axis:            (real8)(2) 1)-R 2)-Z magnetic axis coords.
 !> outputs: 
 !>   particle:           (particle_base) sampled particle
+!>   ifail:              (logical) if 1 psi not in bound
 subroutine sample_position_uniformly_psi_theta_phi(&
-particle,node_list,element_list,rand,&
-thetapsiphi_bound,psi_element_minmax,RZ_axis)
+particle,node_list,element_list,rand,thetapsiphi_bound,&
+psi_element_minmax,RZ_axis,ifail)
   use data_structure,     only: type_node_list
   use data_structure,     only: type_element_list
+  use mod_interp,         only: interp_PRZ
   use mod_particle_types, only: particle_base
   implicit none
   !> inputs-outputs:
@@ -438,12 +439,26 @@ thetapsiphi_bound,psi_element_minmax,RZ_axis)
   real*8,dimension(3),intent(in)     :: rand
   real*8,dimension(3,2),intent(in)   :: thetapsiphi_bound
   real*8,dimension(element_list%n_elements,2),intent(in) :: psi_element_minmax
+  !> outputs:
+  logical,intent(out) :: ifail
+  !> varibales
+  real*8              :: R_test,Z_test
+  real*8,dimension(1) :: psi_test
+  !> initialisation
+  ifail = .false.;
   !> compute particle position in global coordinates
   particle%x = thetapsiphi_bound(:,1)+(thetapsiphi_bound(:,2)-&
   thetapsiphi_bound(:,1))*rand
   call find_theta_psi(node_list,element_list,psi_element_minmax,&
   particle%x(1),particle%x(2),particle%x(3),RZ_axis(1),RZ_axis(2),&
-  particle%i_elm,particle%st(1),particle%st(2),particle%x(1),particle%x(2))
+  particle%i_elm,particle%st(1),particle%st(2),particle%x(1),&
+  particle%x(2),.false.)
+  !> check if psi is in bound
+  call interp_PRZ(node_list,element_list,particle%i_elm,(/1/),1,&
+  particle%st(1),particle%st(2),particle%x(3),psi_test,R_test,Z_test) 
+  !> it does not work for psi box values of different sign!
+  psi_test = (psi_test-thetapsiphi_bound(2,1))
+  if((psi_test(1).lt.0.d0).or.(psi_test(1).gt.(thetapsiphi_bound(2,2)-thetapsiphi_bound(2,1)))) ifail=.true.;
 end subroutine sample_position_uniformly_psi_theta_phi
 
 !> uniform sampling of the cartesian momentum
@@ -735,7 +750,7 @@ end subroutine check_thetapsiphi_interval
 
 !> compute the momentum from particle energy and check bounds
 !> inputs:
-!>   e_interval:     (real8)(2) energy interval in eV
+!>   e_interval:     (real8)(2) kinetic energy interval in eV
 !>   pitch_interval: (real8)(2) pitch angle interval
 !>   gyro_interval:  (real8)(2) gyro angle interval
 !>   mass:           (real8) particle mass in AMU
@@ -743,7 +758,7 @@ end subroutine check_thetapsiphi_interval
 !>   p_interval:     (real8)(2) momentum interval in AMU*m/s
 !>   pitch_interval: (real8)(2) pitch angle interval
 !>   gyro_interval:  (real8)(2) gyro angle interval
-subroutine check_energypitchgyro_interval(e_interval,p_interval,&
+subroutine check_energykinpitchgyro_interval(e_interval,p_interval,&
 pitch_interval,gyro_interval,mass)
   use constants, only: PI,TWOPI
   use constants, only: EL_CHG,ATOMIC_MASS_UNIT,SPEED_OF_LIGHT
@@ -760,9 +775,9 @@ pitch_interval,gyro_interval,mass)
   real*8 :: E0
   !> check if the energy is not smaller thant the rest energy in eV
   E0 = (ATOMIC_MASS_UNIT*mass*SPEED_OF_LIGHT*SPEED_OF_LIGHT)/EL_CHG
-  p_interval = (e_interval/E0);
-  if(p_interval(1).le.0.d0) p_interval(1) = 1.d0+1.d-13
-  if(p_interval(2).le.0.d0) p_interval(2) = 1.d0+1.d-13
+  p_interval = (e_interval/E0) + 1.d0 ;
+  if(p_interval(1).le.1.d0) p_interval(1) = 1.d0+1.d-13
+  if(p_interval(2).le.1.d0) p_interval(2) = 1.d0+1.d-13
   !> transform the energy in momentum intensity
   p_interval = mass*SPEED_OF_LIGHT*sqrt(p_interval*p_interval-1.d0)
   !> check the pitch angle
@@ -771,7 +786,7 @@ pitch_interval,gyro_interval,mass)
   !> check the pitch angle
   gyro_interval(1) = max(gyro_interval(1),0.d0)
   gyro_interval(2) = min(gyro_interval(2),TWOPI)
-end subroutine check_energypitchgyro_interval
+end subroutine check_energykinpitchgyro_interval
 
 !> initialise particle base fields with unit particle weight
 !> inputs:
