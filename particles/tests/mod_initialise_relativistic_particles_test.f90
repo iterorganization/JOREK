@@ -93,7 +93,8 @@ subroutine run_fruit_initialise_relativistic_particles()
   call test_find_psithetaphi_minmax_global_list
   call test_sample_position_uniformly_psi_theta_phi
   call test_sample_position_uniformly_cylinder
-  call test_init_gc_relativistic_psithetaphi_energypitchgyro
+  call test_init_p_gc_relativistic_psithetaphi_energypitchgyro
+  call test_init_p_gc_relativistic_RZPhi_energypitchgyro
   call test_sampling_cartesian_p_kinetic_relativistic
   call test_sampling_cartesian_gc_kinetic_relativistic
   call test_sampling_uniform_ppitchgyro_kinetic_relativistic
@@ -305,15 +306,8 @@ subroutine test_sample_position_uniformly_cylinder()
         rands,R2_box,Z_box_jorek_sol,phi_small_sol)
         it = it+1
       enddo
-      success(jj) = (p_test%i_elm.gt.0).and.&
-      (p_test%x(1).ge.R_box_jorek_sol(1)).and.(p_test%x(1).le.R_box_jorek_sol(2)).and.&
-      (p_test%x(2).ge.Z_box_jorek_sol(1)).and.(p_test%x(2).le.Z_box_jorek_sol(2)).and.&
-      (p_test%x(3).ge.phi_small_sol(1)).and.(p_test%x(3).le.phi_small_sol(2))
-      if(p_test%i_elm.le.0) cycle
-      call interp_RZ(fields_linear_sol%node_list,&
-      fields_linear_sol%element_list,p_test%i_elm,&
-      p_test%st(1),p_test%st(2),R_test,Z_test)
-      errors(jj) = max(abs(p_test%x(1)-R_test),abs(p_test%x(2)-Z_test))
+      call test_position_in_RZPhi_box(p_test,fields_linear_sol,&
+      R_box_jorek_sol,Z_box_jorek_sol,phi_small_sol,success(jj),errors(jj))
     enddo
     call assert_true(all(success),&
     "Error sample position uniformly cylinder: R,Z,Phi not in bound!")
@@ -371,7 +365,7 @@ subroutine test_sample_position_uniformly_psi_theta_phi()
 end subroutine test_sample_position_uniformly_psi_theta_phi
 
 !> test particle kinetic and gc relativistic psithetaphi and energypitchgyro intervals
-subroutine test_init_gc_relativistic_psithetaphi_energypitchgyro()
+subroutine test_init_p_gc_relativistic_psithetaphi_energypitchgyro()
   use constants, only: EL_CHG,ATOMIC_MASS_UNIT,SPEED_OF_LIGHT
   use mod_coordinate_transforms,             only: vector_cylindrical_to_cartesian
   use mod_pcg32_rng,                         only: pcg32_rng
@@ -465,7 +459,102 @@ subroutine test_init_gc_relativistic_psithetaphi_energypitchgyro()
     deallocate(errors); deallocate(zeros); 
     deallocate(success_pos); deallocate(success_vel); deallocate(success_q);
   enddo
-end subroutine test_init_gc_relativistic_psithetaphi_energypitchgyro
+end subroutine test_init_p_gc_relativistic_psithetaphi_energypitchgyro
+
+!> test the initialisation of particles in RZPhi energy/pitch/gyro boxes
+subroutine test_init_p_gc_relativistic_RZPhi_energypitchgyro()
+  use constants, only: EL_CHG,ATOMIC_MASS_UNIT,SPEED_OF_LIGHT
+  use mod_coordinate_transforms,             only: vector_cylindrical_to_cartesian
+  use mod_pcg32_rng,                         only: pcg32_rng
+  use mod_interp,                            only: interp_PRZ
+  use equil_info,                            only: ES
+  use mod_particle_types,                    only: particle_kinetic_relativistic
+  use mod_particle_types,                    only: particle_gc_relativistic
+  use mod_pusher_tools,                      only: get_orthonormals
+  use mod_particle_common_test_tools,        only: EThetaChi_RE_lowbnd,EThetaChi_RE_uppbnd
+  use mod_particle_common_test_tools,        only: q1_posneg_interval
+  use mod_initialise_relativistic_particles, only: init_particle_kinetic_relativistic_to_zero
+  use mod_initialise_relativistic_particles, only: init_particle_gc_relativistic_to_zero
+  use mod_initialise_relativistic_particles, only: init_p_gc_relativistic_RZPhi_energypitchgyro
+  implicit none
+  !> variables:
+  integer :: ii,jj
+  real*8 :: psi_test,B_norm,psi_2,U
+  real*8,dimension(2)   :: R_box_test,Z_box_test,phi_box_test
+  real*8,dimension(2)   :: energy_box,pitch_box,gyro_box,p_box
+  real*8,dimension(3)   :: B,e2,e3,E
+  real*8,dimension(:),allocatable  :: errors,zeros
+  logical,dimension(:),allocatable :: success_pos,success_vel,success_q
+  !> initialisation:
+  R_box_test=R_box_jorek_sol; Z_box_test=Z_box_jorek_sol; phi_box_test=phi_small_sol;
+  energy_box = (/EThetaChi_RE_lowbnd(1),EThetaChi_RE_uppbnd(1)/)
+  pitch_box  = (/EThetaChi_RE_lowbnd(2),EThetaChi_RE_uppbnd(2)/)
+  gyro_box   = (/EThetaChi_RE_lowbnd(3),EThetaChi_RE_uppbnd(3)/)
+  !> initialise particle groups
+  call init_p_gc_relativistic_RZPhi_energypitchgyro(groups_sol,&
+  fields_linear_sol,time_sol,pcg32_rng(),R_box_test,Z_box_test,&
+  phi_box_test,energy_box,pitch_box,gyro_box,q1_posneg_interval) 
+  !> perform checks
+  do ii=1,n_groups
+    select type (p_list=>groups_sol(ii)%particles)
+    type is (particle_kinetic_relativistic)
+      p_box = (EL_CHG*(/EThetaChi_RE_lowbnd(1),EThetaChi_RE_uppbnd(1)/))/&
+      (ATOMIC_MASS_UNIT*groups_sol(ii)%mass*SPEED_OF_LIGHT*SPEED_OF_LIGHT)
+      p_box = (p_box+1.d0)*(p_box+1.0); p_box = sqrt(p_box-1.d0);
+      p_box = SPEED_OF_LIGHT*groups_sol(ii)%mass*p_box;
+    type is (particle_gc_relativistic)
+      p_box = (EL_CHG*(/EThetaChi_RE_lowbnd(1),EThetaChi_RE_uppbnd(1)/))/&
+      (ATOMIC_MASS_UNIT*groups_sol(ii)%mass*SPEED_OF_LIGHT*SPEED_OF_LIGHT)
+      p_box = (p_box+1.d0)*(p_box+1.0); p_box = sqrt(p_box-1.d0);
+      p_box = SPEED_OF_LIGHT*groups_sol(ii)%mass*p_box;
+    end select
+    allocate(success_pos(n_particles(ii))); success_pos = .false.;
+    allocate(success_vel(n_particles(ii))); success_vel = .false.;
+    allocate(success_q(n_particles(ii))); success_q = .false.;
+    allocate(errors(n_particles(ii))); errors = 1.d21;
+    allocate(zeros(n_particles(ii)));  zeros = 0.d0;
+    do jj=1,n_particles(ii)
+      if(groups_sol(ii)%particles(jj)%i_elm.gt.0) then
+        !> test position
+        call test_position_in_RZPhi_box(groups_sol(ii)%particles(jj),&
+        fields_linear_sol,R_box_jorek_sol,Z_box_jorek_sol,phi_small_sol,&
+        success_pos(jj),errors(jj))
+        !> compute magnetic coordinate system
+        call fields_linear_sol%calc_EBpsiU(time_sol,&
+        groups_sol(ii)%particles(jj)%i_elm,groups_sol(ii)%particles(jj)%st,&
+        groups_sol(ii)%particles(jj)%x(3),E,B,psi_2,U)
+        B_norm = norm2(B); B = B/B_norm;
+        B = vector_cylindrical_to_cartesian(groups_sol(ii)%particles(jj)%x(3),B)
+        call get_orthonormals(B,e2,e3)
+        !> check momentum and charge solutions
+        select type(p_test=>groups_sol(ii)%particles(jj))
+        type is (particle_kinetic_relativistic)
+          call test_momentum_in_ppitchgyro_box_p(p_test,B,e2,e3,&
+          p_box,pitch_box,gyro_box,success_vel(jj))
+          success_q(jj) = (p_test%q.ge.q1_posneg_interval(1)).and.&
+          (p_test%q.le.q1_posneg_interval(2))
+          call init_particle_kinetic_relativistic_to_zero(p_test) !< cleanup
+        type is (particle_gc_relativistic)
+          call test_momentum_in_ppitch_box_gc(p_test,groups_sol(ii)%mass,&
+          B_norm,p_box,pitch_box,success_vel(jj))
+          success_q(jj) = (p_test%q.ge.q1_posneg_interval(1)).and.&
+          (p_test%q.le.q1_posneg_interval(2))
+          call init_particle_gc_relativistic_to_zero(p_test) !< cleanup
+        end select
+      endif
+    enddo
+    call assert_true(all(success_pos),&
+    "Error initialise relativistic kinetic p gc RZPhi - E/pitch/gyro: RZPhi not in bound!")
+    call assert_true(all(success_vel),&
+    "Error initialise relativistic kinetic p gc RZPhi - E/pitch/gyro: E,pitch,gyro not in bound!")
+    call assert_true(all(success_q),&
+    "Error initialise relativistic kinetic p gc RZPhi - E/pitch/gyro: charge not in bound!")
+    call assert_equals(errors,zeros,n_particles(ii),tol_interp_real8,&
+    "Error initialise relativistic kinetic p gc RZPhi - E/pitch/gyro: R,Z mismatch!")
+    deallocate(errors); deallocate(zeros); 
+    deallocate(success_pos); deallocate(success_vel); deallocate(success_q);
+  enddo
+end subroutine test_init_p_gc_relativistic_RZPhi_energypitchgyro
 
 !> test initialisation particle momentum between limits
 subroutine test_sampling_cartesian_p_kinetic_relativistic()
@@ -932,6 +1021,41 @@ subroutine test_dummy()
 end subroutine test_dummy
 
 !> Tools ------------------------------------------------------
+!> test if a particle position is in the R,Z,Phi box
+!> inputs:
+!>   p_test:  (particle_base) test particle
+!>   fields:  (fields_base) jorek fields
+!>   R_box:   (real8)(2) major radius box
+!>   Z_box:   (real8)(2) vertical position box
+!>   phi_box: (real8)(2) toroidal angle box
+!> outputs:
+!>   success: (logical) true if particle in box
+!>   error:   (real8) error in the R,Z interpolation
+subroutine test_position_in_RZPhi_box(p_test,fields,R_box,&
+Z_box,phi_box,success,error)
+  use mod_interp,         only: interp_RZ
+  use mod_fields,         only: fields_base
+  use mod_particle_types, only: particle_base
+  implicit none
+  !> inputs:
+  class(particle_base),intent(in) :: p_test
+  class(fields_base),intent(in)   :: fields
+  real*8,dimension(2),intent(in)  :: R_box,Z_box,phi_box
+  !> outputs:
+  logical,intent(out) :: success
+  real*8,intent(out)  :: error
+  !> variables:
+  real*8 :: R_test,Z_test
+  !> test correctness
+  success = (p_test%x(1).ge.R_box(1)).and.(p_test%x(1).le.R_box(2)).and.&
+  (p_test%x(2).ge.Z_box(1)).and.(p_test%x(2).le.Z_box(2)).and.&
+  (p_test%x(3).ge.phi_box(1)).and.(p_test%x(3).le.phi_box(2))
+  if(p_test%i_elm.gt.0) &
+  call interp_RZ(fields%node_list,fields%element_list,p_test%i_elm,&
+  p_test%st(1),p_test%st(2),R_test,Z_test)
+  error = max(abs(p_test%x(1)-R_test),abs(p_test%x(2)-Z_test))
+end subroutine test_position_in_RZPhi_box
+
 !> test if a particle position is in the poloidal flux, 
 !> toroidal angle box
 !> inputs:
