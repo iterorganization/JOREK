@@ -8,7 +8,7 @@
 !> higher-order method, as we also have the second derivatives.
 !> Be careful when using this routine with psi_n > 1, as multiple intersections
 !> can exist.
-subroutine find_theta_psi(node_list,element_list,psi_minmax,theta,psi,phi,R_axis,Z_axis,i_elm,s,t,R,Z)
+subroutine find_theta_psi(node_list,element_list,psi_minmax,theta,psi,phi,R_axis,Z_axis,i_elm,s,t,R,Z,verbose_in)
 use constants
 use data_structure
 use mod_interp
@@ -26,14 +26,13 @@ end interface
 type (type_node_list),    intent(in)    :: node_list
 type (type_element_list), intent(in)    :: element_list
 real*8, dimension(element_list%n_elements,2), intent(in) :: psi_minmax !< list of minima and maxima of psi in these elements
-real*8,                   intent(in)    :: theta
-real*8,                   intent(in)    :: psi, phi
-real*8,                   intent(in)    :: R_axis
-real*8,                   intent(in)    :: Z_axis
-integer,                  intent(out)   :: i_elm
-real*8,                   intent(out)   :: s, t, R, Z
-
-logical, parameter :: verbose = .true.
+real*8,                   intent(in)          :: theta
+real*8,                   intent(in)          :: psi, phi
+real*8,                   intent(in)          :: R_axis
+real*8,                   intent(in)          :: Z_axis
+integer,                  intent(out)         :: i_elm
+real*8,                   intent(out)         :: s, t, R, Z
+logical,                  intent(in),optional :: verbose_in
 
 ! --- Internal variables
 real*8  :: u, du, R_try, Z_try, s_out, t_out, err
@@ -57,9 +56,12 @@ integer :: ielm1, ielm2
 real*8, dimension(1) :: A, B, C, D
 real*8, dimension(2) :: xi
 real*8, dimension(3) :: intersection
+logical :: verbose
 
 ! 0. Preparation
 out_of_domain = .false.
+verbose = .true.
+if(present(verbose_in)) verbose = verbose_in
 
 ! 1. Find the right elements (all elements where the theta and psi lines enter)
 psi_right = (psi_minmax(:,1) .lt. psi) .and. (psi_minmax(:,2) .gt. psi)
