@@ -349,6 +349,97 @@ energy_kin_box,pitch_box,gyro_box,q_box)
   deallocate(active_group_ids); deallocate(momentum_box);
 end subroutine init_p_gc_relativistic_RZPhi_energypitchgyro
 
+subroutine init_p_gc_relativistic_from_fluid_energypitchgyro(&
+groups,fields,time,rng_type,n_profiles,prof_ids,prof_norms,accept,&
+R_box,Z_box,phi_box,energy_kin_box,pitch_box,gyro_box,q_box)
+  use mod_rng,            only: type_rng
+  use mod_rng,            only: setup_shared_rngs
+  use mod_fields,         only: fields_base
+  use mod_particle_sim,   only: particle_group
+  use mod_particle_types, only: particle_kinetic_relativistic
+  use mod_particle_types, only: particle_gc_relativistic
+  !$ use omp_lib
+  implicit none
+  !> inputs-outputs:
+  class(particle_group),dimension(:),allocatable,intent(inout) :: groups
+  class(fields_base),intent(inout)                             :: fields
+  procedure(accept_function)                                   :: accept
+  real*8,dimension(2),intent(inout) :: R_box,Z_box,phi_box
+  real*8,dimension(2),intent(inout) :: energy_kin_box,pitch_box,gyro_box
+  !> inputs:
+  class(type_rng),intent(in)                :: rng_type
+  integer*1,dimension(2),intent(in)         :: q_box
+  integer,intent(in)                        :: n_profiles
+  real*8,intent(in)                         :: time
+  integer,dimension(n_profiles),intent(in)  :: prof_ids
+  real*8,dimension(n_profiles,2),intent(in) :: prof_norms
+  !> variables:
+  class(type_rng),dimension(:),allocatable :: rngs
+  integer :: ii,jj,kk,n_rngs,n_groups,thread_id,maxit,n_active_groups
+  integer,dimension(:),allocatable :: active_group_ids 
+  real*8,dimension(2)   :: cospitch_box,R_minmax,R2_box
+  real*8,dimension(2)   :: Z_minmax,phi_minmax
+  real*8,dimension(3)   :: rands
+  real*8,dimension(:,:),allocatable :: momentum_box
+
+  !> initialisations
+  n_groups=size(groups); n_active_groups=0; 
+  allocate(active_group_ids(n_groups)); allocate(momentum_box(2,n_groups));
+  call find_relativistic_kinetic_gc_groups(n_groups,groups,&
+  n_active_groups,active_group_ids)
+  !> extract bounding maximum and minimum boxes
+  call find_RZPhi_minmax_global(R_minmax,Z_minmax,phi_minmax,fields)
+  !> check bounding boxes
+  call check_RZPhi_interval(R_box,Z_box,phi_box,R_minmax,Z_minmax,phi_minmax)
+  do ii=1,n_active_groups
+    call check_energykinpitchgyro_interval(energy_kin_box,momentum_box(:,ii),&
+    pitch_box,gyro_box,groups(active_group_ids(ii))%mass)
+  enddo
+  !> compute the cube of the momentum and the cosinus of the pitch angle
+  R2_box = R_box*R_box
+  momentum_box = momentum_box**3.d0; cospitch_box = cos(pitch_box);
+  !> initialise random number generator
+  call setup_shared_rngs(4,rng_type,rngs)
+  n_rngs = size(rngs)
+
+  !> initialise particle groups
+  !$omp parallel default(private) firstprivate(n_rngs,n_active_groups,&
+  !$omp maxit,active_group_ids,n_profiles) shared(groups,fields,rngs,&
+  !$omp prof_ids,prof_norms,R2_box,Z_box,phi_box,time,momentum_box,&
+  !$omp cospitch_box,gyro_box,q_box)
+  thread_id = 1;
+  !$omp single
+  do ii=1,n_active_groups
+    do jj=1,size(groups(active_group_ids(ii))%particles)
+      !$omp task
+      !$ thread_id = omp_get_thread_num()+1
+      !> initialise particle to 0
+      call init_particle_base_to_zero(groups(active_group_ids(ii))%particles(jj))
+      !> initialise particle in space from plasma profiles
+      call sample_position_acceptreject_from_fluid_profiles(&
+      groups(active_group_ids(ii))%particles(jj),fields,n_rngs,n_profiles,&
+      thread_id,prof_ids,prof_norms,R2_box,Z_box,phi_box,rngs,accept)
+      !> if valid, initialise both velocity space and charge
+      if(groups(active_group_ids(ii))%particles(jj)%i_elm.gt.0) then
+        select type (particle=>groups(active_group_ids(ii))%particles(jj))
+        type is (particle_kinetic_relativistic)
+          call sampling_uniform_ppitchgyro_kinetic_relativistic(particle,&
+          fields,rands(4:6),time,momentum_box,cospitch_box,gyro_box)
+          particle%q = sampling_uniform_charge(rands(7),q_box)
+        type is (particle_gc_relativistic)
+          call sampling_uniform_ppitchgyro_gc_relativistic(particle,fields,&
+          rands(4:6),groups(active_group_ids(ii))%mass,time,&
+          momentum_box,cospitch_box,gyro_box)
+          particle%q = sampling_uniform_charge(rands(7),q_box)
+        end select 
+      endif
+      !$omp end task
+    enddo
+  enddo
+  !$omp end single
+  !$omp end parallel
+end subroutine init_p_gc_relativistic_from_fluid_energypitchgyro
+
 !> find number and id of groups being reltivistic
 !> kinetic or relativistic gc
 !> inputs:
@@ -490,9 +581,15 @@ end subroutine sample_position_uniformly_psi_theta_phi
 !>   fields:     (fields_base) jorek fields object
 !>   n_rngs:     (integer) number of random number generator
 !>   n_profiles: (integer) number of profiles to use
+!>   rng_id:     (integer) id of the random number ot be used
 !>   rngs:       (n_rngs) random number generators
+!>   prof_ids:   (integer)(n_profiles) index of the profile in the node
 !>   prof_norms: (real8)(n_profiles,2) profile normalization
 !>               1: minimum value, 2: extension: maximum-minimum
+!>   R2_box:     (real8)(2) squared of the minimum and maximum values of
+!>               the major radius box
+!>   Z_box:      (real8)(2) vertical position box
+!>   phi_box:    (real8)(2) toroidal angle box
 !>   accept:     (accept_function) accept function: takes as arguments
 !>               a random number and a set of values within [0,1] and
 !>               returns true if the variable is accepted
@@ -503,23 +600,49 @@ end subroutine sample_position_uniformly_psi_theta_phi
 !>             a random number and a set of values within [0,1] and
 !>             returns true if the variable is accepted
 subroutine sample_position_acceptreject_from_fluid_profiles(particle,&
-fields,n_rngs,n_profiles,rngs,prof_norms,accept)
+fields,n_rngs,n_profiles,rng_id,prof_ids,prof_norms,R2_box,Z_box,&
+phi_box,rngs,accept)
+  use mod_interp,         only: interp_PRZ
   use mod_fields,         only: fields_base
   use mod_rng,            only: type_rng
   use mod_particle_types, only: particle_base
   implicit none
   !> inputs:
   class(fields_base),intent(in)                   :: fields
-  integer,intent(in)                              :: n_rngs,n_profiles
-  real*8,dimension(n_profiles),intent(in)         :: prof_norms
+  integer,intent(in)                              :: n_rngs,n_profiles,rng_id
+  integer,dimension(n_profiles),intent(in)        :: prof_ids
+  real*8,dimension(2),intent(in)                  :: R2_box,Z_box,phi_box
+  real*8,dimension(n_profiles,2),intent(in)       :: prof_norms
   !> inputs-outputs:
   class(particle_base),intent(inout)              :: particle
   class(type_rng),dimension(n_rngs),intent(inout) :: rngs
   procedure(accept_function)                      :: accept
   !> varibales
-  integer :: maxit
+  logical                      :: fail
+  integer                      :: maxit,it
+  real*8,dimension(4)          :: rands
+  real*8,dimension(n_profiles) :: profiles
   !> initialisations
-  maxit = 100000
+  maxit = 100000; fail=.true.; it = -1;
+
+  !> while loop until a particle is accepted
+  do while(fail.and.(it.le.maxit))
+    it = it+1 !< update the counter
+    call rngs(rng_id)%next(rands) !< generate random numbers
+    !> sample a random position uniformly in cylindrical coordinates
+    call sample_position_uniformly_cylinder(particle,fields%node_list,&
+    fields%element_list,rands(1:3),R2_box,Z_box,phi_box)
+    if(particle%i_elm.le.0) cycle
+    !> interpolate the profiles
+    call interp_PRZ(fields%node_list,fields%element_list,particle%i_elm,&
+    prof_ids,n_profiles,particle%st(1),particle%st(2),particle%x(2),&
+    profiles,particle%x(1),particle%x(2))
+    !< normalise the profiles
+    profiles = prof_norms(:,1) + prof_norms(:,2)*profiles
+    !> check for failures
+    fail = .not.accept(n_profiles,profiles,rands(n_profiles+1))
+  enddo
+
 end subroutine sample_position_acceptreject_from_fluid_profiles
 
 !> uniform sampling of the cartesian momentum
