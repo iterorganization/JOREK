@@ -2024,7 +2024,7 @@ do ms=1, n_gauss
                              * T0 * ((    +alpha_imp_x*rn0) * psi_y - (    +alpha_imp_y*rn0) * psi_x)         &
                              * (                            + F0 / BigR * v_p) * xjac * theta * tstep * tstep &
                    + TG_num6 * 0.25d0 / BigR * vpar0**2                                                       &
-                             * (r0_x+alpha_imp*rn0_x) * (T0_x * psi_y - T0_y * psi_x)                         &
+                             * (r0+alpha_imp*rn0) * (T0_x * psi_y - T0_y * psi_x)                         &
                              * (                            + F0 / BigR * v_p) * xjac * theta * tstep * tstep
 
 

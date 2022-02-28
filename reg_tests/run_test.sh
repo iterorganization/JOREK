@@ -241,7 +241,7 @@ if [ "$compile" == "yes" ]; then
   if [ "$compiletest" == "yes" ]; then
     mv communication/eqdsk2jorek.f90 communication/eqdsk2jorek.f90.bck
     ./util/config.sh model=$compilemodel
-    make -j 8 objs all || exit 1
+    make -j 8 $debugoptions objs all || exit 1
     mv communication/eqdsk2jorek.f90.bck communication/eqdsk2jorek.f90
     exit $? # exit after compiling for compile tests
   fi
