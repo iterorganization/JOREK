@@ -16,7 +16,7 @@ module mod_rootfinding
   private
   public :: newtons_method
   public :: halleys_method
-  public :: fun, dfun, ddfun
+  public :: fun, dfun, ddfun, fun_dfun_3d
   public :: root
 
   !> Base type describing a function with optional private parameters
@@ -39,6 +39,11 @@ module mod_rootfinding
     procedure(ddf), pass, deferred :: ddf
   end type
 
+  !> type descrbing a 3d function and its jacobian 
+  type,abstract :: fun_dfun_3d
+    contains
+    procedure(f_df_3d),pass,deferred :: f_df
+  end type fun_dfun_3d
 
   interface
     pure function inverse_f(this, f) result(x)
@@ -65,11 +70,19 @@ module mod_rootfinding
       real*8, intent(in) :: x
       real*8 :: ddf
     end function ddf
+    pure subroutine f_df_3d(this,f,J,x)
+      import fun_dfun_3d
+      class(fun_dfun_3d),intent(inout)  :: this
+      real*8,dimension(3),intent(out)   :: f
+      real*8,dimension(3,3),intent(out) :: J
+      real*8,dimension(3),intent(in)    :: x
+    end subroutine f_df_3d
   end interface
 
   interface newtons_method
     module procedure newtons_method_f
     module procedure newtons_method_o
+    module procedure newtons_method_3d_o
   end interface
   interface halleys_method
     module procedure halleys_method_f
@@ -137,6 +150,49 @@ contains
     ierr = 1 ! We did not find a root
   end subroutine newtons_method_o
 
+  !> implement the newton method for finding the roots of a system
+  !> of three equations in three variables. A subroutine
+  !> complying with the abstract class int_f_df_3d has to be provided
+  !> inputs:
+  !>   f_df:     (fun_dfun_3d) class computing function and derivative values
+  !>   x_0:      (real8)(3) newton method first guess
+  !>   y0:       (real8)(3) value of the root to find
+  !>   tol_in:   (real8) tolerance
+  !>   maxit_in: (integer)  maximum number of iteration
+  !> outputs:
+  !>   f_df: (f_df_3d) procedure computing function and derivative values
+  !>   x:    (real8)(3) system root
+  !>   ierr: (integer) 0 for success 1 otherwise
+  pure subroutine newtons_method_3d_o(f_df_3d,y0,x0,x,ierr,tol_in,maxit_in)
+    implicit none
+    !> inputs-outputs:
+    class(fun_dfun_3d),intent(inout) :: f_df_3d
+    !> inputs:
+    integer,intent(in)               :: maxit_in
+    real*8,intent(in)                :: tol_in
+    real*8,dimension(3),intent(in)   :: y0,x0
+    !> outputs:
+    integer,intent(out)              :: ierr
+    real*8,dimension(3),intent(out)  :: x
+    !> variables:
+    integer               :: ii
+    real*8                :: det
+    real*8,dimension(3)   :: y
+    real*8,dimension(3,3) :: J,invJ
+    !> initialisation
+    x=x0; ierr=0;
+    do ii=1,maxit_in
+     call f_df_3d%f_df(y,J,x)
+     if(maxval(abs(y-y0)).lt.tol_in) return
+     det = J(1,1)*(J(2,2)*J(3,3)-J(3,2)*J(2,3))+J(1,2)*(J(2,3)*J(3,1)-J(2,1)*J(3,3))+&
+     J(1,3)*(J(2,1)*J(3,2)-J(2,2)*J(3,1))
+     invJ(:,1) = (/J(2,2)*J(3,3)-J(3,2)*J(2,3),J(3,2)*J(1,3)-J(1,2)*J(3,3),J(1,2)*J(2,3)-J(2,2)*J(1,3)/)
+     invJ(:,2) = (/J(2,3)*J(3,2)-J(2,1)*J(3,3),J(1,1)*J(3,3)-J(1,3)*J(3,1),J(1,3)*J(2,1)-J(2,3)*J(1,1)/)
+     invJ(:,3) = (/J(2,1)*J(3,2)-J(2,2)*J(3,1),J(3,1)*J(1,2)-J(1,1)*J(3,2),J(1,1)*J(2,2)-J(1,2)*J(2,1)/)
+     x = x - matmul(invJ,y-y0)/det
+    enddo
+  end subroutine newtons_method_3d_o
+
   !> Use Halley's method to solve f(x) == y0, starting at x0
   pure subroutine halleys_method_f(f, df, ddf, y0, x0, x, ierr)
     real*8, intent(in)   :: y0    !< Intersection to find
@@ -201,7 +257,6 @@ contains
     end do
     ierr = 1 ! We did not find a root
   end subroutine halleys_method_o
-
 
   !> Repeated here from solvers/root.f90 to be pure
   pure function root(A,B,C,D,SGN)
