@@ -19,6 +19,9 @@ end type fun_cossinpar
 
 integer,parameter                :: maxit=100000
 real*8,parameter                 :: tol_real8=5.d-10
+real*8,parameter                 :: delta=1.3d1
+real*8,dimension(2),parameter    :: abcoeff_lowbnd=(/-3.d1,1.2d1/)
+real*8,dimension(2),parameter    :: abcoeff_uppbnd=(/5.d1,4.2d1,/)
 real*8,dimension(3),parameter    :: kcos_sol=(/PI,TWOPI,5.d0*PI/)
 real*8,dimension(3),parameter    :: ksin_sol=(/PI/2.d0,2.d0*PI/3.d0,PI/)
 real*8,dimension(3),parameter    :: a_parabolic=(/-5.d0,9.d0,-7.d0/)
@@ -30,6 +33,8 @@ type(fun_cossinpar)              :: cossinpar_sol
 integer                          :: n_no_int_coords_sol
 integer,dimension(:),allocatable :: no_int_coords_sol
 real*8,dimension(3)              :: x0_rand,y0_cossinpar
+real*8,dimension(3)              :: real_cubic_coeff_real_roots
+real*8,dimension(3)              :: real_cubic_coeff_cmplx_roots
 
 !> Interfaces --------------------------------------------------------------
 !> define the cossinpar constructor by overloading
@@ -71,6 +76,21 @@ subroutine setup()
   call cossinpar_sol%f_df(y0_cossinpar,J_loc,x_loc,&
   n_no_int_coords_sol,no_int_coords_sol)
 end subroutine setup
+
+!> set-up features for finding the root of polynomials
+subroutine setup_polynomials()
+  use mod_gnu_rng, only: gnu_rng_interval
+  implicit none
+  real*8 :: Q,R
+  !> set two of the coefficients randomly and the delta
+  call gnu_rng_interval(2,abcoeff_lowbnd,abcoeff_uppbnd,&
+  real_cubic_coeff_real_roots(1:2))
+  real_cubic_coeff_cmplx_roots(1:2)=real_cubic_coeff_real_roots(1:2)
+  !> compute third coefficient for testing both
+  !> real and complex solutions
+    
+end subroutine setup_polynomials
+
 !> tearing-down test features
 subroutine teardown()
   implicit none
