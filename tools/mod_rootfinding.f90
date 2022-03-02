@@ -70,12 +70,14 @@ module mod_rootfinding
       real*8, intent(in) :: x
       real*8 :: ddf
     end function ddf
-    pure subroutine f_df_3d(this,f,J,x)
+    pure subroutine f_df_3d(this,f,J,x,n_int_coords,int_coords)
       import fun_dfun_3d
-      class(fun_dfun_3d),intent(inout)  :: this
-      real*8,dimension(3),intent(out)   :: f
-      real*8,dimension(3,3),intent(out) :: J
-      real*8,dimension(3),intent(in)    :: x
+      class(fun_dfun_3d),intent(inout)           :: this
+      real*8,dimension(3),intent(out)            :: f
+      real*8,dimension(3,3),intent(out)          :: J
+      real*8,dimension(3),intent(in)             :: x
+      integer,intent(in)                         :: n_int_coords
+      integer,dimension(n_int_coords),intent(in) :: int_coords
     end subroutine f_df_3d
   end interface
 
@@ -154,21 +156,25 @@ contains
   !> of three equations in three variables. A subroutine
   !> complying with the abstract class int_f_df_3d has to be provided
   !> inputs:
-  !>   f_df:     (fun_dfun_3d) class computing function and derivative values
-  !>   x_0:      (real8)(3) newton method first guess
-  !>   y0:       (real8)(3) value of the root to find
-  !>   tol_in:   (real8) tolerance
-  !>   maxit_in: (integer)  maximum number of iteration
+  !>   f_df:         (fun_dfun_3d) class computing function and derivative values
+  !>   y0:           (real8)(3) value of the root to find
+  !>   x0:           (real8)(3) newton method first guess
+  !>   n_int_coords: (integer) size of the interger coordinates
+  !>   int_coords:   (integer)(n_int_coord) interger coordinates
+  !>   tol_in:       (real8) tolerance
+  !>   maxit_in:     (integer)  maximum number of iteration
   !> outputs:
   !>   f_df: (f_df_3d) procedure computing function and derivative values
   !>   x:    (real8)(3) system root
   !>   ierr: (integer) 0 for success 1 otherwise
-  pure subroutine newtons_method_3d_o(f_df_3d,y0,x0,x,ierr,tol_in,maxit_in)
+  pure subroutine newtons_method_3d_o(f_df_3d,y0,x0,x,n_int_coords,int_coords,&
+  ierr,tol_in,maxit_in)
     implicit none
     !> inputs-outputs:
     class(fun_dfun_3d),intent(inout) :: f_df_3d
     !> inputs:
-    integer,intent(in)               :: maxit_in
+    integer,intent(in)               :: n_int_coords,maxit_in
+    integer,dimension(n_int_coords),intent(in) :: int_coords
     real*8,intent(in)                :: tol_in
     real*8,dimension(3),intent(in)   :: y0,x0
     !> outputs:
@@ -182,7 +188,7 @@ contains
     !> initialisation
     x=x0; ierr=0;
     do ii=1,maxit_in
-     call f_df_3d%f_df(y,J,x)
+     call f_df_3d%f_df(y,J,x,n_int_coords,int_coords)
      if(maxval(abs(y-y0)).lt.tol_in) return
      det = J(1,1)*(J(2,2)*J(3,3)-J(3,2)*J(2,3))+J(1,2)*(J(2,3)*J(3,1)-J(2,1)*J(3,3))+&
      J(1,3)*(J(2,1)*J(3,2)-J(2,2)*J(3,1))

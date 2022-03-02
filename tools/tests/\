@@ -27,7 +27,7 @@ real*8,dimension(3),parameter    :: c_parabolic=(/4.d0,-1.d1,1.d1/)
 real*8,dimension(3),parameter    :: x_min_sol=(/-4.d1,3.d0,-1.2d1/)
 real*8,dimension(3),parameter    :: x_max_sol=(/2.d1,5.d1,9.d0/)
 type(fun_cossinpar)              :: cossinpar_sol
-integer                          :: n_no_int_coords_sol
+integer                          :: n_np_int_coords_sol
 integer,dimension(:),allocatable :: no_int_coords_sol
 real*8,dimension(3)              :: x0_rand,y0_cossinpar
 
@@ -60,7 +60,7 @@ subroutine setup()
   real*8,dimension(3)   :: x_loc
   real*8,dimension(3,3) :: J_loc
   !> initialise no integer coordinates
-  n_no_int_coords_sol=0; allocate(no_int_coords_sol(n_no_int_coords_sol));
+  n_np_int_coords_sol=0; allocate(no_int_coords_sol(n_np_int_coords_sol));
   !> initialise the cossinpar object
   cossinpar_sol = fun_cossinpar(x_min_sol,x_max_sol,kcos_sol,ksin_sol,&
   a_parabolic,b_parabolic,c_parabolic)
@@ -68,13 +68,12 @@ subroutine setup()
   call gnu_rng_interval(3,x_min_sol,x_max_sol,x0_rand)
   !> compute y0
   call gnu_rng_interval(3,x_min_sol,x_max_sol,x_loc)
-  call cossinpar_sol%f_df(y0_cossinpar,J_loc,x_loc,&
-  n_no_int_coords_sol,no_int_coords_sol)
+  call cossinpar_sol%f_df(y0_cossinpar,J_loc,x_loc)
 end subroutine setup
 !> tearing-down test features
 subroutine teardown()
   implicit none
-  x0_rand=0.d0; y0_cossinpar=0.d0; n_no_int_coords_sol=0;
+  x0_rand=0.d0; y0_cossinpar=0.d0; n_np_int_coords_sol=0;
   if(allocated(no_int_coords_sol)) deallocate(no_int_coords_sol)
   call cossinpar_sol%reset_fun_cossipar
 end subroutine teardown
@@ -89,11 +88,9 @@ subroutine test_newtons_method_3d_zeros()
   real*8,dimension(3)   :: x_test,y_test
   real*8,dimension(3,3) :: J_test
   !> call the newton method:
-  call newtons_method(cossinpar_sol,(/0.d0,0.d0,0.d0/),x0_rand,x_test,&
-  n_no_int_coords_sol,no_int_coords_sol,ierr,tol_real8,maxit)
+  call newtons_method(cossinpar_sol,(/0.d0,0.d0,0.d0/),x0_rand,x_test,ierr,tol_real8,maxit)
   !> checks
-  call cossinpar_sol%f_df(y_test,J_test,x_test,&
-  n_no_int_coords_sol,no_int_coords_sol)
+  call cossinpar_sol%f_df(y_test,J_test,x_test)
   call assert_equals(y_test,(/0.d0,0.d0,0.d0/),3,tol_real8,&
   "Error root finding newton method 3d object: root values are not zeros!")
   call assert_equals(ierr,0,&
@@ -109,11 +106,9 @@ subroutine test_newtons_method_3d_y0()
   real*8,dimension(3)   :: x_test,y_test
   real*8,dimension(3,3) :: J_test
   !> call the newton method:
-  call newtons_method(cossinpar_sol,y0_cossinpar,x0_rand,x_test,&
-  n_no_int_coords_sol,no_int_coords_sol,ierr,tol_real8,maxit)
+  call newtons_method(cossinpar_sol,y0_cossinpar,x0_rand,x_test,ierr,tol_real8,maxit)
   !> checks
-  call cossinpar_sol%f_df(y_test,J_test,x_test,&
-  n_no_int_coords_sol,no_int_coords_sol)
+  call cossinpar_sol%f_df(y_test,J_test,x_test)
   call assert_equals(y_test,y0_cossinpar,3,tol_real8,&
   "Error root finding newton method 3d object: root values are not zeros!")
   call assert_equals(ierr,0,&
@@ -166,12 +161,10 @@ end subroutine reset_fun_cossipar
 !> outputs:
 !>   y:    (real8)(3) ordinate
 !>   J:    (real8)(3,3) jacobian
-pure subroutine cossinpar(this,f,J,x,n_int_coords,int_coords)
+pure subroutine cossinpar(this,f,J,x)
   implicit none
   !> inputs:
   class(fun_cossinpar),intent(inout) :: this
-  integer,intent(in)                 :: n_int_coords
-  integer,dimension(n_int_coords),intent(in) :: int_coords
   real*8,dimension(3),intent(in)  :: x
   !> outputs:
   real*8,dimension(3),intent(out)   :: f
