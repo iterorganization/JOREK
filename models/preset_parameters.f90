@@ -32,6 +32,11 @@ subroutine preset_parameters
   visco_num_T_dependent = .false.
   add_sources_in_sc     = .false.
 
+  eta_num_psin_dependent= .false.
+  eta_num_prof = 0.d0
+  eta_num_prof(1) = 0.8d0
+  eta_num_prof(2) = 0.03d0
+
   eta           = 1.d-5
   T_max_eta     = 1.d3
   eta_ohmic     = 0.d0

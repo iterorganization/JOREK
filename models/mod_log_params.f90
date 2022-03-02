@@ -483,6 +483,8 @@ write(*,'(1x,a)',advance='no') ' USE_BICGSTAB : '
   write(*,LOGI_FMT) 'Wdia                  ', Wdia
   write(*,REAL_FMT) 'eta_num               ', eta_num
   write(*,LOGI_FMT) 'eta_num_T_dependent   ', eta_num_T_dependent
+  write(*,LOGI_FMT) 'eta_num_psin_dependent', eta_num_psin_dependent
+  write(*,REAL_FMT) 'eta_num_prof          ', eta_num_prof(1:6)
   write(*,REAL_FMT) 'visco_num             ', visco_num
   write(*,LOGI_FMT) 'visco_num_T_dependent ', visco_num_T_dependent
   write(*,REAL_FMT) 'visco_par_num         ', visco_par_num
