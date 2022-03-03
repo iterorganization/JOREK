@@ -20,8 +20,8 @@ end type fun_cossinpar
 integer,parameter                :: maxit=100000
 real*8,parameter                 :: tol_real8=5.d-10
 real*8,parameter                 :: delta=1.3d1
-real*8,dimension(2),parameter    :: abcoeff_lowbnd=(/-3.d1,1.2d1/)
-real*8,dimension(2),parameter    :: abcoeff_uppbnd=(/5.d1,4.2d1,/)
+real*8,dimension(3),parameter    :: acoeffdeltabeta_lowbnd=(/-3.d1,1.d-2,2.45d-2/)
+real*8,dimension(3),parameter    :: acoeffdeltabeta_uppbnd=(/5.d1,1.d2,3.43d2/)
 real*8,dimension(3),parameter    :: kcos_sol=(/PI,TWOPI,5.d0*PI/)
 real*8,dimension(3),parameter    :: ksin_sol=(/PI/2.d0,2.d0*PI/3.d0,PI/)
 real*8,dimension(3),parameter    :: a_parabolic=(/-5.d0,9.d0,-7.d0/)
@@ -49,7 +49,10 @@ subroutine run_fruit_rootfinding()
   implicit none
   write(*,*) "  ... setting-up: root finding tests"
   call setup
+  call setup_polynomials
   write(*,*) "  ... running: root finding tests"
+  call root_cubic_real_coeff_real_roots
+  call root_cubic_real_coeff_cmplx_roots
   call test_newtons_method_3d_zeros
   call test_newtons_method_3d_y0
   write(*,*) "  ... tearing-down: root finding tests"
@@ -81,20 +84,52 @@ end subroutine setup
 subroutine setup_polynomials()
   use mod_gnu_rng, only: gnu_rng_interval
   implicit none
-  real*8 :: Q,R
-  !> set two of the coefficients randomly and the delta
-  call gnu_rng_interval(2,abcoeff_lowbnd,abcoeff_uppbnd,&
-  real_cubic_coeff_real_roots(1:2))
-  real_cubic_coeff_cmplx_roots(1:2)=real_cubic_coeff_real_roots(1:2)
-  !> compute third coefficient for testing both
-  !> real and complex solutions
-    
+  real*8 :: Q,R,sig,rand,uppbnd
+  real*8,dimension(2) :: rands
+  real*8,dimension(3) :: adeltabeta
+  !> compute the coefficients for purely real solutions
+  call gnu_rng_interval(3,acoeffdeltabeta_lowbnd,&
+  acoeffdeltabeta_uppbnd,adeltabeta)
+  real_cubic_coeff_real_roots(1)  = adeltabeta(1)
+  !> compute first and 0th order coefficients for real solutions
+  call random_number(rands)
+  sig = -1.d0; if(rands(1).gt.5.d-1) sig=1.d0;
+  uppbnd = (adeltabeta(1)*adeltabeta(1)-9.d0*adeltabeta(2))/3.d0
+  real_cubic_coeff_real_roots(2) = uppbnd - adeltabeta(3)*rands(2)
+  Q = (adeltabeta(1)*adeltabeta(1)-3.d0*real_cubic_coeff_real_roots(2))/9.d0
+  real_cubic_coeff_real_roots(3) = (9.d0*adeltabeta(1)*real_cubic_coeff_real_roots(2)-&
+  2.d0*adeltabeta(1)*adeltabeta(1)*adeltabeta(1)+&
+  sig*5.4d1*sqrt((Q-adeltabeta(2))**3.d0))/2.7d1
+  R = (2.d0*real_cubic_coeff_real_roots(1)**3.d0-&
+  9.d0*real_cubic_coeff_real_roots(1)*real_cubic_coeff_real_roots(2)+&
+  2.7d1*real_cubic_coeff_real_roots(3))/5.4d1
+  call assert_true(((Q-adeltabeta(2)).gt.0.d0).and.((R**2).lt.(Q**3.d0)),&
+  "Error set-up cube root finding real: Q and R conditions for real roots not respected!")
+  !> compute the coefficients for complex solutions
+  call gnu_rng_interval(3,acoeffdeltabeta_lowbnd,&
+  acoeffdeltabeta_uppbnd,adeltabeta)
+  real_cubic_coeff_cmplx_roots(1) = adeltabeta(1)
+  !> compute first and 0th order coefficients for complex solutions
+  call random_number(rands)
+  sig = -1.d0; if(rands(1).gt.5.d-1) sig=1.d0; 
+  uppbnd = (adeltabeta(1)*adeltabeta(1)+9.d0*adeltabeta(2))/3.d0
+  real_cubic_coeff_cmplx_roots(2) = uppbnd - adeltabeta(3)*rands(2)
+  Q = (adeltabeta(1)*adeltabeta(1)-3.d0*real_cubic_coeff_cmplx_roots(2))/9.d0
+  real_cubic_coeff_cmplx_roots(3) = (9.d0*adeltabeta(1)*real_cubic_coeff_cmplx_roots(2)-&
+  2.d0*adeltabeta(1)*adeltabeta(1)*adeltabeta(1)+&
+  sig*5.4d1*sqrt((Q+adeltabeta(2))**3.d0))/2.7d1
+  R = (2.d0*real_cubic_coeff_cmplx_roots(1)**3.d0-&
+  9.d0*real_cubic_coeff_cmplx_roots(1)*real_cubic_coeff_cmplx_roots(2)+&
+  2.7d1*real_cubic_coeff_cmplx_roots(3))/5.4d1
+  call assert_true(((Q+adeltabeta(2)).gt.0.d0).and.((R**2).ge.(Q**3.d0)),&
+  "Error set-up cube root finding real: Q and R conditions for complex roots not respected!")
 end subroutine setup_polynomials
 
 !> tearing-down test features
 subroutine teardown()
   implicit none
   x0_rand=0.d0; y0_cossinpar=0.d0; n_no_int_coords_sol=0;
+  real_cubic_coeff_real_roots=0.d0; real_cubic_coeff_cmplx_roots=0.d0;
   if(allocated(no_int_coords_sol)) deallocate(no_int_coords_sol)
   call cossinpar_sol%reset_fun_cossipar
 end subroutine teardown
@@ -139,6 +174,40 @@ subroutine test_newtons_method_3d_y0()
   call assert_equals(ierr,0,&
   "Error root finding newton method 3d object: maximum number of iterations reach finding zeros!")
 end subroutine test_newtons_method_3d_y0
+
+!> test the finding of roots for cubic polynomials (real roots only real coeff. only)
+subroutine root_cubic_real_coeff_real_roots()
+  use mod_rootfinding, only: root_cubic
+  implicit none
+  complex*16,dimension(3) :: y,x,zeros
+  !> initialisation
+  zeros = cmplx(0.d0,0.d0)
+  !> compute the roots
+  x = root_cubic(real_cubic_coeff_real_roots)
+  y = x**3.d0 + real_cubic_coeff_real_roots(1)*x**2.d0 + &
+  real_cubic_coeff_real_roots(2)*x+real_cubic_coeff_real_roots(3)
+  call assert_equals(aimag(x),(/0.d0,0.d0,0.d0/),3,&
+  "Error cubic polynomials root real coeff real solutions: x roots not real!")
+  call assert_equals(y,zeros,3,tol_real8,&
+  "Error cubic polynomials root real coeff real solutions: x values are not roots!")
+end subroutine root_cubic_real_coeff_real_roots
+
+!> test the finding of roots for cubic polynomials (complex roots only real coeff. only)
+subroutine root_cubic_real_coeff_cmplx_roots()
+  use mod_rootfinding, only: root_cubic
+  implicit none
+  complex*16,dimension(3) :: y,x,zeros
+  !> initialisation
+  zeros = cmplx(0.d0,0.d0)
+  !> compute the roots
+  x = root_cubic(real_cubic_coeff_cmplx_roots)
+  y = x**3.d0 + real_cubic_coeff_cmplx_roots(1)*x**2.d0 + &
+  real_cubic_coeff_cmplx_roots(2)*x+real_cubic_coeff_cmplx_roots(3)
+  call assert_true(.not.all(aimag(x).ne.0.d0),&
+  "Error cubic polynomials root real coeff complex solutions: x roots not imaginary!")
+  call assert_equals(y,zeros,3,tol_real8,&
+  "Error cubic polynomials root real coeff complex solutions: x values are not roots!")
+end subroutine root_cubic_real_coeff_cmplx_roots
 
 !> Tools -------------------------------------------------------------------
 !> initialise function cossinparabola to use for testing

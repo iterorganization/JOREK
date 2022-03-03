@@ -299,34 +299,37 @@ contains
   !>as implemented in W.H. Press et al., 
   !> Numerical Recipes Fortran 77, 2nd Ed., 1997
   !> inputs:
-  !>   a: coefficient multiplying x^2
-  !>   b: coefficient multiplying x
-  !>   c: coefficient multiplying 1
+  !>   coeff: (real8)(3) cubic polynomial coefficients
+  !>          1- coefficient multiplying x^2
+  !>          2- coefficient multiplying x
+  !>          3- coefficient multiplying 1
   !> outputs:
   !>   x: (complex)(3) roots
-  pure function root_cubic_real(a,b,c) result(x)
-  use constants, TWOPI
+  pure function root_cubic_real(coeff) result(x)
+  use constants, only: TWOPI
   implicit none
-  real*8,intent(in)      :: a,b,c
-  complex*8,dimension(3) :: x
+  real*8,dimension(2),intent(in) :: coeff
+  complex*16,dimension(3)         :: x
   real*8 :: Q,Q3,R,R2,theta,AA,BB,aapbb,aambb
   !> first discriminant
-  Q = (a*a-3.d0*b)/9.d0; R=(2.d0*a*a*a-9.d0*a*b+2.7d1*c)/5.4d1;
+  Q = (coeff(1)*coeff(1)-3.d0*coeff(2))/9.d0; 
+  R=(2.d0*coeff(1)*coeff(1)*coeff(1)-9.d0*coeff(1)*coeff(2)+2.7d1*coeff(3))/5.4d1;
   R2 = R*R; Q3=Q*Q*Q;
   !> compute the solution
   if(R2.lt.Q3) then
     !> the solution is real
     theta = acos(R/sqrt(Q3))
-    x = cmplx(-2.d0*sqrt(Q)*(/cos(theta/3.d0),cos((theta+TWOPI)/3.d0),&
-        cos(/(theta-TWOPI)/3.d0)/)-(a/3.d0),(/0.d0,0.d0,0.d0/))
+    x = cmplx(-2.d0*sqrt(Q)*(/cos(theta/3.d0),&
+        cos((theta+TWOPI)/3.d0),cos((theta-TWOPI)/3.d0)/)-&
+        coeff(1)/3.d0,(/0.d0,0.d0,0.d0/))
   else
     !> the solution is complex
-    AA = -sign(R)*((abs(R)+sqrt(R2-Q3))**(1.d0/3.d0))
+    AA = -sign(1.d0,R)*((abs(R)+sqrt(R2-Q3))**(1.d0/3.d0))
     BB = 0.d0;
     if(AA.ne.0.d0) BB = Q/AA
-    aapbb = -5.d-1(AA+BB); aambb = 5.d-1*sqrt(3.d0)*(AA-BB)
-    x = cmplx((/-2.d0*aapbb,aapbb,aapbb/)-(a/3.d0),&
+    aapbb = -5.d-1*(AA+BB); aambb = 5.d-1*sqrt(3.d0)*(AA-BB)
+    x = cmplx((/-2.d0*aapbb,aapbb,aapbb/)-(coeff(1)/3.d0),&
         (/0.d0,aambb,-aambb/))
   endif
-  end pure function root_cubic_real
+  end function root_cubic_real
 end module mod_rootfinding
