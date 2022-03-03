@@ -13,6 +13,7 @@ integer,parameter :: zero_r4=real(0.d0,kind=4)
 integer,parameter :: n_vectors=4
 real*4,parameter  :: tol_r4=real(1.0d-1,kind=4)
 real*8,parameter  :: tol_r8=2.5d-10
+real*8,parameter  :: tol_c16=7.50d-9
 !> vectors for testing the vector product
 real*8,dimension(2) :: a_interval_r8=(/-3.5d1,5.4d1/)
 real*8,dimension(2) :: b_interval_r8=(/5.4d1,1.15d2/)
@@ -38,6 +39,7 @@ subroutine run_fruit_math_operators()
   call test_cross_product
   call test_solve_2x2_linear_problem
   call test_solve_3x3_linear_problem
+  call test_compute_eigenvalues_real_3x3_r8
   write(*,'(/A)') "  ... tearing-down: math operators tests"
   call teardown
 end subroutine run_fruit_math_operators
@@ -140,6 +142,35 @@ subroutine test_solve_3x3_linear_problem()
     "Error math operators solve 3x3 linear problems (double): rhs mismatch!") 
   enddo
 end subroutine test_solve_3x3_linear_problem
+
+!> test method for computing the eigenvalues of a 3x3 double matrix
+!> with real values
+subroutine test_compute_eigenvalues_real_3x3_r8()
+  use mod_math_operators, only: compute_eigenvalues
+  implicit none
+  !> variables:
+  integer :: ii,jj
+  real*8,dimension(3,3)             :: zeros_r8
+  complex*16,dimension(3)           :: eigv
+  complex*16,dimension(3,3)         :: A
+  complex*16,dimension(3,n_vectors) :: det_test,zeros
+  !> initialisations
+  zeros = cmplx(0.d0,0.d0); zeros_r8 = 0.d0; det_test = zeros;
+  do jj=1,n_vectors
+    !> compute eigenvalues
+    call compute_eigenvalues(matrix_3x3_r8(:,:,jj),eigv)
+    !> compute determinant of A-eigv(ii)*I
+    A = cmplx(matrix_3x3_r8(:,:,jj),zeros_r8)
+    do ii=1,size(eigv)
+      det_test(ii,jj) = (A(1,1)-eigv(ii))*((A(2,2)-eigv(ii))*(A(3,3)-eigv(ii))-A(3,2)*A(2,3)) + & 
+                     A(1,2)*(A(3,1)*A(2,3)-A(2,1)*(A(3,3)-eigv(ii))) + &
+                     A(1,3)*(A(2,1)*A(3,2)-A(3,1)*(A(2,2)-eigv(ii)))
+    enddo
+    !> checks
+    call assert_equals(det_test,zeros,3,n_vectors,tol_c16,&
+    "Error math operators compute eigenvalues real 3x3 r8: determinants not zero!")
+  enddo
+end subroutine test_compute_eigenvalues_real_3x3_r8
 
 !>-------------------------------------------------------
 
