@@ -48,6 +48,8 @@ doc docs:
 
 # Directories containing sources, ordered by number of files
 DIRS := diagnostics			\
+        diagnostics/tests               \
+        diagnostics/tests/drivers       \
 	models				\
 	communication			\
 	grids/grid_utils		\
