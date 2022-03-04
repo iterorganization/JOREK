@@ -16,6 +16,7 @@ integer,parameter           :: n_coords=3
 integer,parameter           :: n_s=37
 integer,parameter           :: n_t=25
 integer,parameter           :: n_phi=100
+integer,parameter           :: field_id_sol=1 !< poloidal flux
 real*8,parameter            :: tol_real8=1.d-15
 type(fun_interp_PRZ)        :: interp_PRZ_object
 class(type_rng),dimension(:),allocatable :: rngs
@@ -34,6 +35,8 @@ subroutine run_fruit_fields_minmax_mpi(rank,n_tasks,ifail)
   write(*,'(/A)') "  ... running: fields minmax tests"
   call test_generation_equidistant_stphi_mesh(rank,n_tasks,ifail)
   call test_generation_random_stphi_mesh(rank,n_tasks,ifail)
+  call test_field_minmax_equidistant_mesh(rank,n_tasks,ifail)
+  call test_field_minmax_random_mesh(rank,n_tasks,ifail)
   write(*,'(/A)') "  ... tearing-down: fields minmax tests"
   call teardown(rank,n_tasks,ifail)
 end subroutine run_fruit_fields_minmax_mpi
@@ -141,8 +144,98 @@ subroutine test_generation_random_stphi_mesh(rank,n_tasks,ifail)
   call assert_true(.not.any(success),"Error fields minmax random mesh: found repeated point!")
 end subroutine test_generation_random_stphi_mesh
 
-!> test the find of extrema on equidistant mesh
 !> test the find of extrema on random mesh
+subroutine test_field_minmax_random_mesh(rank,n_tasks,ifail)
+  use mod_interp,        only: interp_PRZ
+  use mod_fields_minmax, only: generate_stphi_mesh
+  use mod_fields_minmax, only: field_minmax
+  implicit none
+  !> inputs-outputs:
+  integer,intent(inout) :: ifail
+  integer,intent(in)    :: rank,n_tasks
+  !> variables:
+  integer             :: ii,jj
+  real*8              :: R_test,Z_test
+  real*8,dimension(1) :: field_test
+  real*8,dimension(2) :: minmax_global
+  real*8,dimension(interp_PRZ_object%element_list%n_elements) :: min_list,max_list
+  real*8,dimension(3,n_s*n_t*n_phi) :: rand_mesh
+  logical,dimension(interp_PRZ_object%element_list%n_elements) :: fail_min_list
+  logical,dimension(interp_PRZ_object%element_list%n_elements) :: fail_max_list
+  logical,dimension(2) :: fail_global
+  !> initialisation
+  fail_min_list = .false.; fail_max_list = .false.; fail_global = .false.;
+  call generate_stphi_mesh(n_s*n_t*n_phi,rngs,rand_mesh)
+  !> find extrema
+  call field_minmax(field_id_sol,n_s*n_t*n_phi,rand_mesh,&
+  interp_PRZ_object,min_list,max_list,minmax_global)
+  !> checks if the extrema are the largest and smallest values for each point in the element
+  do ii=1,interp_PRZ_object%element_list%n_elements
+    do jj=1,n_s*n_t*n_phi
+      call interp_PRZ(interp_PRZ_object%node_list,interp_PRZ_object%element_list,&
+      ii,(/field_id_sol/),1,rand_mesh(1,jj),rand_mesh(2,jj),rand_mesh(3,jj),field_test,R_test,Z_test)
+      !write(*,*) "test min: ",field_test(1).lt.min_list(ii)," min list: ",min_list(ii)," val: ",field_test
+      if(.not.fail_min_list(ii)) fail_min_list(ii) = field_test(1).lt.min_list(ii)
+      if(.not.fail_max_list(ii)) fail_max_list(ii) = field_test(1).gt.max_list(ii)
+      if(.not.fail_global(1))    fail_global(1)    = field_test(1).lt.minmax_global(1)
+      if(.not.fail_global(2))    fail_global(2)    = field_test(1).gt.minmax_global(2)
+    enddo
+  enddo
+  call assert_true(all(.not.fail_min_list),&
+  "Error find fields minmax random mesh: minimum list not a minimum!")
+  call assert_true(all(.not.fail_max_list),&
+  "Error find fields minmax random mesh: maximum list not a maximum!")
+  call assert_true(all(.not.fail_global),&
+  "Error find fields minmax random mesh: not global minimum or maximum!")
+end subroutine test_field_minmax_random_mesh
+
+!> test the find of extrema on equidistant mesh
+subroutine test_field_minmax_equidistant_mesh(rank,n_tasks,ifail)
+  use mod_interp,        only: interp_PRZ
+  use mod_fields_minmax, only: generate_stphi_mesh
+  use mod_fields_minmax, only: field_minmax
+  implicit none
+  !> inputs-outputs:
+  integer,intent(inout) :: ifail
+  integer,intent(in)    :: rank,n_tasks
+  !> variables:
+  integer             :: ii,jj
+  real*8              :: R_test,Z_test
+  real*8,dimension(1) :: field_test
+  real*8,dimension(2) :: minmax_global
+  real*8,dimension(interp_PRZ_object%element_list%n_elements) :: min_list,max_list
+  real*8,dimension(3,n_s*n_t*n_phi) :: eq_mesh
+  logical,dimension(interp_PRZ_object%element_list%n_elements) :: fail_min_list
+  logical,dimension(interp_PRZ_object%element_list%n_elements) :: fail_max_list
+  logical,dimension(2) :: fail_global
+  !> initialisation
+  fail_min_list = .false.; fail_max_list = .false.; fail_global = .false.;
+  call generate_stphi_mesh(n_s,n_t,n_phi,eq_mesh)
+  !> find extrema
+  write(*,*) "finding fields minmax equidistant mesh"
+  call field_minmax(field_id_sol,n_s*n_t*n_phi,eq_mesh,&
+  interp_PRZ_object,min_list,max_list,minmax_global)
+  write(*,*) "check fields minmax equidistant mesh"
+  !> checks if the extrema are the largest and smallest values for each point in the element
+  do ii=1,interp_PRZ_object%element_list%n_elements
+    do jj=1,n_s*n_t*n_phi
+      call interp_PRZ(interp_PRZ_object%node_list,interp_PRZ_object%element_list,&
+      ii,(/field_id_sol/),1,eq_mesh(1,jj),eq_mesh(2,jj),eq_mesh(3,jj),field_test,R_test,Z_test)
+      if(.not.fail_min_list(ii)) fail_min_list(ii) = field_test(1).lt.min_list(ii)
+      if(.not.fail_max_list(ii)) fail_max_list(ii) = field_test(1).gt.max_list(ii)
+      if(.not.fail_global(1))    fail_global(1)    = field_test(1).lt.minmax_global(1)
+      if(.not.fail_global(2))    fail_global(2)    = field_test(1).gt.minmax_global(2)
+    enddo
+    write(*,*) "min list: ",fail_min_list(ii)," max list: ",fail_max_list(ii)
+  enddo
+  call assert_true(all(.not.fail_min_list),&
+  "Error find fields minmax equidistant mesh: minimum list not a minimum!")
+  call assert_true(all(.not.fail_max_list),&
+  "Error find fields minmax equidistant mesh: maximum list not a maximum!")
+  call assert_true(all(.not.fail_global),&
+  "Error find fields minmax equisitant mesh: not global minimum or maximum!")
+end subroutine test_field_minmax_equidistant_mesh
+
 !> Tools ----------------------------------------------------
 !>-----------------------------------------------------------
 end module mod_fields_minmax_mpi_test

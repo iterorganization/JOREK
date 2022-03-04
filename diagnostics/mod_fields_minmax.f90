@@ -141,9 +141,9 @@ subroutine field_minmax(field_id,n_mesh,mesh,f_interp_PRZ,min_list,max_list,minm
   tol=5.d-16; maxit=10000; n_elements=f_interp_PRZ%element_list%n_elements
   minmax_global = (/1.d21,-1.d21/); min_list = 1.d21; max_list = -1.d21;
   !> find minimum and maximum
-  !$omp parallel do default(private) firstprivate(n_elements,n_mesh,maxit,tol) &
-  !$omp shared(f_interp_PRZ) reduction(min:min_list) &
-  !$omp reduction(max:max_list) collapse(2)
+ ! !$omp parallel do default(private) firstprivate(n_elements,n_mesh,maxit,tol,field_id) &
+ ! !$omp shared(f_interp_PRZ,mesh) reduction(min:min_list) &
+ ! !$omp reduction(max:max_list) collapse(2)
   do ii=1,n_elements
     do jj=1,n_mesh
       !> find extrema
@@ -164,7 +164,7 @@ subroutine field_minmax(field_id,n_mesh,mesh,f_interp_PRZ,min_list,max_list,minm
       endif
     enddo
   enddo
-  !$omp end parallel do
+ ! !$omp end parallel do
   !> extract the approximate global minimum and maximum
   minmax_global = (/minval(min_list),maxval(max_list)/)
 end subroutine field_minmax
