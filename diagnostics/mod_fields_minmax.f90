@@ -4,7 +4,7 @@
 module mod_fields_minmax
 use data_structure,  only: type_node_list
 use data_structure,  only: type_element_list
-use mod_rootfinding, only: fun_dfun_3d
+use mod_rootfinding, only: fun_dfun_2d,fun_dfun_3d
 implicit none
 private
 public :: fun_interp_PRZ
@@ -12,6 +12,17 @@ public :: generate_stphi_mesh
 public :: field_minmax
 
 !> Variables and datatypes -------------------------------
+!> wrap the interpolation function in a class for passing
+!> it as an argument to the newton root finding method
+!> for axisymmetric fields only!
+type,extends(fun_dfun_2d) :: fun_interp_PRZ_axisym
+  type(type_node_list)    :: node_list
+  type(type_element_list) :: element_list
+  real*8                  :: val
+  contains
+  procedure,pass :: f_df => f_df_interp_PRZ_axisym
+end type fun_interp_PRZ_axisym
+
 !> wrap the interpolation function in a class for passing
 !> it as an argument to the newton root finding method
 type,extends(fun_dfun_3d) :: fun_interp_PRZ
@@ -23,6 +34,10 @@ type,extends(fun_dfun_3d) :: fun_interp_PRZ
 end type fun_interp_PRZ
 
 !> Interfaces---------------------------------------------
+!> interface for fun_interp_PRZ_axisym constructor
+interface fun_interp_PRZ_axisym
+  module procedure init_fun_interp_PRZ_axisym
+end interface fun_interp_PRZ_axisym
 !> interface for fun_interp_PRZ constructor
 interface fun_interp_PRZ
   module procedure init_fun_interp_PRZ
@@ -231,6 +246,68 @@ pure subroutine f_df_interp_PRZ(this,f,J,x,n_int_coords,int_coords)
   J(:,2) = (/P_st,P_tt,P_tphi/)
   J(:,3) = (/P_sphi,P_tphi,P_phiphi/)
 end subroutine f_df_interp_PRZ
+
+!> initialise the fun_interp_PRZ_axisym class
+!> inputs:
+!>   node_list:    (type_node_list) jorek node list
+!>   element_list: (type_element_list) jorek element list
+!> outputs:
+!>   this: (fun_interp_PRZ_axisym) initialised fun_interp_PRZ_axisym class
+function init_fun_interp_PRZ_axisym(node_list,element_list) result(this)
+  use data_structure, only: type_node_list
+  use data_structure, only: type_element_list
+  implicit none
+  !> inputs:
+  type(type_node_list),intent(in)    :: node_list
+  type(type_element_list),intent(in) :: element_list
+  !> output:
+  type(fun_interp_PRZ_axisym) :: this
+  !> initialise class
+  this%node_list = node_list; this%element_list = element_list;
+end function init_fun_interp_PRZ_axisym
+
+!> function used for computing the derivatives and the jacobian
+!> of the derivatives of a jorek axisymmetric field (phi=0.d0)
+!> inputs:
+!>   this:         (fun_interp_PRZ_axisym) fun_interp_PRZ_axisym class
+!>   x:            (real8)(2) (s,t) coordinates
+!>   n_int_coords: (integer) must be 2
+!>   int_coords:   (integer)(n_int_coords) integer coordinates:
+!>                 1: element number
+!>                 2: field number
+!> outputs:
+!>   this: (fun_interp_PRZ) fun_interp_PRZ class
+!>   f:    (real8)(2) jorek field derivatives
+!>   J:    (real8)(2,2) jorek field hessian
+pure subroutine f_df_interp_PRZ_axisym(this,f,J,x,n_int_coords,int_coords)
+  use mod_interp, only: interp_PRZ
+  implicit none
+  !> inputs-outputs:
+  class(fun_interp_PRZ_axisym),intent(inout) :: this
+  !> inputs:
+  integer,intent(in)                         :: n_int_coords
+  integer,dimension(n_int_coords),intent(in) :: int_coords
+  real*8,dimension(2),intent(in)             :: x
+  !> outputs:
+  real*8,dimension(2),intent(out)   :: f
+  real*8,dimension(2,2),intent(out) :: J
+  !> variables:
+  real*8 :: R,R_s,R_t,R_st,R_ss,R_tt
+  real*8 :: Z,Z_s,Z_t,Z_st,Z_ss,Z_tt
+  real*8,dimension(1) :: P,P_s,P_t,P_phi
+  real*8,dimension(1) :: P_st,P_ss,P_tt,P_sphi,P_tphi,P_phiphi
+
+  !> interpolate the JOREK fields
+  call interp_PRZ(this%node_list,this%element_list,int_coords(1),&
+  (/int_coords(2)/),1,x(1),x(2),0.d0,P,P_s,P_t,P_phi,P_st,P_ss,P_tt,&
+  P_sphi,P_tphi,P_phiphi,R,R_s,R_t,R_st,R_ss,R_tt,&
+  Z,Z_s,Z_t,Z_st,Z_ss,Z_tt)
+  !> fill up the values and the jacobian with the first
+  !> and second order derivatives and store the value
+  this%val = P(1); f = (/P_s,P_t/)
+  J(:,1) = (/P_ss,P_st/)
+  J(:,2) = (/P_st,P_tt/)
+end subroutine f_df_interp_PRZ_axisym
 
 !>--------------------------------------------------------
 end module mod_fields_minmax
