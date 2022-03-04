@@ -138,21 +138,21 @@ subroutine field_minmax(field_id,n_mesh,mesh,f_interp_PRZ,min_list,max_list,minm
   real*8,dimension(3,3)   :: Jac
   complex*16,dimension(3) :: eigv
   !> initialisation
-  tol=5.d-15; maxit=10000; n_elements=f_interp_PRZ%element_list%n_elements
+  tol=5.d-16; maxit=10000; n_elements=f_interp_PRZ%element_list%n_elements
   minmax_global = (/1.d21,-1.d21/); min_list = 1.d21; max_list = -1.d21;
   !> find minimum and maximum
-  !$omp parallel do default(private) firstprivate(n_elements,n_mesh) &
+  !$omp parallel do default(private) firstprivate(n_elements,n_mesh,maxit,tol) &
   !$omp shared(f_interp_PRZ) reduction(min:min_list) &
   !$omp reduction(max:max_list) collapse(2)
   do ii=1,n_elements
     do jj=1,n_mesh
       !> find extrema
-      ierr = 0;
       call newtons_method(f_interp_PRZ,(/0.d0,0.d0,0.d0/),mesh(:,jj),&
-      x_extrema,2,(/field_id,ii/),ierr,tol,maxit)
+      x_extrema,2,(/ii,field_id/),ierr,tol,maxit)
+      call f_interp_PRZ%f_df(values,Jac,x_extrema,2,(/ii,field_id/))
       if(ierr.ne.0) cycle
       !> compute the jacobian
-      call f_interp_PRZ%f_df(values,Jac,x_extrema,2,(/field_id,ii/))
+      call f_interp_PRZ%f_df(values,Jac,x_extrema,2,(/ii,field_id/))
       !> compute the eigenvalues of the jacobian
       call compute_eigenvalues(Jac,eigv)
       !> check for local maxima and minima: the eigenvalues must be real due
