@@ -33,6 +33,7 @@ subroutine run_fruit_fields_minmax_mpi(rank,n_tasks,ifail)
   call setup(rank,n_tasks,ifail)
   write(*,'(/A)') "  ... running: fields minmax tests"
   call test_generation_equidistant_stphi_mesh(rank,n_tasks,ifail)
+  call test_generation_random_stphi_mesh(rank,n_tasks,ifail)
   write(*,'(/A)') "  ... tearing-down: fields minmax tests"
   call teardown(rank,n_tasks,ifail)
 end subroutine run_fruit_fields_minmax_mpi
@@ -108,6 +109,38 @@ subroutine test_generation_equidistant_stphi_mesh(rank,n_tasks,ifail)
 end subroutine test_generation_equidistant_stphi_mesh
 
 !> test the generation of random mesh
+subroutine test_generation_random_stphi_mesh(rank,n_tasks,ifail)
+  use constants,         only: TWOPI
+  use mod_fields_minmax, only: generate_stphi_mesh
+  implicit none
+  !> inputs-outputs:
+  integer,intent(inout) :: ifail
+  integer,intent(in)    :: rank,n_tasks
+  !> variables
+  logical,dimension(n_s*n_t*n_phi) :: success
+  integer :: ii,jj
+  real*8,dimension(3,n_s*n_t*n_phi) :: rand_mesh
+  !> initialisation
+  success = .false.
+  !> compute random mesh
+  call generate_stphi_mesh(n_s*n_t*n_phi,rngs,rand_mesh)
+  !> find if there are repeated points
+  do ii=1,n_s*n_t*n_phi
+    do jj=ii+1,n_s*n_t*n_phi
+      success(ii) = all(rand_mesh(:,ii).eq.rand_mesh(:,jj))
+      if(success(ii)) exit
+    enddo
+  enddo
+  !> checks
+  call assert_true(all((rand_mesh(1,:).ge.0.d0).and.(rand_mesh(1,:).le.1.d0)),&
+  "Error fields minmax random mesh: s coordinate not in bound (0,1)!")
+  call assert_true(all((rand_mesh(2,:).ge.0.d0).and.(rand_mesh(2,:).le.1.d0)),&
+  "Error fields minmax random mesh: t coordinate not in bound (0,1)!")
+  call assert_true(all((rand_mesh(3,:).ge.0.d0).and.(rand_mesh(3,:).le.TWOPI)),&
+  "Error fields minmax random mesh: s coordinate not in bound (0,2*PI)!")
+  call assert_true(.not.any(success),"Error fields minmax random mesh: found repeated point!")
+end subroutine test_generation_random_stphi_mesh
+
 !> test the find of extrema on equidistant mesh
 !> test the find of extrema on random mesh
 !> Tools ----------------------------------------------------
