@@ -39,6 +39,7 @@ subroutine run_fruit_math_operators()
   call test_cross_product
   call test_solve_2x2_linear_problem
   call test_solve_3x3_linear_problem
+  call test_compute_eigenvalues_real_2x2_r8
   call test_compute_eigenvalues_real_3x3_r8
   write(*,'(/A)') "  ... tearing-down: math operators tests"
   call teardown
@@ -142,6 +143,32 @@ subroutine test_solve_3x3_linear_problem()
     "Error math operators solve 3x3 linear problems (double): rhs mismatch!") 
   enddo
 end subroutine test_solve_3x3_linear_problem
+
+!> test method for computing the eigenvalues of a 2x2 double matrix
+!> with real values
+subroutine test_compute_eigenvalues_real_2x2_r8()
+  use mod_math_operators, only: compute_eigenvalues
+  implicit none
+  !> variables:
+  integer :: ii,jj
+  real*8,dimension(2)           :: eigv
+  real*8,dimension(2,2)         :: A
+  real*8,dimension(2,n_vectors) :: det_test,zeros
+  !> initialisations
+  zeros = 0.d0; det_test = zeros;
+  do jj=1,n_vectors
+    !> compute eigenvalues
+    A = matrix_2x2_r8(:,:,jj)
+    call compute_eigenvalues(A,eigv)
+    !> compute determinant of A-eigv(ii)*I 
+    do ii=1,size(eigv)
+      det_test(ii,jj) = (A(1,1)-eigv(ii))*(A(2,2)-eigv(ii))-A(2,1)*A(1,2) 
+    enddo
+    !> checks
+    call assert_equals(det_test,zeros,2,n_vectors,tol_c16,&
+    "Error math operators compute eigenvalues real 2x2 r8: determinants not zero!")
+  enddo
+end subroutine test_compute_eigenvalues_real_2x2_r8
 
 !> test method for computing the eigenvalues of a 3x3 double matrix
 !> with real values

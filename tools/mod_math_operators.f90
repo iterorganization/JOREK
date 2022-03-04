@@ -23,7 +23,8 @@ interface solve_3x3_linear_problem
 end interface solve_3x3_linear_problem
 
 interface compute_eigenvalues
-module procedure compute_eigenvalues_real_3x3_r8
+  module procedure compute_eigenvalues_real_2x2_r8
+  module procedure compute_eigenvalues_real_3x3_r8
 end interface compute_eigenvalues
 
 contains
@@ -129,6 +130,24 @@ subroutine solve_3x3_linear_problem_r8(A,b,x)
       invA(3,1)*b(1)+invA(3,2)*b(2)+invA(3,3)*b(3)/)/det
   
 end subroutine solve_3x3_linear_problem_r8
+
+!> compute eigenvalues for 2x2 square matrices with real coeff.
+subroutine compute_eigenvalues_real_2x2_r8(A,eigv)
+  use mod_rootfinding, only: root_quadratic
+  implicit none
+  !> inputs:
+  real*8,dimension(2,2),intent(in)    :: A
+  !> outputs:
+  real*8,dimension(2),intent(out) :: eigv
+  !> variables:
+  real*8,dimension(3) :: coeff
+  !> compute eigenvalue problem coefficients
+  coeff(1) = 1.d0
+  coeff(2) = -1.d0*(A(1,1)+A(2,2))
+  coeff(3) = A(1,1)*A(2,2)-A(2,1)*A(1,2)
+  !> compute eigenvalues
+  eigv = root_quadratic(coeff)
+end subroutine compute_eigenvalues_real_2x2_r8
 
 !> compute eigenvalues for 3x3 square matrices with real coeff.
 subroutine compute_eigenvalues_real_3x3_r8(A,eigv)
