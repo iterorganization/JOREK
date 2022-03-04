@@ -191,15 +191,17 @@ contains
     real*8,dimension(3)   :: y
     real*8,dimension(3,3) :: J,invJ
     !> initialisation
-    x=x0; ierr=0;
+    x=x0; ierr=1;
     do ii=1,maxit_in
      call f_df_3d%f_df(y,J,x,n_int_coords,int_coords)
-     if(maxval(abs(y-y0)).lt.tol_in) return
-     det = J(1,1)*(J(2,2)*J(3,3)-J(3,2)*J(2,3))+J(1,2)*(J(2,3)*J(3,1)-J(2,1)*J(3,3))+&
-     J(1,3)*(J(2,1)*J(3,2)-J(2,2)*J(3,1))
-     invJ(:,1) = (/J(2,2)*J(3,3)-J(3,2)*J(2,3),J(3,2)*J(1,3)-J(1,2)*J(3,3),J(1,2)*J(2,3)-J(2,2)*J(1,3)/)
-     invJ(:,2) = (/J(2,3)*J(3,2)-J(2,1)*J(3,3),J(1,1)*J(3,3)-J(1,3)*J(3,1),J(1,3)*J(2,1)-J(2,3)*J(1,1)/)
-     invJ(:,3) = (/J(2,1)*J(3,2)-J(2,2)*J(3,1),J(3,1)*J(1,2)-J(1,1)*J(3,2),J(1,1)*J(2,2)-J(1,2)*J(2,1)/)
+     if(maxval(abs(y-y0)).lt.tol_in) then
+       ierr=0; return;
+     endif
+     det = J(1,1)*(J(2,2)*J(3,3)-J(3,2)*J(2,3))+J(1,2)*(J(3,1)*J(2,3)-J(2,1)*J(3,3))+&
+     J(1,3)*(J(2,1)*J(3,2)-J(3,1)*J(2,2))
+     invJ(:,1) = (/J(2,2)*J(3,3)-J(3,2)*J(2,3),J(3,1)*J(2,3)-J(2,1)*J(3,3),J(2,1)*J(3,2)-J(3,1)*J(2,2)/)
+     invJ(:,2) = (/J(3,2)*J(1,3)-J(1,2)*J(3,3),J(1,1)*J(3,3)-J(3,1)*J(1,3),J(3,1)*J(1,2)-J(1,1)*J(3,2)/)
+     invJ(:,3) = (/J(1,2)*J(2,3)-J(2,2)*J(1,3),J(2,1)*J(1,3)-J(1,1)*J(2,3),J(1,1)*J(2,2)-J(2,1)*J(1,2)/)
      x = x - matmul(invJ,y-y0)/det
     enddo
   end subroutine newtons_method_3d_o

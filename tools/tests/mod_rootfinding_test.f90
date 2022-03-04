@@ -270,25 +270,36 @@ pure subroutine cossinpar(this,f,J,x,n_int_coords,int_coords)
   !> initialise
   x_norm_val = (x - this%x_min)/(this%x_max - this%x_min)
   !> compute function
-  f = (/cos(this%kcos(1)*x(1))*sin(this%ksin(1)*x(2))*(this%a(1)*x(3)*x(3)+this%b(1)*x(3)+this%c(1)),&
-      sin(this%ksin(2)*x(1))*(this%a(2)*x(2)*x(2)+this%b(2)*x(2)+this%c(2))*cos(this%kcos(2)*x(3)),&
-      (this%a(3)*x(1)*x(1)+this%b(3)*x(1)+this%c(3))*sin(this%ksin(3)*x(2))*cos(this%kcos(3)*x(3))/)
+  f = (/cos(this%kcos(1)*x_norm_val(1))*sin(this%ksin(1)*&
+      x_norm_val(2))*(this%a(1)*x_norm_val(3)*x_norm_val(3)+&
+      this%b(1)*x_norm_val(3)+this%c(1)),sin(this%ksin(2)*&
+      x_norm_val(1))*(this%a(2)*x_norm_val(2)*x_norm_val(2)+&
+      this%b(2)*x_norm_val(2)+this%c(2))*cos(this%kcos(2)*x_norm_val(3)),&
+      (this%a(3)*x_norm_val(1)*x_norm_val(1)+this%b(3)*x_norm_val(1)+&
+      this%c(3))*sin(this%ksin(3)*x_norm_val(2))*cos(this%kcos(3)*x_norm_val(3))/)
   !> comput jacobian
-  J(:,1) = (/-this%kcos(1)*sin(this%kcos(1)*x(1))*sin(this%ksin(1)*x(2))*&
-           (this%a(1)*x(3)*x(3)+this%b(1)*x(3)+this%c(1)),&
-           this%ksin(2)*cos(this%ksin(2)*x(1))*(this%a(2)*x(2)*x(2)+this%b(2)*x(2)+&
-           this%c(2))*cos(this%kcos(2)*x(3)),(2.d0*this%a(3)*x(1)+this%b(1))*&
-           sin(this%ksin(3)*x(2))*cos(this%kcos(3)*x(3))/)/(this%x_max(1) - this%x_min(1))
-  J(:,2) = (/cos(this%kcos(1)*x(1))*this%ksin(1)*cos(this%ksin(1)*x(2))*&
-           (this%a(1)*x(3)*x(3)+this%b(1)*x(3)+this%c(1)),&
-           sin(this%ksin(2)*x(1))*(2.d0*this%a(2)*x(2)+this%b(2))*cos(this%kcos(2)*x(3)),&
-           (this%a(3)*x(1)*x(1)+this%b(3)*x(1)+this%c(3))*this%ksin(3)*cos(this%ksin(3)*x(2))*&
-           cos(this%kcos(3)*x(3))/)/(this%x_max(2) - this%x_min(2))
-  J(:,3) = (/cos(this%kcos(1)*x(1))*sin(this%ksin(1)*x(2))*(2.d0*this%a(1)*x(3)+this%b(1)),&
-          -sin(this%ksin(2)*x(1))*(this%a(2)*x(2)*x(2)+this%b(2)*x(2)+this%c(2))*&
-          this%kcos(2)*sin(this%kcos(2)*x(3)),&
-           -(this%a(3)*x(1)*x(1)+this%b(3)*x(1)+this%c(3))*sin(this%ksin(3)*x(2))*&
-           this%kcos(3)*sin(this%kcos(3)*x(3))/)/(this%x_max(3) - this%x_min(3))
+  J(:,1) = (/-this%kcos(1)*sin(this%kcos(1)*x_norm_val(1))*&
+           sin(this%ksin(1)*x_norm_val(2))*(this%a(1)*x_norm_val(3)*&
+           x_norm_val(3)+this%b(1)*x_norm_val(3)+this%c(1)),&
+           this%ksin(2)*cos(this%ksin(2)*x_norm_val(1))*(this%a(2)*&
+           x_norm_val(2)*x_norm_val(2)+this%b(2)*x_norm_val(2)+&
+           this%c(2))*cos(this%kcos(2)*x_norm_val(3)),(2.d0*this%a(3)*&
+           x_norm_val(1)+this%b(1))*sin(this%ksin(3)*x_norm_val(2))*&
+           cos(this%kcos(3)*x_norm_val(3))/)/(this%x_max(1) - this%x_min(1))
+  J(:,2) = (/cos(this%kcos(1)*x_norm_val(1))*this%ksin(1)*cos(this%ksin(1)*&
+           x_norm_val(2))*(this%a(1)*x_norm_val(3)*x_norm_val(3)+this%b(1)&
+           *x_norm_val(3)+this%c(1)),sin(this%ksin(2)*x_norm_val(1))*&
+           (2.d0*this%a(2)*x_norm_val(2)+this%b(2))*cos(this%kcos(2)*x_norm_val(3)),&
+           (this%a(3)*x_norm_val(1)*x_norm_val(1)+this%b(3)*x_norm_val(1)+&
+           this%c(3))*this%ksin(3)*cos(this%ksin(3)*x_norm_val(2))*&
+           cos(this%kcos(3)*x_norm_val(3))/)/(this%x_max(2) - this%x_min(2))
+  J(:,3) = (/cos(this%kcos(1)*x_norm_val(1))*sin(this%ksin(1)*x_norm_val(2))*&
+           (2.d0*this%a(1)*x_norm_val(3)+this%b(1)),-sin(this%ksin(2)*&
+           x_norm_val(1))*(this%a(2)*x_norm_val(2)*x_norm_val(2)+this%b(2)*&
+           x_norm_val(2)+this%c(2))*this%kcos(2)*sin(this%kcos(2)*x_norm_val(3)),&
+           -(this%a(3)*x_norm_val(1)*x_norm_val(1)+this%b(3)*x_norm_val(1)+&
+           this%c(3))*sin(this%ksin(3)*x_norm_val(2))*this%kcos(3)*sin(this%kcos(3)*&
+           x_norm_val(3))/)/(this%x_max(3) - this%x_min(3))
 end subroutine cossinpar
 !>--------------------------------------------------------------------------
 end module mod_rootfinding_test
