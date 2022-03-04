@@ -16,8 +16,8 @@ module mod_rootfinding
   private
   public :: newtons_method
   public :: halleys_method
-  public :: fun, dfun, ddfun, fun_dfun_3d
-  public :: root,root_cubic
+  public :: fun, dfun, ddfun, fun_dfun_2d, fun_dfun_3d
+  public :: root,root_cubic,root_quadratic
 
   !> Base type describing a function with optional private parameters
   !> Provide a guess of the inverse too, to serve as starting point
@@ -39,11 +39,22 @@ module mod_rootfinding
     procedure(ddf), pass, deferred :: ddf
   end type
 
+  !> type descrbing a 2d function and its jacobian 
+  type,abstract :: fun_dfun_2d
+    contains
+    procedure(f_df_2d),pass,deferred :: f_df
+  end type fun_dfun_2d
+
   !> type descrbing a 3d function and its jacobian 
   type,abstract :: fun_dfun_3d
     contains
     procedure(f_df_3d),pass,deferred :: f_df
   end type fun_dfun_3d
+
+  !> interface for method computing the roots of a quadratic polynomial
+  interface root_quadratic
+    module procedure root_quadratic_real
+  end interface root_quadratic
 
   !> interface for method computing the roots of a cubic polynomial
   interface root_cubic
@@ -75,6 +86,15 @@ module mod_rootfinding
       real*8, intent(in) :: x
       real*8 :: ddf
     end function ddf
+    pure subroutine f_df_2d(this,f,J,x,n_int_coords,int_coords)
+      import fun_dfun_2d
+      class(fun_dfun_2d),intent(inout)           :: this
+      real*8,dimension(2),intent(out)            :: f
+      real*8,dimension(2,2),intent(out)          :: J
+      real*8,dimension(2),intent(in)             :: x
+      integer,intent(in)                         :: n_int_coords
+      integer,dimension(n_int_coords),intent(in) :: int_coords
+    end subroutine f_df_2d
     pure subroutine f_df_3d(this,f,J,x,n_int_coords,int_coords)
       import fun_dfun_3d
       class(fun_dfun_3d),intent(inout)           :: this
@@ -89,6 +109,7 @@ module mod_rootfinding
   interface newtons_method
     module procedure newtons_method_f
     module procedure newtons_method_o
+    module procedure newtons_method_2d_o
     module procedure newtons_method_3d_o
   end interface
   interface halleys_method
@@ -158,6 +179,51 @@ contains
   end subroutine newtons_method_o
 
   !> implement the newton method for finding the roots of a system
+  !> of two equations in two variables. A subroutine
+  !> complying with the abstract class int_f_df_2d has to be provided
+  !> inputs:
+  !>   f_df:         (fun_dfun_2d) class computing function and derivative values
+  !>   y0:           (real8)(2) value of the root to find
+  !>   x0:           (real8)(2) newton method first guess
+  !>   n_int_coords: (integer) size of the interger coordinates
+  !>   int_coords:   (integer)(n_int_coord) interger coordinates
+  !>   tol_in:       (real8) tolerance
+  !>   maxit_in:     (integer)  maximum number of iteration
+  !> outputs:
+  !>   f_df: (f_df_2d) procedure computing function and derivative values
+  !>   x:    (real8)(2) system root
+  !>   ierr: (integer) 0 for success 1 otherwise
+  pure subroutine newtons_method_2d_o(f_df_2d,y0,x0,x,n_int_coords,int_coords,&
+  ierr,tol_in,maxit_in)
+    implicit none
+    !> inputs-outputs:
+    class(fun_dfun_2d),intent(inout) :: f_df_2d
+    !> inputs:
+    integer,intent(in)               :: n_int_coords,maxit_in
+    integer,dimension(n_int_coords),intent(in) :: int_coords
+    real*8,intent(in)                :: tol_in
+    real*8,dimension(2),intent(in)   :: y0,x0
+    !> outputs:
+    integer,intent(out)              :: ierr
+    real*8,dimension(2),intent(out)  :: x
+    !> variables:
+    integer               :: ii
+    real*8,dimension(2)   :: y
+    real*8,dimension(2,2) :: J
+    !> initialisation
+    x=x0; ierr=1;
+    do ii=1,maxit_in
+     call f_df_2d%f_df(y,J,x,n_int_coords,int_coords)
+     y = y-y0
+     if(maxval(abs(y)).lt.tol_in) then
+       ierr=0; return;
+     endif
+     x = x - ((/J(2,2)*y(1)-J(1,2)*y(2),J(1,1)*y(2)-J(2,1)*y(1)/)/&
+             (J(1,1)*J(2,2)-J(2,1)*J(1,2)))
+    enddo
+  end subroutine newtons_method_2d_o
+
+  !> implement the newton method for finding the roots of a system
   !> of three equations in three variables. A subroutine
   !> complying with the abstract class int_f_df_3d has to be provided
   !> inputs:
@@ -194,7 +260,8 @@ contains
     x=x0; ierr=1;
     do ii=1,maxit_in
      call f_df_3d%f_df(y,J,x,n_int_coords,int_coords)
-     if(maxval(abs(y-y0)).lt.tol_in) then
+     y = y - y0
+     if(maxval(abs(y)).lt.tol_in) then
        ierr=0; return;
      endif
      det = J(1,1)*(J(2,2)*J(3,3)-J(3,2)*J(2,3))+J(1,2)*(J(3,1)*J(2,3)-J(2,1)*J(3,3))+&
@@ -202,7 +269,7 @@ contains
      invJ(:,1) = (/J(2,2)*J(3,3)-J(3,2)*J(2,3),J(3,1)*J(2,3)-J(2,1)*J(3,3),J(2,1)*J(3,2)-J(3,1)*J(2,2)/)
      invJ(:,2) = (/J(3,2)*J(1,3)-J(1,2)*J(3,3),J(1,1)*J(3,3)-J(3,1)*J(1,3),J(3,1)*J(1,2)-J(1,1)*J(3,2)/)
      invJ(:,3) = (/J(1,2)*J(2,3)-J(2,2)*J(1,3),J(2,1)*J(1,3)-J(1,1)*J(2,3),J(1,1)*J(2,2)-J(2,1)*J(1,2)/)
-     x = x - matmul(invJ,y-y0)/det
+     x = x - matmul(invJ,y)/det
     enddo
   end subroutine newtons_method_3d_o
 
@@ -296,6 +363,29 @@ contains
   return
   end function root
 
+  !> compute the root of a quadratic polynomial having 
+  !> real coefficients and the form a*x^2+b*x+c
+  !>as implemented in W.H. Press et al., 
+  !> Numerical Recipes Fortran 77, 2nd Ed., 1997
+  !> inputs:
+  !>   coeff: (real8)(3) cubic polynomial coefficients
+  !>          1- coefficient multiplying x^2
+  !>          2- coefficient multiplying x
+  !>          3- coefficient multiplying 1
+  !> outputs:
+  !>   x: (real)(2) roots
+  pure function root_quadratic_real(coeff) result(x)
+    use constants, only: TWOPI
+    implicit none
+    real*8,dimension(3),intent(in) :: coeff
+    real*8,dimension(2)            :: x
+    real*8 :: q
+    !> compute the roots
+    q = -5.d-1*(coeff(2)+sign(1.d0,coeff(2))*&
+    sqrt(coeff(2)*coeff(2)-4.d0*coeff(1)*coeff(3)))
+    x = (/q/coeff(1),coeff(3)/q/)
+  end function root_quadratic_real
+
   !> compute the root of a cubic polynomial having 
   !> real coefficients and the form x^3+a*x^2+b*x+c
   !>as implemented in W.H. Press et al., 
@@ -306,32 +396,32 @@ contains
   !>          2- coefficient multiplying x
   !>          3- coefficient multiplying 1
   !> outputs:
-  !>   x: (complex)(3) roots
+  !>   x: (complex16)(3) roots
   pure function root_cubic_real(coeff) result(x)
-  use constants, only: TWOPI
-  implicit none
-  real*8,dimension(2),intent(in) :: coeff
-  complex*16,dimension(3)         :: x
-  real*8 :: Q,Q3,R,R2,theta,AA,BB,aapbb,aambb
-  !> first discriminant
-  Q = (coeff(1)*coeff(1)-3.d0*coeff(2))/9.d0; 
-  R=(2.d0*coeff(1)*coeff(1)*coeff(1)-9.d0*coeff(1)*coeff(2)+2.7d1*coeff(3))/5.4d1;
-  R2 = R*R; Q3=Q*Q*Q;
-  !> compute the solution
-  if(R2.lt.Q3) then
-    !> the solution is real
-    theta = acos(R/sqrt(Q3))
-    x = cmplx(-2.d0*sqrt(Q)*(/cos(theta/3.d0),&
-        cos((theta+TWOPI)/3.d0),cos((theta-TWOPI)/3.d0)/)-&
-        coeff(1)/3.d0,(/0.d0,0.d0,0.d0/))
-  else
-    !> the solution is complex
-    AA = -sign(1.d0,R)*((abs(R)+sqrt(R2-Q3))**(1.d0/3.d0))
-    BB = 0.d0;
-    if(AA.ne.0.d0) BB = Q/AA
-    aapbb = -5.d-1*(AA+BB); aambb = 5.d-1*sqrt(3.d0)*(AA-BB)
-    x = cmplx((/-2.d0*aapbb,aapbb,aapbb/)-(coeff(1)/3.d0),&
-        (/0.d0,aambb,-aambb/))
-  endif
+    use constants, only: TWOPI
+    implicit none
+    real*8,dimension(3),intent(in) :: coeff
+    complex*16,dimension(3)         :: x
+    real*8 :: Q,Q3,R,R2,theta,AA,BB,aapbb,aambb
+    !> first discriminant
+    Q = (coeff(1)*coeff(1)-3.d0*coeff(2))/9.d0; 
+    R=(2.d0*coeff(1)*coeff(1)*coeff(1)-9.d0*coeff(1)*coeff(2)+2.7d1*coeff(3))/5.4d1;
+    R2=R*R; Q3=Q*Q*Q;
+    !> compute the solution
+    if(R2.lt.Q3) then
+     !> the solution is real
+     theta = acos(R/sqrt(Q3))
+     x = cmplx(-2.d0*sqrt(Q)*(/cos(theta/3.d0),&
+         cos((theta+TWOPI)/3.d0),cos((theta-TWOPI)/3.d0)/)-&
+          coeff(1)/3.d0,(/0.d0,0.d0,0.d0/))
+    else
+      !> the solution is complex
+      AA = -sign(1.d0,R)*((abs(R)+sqrt(R2-Q3))**(1.d0/3.d0))
+      BB = 0.d0;
+      if(AA.ne.0.d0) BB = Q/AA
+     aapbb = -5.d-1*(AA+BB); aambb = 5.d-1*sqrt(3.d0)*(AA-BB)
+       x = cmplx((/-2.d0*aapbb,aapbb,aapbb/)-(coeff(1)/3.d0),&
+          (/0.d0,aambb,-aambb/))
+     endif
   end function root_cubic_real
 end module mod_rootfinding
