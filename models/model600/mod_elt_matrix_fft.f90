@@ -978,10 +978,13 @@ do i=1,n_vertex_max
             d2visco_dT2 = 0.d0
           end if
           
-
+          psi_norm = get_psi_n( ps0, y_g(ms,mt))
           
-          ! --- Temperature dependent hyper-resistivity
-          if ( eta_num_T_dependent ) then
+          ! --- Hyper-resistivity
+          if ( eta_num_psin_dependent ) then
+            eta_num_T   = eta_num * 0.5d0 * ( 1.d0 - tanh( (psi_norm-eta_num_prof(1))/eta_num_prof(2)) )      
+            deta_num_dT = 0.d0      
+          else if ( eta_num_T_dependent ) then
             eta_num_T     =   eta_num   * (T_or_Te_corr/T_or_Te_0)**(-3.d0)
             deta_num_dT   = - eta_num   * (3.d0)  * T_or_Te_corr**(-4.d0) * T_or_Te_0**(3.d0)
             if (T_or_Te .lt. T_min) then
@@ -992,6 +995,7 @@ do i=1,n_vertex_max
             eta_num_T     = eta_num
             deta_num_dT   = 0.d0
           end if
+
           
           ! --- Temperature dependent hyper-viscosity
           if ( visco_num_T_dependent ) then
@@ -1013,8 +1017,6 @@ do i=1,n_vertex_max
           else
             W_dia = 0.d0
           endif
-
-          psi_norm = get_psi_n( ps0, y_g(ms,mt))
 
           ! --- Bootstrap current 
           if (bootstrap) then
