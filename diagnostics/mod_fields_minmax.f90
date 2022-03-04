@@ -8,7 +8,7 @@ use mod_rootfinding, only: fun_dfun_2d,fun_dfun_3d
 implicit none
 private
 public :: fun_interp_PRZ
-public :: generate_stphi_mesh
+public :: generate_st_mesh, generate_stphi_mesh
 public :: field_minmax
 
 !> Variables and datatypes -------------------------------
@@ -44,12 +44,80 @@ interface fun_interp_PRZ
 end interface fun_interp_PRZ
 
 !> interface for the mesh generation method
+interface generate_st_mesh
+  module procedure generate_random_st_mesh
+  module procedure generate_equidistant_st_mesh
+end interface generate_st_mesh
+
+!> interface for the mesh generation method
 interface generate_stphi_mesh
   module procedure generate_random_stphi_mesh
   module procedure generate_equidistant_stphi_mesh
 end interface generate_stphi_mesh
 contains
 !> Procedures --------------------------------------------
+!> generate random mesh in the s,t coordinates
+!> inputs:
+!>   n_trials: (integer) number of mesh elements
+!>   rngs:     (type_rng)(n_threads) random number generators
+!> outputs:
+!>   rngs:     (type_rng)(n_threads) random number generators
+!>   mesh:     (real8)(2,n_trials) s,t, mesh
+subroutine generate_random_st_mesh(n_trials,rngs,mesh)
+  use mod_rng,   only: type_rng
+  !$ use omp_lib
+  implicit none
+  !> inputs-outputs:
+  class(type_rng),dimension(:),allocatable,intent(inout) :: rngs
+  !> inputs:
+  integer,intent(in)                                     :: n_trials
+  !> outputs:
+  real*8,dimension(2,n_trials),intent(out)               :: mesh
+  !> variables
+  integer :: ii,thread_id
+  !> generate mesh
+  !$omp parallel default(private) firstprivate(n_trials) &
+  !$omp shared(rngs,mesh)
+  thread_id = 1;
+  !$ thread_id = omp_get_thread_num()
+  !$omp do
+  do ii=1,n_trials
+    call rngs(thread_id)%next(mesh(:,ii))
+  enddo
+  !$omp end do
+  !$omp end parallel
+end subroutine generate_random_st_mesh
+
+!> generate equidistant mesh in the s,t coordinates
+!> inputs:
+!>   n_s:   (integer) number of points in the s local coords.
+!>   n_t:   (integer) number of points in the t local coords.
+!> outputs:
+!>   mesh:  (real8)(2,n_s*n_t) equidistant mesh in s,t
+subroutine generate_equidistant_st_mesh(n_s,n_t,mesh)
+  implicit none
+  !> inputs:
+  integer,intent(in) :: n_s,n_t
+  !> outputs:
+  real*8,dimension(2,n_s*n_t),intent(out) :: mesh
+  !> variables:
+  integer :: ii,jj
+  real*8 :: d_s,d_t
+  !> initialisation
+  d_s   = 1.d0/real(n_s-1,kind=8);
+  d_t   = 1.d0/real(n_t-1,kind=8);
+  !> generate equidistant points
+  !$omp parallel do default(private) firstprivate(n_s,n_t,&
+  !$omp d_s,d_t) shared(mesh) collapse(2)
+  do ii=1,n_t
+    do jj=1,n_s
+      mesh(:,(ii-1)*n_s+jj) = (/real(jj-1,kind=8)*d_s,&
+      real(ii-1,kind=8)*d_t/)
+    enddo
+  enddo
+  !$omp end parallel do
+end subroutine generate_equidistant_st_mesh
+
 !> generate random mesh in the s,t,phi coordinates
 !> inputs:
 !>   n_trials: (integer) number of mesh elements
@@ -119,7 +187,6 @@ subroutine generate_equidistant_stphi_mesh(n_s,n_t,n_phi,mesh)
     enddo
   enddo
   !$omp end parallel do
-
 end subroutine generate_equidistant_stphi_mesh
 
 !> find local and global minimum and maximum values of a jorek field
