@@ -183,6 +183,12 @@ real*8, dimension(n_plane,n_var,n_gauss,n_gauss) :: eq_p
 real*8, dimension(n_plane,n_var,n_gauss,n_gauss) :: eq_ss, eq_st, eq_tt
 real*8, dimension(n_plane,n_var,n_gauss,n_gauss) :: delta_g, delta_s, delta_t
 
+!  --- For shock capturing stabilization
+real*8     :: midp_edge1(1:2), midp_edge2(1:2), midp_edge3(1:2), midp_edge4(1:2)
+real*8     :: len1, len2, h_e
+real*8     :: f_p, d_p, tau_sc, R_rho, R_pi, R_pe, R_p, R_rhon, my_zero = 0.d0
+real*8     :: s_p, src_rho, src_p, src_pi, src_pe, src_rhon
+
 ELM_p = 0.d0
 ELM_n = 0.d0
 ELM_k = 0.d0
@@ -285,6 +291,17 @@ enddo
 delta_g = delta_g * tstep / tstep_prev
 delta_s = delta_s * tstep / tstep_prev
 delta_t = delta_t * tstep / tstep_prev
+
+! approximate estimate of the element length h_e
+! needed for Shock capturing stabilzation
+midp_edge1(:) =  0.5d0 * ( nodes(1)%x(1,1,:) + nodes(2)%x(1,1,:) )
+midp_edge2(:) =  0.5d0 * ( nodes(2)%x(1,1,:) + nodes(3)%x(1,1,:) )
+midp_edge3(:) =  0.5d0 * ( nodes(3)%x(1,1,:) + nodes(4)%x(1,1,:) )
+midp_edge4(:) =  0.5d0 * ( nodes(4)%x(1,1,:) + nodes(1)%x(1,1,:) )
+
+len1 = sqrt( (midp_edge1(1)-midp_edge3(1))**2 + (midp_edge1(2)-midp_edge3(2))**2)
+len2 = sqrt( (midp_edge2(1)-midp_edge4(1))**2 + (midp_edge2(2)-midp_edge4(2))**2)
+h_e = dmin1(len1, len2)
 
 do ms=1, n_gauss
   do mt=1, n_gauss
@@ -1000,7 +1017,11 @@ do ms=1, n_gauss
              + rn0 * (2.d0*dalpha_imp_dT + d2alpha_imp_dT2*T0) * (T0_y)**2.d0	     
      P0_xy = (r0_xy+rn0_xy*alpha_imp) * T0 + (r0_y+rn0_y*alpha_imp_bis) * T0_x + (r0_x+rn0_x*alpha_imp_bis) * T0_y     &
              + (r0+rn0*alpha_imp_bis) * T0_xy + rn0 * (2.d0*dalpha_imp_dT + d2alpha_imp_dT2*T0) * T0_x * T0_y 
- 	     
+ 	  
+    ! For shock capturing stabilization
+    tau_sc = 0.d0
+    if (use_sc) call calculate_sc_quantities()
+   
 !-------------------------------------------------------- 
 
 
@@ -1128,7 +1149,7 @@ do ms=1, n_gauss
          rhs_ij_5   = v * BigR * (particle_source(ms,mt) + source_bg + source_imp) * xjac * tstep &
                     + v * BigR**2 * ( r0_s * u0_t - r0_t * u0_s)                                      * tstep &
                     + v * 2.d0 * BigR * r0 * u0_y                                              * xjac * tstep &
-                    - (D_par-D_prof) * BigR / BB2 * Bgrad_rho_star * (Bgrad_rho-Bgrad_rhon)    * xjac * tstep &
+                    - ((D_par+D_par_sc_num*tau_sc)-D_prof) * BigR / BB2 * Bgrad_rho_star * (Bgrad_rho-Bgrad_rhon)    * xjac * tstep &
                     - (D_par_imp-D_prof_imp) * BigR / BB2 * Bgrad_rho_star * (Bgrad_rhon)      * xjac * tstep &
                     - D_prof * BigR  * (v_x*(r0_x-rn0_x) + v_y*(r0_y-rn0_y)                  ) * xjac * tstep &
                     - D_prof_imp * BigR  * (v_x*(rn0_x) + v_y*(rn0_y)                        ) * xjac * tstep &
@@ -1155,7 +1176,7 @@ do ms=1, n_gauss
                               * ( v_x * ps0_y -  v_y * ps0_x                   ) * xjac * tstep * tstep       
 		    
           rhs_ij_5_k =  &
-                      - (D_par-D_prof) * BigR / BB2 * Bgrad_rho_k_star * (Bgrad_rho-Bgrad_rhon)   * xjac * tstep &
+                      - ((D_par+D_par_sc_num*tau_sc)-D_prof) * BigR / BB2 * Bgrad_rho_k_star * (Bgrad_rho-Bgrad_rhon)   * xjac * tstep &
                       - (D_par_imp-D_prof_imp) * BigR / BB2 * Bgrad_rho_k_star * (Bgrad_rhon)     * xjac * tstep &
                       - D_prof * BigR  * (          v_p*(r0_p-rn0_p) * eps_cyl**2 /BigR**2 )      * xjac * tstep &
                       - D_prof_imp * BigR  * (           v_p*(rn0_p) * eps_cyl**2 /BigR**2 )      * xjac * tstep &
@@ -1674,9 +1695,9 @@ do ms=1, n_gauss
 !###################################################################################################
 
              amat_51 = &
-                       - (D_par-D_prof) * BigR * BB2_psi/ BB2**2 * Bgrad_rho_star     * (Bgrad_rho-Bgrad_rhon) * xjac * theta * tstep &
-                       + (D_par-D_prof) * BigR / BB2             * Bgrad_rho_star_psi * (Bgrad_rho-Bgrad_rhon) * xjac * theta * tstep &
-                       + (D_par-D_prof) * BigR / BB2             * Bgrad_rho_star     * (Bgrad_rho_psi-Bgrad_rhon_psi) * xjac * theta * tstep &
+                       - ((D_par+D_par_sc_num*tau_sc)-D_prof) * BigR * BB2_psi/ BB2**2 * Bgrad_rho_star     * (Bgrad_rho-Bgrad_rhon) * xjac * theta * tstep &
+                       + ((D_par+D_par_sc_num*tau_sc)-D_prof) * BigR / BB2             * Bgrad_rho_star_psi * (Bgrad_rho-Bgrad_rhon) * xjac * theta * tstep &
+                       + ((D_par+D_par_sc_num*tau_sc)-D_prof) * BigR / BB2             * Bgrad_rho_star     * (Bgrad_rho_psi-Bgrad_rhon_psi) * xjac * theta * tstep &
                        - (D_par_imp-D_prof_imp) * BigR * BB2_psi/ BB2**2 * Bgrad_rho_star     * (Bgrad_rhon)   * xjac * theta * tstep &
                        + (D_par_imp-D_prof_imp) * BigR / BB2             * Bgrad_rho_star_psi * (Bgrad_rhon)   * xjac * theta * tstep &
                        + (D_par_imp-D_prof_imp) * BigR / BB2             * Bgrad_rho_star     * (Bgrad_rhon_psi)       * xjac * theta * tstep &  
@@ -1695,8 +1716,8 @@ do ms=1, n_gauss
                                  * ( v_x * psi_y -  v_y * psi_x                   ) * xjac * theta * tstep * tstep
 
              amat_51_k = &
-                         - (D_par-D_prof) * BigR * BB2_psi/ BB2**2 * Bgrad_rho_k_star * (Bgrad_rho-Bgrad_rhon)         * xjac * theta * tstep &
-                         + (D_par-D_prof) * BigR / BB2             * Bgrad_rho_k_star * (Bgrad_rho_psi-Bgrad_rhon_psi) * xjac * theta * tstep &
+                         - ((D_par+D_par_sc_num*tau_sc)-D_prof) * BigR * BB2_psi/ BB2**2 * Bgrad_rho_k_star * (Bgrad_rho-Bgrad_rhon)         * xjac * theta * tstep &
+                         + ((D_par+D_par_sc_num*tau_sc)-D_prof) * BigR / BB2             * Bgrad_rho_k_star * (Bgrad_rho_psi-Bgrad_rhon_psi) * xjac * theta * tstep &
                          - (D_par_imp-D_prof_imp) * BigR * BB2_psi/ BB2**2 * Bgrad_rho_k_star * (Bgrad_rhon)           * xjac * theta * tstep &
                          + (D_par_imp-D_prof_imp) * BigR / BB2             * Bgrad_rho_k_star * (Bgrad_rhon_psi)       * xjac * theta * tstep &
                          !- (D_par-D_prof) * BigR * BB2_psi/ BB2**2 * Bgrad_rho_k_star * (Bgrad_rho)         * xjac * theta * tstep &
@@ -1719,7 +1740,7 @@ do ms=1, n_gauss
              amat_55 = v * rho * BigR * (1.d0 + zeta)                                              * xjac   &
                      - v * BigR**2 * ( rho_s * u0_t - rho_t * u0_s)                                       * theta * tstep &
                      - v * 2.d0 * BigR * rho * u0_y                                                * xjac * theta * tstep &
-                     + (D_par-D_prof) * BigR / BB2 * Bgrad_rho_star * Bgrad_rho_rho                * xjac * theta * tstep &
+                     + ((D_par+D_par_sc_num*tau_sc)-D_prof) * BigR / BB2 * Bgrad_rho_star * Bgrad_rho_rho                * xjac * theta * tstep &
                      + D_prof * BigR  * (v_x*rho_x + v_y*rho_y )                                   * xjac * theta * tstep &
                      + v * Vpar0 * (rho_s * ps0_t - rho_t * ps0_s)                                        * theta * tstep &
                      + v * rho * (vpar0_s * ps0_t - vpar0_t * ps0_s)                                      * theta * tstep &
@@ -1737,20 +1758,20 @@ do ms=1, n_gauss
                                * ( v_x * ps0_y -  v_y * ps0_x   ) * xjac * theta * tstep * tstep 
 
 
-             amat_55_k = + (D_par-D_prof) * BigR / BB2 * Bgrad_rho_k_star * Bgrad_rho_rho          * xjac * theta * tstep &
+             amat_55_k = + ((D_par+D_par_sc_num*tau_sc)-D_prof) * BigR / BB2 * Bgrad_rho_k_star * Bgrad_rho_rho          * xjac * theta * tstep &
                         
                     + TG_num5 * 0.25d0 / BigR * vpar0**2                                                        &
                                * (rho_x * ps0_y - rho_y * ps0_x                  )                              &
                                * (                              + F0 / BigR * v_p) * xjac * theta * tstep * tstep
 
-             amat_55_n = + (D_par-D_prof) * BigR / BB2 * Bgrad_rho_star   * Bgrad_rho_rho_n        * xjac * theta * tstep &
+             amat_55_n = + ((D_par+D_par_sc_num*tau_sc)-D_prof) * BigR / BB2 * Bgrad_rho_star   * Bgrad_rho_rho_n        * xjac * theta * tstep &
                          + v * F0 / BigR * Vpar0 * rho_p                                           * xjac * theta * tstep &
 
                      + TG_num5 * 0.25d0 / BigR * vpar0**2                                                        &
                                * (                              + F0 / BigR * rho_p)                             &
                                * ( v_x * ps0_y -  v_y * ps0_x                      ) * xjac * theta * tstep * tstep
 
-             amat_55_kn = + (D_par-D_prof) * BigR / BB2 * Bgrad_rho_k_star * Bgrad_rho_rho_n       * xjac * theta * tstep &
+             amat_55_kn = + ((D_par+D_par_sc_num*tau_sc)-D_prof) * BigR / BB2 * Bgrad_rho_k_star * Bgrad_rho_rho_n       * xjac * theta * tstep &
                           + D_prof * BigR  * ( v_p*rho_p * eps_cyl**2 /BigR**2 )                   * xjac * theta * tstep &
 
                      + TG_num5 * 0.25d0 / BigR * vpar0**2                                                        &
@@ -1775,20 +1796,20 @@ do ms=1, n_gauss
 	     
              amat_58   = &
                          + BigR * (Dn0x * rhon_x * v_x + Dn0y * rhon_y * v_y)                      * xjac * theta * tstep &
-                         - (D_par-D_prof) * BigR / BB2 * Bgrad_rho_star * Bgrad_rho_rhon           * xjac * theta * tstep &
+                         - ((D_par+D_par_sc_num*tau_sc)-D_prof) * BigR / BB2 * Bgrad_rho_star * Bgrad_rho_rhon           * xjac * theta * tstep &
                          + (D_par_imp-D_prof_imp) * BigR / BB2 * Bgrad_rho_star * Bgrad_rho_rhon   * xjac * theta * tstep &
                          - D_prof * BigR  * (v_x*rhon_x + v_y*rhon_y )                             * xjac * theta * tstep &
                          + D_prof_imp * BigR  * (v_x*rhon_x + v_y*rhon_y )                         * xjac * theta * tstep
 
-             amat_58_k  = - (D_par-D_prof) * BigR / BB2 * Bgrad_rho_k_star * Bgrad_rho_rhon       * xjac * theta * tstep &
+             amat_58_k  = - ((D_par+D_par_sc_num*tau_sc)-D_prof) * BigR / BB2 * Bgrad_rho_k_star * Bgrad_rho_rhon       * xjac * theta * tstep &
                           + (D_par_imp-D_prof_imp) * BigR / BB2 * Bgrad_rho_k_star * Bgrad_rho_rhon * xjac * theta * tstep
 
-             amat_58_n  = - (D_par-D_prof) * BigR / BB2 * Bgrad_rho_star   * Bgrad_rho_rhon_n     * xjac * theta * tstep &
+             amat_58_n  = - ((D_par+D_par_sc_num*tau_sc)-D_prof) * BigR / BB2 * Bgrad_rho_star   * Bgrad_rho_rhon_n     * xjac * theta * tstep &
                           + (D_par_imp-D_prof_imp) * BigR / BB2 * Bgrad_rho_star * Bgrad_rho_rhon_n * xjac * theta * tstep
 
              amat_58_kn = &
                           + Dn0p * rhon_p * v_p*eps_cyl**2/BigR * xjac * theta * tstep &
-                          - (D_par-D_prof) * BigR / BB2 * Bgrad_rho_k_star * Bgrad_rho_rhon_n       * xjac * theta * tstep &
+                          - ((D_par+D_par_sc_num*tau_sc)-D_prof) * BigR / BB2 * Bgrad_rho_k_star * Bgrad_rho_rhon_n       * xjac * theta * tstep &
                           + (D_par_imp-D_prof_imp) * BigR / BB2 * Bgrad_rho_k_star * Bgrad_rho_rhon_n * xjac * theta * tstep &
                           - D_prof * BigR  * ( v_p*rhon_p * eps_cyl**2 /BigR**2 )                   * xjac * theta * tstep &
                           + D_prof_imp * BigR  * ( v_p*rhon_p * eps_cyl**2 /BigR**2 )               * xjac * theta * tstep
@@ -3013,6 +3034,108 @@ do j=1, n_vertex_max*n_var*(n_order+1)
 enddo
 
 return
+
+
+CONTAINS
+
+! subroutine that calculates shock-capturing stabilization related terms
+subroutine calculate_sc_quantities()
+
+d_p = 0.d0
+
+P0_corr = (r0_corr + rn0_corr*alpha_imp) * T0_corr
+
+! approximate residual in the density equation: \nabla \cdot (\rho \boldsymbol{v})
+R_rho = + BigR**2 * ( r0_x * u0_y - r0_y * u0_x)    &
+        + 2.d0 * BigR * r0 * u0_y                   &
+        - F0 / BigR * Vpar0 * r0_p                  &
+        - Vpar0 * (r0_x * ps0_y - r0_y * ps0_x)     &
+        - F0 / BigR * r0 * vpar0_p                  &
+        - r0 * (vpar0_x * ps0_y - vpar0_y * ps0_x)  &
+        + 2.d0 * tauIC * p0_y * BigR 
+
+! approximate residual in the neutrals density equation: \nabla \cdot (\rho_n \boldsymbol{v})
+R_rhon = + BigR**2 * ( rn0_x * u0_y - rn0_y * u0_x) &
+         + 2.d0 * BigR * rn0 * u0_y                 &
+         - F0 / BigR * Vpar0 * rn0_p                &
+         - Vpar0 * (rn0_x * ps0_y - rn0_y * ps0_x)  &
+         - F0 / BigR * rn0 * vpar0_p                &
+         - rn0 * (vpar0_x * ps0_y - vpar0_y * ps0_x)
+
+! approximate residual in the energy equation
+R_p =    + (r0 + rn0*alpha_imp_bis) * BigR**2 * ( T0_x * u0_y - T0_y * u0_x)    &
+         + T0 * BigR**2 * ( r0_x * u0_y - r0_y * u0_x)                          &
+         + alpha_imp * T0 * BigR**2 * (rn0_x * u0_y - rn0_y * u0_x)             &
+
+         + (r0 + rn0*alpha_imp) * T0 * 2.d0* GAMMA * BigR * u0_y                &
+
+         - (r0 + rn0*alpha_imp_bis) * F0 / BigR * Vpar0 * T0_p                  &
+         - T0 * F0 / BigR * Vpar0 * (r0_p + alpha_imp * rn0_p)                  &
+
+         - (r0 + rn0*alpha_imp_bis) * Vpar0 * (T0_x * ps0_y - T0_y * ps0_x)     &
+         - T0 * Vpar0 * (r0_x * ps0_y - r0_y * ps0_x)                           &
+         - T0 * Vpar0 * alpha_imp * (rn0_x * ps0_y - rn0_y * ps0_x)             &
+
+         - (r0 + rn0*alpha_imp) * T0 * GAMMA * (vpar0_x * ps0_y - vpar0_y * ps0_x) &
+         - (r0 + rn0*alpha_imp) * T0 * GAMMA * F0 / BigR * vpar0_p                 &
+
+         + (GAMMA - 1.) * rn0 * dE_ion_dT * BigR**2 * ( T0_x * u0_y - T0_y * u0_x)     &
+         + (GAMMA - 1.) * E_ion * BigR**2 * (rn0_x * u0_y - rn0_y * u0_x)              &
+         + (GAMMA - 1.) * E_ion_bg * BigR**2*((r0_x-rn0_x)*u0_y - (r0_y-rn0_y)*u0_x)   &
+
+         - (GAMMA - 1.) * rn0 * dE_ion_dT * F0 / BigR * Vpar0 * T0_p     &
+         - (GAMMA - 1.) * E_ion * F0 / BigR * Vpar0 * rn0_p              &
+         - (GAMMA - 1.) * E_ion_bg * F0 / BigR * Vpar0 * (r0_p - rn0_p)  &
+
+         - (GAMMA - 1.) * rn0 * dE_ion_dT * Vpar0 * (T0_x * ps0_y - T0_y * ps0_x)      &
+         - (GAMMA - 1.) * E_ion * Vpar0 * (rn0_x * ps0_y - rn0_y * ps0_x)              &
+         - (GAMMA - 1.) * E_ion_bg * Vpar0*((r0_x-rn0_x)*ps0_y - (r0_y-rn0_y)*ps0_x)   &
+
+         + (GAMMA - 1.) * E_ion * rn0 * 2.d0 * BigR * u0_y                             &
+         - (GAMMA - 1.) * E_ion * rn0 * (vpar0_x * ps0_y - vpar0_y * ps0_x)            &
+         - (GAMMA - 1.) * E_ion * rn0 * F0 / BigR * vpar0_p                            &
+
+         + (GAMMA - 1.) * E_ion_bg * (r0-rn0) * 2.d0 * BigR * u0_y                     &
+         - (GAMMA - 1.) * E_ion_bg * (r0-rn0) * (vpar0_x * ps0_y - vpar0_y * ps0_x)    &
+         - (GAMMA - 1.) * E_ion_bg * (r0-rn0) * F0 / BigR * vpar0_p 
+
+! 1/BigR removes the factor R from the integrand in (R dR)
+d_p = T0 * R_rho / BigR + R_p / BigR + T0 * R_rhon / BigR
+
+! Shock-detector term based on the total pressure gradient
+f_p = dsqrt( P0_x*P0_x + P0_y*P0_y + P0_p*P0_p/ (BigR*BigR) ) / P0_corr * h_e
+! Estimation of the numerical stabilization coefficient
+tau_sc = h_e * h_e * abs(d_p) / P0_corr * f_p
+
+! Use of source terms to increase the stabilization coefficients
+if(add_sources_in_sc)then
+  src_rho  =  (particle_source(ms,mt) + source_bg + source_imp)
+  src_rhon = source_imp
+  src_p    =  heat_source(ms,mt) &
+             + ((GAMMA - 1.)/2.) * vpar0**2 * BB2 * (source_bg + source_imp) &
+             + ((GAMMA - 1.)/2.) * vv2 * (source_bg + source_imp)            &
+             + (GAMMA - 1.) * visco_par * (vpar0_x * vpar0_x + vpar0_y * vpar0_y) &
+             + (GAMMA - 1.) * eta_T_ohm * (zj0/BigR)**2  &
+             - (r0_corr+beta_imp*rn0_corr) * rn0_corr * Lrad  &
+             - (r0_corr+beta_imp*rn0_corr) * frad_bg 
+
+  s_p = T0 * src_rho + src_p + T0 * src_rhon
+endif
+
+tau_sc = h_e * h_e * (abs(s_p) + abs(d_p)) / P0_corr * f_p
+
+! Updates in the physical diffsivities to locally add numerical stabilization.
+visco_T  = visco_T  + visco_sc_num  * tau_sc
+D_prof   = D_prof   + D_perp_sc_num * tau_sc
+ZK_prof  = ZK_prof  + ZK_perp_sc_num * tau_sc
+ZK_par_T = ZK_par_T + ZK_par_sc_num  * tau_sc
+Dn0x     = Dn0x + Dn_pol_sc_num * tau_sc
+Dn0y     = Dn0y + Dn_pol_sc_num * tau_sc
+Dn0p     = Dn0p + Dn_p_sc_num   * tau_sc
+D_prof_imp = D_prof_imp + Dn_pol_sc_num  * tau_sc
+
+end subroutine calculate_sc_quantities
+
 end subroutine element_matrix_fft
 
 subroutine my_fft(in_fft,out_fft,n)
