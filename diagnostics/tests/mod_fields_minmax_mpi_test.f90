@@ -33,10 +33,10 @@ subroutine run_fruit_fields_minmax_mpi(rank,n_tasks,ifail)
   write(*,'(/A)') "  ... setting-up: fields minmax tests"
   call setup(rank,n_tasks,ifail)
   write(*,'(/A)') "  ... running: fields minmax tests"
-  call test_generation_equidistant_stphi_mesh(rank,n_tasks,ifail)
-  call test_generation_random_stphi_mesh(rank,n_tasks,ifail)
-  call test_field_minmax_equidistant_mesh(rank,n_tasks,ifail)
-  call test_field_minmax_random_mesh(rank,n_tasks,ifail)
+  call test_generation_equidistant_mesh_1d(rank,n_tasks,ifail)
+  call test_generation_random_mesh_1d(rank,n_tasks,ifail)
+  !call test_field_minmax_equidistant_mesh(rank,n_tasks,ifail)
+  !call test_field_minmax_random_mesh(rank,n_tasks,ifail)
   write(*,'(/A)') "  ... tearing-down: fields minmax tests"
   call teardown(rank,n_tasks,ifail)
 end subroutine run_fruit_fields_minmax_mpi
@@ -78,107 +78,111 @@ end subroutine teardown
 
 !> Tests ----------------------------------------------------
 !> test the generation of equidistant mesh in s,t,phi
-subroutine test_generation_equidistant_stphi_mesh(rank,n_tasks,ifail)
-  use constants,         only: TWOPI
-  use mod_fields_minmax, only: generate_stphi_mesh
+subroutine test_generation_equidistant_mesh_1d(rank,n_tasks,ifail)
+  use constants,         only: PI,TWOPI
+  use mod_fields_minmax, only: generate_mesh_1d
   implicit none
   !> inputs-outputs:
   integer,intent(inout) :: ifail
   integer,intent(in)    :: rank,n_tasks
   !> variables
   integer :: ii
-  real*8 :: d_s_sol, d_t_sol,d_phi_sol
-  real*8,dimension(3) :: d_test
-  real*8,dimension(3,n_s*n_t*n_phi)    :: eq_mesh
-  logical,dimension(3,n_s*n_t*n_phi-1) :: success
+  real*8 :: d_phi_sol,d_st_sol
+  real*8,dimension(n_phi)   :: eq_mesh_phi_test,eq_mesh_phi_sol
+  real*8,dimension(n_s*n_t) :: eq_mesh_st_test,eq_mesh_st_sol
   !> initialisations
-  d_s_sol = 1.d0/real(n_s-1,kind=8); d_t_sol = 1.d0/real(n_t-1,kind=8);
-  d_phi_sol = TWOPI/real(n_phi-1,kind=8); success = .true.;
+  d_st_sol = 1.d0/real(n_s*n_t-1,kind=8); d_phi_sol = PI/real(n_phi-1,kind=8);
   !> generate equidistant mesh
-  call generate_stphi_mesh(n_s,n_t,n_phi,eq_mesh)
+  call generate_mesh_1d(n_s*n_t,(/0.d0,1.d0/),eq_mesh_st_test)
+  call generate_mesh_1d(n_phi,(/PI,TWOPI/),eq_mesh_phi_test)
   !> checks
-  do ii=1,n_s*n_t*n_phi-1
-    d_test = eq_mesh(:,ii+1)-eq_mesh(:,ii)
-    if(d_test(1).eq.-1.d0) d_test(1) = 0.d0
-    if(d_test(2).eq.-1.d0) d_test(2) = 0.d0
-    if(d_test(1).ne.0.d0) success(1,ii) = (d_test(1).ge.(d_s_sol-tol_real8)).and.&
-                                          (d_test(1).le.(d_s_sol+tol_real8))
-    if(d_test(2).ne.0.d0) success(2,ii) = (d_test(2).ge.(d_t_sol-tol_real8)).and.&
-                                          (d_test(2).le.(d_t_sol+tol_real8))
-    if(d_test(3).ne.0.d0) success(3,ii) = (d_test(3).ge.(d_phi_sol-tol_real8)).and.&
-                                          (d_test(3).le.(d_phi_sol+tol_real8))
+  do ii=1,n_phi
+    eq_mesh_phi_sol(ii) = PI+d_phi_sol*(ii-1)
   enddo
-  call assert_true(all(success),"Error fields minmax equidistant mesh: mesh size mismatch!")
-end subroutine test_generation_equidistant_stphi_mesh
+  do ii=1,n_s*n_t
+    eq_mesh_st_sol(ii) = d_st_sol*(ii-1)
+  enddo
+  call assert_equals(eq_mesh_st_test,eq_mesh_st_sol,n_s*n_t,tol_real8,&
+  "Error generate equidistant mesh 1d: mesh in (0,1) mismatch!")
+  call assert_equals(eq_mesh_st_test(1),0.d0,tol_real8,&
+  "Error generate equidistant mesh 1d: mesh in (0,1) lower bound mismatch!")
+  call assert_equals(eq_mesh_st_test(n_s*n_t),1.d0,tol_real8,&
+  "Error generate equidistant mesh 1d: mesh in (0,1) upper bound mismatch!")
+  call assert_equals(eq_mesh_phi_test,eq_mesh_phi_sol,n_phi,tol_real8,&
+  "Error generate equidistant mesh 1d: mesh in interval mismatch!")
+  call assert_equals(eq_mesh_phi_test(1),PI,tol_real8,&
+  "Error generate equidistant mesh 1d: mesh in interval lower bound mismatch!")
+  call assert_equals(eq_mesh_phi_test(n_phi),TWOPI,tol_real8,&
+  "Error generate equidistant mesh 1d: mesh in interval upper bound mismatch!")
+end subroutine test_generation_equidistant_mesh_1d
 
 !> test the generation of random mesh
-subroutine test_generation_random_stphi_mesh(rank,n_tasks,ifail)
-  use constants,         only: TWOPI
-  use mod_fields_minmax, only: generate_stphi_mesh
+subroutine test_generation_random_mesh_1d(rank,n_tasks,ifail)
+  use constants,         only: PI,TWOPI
+  use mod_fields_minmax, only: generate_mesh_1d
   implicit none
   !> inputs-outputs:
   integer,intent(inout) :: ifail
   integer,intent(in)    :: rank,n_tasks
   !> variables
-  logical,dimension(n_s*n_t*n_phi) :: success
   integer :: ii,jj
-  real*8,dimension(3,n_s*n_t*n_phi) :: rand_mesh
+  real*8,dimension(n_phi)   :: rand_mesh_phi
+  real*8,dimension(n_s*n_t) :: rand_mesh_st
   !> initialisation
-  success = .false.
   !> compute random mesh
-  call generate_stphi_mesh(n_s*n_t*n_phi,rngs,rand_mesh)
-  !> find if there are repeated points
-  do ii=1,n_s*n_t*n_phi
-    do jj=ii+1,n_s*n_t*n_phi
-      success(ii) = all(rand_mesh(:,ii).eq.rand_mesh(:,jj))
-      if(success(ii)) exit
-    enddo
-  enddo
+  call generate_mesh_1d(n_s*n_t,rngs,(/0.d0,1.d0/),rand_mesh_st)
+  call generate_mesh_1d(n_phi,rngs,(/PI,TWOPI/),rand_mesh_phi)
   !> checks
-  call assert_true(all((rand_mesh(1,:).ge.0.d0).and.(rand_mesh(1,:).le.1.d0)),&
-  "Error fields minmax random mesh: s coordinate not in bound (0,1)!")
-  call assert_true(all((rand_mesh(2,:).ge.0.d0).and.(rand_mesh(2,:).le.1.d0)),&
-  "Error fields minmax random mesh: t coordinate not in bound (0,1)!")
-  call assert_true(all((rand_mesh(3,:).ge.0.d0).and.(rand_mesh(3,:).le.TWOPI)),&
-  "Error fields minmax random mesh: s coordinate not in bound (0,2*PI)!")
-  call assert_true(.not.any(success),"Error fields minmax random mesh: found repeated point!")
-end subroutine test_generation_random_stphi_mesh
+  call assert_true(all((rand_mesh_st.ge.0.d0).and.(rand_mesh_st.le.1.d0)),&
+  "Error fields minmax random mesh 1d: nodes not in bound (0,1)!")
+  call assert_true(all((rand_mesh_phi.ge.PI).and.(rand_mesh_phi.le.TWOPI)),&
+  "Error fields minmax random mesh: nodes not in interval!")
+end subroutine test_generation_random_mesh_1d
 
 !> test the find of extrema on random mesh
 subroutine test_field_minmax_random_mesh(rank,n_tasks,ifail)
+  use constants,         only: TWOPI
   use mod_interp,        only: interp_PRZ
-  use mod_fields_minmax, only: generate_stphi_mesh
+  use mod_fields_minmax, only: generate_mesh_1d
   use mod_fields_minmax, only: field_minmax
   implicit none
   !> inputs-outputs:
   integer,intent(inout) :: ifail
   integer,intent(in)    :: rank,n_tasks
   !> variables:
-  integer             :: ii,jj
+  integer             :: ii,jj,kk,pp
   real*8              :: R_test,Z_test
   real*8,dimension(1) :: field_test
   real*8,dimension(2) :: minmax_global
   real*8,dimension(interp_PRZ_object%element_list%n_elements) :: min_list,max_list
-  real*8,dimension(3,n_s*n_t*n_phi) :: rand_mesh
+  real*8,dimension(n_s)   :: rand_mesh_s
+  real*8,dimension(n_t)   :: rand_mesh_t
+  real*8,dimension(n_phi) :: rand_mesh_phi
   logical,dimension(interp_PRZ_object%element_list%n_elements) :: fail_min_list
   logical,dimension(interp_PRZ_object%element_list%n_elements) :: fail_max_list
   logical,dimension(2) :: fail_global
   !> initialisation
   fail_min_list = .false.; fail_max_list = .false.; fail_global = .false.;
-  call generate_stphi_mesh(n_s*n_t*n_phi,rngs,rand_mesh)
+  call generate_mesh_1d(n_s,rngs,(/0.d0,1.d0/),rand_mesh_s)
+  call generate_mesh_1d(n_t,rngs,(/0.d0,1.d0/),rand_mesh_t)
+  call generate_mesh_1d(n_phi,rngs,(/0.d0,TWOPI/),rand_mesh_phi)
   !> find extrema
-  call field_minmax(field_id_sol,n_s*n_t*n_phi,rand_mesh,&
-  interp_PRZ_object,min_list,max_list,minmax_global)
+  call field_minmax(field_id_sol,n_s,n_t,n_phi,rand_mesh_s,rand_mesh_t,&
+  rand_mesh_phi,interp_PRZ_object,min_list,max_list,minmax_global)
   !> checks if the extrema are the largest and smallest values for each point in the element
   do ii=1,interp_PRZ_object%element_list%n_elements
-    do jj=1,n_s*n_t*n_phi
-      call interp_PRZ(interp_PRZ_object%node_list,interp_PRZ_object%element_list,&
-      ii,(/field_id_sol/),1,rand_mesh(1,jj),rand_mesh(2,jj),rand_mesh(3,jj),field_test,R_test,Z_test)
-      !write(*,*) "test min: ",field_test(1).lt.min_list(ii)," min list: ",min_list(ii)," val: ",field_test
-      if(.not.fail_min_list(ii)) fail_min_list(ii) = field_test(1).lt.min_list(ii)
-      if(.not.fail_max_list(ii)) fail_max_list(ii) = field_test(1).gt.max_list(ii)
-      if(.not.fail_global(1))    fail_global(1)    = field_test(1).lt.minmax_global(1)
-      if(.not.fail_global(2))    fail_global(2)    = field_test(1).gt.minmax_global(2)
+    do jj=1,n_phi
+      do kk=1,n_t
+        do pp=1,n_s
+          call interp_PRZ(interp_PRZ_object%node_list,interp_PRZ_object%element_list,&
+          ii,(/field_id_sol/),1,rand_mesh_s(pp),rand_mesh_t(kk),rand_mesh_phi(jj),&
+          field_test,R_test,Z_test)
+          if(.not.fail_min_list(ii)) fail_min_list(ii) = field_test(1).lt.min_list(ii)
+          if(.not.fail_max_list(ii)) fail_max_list(ii) = field_test(1).gt.max_list(ii)
+          if(.not.fail_global(1))    fail_global(1)    = field_test(1).lt.minmax_global(1)
+          if(.not.fail_global(2))    fail_global(2)    = field_test(1).gt.minmax_global(2)
+        enddo
+      enddo
     enddo
   enddo
   call assert_true(all(.not.fail_min_list),&
@@ -191,42 +195,49 @@ end subroutine test_field_minmax_random_mesh
 
 !> test the find of extrema on equidistant mesh
 subroutine test_field_minmax_equidistant_mesh(rank,n_tasks,ifail)
+  use constants,         only: PI,TWOPI
   use mod_interp,        only: interp_PRZ
-  use mod_fields_minmax, only: generate_stphi_mesh
+  use mod_fields_minmax, only: generate_mesh_1d
   use mod_fields_minmax, only: field_minmax
   implicit none
   !> inputs-outputs:
   integer,intent(inout) :: ifail
   integer,intent(in)    :: rank,n_tasks
   !> variables:
-  integer             :: ii,jj
+  integer             :: ii,jj,kk,pp
   real*8              :: R_test,Z_test
   real*8,dimension(1) :: field_test
   real*8,dimension(2) :: minmax_global
   real*8,dimension(interp_PRZ_object%element_list%n_elements) :: min_list,max_list
-  real*8,dimension(3,n_s*n_t*n_phi) :: eq_mesh
+  real*8,dimension(n_s)   :: eq_mesh_s
+  real*8,dimension(n_t)   :: eq_mesh_t
+  real*8,dimension(n_phi) :: eq_mesh_phi
   logical,dimension(interp_PRZ_object%element_list%n_elements) :: fail_min_list
   logical,dimension(interp_PRZ_object%element_list%n_elements) :: fail_max_list
   logical,dimension(2) :: fail_global
   !> initialisation
   fail_min_list = .false.; fail_max_list = .false.; fail_global = .false.;
-  call generate_stphi_mesh(n_s,n_t,n_phi,eq_mesh)
+  call generate_mesh_1d(n_s,(/0.d0,1.d0/),eq_mesh_s)
+  call generate_mesh_1d(n_t,(/0.d0,1.d0/),eq_mesh_t)
+  call generate_mesh_1d(n_phi,(/0.d0,TWOPI/),eq_mesh_phi)
   !> find extrema
-  write(*,*) "finding fields minmax equidistant mesh"
-  call field_minmax(field_id_sol,n_s*n_t*n_phi,eq_mesh,&
-  interp_PRZ_object,min_list,max_list,minmax_global)
-  write(*,*) "check fields minmax equidistant mesh"
+  call field_minmax(field_id_sol,n_s,n_t,n_phi,eq_mesh_s,eq_mesh_t,&
+  eq_mesh_phi,interp_PRZ_object,min_list,max_list,minmax_global)
   !> checks if the extrema are the largest and smallest values for each point in the element
   do ii=1,interp_PRZ_object%element_list%n_elements
-    do jj=1,n_s*n_t*n_phi
-      call interp_PRZ(interp_PRZ_object%node_list,interp_PRZ_object%element_list,&
-      ii,(/field_id_sol/),1,eq_mesh(1,jj),eq_mesh(2,jj),eq_mesh(3,jj),field_test,R_test,Z_test)
-      if(.not.fail_min_list(ii)) fail_min_list(ii) = field_test(1).lt.min_list(ii)
-      if(.not.fail_max_list(ii)) fail_max_list(ii) = field_test(1).gt.max_list(ii)
-      if(.not.fail_global(1))    fail_global(1)    = field_test(1).lt.minmax_global(1)
-      if(.not.fail_global(2))    fail_global(2)    = field_test(1).gt.minmax_global(2)
+    do jj=1,n_phi
+      do kk=1,n_t
+        do pp=1,n_s
+          call interp_PRZ(interp_PRZ_object%node_list,interp_PRZ_object%element_list,&
+          ii,(/field_id_sol/),1,eq_mesh_s(pp),eq_mesh_t(kk),eq_mesh_phi(jj),&
+          field_test,R_test,Z_test)
+          if(.not.fail_min_list(ii)) fail_min_list(ii) = field_test(1).lt.min_list(ii)
+          if(.not.fail_max_list(ii)) fail_max_list(ii) = field_test(1).gt.max_list(ii)
+          if(.not.fail_global(1))    fail_global(1)    = field_test(1).lt.minmax_global(1)
+          if(.not.fail_global(2))    fail_global(2)    = field_test(1).gt.minmax_global(2)
+        enddo
+      enddo
     enddo
-    write(*,*) "min list: ",fail_min_list(ii)," max list: ",fail_max_list(ii)
   enddo
   call assert_true(all(.not.fail_min_list),&
   "Error find fields minmax equidistant mesh: minimum list not a minimum!")

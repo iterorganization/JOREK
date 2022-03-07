@@ -8,7 +8,7 @@ use mod_rootfinding, only: fun_dfun_2d,fun_dfun_3d
 implicit none
 private
 public :: fun_interp_PRZ
-public :: generate_st_mesh, generate_stphi_mesh
+public :: generate_mesh_1d
 public :: field_minmax
 
 !> Variables and datatypes -------------------------------
@@ -45,149 +45,82 @@ end interface fun_interp_PRZ
 
 !> interface for the mesh generation method
 interface generate_st_mesh
-  module procedure generate_random_st_mesh
-  module procedure generate_equidistant_st_mesh
+  module procedure generate_random_mesh_1d
+  module procedure generate_equidistant_mesh_1d
 end interface generate_st_mesh
 
 !> interface for the mesh generation method
-interface generate_stphi_mesh
-  module procedure generate_random_stphi_mesh
-  module procedure generate_equidistant_stphi_mesh
-end interface generate_stphi_mesh
+interface generate_mesh_1d
+  module procedure generate_random_mesh_1d
+  module procedure generate_equidistant_mesh_1d
+end interface generate_mesh_1d
 contains
 !> Procedures --------------------------------------------
-!> generate random mesh in the s,t coordinates
-!> inputs:
-!>   n_trials: (integer) number of mesh elements
-!>   rngs:     (type_rng)(n_threads) random number generators
-!> outputs:
-!>   rngs:     (type_rng)(n_threads) random number generators
-!>   mesh:     (real8)(2,n_trials) s,t, mesh
-subroutine generate_random_st_mesh(n_trials,rngs,mesh)
-  use mod_rng,   only: type_rng
-  !$ use omp_lib
-  implicit none
-  !> inputs-outputs:
-  class(type_rng),dimension(:),allocatable,intent(inout) :: rngs
-  !> inputs:
-  integer,intent(in)                                     :: n_trials
-  !> outputs:
-  real*8,dimension(2,n_trials),intent(out)               :: mesh
-  !> variables
-  integer :: ii,thread_id
-  !> generate mesh
-  !$omp parallel default(private) firstprivate(n_trials) &
-  !$omp shared(rngs,mesh)
-  thread_id = 1;
-  !$ thread_id = omp_get_thread_num()
-  !$omp do
-  do ii=1,n_trials
-    call rngs(thread_id)%next(mesh(:,ii))
-  enddo
-  !$omp end do
-  !$omp end parallel
-end subroutine generate_random_st_mesh
-
-!> generate equidistant mesh in the s,t coordinates
-!> inputs:
-!>   n_s:   (integer) number of points in the s local coords.
-!>   n_t:   (integer) number of points in the t local coords.
-!> outputs:
-!>   mesh:  (real8)(2,n_s*n_t) equidistant mesh in s,t
-subroutine generate_equidistant_st_mesh(n_s,n_t,mesh)
-  implicit none
-  !> inputs:
-  integer,intent(in) :: n_s,n_t
-  !> outputs:
-  real*8,dimension(2,n_s*n_t),intent(out) :: mesh
-  !> variables:
-  integer :: ii,jj
-  real*8 :: d_s,d_t
-  !> initialisation
-  d_s   = 1.d0/real(n_s-1,kind=8);
-  d_t   = 1.d0/real(n_t-1,kind=8);
-  !> generate equidistant points
-  !$omp parallel do default(private) firstprivate(n_s,n_t,&
-  !$omp d_s,d_t) shared(mesh) collapse(2)
-  do ii=1,n_t
-    do jj=1,n_s
-      mesh(:,(ii-1)*n_s+jj) = (/real(jj-1,kind=8)*d_s,&
-      real(ii-1,kind=8)*d_t/)
-    enddo
-  enddo
-  !$omp end parallel do
-end subroutine generate_equidistant_st_mesh
-
 !> generate random mesh in the s,t,phi coordinates
 !> inputs:
 !>   n_trials: (integer) number of mesh elements
+!>   interval: (real8)(2) minimum and maximum mesh nodes
 !>   rngs:     (type_rng)(n_threads) random number generators
 !> outputs:
 !>   rngs:     (type_rng)(n_threads) random number generators
-!>   mesh:     (real8)(3,n_trials) s,t,phi mesh
-subroutine generate_random_stphi_mesh(n_trials,rngs,mesh)
-  use constants, only: TWOPI
-  use mod_rng,   only: type_rng
+!>   mesh:     (real8)(n_trials) mesh within intervals
+subroutine generate_random_mesh_1d(n_trials,rngs,interval,mesh)
+  use mod_rng, only: type_rng
   !$ use omp_lib
   implicit none
   !> inputs-outputs:
   class(type_rng),dimension(:),allocatable,intent(inout) :: rngs
   !> inputs:
   integer,intent(in)                                     :: n_trials
+  real*8,dimension(2),intent(in)                         :: interval 
   !> outputs:
-  real*8,dimension(3,n_trials),intent(out)               :: mesh
+  real*8,dimension(n_trials),intent(out)                 :: mesh
   !> variables
-  integer :: ii,thread_id
+  integer :: ii,n_trials_thread,thread_id,n_max_threads
+  n_max_threads = 1;
+  !$ n_max_threads = omp_get_max_threads()
+  n_trials_thread = n_trials/n_max_threads
   !> generate mesh
-  !$omp parallel default(private) firstprivate(n_trials) &
-  !$omp shared(rngs,mesh)
-  thread_id = 1;
-  !$ thread_id = omp_get_thread_num()
-  !$omp do
-  do ii=1,n_trials
-    call rngs(thread_id)%next(mesh(:,ii))
-    mesh(3,ii) = TWOPI*mesh(3,ii)
+  !$omp parallel do default(private) firstprivate(n_max_threads,&
+  !$omp n_trials_thread,interval) shared(rngs,mesh)
+  do ii=1,n_max_threads
+    thread_id = 1;
+    !$thread_id = omp_get_thread_num()
+    call rngs(thread_id)%next(mesh((ii-1)*n_trials_thread+1:ii*n_trials_thread))
   enddo
-  !$omp end do
-  !$omp end parallel
-end subroutine generate_random_stphi_mesh
+  !$omp end parallel do
+  if(n_trials.lt.n_max_threads*n_trials_thread) &
+  call rngs(1)%next(mesh(n_trials_thread*n_max_threads+1:n_trials))
+  mesh = interval(1)+(interval(2)-interval(1))*mesh
+end subroutine generate_random_mesh_1d
 
-!> generate equidistant mesh in the s,t,phi coordinates
+!> generate equidistant mesh within interval
 !> inputs:
-!>   n_s:   (integer) number of points in the s local coords.
-!>   n_t:   (integer) number of points in the t local coords.
-!>   n_phi: (integer) number of toroidal angle points
+!>   n_nodes:  (integer) number of mesh nodes
+!>   interval: (real8)(2) first and last mesh nodes
 !> outputs:
-!>   mesh:  (real8)(3,n_s*n_t*n_phi) equidistant mesh in s,t,phi
-subroutine generate_equidistant_stphi_mesh(n_s,n_t,n_phi,mesh)
+!>   mesh:  (real8)(n_nodes) equidistant mesh within interval
+subroutine generate_equidistant_mesh_1d(n_nodes,interval,mesh)
   use constants, only: TWOPI
   implicit none
   !> inputs:
-  integer,intent(in) :: n_s,n_t,n_phi
+  integer,intent(in)             :: n_nodes
+  real*8,dimension(2),intent(in) :: interval
   !> outputs:
-  real*8,dimension(3,n_s*n_t*n_phi),intent(out) :: mesh
+  real*8,dimension(n_nodes),intent(out) :: mesh
   !> variables:
   integer :: ii,jj,kk
-  real*8 :: d_s,d_t,d_phi
+  real*8 :: d_node
   !> initialisation
-  d_s   = 1.d0/real(n_s-1,kind=8);
-  d_t   = 1.d0/real(n_t-1,kind=8);
-  d_phi = TWOPI/real(n_phi-1,kind=8);
+  d_node   = (interval(2)-interval(1))/real(n_nodes-1,kind=8);
   !> generate equidistant points
-  !$omp parallel do default(private) firstprivate(n_s,n_t,n_phi,&
-  !$omp d_s,d_t,d_phi) shared(mesh) collapse(2)
-  do ii=1,n_phi
-    do jj=1,n_t
-      !$omp simd
-      do kk=1,n_s
-        mesh(:,((ii-1)*n_t+jj-1)*n_s+kk) = (/real(kk-1,kind=8)*d_s,&
-        real(jj-1,kind=8)*d_t,real(ii-1,kind=8)*d_phi/)
-      enddo
-      !$omp end simd
-    enddo
+  !$omp parallel do simd default(private) firstprivate(n_nodes,d_node,interval) &
+  !$omp shared(mesh)
+  do ii=1,n_nodes
+    mesh(ii) = interval(1)+d_node*real(ii-1,kind=8)
   enddo
-  !$omp end parallel do
-end subroutine generate_equidistant_stphi_mesh
+  !$omp end parallel do simd
+end subroutine generate_equidistant_mesh_1d
 
 !> find local and global minimum and maximum values for a jorek axisymmetric field
  !> inputs:
@@ -200,7 +133,7 @@ end subroutine generate_equidistant_stphi_mesh
 !>   min_list:            (real8)(n_elements) minimum of each element
 !>   max_list:            (real8)(n_elements) maximum of each element
 !>   minmax_global:       (real8)(2) global minimum and maximum of the field
-subroutine 
+!subroutine 
 
 !> find local and global minimum and maximum values of a jorek field
 !> inputs:
@@ -213,21 +146,24 @@ subroutine
 !>   min_list:      (real8)(n_elements) minimum of each element
 !>   max_list:      (real8)(n_elements) maximum of each element
 !>   minmax_global: (real8)(2) global minimum and maximum of the field
-subroutine field_minmax(field_id,n_mesh,mesh,f_interp_PRZ,min_list,max_list,minmax_global)
+subroutine field_minmax(field_id,n_s,n_t,n_phi,mesh_s,mesh_t,&
+mesh_phi,f_interp_PRZ,min_list,max_list,minmax_global)
   use mod_rootfinding,    only: newtons_method
   use mod_math_operators, only: compute_eigenvalues
   implicit none
   !> inputs-outputs:
-  type(fun_interp_PRZ),intent(inout)    :: f_interp_PRZ
+  type(fun_interp_PRZ),intent(inout) :: f_interp_PRZ
   !> inputs:
-  integer,intent(in)                    :: field_id,n_mesh
-  real*8,dimension(3,n_mesh),intent(in) :: mesh
+  integer,intent(in)                 :: field_id,n_s,n_t,n_phi
+  real*8,dimension(n_s),intent(in)   :: mesh_s
+  real*8,dimension(n_t),intent(in)   :: mesh_t
+  real*8,dimension(n_phi),intent(in) :: mesh_phi
   !> outputs:
   real*8,dimension(2),intent(out)       :: minmax_global
   real*8,dimension(f_interp_PRZ%element_list%n_elements),intent(out) :: min_list
   real*8,dimension(f_interp_PRZ%element_list%n_elements),intent(out) :: max_list
   !> variables:
-  integer                 :: ii,jj,ierr,maxit,n_elements
+  integer                 :: ii,jj,kk,pp,ierr,maxit,n_elements
   real*8                  :: tol
   real*8,dimension(3)     :: x_extrema,values
   real*8,dimension(3,3)   :: Jac
@@ -236,27 +172,31 @@ subroutine field_minmax(field_id,n_mesh,mesh,f_interp_PRZ,min_list,max_list,minm
   tol=5.d-16; maxit=10000; n_elements=f_interp_PRZ%element_list%n_elements
   minmax_global = (/1.d21,-1.d21/); min_list = 1.d21; max_list = -1.d21;
   !> find minimum and maximum
-  !$omp parallel do default(private) firstprivate(n_elements,n_mesh,maxit,tol,field_id) &
-  !$omp shared(f_interp_PRZ,mesh) reduction(min:min_list) &
-  !$omp reduction(max:max_list) collapse(2)
+  !$omp parallel do default(private) firstprivate(n_elements,n_s,n_t,n_phi,&
+  !$omp maxit,tol,field_id) shared(f_interp_PRZ,mesh_s,mesh_t,mesh_phi) & 
+  !$omp reduction(min:min_list) reduction(max:max_list) collapse(4)
   do ii=1,n_elements
-    do jj=1,n_mesh
-      !> find extrema
-      call newtons_method(f_interp_PRZ,(/0.d0,0.d0,0.d0/),mesh(:,jj),&
-      x_extrema,2,(/ii,field_id/),ierr,tol,maxit)
-      call f_interp_PRZ%f_df(values,Jac,x_extrema,2,(/ii,field_id/))
-      if(ierr.ne.0) cycle
-      !> compute the jacobian
-      call f_interp_PRZ%f_df(values,Jac,x_extrema,2,(/ii,field_id/))
-      !> compute the eigenvalues of the jacobian
-      call compute_eigenvalues(Jac,eigv)
-      !> check for local maxima and minima: the eigenvalues must be real due
-      !> to the symmetry of the hessian matrix
-      if(all(real(eigv).gt.0.d0).and.all(aimag(eigv).eq.0.d0)) then
-        min_list(ii) = min(min_list(ii),f_interp_PRZ%val) !< found a minimum
-      elseif(all(real(eigv).lt.0.d0).and.all(aimag(eigv).eq.0.d0)) then
-        max_list(ii) = max(max_list(ii),f_interp_PRZ%val) !< found a maximum
-      endif
+    do jj=1,n_phi
+      do kk=1,n_t
+        do pp=1,n_phi
+          !> find extrema
+          call newtons_method(f_interp_PRZ,(/0.d0,0.d0,0.d0/),(/mesh_s(pp),&
+          mesh_t(kk),mesh_phi(jj)/),x_extrema,2,(/ii,field_id/),ierr,tol,maxit)
+          call f_interp_PRZ%f_df(values,Jac,x_extrema,2,(/ii,field_id/))
+          if(ierr.ne.0) cycle
+          !> compute the jacobian
+          call f_interp_PRZ%f_df(values,Jac,x_extrema,2,(/ii,field_id/))
+          !> compute the eigenvalues of the jacobian
+          call compute_eigenvalues(Jac,eigv)
+          !> check for local maxima and minima: the eigenvalues must be real due
+          !> to the symmetry of the hessian matrix
+          if(all(real(eigv).gt.0.d0).and.all(aimag(eigv).eq.0.d0)) then
+            min_list(ii) = min(min_list(ii),f_interp_PRZ%val) !< found a minimum
+          elseif(all(real(eigv).lt.0.d0).and.all(aimag(eigv).eq.0.d0)) then
+            max_list(ii) = max(max_list(ii),f_interp_PRZ%val) !< found a maximum
+          endif
+        enddo
+      enddo
     enddo
   enddo
   !$omp end parallel do
