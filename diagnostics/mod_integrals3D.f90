@@ -161,14 +161,13 @@ integer    :: i_inj,  n_spi_tmp
 real*8     :: spi_R_tmp
 real*8     :: spi_Z_tmp
 real*8     :: spi_phi_tmp
-real*8     :: spi_abl_tmp
 real*8     :: spi_psi_tmp
 real*8     :: spi_grad_psi_tmp
 real*8     :: ng_radius_tmp !< Radius of neutral gas cloud as a result of the ablation
 real*8     :: source_tmp
 real*8     :: ns_shape ! variable for numerical integration of source volume
-real*8     :: V_ns
-real*8, allocatable :: local_source_volume(:)
+real*8     :: V_ns, V_ns_drift
+real*8, allocatable :: local_source_volume(:), local_source_volume_drift(:)
 
 #endif
 
@@ -316,14 +315,20 @@ if (using_spi) then
    if (allocated(local_source_volume)) then
       deallocate(local_source_volume)
    end if
+   if (allocated(local_source_volume_drift)) then
+      deallocate(local_source_volume_drift)
+   end if
 
    allocate (local_source_volume(n_spi_tot))
+   allocate (local_source_volume_drift(n_spi_tot))
 
    do spi_i=1, n_spi_tot
-      local_source_volume(spi_i)      = 0.d0
+      local_source_volume(spi_i)            = 0.d0
+      local_source_volume_drift(spi_i)      = 0.d0
    end do
 end if
-
+if (.not. allocated(local_source_volume)) allocate (local_source_volume(1)) ! Allocate a dummy array for omp
+if (.not. allocated(local_source_volume_drift)) allocate (local_source_volume_drift(1)) 
 #endif
 
 delta_phi     = 2.d0 * PI / float(n_plane) / float(n_period)
@@ -352,7 +357,7 @@ ife_max   = min((my_id +1) * ife_delta, element_list%n_elements)
 !$omp          mag_wk_tot, vpar_disp_tot, fric_disp_tot, area1, mag_src_tot,                   &
 !$omp          eta_ohmic, central_mass, R2curr_tmp, Zcurr_tmp,                                 &
 #if (defined WITH_Neutrals) || (defined WITH_Impurities)
-!$omp          spi_num_vol, local_source_volume,                                               &
+!$omp          spi_num_vol, local_source_volume, local_source_volume_drift, drift_distance,    &
 !$omp          using_spi, n_spi_tot, n_inj, n_spi,                                             &
 !$omp          pellets, ng_radius_ratio, ng_radius_min,                                        &
 !$omp          local_n_particles_inj, local_n_particles, ns_amplitude, ns_R, ns_Z,             &
@@ -388,7 +393,7 @@ ife_max   = min((my_id +1) * ife_delta, element_list%n_elements)
 
 #if (defined WITH_Neutrals) || (defined WITH_Impurities)
 !$omp           rn0, rn0_corr, i_imp, frad_bg, Lrad_imp, Te_corr_eV, Te_eV, ne_SI, Ti_eV,      &
-!$omp           spi_R_tmp, spi_Z_tmp, spi_phi_tmp, spi_abl_tmp, ng_radius_tmp,                 &
+!$omp           spi_R_tmp, spi_Z_tmp, spi_phi_tmp, ng_radius_tmp,                              &
 !$omp           spi_psi_tmp, spi_grad_psi_tmp,                                                 &
 !$omp           n_spi_tmp, source_tmp, ns_shape,                                               &
 #endif
@@ -426,7 +431,7 @@ omp_tid      = 0
 #if (defined WITH_Neutrals) || (defined WITH_Impurities)
 !$omp                local_n_particles_inj,  local_n_particles,                               &
 !$omp                local_radiation, local_radiation_phi, local_E_ion, local_P_ei, local_P_ion, &
-!$omp                local_source_volume,                                                     &
+!$omp                local_source_volume, local_source_volume_drift,                          &
 #endif
 !$omp                D_int, D_ext, P_int, H_int, S_int, H_ext, S_ext, P_ext, C_intern, C_ext, &
 !$omp                P_e_int, P_i_int, P_e_ext, P_i_ext, P_e_tot, P_i_tot,                    &
@@ -1005,7 +1010,6 @@ do ife = ife_min, ife_max
                  spi_R_tmp   = pellets(spi_i)%spi_R
                  spi_Z_tmp   = pellets(spi_i)%spi_Z
                  spi_phi_tmp = pellets(spi_i)%spi_phi
-                 spi_abl_tmp = pellets(spi_i)%spi_abl
 
                  spi_psi_tmp = pellets(spi_i)%spi_psi
                  spi_grad_psi_tmp = pellets(spi_i)%spi_grad_psi
@@ -1024,6 +1028,18 @@ do ife = ife_min, ife_max
 
                  local_source_volume(spi_i) = local_source_volume(spi_i) &
                       + ns_shape * bigR * xjac * wst * delta_phi
+
+                 if (drift_distance /= 0) then ! Get the volume at the post-drift location (for normalization)
+                   ns_shape = source_shape(x_g(ms,mt),y_g(ms,mt),phi,     &
+                        spi_R_tmp+drift_distance,spi_Z_tmp,spi_phi_tmp,   &
+                        ng_radius_tmp,ns_deltaphi,                        &
+                        ps0,pellets(spi_i)%spi_psi_drift,                 &
+                        pellets(spi_i)%spi_grad_psi_drift,                &
+                        ns_deltaminrad)
+
+                   local_source_volume_drift(spi_i) = local_source_volume_drift(spi_i) &
+                        + ns_shape * bigR * xjac * wst * delta_phi
+                 end if
 
               end if
 
@@ -1645,12 +1661,17 @@ if (using_spi) then
    do spi_i=1, n_spi_tot
 #ifndef NOMPIVERSION
       call MPI_AllReduce(local_source_volume(spi_i),pellets(spi_i)%spi_vol,1,MPI_DOUBLE_PRECISION,MPI_SUM,MPI_COMM_WORLD,ierr)
+      call MPI_AllReduce(local_source_volume_drift(spi_i),pellets(spi_i)%spi_vol_drift,1,MPI_DOUBLE_PRECISION,MPI_SUM,MPI_COMM_WORLD,ierr)
 #else /* NOMPIVERSION */
       pellets(spi_i)%spi_vol = local_source_volume(spi_i)
+      pellets(spi_i)%spi_vol_drift = local_source_volume_drift(spi_i)
 #endif /* NOMPIVERSION */
    end do
    deallocate(local_source_volume)
+   deallocate(local_source_volume_drift)
 end if
+if (allocated(local_source_volume)) deallocate(local_source_volume) !In case of dummy array
+if (allocated(local_source_volume_drift)) deallocate(local_source_volume_drift)
 #endif
 
 #if (defined WITH_Neutrals) || (defined WITH_Impurities)
@@ -2079,18 +2100,31 @@ if (my_id .eq. 0) then
              ! i.e., with poloidally elongated ablation cloud
              ! in this case the analytical formula below is approximate (usually it agrees with the numerical integral within a few percents)
              V_ns  = PI * pellets(i)%spi_R * ns_tor_norm * ng_radius_tmp * min(ns_deltaminrad,ng_radius_tmp)
+             if (drift_distance /= 0.d0) then
+               V_ns_drift  = PI * (pellets(i)%spi_R + drift_distance) * ns_tor_norm * ng_radius_tmp * min(ns_deltaminrad,ng_radius_tmp)
+             end if
           else
              ! i.e., standard case with circular ablation cloud in the poloidal plane
              ! in this case the ablation source volume is given by the exact analytical formula as derived by E. Nardon
              V_ns  = PI * pellets(i)%spi_R * ns_tor_norm * ng_radius_tmp**2.d0
+             if (drift_distance /= 0.d0) then
+               V_ns_drift  = PI * (pellets(i)%spi_R + drift_distance) * ns_tor_norm * ng_radius_tmp**2.d0
+             end if
           endif
           
           write(*,'(A,2es14.6,f14.6)') "Source vol (num,an,diff %)   = ", pellets(i)%spi_vol, V_ns, 1d2*(pellets(i)%spi_vol - V_ns)/V_ns
           if (abs((pellets(i)%spi_vol - V_ns)/V_ns) .gt. 0.1d0) write(*,*) "WARNING: Difference larger than 10% "
 
+          if (drift_distance /= 0.d0) then 
+            write(*,'(A,2es14.6,f14.6)') "Drifted source vol (num,an,diff %)   = ", pellets(i)%spi_vol_drift, V_ns_drift, 1d2*(pellets(i)%spi_vol_drift - V_ns_drift)/V_ns_drift
+            if (abs((pellets(i)%spi_vol_drift - V_ns_drift)/V_ns_drift) .gt. 0.1d0) write(*,*) "WARNING: Difference larger than 10% "
+          end if
+
           ! recommended ablation source radius in the poloidal direction from ng_radius / (R*ns_deltaphi) = B_pol/B_tor
           write(*,'(A,2f14.6)') "Source pol rad (actual,recom)= ", ng_radius_tmp, pellets(i)%spi_R * ns_deltaphi * pellets(i)%spi_grad_psi / abs(F0)
-
+          if (drift_distance /= 0.d0) then 
+            write(*,'(A,2f14.6)') "Drifted source pol rad (actual,recom)= ", ng_radius_tmp, (pellets(i)%spi_R + drift_distance) * ns_deltaphi * pellets(i)%spi_grad_psi_drift / abs(F0)
+          end if
        end if
     end do
   endif

@@ -848,8 +848,10 @@ write(*,'(1x,a)',advance='no') ' USE_BICGSTAB : '
      write(*,REAL_FMT) 'neutral_reflection  ', neutral_reflection
      write(*,REAL_FMT) 'imp_reflection      ', imp_reflection
      write(*,LOGI_FMT) 'output_prad_phi     ', output_prad_phi
-     write(*,CHAR_FMT) 'adas_dir            ',  trim(adas_dir)
-     write(*,LOGI_FMT) 'use_imp_adas        ',  use_imp_adas
+     write(*,CHAR_FMT) 'adas_dir            ', trim(adas_dir)
+     write(*,LOGI_FMT) 'use_imp_adas        ', use_imp_adas
+     write(*,REAL_FMT) 'drift_distance      ', drift_distance
+     write(*,REAL_FMT) 'energy_teleported   ', energy_teleported
 
      !< Additional log for SPI model
    if(using_spi) then
@@ -857,7 +859,6 @@ write(*,'(1x,a)',advance='no') ' USE_BICGSTAB : '
      write(*,LOGI_FMT) 'spi_tor_rot         ',  spi_tor_rot
      write(*,LOGI_FMT) 'spi_num_vol         ',  spi_num_vol
      write(*,CHAR_FMT) 'adas_dir            ',  trim(adas_dir)
-     write(*,INTG_FMT) 'n_adas              ',  n_adas
      write(*,INTG_FMT) 'n_spi               ',  n_spi
      write(*,INTG_FMT) 'n_spi_tot           ',  n_spi_tot
      write(*,INTG_FMT) 'n_inj               ',  n_inj

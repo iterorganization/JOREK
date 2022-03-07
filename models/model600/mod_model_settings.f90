@@ -79,8 +79,8 @@ integer,  parameter :: n_terms_u    = 11
 integer,  parameter :: n_terms_zj   = 1
 integer,  parameter :: n_terms_w    = 1
 integer,  parameter :: n_terms_rho  = 12
-integer,  parameter :: n_terms_T    = 15
-integer,  parameter :: n_terms_Te   = 15
+integer,  parameter :: n_terms_T    = 16
+integer,  parameter :: n_terms_Te   = 16
 integer,  parameter :: n_terms_Ti   = 11
 integer,  parameter :: n_terms_vpar = 10
 integer,  parameter :: n_terms_rhon = 7
@@ -141,7 +141,8 @@ character*36, dimension(n_terms_T),     parameter :: T_term_names=  &
                                                  'T_Eq__ionization_sink  ', &  ! 12:
                                                  'T_Eq__line_radiation   ', &  ! 13:
                                                  'T_Eq__Brems_radiation  ', &  ! 14:
-                                                 'T_Eq__backg_imp_radiat '/)   ! 15:
+                                                 'T_Eq__backg_imp_radiat ', &  ! 15:
+                                                 'T_Eq__power_teleported '/)   ! 16:
 
 character*36, dimension(n_terms_Ti),    parameter :: Ti_term_names=  &
                                               (/ 'Ti_Eq__ext_heat_source ', &  !  1:
@@ -171,7 +172,8 @@ character*36, dimension(n_terms_Te),    parameter :: Te_term_names=  &
                                                  'Te_Eq__ionization_sink ', &  ! 12:
                                                  'Te_Eq__line_radiation  ', &  ! 13:
                                                  'Te_Eq__Brems_radiation ', &  ! 14:
-                                                 'Te_Eq__backg_imp_radiat'/)   ! 15:
+                                                 'Te_Eq__backg_imp_radiat', &  ! 15:
+                                                 'Te_Eq__power_teleported'/)   ! 16:
 
 
 character*36, dimension(n_terms_vpar),  parameter :: vpar_term_names=  &
@@ -222,6 +224,10 @@ subroutine assign_term_names()
       term_names(k_var, 1:n_terms_rho ) = rho_term_names(:) 
     else if (k_var == var_T   ) then
       term_names(k_var, 1:n_terms_T   ) = T_term_names(:) 
+    else if (k_var == var_Ti  ) then
+      term_names(k_var, 1:n_terms_Ti  ) = Ti_term_names(:)
+    else if (k_var == var_Te  ) then
+      term_names(k_var, 1:n_terms_Te  ) = Te_term_names(:)
     else if (k_var == var_vpar) then
       term_names(k_var, 1:n_terms_vpar) = vpar_term_names(:)
     else if (k_var == var_rhon) then

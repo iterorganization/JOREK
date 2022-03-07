@@ -119,6 +119,7 @@ namelist /in1/  tstep, nstep, tstep_n, nstep_n,                     &
                 spi_quantity_bg, pellet_density_bg,                 &
                 ng_radius_ratio, ng_radius_min, spi_angle,          &
                 spi_L_inj, spi_L_inj_diff,                          &
+                drift_distance, energy_teleported,                  &
                 K_Dmv, A_Dmv, L_tube, V_Dmv, P_Dmv,                 &
                 spi_Vel_diff, t_ns, JET_MGI, ASDEX_MGI,             &
                 imp_type, delta_n_convection, nimp_bg, n_adas,      &
