@@ -382,9 +382,12 @@ module phys_module
   real*8  :: ns_deltaphi       !< Toroidal extension of gas source
   real*8  :: ns_deltaminrad    !< Extension of gas source in the minor radial direction (if greater than 0.)
   real*8  :: ns_tor_norm       !< Gas source normalization factor related to its toroidal shape
+  real*8  :: drift_distance    !< Shift the R position of the neutral deposition outward by drift_distance (in meters) for plasmoid drift
+  real*8  :: energy_teleported !< Energy (in eV) teleported per atom to consider plasmoid drift effects
 
   character(len=80) :: imp_type(n_imp_max) !< Type of injected material or background impurity species: Argon, neon, ...
   logical :: use_imp_adas       !< Use open adas to calculate ionization, recombination and radiation coeffients for impurities
+
 
   !> @name Massive gas injection-related input parameters
   

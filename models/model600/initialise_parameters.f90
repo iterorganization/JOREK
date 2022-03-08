@@ -151,6 +151,7 @@ namelist /in1/  tstep, nstep, tstep_n, nstep_n,                     &
                 spi_Vel_RxZref, spi_quantity, spi_abl_model,        &
                 ng_radius_ratio, ng_radius_min, spi_angle,          &
                 spi_L_inj, spi_L_inj_diff,                          &
+                drift_distance, energy_teleported,                  &
                 K_Dmv, A_Dmv, L_tube, V_Dmv, P_Dmv,                 &
                 spi_Vel_diff, t_ns, JET_MGI, ASDEX_MGI,             &
                 delta_n_convection, nimp_bg, output_prad_phi,       &
@@ -316,11 +317,16 @@ if ( my_id == 0 ) then
     stop
   end if
 
- if (index_main_imp < 0 .or. index_main_imp > n_adas) then 
+  if (index_main_imp < 0 .or. index_main_imp > n_adas) then 
     write(*,*) "ERROR: Illegal value of index_main_imp, EXITING!"
     write(*,*) "ERROR: index_main_imp:", index_main_imp
     stop
- end if
+  end if
+
+  if (drift_distance < 0.d0 .or. energy_teleported < 0.d0) then 
+    write(*,*) "ERROR: drift_distance and energy_teleported should be 0 or positive as signs already handled in codes, EXITING!"
+    stop
+  end if
 
   if (using_spi) call init_spi_all()
 

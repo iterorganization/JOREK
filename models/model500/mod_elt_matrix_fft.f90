@@ -100,12 +100,8 @@ real*8     :: Btheta2, epsil, Btheta2_psi
 real*8, dimension(n_gauss,n_gauss)    :: amu_neo_prof, aki_neo_prof
 ! neutral source
 real*8     :: source_neutral
-real*8     :: source_neutral_tmp
 ! time normalisation
 real*8     :: t_norm
-! Temporary variables serving the SPI module
-integer    :: spi_i
-real*8     :: ng_radius !< Radius of neutral gas cloud as a result of the ablation
 ! Atomic physics coefficients:
 !   -Ionization
 real*8     :: Sion_T, dSion_dT                                ! Ionization rate and its derivative wrt. temperature
