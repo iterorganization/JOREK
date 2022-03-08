@@ -16,7 +16,7 @@ module mod_rootfinding
   private
   public :: newtons_method
   public :: halleys_method
-  public :: fun, dfun, ddfun, fun_dfun_2d, fun_dfun_3d
+  public :: fun, dfun, ddfun, fun_dfun_1dot5d,fun_dfun_2d, fun_dfun_3d
   public :: root,root_cubic,root_quadratic
 
   !> Base type describing a function with optional private parameters
@@ -38,6 +38,13 @@ module mod_rootfinding
   contains
     procedure(ddf), pass, deferred :: ddf
   end type
+
+  !> type descrbing a 2d function and its jacobian
+  !> with one parametric coordinate
+  type,abstract :: fun_dfun_1dot5d
+    contains
+    procedure(f_df_1dot5d),pass,deferred :: f_df
+  end type fun_dfun_1dot5d
 
   !> type descrbing a 2d function and its jacobian 
   type,abstract :: fun_dfun_2d
@@ -86,8 +93,18 @@ module mod_rootfinding
       real*8, intent(in) :: x
       real*8 :: ddf
     end function ddf
+    pure subroutine f_df_1dot5d(this,f,J,x,n_int_coords,int_coords)
+      import fun_dfun_1dot5d
+      implicit none
+      class(fun_dfun_1dot5d),intent(inout)       :: this
+      real*8,intent(out)                         :: f,J
+      real*8,dimension(2),intent(in)             :: x
+      integer,intent(in)                         :: n_int_coords
+      integer,dimension(n_int_coords),intent(in) :: int_coords
+    end subroutine f_df_1dot5d
     pure subroutine f_df_2d(this,f,J,x,n_int_coords,int_coords)
       import fun_dfun_2d
+      implicit none
       class(fun_dfun_2d),intent(inout)           :: this
       real*8,dimension(2),intent(out)            :: f
       real*8,dimension(2,2),intent(out)          :: J
@@ -97,6 +114,7 @@ module mod_rootfinding
     end subroutine f_df_2d
     pure subroutine f_df_3d(this,f,J,x,n_int_coords,int_coords)
       import fun_dfun_3d
+      implicit none
       class(fun_dfun_3d),intent(inout)           :: this
       real*8,dimension(3),intent(out)            :: f
       real*8,dimension(3,3),intent(out)          :: J
@@ -109,6 +127,7 @@ module mod_rootfinding
   interface newtons_method
     module procedure newtons_method_f
     module procedure newtons_method_o
+    module procedure newtons_method_1dot5d_o
     module procedure newtons_method_2d_o
     module procedure newtons_method_3d_o
   end interface
@@ -177,6 +196,51 @@ contains
     end do
     ierr = 1 ! We did not find a root
   end subroutine newtons_method_o
+
+  !> implement the newton method for finding roots of a system
+  !> of one equation in two variables. one of the two variables
+  !> is considered to be a parameter. A subroutine complying with
+  !> the abstract class int_f_df_1dot5d has to be provided
+  !> inputs:
+  !>   f_df:         (fun_dfun_2d) class computing function and derivative values
+  !>   y0:           (real8)(2) value of the root to find
+  !>   x0:           (real8)(2) newton method first guess
+  !>   n_int_coords: (integer) size of the interger coordinates
+  !>   int_coords:   (integer)(n_int_coord) interger coordinates
+  !>                 1- which x has to be chosen for the Newton method
+  !>   tol_in:       (real8) tolerance
+  !>   maxit_in:     (integer)  maximum number of iteration
+  !> outputs:
+  !>   f_df: (f_df_2d) procedure computing function and derivative values
+  !>   x:    (real8)(2) system root
+  !>   ierr: (integer) 0 for success 1 otherwise
+  pure subroutine newtons_method_1dot5d_o(f_df_1dot5d,y0,x0,&
+  x,n_int_coords,int_coords,ierr,tol_in,maxit_in)
+    implicit none
+    !> inputs-outputs:
+    class(fun_dfun_1dot5d),intent(inout)       :: f_df_1dot5d
+    !> inputs:
+    integer,intent(in)                         :: n_int_coords,maxit_in
+    integer,dimension(n_int_coords),intent(in) :: int_coords
+    real*8,intent(in)                          :: tol_in,y0
+    real*8,dimension(2),intent(in)             :: x0
+    !> outputs:
+    integer,intent(out)             :: ierr
+    real*8,dimension(2),intent(out) :: x
+    !> variables:
+    integer :: ii
+    real*8  :: y,J
+    !> initialisation
+    x=x0; ierr=1;
+    do ii=1,maxit_in
+      call f_df_1dot5d%f_df(y,J,x,n_int_coords,int_coords)
+      y = y-y0
+      if(abs(y).lt.tol_in) then
+        ierr = 0; return;
+      endif
+      x(int_coords(1)) = x(int_coords(1)) - y/J
+    enddo
+  end subroutine newtons_method_1dot5d_o
 
   !> implement the newton method for finding the roots of a system
   !> of two equations in two variables. A subroutine

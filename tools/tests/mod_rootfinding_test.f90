@@ -3,12 +3,21 @@
 module mod_rootfinding_test
 use fruit
 use constants,       only: PI,TWOPI
-use mod_rootfinding, only: fun_dfun_2d,fun_dfun_3d
+use mod_rootfinding, only: fun_dfun_1dot5d,fun_dfun_2d,fun_dfun_3d
 implicit none
 private
 public :: run_fruit_rootfinding
 
 !> Variables and datatypes -------------------------------------------------
+type, extends(fun_dfun_1dot5d) :: fun_cossinpar_1dot5d
+  real*8,dimension(2) :: x_min,x_max
+  real*8              :: ksin,kcos
+  real*8,dimension(2) :: a,b,c
+  contains
+  procedure,pass :: f_df => cossinpar_1dot5d
+  procedure,pass :: reset_fun_cossipar_1dot5d
+end type fun_cossinpar_1dot5d
+
 type, extends(fun_dfun_2d) :: fun_cossinpar_2d
   real*8,dimension(2) :: x_min,x_max
   real*8              :: ksin,kcos
@@ -42,8 +51,12 @@ real*8,dimension(3),parameter    :: x_min_sol=(/-4.d1,3.d0,-1.2d1/)
 real*8,dimension(3),parameter    :: x_max_sol=(/2.d1,5.d1,9.d0/)
 type(fun_cossinpar)              :: cossinpar_sol
 type(fun_cossinpar_2d)           :: cossinpar_2d_sol
+type(fun_cossinpar_1dot5d)       :: cossinpar_1dot5d_sol
 integer                          :: n_no_int_coords_sol
+integer                          :: n_int_coords_1dot5d_sol
+integer,dimension(:),allocatable :: int_coords_1dot5d_sol
 integer,dimension(:),allocatable :: no_int_coords_sol
+real*8                           :: y01_cossinpar_1dot5d,y02_cossinpar_1dot5d 
 real*8,dimension(2)              :: y0_cossinpar_2d
 real*8,dimension(3)              :: x0_rand,y0_cossinpar
 real*8,dimension(3)              :: real_quadratic_coeff_real_roots
@@ -52,6 +65,9 @@ real*8,dimension(3)              :: real_cubic_coeff_cmplx_roots
 
 !> Interfaces --------------------------------------------------------------
 !> define the cossinpar constructor by overloading
+interface fun_cossinpar_1dot5d
+  module procedure init_fun_cossipar_1dot5d
+end interface fun_cossinpar_1dot5d
 interface fun_cossinpar_2d
   module procedure init_fun_cossipar_2d
 end interface fun_cossinpar_2d
@@ -71,6 +87,7 @@ subroutine run_fruit_rootfinding()
   call root_quadratic_real_coeff_real_roots
   call root_cubic_real_coeff_real_roots
   call root_cubic_real_coeff_cmplx_roots
+  call test_newtons_method_1dot5d_zeros
   call test_newtons_method_2d_zeros
   call test_newtons_method_2d_y0
   call test_newtons_method_3d_zeros
@@ -85,11 +102,17 @@ subroutine setup()
   use mod_gnu_rng, only: gnu_rng_interval
   implicit none
   !> variables:
+  real*8                :: J_scal
   real*8,dimension(3)   :: x_loc
   real*8,dimension(3,3) :: J_loc
   !> initialise no integer coordinates
   n_no_int_coords_sol=0; allocate(no_int_coords_sol(n_no_int_coords_sol));
+  n_int_coords_1dot5d_sol=1; allocate(int_coords_1dot5d_sol(n_int_coords_1dot5d_sol));
   !> initialise the cossinpar object
+  cossinpar_1dot5d_sol = fun_cossinpar_1dot5d(x_min_sol(1:2),x_max_sol(1:2),&
+  kcos_sol(1),ksin_sol(1),a_parabolic(1:2),b_parabolic(1:2),c_parabolic(1:2))
+  cossinpar_sol = fun_cossinpar(x_min_sol,x_max_sol,kcos_sol,ksin_sol,&
+  a_parabolic,b_parabolic,c_parabolic)
   cossinpar_2d_sol = fun_cossinpar_2d(x_min_sol(1:2),x_max_sol(1:2),&
   kcos_sol(1),ksin_sol(1),a_parabolic(1:2),b_parabolic(1:2),c_parabolic(1:2))
   cossinpar_sol = fun_cossinpar(x_min_sol,x_max_sol,kcos_sol,ksin_sol,&
@@ -102,6 +125,12 @@ subroutine setup()
   n_no_int_coords_sol,no_int_coords_sol)
   call cossinpar_2d_sol%f_df(y0_cossinpar_2d,J_loc,x_loc(1:2),&
   n_no_int_coords_sol,no_int_coords_sol)
+  int_coords_1dot5d_sol(1) = 1;
+  call cossinpar_1dot5d_sol%f_df(y01_cossinpar_1dot5d,J_scal,&
+  x_loc(1:2),n_int_coords_1dot5d_sol,int_coords_1dot5d_sol)
+  int_coords_1dot5d_sol(1) = 2;
+  call cossinpar_1dot5d_sol%f_df(y02_cossinpar_1dot5d,J_scal,&
+  x_loc(1:2),n_int_coords_1dot5d_sol,int_coords_1dot5d_sol)
 end subroutine setup
 
 !> set-up features for finding the root of polynomials
@@ -167,10 +196,46 @@ subroutine teardown()
   x0_rand=0.d0; y0_cossinpar=0.d0; n_no_int_coords_sol=0;
   real_cubic_coeff_real_roots=0.d0; real_cubic_coeff_cmplx_roots=0.d0;
   if(allocated(no_int_coords_sol)) deallocate(no_int_coords_sol)
+  if(allocated(int_coords_1dot5d_sol)) deallocate(int_coords_1dot5d_sol)
   call cossinpar_sol%reset_fun_cossipar
+  call cossinpar_2d_sol%reset_fun_cossipar_2d
+  call cossinpar_1dot5d_sol%reset_fun_cossipar_1dot5d
 end subroutine teardown
 
 !> Tests -------------------------------------------------------------------
+!> test find at least one zero given a parameter
+subroutine test_newtons_method_1dot5d_zeros()
+  use mod_rootfinding, only: newtons_method
+  implicit none
+  !> variables
+  integer :: ierr
+  real*8              :: y01_test,y02_test,J_test
+  real*8,dimension(2) :: x1_test,x2_test
+  !> call the newtonm method
+  int_coords_1dot5d_sol(1) = 1
+  call newtons_method(cossinpar_1dot5d_sol,0.d0,x0_rand(1:2),x1_test,&
+  n_int_coords_1dot5d_sol,int_coords_1dot5d_sol,ierr,tol_real8,maxit)
+  call cossinpar_1dot5d_sol%f_df(y01_test,J_test,x1_test,&
+  n_int_coords_1dot5d_sol,int_coords_1dot5d_sol)
+  !> test second coordinate
+  int_coords_1dot5d_sol(1) = 2
+  call newtons_method(cossinpar_1dot5d_sol,0.d0,x0_rand(1:2),x2_test,&
+  n_int_coords_1dot5d_sol,int_coords_1dot5d_sol,ierr,tol_real8,maxit)
+  call cossinpar_1dot5d_sol%f_df(y02_test,J_test,x2_test,&
+  n_int_coords_1dot5d_sol,int_coords_1dot5d_sol)
+  !> checks
+  call assert_equals(x1_test(2),x0_rand(2),tol_real8,&
+  "Error root finding newton method 1.5d object: second coordinate changed!")
+  call assert_equals(y01_test,0.d0,tol_real8,&
+  "Error root finding newton method 1.5d object: first coordinate root values are not zeros!")
+  call assert_equals(x2_test(1),x0_rand(1),tol_real8,&
+  "Error root finding newton method 1.5d object: first coordinate changed!")
+  call assert_equals(y02_test,0.d0,tol_real8,&
+  "Error root finding newton method 1.5d object: second coordinate root values are not zeros!")
+  call assert_equals(ierr,0,&
+  "Error root finding newton method 1.5d object: maximum number of iterations reach finding zeros!")
+end subroutine test_newtons_method_1dot5d_zeros
+
 !> test find at least one zero
 subroutine test_newtons_method_2d_zeros()
   use mod_rootfinding, only: newtons_method
@@ -467,6 +532,77 @@ pure subroutine cossinpar_2d(this,f,J,x,n_int_coords,int_coords)
            this%ksin*cos(this%ksin*x_norm_val(2))/)/(this%x_max(2) - this%x_min(2))
 end subroutine cossinpar_2d
 
+!> initialise function cossinparabola 1.5d to use for testing
+!> inputs:
+!>   this:  (fun_cossinpar_1dot5d) function object to be initialised
+!>   x_min: (real8)(2) left boundary of the space interval x,y
+!>   x_max: (real8)(2) right boundary of the space interval x,y
+!>   ksin   (real8) cosinus mode numbers
+!>   kcos   (real8) sinus mode numbers
+!>   a:     (real8)(2) parabola x^2 parameters
+!>   b:     (real8)(2) parabola x b parameters
+!>   c:     (real8)(2) parabola c parameters
+!> outputs:
+!>   this:  (fun_cossinpar_1dot5d) initialised function object
+function init_fun_cossipar_1dot5d(x_min,x_max,ksin,kcos,a,b,c) result(this)
+  implicit none
+  !> inputs-outputs:
+  type(fun_cossinpar_1dot5d) :: this
+  !> inputs:
+  real*8,intent(in)              :: kcos,ksin
+  real*8,dimension(2),intent(in) :: x_min,x_max,a,b,c
+  !> initialise variables
+  this%x_min=x_min; this%x_max=x_max; this%ksin=ksin; 
+  this%kcos=kcos; this%a=a; this%b=b; this%c=c;
+end function init_fun_cossipar_1dot5d
+
+!> reset function cossinparabola parameters
+!> inputs:
+!>   this:  (fun_cossinpar_1dot5d) function object to reset
+!> outputs:
+!>   this:  (fun_cossinpar_1dot5d) reset function object
+subroutine reset_fun_cossipar_1dot5d(this)
+  implicit none
+  !> inputs-outputs:
+  class(fun_cossinpar_1dot5d),intent(inout) :: this
+  !> reset variables
+  this%x_min=0.d0; this%x_max=0.d0; this%ksin=0.d0; 
+  this%kcos=0.d0; this%a=0.d0; this%b=0.d0; this%c=0.d0;
+end subroutine reset_fun_cossipar_1dot5d
+
+!> function cossinparabola to be used for testing (1.5d)
+!> inputs:
+!>   this: (cossinpar_1dot5d) cossinpar object
+!>   x:    (real8)(2) abscissa
+!> outputs:
+!>   y:    (real8) ordinate along the int_coords(1) direction
+!>   J:    (real8) derivative along the int_coords(1) direction
+pure subroutine cossinpar_1dot5d(this,f,J,x,n_int_coords,int_coords)
+  implicit none
+  !> inputs:
+  class(fun_cossinpar_1dot5d),intent(inout)  :: this
+  integer,intent(in)                         :: n_int_coords
+  integer,dimension(n_int_coords),intent(in) :: int_coords
+  real*8,dimension(2),intent(in)  :: x
+  !> outputs:
+  real*8,intent(out)   :: f,J
+  !> variables
+  real*8,dimension(2) :: x_norm_val
+  !> initialise
+  x_norm_val = (x - this%x_min)/(this%x_max - this%x_min)
+  !> compute function
+  if(int_coords(1).eq.1) then
+    f = cos(this%kcos*x_norm_val(1))*(this%a(1)*x_norm_val(2)*&
+        x_norm_val(2)+this%b(1)*x_norm_val(2)+this%c(1)) 
+    J = (-1.d0*this%kcos*sin(this%kcos*x_norm_val(1))*(this%a(1)*x_norm_val(2)*&
+        x_norm_val(2)+this%b(1)*x_norm_val(2)+this%c(1)))/(this%x_max(1) - this%x_min(1))
+  else
+    f = (this%a(2)*x_norm_val(1)*x_norm_val(1)+this%b(2)*&
+        x_norm_val(1)+this%c(2))*sin(this%ksin*x_norm_val(2))
+    J = ((this%a(2)*x_norm_val(1)*x_norm_val(1)+this%b(2)*x_norm_val(1)+this%c(2))*&
+        this%ksin*cos(this%ksin*x_norm_val(2)))/(this%x_max(2) - this%x_min(2))
+  endif
+end subroutine cossinpar_1dot5d
 !>--------------------------------------------------------------------------
 end module mod_rootfinding_test
 
