@@ -218,7 +218,8 @@ module pellet_module
     real*8  :: R, R_s, R_t, Z, Z_s, Z_t
     real*8  :: s_out,t_out
     
-    real*8  :: n_SI, T_eV, n_corr, T_corr, n_imp_SI, ne_SI
+    real*8  :: n_SI, T_eV, n_corr, T_corr, n_imp_SI, ne_SI, Psi_spi, spi_abl_nl
+    real*8  :: T_eV_nl, ne_SI_nl
     real*8  :: t_norm, B0, nu
     real*8  :: spi_delta_phi, spi_Vel_R_tmp, spi_Vel_phi_tmp, spi_phi_inj
     real*8  :: spi_density_tmp
@@ -383,6 +384,8 @@ module pellet_module
         ! = T_i
         !n_SI           = n_corr * 1.d20 * central_density
         !T_eV           = T_corr / (2.d0* EL_CHG * MU_ZERO * central_density * 1.d20)
+
+        Psi_spi        = P(4)
         
         n_SI           = P(1) * 1.d20 * central_density
         if (n_SI < 0.) n_SI = 0.
@@ -398,11 +401,34 @@ module pellet_module
         ! variable
         n_imp_SI           = P(3) * 1.d20 * central_density
         if (n_imp_SI < 0.) n_imp_SI = 0.      
-  
+ 
+        T_eV_nl = 0.
+        ne_SI_nl = 0.
+        ! Find the index of the fragments 
+        if (nonlocal_abl .and. get_psi_n(Psi_spi, Z_out) <= 1.0) then
+          i_loc = minloc(abs(nl_Psi - Psi_spi), dim=1)
+          if (abs(Psi_spi-ES%psi_axis) .lt. abs(nl_Psi(i_loc)-ES%psi_axis)) i_loc = i_loc - 1 ! find other index
+          if (i_loc < 1 .or. i_loc > n_nonlocal_array) then
+            write(*,*) "ERROR in finding i_loc for Psi_spi!", i_loc, Psi_spi, ES%psi_axis, ES%psi_bnd
+            stop
+          endif
+          T_eV_nl = nl_avg_Te / (EL_CHG * MU_ZERO * central_density * 1.d20)
+          n_SI_nl = nl_avg_ne * 1.d20 * central_density
+          if ((T_eV_nl .ne. T_eV_nl) .or. (ne_SI_nl .ne. ne_SI_nl)) then
+            write(*,*) "Something wrong with the nonlocal array!", i_loc, T_eV_nl, ne_SI_nl
+            stop
+          endif
+        endif
+ 
         ! NGS model
         if (spi_abl_model == 1) then
-          pellets(i_p)%spi_abl    = 4.12d16 * (pellets(i_p)%spi_radius**(4.0/3.0)) * (n_SI**(1.0/3.0)) * &
+          pellets(i_p)%spi_abl    = 4.12d16 * (pellets(i_p)%spi_radius**(4.0/3.0)) * (ne_SI**(1.0/3.0)) * &
                                    (T_eV**1.64)
+          if (nonlocal_abl) then
+            spi_abl_nl            = 4.12d16 * (pellets(i_p)%spi_radius**(4.0/3.0)) * (ne_SI_nl**(1.0/3.0)) * &
+                                   (T_eV_nl**1.64)
+            pellets(i_p)%spi_abl  = max(pellets(i_p)%spi_abl,spi_abl_nl)
+          endif
           if (my_id == 0 .and. pellets(i_p)%spi_radius > 0.0 .and. mod(index_now,20)==0) then
             write(*,*) "Check Point, n_SI, T_eV = ", n_SI, T_eV
           end if
@@ -413,6 +439,11 @@ module pellet_module
               ! The scaling law is in gauss unit
               pellets(i_p)%spi_abl = 3.9d14 * ((pellets(i_p)%spi_radius*1.d2)**1.455) &
                                      * ((ne_SI*1.d-6)**0.455) * (T_eV**1.679)
+              if (nonlocal_abl) then
+                spi_abl_nl         = 3.9d14 * ((pellets(i_p)%spi_radius*1.d2)**1.455) &
+                                     * ((ne_SI_nl*1.d-6)**0.455) * (T_eV_nl**1.679)
+                pellets(i_p)%spi_abl  = max(pellets(i_p)%spi_abl,spi_abl_nl)
+              endif
             case('Ar')
               if (T_eV >= 1.) then
                 ! As with element_matrix, mimick density as 1.d20
@@ -433,6 +464,16 @@ module pellet_module
                 pellets(i_p)%spi_abl = 3.9d14 * ((pellets(i_p)%spi_radius*1.d2)**1.455) &
                                        * ((ne_SI*1.d-6)**0.455) * (T_eV**1.679) 
               end if
+              if (nonlocal_abl) then
+                if (pellets(i_p)%spi_species == 1.) then
+                  spi_abl_nl = 2.5d13 * ((pellets(i_p)%spi_radius*1.d2)**1.451) &
+                                         * ((ne_SI_nl*1.d-6)**0.451) * (T_eV_nl**1.679)
+                else if (pellets(i_p)%spi_species == 0.) then
+                  spi_abl_nl = 3.9d14 * ((pellets(i_p)%spi_radius*1.d2)**1.455) &
+                                         * ((ne_SI_nl*1.d-6)**0.455) * (T_eV_nl**1.679) 
+                end if
+                pellets(i_p)%spi_abl  = max(pellets(i_p)%spi_abl,spi_abl_nl)
+              endif
             ! Using general scaling law of Sergeev for Neon
             case('Ne')
               if (T_eV >= 1.) then
@@ -457,11 +498,28 @@ module pellet_module
                 pellets(i_p)%spi_abl = 3.9d14 * ((pellets(i_p)%spi_radius*1.d2)**1.455) &
                                        * ((ne_SI*1.d-6)**0.455) * (T_eV**1.679)
               end if
+              if (nonlocal_abl) then
+                if (pellets(i_p)%spi_species == 1.) then
+                  spi_abl_nl = 1.94d14 * ((pellets(i_p)%spi_radius*1.d2)**1.44) &
+                                         * ((ne_SI_nl*1.d-6)**0.45) * (T_eV_nl**1.72)         &
+                                         * (0.02**(-0.16)) * (20.**(-0.28))             &
+                                         * (10.**(-0.56)) * ((2./3.)**0.28)
+                else if (pellets(i_p)%spi_species == 0.) then
+                  spi_abl_nl = 3.9d14 * ((pellets(i_p)%spi_radius*1.d2)**1.455) &
+                                         * ((ne_SI_nl*1.d-6)**0.455) * (T_eV_nl**1.679)
+                end if
+                pellets(i_p)%spi_abl  = max(pellets(i_p)%spi_abl,spi_abl_nl)
+              endif
             case default
               write(*,*) '!! Gas type "', trim(imp_type(index_main_imp)), '" unknown !!'
               write(*,*) '=> We assume the gas is D2.'
               pellets(i_p)%spi_abl = 3.9d14 * ((pellets(i_p)%spi_radius*1.d2)**1.455) &
                                      * ((n_SI*1.d-6)**0.455) * (T_eV**1.679)
+              if (nonlocal_abl) then
+                spi_abl_nl         = 3.9d14 * ((pellets(i_p)%spi_radius*1.d2)**1.455) &
+                                     * ((ne_SI_nl*1.d-6)**0.455) * (T_eV_nl**1.679)
+                pellets(i_p)%spi_abl  = max(pellets(i_p)%spi_abl,spi_abl_nl)
+              endif
           end select
           if (my_id == 0 .and. pellets(i_p)%spi_radius > 0.0 .and. mod(index_now,20)==0) then
             write(*,*) "Check Point, ne_SI, T_eV = ", ne_SI, T_eV
@@ -470,7 +528,12 @@ module pellet_module
           select case ( trim(imp_type(index_main_imp)) )
             case('D2') ! We temporarily wusing D2 ablation rate for H2 ablation here
               pellets(i_p)%spi_abl = 39.0023 * 2. * MOLE_NUMBER * ((pellets(i_p)%spi_radius*1.d2 / 0.2)**(4./3.)) &
-                                     * ((n_SI*1.d-20)**(1./3.)) * ((T_eV/2.d3)**(5./3.)) / 4.0282
+                                     * ((ne_SI*1.d-20)**(1./3.)) * ((T_eV/2.d3)**(5./3.)) / 4.0282
+              if (nonlocal_abl) then
+                spi_abl_nl = 39.0023 * 2. * MOLE_NUMBER * ((pellets(i_p)%spi_radius*1.d2 / 0.2)**(4./3.)) &
+                                       * ((ne_SI_nl*1.d-20)**(1./3.)) * ((T_eV_nl/2.d3)**(5./3.)) / 4.0282
+                pellets(i_p)%spi_abl  = max(pellets(i_p)%spi_abl,spi_abl_nl)
+              endif
             case('Ar')  ! Argon and H2/D2 formed separately
               if (T_eV >= 1.) then
                 ! As with element_matrix, mimick density as 1.d20
@@ -491,6 +554,16 @@ module pellet_module
                 pellets(i_p)%spi_abl = 39.0023 * 2. * MOLE_NUMBER * ((pellets(i_p)%spi_radius*1.d2 / 0.2)**(4./3.)) &
                                        * ((ne_SI*1.d-20)**(1./3.)) * ((T_eV/2.d3)**(5./3.)) / 4.0282
               end if
+              if (nonlocal_abl) then
+                if (pellets(i_p)%spi_species == 1.) then
+                  spi_abl_nl = 36.6337 * MOLE_NUMBER * ((pellets(i_p)%spi_radius*1.d2 / 0.2)**(4./3.)) &
+                                         * ((ne_SI_nl*1.d-20)**(1./3.)) * ((T_eV_nl/2.d3)**(5./3.)) / 39.948
+                else if (pellets(i_p)%spi_species == 0.) then
+                  spi_abl_nl = 39.0023 * 2. * MOLE_NUMBER * ((pellets(i_p)%spi_radius*1.d2 / 0.2)**(4./3.)) &
+                                         * ((ne_SI_nl*1.d-20)**(1./3.)) * ((T_eV_nl/2.d3)**(5./3.)) / 4.0282
+                end if
+                pellets(i_p)%spi_abl  = max(pellets(i_p)%spi_abl,spi_abl_nl)
+              endif
             case('Ne')  ! Neond and H2/D2 mixed together
               if (T_eV >= 1.) then
                 ! As with element_matrix, mimick density as 1.d20
@@ -509,11 +582,23 @@ module pellet_module
                                        * MOLE_NUMBER * ((pellets(i_p)%spi_radius*1.d2 / 0.2)**(4./3.)) &
                                        * ((ne_SI*1.d-20)**(1./3.)) * ((T_eV/2.d3)**(5./3.)) &
                                        / (20.183*pellets(i_p)%spi_species + 2.0141*(1.-pellets(i_p)%spi_species)) 
+              if (nonlocal_abl) then
+                spi_abl_nl = (27.0837 + TAN(1.48709*(1.-pellets(i_p)%spi_species)/(1.+pellets(i_p)%spi_species))) &
+                                       * MOLE_NUMBER * ((pellets(i_p)%spi_radius*1.d2 / 0.2)**(4./3.)) &
+                                       * ((ne_SI_nl*1.d-20)**(1./3.)) * ((T_eV_nl/2.d3)**(5./3.)) &
+                                       / (20.183*pellets(i_p)%spi_species + 2.0141*(1.-pellets(i_p)%spi_species)) 
+                pellets(i_p)%spi_abl  = max(pellets(i_p)%spi_abl,spi_abl_nl)
+              endif
             case default
               write(*,*) '!! Gas type "', trim(imp_type(index_main_imp)), '" unknown !!'
               write(*,*) '=> We assume the gas is D2.'
               pellets(i_p)%spi_abl = 39.0023 * 2. * MOLE_NUMBER * ((pellets(i_p)%spi_radius*1.d2 / 0.2)**(4./3.)) &
                                      * ((n_SI*1.d-20)**(1./3.)) * ((T_eV/2.d3)**(5./3.)) / 4.0282
+              if (nonlocal_abl) then
+                spi_abl_nl = 39.0023 * 2. * MOLE_NUMBER * ((pellets(i_p)%spi_radius*1.d2 / 0.2)**(4./3.)) &
+                                       * ((ne_SI_nl*1.d-20)**(1./3.)) * ((T_eV_nl/2.d3)**(5./3.)) / 4.0282
+                pellets(i_p)%spi_abl  = max(pellets(i_p)%spi_abl,spi_abl_nl)
+              endif
           end select
   
           B0 = abs(F0 / R_geo)
