@@ -458,6 +458,13 @@ module phys_module
 
   type (type_SPI), allocatable :: pellets(:) !< Each element corresponds to one injected pellet (shard)
 
+  !> @name This is to record the flux-surface averaged ne and Te for the non-local ablation calculation
+  logical               :: nonlocal_abl ! Whether non-local ablation is on
+  integer               :: n_nonlocal_array  !< Length of the nonlocal array, the larger the higher the resolution
+  real*8, allocatable   :: nl_Psi(:)    !< The psi coordinate of the nonlocal array
+  real*8, allocatable   :: nl_avg_Te(:) !< The average fluid temperature of the nonlocal array
+  real*8, allocatable   :: nl_avg_ne(:) !< The average fluid density of the nonlocal array
+
   character(len=512)            :: adas_dir    !< The directory of ADAS data file to be read
   type (adf11_all), allocatable :: imp_adas(:) !< The ADAS data for impurities
   type (coronal), allocatable   :: imp_cor(:)  !< The coronal equilibrium distribution of impurities

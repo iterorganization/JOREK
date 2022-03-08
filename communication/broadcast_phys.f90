@@ -315,12 +315,14 @@ if (my_id .eq. 0) then
   call MPI_PACK(ng_radius_min,          1,MPI_REAL8,buffer,bufsize,position,MPI_COMM_WORLD,ierr)
 
   call MPI_PACK(n_inj,                  1,MPI_INTEGER,buffer,bufsize,position,MPI_COMM_WORLD,ierr)
+  call MPI_PACK(n_nonlocal_array,       1,MPI_INTEGER,buffer,bufsize,position,MPI_COMM_WORLD,ierr)
   call MPI_PACK(n_spi,          n_inj_max,MPI_INTEGER,buffer,bufsize,position,MPI_COMM_WORLD,ierr)
   call MPI_PACK(n_spi_tot,              1,MPI_INTEGER,buffer,bufsize,position,MPI_COMM_WORLD,ierr)
   call MPI_PACK(spi_rnd_seed,          40,MPI_INTEGER,buffer,bufsize,position,MPI_COMM_WORLD,ierr)
   call MPI_PACK(spi_abl_model,          1,MPI_INTEGER,buffer,bufsize,position,MPI_COMM_WORLD,ierr)
   call MPI_PACK(spi_shard_file, n_inj_max*256,MPI_CHARACTER,buffer,bufsize,position,MPI_COMM_WORLD,ierr)
   call MPI_PACK(using_spi,              1,MPI_LOGICAL,buffer,bufsize,position,MPI_COMM_WORLD,ierr)
+  call MPI_PACK(nonlocal_abl,           1,MPI_LOGICAL,buffer,bufsize,position,MPI_COMM_WORLD,ierr)
 
   call MPI_PACK(spi_plume_file, n_inj_max*256,MPI_CHARACTER,buffer,bufsize,position,MPI_COMM_WORLD,ierr)
   call MPI_PACK(spi_plume_hdf5,             1,MPI_LOGICAL,buffer,bufsize,position,MPI_COMM_WORLD,ierr)
@@ -328,6 +330,12 @@ if (my_id .eq. 0) then
   if (using_spi) then
     call MPI_PACK(pellets,      n_spi_tot,dtype,buffer,bufsize,position,MPI_COMM_WORLD,ierr)
     write(*,*) "packing pellets: ", ierr
+
+    if (nonlocal_abl) then
+      call MPI_PACK(nl_Psi   ,n_nonlocal_array,MPI_REAL8,buffer,bufsize,position,MPI_COMM_WORLD,ierr)
+      call MPI_PACK(nl_avg_Te,n_nonlocal_array,MPI_REAL8,buffer,bufsize,position,MPI_COMM_WORLD,ierr)
+      call MPI_PACK(nl_avg_ne,n_nonlocal_array,MPI_REAL8,buffer,bufsize,position,MPI_COMM_WORLD,ierr)
+    endif
 
     call MPI_PACK(spi_tor_rot,          1,MPI_LOGICAL,buffer,bufsize,position,MPI_COMM_WORLD,ierr)
     call MPI_PACK(spi_num_vol,          1,MPI_LOGICAL,buffer,bufsize,position,MPI_COMM_WORLD,ierr)
@@ -1057,12 +1065,14 @@ if (my_id .ne. 0) then
   call MPI_UNPACK(buffer,bufsize,position,ng_radius_min,          1,MPI_REAL8,MPI_COMM_WORLD,ierr)
 
   call MPI_UNPACK(buffer,bufsize,position,n_inj,                  1,MPI_INTEGER,MPI_COMM_WORLD,ierr)
+  call MPI_UNPACK(buffer,bufsize,position,n_nonlocal_array,       1,MPI_INTEGER,MPI_COMM_WORLD,ierr)
   call MPI_UNPACK(buffer,bufsize,position,n_spi,          n_inj_max,MPI_INTEGER,MPI_COMM_WORLD,ierr)
   call MPI_UNPACK(buffer,bufsize,position,n_spi_tot,              1,MPI_INTEGER,MPI_COMM_WORLD,ierr)
   call MPI_UNPACK(buffer,bufsize,position,spi_rnd_seed,          40,MPI_INTEGER,MPI_COMM_WORLD,ierr)
   call MPI_UNPACK(buffer,bufsize,position,spi_abl_model,          1,MPI_INTEGER,MPI_COMM_WORLD,ierr)
   call MPI_UNPACK(buffer,bufsize,position,spi_shard_file, n_inj_max*256,MPI_CHARACTER,MPI_COMM_WORLD,ierr)
   call MPI_UNPACK(buffer,bufsize,position,using_spi,              1,MPI_LOGICAL,MPI_COMM_WORLD,ierr)
+  call MPI_UNPACK(buffer,bufsize,position,nonlocal_abl,           1,MPI_LOGICAL,MPI_COMM_WORLD,ierr)
 
   call MPI_UNPACK(buffer,bufsize,position,spi_plume_file, n_inj_max*256,MPI_CHARACTER,MPI_COMM_WORLD,ierr)
   call MPI_UNPACK(buffer,bufsize,position,spi_plume_hdf5,             1,MPI_LOGICAL,MPI_COMM_WORLD,ierr)
@@ -1072,6 +1082,15 @@ if (my_id .ne. 0) then
   
     call MPI_UNPACK(buffer,bufsize,position,pellets,      n_spi_tot,dtype,MPI_COMM_WORLD,ierr)
     write(*,*) "unpacking pellets: ", my_id,ierr
+
+    if (nonlocal_abl) then
+      if (.not. allocated(nl_Psi)) allocate (nl_Psi(n_nonlocal_array))
+      if (.not. allocated(nl_avg_Te)) allocate (nl_avg_Te(n_nonlocal_array))
+      if (.not. allocated(nl_avg_ne)) allocate (nl_avg_ne(n_nonlocal_array))
+      call MPI_UNPACK(buffer,bufsize,position,nl_Psi   ,n_nonlocal_array,MPI_REAL8,MPI_COMM_WORLD,ierr)
+      call MPI_UNPACK(buffer,bufsize,position,nl_avg_Te,n_nonlocal_array,MPI_REAL8,MPI_COMM_WORLD,ierr)
+      call MPI_UNPACK(buffer,bufsize,position,nl_avg_ne,n_nonlocal_array,MPI_REAL8,MPI_COMM_WORLD,ierr)
+    endif
 
     call MPI_UNPACK(buffer,bufsize,position,spi_tor_rot,          1,MPI_LOGICAL,MPI_COMM_WORLD,ierr)
     call MPI_UNPACK(buffer,bufsize,position,spi_num_vol,          1,MPI_LOGICAL,MPI_COMM_WORLD,ierr)

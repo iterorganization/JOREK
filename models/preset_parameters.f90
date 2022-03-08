@@ -712,6 +712,8 @@ subroutine preset_parameters
   spi_tor_rot     = .false.
   spi_num_vol     = .true.
   using_spi       = .false.
+  nonlocal_abl    = .false.
+  n_nonlocal_array= 0
 
   output_prad_phi = .false.
 

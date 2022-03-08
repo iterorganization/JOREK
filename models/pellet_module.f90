@@ -194,9 +194,12 @@ module pellet_module
     use phys_module, only: pellets, imp_type, central_density, central_mass, spi_abl_model, spi_tor_rot,      &
                            ns_phi_rotate, tor_frequency, tstep, pellet_density, pellet_density_bg,            &
                            index_now, xtime_spi_ablation, xtime_spi_ablation_bg, xtime_spi_ablation_rate,&
-                           xtime_spi_ablation_bg_rate, F0, R_geo, imp_cor, index_main_imp, n_adas, drift_distance
+                           xtime_spi_ablation_bg_rate, F0, R_geo, imp_cor, index_main_imp, n_adas, drift_distance,&
+                           nonlocal_abl, n_nonlocal_array, nl_Psi, nl_avg_Te, nl_avg_ne
+
     use mpi_mod
     use corr_neg
+    use equil_info, only : get_psi_n, ES
     
     implicit none
     
@@ -209,7 +212,7 @@ module pellet_module
     real*8  :: kin_par_tot, kin_par_in, kin_par_out, mom_par_tot, mom_par_in, mom_par_out
     
     real*8  :: R_out, Z_out
-    integer :: i_elm, ifail, i, ierr, i_p
+    integer :: i_elm, ifail, i, ierr, i_p, i_loc
     
     real*8, dimension(4) :: P, P_s, P_t, P_phi
     real*8  :: R, R_s, R_t, Z, Z_s, Z_t
@@ -338,18 +341,18 @@ module pellet_module
 
 #if ((defined WITH_Impurities) || (defined WITH_Neutrals))
 #ifdef WITH_TiTe
-        call interp_PRZ(node_list,element_list,i_elm,[var_rho,var_Te,var_rhon,1],4,s_out,t_out,pellets(i_p)%spi_phi,&
+        call interp_PRZ(node_list,element_list,i_elm,[var_rho,var_Te,var_rhon,var_psi],4,s_out,t_out,pellets(i_p)%spi_phi,&
                         P,P_s,P_t,P_phi,R,R_s,R_t,Z,Z_s,Z_t)        
         if (drift_distance /= 0) then
-          call interp_PRZ(node_list,element_list,i_elm_drift,[var_rho,var_Te,var_rhon,1],4,s_out_drift,t_out_drift,pellets(i_p)%spi_phi,&
+          call interp_PRZ(node_list,element_list,i_elm_drift,[var_rho,var_Te,var_rhon,var_psi],4,s_out_drift,t_out_drift,pellets(i_p)%spi_phi,&
                                  P_drift,P_s_drift,P_t_drift,P_phi_drift,R_drift,R_s_drift,R_t_drift,Z_drift,Z_s_drift,Z_t_drift)
         end if
 
 #else /* WITH_TiTe */
-        call interp_PRZ(node_list,element_list,i_elm,[var_rho,var_T,var_rhon,1],4,s_out,t_out,pellets(i_p)%spi_phi,&
+        call interp_PRZ(node_list,element_list,i_elm,[var_rho,var_T,var_rhon,var_psi],4,s_out,t_out,pellets(i_p)%spi_phi,&
                         P,P_s,P_t,P_phi,R,R_s,R_t,Z,Z_s,Z_t)
         if (drift_distance /= 0) then
-          call interp_PRZ(node_list,element_list,i_elm_drift,[var_rho,var_T,var_rhon,1],4,s_out_drift,t_out_drift,pellets(i_p)%spi_phi,&
+          call interp_PRZ(node_list,element_list,i_elm_drift,[var_rho,var_T,var_rhon,var_psi],4,s_out_drift,t_out_drift,pellets(i_p)%spi_phi,&
                                  P_drift,P_s_drift,P_t_drift,P_phi_drift,R_drift,R_s_drift,R_t_drift,Z_drift,Z_s_drift,Z_t_drift)
         end if
 #endif /* WITH_TiTe */
@@ -550,7 +553,7 @@ module pellet_module
     use phys_module, only: pellets, n_spi, n_spi_tot, n_inj, JET_MGI, ASDEX_MGI, ns_R, ns_Z, ns_phi,&
                            ns_amplitude, spi_Vel_Rref, spi_Vel_Zref, spi_Vel_RxZref,                &
                            spi_quantity, spi_quantity_bg, spi_Vel_diff, spi_L_inj, spi_L_inj_diff,  &
-                           spi_plume_file
+                           spi_plume_file, nonlocal_abl, n_nonlocal_array, nl_Psi, nl_avg_Te, nl_avg_ne
     use mpi_mod
     
     implicit none
@@ -589,6 +592,23 @@ module pellet_module
         end if
       end do
     end if
+
+    ! Also initialize the nonlocal array if nonlocal_abl is on
+    if (nonlocal_abl) then
+      if (n_flux < 1) then
+        write(*,*) "ERROR!!! Non-local ablation scheme currently only work for n_flux > 0, EXITING!!!"
+        stop
+      endif
+      if (allocated(nl_Psi)) deallocate(nl_Psi)
+      if (allocated(nl_avg_Te)) deallocate(nl_avg_Te)
+      if (allocated(nl_avg_ne)) deallocate(nl_avg_ne)
+      allocate (nl_Psi(n_nonlocal_array))  !< Dynamically allocate memeries for the nonlocal array
+      allocate (nl_avg_Te(n_nonlocal_array))  !< Dynamically allocate memeries for the nonlocal array
+      allocate (nl_avg_ne(n_nonlocal_array))  !< Dynamically allocate memeries for the nonlocal array
+      nl_Psi    = 0.d0
+      nl_avg_Te = 0.d0
+      nl_avg_ne = 0.d0
+    endif
 
     return
   end subroutine init_spi_all

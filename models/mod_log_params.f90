@@ -856,12 +856,14 @@ write(*,'(1x,a)',advance='no') ' USE_BICGSTAB : '
      !< Additional log for SPI model
    if(using_spi) then
      write(*,LOGI_FMT) 'using_spi           ',  using_spi
+     write(*,LOGI_FMT) 'nonlocal_abl        ',  nonlocal_abl
      write(*,LOGI_FMT) 'spi_tor_rot         ',  spi_tor_rot
      write(*,LOGI_FMT) 'spi_num_vol         ',  spi_num_vol
      write(*,CHAR_FMT) 'adas_dir            ',  trim(adas_dir)
      write(*,INTG_FMT) 'n_spi               ',  n_spi
      write(*,INTG_FMT) 'n_spi_tot           ',  n_spi_tot
      write(*,INTG_FMT) 'n_inj               ',  n_inj
+     write(*,INTG_FMT) 'n_nonlocal_array    ',  n_nonlocal_array
      do i = 1,n_inj
        write(*,CHAR_FMT2) 'spi_plume_file(',i,')    ',  trim(spi_plume_file(i))
      end do
