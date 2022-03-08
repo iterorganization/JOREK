@@ -412,8 +412,8 @@ module pellet_module
             write(*,*) "ERROR in finding i_loc for Psi_spi!", i_loc, Psi_spi, ES%psi_axis, ES%psi_bnd
             stop
           endif
-          T_eV_nl = nl_avg_Te / (EL_CHG * MU_ZERO * central_density * 1.d20)
-          n_SI_nl = nl_avg_ne * 1.d20 * central_density
+          T_eV_nl  = nl_avg_Te / (EL_CHG * MU_ZERO * central_density * 1.d20)
+          ne_SI_nl = nl_avg_ne * 1.d20 * central_density
           if ((T_eV_nl .ne. T_eV_nl) .or. (ne_SI_nl .ne. ne_SI_nl)) then
             write(*,*) "Something wrong with the nonlocal array!", i_loc, T_eV_nl, ne_SI_nl
             stop
