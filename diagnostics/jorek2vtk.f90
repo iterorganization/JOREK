@@ -108,7 +108,8 @@ real*8                :: Te_corr_eV, coef_rad_1, Sion_T, eta_Sp, ksiion, LradDco
 real*8                :: LradDrays_T, coef_ion_1, coef_ion_2, coef_ion_3, S_ion_puiss
 real*8                :: r0_real8, rn0_real8
 real*8                :: T0_corr, r0_corr, rn0_corr
-integer               :: i_imp     ! Loop for more than one background impurity
+integer               :: i_imp, offset_bgimp, i_bg     ! Loop for more than one background impurity
+
 
 #ifdef WITH_Impurities
 ! See https://www.jorek.eu/wiki/doku.php?id=model500_501_555 for details
@@ -205,6 +206,11 @@ include_radiation = .true.
 include_neutral_dens = .true.
 ! --- Read ADAS data and generate coronal equilibrium if needed
 call init_imp_adas(my_id)
+#else
+if (use_imp_adas .and. (nimp_bg(1) > 0.d0)) then
+  call init_imp_adas(my_id)
+  include_radiation = .true.
+endif
 #endif
 
 ! --- Read parameters from namelist file 'vtk.nml' if it exists
@@ -303,26 +309,35 @@ endif
 #if (defined WITH_Neutrals) && (!defined WITH_Impurities)
     n_radiation = 0
  if (include_radiation) then
-    n_radiation = 5
+    n_radiation = 5 + n_adas
     s_radiation = n_scalars
     n_scalars   = n_scalars + n_radiation
- endif
-
+    offset_bgimp = s_radiation+5 ! offset for plotting single bgimp species
+  endif
+  
     n_rn0 = 0
  if (include_neutral_dens) then
     n_rn0       = 2
     s_rn0       = n_scalars
     n_scalars   = n_scalars + n_rn0
- endif
+  endif
+#elif (!defined WITH_Impurities)
+  if (include_radiation) then
+    n_radiation = 1 + n_adas
+    s_radiation = n_scalars
+    n_scalars   = n_scalars + n_radiation
+    offset_bgimp = s_radiation+1 ! offset for plotting single bgimp species
+  end if
 #endif
 
 #ifdef WITH_Impurities
- n_radiation = 0
+  n_radiation = 0
  if (include_radiation) then
-    n_radiation = 5
-    s_radiation = n_scalars
-    n_scalars   = n_scalars + n_radiation
- endif
+    n_radiation  = 6 + n_adas-1 !(main impurity is not in background)
+    s_radiation  = n_scalars
+    n_scalars    = n_scalars + n_radiation
+    offset_bgimp = s_radiation+6
+  endif
 #endif
 
 #if fullmhd
@@ -415,8 +430,12 @@ endif
 
 #if (defined WITH_Neutrals) && (!defined WITH_Impurities)
  if (include_radiation) then
-   scalar_names(s_radiation+1:s_radiation+n_radiation)                                   &
-                  = (/ 'Ionis_Wm-3  ', 'Lin_radWm-3 ', 'Brems_Wm-3  ', 'Joule_Wm-3  ', 'Imp_bg_Wm-3 '/)
+  
+   scalar_names(s_radiation+1:s_radiation+n_radiation-n_adas)                                   &
+       = (/ 'Ionis_Wm-3  ', 'Lin_radWm-3 ', 'Brems_Wm-3  ', 'Joule_Wm-3  ', 'Imp_bg_Wm-3 '/)
+   do i = 1,n_adas
+     scalar_names(offset_bgimp + i) = 'Imp_bg_'//trim(imp_type(i))//'_Wm-3'
+   end do
  endif
 
  if (include_neutral_dens) then
@@ -424,12 +443,27 @@ endif
                   = (/ 'IonN_s-1     ', 'RecN_s-1     '/)
 
  endif
+#elif (!defined WITH_Impurities)
+ if (include_radiation) then
+   scalar_names(s_radiation+1:s_radiation+n_radiation)                                   &
+       = (/  'Imp_bg_Wm-3 '/)
+   do i = 1,n_adas
+     scalar_names(offset_bgimp + i) = 'Imp_bg_'//trim(imp_type(i))//'_Wm-3'
+   end do
 
+ endif
 #endif
+
 #ifdef WITH_Impurities
  if (include_radiation) then
      scalar_names(s_radiation+1:s_radiation+n_radiation) &
-                  = (/ 'Ionis_Jm-3  ', 'Coronal_radWm-3 ', 'Joule_Wm-3  ', 'Z_imp   ', 'Z_eff       '/)
+                  = (/ 'Ionis_Jm-3  ', 'Coronal_radWm-3 ', 'Joule_Wm-3  ', 'Z_imp   ', 'Z_eff       ','Imp_bg_Wm-3 '/)
+   i_bg=1
+   do i = 1,n_adas
+     if (i == index_main_imp) cycle
+     scalar_names(offset_bgimp + i_bg) = 'Imp_bg_'//trim(imp_type(i))//'_Wm-3'
+     i_bg=i_bg+1
+   end do
  endif
 #endif
 
@@ -1195,31 +1229,34 @@ do i=1,element_list%n_elements
 
 enddo  ! n_elements
 
-#if (defined WITH_Neutrals) && (!defined WITH_Impurities)
+#if (!defined WITH_Impurities)
   if (deuterium_adas)  ad_deuterium =  read_adf11(0,'96_h') !< for both include_radiation and include_neutral_dens
   if (include_radiation) then
     do i=1,nnos
+      r0_real8  = scalars(i,var_rho)
+      if ( with_TiTe ) then
+        T_real8 = scalars(i,var_Te)
+        Te_corr_eV = corr_neg_temp(T_real8)/(EL_CHG*MU_ZERO*central_density*1.d20)
+        Te_eV = T_real8/(EL_CHG*MU_ZERO*central_density*1.d20)
+      else
+        T_real8 = scalars(i,var_T)
+        Te_corr_eV = corr_neg_temp(T_real8)/(2.d0*EL_CHG*MU_ZERO*central_density*1.d20)
+        Te_eV = T_real8/(2.d0*EL_CHG*MU_ZERO*central_density*1.d20)
+      endif
 
+#if (defined WITH_Neutrals) 
       coef_ion_3 = 27.2d0*EL_CHG*MU_ZERO*central_density*1.d20
       coef_ion_2 = 0.232d0
       coef_ion_1 = (MU_ZERO*central_mass*MASS_PROTON)**(0.5d0)*0.2917d-13*(central_density*1.d20)**(1.5d0)
       S_ion_puiss = 3.9d-1
 
       ksiion = ksi_ion * central_density * 1.d20
-
-      r0_real8  = scalars(i,var_rho)
       rn0_real8 = scalars(i,var_rhon)
 
       if ( with_TiTe ) then
-        T_real8 = scalars(i,var_Te)
-        Te_corr_eV = corr_neg_temp(T_real8)/(EL_CHG*MU_ZERO*central_density*1.d20)
-        Te_eV = T_real8/(EL_CHG*MU_ZERO*central_density*1.d20)
         call atomic_coeff_deuterium(T_real8, Sion_T, dSion_dT, Srec_T, dSrec_dT,        &
                                   LradDcont_T, dLradDcont_dT, LradDrays_T, dLradDrays_dT,r0_real8,rn0_real8,.true. ) !< add scalars(i,var_rho) as last optional parameter for density dependence
       else
-        T_real8 = scalars(i,var_T)
-        Te_corr_eV = corr_neg_temp(T_real8)/(2.d0*EL_CHG*MU_ZERO*central_density*1.d20)
-        Te_eV = T_real8/(2.d0*EL_CHG*MU_ZERO*central_density*1.d20)
         call atomic_coeff_deuterium(0.5d0*T_real8, Sion_T, dSion_dT, Srec_T, dSrec_dT,        &
                                   LradDcont_T, dLradDcont_dT, LradDrays_T, dLradDrays_dT,r0_real8,rn0_real8,.true. ) 
       endif
@@ -1232,10 +1269,12 @@ enddo  ! n_elements
       scalars(i,s_radiation+2) = scalars(i,var_rho) * scalars(i,var_rhon) * LradDrays_T
       scalars(i,s_radiation+3) = LradDcont_T * scalars(i,var_rho)**2.d0
       scalars(i,s_radiation+4) = (2/(3 * BigR**2)) * eta_Sp * scalars(i,var_zj)**2.d0
-
+#endif /* with neutrals */
+      
       !--------------------------------------------------------
       ! --- Radiation from background impurity
-      !--------------------------------------------------------   
+      !--------------------------------------------------------
+
 
       r0_corr   = corr_neg_dens(r0_real8)
       ne_SI = r0_corr * 1.d20 * central_density !electron density (SI)
@@ -1252,6 +1291,7 @@ enddo  ! n_elements
             Lrad_imp = 0.
           end if
           frad_bg = frad_bg + r_imp * Lrad_imp
+          scalars(i,offset_bgimp + i_imp) = r_imp * Lrad_imp * scalars(i,var_rho)
         end do
       else
         if ( trim(imp_type(1)) == 'Ar') then ! Hard-coded fitting exists for argon
@@ -1267,11 +1307,12 @@ enddo  ! n_elements
         end if
       end if   
 
-      scalars(i,s_radiation+5) = scalars(i,var_rho) * frad_bg
 
+      scalars(i,s_radiation+n_radiation-n_adas) = scalars(i,var_rho) * frad_bg
+   
     enddo
   endif
-#endif /* WITH_Neutrals but not WITH_Impurities */
+#endif /* (.not. with_impurities) */
 
 #ifdef WITH_Impurities
 
@@ -1362,7 +1403,6 @@ enddo  ! n_elements
   !-------------------------------------------
   ! --- Radiative function, using interpolation
   ! ------------------------------------------
-
      if (ne_SI > ne_SI_min .and. Te_eV > Te_eV_min .and. rn0_real8 > rn0_min) then
 
        Lrad = 0.0
@@ -1377,9 +1417,11 @@ enddo  ! n_elements
        E_ion = 0.
      end if
 
-     frad_bg = 0. 
+     frad_bg = 0.
+     i_bg = 1
      do i_imp =1, n_adas
        if (i_imp == index_main_imp) cycle
+
        r_imp = nimp_bg(i_imp) / (1.d20 * central_density)  ! Background impurity density in JU     
        if (ne_SI > ne_SI_min .and. Te_eV > Te_eV_min .and. r_imp > 0) then
          Lrad_imp = 0.0
@@ -1389,13 +1431,15 @@ enddo  ! n_elements
          Lrad_imp = 0.
        end if
        frad_bg = frad_bg + r_imp * Lrad_imp
+       scalars(i,offset_bgimp+i_bg) = scalars(i,var_rho) * r_imp * Lrad_imp
+       i_bg = i_bg+1
      end do
-
      scalars(i,s_radiation+1) = (2./3.) * scalars(i,var_rhon) * E_ion
      scalars(i,s_radiation+2) = (r0_corr+beta_imp*rn0_corr) * rn0_corr * Lrad
      scalars(i,s_radiation+3) = (2./(3. * BigR**2)) * eta_Sp * scalars(i,var_zj)**2.d0
      scalars(i,s_radiation+4) = Z_imp
      scalars(i,s_radiation+5) = Z_eff
+     scalars(i,s_radiation+6) = scalars(i,var_rho) * frad_bg
 
    end do
  endif
@@ -1547,26 +1591,30 @@ if (SI_units) then
  
     !========================================================
 
-#if (defined WITH_Neutrals) && (!defined WITH_Impurities)
+#if (!defined WITH_Impurities)
     if (include_radiation) then
-      coef_ion_1 = (MU_ZERO*central_mass*MASS_PROTON)**(0.5d0)*(central_density*1.d20)**(1.5d0)
-      coef_rad_1 = (gamma-1.d0)*MU_ZERO**1.5d0*(central_mass*MASS_PROTON)**0.5d0*(central_density*1.d20)**2.5d0
-
-      ksiion = ksi_ion * central_density * 1.d20
-
       r0_real8  = scalars(i,var_rho)/central_density ! Back to JOREK unit for calling atomic_coeff_deuterium
-      rn0_real8 = scalars(i,8)/central_density
-
       if ( with_TiTe ) then
         T_real8 = scalars(i,var_Te)*1.e3*EL_CHG*MU_zero*(central_density * 1.d20) ! T_real8 back to JOREK units
         Te_corr_eV = corr_neg_temp(T_real8)/(EL_CHG*MU_ZERO*central_density*1.d20)
         Te_eV = T_real8/(EL_CHG*MU_ZERO*central_density*1.d20)
-        call atomic_coeff_deuterium(T_real8, Sion_T, dSion_dT, Srec_T, dSrec_dT,        &
-                                  LradDcont_T, dLradDcont_dT, LradDrays_T, dLradDrays_dT, r0_real8,rn0_real8,.true. )  ! T, rho and rhon should be in JOREK unit here
       else
         T_real8 = scalars(i,var_T)*1.e3*2.*EL_CHG*MU_zero*(central_density * 1.d20)
         Te_corr_eV = corr_neg_temp(T_real8)/(2.d0*EL_CHG*MU_ZERO*central_density*1.d20)
         Te_eV = T_real8/(2.d0*EL_CHG*MU_ZERO*central_density*1.d20)
+      endif
+
+#if (defined WITH_Neutrals) 
+      coef_ion_1 = (MU_ZERO*central_mass*MASS_PROTON)**(0.5d0)*(central_density*1.d20)**(1.5d0)
+      coef_rad_1 = (gamma-1.d0)*MU_ZERO**1.5d0*(central_mass*MASS_PROTON)**0.5d0*(central_density*1.d20)**2.5d0
+
+      ksiion = ksi_ion * central_density * 1.d20
+      rn0_real8 = scalars(i,8)/central_density
+
+      if ( with_TiTe ) then
+        call atomic_coeff_deuterium(T_real8, Sion_T, dSion_dT, Srec_T, dSrec_dT,        &
+                                  LradDcont_T, dLradDcont_dT, LradDrays_T, dLradDrays_dT, r0_real8,rn0_real8,.true. )  ! T, rho and rhon should be in JOREK unit here
+      else
         call atomic_coeff_deuterium(0.5d0*T_real8, Sion_T, dSion_dT, Srec_T, dSrec_dT,        &
                                   LradDcont_T, dLradDcont_dT, LradDrays_T, dLradDrays_dT, r0_real8,rn0_real8,.true. ) 
       endif
@@ -1581,11 +1629,10 @@ if (SI_units) then
       scalars(i,s_radiation+3) = LradDcont_T * (scalars(i,var_rho)*1.d20)**2.d0 / coef_rad_1
 
       scalars(i,s_radiation+4) = eta_Sp * (1.d6*scalars(i,var_zj))**2.d0
-
+#endif /* WITH_Neutrals but not WITH_Impurities */
       !--------------------------------------------------------
       ! --- Radiation from background impurity
       !--------------------------------------------------------
-      r0_real8  = scalars(i,var_rho) / central_density ! Back to JU first
       r0_corr   = corr_neg_dens(r0_real8)
       ne_SI = r0_corr * 1.d20 * central_density !electron density (SI)
 
@@ -1600,6 +1647,7 @@ if (SI_units) then
           else     
             Lrad_imp = 0.
           end if
+          scalars(i,offset_bgimp + i_imp) = 1.d20 * scalars(i,var_rho) * nimp_bg(i_imp) * Lrad_imp 
           frad_bg = frad_bg + nimp_bg(i_imp) * Lrad_imp
         end do
       else
@@ -1613,9 +1661,9 @@ if (SI_units) then
           stop
         end if
       end if
-      scalars(i,s_radiation+5) = scalars(i,var_rho)*1.d20 * frad_bg
+      scalars(i,s_radiation+n_radiation-n_adas) = scalars(i,var_rho)*1.d20 * frad_bg
     endif
-#endif /* WITH_Neutrals but not WITH_Impurities */
+#endif /*(.not. with_Impurities)*/
 
 #ifdef WITH_Impurities
   if (include_radiation) then
@@ -1623,6 +1671,11 @@ if (SI_units) then
    scalars(i,s_radiation+2) = scalars(i,s_radiation+2)/(2.d0/3.d0*MU_ZERO**1.5d0*(central_mass*MASS_PROTON*central_density*1.d20)**0.5d0)
    scalars(i,s_radiation+3) = scalars(i,s_radiation+3)/(2.d0/3.d0*((central_mass*MASS_PROTON*central_density*1.d20)**0.5)*(MU_ZERO**1.5)) 
    scalars(i,s_radiation+4) = scalars(i,s_radiation+4)
+   scalars(i,s_radiation+6) = scalars(i,s_radiation+6) &
+       /((GAMMA-1.d0)*MU_ZERO**1.5d0*(central_mass*MASS_PROTON*central_density*1.d20)**0.5d0)
+   do i_imp=1,n_adas
+     scalars(i,offset_bgimp+i_imp) = scalars(i,offset_bgimp+i_imp) / ((GAMMA-1.d0)*MU_ZERO**1.5d0*(central_mass*MASS_PROTON*central_density*1.d20)**0.5d0)
+   end do
   end if
 #endif /* WITH_Impurities */
 #endif /* end of non-full-MHD part*/
