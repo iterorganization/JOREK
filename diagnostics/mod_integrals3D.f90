@@ -93,6 +93,7 @@ integer :: i, j, k, in, ms, mt, mp, iv, inode, ife, n_elements, i_elm_axis, i_el
 integer :: ierr, n_cpu, my_id, ife_delta, ife_min, ife_max, omp_nthreads, omp_tid
 integer :: k_vertex, k_dof, k_node, k_dir, k_dir_perp, m_bndelem, dir_perp(2), mv1, m_elm
 integer :: iexpr
+integer :: i_surface, i_interp1, i_interp2
 real*8  :: R_c, Z_c, vec_inside(2), grad_t(2)
 real*8  :: k_size, k_size_perp
 real*8  :: G(4,4), sign_out, psi_n, ps0_sbnd, u0_sbnd
@@ -151,6 +152,10 @@ real*8  :: u0_p, u_s, u_t, u_p
 real*8  :: u0_x, u0_y
 real*8  :: viscopar_flux, viscopar_f, vpar_s, vpar_t, vpar_x, vpar_y, li3_tot, li3
 real*8  :: varmin(n_var), varmax(n_var), V_min(n_var), V_max(n_var)
+real*8  :: Psi_surface(n_flux)
+real*8  :: Vol_surface(n_flux), Volume_surface(n_flux)
+real*8  :: De_surface(n_flux), PNum_e_surface(n_flux)
+real*8  :: Pe_surface(n_flux), Pres_e_surface(n_flux)
 real*8  :: R_curr_cent, Z_curr_cent, Zcurr_tmp, R2curr_tmp, R2curr
 
 #if (defined WITH_Neutrals) && (!defined WITH_Impurities)
@@ -304,6 +309,13 @@ varmax   = -1.d99
 R2curr_tmp = 0.d0
 Zcurr_tmp  = 0.d0
 
+if (nonlocal_abl) then
+  Psi_surface = 0.d0
+  Vol_surface = 0.d0
+  De_surface  = 0.d0
+  Pe_surface  = 0.d0
+endif
+
 Dpar_part_flux   = 0.d0 
 Dperp_part_flux  = 0.d0
 vpar_part_flux   = 0.d0
@@ -342,6 +354,12 @@ if (using_spi) then
 end if
 if (.not. allocated(local_source_volume)) allocate (local_source_volume(1)) ! Allocate a dummy array for omp
 if (.not. allocated(local_source_volume_drift)) allocate (local_source_volume_drift(1)) 
+! Setup the coarse non-local array Psi coordinate
+if (nonlocal_abl) then
+  do i_surface=1, n_flux
+     Psi_surface(i_surface)= ES%psi_axis + float(i_surface-1)/(n_flux) * (ES%psi_bnd-ES%psi_axis) ! Psi coordinate, linear
+  end do
+end if
 #endif
 
 delta_phi     = 2.d0 * PI / float(n_plane) / float(n_period)
@@ -362,6 +380,8 @@ ife_max   = min((my_id +1) * ife_delta, element_list%n_elements)
 !$omp          VK_ext, VK_int, VK_tot, VM_ext, VM_int, VM_tot, J2_tot, J2_ext, J2_int,         &
 !$omp          H_int, H_ext, S_int, S_ext,psi_xpoint,  F0, VP_tot,eta, T_0, Te_0, T_min,       &
 !$omp          ne_SI_min, Te_eV_min, rn0_min, P_e_tot, P_i_tot, P_e_int, P_i_int, P_e_ext, P_i_ext, &
+!$omp          Psi_surface, Vol_surface, De_surface, Pe_surface, nonlocal_abl,                 &
+!$omp          n_nonlocal_array, n_flux,                                                       &
 !$omp          pellet_amplitude,pellet_R,pellet_Z,pellet_psi,pellet_phi,                       &
 !$omp          pellet_radius, pellet_delta_psi, pellet_sig, pellet_length, pellet_ellipse, pellet_theta,  &
 !$omp          central_density, pellet_particles,pellet_density, pellet_volume,                &
@@ -387,7 +407,7 @@ ife_max   = min((my_id +1) * ife_delta, element_list%n_elements)
 #endif
 !$omp          T_1, T_max_eta, T_max_eta_ohm, eta_T_dependent,                                 &
 !$omp          wgauss_copy, varmin, varmax)                                                    &
-!$omp   private(ife,iv,inode,element,nodes,aux_nodes,i,j, k,in, mp, ms, mt,                    &
+!$omp   private(ife,iv,inode,element,nodes,aux_nodes,i,j, k,in, mp, ms, mt, i_surface,         &
 !$omp           x_g, y_g, x_s, y_s, x_t, y_t, xjac, xjac_R, xjac_Z, eq_g, eq_s, eq_t, eq_p,    &
 !$omp           x_ss, x_tt, x_st, y_ss, y_tt, y_st, eq_ss, eq_tt, eq_st, eq_sp, eq_tp,         &
 !$omp           psi_axisym, eq_aux_g, eq_aux_s, eq_aux_t, eq_aux_p,                            &
@@ -454,7 +474,8 @@ omp_tid      = 0
 !$omp                VP_int, VP_ext, VP_tot, VK_tot, VK_int, VK_ext, VM_ext,                  &
 !$omp                VM_int, VM_tot, Vol, P_tot, D_tot,J2_tot, J2_int, J2_ext,                &
 !$omp                heli_tot, mag_wk_tot, vpar_disp_tot, thm_wk_tot, area1, mag_src_tot,     &
-!$omp                fric_disp_tot, R2curr_tmp, Zcurr_tmp, thm_wk_e_tot, thm_wk_i_tot)
+!$omp                fric_disp_tot, Vol_surface, De_surface, Pe_surface, R2curr_tmp, Zcurr_tmp,&
+!$omp                thm_wk_e_tot, thm_wk_i_tot)
 
 do ife = ife_min, ife_max
 
@@ -1267,6 +1288,48 @@ do ife = ife_min, ife_max
           J2_ext = J2_ext + eta_T_ohm * (ZJ0/BigR)**2.d0 * xjac * BigR * wst * delta_phi
         endif
 
+        ! Fill in the nonlocal array
+        if (nonlocal_abl .and. get_psi_n(psi_as_coord, y_g(ms,mt)) < 1. &
+          .and. get_psi_n(psi_as_coord, y_g(ms,mt)) >= 0.) then
+
+          if (get_psi_n(psi_as_coord, y_g(ms,mt)) >= get_psi_n(Psi_surface(n_flux))) then
+            i_surface = n_flux
+          else
+            i_surface = INT(get_psi_n(psi_as_coord, y_g(ms,mt))*REAL(n_flux,8)) + 1 ! Initial guess
+            if (get_psi_n(psi_as_coord, y_g(ms,mt)) < get_psi_n(Psi_surface(i_surface))) then
+              do while (get_psi_n(psi_as_coord, y_g(ms,mt)) < get_psi_n(Psi_surface(i_surface)) &
+                  .and. i_surface > 1)
+                i_surface = i_surface - 1
+              enddo
+            else if (get_psi_n(psi_as_coord, y_g(ms,mt)) >= get_psi_n(Psi_surface(i_surface))) then
+              !write(*,*) "SANITY CHECK", i_surface, get_psi_n(psi_as_coord, y_g(ms,mt)),  get_psi_n(Psi_surface(i_surface)), REAL(n_flux,8)
+              do while (get_psi_n(psi_as_coord, y_g(ms,mt)) >= get_psi_n(Psi_surface(i_surface+1)) &
+                  .and. i_surface < n_flux - 1)
+                i_surface = i_surface + 1
+              enddo
+            end if
+          end if
+
+          Vol_surface(i_surface) = Vol_surface(i_surface) + xjac * BigR * wst * delta_phi
+#ifdef WITH_Impurities
+#ifdef WITH_TiTe
+          De_surface(i_surface)  = De_surface(i_surface)  + (r0+alpha_e*rn0) * xjac * BigR * wst * delta_phi
+          Pe_surface(i_surface)  = Pe_surface(i_surface)  + (r0+alpha_e*rn0) * T0e * xjac * BigR * wst * delta_phi
+#else /* WITH_TiTe */
+          De_surface(i_surface)  = De_surface(i_surface)  + (r0+alpha_imp*rn0) * xjac * BigR * wst * delta_phi
+          Pe_surface(i_surface)  = Pe_surface(i_surface)  + (r0+alpha_imp*rn0)*T0e * xjac * BigR * wst * delta_phi
+#endif /* WITH_TiTe */
+#else /* WITH_Impurities */
+          De_surface(i_surface)  = De_surface(i_surface)  + r0 * xjac * BigR * wst * delta_phi
+#ifdef WITH_TiTe
+          Pe_surface(i_surface)  = Pe_surface(i_surface)  + r0 * T0e * xjac * BigR * wst * delta_phi
+#else /* WITH_TiTe */
+          Pe_surface(i_surface)  = Pe_surface(i_surface)  + r0 * T0e * xjac * BigR * wst * delta_phi
+#endif /* WITH_TiTe */
+#endif /* WITH_Impurities */
+
+        endif
+
       enddo
     enddo
   enddo
@@ -1761,6 +1824,11 @@ call MPI_AllReduce(fric_disp_tot, friction_dissip_tot,1,MPI_DOUBLE_PRECISION,MPI
 call MPI_AllReduce(mag_src_tot, mag_source_tot,1,MPI_DOUBLE_PRECISION,MPI_SUM,MPI_COMM_WORLD,ierr)
 call MPI_AllReduce(varmin,V_min,n_var,MPI_DOUBLE_PRECISION,MPI_MIN,MPI_COMM_WORLD,ierr)
 call MPI_AllReduce(varmax,V_max,n_var,MPI_DOUBLE_PRECISION,MPI_MAX,MPI_COMM_WORLD,ierr)
+if (nonlocal_abl) then
+  call MPI_AllReduce(Vol_surface,Volume_surface,n_flux,MPI_DOUBLE_PRECISION,MPI_SUM,MPI_COMM_WORLD,ierr)
+  call MPI_AllReduce(De_surface,PNum_e_surface,n_flux,MPI_DOUBLE_PRECISION,MPI_SUM,MPI_COMM_WORLD,ierr)
+  call MPI_AllReduce(Pe_surface,Pres_e_surface,n_flux,MPI_DOUBLE_PRECISION,MPI_SUM,MPI_COMM_WORLD,ierr)
+endif
 #if (defined WITH_Neutrals) || (defined WITH_Impurities)
 call MPI_AllReduce(local_radiation, total_radiation,1,MPI_DOUBLE_PRECISION,MPI_SUM,MPI_COMM_WORLD,ierr)
 call MPI_AllReduce(local_E_ion, total_E_ion,1,MPI_DOUBLE_PRECISION,MPI_SUM,MPI_COMM_WORLD,ierr)
@@ -1814,6 +1882,11 @@ friction_dissip_tot  = fric_disp_tot
 mag_source_tot       = mag_src_tot
 V_min                = varmin
 V_max                = varmax
+if (nonlocal_abl) then
+  Volume_surface     = Vol_surface
+  PNum_e_surface     = De_surface
+  Pres_e_surface     = Pe_surface
+endif
 
 #if (defined WITH_Neutrals) || (defined WITH_Impurities)
 total_radiation      = local_radiation
@@ -1866,6 +1939,45 @@ if (allocated(local_source_volume_drift)) deallocate(local_source_volume_drift)
 #else
   neut_particles_tot = 0.d0
 #endif
+
+! Final fill-in for the non-local array, all in JOREK unit
+if (nonlocal_abl) then
+
+  do i_surface = 1, n_flux
+    if (Volume_surface(i_surface) <= 0. .or. PNum_e_surface(i_surface) <= 0.) then
+      write(*,*) "Something wrong in filling in the memory array, exiting!"
+      write(*,*) "i_surface = ", i_surface, "Volume = ", Volume_surface(i_surface), "Particle number = ", PNum_e_surface(i_surface)
+      stop
+    endif
+    Pres_e_surface(i_surface)  = Pres_e_surface(i_surface) / PNum_e_surface(i_surface)
+    PNum_e_surface(i_surface)  = PNum_e_surface(i_surface) / Volume_surface(i_surface)
+    if (i_surface .eq. n_flux) then
+      Volume_surface(i_surface) = (Volume_surface(i_surface))/(ES%psi_bnd-Psi_surface(i_surface)) 
+    else
+      Volume_surface(i_surface) = (Volume_surface(i_surface))/(Psi_surface(i_surface+1)-Psi_surface(i_surface)) 
+    endif
+  enddo
+
+  open(20,file="nonlocal_array.dat")
+
+  do i_surface = 1, n_nonlocal_array
+
+    nl_Psi(i_surface)= ES%psi_axis + float(i_surface-1)/(n_nonlocal_array) * (ES%psi_bnd-ES%psi_axis) ! Psi coordinate, linear
+
+    i_interp1 = minloc(abs(Psi_surface - nl_Psi(i_surface)), dim=1)
+    if (abs(nl_Psi(i_surface)-ES%psi_axis) .ge. abs(Psi_surface(i_interp1)-ES%psi_axis)) i_interp2 = i_interp1 + 1 ! find other index
+    if (abs(nl_Psi(i_surface)-ES%psi_axis) .lt. abs(Psi_surface(i_interp1)-ES%psi_axis)) i_interp2 = i_interp1 - 1 ! find other index
+    if (i_interp2 .gt. n_flux) i_interp2 = n_flux - 1 ! if it does not exist, extrapolate
+    nl_avg_Te(i_surface) = (Pres_e_surface(i_interp1)-Pres_e_surface(i_interp2))/(Psi_surface(i_interp1)-Psi_surface(i_interp2))*(nl_Psi(i_surface)-Psi_surface(i_interp1))+Pres_e_surface(i_interp1)
+    nl_avg_ne(i_surface) = (PNum_e_surface(i_interp1)-PNum_e_surface(i_interp2))/(Psi_surface(i_interp1)-Psi_surface(i_interp2))*(nl_Psi(i_surface)-Psi_surface(i_interp1))+PNum_e_surface(i_interp1)
+
+    write(20,'(1i5,3e14.6)') i_surface, get_psi_n(nl_Psi(i_surface)), nl_avg_Te(i_surface), nl_avg_ne(i_surface)
+
+  enddo
+  close (20)
+  write(*,*) "Output the non-local array to nonlocal_array.dat."
+
+endif
 
 ! --- Normalization factors
 rho_norm = central_density*1.d20 * central_mass * MASS_PROTON 
