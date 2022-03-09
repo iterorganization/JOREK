@@ -103,7 +103,7 @@ subroutine test_field_minmax_monte_carlo_2d(rank,n_tasks,ifail)
   success_min_list = .true.; success_max_list = .true.; success_global = .true.;
   !> find critical points
   write(*,*) "searching for 2D field maxima and minima"
-  call field_minmax_monte_carlo(node_list_2d,element_list_2d,n_fields,&
+  call field_minmax_monte_carlo(node_list_2d,element_list_2d,n_fields_sol,&
   field_ids_sol,n_trials_sol,(/phi_sol,phi_sol/),pcg32_rng(),rngs,minmax_list,&
   minmax_global,rank,n_tasks,ifail)
   !> checks if the extrema are the largest and smallest values for each point in the element
