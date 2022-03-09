@@ -79,6 +79,7 @@ namelist /in1/  tstep, nstep, tstep_n, nstep_n,                     &
                 eta_num, visco_num, visco_par_num, D_perp_num,      &
                 eta_num_T_dependent, visco_num_T_dependent,         &
                 ZK_perp_num, Dn_perp_num, time_evol_scheme,         &
+                ZK_i_perp_num, ZK_e_perp_num,                       &
                 pellet_amplitude, pellet_R, pellet_Z, pellet_phi,   &
                 pellet_radius, pellet_sig, pellet_length,           &
                 pellet_psi, pellet_delta_psi, pellet_density,       &
