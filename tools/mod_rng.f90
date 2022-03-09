@@ -108,6 +108,7 @@ subroutine setup_shared_rngs_multiple_seeds(n_dim,rng_type,rngs)
   allocate(seeds(n_tasks)); allocate(n_streams(n_tasks)); allocate(rands(n_tasks));
   n_stream = 1
   !$ n_stream = omp_get_max_threads()
+  if(allocated(rngs)) deallocate(rngs)
   allocate(rngs(n_stream),source=rng_type)
   !> compute and broadcast seed
   if(my_id.eq.0) then

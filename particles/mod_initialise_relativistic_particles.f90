@@ -349,44 +349,91 @@ energy_kin_box,pitch_box,gyro_box,q_box)
   deallocate(active_group_ids); deallocate(momentum_box);
 end subroutine init_p_gc_relativistic_RZPhi_energypitchgyro
 
+!> method for spacially initialising particles as a function
+!> of the fluid fields using the accept-rejection method.
+!> initialisation in velocity space is uniform on the sphere
+!> defined by the particle energy, pitch and gyro angles
+!> inputs:
+!>   groups:         (particle_group) particle groups
+!>   fields:         (fields_base) jorek fields
+!>   time:           (real8) simulation time
+!>   rng_type:       (type_rng) type of the RNG to use
+!>   n_profiles:     (integer) number of fluid fields to use
+!>   prof_ids:       (integer)(n_fields) node indices of the
+!>                   fluid fields to use
+!>   accept:         (accept_function) function for accepting
+!>                   a Monte-Carlo solution
+!>   R_box:          (real8)(2) major radius sampling box
+!>   Z_box:          (real8)(2) vertical coord. sampling box
+!>   phi_box:        (real8)(2) toroidal angle sampling box
+!>   energy_kin_box: (real8)(2) kinetic energy (eV) sampling box
+!>   pitch_box:      (real8)(2) pitch angle sampling box
+!>   gyro_box:       (real8)(2) gyro angle sampling box
+!>   q_box:          (integer1)(2) charge sampling box
+!>   my_id:          (integer) id of the MPI task
+!>   n_tasks:        (integer) total number of MPI tasks
+!>   ifail:          (integer) MPI error
+!>   n_trials_in:    (integer)(optional) N# trials for finding
+!>                   the minimum and maximum values of fluid fields
+!> outputs:
+!>   groups:         (particle_group) particle groups
+!>   fields:         (fields_base) jorek fields
+!>   accept:         (accept_function) function for accepting
+!>                   a Monte-Carlo solution
+!>   R_box:          (real8)(2) major radius sampling box
+!>   Z_box:          (real8)(2) vertical coord. sampling box
+!>   phi_box:        (real8)(2) toroidal angle sampling box
+!>   energy_kin_box: (real8)(2) kinetic energy (eV) sampling box
+!>   pitch_box:      (real8)(2) pitch angle sampling box
+!>   gyro_box:       (real8)(2) gyro angle sampling box
+!>   q_box:          (integer1)(2) charge sampling box
+!>   ifail:          (integer) MPI error
 subroutine init_p_gc_relativistic_from_fluid_energypitchgyro(&
-groups,fields,time,rng_type,n_profiles,prof_ids,prof_norms,accept,&
-R_box,Z_box,phi_box,energy_kin_box,pitch_box,gyro_box,q_box)
+groups,fields,time,rng_type,n_profiles,prof_ids,accept,&
+R_box,Z_box,phi_box,energy_kin_box,pitch_box,gyro_box,q_box,&
+my_id,n_tasks,ifail,n_trials_in)
   use mod_rng,            only: type_rng
   use mod_rng,            only: setup_shared_rngs
   use mod_fields,         only: fields_base
   use mod_particle_sim,   only: particle_group
   use mod_particle_types, only: particle_kinetic_relativistic
   use mod_particle_types, only: particle_gc_relativistic
+  use mod_fields_minmax,  only: field_minmax_monte_carlo
   !$ use omp_lib
   implicit none
   !> inputs-outputs:
   class(particle_group),dimension(:),allocatable,intent(inout) :: groups
   class(fields_base),intent(inout)                             :: fields
   procedure(accept_function)                                   :: accept
+  integer,intent(inout)             :: ifail
   real*8,dimension(2),intent(inout) :: R_box,Z_box,phi_box
   real*8,dimension(2),intent(inout) :: energy_kin_box,pitch_box,gyro_box
   !> inputs:
   class(type_rng),intent(in)                :: rng_type
+  integer,intent(in)                        :: my_id,n_tasks
+  integer,intent(in),optional               :: n_trials_in
   integer*1,dimension(2),intent(in)         :: q_box
   integer,intent(in)                        :: n_profiles
   real*8,intent(in)                         :: time
-  integer,dimension(n_profiles),intent(in)  :: prof_ids
-  real*8,dimension(n_profiles,2),intent(in) :: prof_norms
+  integer,dimension(n_profiles),intent(in)  :: prof_ids 
   !> variables:
   class(type_rng),dimension(:),allocatable :: rngs
   integer :: ii,jj,kk,n_rngs,n_groups,thread_id,maxit,n_active_groups
+  integer :: n_trials
   integer,dimension(:),allocatable :: active_group_ids 
   real*8,dimension(2)   :: cospitch_box,R_minmax,R2_box
   real*8,dimension(2)   :: Z_minmax,phi_minmax
   real*8,dimension(3)   :: rands
+  real*8,dimension(n_profiles,2) :: prof_norms
   real*8,dimension(:,:),allocatable :: momentum_box
-
+  real*8,dimension(n_profiles,2,fields%element_list%n_elements) :: prof_norms_list
   !> initialisations
+  n_trials=1000000; if(present(n_trials_in)) n_trials=n_trials_in;
   n_groups=size(groups); n_active_groups=0; 
   allocate(active_group_ids(n_groups)); allocate(momentum_box(2,n_groups));
   call find_relativistic_kinetic_gc_groups(n_groups,groups,&
   n_active_groups,active_group_ids)
+  !> estimate minimum and maximum values of the fluid fields
   !> extract bounding maximum and minimum boxes
   call find_RZPhi_minmax_global(R_minmax,Z_minmax,phi_minmax,fields)
   !> check bounding boxes
@@ -398,6 +445,10 @@ R_box,Z_box,phi_box,energy_kin_box,pitch_box,gyro_box,q_box)
   !> compute the cube of the momentum and the cosinus of the pitch angle
   R2_box = R_box*R_box
   momentum_box = momentum_box**3.d0; cospitch_box = cos(pitch_box);
+  !> estimate minimum and maximum values of the fluid fields
+  call field_minmax_monte_carlo(fields%node_list,fields%element_list,&
+  n_profiles,prof_ids,n_trials,phi_box,rng_type,rngs,prof_norms_list,&
+  prof_norms,my_id,n_tasks,ifail)
   !> initialise random number generator
   call setup_shared_rngs(4,rng_type,rngs)
   n_rngs = size(rngs)

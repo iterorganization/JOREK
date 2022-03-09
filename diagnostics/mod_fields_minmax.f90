@@ -10,6 +10,24 @@ public :: field_minmax_monte_carlo
 !> Interfaces---------------------------------------------
 contains
 !> try to find  local minimum and maximum via brute force method
+!> inputs:
+!>   node_list:    (type_node_list) jorek mesh node list
+!>   element_list: (type_element_list) jorek mesh element list
+!>   n_fields:     (integer) number of fluid fierlds to treat
+!>   fields_ids:   (integer)(n_fields) node indices of each field
+!>   n_trials:     (integer) number of trials of the testing method
+!>   phi_int:      (real8)(2) toroidal angle interval
+!>   rng_type:     (type_rng) type of the RNG to use
+!>   rngs:         (type_rng)(:)(allocatable) array of the RNGs to use
+!>   my_id:        (integer) id of the MPI task
+!>   n_tasks:      (integer) total number of MPI tasks
+!>   ifail:        (integer) MPI error
+!> outputs:
+!>   minmax_list:   (real8)(n_fields,2,n_elements) estimated minimum
+!>                  and maximum for all fields for each element
+!>   minmax_global: (real8)(n_fields,2) estimated global minimum
+!>                  and maximum for all fields
+!>   ifail:        (integer) MPI error
 subroutine field_minmax_monte_carlo(node_list,element_list,n_fields,field_ids,&
 n_trials,phi_int,rng_type,rngs,minmax_list,minmax_global,my_id,n_tasks,ifail)
   use data_structure, only: type_node_list,type_element_list
