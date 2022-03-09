@@ -18,7 +18,7 @@ integer,parameter             :: rst_format=0
 integer,parameter             :: n_trials_sol=1000000
 integer,parameter             :: n_trials_test=1000
 integer,parameter             :: n_fields_sol=2
-integer,dimension(n_fields_sol),parameter :: field_ids_sol=(/1,2/) !< poloidal flux
+integer,dimension(n_fields_sol),parameter :: field_ids_sol=(/1,5/) !< psi,rho
 real*8,parameter              :: tol_real8=1.d-15
 real*8,parameter              :: phi_sol=0.d0
 real*8,dimension(2),parameter :: phi_interval_sol=(/0.d0,TWOPI/)
@@ -35,12 +35,12 @@ subroutine run_fruit_fields_minmax_mpi(rank,n_tasks,ifail)
   !> inputs-outputs:
   integer,intent(inout) :: ifail
   integer,intent(in)    :: rank,n_tasks
-  write(*,'(/A)') "  ... setting-up: fields minmax tests"
+  if(rank.eq.0) write(*,'(/A)') "  ... setting-up: fields minmax tests"
   call setup(rank,n_tasks,ifail)
-  write(*,'(/A)') "  ... running: fields minmax tests"
+  if(rank.eq.0) write(*,'(/A)') "  ... running: fields minmax tests"
   call test_field_minmax_monte_carlo_2d(rank,n_tasks,ifail)
   call test_field_minmax_monte_carlo_3d(rank,n_tasks,ifail)
-  write(*,'(/A)') "  ... tearing-down: fields minmax tests"
+  if(rank.eq.0) write(*,'(/A)') "  ... tearing-down: fields minmax tests"
   call teardown(rank,n_tasks,ifail)
 end subroutine run_fruit_fields_minmax_mpi
 
@@ -52,10 +52,15 @@ subroutine setup(rank,n_tasks,ifail)
   use mod_import_restart, only: import_hdf5_restart
   use basis_at_gaussian,  only: initialise_basis
   use data_structure,     only: init_threads
+  use mod_gnu_rng,        only: set_seed_sys_time
   implicit none
   !> inputs-outputs:
   integer,intent(inout) :: ifail
   integer,intent(in)    :: rank,n_tasks
+  !> variables:
+  integer :: seed_size
+  integer,dimension(:),allocatable :: seeds
+  real*8,dimension(:),allocatable  :: seeds_r8
   !> initialise the jorek simulation
   call init_threads
   call det_modes
@@ -67,6 +72,8 @@ subroutine setup(rank,n_tasks,ifail)
   trim(filename_2d),rst_format,ifail)
   call import_hdf5_restart(node_list_3d,element_list_3d,&
   trim(filename_3d),rst_format,ifail)
+  !> change the seed
+  call set_seed_sys_time((/rank*rank*21+5,32+rank*rank*32+10/))
 end subroutine setup
 
 !> tear-down all test features
@@ -102,12 +109,12 @@ subroutine test_field_minmax_monte_carlo_2d(rank,n_tasks,ifail)
   !> initialisation
   success_min_list = .true.; success_max_list = .true.; success_global = .true.;
   !> find critical points
-  write(*,*) "searching for 2D field maxima and minima"
+  if(rank.eq.0) write(*,*) "searching for 2D field maxima and minima"
   call field_minmax_monte_carlo(node_list_2d,element_list_2d,n_fields_sol,&
   field_ids_sol,n_trials_sol,(/phi_sol,phi_sol/),pcg32_rng(),rngs,minmax_list,&
   minmax_global,rank,n_tasks,ifail)
   !> checks if the extrema are the largest and smallest values for each point in the element
-  write(*,*) "Checking 2D field maxima and minima"
+  if(rank.eq.0) write(*,*) "Checking 2D field maxima and minima"
   do ii=1,element_list_2d%n_elements
     do jj=1,n_trials_test
       call random_number(st)
@@ -149,12 +156,12 @@ subroutine test_field_minmax_monte_carlo_3d(rank,n_tasks,ifail)
   !> initialisation
   success_min_list = .true.; success_max_list = .true.; success_global = .true.;
   !> find critical points
-  write(*,*) "searching for 3D field maxima and minima"
+  if(rank.eq.0) write(*,*) "searching for 3D field maxima and minima"
   call field_minmax_monte_carlo(node_list_3d,element_list_3d,n_fields_sol,&
   field_ids_sol,n_trials_sol,phi_interval_sol,pcg32_rng(),rngs,minmax_list,&
   minmax_global,rank,n_tasks,ifail)
   !> checks if the extrema are the largest and smallest values for each point in the element
-  write(*,*) "Checking 3D field maxima and minima"
+  if(rank.eq.0) write(*,*) "Checking 3D field maxima and minima"
   do ii=1,element_list_3d%n_elements
     do jj=1,n_trials_test
       call random_number(stphi)
