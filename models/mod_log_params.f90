@@ -821,9 +821,9 @@ write(*,'(1x,a)',advance='no') ' USE_BICGSTAB : '
      write(*,REAL_FMT) 'ns_Z                ',  ns_Z
      write(*,REAL_FMT) 'ns_phi              ',  ns_phi
      write(*,REAL_FMT) 'ns_radius           ',  ns_radius
-     write(*,REAL_FMT) 'ng_radius_min       ',  ng_radius_min
+     write(*,REAL_FMT) 'ns_radius_min       ',  ns_radius_min
      write(*,REAL_FMT) 'ns_deltaphi         ',  ns_deltaphi
-     write(*,REAL_FMT) 'ns_deltaminrad      ',  ns_deltaminrad
+     write(*,REAL_FMT) 'ns_delta_minor_rad  ',  ns_delta_minor_rad
      write(*,REAL_FMT) 'ns_tor_norm         ',  ns_tor_norm
      write(*,REAL_FMT) 'ksi_ion             ',  ksi_ion
      write(*,LOGI_FMT) 'JET_MGI             ',  JET_MGI

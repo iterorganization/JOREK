@@ -380,7 +380,7 @@ module phys_module
   real*8  :: ns_phi(n_inj_max) !< Phi position of gas source
   real*8  :: ns_radius         !< Poloidal radius of gas source
   real*8  :: ns_deltaphi       !< Toroidal extension of gas source
-  real*8  :: ns_deltaminrad    !< Extension of gas source in the minor radial direction (if greater than 0.)
+  real*8  :: ns_delta_minor_rad  !< Extension of gas source in the minor radial direction (if greater than 0.)
   real*8  :: ns_tor_norm       !< Gas source normalization factor related to its toroidal shape
   real*8  :: drift_distance    !< Shift the R position of the neutral deposition outward by drift_distance (in meters) for plasmoid drift
   real*8  :: energy_teleported !< Energy (in eV) teleported per atom to consider plasmoid drift effects
@@ -413,7 +413,7 @@ module phys_module
   real*8  :: spi_Vel_RxZref(n_inj_max) !< Reference velocity of pellet center along RxZ direction upon injection
   real*8  :: spi_quantity(n_inj_max)   !< Total injected atom number for impurity SPI
   real*8  :: spi_quantity_bg(n_inj_max)!< Total injected atom number for background species SPI
-  real*8  :: ng_radius_ratio           !< We are assuming a constant ratio between the radius of NG clouds
+  real*8  :: ns_radius_ratio           !< We are assuming a constant ratio between the radius of NG clouds
                                        !< and that of shattered pellets
 
   real*8  :: spi_Vel_diff(n_inj_max)   !< The velocity difference from the reference velocity
@@ -423,7 +423,7 @@ module phys_module
   real*8  :: ns_phi_rotate             !< The toroidal position of rotated injection point
   real*8  :: tor_frequency             !< The rigid body rotation frequency
 
-  real*8  :: ng_radius_min      !< This defines the minimum radius of neutral cloud for numerical reasons (in m)
+  real*8  :: ns_radius_min      !< This defines the minimum radius of neutral cloud for numerical reasons (in m)
 
   real*8, allocatable  :: xtime_spi_ablation(:,:)         !< The time history of SPI ablation
   real*8, allocatable  :: xtime_spi_ablation_rate(:,:)    !< The time history of SPI ablation rate

@@ -112,12 +112,12 @@ namelist /in1/  tstep, nstep, tstep_n, nstep_n,                     &
                 D_imp_extra_R, D_imp_extra_Z, D_imp_extra_p,        &
                 D_imp_extra_neg, D_imp_extra_neg_thresh,            &
                 rho_min, ZK_par_neg_thresh,                         &
-                ns_deltaphi, ns_deltaminrad, ksi_ion, spi_rnd_seed, &
+                ns_deltaphi, ns_delta_minor_rad, ksi_ion, spi_rnd_seed, &
                 ns_amplitude, ns_R, ns_Z, ns_phi, ns_radius,        &
                 spi_Vel_Rref,spi_Vel_Zref, using_spi, n_spi, n_inj, &
                 spi_Vel_RxZref, spi_quantity, spi_abl_model,        &
                 spi_quantity_bg, pellet_density_bg,                 &
-                ng_radius_ratio, ng_radius_min, spi_angle,          &
+                ns_radius_ratio, ns_radius_min, spi_angle,          &
                 spi_L_inj, spi_L_inj_diff,                          &
                 drift_distance, energy_teleported,                  &
                 K_Dmv, A_Dmv, L_tube, V_Dmv, P_Dmv,                 &
