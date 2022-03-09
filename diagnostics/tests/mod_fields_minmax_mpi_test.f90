@@ -17,7 +17,8 @@ character(len=31),parameter   :: filename_3d="test_jorek_3d_fields_restart.h5"
 integer,parameter             :: rst_format=0
 integer,parameter             :: n_trials_sol=1000000
 integer,parameter             :: n_trials_test=1000
-integer,parameter             :: field_id_sol=1 !< poloidal flux
+integer,parameter             :: n_fields_sol=2
+integer,dimension(n_fields_sol),parameter :: field_ids_sol=(/1,2/) !< poloidal flux
 real*8,parameter              :: tol_real8=1.d-15
 real*8,parameter              :: phi_sol=0.d0
 real*8,dimension(2),parameter :: phi_interval_sol=(/0.d0,TWOPI/)
@@ -91,30 +92,31 @@ subroutine test_field_minmax_monte_carlo_2d(rank,n_tasks,ifail)
   !> variables:
   integer             :: ii,jj,kk
   real*8              :: R_test,Z_test
-  real*8,dimension(1) :: field_test
-  real*8,dimension(2) :: st,minmax_global
-  real*8,dimension(2,element_list_2d%n_elements) :: minmax_list
-  logical,dimension(element_list_2d%n_elements)  :: success_min_list
-  logical,dimension(element_list_2d%n_elements)  :: success_max_list
-  logical,dimension(2) :: success_global
+  real*8,dimension(2) :: st
+  real*8,dimension(n_fields_sol)   :: field_test
+  real*8,dimension(n_fields_sol,2) :: minmax_global
+  real*8,dimension(n_fields_sol,2,element_list_2d%n_elements) :: minmax_list
+  logical,dimension(n_fields_sol,element_list_2d%n_elements)  :: success_min_list
+  logical,dimension(n_fields_sol,element_list_2d%n_elements)  :: success_max_list
+  logical,dimension(n_fields_sol,2) :: success_global
   !> initialisation
   success_min_list = .true.; success_max_list = .true.; success_global = .true.;
   !> find critical points
   write(*,*) "searching for 2D field maxima and minima"
-  call field_minmax_monte_carlo(node_list_2d,element_list_2d,&
-  field_id_sol,n_trials_sol,(/phi_sol,phi_sol/),pcg32_rng(),rngs,minmax_list,&
+  call field_minmax_monte_carlo(node_list_2d,element_list_2d,n_fields,&
+  field_ids_sol,n_trials_sol,(/phi_sol,phi_sol/),pcg32_rng(),rngs,minmax_list,&
   minmax_global,rank,n_tasks,ifail)
   !> checks if the extrema are the largest and smallest values for each point in the element
   write(*,*) "Checking 2D field maxima and minima"
   do ii=1,element_list_2d%n_elements
     do jj=1,n_trials_test
       call random_number(st)
-      call interp_PRZ(node_list_2d,element_list_2d,ii,(/field_id_sol/),1,&
-      st(1),st(2),phi_sol,field_test,R_test,Z_test)
-      if(field_test(1).lt.minmax_list(1,ii)) success_min_list(ii) = .false.
-      if(field_test(1).gt.minmax_list(2,ii)) success_max_list(ii) = .false.
-      if(field_test(1).lt.minmax_global(1))  success_global(1) = .false.
-      if(field_test(1).gt.minmax_global(2))  success_global(2) = .false.
+      call interp_PRZ(node_list_2d,element_list_2d,ii,field_ids_sol,&
+      n_fields_sol,st(1),st(2),phi_sol,field_test,R_test,Z_test)
+      success_min_list(:,ii) = .not.(field_test.lt.minmax_list(:,1,ii))
+      success_max_list(:,ii) = .not.(field_test.gt.minmax_list(:,2,ii))
+      success_global(:,1) =    .not.(field_test.lt.minmax_global(:,1))
+      success_global(:,2) =    .not.(field_test.gt.minmax_global(:,2))
     enddo
   enddo
   call assert_true(all(success_min_list),&
@@ -137,19 +139,19 @@ subroutine test_field_minmax_monte_carlo_3d(rank,n_tasks,ifail)
   !> variables:
   integer             :: ii,jj,kk
   real*8              :: R_test,Z_test
-  real*8,dimension(1) :: field_test
-  real*8,dimension(2) :: minmax_global
   real*8,dimension(3) :: stphi
-  real*8,dimension(2,element_list_3d%n_elements) :: minmax_list
-  logical,dimension(element_list_3d%n_elements)  :: success_min_list
-  logical,dimension(element_list_3d%n_elements)  :: success_max_list
-  logical,dimension(2) :: success_global
+  real*8,dimension(n_fields_sol)   :: field_test
+  real*8,dimension(n_fields_sol,2) :: minmax_global
+  real*8,dimension(n_fields_sol,2,element_list_3d%n_elements) :: minmax_list
+  logical,dimension(n_fields_sol,element_list_3d%n_elements)  :: success_min_list
+  logical,dimension(n_fields_sol,element_list_3d%n_elements)  :: success_max_list
+  logical,dimension(n_fields_sol,2) :: success_global
   !> initialisation
   success_min_list = .true.; success_max_list = .true.; success_global = .true.;
   !> find critical points
   write(*,*) "searching for 3D field maxima and minima"
-  call field_minmax_monte_carlo(node_list_3d,element_list_3d,&
-  field_id_sol,n_trials_sol,phi_interval_sol,pcg32_rng(),rngs,minmax_list,&
+  call field_minmax_monte_carlo(node_list_3d,element_list_3d,n_fields_sol,&
+  field_ids_sol,n_trials_sol,phi_interval_sol,pcg32_rng(),rngs,minmax_list,&
   minmax_global,rank,n_tasks,ifail)
   !> checks if the extrema are the largest and smallest values for each point in the element
   write(*,*) "Checking 3D field maxima and minima"
@@ -157,12 +159,12 @@ subroutine test_field_minmax_monte_carlo_3d(rank,n_tasks,ifail)
     do jj=1,n_trials_test
       call random_number(stphi)
       stphi(3) = phi_interval_sol(1)  + (phi_interval_sol(2)-phi_interval_sol(1))*stphi(3)
-      call interp_PRZ(node_list_3d,element_list_3d,ii,(/field_id_sol/),1,&
-      stphi(1),stphi(2),stphi(3),field_test,R_test,Z_test)
-      if(field_test(1).lt.minmax_list(1,ii)) success_min_list(ii) = .false.
-      if(field_test(1).gt.minmax_list(2,ii)) success_max_list(ii) = .false.
-      if(field_test(1).lt.minmax_global(1))  success_global(1) = .false.
-      if(field_test(1).gt.minmax_global(2))  success_global(2) = .false.
+      call interp_PRZ(node_list_3d,element_list_3d,ii,field_ids_sol,&
+      n_fields_sol,stphi(1),stphi(2),stphi(3),field_test,R_test,Z_test)
+      success_min_list(:,ii) = .not.(field_test.lt.minmax_list(:,1,ii))
+      success_max_list(:,ii) = .not.(field_test.gt.minmax_list(:,2,ii))
+      success_global(:,1) =    .not.(field_test.lt.minmax_global(:,1))
+      success_global(:,2) =    .not.(field_test.gt.minmax_global(:,2))
     enddo
   enddo
   call assert_true(all(success_min_list),&
