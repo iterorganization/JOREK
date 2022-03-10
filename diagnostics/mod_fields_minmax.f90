@@ -66,7 +66,11 @@ n_trials,phi_int,rng_type,rngs,minmax_list,minmax_global,my_id,n_tasks,ifail)
   !$omp n_fields,thread_id) shared(node_list,element_list,field_ids,rngs,&
   !$omp min_list,max_list)
   !$ thread_id = omp_get_thread_num()+1
+#ifdef __INTEL_COMPILER
+  !$omp do reduction(min:min_list) reduction(max:max_list)
+#else
   !$omp do collapse(2) reduction(min:min_list) reduction(max:max_list)
+#endif
   do jj=1,n_trials_per_task
     do ii=1,element_list%n_elements
       call rngs(thread_id)%next(stphi_coords)
