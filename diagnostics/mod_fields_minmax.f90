@@ -52,7 +52,8 @@ n_trials,phi_int,rng_type,rngs,minmax_list,minmax_global,my_id,n_tasks,ifail)
   real*8,dimension(n_fields,2),intent(out)               :: minmax_global
   real*8,dimension(n_fields,2,element_list%n_elements),intent(out) :: minmax_list
   !> variables:
-  integer :: ii,jj,thread_id,n_trials_per_task
+  integer   :: thread_id
+  integer*8 :: ii,jj,n_trials_per_task,n_elements
   real*8 :: R,Z
   real*8,dimension(3) :: stphi_coords
   real*8,dimension(n_fields) :: vals
@@ -60,23 +61,20 @@ n_trials,phi_int,rng_type,rngs,minmax_list,minmax_global,my_id,n_tasks,ifail)
   !> initialisations
   if(allocated(rngs)) deallocate(rngs); thread_id=1;
   call setup_shared_rngs(size(stphi_coords),rng_type,rngs)
-  n_trials_per_task = n_trials/n_tasks
-  if(my_id.eq.0) n_trials_per_task = n_trials - n_trials_per_task*(n_tasks-1)
+  n_elements=element_list%n_elements; n_trials_per_task = n_trials/n_tasks
+  if(my_id.eq.0) n_trials_per_task = n_trials - n_trials_per_task*(n_tasks-1);
+  min_list=1.21; max_list=-1.d21;
   !$omp parallel default(private) firstprivate(n_trials_per_task,phi_int,&
   !$omp n_fields,thread_id) shared(node_list,element_list,field_ids,rngs,&
   !$omp min_list,max_list)
   !$ thread_id = omp_get_thread_num()+1
-#ifdef __INTEL_COMPILER
-  !$omp do reduction(min:min_list) reduction(max:max_list)
-#else
   !$omp do collapse(2) reduction(min:min_list) reduction(max:max_list)
-#endif
   do jj=1,n_trials_per_task
     do ii=1,element_list%n_elements
       call rngs(thread_id)%next(stphi_coords)
       stphi_coords(1:2) = max(min(-1.d-1 + 1.2d0*stphi_coords(1:2),1.d0),0.d0)
       stphi_coords(3) = phi_int(1)+(phi_int(2)-phi_int(1))*stphi_coords(3)
-      call interp_PRZ(node_list,element_list,ii,field_ids,n_fields,&
+      call interp_PRZ(node_list,element_list,int(ii),field_ids,n_fields,&
       stphi_coords(1),stphi_coords(2),stphi_coords(3),vals,R,Z)
       min_list(:,ii) = min(min_list(:,ii),vals) 
       max_list(:,ii) = max(max_list(:,ii),vals)
