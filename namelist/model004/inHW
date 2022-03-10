@@ -1,0 +1,106 @@
+&in1
+
+ restart = .f.
+ regrid  = .f.
+ tstep_n = 0.1
+ nstep_n = 500
+
+ nout = 1
+
+ fbnd(1)   = 2.
+ fbnd(2:4) = 0.
+ mf        = 0
+
+ equil = .f.
+
+ xpoint = .f.
+
+ R_begin = 9.5
+ R_end   = 10.5
+ Z_begin = -0.5
+ Z_end   = 0.5
+
+ R_geo = 10.0
+ Z_geo = 0.
+
+ n_R      = 90 !200!90
+ n_Z      = 90 !200!90
+ n_radial = 0
+ n_pol    = 0
+ n_flux   = 0
+
+ visco_T_dependent = .f.
+ visco     = 1.d-6
+ visco_num = 1.d-10
+
+ HW_coef(1) = 1.d-2
+ HW_coef(2) = 1.d-0
+
+ D_perp  = 1.d-6
+ D_perp_num = 1.d-10
+
+ particlesource = 0.d0
+
+ rho_0        = 1.0
+ rho_1        = 0.05
+ rho_coef(1)  = 0.0
+ rho_coef(2)  = 0.0
+ rho_coef(3)  = 0.0
+ rho_coef(4)  = 0.1
+ rho_coef(5)  = 99.!0.5
+
+
+ n_jropes = 10
+
+ R_jropes(1)       = 10.0
+ Z_jropes(1)       = 0.0
+ w_jropes(1)       = 0.1
+ rho_jropes(1)     = 1.0
+
+ R_jropes(2)       = 10.2
+ Z_jropes(2)       = 0.2
+ w_jropes(2)       = 0.05
+ rho_jropes(2)     = 1.0
+
+ R_jropes(3)       = 9.7
+ Z_jropes(3)       = 0.2
+ w_jropes(3)       = 0.08
+ rho_jropes(3)     = 1.0
+
+ R_jropes(4)       = 10.3
+ Z_jropes(4)       = -0.2
+ w_jropes(4)       = 0.15
+ rho_jropes(4)     = 1.0
+
+ R_jropes(5)       = 9.8
+ Z_jropes(5)       = -0.0
+ w_jropes(5)       = 0.02
+ rho_jropes(5)     = 1.0
+
+ R_jropes(6)       = 9.9
+ Z_jropes(6)       = 0.4
+ w_jropes(6)       = 0.02
+ rho_jropes(6)     = 1.0
+
+ R_jropes(7)       = 10.4
+ Z_jropes(7)       = -0.1
+ w_jropes(7)       = 0.05
+ rho_jropes(7)     = 1.0
+
+ R_jropes(8)       = 10.3
+ Z_jropes(8)       = -0.3
+ w_jropes(8)       = 0.1
+ rho_jropes(8)     = 1.0
+
+ R_jropes(9)       = 9.6
+ Z_jropes(9)       = -0.4
+ w_jropes(9)       = 0.05
+ rho_jropes(9)     = 1.0
+
+ R_jropes(10)      = 9.6
+ Z_jropes(10)      = 0.25
+ w_jropes(10)      = 0.01
+ rho_jropes(10)    = 1.0
+
+
+/

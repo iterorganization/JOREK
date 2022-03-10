@@ -505,6 +505,10 @@ write(*,'(1x,a)',advance='no') ' USE_BICGSTAB : '
   write(*,REAL_FMT) 'Dn_pol_sc_num         ', Dn_pol_sc_num
   write(*,REAL_FMT) 'Dn_p_sc_num           ', Dn_p_sc_num
 
+  if(jorek_model == 004 ) then
+    write(*,REAL_FMT) 'HW_coef               ', HW_coef(1:2)
+  endif
+
   write(*,LOGI_FMT) 'add_sources_in_sc     ', add_sources_in_sc
   if (with_TiTe) then
     write(*,REAL_FMT) 'ZK_i_perp_num         ', ZK_i_perp_num
