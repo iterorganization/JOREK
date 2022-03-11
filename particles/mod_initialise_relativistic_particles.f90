@@ -8,6 +8,7 @@ private
 public :: accept_function
 public :: init_p_gc_relativistic_psithetaphi_energypitchgyro
 public :: init_p_gc_relativistic_RZPhi_energypitchgyro
+public :: init_p_gc_relativistic_from_fluid_energypitchgyro
 #ifdef UNIT_TESTS
 public :: find_relativistic_kinetic_gc_groups
 public :: sample_position_uniformly_cylinder
