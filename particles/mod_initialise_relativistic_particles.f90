@@ -33,24 +33,52 @@ public :: init_particle_gc_relativistic_to_zero
 !> Interfaces ---------------------------------------------
 abstract interface
   !> function for acceptance rejection method it accepts 
-  !> a list of critieria between [0,1] and a random number
-  !> between [0,1] and return true is the value is accpeted
+  !> a list of critieria between [intervals(1),intervals(2)]
+  !>and a random number between [0,1] and return true is 
+  !> the value is accpeted
   !> inputs:
-  !>   n_criteria: (integer) number of criteria
-  !>   criteria:   (real8)(n_criteria) criteria in [0,1]
-  !>   rand:       (real8) random number in [0,1]
+  !>   n_values:  (integer) number of values to test
+  !>   values:    (real8)(n_values) values to compare
+  !>   intervals: (real8)(n_values,2) minimum and maximum 
+  !>              values for all intervals
+  !>   rand:      (real8) random number in [0,1]
   !> outputs:
   !>   success:    (logical) true if accepted
-  function accept_function(n_values,values,rand) result(success)
+  function accept_function(n_values,values,intervals,rand) result(success)
     implicit none
-    integer,intent(in)                    :: n_values
-    real*8,intent(in)                     :: rand
-    real*8,dimension(n_values),intent(in) :: values
-    logical                               :: success
+    integer,intent(in)                      :: n_values
+    real*8,intent(in)                       :: rand
+    real*8,dimension(n_values),intent(in)   :: values
+    real*8,dimension(n_values,2),intent(in) :: intervals
+    logical                                 :: success
   end function accept_function
 end interface
 
 interface
+  !> interface for field_minmax_monte_carlo
+  subroutine field_minmax_monte_carlo(node_list,element_list,&
+  n_fields,field_ids,n_trials,phi_int,rng_type,rngs,minmax_list,&
+  minmax_global,my_id,n_tasks,ifail)
+    use data_structure, only: type_node_list,type_element_list
+    use mod_interp, only: interp_prz
+    use mod_rng,    only: type_rng
+    implicit none
+    !> inputs-outputs:
+    integer,intent(inout) :: ifail
+    !> inputs:
+    type(type_node_list),intent(in)                        :: node_list
+    type(type_element_list),intent(in)                     :: element_list
+    class(type_rng),dimension(:),allocatable,intent(inout) :: rngs
+    class(type_rng),intent(in) :: rng_type
+    integer,intent(in)                                     :: n_fields,n_trials
+    integer,intent(in)                                     :: my_id,n_tasks
+    integer,dimension(n_fields),intent(in)                 :: field_ids
+    real*8,dimension(2),intent(in)                         :: phi_int
+    !> outputs:
+    real*8,dimension(n_fields,2),intent(out)               :: minmax_global
+    real*8,dimension(n_fields,2,element_list%n_elements),intent(out) :: minmax_list
+  end subroutine field_minmax_monte_carlo
+
   !> interface of the find RZ procedure
   subroutine find_RZ(node_list,element_list,R_find,Z_find,&
   R_out,Z_out,ielm_out,s_out,t_out,ifail)
@@ -689,10 +717,8 @@ phi_box,rngs,accept)
     call interp_PRZ(fields%node_list,fields%element_list,particle%i_elm,&
     prof_ids,n_profiles,particle%st(1),particle%st(2),particle%x(2),&
     profiles,particle%x(1),particle%x(2))
-    !< normalise the profiles
-    profiles = prof_norms(:,1) + prof_norms(:,2)*profiles
     !> check for failures
-    fail = .not.accept(n_profiles,profiles,rands(n_profiles+1))
+    fail = .not.accept(n_profiles,profiles,prof_norms,rands(n_profiles+1))
   enddo
 
 end subroutine sample_position_acceptreject_from_fluid_profiles
