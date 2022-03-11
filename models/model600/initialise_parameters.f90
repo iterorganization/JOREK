@@ -137,6 +137,7 @@ namelist /in1/  tstep, nstep, tstep_n, nstep_n,                     &
                 spi_tor_rot, tor_frequency, spi_num_vol,            &
                 NEO, neo_file, aki_neo_const, amu_neo_const,        &
                 D_prof_neg_thresh, ZK_prof_neg_thresh, T_min,       &
+				T_min_neg,rho_min_neg,                              &
                 ne_SI_min, Te_eV_min, rn0_min,                      &
                 D_neutral_x, D_neutral_y, D_neutral_p,              &
                 neutral_reflection, rho_min,                        &
@@ -180,7 +181,7 @@ namelist /in1/  tstep, nstep, tstep_n, nstep_n,                     &
                 autodistribute_modes, modes_per_family,             &
                 mode_families_modes, n_mode_families,               &
                 weights_per_family, autodistribute_ranks,           &
-                ranks_per_family,                                   &
+                ranks_per_family, Z_xpoint_limit,                   &
                 tgnum_psi, tgnum_u, tgnum_zj, tgnum_w, tgnum_rho,   &
                 tgnum_T, tgnum_Ti, tgnum_Te, tgnum_vpar, tgnum_rhon,&
                 tgnum_nre, tgnum_AR, tgnum_AZ, tgnum_A3,            &

@@ -188,6 +188,8 @@ subroutine preset_parameters
   xleft  = 0.d0
   xpoint = .false.
   force_horizontal_Xline = .false.
+  Z_xpoint_limit(1) = -0.4d0
+  Z_xpoint_limit(2) =  0.4d0
 
   xr1  = 9999.d0
   sig1 = 9999.d0
@@ -243,6 +245,8 @@ subroutine preset_parameters
   rn0_min            = 1.d-8
   T_min              = 1.0d-20
   rho_min            = 1.0d-20
+  T_min_neg          = -1.d12 !< only used if T_min_neg>0 , 2.01d-5*central_density*Tmin_ev (cd = 1, 20 eV)
+  rho_min_neg        = -1.d12
   
   corr_neg_temp_coef(:) = (/ 0.5, 0.5 /)
   corr_neg_dens_coef(:) = (/ 0.5, 0.5 /)

@@ -52,8 +52,10 @@ namelist /in1/  tstep, nstep, tstep_n, nstep_n,                     &
                 tokamak_device, manipulate_psi_map,                 &
                 F0, gamma, gamma_stangeby,                          &
                 zjz_0, zjz_1, zj_coef,                              &
-                rho_0, rho_1, rho_coef,                             &
+                rho_0, rho_1, rho_coef, rho_min,                    &
                 T_0,   T_1,   T_coef, T_min,                        &
+				T_min_neg,rho_min_neg,                              &
+				corr_neg_temp_coef, corr_neg_dens_coef,             &
                 FF_0,  FF_1,  FF_coef,                              &
                 V_0, V_1, V_coef,                                   &
                 ZK_par, ZK_perp, ZK_par_max, D_par, D_perp,         &
@@ -121,7 +123,7 @@ namelist /in1/  tstep, nstep, tstep_n, nstep_n,                     &
                 filter_perp_n0, filter_hyper_n0, filter_par_n0,     &
                 use_cx, use_sputtering, use_ionisation,             &
                 use_ncs, use_pcs, use_ccs, use_pcs_full,            &
-                cte_current_FB_fact
+                cte_current_FB_fact, Z_xpoint_limit
 
 
 if (my_id .eq. 0) then

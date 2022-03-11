@@ -251,6 +251,7 @@ write(*,'(1x,a)',advance='no') ' USE_BICGSTAB : '
   write(*,LOGI_FMT) 'n_tht_equidistant     ', n_tht_equidistant
   write(*,INTG_FMT) 'n_flux                ', n_flux
   write(*,LOGI_FMT) 'xpoint                ', xpoint
+  write(*,REAL_FMT) 'Z_xpoint_limit        ', Z_xpoint_limit(:)
 
   if ( xpoint ) then
     write(*,INTG_FMT) 'xcase                 ', xcase
@@ -562,10 +563,12 @@ write(*,'(1x,a)',advance='no') ' USE_BICGSTAB : '
   write(*,REAL_FMT) 'D_imp_extra_neg       ', D_imp_extra_neg
   write(*,REAL_FMT) 'D_imp_extra_neg_thresh', D_imp_extra_neg_thresh
   write(*,REAL_FMT) 'T_min                 ', T_min
+  write(*,REAL_FMT) 'T_min_neg             ', T_min_neg
   write(*,REAL_FMT) 'ne_SI_min             ', ne_SI_min
   write(*,REAL_FMT) 'Te_eV_min             ', Te_eV_min
   write(*,REAL_FMT) 'rn0_min               ', rn0_min
   write(*,REAL_FMT) 'rho_min               ', rho_min
+  write(*,REAL_FMT) 'rho_min_neg           ', rho_min_neg
   write(*,LOGI_FMT) 'use_pellet            ', use_pellet
   write(*,REAL_FMT) 'corr_neg_temp_coef    ', corr_neg_temp_coef(:)
   write(*,REAL_FMT) 'corr_neg_dens_coef    ', corr_neg_dens_coef(:)

@@ -138,6 +138,7 @@ namelist /in1/  tstep, nstep, tstep_n, nstep_n,                     &
                 spi_tor_rot, tor_frequency, spi_num_vol,            &
                 NEO, neo_file, aki_neo_const, amu_neo_const,        &
                 D_prof_neg_thresh, ZK_prof_neg_thresh, T_min,       &
+				T_min_neg,rho_min_neg,                              &
                 ne_SI_min, Te_eV_min, rn0_min,                      &
                 D_neutral_x, D_neutral_y, D_neutral_p,              &
                 neutral_reflection, rho_min,                        &

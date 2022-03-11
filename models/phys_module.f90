@@ -61,6 +61,7 @@ module phys_module
   logical :: regrid               !< Re-generate the flux-aligned grid (does not work currently)?
   logical :: import_equil         !< (presently unused)
   logical :: xpoint               !< X-point plasma or not? see also xcase
+  real*8  :: Z_xpoint_limit(2)    !< Search the lower X-point in the region Z < Z_xpoint_limit(1) and the upper X-point in the region Z > Z_xpoint_limit(2) 
   logical :: bootstrap            !< Evolve the Bootstrap current consistently with time?
   real*8  :: minRad               !< Approximation of minor radius for bootstrap current calculation
   logical :: refinement           !< Use mesh refinement? (not presently available)
@@ -811,9 +812,11 @@ module phys_module
   real*8              :: D_imp_extra_p           !< Additional impurity diffusivity in phi-direction
   real*8              :: D_imp_extra_neg         !< Additional impurity diffusion coefficient in regions with negative impurity density
   real*8              :: D_imp_extra_neg_thresh  !< D_imp_extra_neg becomes effective if rho_imp < D_imp_extra_neg_thresh
-  real*8              :: T_min              !< minimum temperature (limits on the temperature dependence of resistivity etc.)
+  real*8              :: T_min              !< minimum temperature (limits on the temperature dependence of resistivity etc.) value in jorek units: 2.01d-5*central_density*Tmin_ev (preset central_density = 1, 20 eV)
   real*8              :: rho_min            !< minimum density
-
+  real*8              :: T_min_neg          !< minimum temperature,used for correcting negative values,in jorek units: 2.01d-5*central_density*Tmin_ev (preset central_density = 1, 20 eV)  
+  real*8              :: rho_min_neg        !< minimum density, used for correcting negative values  
+  
   real*8              :: ne_SI_min          !< minimum e density (in SI unit) below which we cut-off the radiation loss
   real*8              :: Te_eV_min          !< minimum temperature (in eV) below which we cut-off the radiation loss
   real*8              :: rn0_min            !< minimum impurity density (in JU) for radiation loss cut-off

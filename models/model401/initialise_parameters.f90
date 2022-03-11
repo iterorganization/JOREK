@@ -113,6 +113,7 @@ namelist /in1/  tstep, nstep, tstep_n, nstep_n,                     &
                 D_prof_neg, ZK_prof_neg,                            &
                 D_prof_neg_thresh, ZK_prof_neg_thresh, T_min,       &
                 rho_min,                                            &
+				T_min_neg,rho_min_neg,                              &
                 corr_neg_temp_coef,                                 &
                 corr_neg_dens_coef, D_prof_neg, ZK_prof_neg,        &  
                 ns_deltaphi, ksi_ion, spi_rnd_seed,                 &

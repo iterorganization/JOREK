@@ -53,8 +53,10 @@ namelist /in1/  tstep, nstep, tstep_n, nstep_n,                     &
                 F0, gamma, gamma_stangeby,                          &
                 gamma_sheath_i, gamma_sheath_e,                     &
                 zjz_0, zjz_1, zj_coef,                              &
-                rho_0, rho_1, rho_coef,                             &
+                rho_0, rho_1, rho_coef, rho_min,                    &
                 T_0,   T_1,   T_coef, T_min,                        &
+				T_min_neg,rho_min_neg,                              &
+				corr_neg_temp_coef, corr_neg_dens_coef,             &
                 Ti_0,  Ti_1,  Ti_coef,                              &
                 Te_0,  Te_1,  Te_coef,                              &
                 FF_0,  FF_1,  FF_coef,                              &
@@ -108,7 +110,7 @@ namelist /in1/  tstep, nstep, tstep_n, nstep_n,                     &
                 max_steps_noUpdate,                                 &
                 keep_n0_const, linear_run, export_for_nemec,        &
                 output_bnd_elements,                                &
-                wall_file,                                          &
+                wall_file, Z_xpoint_limit,                          &
                 first_target_point, last_target_point,              &
                 n_limiter, R_limiter, Z_limiter,                    &
                 spi_tor_rot, tor_frequency, spi_num_vol,            &

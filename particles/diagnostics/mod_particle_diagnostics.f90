@@ -12,14 +12,14 @@ public write_particle_diagnostics, calculate_particle_diagnostics
 !> Cannot use HDF5 types here because these are invalid before h5open_f is called
 !> (I think, did not take the chance)
 integer, parameter :: REAL4 = 1, INT4 = 2, REAL8 = 3
-integer, parameter :: n_var = 15
-character(len=7)  :: var_names(n_var) = ["e      ", "k      ", "mu     ", &
+integer, parameter :: n_vars = 15
+character(len=7)  :: var_names(n_vars) = ["e      ", "k      ", "mu     ", &
   "psi_n  ", "psi_bar", "p_phi  ", "weight ", "lost   ", "q      ", "region ", &
   "theta  ", "phi    ", "R      ", "Z      ","i_elm  "]
-integer, parameter :: var_types(n_var) = [REAL8, REAL8, REAL4, REAL4, REAL4, REAL8, REAL4, INT4, INT4, INT4, REAL4, REAL4, REAL4, REAL4,INT4]
-integer, parameter :: n_real8_var      = count(var_types .eq. REAL8)
-integer, parameter :: n_real4_var      = count(var_types .eq. REAL4)
-integer, parameter :: n_int4_var       = count(var_types .eq. INT4)
+integer, parameter :: var_types(n_vars) = [REAL8, REAL8, REAL4, REAL4, REAL4, REAL8, REAL4, INT4, INT4, INT4, REAL4, REAL4, REAL4, REAL4,INT4]
+integer, parameter :: n_real8_var      = 3 !count(var_types .eq. REAL8)
+integer, parameter :: n_real4_var      = 8 !count(var_types .eq. REAL4)
+integer, parameter :: n_int4_var       = 4 !count(var_types .eq. INT4)
 ! HDF5 does not support booleans, use INT4
 
 integer(HSIZE_T), parameter :: chunk_size(2) = [50000_HSIZE_T,1_HSIZE_T] !< particle, time
@@ -223,7 +223,7 @@ subroutine do_write_particle_diagnostics(this, sim, ev)
 
     if (my_id .eq. 0) then
       ! Loop over variables, write
-      do j=1,n_var
+      do j=1,n_vars
         if (allocated(this%only)) then
           if (.not. any(this%only .eq. j)) cycle ! skip this variable
         end if
@@ -391,8 +391,8 @@ subroutine calculate_particle_diagnostics(fields, time, particles, mass, real8_s
   use phys_module, only: F0, xpoint, xcase
   use constants
   use mod_boris
-  use mod_kinetic_relativistic, only: relativistic_kinetic_to_particle
-  use mod_gc_relativistic, only: relativistic_gc_to_particle
+  use mod_kinetic_relativistic, only: relativistic_kinetic_to_particle, relativistic_kinetic_to_gc
+  use mod_gc_relativistic, only: relativistic_gc_to_particle, relativistic_gc_to_gc
   use mod_fields_linear
   use domains
   use equil_info
@@ -406,8 +406,8 @@ subroutine calculate_particle_diagnostics(fields, time, particles, mass, real8_s
   real*8, intent(out)                                          :: psi_axis, psi_limit
   logical, dimension(:), intent(out), optional                 :: mask !< Mask containing .f. if particle is lost
   real*8, intent(in), optional                                 :: dt !< for leapfrog types perform a half step to get the correct velocity
-  real*8               :: psi, U, E(3), B(3), v_par
-  type(particle_gc)    :: particle
+  real*8                 :: psi, U, E(3), B(3), v_par
+  type(particle_gc)      :: particle
   type(particle_kinetic) :: particle_centered ! a particle where position and velocity are known at same time
 
   integer :: i, ifail
@@ -443,6 +443,7 @@ subroutine calculate_particle_diagnostics(fields, time, particles, mass, real8_s
   real8_stats = 0.d0
   real4_stats = 0.d0
   int_stats  = 0
+#ifndef __NVCOMPILER  
 #ifdef __GFORTRAN__
   !$omp parallel do default(shared) &
 #else
@@ -451,6 +452,7 @@ subroutine calculate_particle_diagnostics(fields, time, particles, mass, real8_s
   !$omp        xpoint, xcase, R_xpoint, Z_xpoint, psi_xpoint, psi_limit, R_axis, Z_axis, psi_axis) &
 #endif
   !$omp private(E, B, psi, U, particle, v_par, domain, particle_centered, real_stats_tmp, i_real8, i_real4, i_tmp, j)
+#endif
   do i=1,size(particles,1)
     int_stats(i,4) = particles(i)%i_elm
     if (particles(i)%i_elm .lt. 1) then
@@ -494,19 +496,16 @@ subroutine calculate_particle_diagnostics(fields, time, particles, mass, real8_s
         particle = particle_in
         real_stats_tmp(6) = 0.d0 ! Since there is no momentum defined for this we just use 0
       type is (particle_kinetic_relativistic)
-        ! compute the canonical toroidal momentum P_phi
-        real_stats_tmp(6) = real(particle_in%q,8)*EL_CHG*psi - ATOMIC_MASS_UNIT*particle_in%x(1)* &
-          (particle_in%p(1)*sin(particle_in%x(3))+particle_in%p(2)*cos(particle_in%x(3)))
+  ! compute the canonical toroidal momentum P_phi
+         real_stats_tmp(6) = real(particle_in%q,8)*EL_CHG*psi - ATOMIC_MASS_UNIT*particle_in%x(1)* &
+                                 (particle_in%p(1)*sin(particle_in%x(3))+particle_in%p(2)*cos(particle_in%x(3)))
 	! transform the particle into a gc to get E and mu
-        call relativistic_kinetic_to_particle(fields%node_list,fields%element_list,&
-             particle_in,particle,mass,B)
-       type is (particle_gc_relativistic)
-         ! compute the canonical toroidal momentum P_phi
-          real_stats_tmp(6) = EL_CHG*particle_in%q*psi + ATOMIC_MASS_UNIT*particle_in%x(1)* &
-            particle_in%p(1)*B(3)/norm2(B)
-         ! transform the particle into a gc to get E and mu
-          call relativistic_gc_to_particle(fields%node_list,fields%element_list, &
-            particle_in,particle,mass,B) 
+        call relativistic_kinetic_to_particle(fields%node_list,fields%element_list, particle_in, particle, mass, B)
+      type is (particle_gc_relativistic)
+  ! compute the canonical toroidal momentum P_phi
+        real_stats_tmp(6) = EL_CHG*particle_in%q*psi + ATOMIC_MASS_UNIT*particle_in%x(1)* particle_in%p(1)*B(3)/norm2(B)
+  ! transform the particle into a gc to get E and mu
+        call relativistic_gc_to_particle(fields%node_list,fields%element_list, particle_in,particle,mass,B) 
       class default
         write(*,*) "ERROR: calculate_particle_diagnostics not implemented for this particle type"
         cycle ! skip this iteration
@@ -554,7 +553,7 @@ subroutine calculate_particle_diagnostics(fields, time, particles, mass, real8_s
       i_real8 = 0
       i_real4 = 0
       i_tmp = 0
-      do j=1,n_var
+      do j=1,n_vars
         if (var_types(j) .eq. REAL8) then
           i_tmp = i_tmp + 1
           i_real8 = i_real8 + 1
@@ -567,7 +566,9 @@ subroutine calculate_particle_diagnostics(fields, time, particles, mass, real8_s
       end do
     endif
   enddo
+#ifndef __NVCOMPILER  
   !$omp end parallel do
+#endif
 end subroutine calculate_particle_diagnostics
 
 
@@ -630,16 +631,14 @@ function particles_in_regions(node_list, element_list, particles)
   !$omp private(domain, psi, psi_s, psi_t, psi_st, psi_ss, psi_tt) &
   !$omp reduction(+:tmp)
   do i=1,size(particles,1)
-    associate (p => particles(i))
-    if (p%i_elm .le. 0 .or. p%i_elm .gt. element_list%n_elements) cycle
-    call interp(node_list, element_list, p%i_elm, 1, 1, & ! force i_harm to 1
-        p%st(1), p%st(2), psi, psi_s, psi_t, psi_st, psi_ss, psi_tt)
+    if (particles(i)%i_elm .le. 0 .or. particles(i)%i_elm .gt. element_list%n_elements) cycle
+    call interp(node_list, element_list, particles(i)%i_elm, 1, 1, &                               ! force i_harm to 1
+                particles(i)%st(1), particles(i)%st(2), psi, psi_s, psi_t, psi_st, psi_ss, psi_tt)
 
     domain = which_domain(node_list, element_list, &
-        p%x(1), p%x(2), &
+        particles(i)%x(1), particles(i)%x(2), &
         psi, xpoint, xcase, R_xpoint, Z_xpoint, psi_xpoint, psi_limit, &
         R_axis, Z_axis, psi_axis)
-    end associate
 
     tmp(domain) = tmp(domain) + 1
   end do

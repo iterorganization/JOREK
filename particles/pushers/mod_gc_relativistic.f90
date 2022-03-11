@@ -12,6 +12,7 @@ module mod_gc_relativistic
   !> declare public procedures and variables
   public relativistic_gc_to_particle
   public gc_to_relativistic_gc
+  public relativistic_gc_to_gc
   public compute_relativistic_factor
   public relativistic_gc_to_relativistic_kinetic
   public relativistic_gc_momenta_from_E_cospitch

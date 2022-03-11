@@ -13,6 +13,7 @@ private
 public :: volume_preserving_push_cartesian,volume_preserving_push_jorek
 public :: relativistic_kinetic_to_particle
 public :: gc_to_relativistic_kinetic
+public :: relativistic_kinetic_to_gc
 public :: relativistic_kinetic_to_relativistic_gc
 public :: runge_kutta_fixed_dt_relativistic_particle_push
 public :: runge_kutta_fixed_dt_relativistic_particle_push_jorek
