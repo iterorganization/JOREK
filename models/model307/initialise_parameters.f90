@@ -119,12 +119,12 @@ namelist /in1/  tstep, nstep, tstep_n, nstep_n,                     &
                 V_0,V_1,V_coef, output_bnd_elements,                &
                 wall_file, spi_shard_file,                          &
                 n_limiter, R_limiter, Z_limiter,                    &
-                first_target_point, last_target_point,		    &
+                first_target_point, last_target_point,              &
                 NEO, neo_file, aki_neo_const, amu_neo_const,        &
                 time_evol_scheme, corr_neg_temp_coef,               &
                 corr_neg_dens_coef, D_prof_neg, ZK_prof_neg,        &
-                D_prof_neg_thresh, ZK_prof_neg_thresh, T_min,       &
-                ZK_par_neg_thresh, ZK_par_neg,                      &
+                D_prof_neg_thresh, ZK_prof_neg_thresh, T_min,rho_min,&
+                ZK_par_neg_thresh, ZK_par_neg, T_min_neg,rho_min_neg,&
                 Number_RMP_harmonics,RMP_har_cos_spectrum,          &
                 RMP_har_sin_spectrum,                               &
                 amix, amix_freeb, equil_accuracy,                   &
@@ -151,7 +151,7 @@ namelist /in1/  tstep, nstep, tstep_n, nstep_n,                     &
                 filter_perp_n0, filter_hyper_n0, filter_par_n0,     &
                 use_cx, use_sputtering, use_ionisation,             &
                 use_ncs, use_pcs, use_ccs, use_pcs_full, use_rcs,   &
-                cte_current_FB_fact
+                cte_current_FB_fact, Z_xpoint_limit
 
 if (my_id .eq. 0) then
 

@@ -239,8 +239,8 @@
  spi_shard_file = 'none' !'shard_size.dat'
 
  spi_abl_model   = 1
- ng_radius_ratio = 1.4d0
- ng_radius_min   = 2.d-1
+ ns_radius_ratio = 1.4d0
+ ns_radius_min   = 2.d-1
 
  ns_R        = 3.00d0
  ns_Z        = 1.60d0

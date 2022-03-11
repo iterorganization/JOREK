@@ -29,11 +29,6 @@ module pellet_module
                             particle_source, volume_source)
   
   implicit none
-#if _OPENMP >= 201511
-  !$omp declare simd uniform(pellet_amplitude,pellet_R,pellet_Z,pellet_psi,pellet_phi,              &
-  !$omp pellet_radius, pellet_delta_psi, pellet_sig, pellet_length, pellet_ellipse, pellet_theta,   &
-  !$omp R, Z, r0, T0, central_density, pellet_particles, pellet_density, pellet_volume)
-#endif
 
     real*8, intent(in)  :: R, Z, psi                 ! position where the particle source is calculated
     real*8, intent(inout) :: phi                     ! toroidal position
@@ -55,6 +50,12 @@ module pellet_module
     
     ! --- local variables
     real*8  :: radius, atn, atn_psi, atn_phi, atomic_mass, ablation_rate
+
+#if _OPENMP >= 201511
+  !$omp declare simd uniform(pellet_amplitude,pellet_R,pellet_Z,pellet_psi,pellet_phi,              &
+  !$omp pellet_radius, pellet_delta_psi, pellet_sig, pellet_length, pellet_ellipse, pellet_theta,   &
+  !$omp R, Z, r0, T0, central_density, pellet_particles, pellet_density, pellet_volume)
+#endif
     
     particle_source = 0.d0
     volume_source   = 0.d0

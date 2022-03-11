@@ -425,6 +425,11 @@ required = 0
         energy conservation. No problem if you know what you are doing (a good reason to &
 	do this could be to avoid spurious Ohmic heating in the plasma core).'
   end if
+  if ((T_min_neg .lt. 0.d0) .or. (rho_min_neg .lt. 0.d0)) then
+	write(*,*) 'WARNING: You did not specify T_min_neg and/or rho_min_neg for the correction of negative temperatures and densities.  & 
+	   The lower values of the equilibrium profiles (T_1 and/or rho_1) will be used instead.'
+	write(*,*) 'For instance, try in your input file: rho_min_neg = 1.d-3 and T_min_neg = 4.02d-4 !=2.01d-5*central_density*Tmin_ev (with central_density = 1 and Tmin_eV= 20 eV)'    
+  endif
 
 #ifndef USE_BLOCK
   write(*,*) 'WARNING: You are not using USE_BLOCK=1 which might be inefficient.'
