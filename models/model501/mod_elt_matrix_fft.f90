@@ -1254,6 +1254,7 @@ do ms=1, n_gauss
 !==============================End of friction terms=================
 !============================Behold, the parallel viscous heating terms!=============
                     + (GAMMA - 1.) * v * BigR * visco_par * (vpar0_x * vpar0_x + vpar0_y * vpar0_y)      * xjac * tstep &
+                    + (GAMMA - 1.) * vpar0 * BigR * visco_par * (v_x * vpar0_x     + v_y * vpar0_y)      * xjac * tstep &
 !==========================End of viscous heating terms==============================
 
                     + v * BigR * (GAMMA - 1.) * eta_T_ohm * (zj0/BigR)**2           * xjac * tstep  &
@@ -2115,6 +2116,8 @@ do ms=1, n_gauss
 !==============================End of friction terms=================
 !============================Behold, the parallel viscous heating terms!=============
                        - (GAMMA - 1.) * v * BigR * visco_par * 2.d0 * (vpar_x*vpar0_x + vpar_y*vpar0_y) * xjac * theta * tstep  &
+                       - (GAMMA - 1.) * vpar0 * BigR * visco_par    * (vpar_x*v_x     + vpar_y*v_y)     * xjac * theta * tstep  &
+                       - (GAMMA - 1.) * vpar * BigR * visco_par    * (vpar0_x*v_x     + vpar0_y*v_y)    * xjac * theta * tstep  &
 !==========================End of viscous heating terms==============================
  
                    + TG_num6 * 0.25d0 / BigR * 2.d0 * vpar0*vpar &
