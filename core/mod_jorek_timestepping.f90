@@ -549,6 +549,9 @@ subroutine do_jorek_timestep(this, sim, ev)
     ! TODO add if use_pellet
 #if (defined WITH_Neutrals) || (defined WITH_Impurities)
     if (using_spi) then
+      if (nonlocal_abl) then
+        if (nl_avg_Te(1) .eq. 0.d0) call int3d_new(sim%my_id, sim%fields%node_list, sim%fields%element_list, bnd_node_list, bnd_elm_list, exprs_all_int, res, 1)
+      endif
       n_spi_begin = 1
       do i = 1, n_inj !< Do one update for each injection location
         if (t_now >= t_ns(i)) call update_spi(sim%my_id,sim%fields%node_list,sim%fields%element_list,i,n_spi_begin)
