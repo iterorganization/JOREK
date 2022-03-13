@@ -1034,10 +1034,8 @@ real*8     :: zn_norm, Tev_norm
 integer    :: i, j, k, l, m, in, im, ilarge, index_large_i, index_large_k, inode, knode
 integer    :: nz_AA, n_AA, nz_bnd, i_elm, index_ij, index_kl, im_index, in_index, index1
 integer    :: ms, mt, mp, my_id, my_id_n, my_id_master, ierr, MPI_COMM_MUMPS
-integer    :: ivar_psi, ivar_rho, ivar_T
-integer    :: this_n_cpu, this_n_cpu_mumps
-logical    :: apply_dirichlet_condition, do_ion_pol
-logical    :: halt(size(IEEE_USUAL,1))
+logical    :: apply_dirichlet_condition
+logical    :: halt(size(IEEE_USUAL,1)), do_facto
 
 call cpu_time(t0)
 
@@ -1448,16 +1446,20 @@ mumps_par%icntl(7)  = 7 ! compute symmetric permutation (PORD or SCOTCH autosele
 mumps_par%icntl(8)  = 8 ! scaling
 mumps_par%icntl(14) = 80 ! memory relaxation parameter
 
-if (present(skip_factorisation) .and. skip_factorisation) then
-else
+do_facto = .true.
+if (present(skip_factorisation)) then
+  if (skip_factorisation) then
+    do_facto = .false.
+  endif
+endif
+if (do_facto) then
   call ieee_get_halting_mode(IEEE_USUAL, halt)
   call ieee_set_halting_mode(IEEE_USUAL, [.false., .false., .false.])
   call DMUMPS(mumps_par)
   call ieee_set_halting_mode(IEEE_USUAL, halt)
 endif
 
-call cpu_time(t1)
-write(*,*) mode(i_tor_local),my_id,my_id_n,' cpu time : ',t1-t0
+if (my_id_n .eq. 0) write(*,*) " n<>0 MUMPS INFO(1) : ",mumps_par%infog(1),mumps_par%infog(2),mumps_par%info(1),mumps_par%info(2)
 
 end subroutine prepare_mumps_par
 
@@ -1503,8 +1505,7 @@ real*8     :: filter_n0, filter_hyper_n0, filter_parallel_n0, zonal_factor
 integer    :: i, j, k, l, m, in, im, ilarge, index_large_i, index_large_k, inode, knode
 integer    :: nz_AA, n_AA, nz_bnd, i_elm, index_ij, index_kl, im_index, in_index, index1, index2, index_rhs
 integer    :: ms, mt, mp, my_id, my_id_n, my_id_master, ierr, MPI_COMM_MUMPS
-integer    :: this_n_cpu, this_n_cpu_mumps
-logical    :: halt(size(IEEE_USUAL,1))
+logical    :: halt(size(IEEE_USUAL,1)), do_facto
 logical    :: apply_dirichlet_condition, apply_zonal
 real*8, dimension(n_vertex_max,n_order+1) :: basisfunction_volume
 
@@ -1526,7 +1527,7 @@ call MPI_COMM_RANK(mumps_par%COMM,       my_id_n, ierr)
 apply_zonal = .false.
 if (present(do_zonal)) apply_zonal = do_zonal
 
-apply_dirichlet_condition = .false.
+apply_dirichlet_condition = .true.
 if (apply_zonal)  apply_dirichlet_condition = .true.
 
 
@@ -1889,16 +1890,20 @@ mumps_par%icntl(7)  = 7 ! compute symmetric permutation (PORD or SCOTCH autosele
 mumps_par%icntl(8)  = 8 ! scaling
 mumps_par%icntl(14) = 80 ! memory relaxation parameter
 
-if (present(skip_factorisation) .and. skip_factorisation) then
-else
+do_facto = .true.
+if (present(skip_factorisation)) then
+  if (skip_factorisation) then
+    do_facto = .false.
+  endif
+endif
+if (do_facto) then
   call ieee_get_halting_mode(IEEE_USUAL, halt)
   call ieee_set_halting_mode(IEEE_USUAL, [.false., .false., .false.])
   call DMUMPS(mumps_par)
   call ieee_set_halting_mode(IEEE_USUAL, halt)
 endif
 
-call cpu_time(t1)
-write(*,*) ' n=0, ',my_id, my_id_n,' cpu time : ',t1-t0
+if (my_id_n .eq. 0) write(*,*) " n=0 MUMPS INFOG(1:2) : ",mumps_par%infog(1),mumps_par%infog(2)
 
 end subroutine prepare_mumps_par_n0
 
