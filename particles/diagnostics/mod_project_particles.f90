@@ -1034,14 +1034,16 @@ real*8     :: zn_norm, Tev_norm
 integer    :: i, j, k, l, m, in, im, ilarge, index_large_i, index_large_k, inode, knode
 integer    :: nz_AA, n_AA, nz_bnd, i_elm, index_ij, index_kl, im_index, in_index, index1
 integer    :: ms, mt, mp, my_id, my_id_n, my_id_master, ierr, MPI_COMM_MUMPS
+integer    :: ivar_psi, ivar_rho, ivar_T
+integer    :: this_n_cpu, this_n_cpu_mumps
 logical    :: apply_dirichlet_condition
 logical    :: halt(size(IEEE_USUAL,1)), do_facto
 
 call cpu_time(t0)
 
-ivar_psi = 1
-ivar_rho = 5
-ivar_T   = 6
+ivar_psi = var_psi
+ivar_rho = var_rho
+ivar_T   = var_T
 
 do_ion_pol = .false.
 if (present(do_ion_polarisation)) then
@@ -1505,6 +1507,7 @@ real*8     :: filter_n0, filter_hyper_n0, filter_parallel_n0, zonal_factor
 integer    :: i, j, k, l, m, in, im, ilarge, index_large_i, index_large_k, inode, knode
 integer    :: nz_AA, n_AA, nz_bnd, i_elm, index_ij, index_kl, im_index, in_index, index1, index2, index_rhs
 integer    :: ms, mt, mp, my_id, my_id_n, my_id_master, ierr, MPI_COMM_MUMPS
+integer    :: this_n_cpu, this_n_cpu_mumps
 logical    :: halt(size(IEEE_USUAL,1)), do_facto
 logical    :: apply_dirichlet_condition, apply_zonal
 real*8, dimension(n_vertex_max,n_order+1) :: basisfunction_volume
