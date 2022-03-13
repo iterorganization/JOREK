@@ -7,7 +7,9 @@ private
 public pcg32_rng
 
 type, extends(type_rng) :: pcg32_rng
+#ifndef __NVCOMPILER 
   private
+#endif
     type(pcg_state_setseq_64) :: state = pcg_state_setseq_64( &
       state = 234617468, inc = 123674237) !< mash-they-keyboard random
   contains

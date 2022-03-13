@@ -145,7 +145,7 @@ module diffusivities
     real*8, intent(in)  :: psin 
     
     
-    if ( num_zk_perp ) then
+    if ( num_zk_i_perp ) then
       
       get_zk_iperp1 = interpolProf(num_zk_i_perp_x, num_zk_i_perp_y, num_zk_i_perp_len, psin)
       
@@ -173,7 +173,7 @@ module diffusivities
     real*8, intent(in)  :: psin 
     
     
-    if ( num_zk_perp ) then
+    if ( num_zk_e_perp ) then
       
       get_zk_eperp1 = interpolProf(num_zk_e_perp_x, num_zk_e_perp_y, num_zk_e_perp_len, psin)
       

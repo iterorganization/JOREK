@@ -7,7 +7,7 @@ module mod_source_shape
 
   !> Determine source shape
   pure function source_shape(R,Z,phi,ns_R,ns_Z,ns_phi,ns_radius,ns_deltaphi,&
-            psi,ns_psi,ns_grad_psi,ns_deltaminrad)
+            psi,ns_psi,ns_grad_psi,ns_delta_minor_rad)
 #if _OPENMP >= 201511
     !$omp declare simd
 #endif
@@ -17,7 +17,7 @@ module mod_source_shape
     real*8, intent(in)  :: ns_R, ns_Z, ns_phi        ! position of the shard
     real*8, intent(in)  :: ns_radius, ns_deltaphi    ! extent of the ablation cloud
 
-    real*8, intent(in)  :: psi,ns_psi,ns_grad_psi,ns_deltaminrad ! additional variables for a poloidally elongated source
+    real*8, intent(in)  :: psi,ns_psi,ns_grad_psi,ns_delta_minor_rad ! additional variables for a poloidally elongated source
 
     real*8              :: source_shape
     real*8              :: radius, ns_pol_shape
@@ -36,9 +36,9 @@ module mod_source_shape
     source_shape = ns_pol_shape * ns_tor_shape
 
     ! Optionally, a gaussian shape is chosen in the minor radius direction
-    if (ns_deltaminrad .gt. 0.) then
+    if (ns_delta_minor_rad .gt. 0.) then
        dminrad = abs(psi-ns_psi)/ns_grad_psi
-       ns_minrad_shape = exp(-(dminrad/ns_deltaminrad)**2.d0)
+       ns_minrad_shape = exp(-(dminrad/ns_delta_minor_rad)**2.d0)
        source_shape = source_shape * ns_minrad_shape
     end if
 

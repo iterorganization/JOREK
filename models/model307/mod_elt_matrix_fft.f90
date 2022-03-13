@@ -106,7 +106,6 @@ real*8     :: aux_BdivPI,aux_BB2
 real*8     :: t_norm
 ! Temporary variables serving the SPI module
 integer    :: spi_i
-real*8     :: ng_radius !< Radius of neutral gas cloud as a result of the ablation
 
 real*8     :: in_fft(1:n_plane)
 complex*16 :: out_fft(1:n_plane)

@@ -239,6 +239,7 @@ subroutine initialise_particles_H_mu_psi(particles, fields, rng_base, mass, T_ma
   use phys_module, only: F0, central_density
   use mod_coronal
   use mod_boris, only: gc_to_kinetic_leapfrog, kinetic_to_kinetic_leapfrog, gc_to_kinetic
+  use mod_gc_variational, only: convert_gc_to_gc_vpar
   use mpi
   use mod_interp
   implicit none
@@ -262,10 +263,11 @@ subroutine initialise_particles_H_mu_psi(particles, fields, rng_base, mass, T_ma
   real*8,                intent(in), optional       :: T_Maxwell !< constant Maxwellian temperature [eV]
 
   ! Internal variables
-  type(particle_gc) :: particle
+  type(particle_gc)      :: particle
+  type(particle_kinetic) :: particle_kinetic_tmp
   class(type_rng), allocatable :: rng
   real*8  :: ran(8)
-  real*8  :: H, muB, chi
+  real*8  :: H, muB, chi, V2, v_par
   real*8  :: psi, psimin, psimax, theta, phi
   real*8  :: R, Z, inv_st_jac, psi_r, psi_z, B(3)
 #ifdef fullmhd
@@ -346,8 +348,12 @@ subroutine initialise_particles_H_mu_psi(particles, fields, rng_base, mass, T_ma
     psimin= 1d10
     psimax=-1d10
     ! Preparatory work: determine psi_min,max
-    !$omp parallel do default(none) &
+#ifdef __GFORTRAN__
+    !$omp parallel do default(shared) &
+#else
+    !$omp parallel do default(none)        &
     !$omp shared(fields,  psi_minmax_list) &
+#endif
     !$omp private(i_elm) reduction(min:psimin) &
     !$omp reduction(max:psimax)
     do i_elm=1, fields%element_list%n_elements
@@ -408,26 +414,31 @@ subroutine initialise_particles_H_mu_psi(particles, fields, rng_base, mass, T_ma
         allocate(particle_kinetic_leapfrog::particles_tmp(blocksize))
       type is (particle_gc)
         allocate(particle_gc::particles_tmp(blocksize))
+      type is (particle_gc_vpar)
+        allocate(particle_gc_vpar::particles_tmp(blocksize))
       class default
         write(*,*) "ERROR: particle type not supported yet for initialize_particles_H_mu_psi"
         call exit(1)
     end select
     !allocate(particles_tmp(blocksize), mold=particles) ! this does not work in ifort 17
     allocate(found(blocksize))
+
+#ifndef __NVCOMPILER
 #ifdef __GFORTRAN__
     !$omp parallel do default(shared) &
 #else
     !$omp parallel do default(none) &
-#endif
-    !$omp   private(i, psi, theta, phi, i_elm, s, t, R, Z, R_s, R_t, Z_s, Z_t, P2, &
-    !$omp           R_i, Z_i, xjac, grad_P2, u,  &
-#ifdef fullmhd
-    !$omp          A3, AR, AZ, A3_R, A3_Z, AR_Z, AR_p, AZ_R, AZ_P, Fprof, &
-#endif
-    !$omp           P, P_s, P_t, P_phi, inv_st_jac, psi_R, psi_Z, B, H, muB, chi, ran, particle, temp, ifail, DUMMY_R, DUMMY_Z) &
     !$omp   shared(particles_tmp, psimax, psimin, found, F0, cor, mass, charge, T_Maxwell, &
     !$omp          fields, psi_minmax_list, rans, R_axis, Z_axis, blocksize, &
-    !$omp          my_include_vpar, central_density, init_uniform_space, Rbox, Zbox, uniform_space_rej_vars, n_geom, n_mhd)
+    !$omp          my_include_vpar, central_density, init_uniform_space, Rbox, Zbox, uniform_space_rej_vars, n_geom, n_mhd) &
+#endif
+    !$omp   private(i, psi, theta, phi, i_elm, s, t, R, Z, R_s, R_t, Z_s, Z_t, P2, &
+    !$omp           R_i, Z_i, xjac, grad_P2, u, particle_kinetic_tmp, v2, v_par,   &
+#ifdef fullmhd
+    !$omp           A3, AR, AZ, A3_R, A3_Z, AR_Z, AR_p, AZ_R, AZ_P, Fprof,          &
+#endif
+    !$omp           P, P_s, P_t, P_phi, inv_st_jac, psi_R, psi_Z, B, H, muB, chi, ran, particle, temp, ifail, DUMMY_R, DUMMY_Z)
+#endif
     do i=1,blocksize
 
       ran(:) = rans(:,i)
@@ -500,7 +511,7 @@ subroutine initialise_particles_H_mu_psi(particles, fields, rng_base, mass, T_ma
       if (i_elm .ne. 0) then
         found(i) = .true.
         ! If we are here a suitable position has been found
-        particle%weight = 1. ! This is needed because the initializing values for
+        particle%weight = 1.d0 ! This is needed because the initializing values for
         ! the particles are not being used always!
         particle%i_elm = i_elm
         particle%st    = [s,t]
@@ -585,23 +596,27 @@ subroutine initialise_particles_H_mu_psi(particles, fields, rng_base, mass, T_ma
         select type(p => particles_tmp(i))
           type is (particle_kinetic_leapfrog)
 
-            ! the generic copy of particle_kinetic_leapfrog, i.e p = ..., seems broken, therefore using the non-generic copy
-            call copy_particle_kinetic_leapfrog( &
-              kinetic_to_kinetic_leapfrog(gc_to_kinetic(fields%node_list, fields%element_list, particle, chi, B, mass), &
-              [0.d0, 0.d0, 0.d0], B, mass, dt=0.d0), &
-              p )
+! the generic copy of particle_kinetic_leapfrog, i.e p = ..., seems broken, therefor using the non-generic copy
+!          call copy_particle_kinetic_leapfrog( &
+!                 kinetic_to_kinetic_leapfrog(gc_to_kinetic(fields%node_list, fields%element_list, particle, chi, B, mass), &
+!                                             [0.d0, 0.d0, 0.d0], B, mass, dt=0.d0), &
+!                                             p )
+            particles_tmp(i) = gc_to_kinetic_leapfrog(particle, fields%node_list, fields%element_list, chi, [0.d0,0.d0,0.d0], B, mass, dt=0.d0)
 
             ! if the kinetic position is not in the grid particles(i)%i_elm the particle is lost
-            if (p%i_elm .le. 0) found(i) = .false.
+            if (particles_tmp(i)%i_elm .le. 0) found(i) = .false.
           type is (particle_gc)
-            p = particle
+            particles_tmp(i) = particle
+          type is (particle_gc_vpar)
+            call convert_gc_to_gc_vpar(particle, norm2(B), mass, p)
         end select
       else
         found(i) = .false.
       end if
     end do
+#ifndef __NVCOMPILER
     !$omp end parallel do
-
+#endif
     ! How many particles have we found?
     n_found = count(found)
     write(*,*) my_id, "tried to find ", to_find, " found: ", n_found
@@ -620,6 +635,11 @@ subroutine initialise_particles_H_mu_psi(particles, fields, rng_base, mass, T_ma
             select type (p2 => particles_tmp(j))
               type is (particle_gc)
                 p1 = p2
+            end select
+          type is (particle_gc_vpar)
+            select type (p2 => particles_tmp(j))
+            type is (particle_gc_vpar)
+              p1 = p2
             end select
         end select
 
@@ -651,6 +671,7 @@ subroutine initialise_particles_H_mu_psi_phiplanes(particles, fields, rng_base, 
   use phys_module, only: F0, central_density
   use mod_coronal
   use mod_boris, only: gc_to_kinetic_leapfrog, kinetic_to_kinetic_leapfrog, gc_to_kinetic
+  use mod_gc_variational, only: convert_gc_to_gc_vpar
   use mpi
   use mod_interp
   implicit none
@@ -677,6 +698,7 @@ subroutine initialise_particles_H_mu_psi_phiplanes(particles, fields, rng_base, 
 
   ! Internal variables
   type(particle_gc) :: particle
+  type(particle_kinetic) :: particle_kinetic_tmp
   class(type_rng), allocatable :: rng
   real*8  :: ran(8)
   real*8  :: H, muB, chi
@@ -691,7 +713,7 @@ subroutine initialise_particles_H_mu_psi_phiplanes(particles, fields, rng_base, 
   real*8, dimension(:), allocatable   :: P2
   real*8, dimension(:,:), allocatable :: grad_P2
   real*8  :: R_s, R_t, Z_s, Z_t, R_i, Z_i, xjac
-  real*8  :: s, t, u_init_max, temp, u
+  real*8  :: s, t, u_init_max, temp, u, v2, v_par
   real*8  :: psi_axis, R_axis, Z_axis, s_axis, t_axis
   integer :: i_elm, i, j, k, ifail, my_id, n_cpu, ierr, n_mhd, n_geom
   real*8, dimension(fields%element_list%n_elements,2)    :: psi_minmax_list
@@ -863,21 +885,23 @@ subroutine initialise_particles_H_mu_psi_phiplanes(particles, fields, rng_base, 
       blocksize_tmp=blocksize_tmp-modulo(blocksize_tmp,n_phi_planes)
       !Subtract as to keep within the bound of the blocksize array
     endif 
+#ifndef __NVCOMPILER
 #ifdef __GFORTRAN__
     !$omp parallel do default(shared) &
 #else
     !$omp parallel do default(none) &
+    !$omp   shared(particles_tmp, psimax, psimin, found, F0, cor, mass, charge, T_Maxwell, &
+    !$omp          fields, psi_minmax_list, rans, R_axis, Z_axis, blocksize, init_phiplanes,init_gyro_orbit, n_gyro_orbit,blocksize_tmp,&
+    !$omp          my_include_vpar, central_density, init_uniform_space, Rbox, Zbox, uniform_space_rej_vars, n_geom, n_mhd,n_phi_planes,my_id) &
 #endif
     !$omp   private(i, psi, theta, phi, i_elm, s, t, R, Z, R_s, R_t, Z_s, Z_t, P2, &
-    !$omp           R_i, Z_i, xjac, grad_P2, u,  &
+    !$omp           R_i, Z_i, xjac, grad_P2, u, particle_kinetic_tmp, v2, v_par,   &
 #ifdef fullmhd
     !$omp          A3, AR, AZ, A3_R, A3_Z, AR_Z, AR_p, AZ_R, AZ_P, Fprof, &
 #endif
     !$omp           P, P_s, P_t, P_phi, inv_st_jac, psi_R, psi_Z, B, H, muB, chi, ran, particle, temp, ifail, DUMMY_R, DUMMY_Z,i_phi_planes,&
-    !$omp           i_gyro_orbit, i_gyro_temp)&
-    !$omp   shared(particles_tmp, psimax, psimin, found, F0, cor, mass, charge, T_Maxwell, &
-    !$omp          fields, psi_minmax_list, rans, R_axis, Z_axis, blocksize, init_phiplanes,init_gyro_orbit, n_gyro_orbit,blocksize_tmp,&
-    !$omp          my_include_vpar, central_density, init_uniform_space, Rbox, Zbox, uniform_space_rej_vars, n_geom, n_mhd,n_phi_planes,my_id)
+    !$omp           i_gyro_orbit, i_gyro_temp)
+#endif
     do i=1,blocksize_tmp
 
       ran(:) = rans(:,i)
@@ -1049,17 +1073,21 @@ subroutine initialise_particles_H_mu_psi_phiplanes(particles, fields, rng_base, 
 
               ! the generic copy of particle_kinetic_leapfrog, i.e p = ..., seems broken, therefore using the non-generic copy
 
-              call copy_particle_kinetic_leapfrog( &
-                kinetic_to_kinetic_leapfrog(gc_to_kinetic(fields%node_list, fields%element_list, particle, TWOPI*REAL(i_gyro_orbit)/REAL(n_gyro_orbit)+chi, B, mass), &
-                [0.d0, 0.d0, 0.d0], B, mass, dt=0.d0), &
-                p )
+!              call copy_particle_kinetic_leapfrog( &
+!                kinetic_to_kinetic_leapfrog(gc_to_kinetic(fields%node_list, fields%element_list, particle, TWOPI*REAL(i_gyro_orbit)/REAL(n_gyro_orbit)+chi, B, mass), &
+!                [0.d0, 0.d0, 0.d0], B, mass, dt=0.d0), &
+!                p )
 
+              p = gc_to_kinetic_leapfrog(particle, fields%node_list, fields%element_list, chi, [0.d0,0.d0,0.d0], B, mass, dt=0.d0)
+  
               ! if the kinetic position is not in the grid particles(i)%i_elm the particle is lost
               found(i_gyro_temp) = .true.
               if (p%i_elm .le. 0) found(i_gyro_temp) = .false.
 
             type is (particle_gc)
               p = particle
+            type is (particle_gc_vpar)
+              call convert_gc_to_gc_vpar(particle, norm2(B), mass, p)
           end select !particle type
         end do !n_gyro_orbit
 
@@ -1069,8 +1097,9 @@ subroutine initialise_particles_H_mu_psi_phiplanes(particles, fields, rng_base, 
         enddo
       end if
     end do
-
+#ifndef __NVCOMPILER
     !$omp end parallel do
+#endif
 
     ! How many particles have we found?
     n_found = count(found)
@@ -1203,7 +1232,7 @@ subroutine set_particle_weights_canonical_maxwellian(particles, node_list, eleme
       ! dominating the projection.
       T = max(1d1,T)
     end if
-    particles(i)%weight = real(n * exp(-H*my_alpha/T),4) ! if zero, all particles have equal weight n
+    particles(i)%weight = real(n * exp(-H*my_alpha/T),8) ! if zero, all particles have equal weight n
   end do
   !$omp end parallel do
 end subroutine set_particle_weights_canonical_maxwellian
@@ -1226,7 +1255,7 @@ subroutine normalize_with_projection(proj, particles, i_group)
       call interp_0(proj%node_list,proj%element_list,particles(i)%i_elm,[group],1, &
         particles(i)%st(1),particles(i)%st(2),particles(i)%x(3),P)
       P = max(P, 1d-2) ! guard against divide-by-zero, maximum adjustment ratio is then 10^2
-      particles(i)%weight = real(particles(i)%weight/P(1),4)
+      particles(i)%weight = real(particles(i)%weight/P(1),8)
     end if
   end do
 end subroutine normalize_with_projection
@@ -1270,12 +1299,12 @@ subroutine normalize_with_projection_at_gc(proj, particles, fields, time, mass, 
       if (p_gc%i_elm .gt. 0) then
         call interp_0(proj%node_list,proj%element_list,p_gc%i_elm,[group],1, p_gc%st(1),p_gc%st(2),p_gc%x(3),P)
         P = max(P, 1d-2) ! guard against divide-by-zero, maximum adjustment ratio is then 10^2
-        particles(i)%weight = real(particles(i)%weight/P(1),4)
+        particles(i)%weight = real(particles(i)%weight/P(1),8)
       else
         call interp_0(proj%node_list,proj%element_list,particles(i)%i_elm,[group],1, &
           particles(i)%st(1),particles(i)%st(2),particles(i)%x(3),P)
         P = max(P, 1d-2) ! guard against divide-by-zero, maximum adjustment ratio is then 10^2
-        particles(i)%weight = real(particles(i)%weight/P(1),4)
+        particles(i)%weight = real(particles(i)%weight/P(1),8)
         ! otherwise weigh at normal position to not screw up the weighting
       end if
     end if
@@ -1370,11 +1399,17 @@ subroutine adjust_particle_weights(particles, num_atoms_total)
   class(particle_base), intent(inout), dimension(:) :: particles
   real*8, intent(in)                                :: num_atoms_total !< What the sum of the weights should be
   real*8 :: local_weights, sum_weights, local_weights_active, sum_weights_active
-  integer :: ifail
+  integer :: ifail, i
 
-  local_weights = sum(particles(:)%weight)
+!  local_weights = sum(particles(:)%weight)
+!  local_weights_active = sum(particles(:)%weight, mask=particles(:)%i_elm .gt. 0)
 
-  local_weights_active = sum(particles(:)%weight, mask=particles(:)%i_elm .gt. 0)
+  local_weights        = 0d0
+  local_weights_active = 0d0
+  do i=1,size(particles)
+    local_weights = local_weights + particles(i)%weight
+    if (particles(i)%i_elm .gt. 0) local_weights_active = local_weights_active + particles(i)%weight
+  enddo
 
   call MPI_AllReduce(local_weights,       sum_weights,       1,MPI_REAL8,MPI_SUM,MPI_COMM_WORLD,ifail)
   call MPI_AllReduce(local_weights_active,sum_weights_active,1,MPI_REAL8,MPI_SUM,MPI_COMM_WORLD,ifail)
@@ -1382,7 +1417,11 @@ subroutine adjust_particle_weights(particles, num_atoms_total)
 ! Divide all weights by the sum of weights and multiply by the requested number of atoms
 !  particles(:)%weight = real(real(particles(:)%weight,8) / sum_weights * num_atoms_total,4)
 
-  particles(:)%weight = particles(:)%weight / sum_weights_active * num_atoms_total
+!  particles(:)%weight = particles(:)%weight / sum_weights_active * num_atoms_total
+
+  do i=1, size(particles)
+    particles(i)%weight = particles(i)%weight / sum_weights_active * num_atoms_total
+  enddo
 
 end subroutine adjust_particle_weights
 

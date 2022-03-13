@@ -744,8 +744,8 @@
  pellet_density_bg = 6.023d8
  
  spi_abl_model   = 3 
- ng_radius_ratio = 1.4d0 
- ng_radius_min   = 4.d-2 
+ ns_radius_ratio = 1.4d0 
+ ns_radius_min   = 4.d-2 
  
  ns_deltaphi     = 2.
 
