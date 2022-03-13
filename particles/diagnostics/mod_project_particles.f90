@@ -1036,7 +1036,7 @@ integer    :: nz_AA, n_AA, nz_bnd, i_elm, index_ij, index_kl, im_index, in_index
 integer    :: ms, mt, mp, my_id, my_id_n, my_id_master, ierr, MPI_COMM_MUMPS
 integer    :: ivar_psi, ivar_rho, ivar_T
 integer    :: this_n_cpu, this_n_cpu_mumps
-logical    :: apply_dirichlet_condition
+logical    :: apply_dirichlet_condition, do_ion_pol
 logical    :: halt(size(IEEE_USUAL,1)), do_facto
 
 call cpu_time(t0)
