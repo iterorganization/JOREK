@@ -1958,7 +1958,7 @@ if (nonlocal_abl) then
     endif
   enddo
 
-  open(20,file="nonlocal_array.dat")
+  if (my_id .eq. 0) open(20,file="nonlocal_array.dat")
 
   do i_surface = 1, n_nonlocal_array
 
@@ -1971,11 +1971,11 @@ if (nonlocal_abl) then
     nl_avg_Te(i_surface) = (Pres_e_surface(i_interp1)-Pres_e_surface(i_interp2))/(Psi_surface(i_interp1)-Psi_surface(i_interp2))*(nl_Psi(i_surface)-Psi_surface(i_interp1))+Pres_e_surface(i_interp1)
     nl_avg_ne(i_surface) = (PNum_e_surface(i_interp1)-PNum_e_surface(i_interp2))/(Psi_surface(i_interp1)-Psi_surface(i_interp2))*(nl_Psi(i_surface)-Psi_surface(i_interp1))+PNum_e_surface(i_interp1)
 
-    write(20,'(1i5,3e14.6)') i_surface, get_psi_n(nl_Psi(i_surface)), nl_avg_Te(i_surface), nl_avg_ne(i_surface)
+    if (my_id .eq. 0) write(20,'(1i5,3e14.6)') i_surface, get_psi_n(nl_Psi(i_surface)), nl_avg_Te(i_surface), nl_avg_ne(i_surface)
 
   enddo
-  close (20)
-  write(*,*) "Output the non-local array to nonlocal_array.dat."
+  if (my_id .eq. 0) close (20)
+  if (my_id .eq. 0) write(*,*) "Output the non-local array to nonlocal_array.dat."
 
 endif
 
