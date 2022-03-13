@@ -107,7 +107,7 @@ namelist /in1/  tstep, nstep, tstep_n, nstep_n,                     &
                 spi_Vel_Rref,spi_Vel_Zref, using_spi, n_spi, n_inj, &
                 spi_Vel_RxZref, spi_quantity, spi_abl_model,        &
                 spi_quantity_bg, pellet_density_bg,                 &
-                ng_radius_ratio, ng_radius_min, spi_angle,          &
+                ns_radius_ratio, ns_radius_min, spi_angle,          &
                 spi_L_inj, spi_L_inj_diff, restart_spi,             &
                 K_Dmv, A_Dmv, L_tube, V_Dmv, P_Dmv,                 &
                 spi_Vel_diff, t_ns, JET_MGI, ASDEX_MGI,             &
