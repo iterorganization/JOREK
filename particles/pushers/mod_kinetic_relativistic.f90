@@ -681,7 +681,7 @@ function momentum_relativistic_kinetic_to_relativistic_gc(&
   p_gc(1) = p_loc(1)*B_hat(1)+p_loc(2)*B_hat(2)+p_loc(3)*B_hat(3)
   !> compute magnetic moment
   p_loc = p_loc - p_gc(1)*B_hat
-  p_gc(2) = (p_loc(1)*p_loc(1)+p_loc(2)*p_loc(2)+p_loc(3)*p_loc(3))/(2.d0*mass*B_norm)
+  p_gc(2) = (p_loc(1)**2+p_loc(2)**2+p_loc(3)**2)/(2.d0*mass*B_norm)
 end function momentum_relativistic_kinetic_to_relativistic_gc
 
 !---------------------------------------------------------------------------
@@ -723,10 +723,10 @@ function relativistic_kinetic_to_gc(node_list,element_list,in,mass,B) result(out
   ! compute the guiding center total (i.e. rest+kinetic) energy in [eV]
   out%E = ATOMIC_MASS_UNIT*SPEED_OF_LIGHT*                     &
     sqrt((mass*SPEED_OF_LIGHT)*(mass*SPEED_OF_LIGHT)+          &
-    (in%p(1)*in%p(1)+in%p(2)*in%p(2)+in%p(3)*in%p(3)))/EL_CHG  
+    (in%p(1)**2+in%p(2)**2+in%p(3)**2))/EL_CHG  
 
   ! compute magnetic field intensity and direction
-  B_norm = sqrt(B(1)*B(1)+B(2)*B(2)+B(3)*B(3)) !< intensity
+  B_norm = sqrt(B(1)**2+B(2)**2+B(3)**2) !< intensity
   B_hat = B/B_norm  !< direction
   
   ! compute the parallel and perpendicular momenta
@@ -736,9 +736,8 @@ function relativistic_kinetic_to_gc(node_list,element_list,in,mass,B) result(out
 
   ! compute the magnetic moment p_perp^2/(2*B) in [eV/T]
   ! the sign is given by the particle parallel momentum 
-  out%mu = sign((ATOMIC_MASS_UNIT*(p_perp(1)*p_perp(1)+ &
-    p_perp(2)*p_perp(2)+p_perp(3)*p_perp(3))/           &
-    (2.d0*B_norm*mass*EL_CHG)),p_par)
+  out%mu = sign((ATOMIC_MASS_UNIT*(p_perp(1)**2+&
+  p_perp(2)**2+p_perp(3)**2)/(2.d0*B_norm*mass*EL_CHG)),p_par)
 
   ! compute the GC position
   if(out%q.ne.0) then 
