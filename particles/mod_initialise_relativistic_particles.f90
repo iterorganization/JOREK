@@ -431,8 +431,8 @@ n_tasks,ifail,n_trials_in)
   implicit none
   !> inputs-outputs:
   type(particle_group),dimension(:),allocatable,intent(inout) :: groups
-  class(fields_base),intent(inout)                             :: fields
-  procedure(accept_function)                                   :: accept
+  class(fields_base),intent(inout)                            :: fields
+  procedure(accept_function)                                  :: accept
   integer,intent(inout)             :: ifail
   real*8,dimension(2),intent(inout) :: phi_box,energy_kin_box
   real*8,dimension(2),intent(inout) :: pitch_box,gyro_box
