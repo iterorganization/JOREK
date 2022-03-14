@@ -410,17 +410,25 @@ subroutine test_sample_position_acceptreject_from_fluid_profiles()
   class(type_rng),dimension(:),allocatable :: rngs
   type(particle_kinetic_relativistic)      :: p_test
   integer                                  :: ii,jj,n_rngs,rng_id
+  logical,dimension(:),allocatable         :: success
   !> initialisation
   call setup_shared_rngs(4+n_fields_sol,pcg32_rng(),rngs); 
   n_rngs=size(rngs); rng_id=1;
   !> sampled the particle positions
   do ii=1,n_groups
+     allocate(success(n_particles(ii)))
      do jj=1,n_particles(ii)
        !> generate a particle
        call sample_position_acceptreject_from_fluid_profiles(p_test,&
        fields_linear_sol,n_rngs,n_fields_sol,rng_id,field_ids_sol,&
        field_minmax_global_sol,phi_small_sol,rngs,accept_lower_values_rand)
+       !> check if the particle is in the st element box
+       call test_position_in_stelement_box(p_test,&
+       fields_linear_sol%element_list%n_elements,phi_small_sol,success(jj))
      enddo
+     call assert_true(all(success),&
+     "Error sample position accept-reject from fluid: s,t,i_elm not in bound!")
+     deallocate(success)
   enddo
   !> cleanup
   if(allocated(rngs)) deallocate(rngs)
@@ -666,11 +674,15 @@ subroutine test_init_p_gc_relativistic_from_fluid_energypitchgyro()
       p_box = (p_box+1.d0)*(p_box+1.0); p_box = sqrt(p_box-1.d0);
       p_box = SPEED_OF_LIGHT*groups_sol(ii)%mass*p_box;
     end select
+    allocate(success_pos(n_particles(ii))); success_pos = .false.;
     allocate(success_vel(n_particles(ii))); success_vel = .false.;
     allocate(success_q(n_particles(ii))); success_q = .false.;
     do jj=1,n_particles(ii)
       if(groups_sol(ii)%particles(jj)%i_elm.gt.0) then
         !> TODO: TEST SPATIAL DISTRIBUTION
+        !> check if the particle is in the st element box
+        call test_position_in_stelement_box(groups_sol(ii)%particles(jj),&
+        fields_linear_sol%element_list%n_elements,phi_small_sol,success_pos(jj))
         !> compute magnetic coordinate system
         call fields_linear_sol%calc_EBpsiU(time_sol,&
         groups_sol(ii)%particles(jj)%i_elm,groups_sol(ii)%particles(jj)%st,&
@@ -695,11 +707,13 @@ subroutine test_init_p_gc_relativistic_from_fluid_energypitchgyro()
         end select
       endif
     enddo
+    call assert_true(all(success_pos),&
+    "Error initialise relativistic kinetic p gc fluid prof. - E/pitch/gyro: s,t,i_elm not in bound!")
     call assert_true(all(success_vel),&
     "Error initialise relativistic kinetic p gc fluid prof. - E/pitch/gyro: E,pitch,gyro not in bound!")
     call assert_true(all(success_q),&
     "Error initialise relativistic kinetic p gc fluid prof. - E/pitch/gyro: charge not in bound!")
-    deallocate(success_vel); deallocate(success_q);
+    deallocate(success_pos); deallocate(success_vel); deallocate(success_q);
   enddo
 end subroutine test_init_p_gc_relativistic_from_fluid_energypitchgyro
 
@@ -1248,6 +1262,28 @@ fields,eq_info,psi_box,phi_box,success,error)
     error = max(abs(p_test%x(1)-R_test),abs(p_test%x(2)-Z_test))
   endif
 end subroutine test_position_in_psi_phi_box
+
+!> test if a particle local coordinate system is well defined
+!> inputs:
+!>   p_test:     (particle_base) particle to test
+!>   n_elements: (integer) maximum number of elements
+!>   phi_box:    (real8)(2) toroidal angle interval
+!> outputs:
+!>   success: (logical) true if values in bound
+subroutine test_position_in_stelement_box(p_test,n_elements,phi_box,success)
+  use mod_particle_types, only: particle_base
+  implicit none
+  !> inputs:
+  class(particle_base),intent(in) :: p_test
+  integer,intent(in)              :: n_elements
+  real*8,dimension(2),intent(in)  :: phi_box
+  !> outputs:
+  logical,intent(out) :: success
+  !> check if particle values are in bound
+  success = (all(p_test%st.ge.0.d0).and.all(p_test%st.le.1.d0)).and.&
+            ((p_test%i_elm.ge.1).and.(p_test%i_elm.le.n_elements)).and.&
+            ((p_test%x(3).ge.phi_box(1)).and.(p_test%x(3).le.phi_box(2)))
+end subroutine test_position_in_stelement_box
 
 !> test if the kinetic particle momentum is within the momentum,
 !> pitch and gryo angle boxes
