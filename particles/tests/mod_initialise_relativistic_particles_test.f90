@@ -21,7 +21,7 @@ private
 public :: run_fruit_initialise_relativistic_particles
 
 !> Variables and datatypes ------------------------------------
-character(len=20),parameter :: fields_eq_name_sol="test_jorek_3d_fields"
+character(len=20),parameter :: fields_3d_name_sol="test_jorek_3d_fields"
 integer,parameter  :: n_v=1
 integer,parameter  :: n_groups=2
 integer,parameter  :: n_groups_2=5
@@ -69,18 +69,18 @@ real*8,dimension(2),parameter              :: theta_minmax=(/0.d0,TWOPI/)
 real*8,dimension(2),parameter              :: phi_minmax=(/0.d0,TWOPI/)
 real*8,dimension(2),parameter              :: R_box_fraction_sol=(/0.22,0.34/)
 real*8,dimension(2),parameter              :: Z_box_fraction_sol=(/0.41,0.73/)
-class(particle_group),dimension(:),allocatable :: groups_sol
-type(particle_group),dimension(n_groups_2)     :: groups_2_sol
-type(fields_analytical)                        :: fields_sol
-type(jorek_fields_interp_linear)               :: fields_linear_sol
-real*8,dimension(2)                            :: R_box_jorek_sol
-real*8,dimension(2)                            :: Z_box_jorek_sol
-real*8,dimension(2)                            :: R_minmax_jorek_sol
-real*8,dimension(2)                            :: Z_minmax_jorek_sol
-real*8,dimension(2)                            :: psi_minmax_global_jorek_sol
-real*8,dimension(2)                            :: field_minmax_global_sol
-real*8,dimension(:,:),allocatable              :: psi_minmax_list_jorek_sol
-real*8,dimension(:,:,:),allocatable            :: field_minmax_list_sol
+type(particle_group),dimension(:),allocatable :: groups_sol
+type(particle_group),dimension(n_groups_2)    :: groups_2_sol
+type(fields_analytical)                       :: fields_sol
+type(jorek_fields_interp_linear)              :: fields_linear_sol
+real*8,dimension(2)                           :: R_box_jorek_sol
+real*8,dimension(2)                           :: Z_box_jorek_sol
+real*8,dimension(2)                           :: R_minmax_jorek_sol
+real*8,dimension(2)                           :: Z_minmax_jorek_sol
+real*8,dimension(2)                           :: psi_minmax_global_jorek_sol
+real*8,dimension(2)                           :: field_minmax_global_sol
+real*8,dimension(:,:),allocatable             :: psi_minmax_list_jorek_sol
+real*8,dimension(:,:,:),allocatable           :: field_minmax_list_sol
 !> Interfaces--------------------------------------------------
 contains
 !> Fruit basket -----------------------------------------------
@@ -167,7 +167,7 @@ subroutine setup_jorek_simulation()
   !> initialise particle simulation and all jorek fields
   call sim_particles%initialize(0,.true.); sim_particles%time=time_sol;
   !> set-up the read event
-  events = [event(read_jorek_fields_interp_linear(basename=fields_eq_name_sol,i=-1))]
+  events = [event(read_jorek_fields_interp_linear(basename=fields_3d_name_sol,i=-1))]
   !> read the fields from jorek restart file
   call with(sim_particles,events,at=0.d0)
   !> copy particle field to external structure

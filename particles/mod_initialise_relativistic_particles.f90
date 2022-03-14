@@ -171,7 +171,7 @@ energy_kin_box,pitch_box,gyro_box,q_box)
   !$ use omp_lib
   implicit none
   !> inputs-outputs:
-  class(particle_group),dimension(:),allocatable,intent(inout) :: groups
+  type(particle_group),dimension(:),allocatable,intent(inout) :: groups
   class(fields_base),intent(inout)                             :: fields
   real*8,dimension(3,2),intent(inout) :: thetapsiphi_box
   real*8,dimension(2),intent(inout)   :: energy_kin_box,pitch_box,gyro_box
@@ -295,7 +295,7 @@ energy_kin_box,pitch_box,gyro_box,q_box)
   !$ use omp_lib
   implicit none
   !> inputs-outputs:
-  class(particle_group),dimension(:),allocatable,intent(inout) :: groups
+  type(particle_group),dimension(:),allocatable,intent(inout) :: groups
   class(fields_base),intent(inout)                             :: fields
   real*8,dimension(2),intent(inout) :: R_box,Z_box,phi_box
   real*8,dimension(2),intent(inout) :: energy_kin_box,pitch_box,gyro_box
@@ -430,7 +430,7 @@ n_tasks,ifail,n_trials_in)
   !$ use omp_lib
   implicit none
   !> inputs-outputs:
-  class(particle_group),dimension(:),allocatable,intent(inout) :: groups
+  type(particle_group),dimension(:),allocatable,intent(inout) :: groups
   class(fields_base),intent(inout)                             :: fields
   procedure(accept_function)                                   :: accept
   integer,intent(inout)             :: ifail
