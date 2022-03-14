@@ -48,24 +48,25 @@ subroutine test_accept_lower_value_rand()
   implicit none
   !> variables
   real*8 :: rand_success,rand_fail
-  real*8,dimension(n_trials) :: values
+  real*8,dimension(n_trials) :: values,ones
   logical :: test
   !> initialisation
+  ones = 1.d0; 
   rand_success=maxval(rands); rand_success=max(1.d0,1.01*rand_success);
   rand_fail=minval(rands); rand_fail=max(0.d0,0.99*rand_fail);
   !> test positive interval
   values = positive_interval(:,1)+(positive_interval(:,2)-&
   positive_interval(:,1))*rands
-  test = accept_lower_values_rand(n_trials,values,positive_interval,rand_success)
+  test = accept_lower_values_rand(n_trials,values,positive_interval,rand_success*ones)
   call assert_true(test,"Error accept-reject accept lower value: positive interval not success!")
-  test = .not.accept_lower_values_rand(n_trials,values,positive_interval,rand_fail)
+  test = .not.accept_lower_values_rand(n_trials,values,positive_interval,rand_fail*ones)
   call assert_true(test,"Error accept-reject accept lower value: positive interval not fail!")
   !> test negative interval
   values = negative_interval(:,1)+(negative_interval(:,2)-&
   negative_interval(:,1))*rands
-  test = accept_lower_values_rand(n_trials,values,negative_interval,rand_success)
+  test = accept_lower_values_rand(n_trials,values,negative_interval,rand_success*ones)
   call assert_true(test,"Error accept-reject accept lower value: negative interval not success!")
-  test = .not.accept_lower_values_rand(n_trials,values,negative_interval,rand_fail)
+  test = .not.accept_lower_values_rand(n_trials,values,negative_interval,rand_fail*ones)
   call assert_true(test,"Error accept-reject accept lower value: negative interval not fail!")
 end subroutine test_accept_lower_value_rand
 
