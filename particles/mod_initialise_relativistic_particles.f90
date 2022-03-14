@@ -41,14 +41,13 @@ abstract interface
   !>   values:    (real8)(n_values) values to compare
   !>   intervals: (real8)(n_values,2) minimum and maximum 
   !>              values for all intervals
-  !>   rand:      (real8) random number in [0,1]
+  !>   rands:     (real8)(n_values) random numbers in [0,1]
   !> outputs:
   !>   success:    (logical) true if accepted
-  function accept_function(n_values,values,intervals,rand) result(success)
+  function accept_function(n_values,values,intervals,rands) result(success)
     implicit none
     integer,intent(in)                      :: n_values
-    real*8,intent(in)                       :: rand
-    real*8,dimension(n_values),intent(in)   :: values
+    real*8,dimension(n_values),intent(in)   :: rands,values
     real*8,dimension(n_values,2),intent(in) :: intervals
     logical                                 :: success
   end function accept_function
@@ -381,6 +380,10 @@ end subroutine init_p_gc_relativistic_RZPhi_energypitchgyro
 !> of the fluid fields using the accept-rejection method.
 !> initialisation in velocity space is uniform on the sphere
 !> defined by the particle energy, pitch and gyro angles
+!> TODO: further optimise the initialisation so that 
+!>       particles are initialisated sequentially in
+!>       w.r.t. the mesh element and not randomly
+!>       for increasing data coherency
 !> inputs:
 !>   groups:         (particle_group) particle groups
 !>   fields:         (fields_base) jorek fields
@@ -391,8 +394,6 @@ end subroutine init_p_gc_relativistic_RZPhi_energypitchgyro
 !>                   fluid fields to use
 !>   accept:         (accept_function) function for accepting
 !>                   a Monte-Carlo solution
-!>   R_box:          (real8)(2) major radius sampling box
-!>   Z_box:          (real8)(2) vertical coord. sampling box
 !>   phi_box:        (real8)(2) toroidal angle sampling box
 !>   energy_kin_box: (real8)(2) kinetic energy (eV) sampling box
 !>   pitch_box:      (real8)(2) pitch angle sampling box
@@ -408,8 +409,6 @@ end subroutine init_p_gc_relativistic_RZPhi_energypitchgyro
 !>   fields:         (fields_base) jorek fields
 !>   accept:         (accept_function) function for accepting
 !>                   a Monte-Carlo solution
-!>   R_box:          (real8)(2) major radius sampling box
-!>   Z_box:          (real8)(2) vertical coord. sampling box
 !>   phi_box:        (real8)(2) toroidal angle sampling box
 !>   energy_kin_box: (real8)(2) kinetic energy (eV) sampling box
 !>   pitch_box:      (real8)(2) pitch angle sampling box
@@ -418,8 +417,9 @@ end subroutine init_p_gc_relativistic_RZPhi_energypitchgyro
 !>   ifail:          (integer) MPI error
 subroutine init_p_gc_relativistic_from_fluid_energypitchgyro(&
 groups,fields,time,rng_type,n_profiles,prof_ids,accept,&
-R_box,Z_box,phi_box,energy_kin_box,pitch_box,gyro_box,q_box,&
-my_id,n_tasks,ifail,n_trials_in)
+phi_box,energy_kin_box,pitch_box,gyro_box,q_box,my_id,&
+n_tasks,ifail,n_trials_in)
+  use constants,          only: TWOPI
   use mod_rng,            only: type_rng
   use mod_rng,            only: setup_shared_rngs
   use mod_fields,         only: fields_base
@@ -434,8 +434,8 @@ my_id,n_tasks,ifail,n_trials_in)
   class(fields_base),intent(inout)                             :: fields
   procedure(accept_function)                                   :: accept
   integer,intent(inout)             :: ifail
-  real*8,dimension(2),intent(inout) :: R_box,Z_box,phi_box
-  real*8,dimension(2),intent(inout) :: energy_kin_box,pitch_box,gyro_box
+  real*8,dimension(2),intent(inout) :: phi_box,energy_kin_box
+  real*8,dimension(2),intent(inout) :: pitch_box,gyro_box
   !> inputs:
   class(type_rng),intent(in)                :: rng_type
   integer,intent(in)                        :: my_id,n_tasks
@@ -448,11 +448,10 @@ my_id,n_tasks,ifail,n_trials_in)
   class(type_rng),dimension(:),allocatable :: rngs
   integer :: ii,jj,kk,n_rngs,n_groups,thread_id,maxit,n_active_groups
   integer :: n_trials
-  integer,dimension(:),allocatable :: active_group_ids 
-  real*8,dimension(2)   :: cospitch_box,R_minmax,R2_box
-  real*8,dimension(2)   :: Z_minmax,phi_minmax
-  real*8,dimension(3)   :: rands
-  real*8,dimension(n_profiles,2) :: prof_norms
+  integer,dimension(:),allocatable  :: active_group_ids
+  real*8,dimension(2)               :: cospitch_box
+  real*8,dimension(4+n_profiles)    :: rands
+  real*8,dimension(n_profiles,2)    :: prof_norms
   real*8,dimension(:,:),allocatable :: momentum_box
   real*8,dimension(n_profiles,2,fields%element_list%n_elements) :: prof_norms_list
   !> initialisations
@@ -461,30 +460,27 @@ my_id,n_tasks,ifail,n_trials_in)
   allocate(active_group_ids(n_groups)); allocate(momentum_box(2,n_groups));
   call find_relativistic_kinetic_gc_groups(n_groups,groups,&
   n_active_groups,active_group_ids)
-  !> estimate minimum and maximum values of the fluid fields
-  !> extract bounding maximum and minimum boxes
-  call find_RZPhi_minmax_global(R_minmax,Z_minmax,phi_minmax,fields)
   !> check bounding boxes
-  call check_RZPhi_interval(R_box,Z_box,phi_box,R_minmax,Z_minmax,phi_minmax)
+  call check_phi_interval(phi_box,(/0.d0,TWOPI/))
   do ii=1,n_active_groups
     call check_energykinpitchgyro_interval(energy_kin_box,momentum_box(:,ii),&
     pitch_box,gyro_box,groups(active_group_ids(ii))%mass)
   enddo
   !> compute the cube of the momentum and the cosinus of the pitch angle
-  R2_box=R_box**2; momentum_box=momentum_box**3; cospitch_box=cos(pitch_box);
+  momentum_box=momentum_box**3; cospitch_box=cos(pitch_box);
   !> estimate minimum and maximum values of the fluid fields
   call field_minmax_monte_carlo(fields%node_list,fields%element_list,&
   n_profiles,prof_ids,n_trials,phi_box,rng_type,rngs,prof_norms_list,&
   prof_norms,my_id,n_tasks,ifail)
   !> initialise random number generator
-  call setup_shared_rngs(4,rng_type,rngs)
+  call setup_shared_rngs(4+n_profiles,rng_type,rngs)
   n_rngs = size(rngs)
 
   !> initialise particle groups
   !$omp parallel default(private) firstprivate(n_rngs,n_active_groups,&
   !$omp maxit,active_group_ids,n_profiles) shared(groups,fields,rngs,&
-  !$omp prof_ids,prof_norms,R2_box,Z_box,phi_box,time,momentum_box,&
-  !$omp cospitch_box,gyro_box,q_box)
+  !$omp prof_ids,prof_norms,phi_box,time,momentum_box,cospitch_box,&
+  !$omp gyro_box,q_box)
   thread_id = 1;
   !$omp single
   do ii=1,n_active_groups
@@ -496,19 +492,20 @@ my_id,n_tasks,ifail,n_trials_in)
       !> initialise particle in space from plasma profiles
       call sample_position_acceptreject_from_fluid_profiles(&
       groups(active_group_ids(ii))%particles(jj),fields,n_rngs,n_profiles,&
-      thread_id,prof_ids,prof_norms,R2_box,Z_box,phi_box,rngs,accept)
+      thread_id,prof_ids,prof_norms,phi_box,rngs,accept)
       !> if valid, initialise both velocity space and charge
       if(groups(active_group_ids(ii))%particles(jj)%i_elm.gt.0) then
+        call rngs(thread_id)%next(rands)
         select type (particle=>groups(active_group_ids(ii))%particles(jj))
         type is (particle_kinetic_relativistic)
           call sampling_uniform_ppitchgyro_kinetic_relativistic(particle,&
-          fields,rands(4:6),time,momentum_box,cospitch_box,gyro_box)
+          fields,rands(1:3),time,momentum_box,cospitch_box,gyro_box)
           particle%q = sampling_uniform_charge(rands(7),q_box)
         type is (particle_gc_relativistic)
           call sampling_uniform_ppitchgyro_gc_relativistic(particle,fields,&
-          rands(4:6),groups(active_group_ids(ii))%mass,time,&
+          rands(1:3),groups(active_group_ids(ii))%mass,time,&
           momentum_box,cospitch_box,gyro_box)
-          particle%q = sampling_uniform_charge(rands(7),q_box)
+          particle%q = sampling_uniform_charge(rands(4),q_box)
         end select 
       endif
       !$omp end task
@@ -653,7 +650,11 @@ end subroutine sample_position_uniformly_psi_theta_phi
 
 !> Sample position from fluid profiles using the accept-reject method.
 !> Proper profile normalization must be provided so that the 
-!> normalised profile is included within [0,1]
+!> normalised profile is within [0,1]
+!> TODO: further optimise the initialisation so that 
+!>       particles are initialisated sequentially in
+!>       w.r.t. the mesh element and not randomly
+!>       for increasing data coherency
 !> inputs:
 !>   particle:   (particle_base) particle to be initialised
 !>   fields:     (fields_base) jorek fields object
@@ -664,9 +665,6 @@ end subroutine sample_position_uniformly_psi_theta_phi
 !>   prof_ids:   (integer)(n_profiles) index of the profile in the node
 !>   prof_norms: (real8)(n_profiles,2) profile normalization
 !>               1: minimum value, 2: extension: maximum-minimum
-!>   R2_box:     (real8)(2) squared of the minimum and maximum values of
-!>               the major radius box
-!>   Z_box:      (real8)(2) vertical position box
 !>   phi_box:    (real8)(2) toroidal angle box
 !>   accept:     (accept_function) accept function: takes as arguments
 !>               a random number and a set of values within [0,1] and
@@ -678,8 +676,7 @@ end subroutine sample_position_uniformly_psi_theta_phi
 !>             a random number and a set of values within [0,1] and
 !>             returns true if the variable is accepted
 subroutine sample_position_acceptreject_from_fluid_profiles(particle,&
-fields,n_rngs,n_profiles,rng_id,prof_ids,prof_norms,R2_box,Z_box,&
-phi_box,rngs,accept)
+fields,n_rngs,n_profiles,rng_id,prof_ids,prof_norms,phi_box,rngs,accept)
   use mod_interp,         only: interp_PRZ
   use mod_fields,         only: fields_base
   use mod_rng,            only: type_rng
@@ -689,17 +686,17 @@ phi_box,rngs,accept)
   class(fields_base),intent(in)                   :: fields
   integer,intent(in)                              :: n_rngs,n_profiles,rng_id
   integer,dimension(n_profiles),intent(in)        :: prof_ids
-  real*8,dimension(2),intent(in)                  :: R2_box,Z_box,phi_box
+  real*8,dimension(2),intent(in)                  :: phi_box
   real*8,dimension(n_profiles,2),intent(in)       :: prof_norms
   !> inputs-outputs:
   class(particle_base),intent(inout)              :: particle
   class(type_rng),dimension(n_rngs),intent(inout) :: rngs
   procedure(accept_function)                      :: accept
   !> varibales
-  logical                      :: fail
-  integer                      :: maxit,it
-  real*8,dimension(4)          :: rands
-  real*8,dimension(n_profiles) :: profiles
+  logical                        :: fail
+  integer                        :: maxit,it
+  real*8,dimension(4+n_profiles) :: rands
+  real*8,dimension(n_profiles)   :: profiles
   !> initialisations
   maxit = 100000; fail=.true.; it = -1;
 
@@ -707,18 +704,19 @@ phi_box,rngs,accept)
   do while(fail.and.(it.le.maxit))
     it = it+1 !< update the counter
     call rngs(rng_id)%next(rands) !< generate random numbers
-    !> sample a random position uniformly in cylindrical coordinates
-    call sample_position_uniformly_cylinder(particle,fields%node_list,&
-    fields%element_list,rands(1:3),R2_box,Z_box,phi_box)
-    if(particle%i_elm.le.0) cycle
+    !> sampling the particle position in local coordinates
+    particle%st = rands(1:2); particle%x(3)=phi_box(1)+&
+    (phi_box(2)-phi_box(1))*rands(3);
+    particle%i_elm = floor(1+fields%element_list%n_elements*rands(4))
     !> interpolate the profiles
     call interp_PRZ(fields%node_list,fields%element_list,particle%i_elm,&
     prof_ids,n_profiles,particle%st(1),particle%st(2),particle%x(2),&
     profiles,particle%x(1),particle%x(2))
     !> check for failures
-    fail = .not.accept(n_profiles,profiles,prof_norms,rands(n_profiles+1))
+    fail = .not.accept(n_profiles,profiles,prof_norms,rands(5:n_profiles+4))
   enddo
-
+  !> if the method failed just set the particle element equal to 0
+  if(fail) particle%i_elm = 0
 end subroutine sample_position_acceptreject_from_fluid_profiles
 
 !> uniform sampling of the cartesian momentum
@@ -940,8 +938,25 @@ R_minmax,Z_minmax,Phi_minmax)
   !> check boundin boxes limits
   R_box(1)=max(R_box(1),R_minmax(1)); R_box(2)=min(R_box(2),R_minmax(2));
   Z_box(1)=max(Z_box(1),Z_minmax(1)); Z_box(2)=min(Z_box(2),Z_minmax(2));
-  phi_box(1)=max(phi_box(1),phi_minmax(1)); phi_box(2)=min(phi_box(2),phi_minmax(2));
+  call check_phi_interval(phi_box,phi_minmax)
 end subroutine check_RZPhi_interval
+
+!> check the toroidal angle interval
+!> inputs:
+!>  phi_box:    (real8)(2) toroidal angle box for uniform sampling
+!>  phi_minmax: (real8)(2) minimum and maximum toroidal angle (global)
+!> outputs:
+!>  phi_box:    (real8)(2) toroidal angle box for uniform sampling
+subroutine check_phi_interval(phi_box,phi_minmax)
+  implicit none
+  !> inputs-outputs:
+  real*8,dimension(2),intent(inout) :: phi_box
+  !> inputs:
+  real*8,dimension(2),intent(in)    :: phi_minmax
+  !> check in bound
+  phi_box(1) = max(phi_box(1),phi_minmax(1))
+  phi_box(2) = min(phi_box(2),phi_minmax(2))
+end subroutine check_phi_interval
 
 !> find maximum and minimum poloidal flux: global and per element
 !> inputs:
@@ -1004,8 +1019,7 @@ psi_axis,psi_boundary,psi_minmax,theta_minmax,phi_minmax)
   psi_box(2)   = min(psi_box(2),psi_minmax(2))
   theta_box(1) = max(theta_box(1),theta_minmax(1))
   theta_box(2) = min(theta_box(2),theta_minmax(2))
-  phi_box(1)   = max(phi_box(1),phi_minmax(1))
-  phi_box(2)   = min(phi_box(2),phi_minmax(2))
+  call check_phi_interval(phi_box,phi_minmax)
 end subroutine check_thetapsiphi_interval
 
 !> compute the momentum from particle energy and check bounds

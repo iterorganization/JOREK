@@ -110,6 +110,7 @@ subroutine run_fruit_initialise_relativistic_particles()
   call test_check_thetapsiphi_interval
   call test_check_RZPhi_interval
   call test_check_energykinpitchgyro_interval
+  call test_sample_position_acceptreject_from_fluid_profiles
   write(*,'(/A)') "  ... tearing-down: initialise relativistic particles tests"
   call teardown
   call teardown_field_minmax
@@ -394,6 +395,35 @@ subroutine test_sample_position_uniformly_psi_theta_phi()
     deallocate(success); deallocate(errors); deallocate(zeros);
   enddo
 end subroutine test_sample_position_uniformly_psi_theta_phi
+
+!> test the sampling w.r.t. fluid field profile via accept-reject method
+subroutine test_sample_position_acceptreject_from_fluid_profiles()
+  use mod_rng,                               only: type_rng
+  use mod_rng,                               only: setup_shared_rngs
+  use mod_pcg32_rng,                         only: pcg32_rng
+  use mod_accept_reject_funct,               only: accept_lower_values_rand 
+  use mod_particle_types,                    only: particle_kinetic_relativistic
+  use mod_initialise_relativistic_particles, only: sample_position_acceptreject_from_fluid_profiles
+  implicit none
+  !> variables:
+  class(type_rng),dimension(:),allocatable :: rngs
+  type(particle_kinetic_relativistic)      :: p_test
+  integer                                  :: ii,jj,n_rngs,rng_id
+  !> initialisation
+  call setup_shared_rngs(4+n_fields_sol,pcg32_rng(),rngs); 
+  n_rngs=size(rngs); rng_id=1;
+  !> sampled the particle positions
+  do ii=1,n_groups
+     do jj=1,n_particles(ii)
+       !> generate a particle
+       call sample_position_acceptreject_from_fluid_profiles(p_test,&
+       fields_linear_sol,n_rngs,n_fields_sol,rng_id,field_ids_sol,&
+       field_minmax_global_sol,phi_small_sol,rngs,accept_lower_values_rand)
+     enddo
+  enddo
+  !> cleanup
+  if(allocated(rngs)) deallocate(rngs)
+end subroutine test_sample_position_acceptreject_from_fluid_profiles
 
 !> test particle kinetic and gc relativistic psithetaphi and energypitchgyro intervals
 subroutine test_init_p_gc_relativistic_psithetaphi_energypitchgyro()
