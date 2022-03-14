@@ -21,7 +21,7 @@ private
 public :: run_fruit_initialise_relativistic_particles
 
 !> Variables and datatypes ------------------------------------
-character(len=17),parameter :: fields_eq_name_sol="test_jorek_fields"
+character(len=20),parameter :: fields_eq_name_sol="test_jorek_3d_fields"
 integer,parameter  :: n_v=1
 integer,parameter  :: n_groups=2
 integer,parameter  :: n_groups_2=5
@@ -850,21 +850,21 @@ subroutine test_check_thetapsiphi_interval()
   psi_test=psi_small_sol; theta_test=theta_small_sol; phi_test=phi_small_sol;
   call check_thetapsiphi_interval(theta_test,psi_test,phi_test,psi_axisbnd(1),&
   psi_axisbnd(2),psi_minmax_sol,theta_minmax,phi_minmax)
-  call assert_equals(psi_test,psi_local_sol,2,&
+  call assert_equals(psi_test,psi_local_sol,2,tol_real8,&
   "Error check psi-theta-phi interval: psi inflow test mismatch!")
-  call assert_equals(theta_test,theta_small_sol,2,&
+  call assert_equals(theta_test,theta_small_sol,2,tol_real8,&
   "Error check psi-theta-phi interval: theta inflow test mismatch!")
-  call assert_equals(phi_test,phi_small_sol,2,&
+  call assert_equals(phi_test,phi_small_sol,2,tol_real8,&
   "Error check psi-theta-phi interval: phi inflow test mismatch!")
   !> check complete overflow
   psi_test=psi_big_sol; theta_test=theta_big_sol; phi_test=phi_big_sol;
   call check_thetapsiphi_interval(theta_test,psi_test,phi_test,psi_axisbnd(1),&
   psi_axisbnd(2),psi_minmax_sol,theta_minmax,phi_minmax)
-  call assert_equals(psi_test,psi_minmax_sol,2,&
+  call assert_equals(psi_test,psi_minmax_sol,2,tol_real8,&
   "Error check psi-theta-phi interval: psi overflow test mismatch!")
-  call assert_equals(theta_test,theta_minmax,2,&
+  call assert_equals(theta_test,theta_minmax,2,tol_real8,&
   "Error check psi-theta-phi interval: theta overflow test mismatch!")
-  call assert_equals(phi_test,phi_minmax,2,&
+  call assert_equals(phi_test,phi_minmax,2,tol_real8,&
   "Error check psi-theta-phi interval: phi overflow test mismatch!")
   !> checke underflow min and inflow max
   psi_test=(/psi_big_sol(1),psi_small_sol(2)/)
@@ -873,11 +873,11 @@ subroutine test_check_thetapsiphi_interval()
   call check_thetapsiphi_interval(theta_test,psi_test,phi_test,&
   psi_axisbnd(1),psi_axisbnd(2),psi_minmax_sol,theta_minmax,phi_minmax)
   call assert_equals(psi_test,(/psi_minmax_sol(1),psi_local_sol(2)/),2,&
-  "Error check psi-theta-phi interval: psi min underflow test mismatch!")
+  tol_real8,"Error check psi-theta-phi interval: psi min underflow test mismatch!")
   call assert_equals(theta_test,(/theta_minmax(1),theta_small_sol(2)/),2,&
-  "Error check psi-theta-phi interval: theta min underflow test mismatch!")
+  tol_real8,"Error check psi-theta-phi interval: theta min underflow test mismatch!")
   call assert_equals(phi_test,(/phi_minmax(1),phi_small_sol(2)/),2,&
-  "Error check psi-theta-phi interval: phi min underflow test mismatch!")
+  tol_real8,"Error check psi-theta-phi interval: phi min underflow test mismatch!")
   !> check inflow min and overflow max
   psi_test=(/psi_small_sol(1),psi_big_sol(2)/)
   theta_test=(/theta_small_sol(1),theta_big_sol(2)/)
@@ -885,11 +885,11 @@ subroutine test_check_thetapsiphi_interval()
   call check_thetapsiphi_interval(theta_test,psi_test,phi_test,&
   psi_axisbnd(1),psi_axisbnd(2),psi_minmax_sol,theta_minmax,phi_minmax)
   call assert_equals(psi_test,(/psi_local_sol(1),psi_minmax_sol(2)/),2,&
-  "Error check psi-theta-phi interval: psi max overflow test mismatch!")
+  tol_real8,"Error check psi-theta-phi interval: psi max overflow test mismatch!")
   call assert_equals(theta_test,(/theta_small_sol(1),theta_minmax(2)/),2,&
-  "Error check psi-theta-phi interval: theta max overflow test mismatch!")
+  tol_real8,"Error check psi-theta-phi interval: theta max overflow test mismatch!")
   call assert_equals(phi_test,(/phi_small_sol(1),phi_minmax(2)/),2,&
-  "Error check psi-theta-phi interval: phi max overflow test mismatch!")
+  tol_real8,"Error check psi-theta-phi interval: phi max overflow test mismatch!")
 end subroutine test_check_thetapsiphi_interval
 
 !> test RZPhi min max bounding
