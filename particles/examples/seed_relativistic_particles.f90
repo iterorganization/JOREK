@@ -14,6 +14,7 @@ program seed_relativistic_particles
   implicit none
   !> variables:
   type(event) :: read_field
+  type(projection) :: project_particles
   character(len=20),parameter :: fields_name="test_jorek_3d_fields"
   character(len=33),parameter :: particle_name="test_part_relativistic_init_3d.h5"
   integer*1,dimension(2)           :: q_box
@@ -58,6 +59,12 @@ program seed_relativistic_particles
 
   !> write particle in restart file ----------------------------------------------
   call write_simulation_hdf5(sim,trim(particle_name))
+
+  !> project particle to vtk readable file ----------------------------------------
+  project_particles = new_projection(sim%fields%node_list, sim%fields%element_list,&
+                      filter=1d-5,filter_hyper=1d-10, f=[proj_f(proj_one, group=1)],&
+                      to_h5=.true.,to_vtk=.true.,basename='proj')
+  call with(sim,project_particles)
 
   !> cleanup ----------------------------------------------------------------------
   deallocate(field_ids)
