@@ -26,6 +26,9 @@ integer,parameter  :: n_v=1
 integer,parameter  :: n_groups=2
 integer,parameter  :: n_groups_2=5
 integer,parameter  :: n_samples=343
+integer,parameter  :: n_fields_sol=1
+integer,parameter  :: n_active_groups_2_sol=2
+integer,parameter  :: n_trials_sol=1000
 integer,parameter,dimension(n_v)           :: i_psi=(/1/)
 integer,dimension(n_groups),parameter      :: n_particles=(/123,234/)
 integer,dimension(n_groups),parameter      :: p_types_sol=(/&
@@ -38,7 +41,7 @@ integer,dimension(n_groups_2),parameter    :: p_types_2_sol=(/&
                       particle_kinetic_leapfrog_id,&
                       particle_gc_relativistic_id,&
                       particle_gc_vpar_id/)
-integer,parameter                          :: n_active_groups_2_sol=2
+integer,dimension(n_fields_sol),parameter  :: field_ids_sol=(/5/) !< index of the density
 integer,dimension(n_groups_2),parameter    :: active_group_ids_2_sol=(/2,4,0,0,0/)
 real*8,parameter                           :: tol_real8=5.d-13
 real*8,parameter                           :: tol_interp_real8=7.5d-10
@@ -75,7 +78,9 @@ real*8,dimension(2)                            :: Z_box_jorek_sol
 real*8,dimension(2)                            :: R_minmax_jorek_sol
 real*8,dimension(2)                            :: Z_minmax_jorek_sol
 real*8,dimension(2)                            :: psi_minmax_global_jorek_sol
+real*8,dimension(2)                            :: field_minmax_global_sol
 real*8,dimension(:,:),allocatable              :: psi_minmax_list_jorek_sol
+real*8,dimension(:,:,:),allocatable            :: field_minmax_list_sol
 !> Interfaces--------------------------------------------------
 contains
 !> Fruit basket -----------------------------------------------
@@ -86,6 +91,7 @@ subroutine run_fruit_initialise_relativistic_particles()
   call setup
   call setup_jorek_simulation
   call setup_init_intervals
+  call setup_field_minmax
   write(*,'(/A)') "  ... running: initialise relativistic particles tests"
   call test_dummy
   call test_find_relativistic_kinetic_gc_groups
@@ -106,6 +112,7 @@ subroutine run_fruit_initialise_relativistic_particles()
   call test_check_energykinpitchgyro_interval
   write(*,'(/A)') "  ... tearing-down: initialise relativistic particles tests"
   call teardown
+  call teardown_field_minmax
 end subroutine run_fruit_initialise_relativistic_particles
 
 !> Set-up and tear-down ---------------------------------------
@@ -210,17 +217,41 @@ subroutine setup_init_intervals()
   5.d-1*(Z_box_jorek_sol(2)-Z_box_jorek_sol(1))*(/-1.d0,1.d0/)
 end subroutine setup_init_intervals
 
+!> find minimum and maximum of the requested fields
+subroutine setup_field_minmax()
+  use mod_rng,           only: type_rng
+  use mod_pcg32_rng,     only: pcg32_rng
+  use mod_fields_minmax, only: field_minmax_monte_carlo
+  implicit none
+  !> variables
+  class(type_rng),dimension(:),allocatable :: rngs
+  integer :: rank,n_tasks,ifail
+  !> initialisation
+  rank = 0; n_tasks=1;
+  !> allocate and compute field minmax
+  allocate(field_minmax_list_sol(n_fields_sol,2,fields_linear_sol%element_list%n_elements))
+  call field_minmax_monte_carlo(fields_linear_sol%node_list,fields_linear_sol%element_list,&
+  n_fields_sol,field_ids_sol,n_trials_sol,phi_small_sol,pcg32_rng(),rngs,&
+  field_minmax_list_sol,field_minmax_global_sol,rank,n_tasks,ifail)
+end subroutine setup_field_minmax
+
 !> tear-down test feature
 subroutine teardown()
   implicit none
   !> variables
   integer :: ii
   !> clean particle group
-  deallocate(groups_sol)
+  if(allocated(groups_sol)) deallocate(groups_sol)
   !> cleanup fields
   call fields_sol%deallocate_fields()
-  deallocate(psi_minmax_list_jorek_sol)
+  if(allocated(psi_minmax_list_jorek_sol)) deallocate(psi_minmax_list_jorek_sol)
 end subroutine teardown
+
+!> cleanup field minamx
+subroutine teardown_field_minmax()
+  implicit none
+  if(allocated(field_minmax_list_sol)) deallocate(field_minmax_list_sol)
+end subroutine teardown_field_minmax
 
 !> Tests ------------------------------------------------------
 !> test routine used for finding relativistic particles
