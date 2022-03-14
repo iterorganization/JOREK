@@ -209,7 +209,7 @@ energy_kin_box,pitch_box,gyro_box,q_box)
     pitch_box,gyro_box,groups(active_group_ids(ii))%mass)
   enddo
   !> compute the cube of the momentum and the cosinus of the pitch angle
-  momentum_box = momentum_box**3.d0; cospitch_box = cos(pitch_box);
+  momentum_box = momentum_box**3; cospitch_box = cos(pitch_box);
   !> initialise random number generator
   call setup_shared_rngs(7,rng_type,rngs) 
 
@@ -327,8 +327,7 @@ energy_kin_box,pitch_box,gyro_box,q_box)
     pitch_box,gyro_box,groups(active_group_ids(ii))%mass)
   enddo
   !> compute the cube of the momentum and the cosinus of the pitch angle
-  R2_box = R_box*R_box
-  momentum_box = momentum_box**3.d0; cospitch_box = cos(pitch_box);
+  R2_box=R_box**2; momentum_box=momentum_box**3; cospitch_box=cos(pitch_box);
   !> initialise random number generator
   call setup_shared_rngs(7,rng_type,rngs)
 
@@ -472,8 +471,7 @@ my_id,n_tasks,ifail,n_trials_in)
     pitch_box,gyro_box,groups(active_group_ids(ii))%mass)
   enddo
   !> compute the cube of the momentum and the cosinus of the pitch angle
-  R2_box = R_box*R_box
-  momentum_box = momentum_box**3.d0; cospitch_box = cos(pitch_box);
+  R2_box=R_box**2; momentum_box=momentum_box**3; cospitch_box=cos(pitch_box);
   !> estimate minimum and maximum values of the fluid fields
   call field_minmax_monte_carlo(fields%node_list,fields%element_list,&
   n_profiles,prof_ids,n_trials,phi_box,rng_type,rngs,prof_norms_list,&
@@ -782,7 +780,7 @@ rand,time,mass,pxpypz_interval)
   momentum = pxpypz_interval(:,1)+(pxpypz_interval(:,2)-pxpypz_interval(:,1))*rand
   call fields%calc_EBpsiU(time,gc%i_elm,gc%st,gc%x(3),&
   E,B,psi,U)
-  B_norm = sqrt(B(1)*B(1)+B(2)*B(2)+B(3)*B(3)); B = B/B_norm;
+  B_norm = sqrt(B(1)**2+B(2)**2+B(3)**2); B = B/B_norm;
   gc%p = momentum_relativistic_kinetic_to_relativistic_gc(mass,&
   momentum,gc%x(3),B_norm,B)
 end subroutine sampling_cartesian_p_gc_relativistic
@@ -819,7 +817,7 @@ fields,rand,time,p_cube_int,cos_theta_int,gyro_int)
   !> compute the magnetic field direction
   call fields%calc_EBpsiU(time,particle%i_elm,particle%st,&
   particle%x(3),E,B,psi,U)
-  B = B/sqrt(B(1)*B(1)+B(2)*B(2)+B(3)*B(3))
+  B = B/sqrt(B(1)**2+B(2)**2+B(3)**2)
   !> sample the momentum in spherical coordinates
   particle%p = sample_uniform_sphere_corona_rcosphi(p_cube_int,&
   cos_theta_int,gyro_int,rand)
@@ -862,7 +860,7 @@ rand,mass,time,p_cube_int,cos_theta_int,gyro_int)
   !> compute magnetic field direction
   call fields%calc_EBpsiU(time,gc%i_elm,gc%st,gc%x(3),&
   E,B,psi,U)
-  B_norm = sqrt(B(1)*B(1)+B(2)*B(2)+B(3)*B(3)); B = B/B_norm;
+  B_norm = sqrt(B(1)**2+B(2)**2+B(3)**2); B = B/B_norm;
   !> sample the momentum in spherical coordinates
   p_kin = sample_uniform_sphere_corona_rcosphi(p_cube_int,&
   cos_theta_int,gyro_int,rand)
