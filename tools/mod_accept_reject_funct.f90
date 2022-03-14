@@ -22,7 +22,7 @@ result(success)
   logical :: success
   !> check if value accepted
   success = all(((intervals(:,2)-intervals(:,1))*(values-intervals(:,1))).le.&
-  ((intervals(:,2)-intervals(:,1))*(intervals(:,2)-intervals(:,1))*rand))
+  (((intervals(:,2)-intervals(:,1))**2)*rand))
 end function accept_lower_values_rand
 !>-----------------------------------------------------------------------
 end module mod_accept_reject_funct
