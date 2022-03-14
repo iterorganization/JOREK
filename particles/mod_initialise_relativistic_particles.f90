@@ -500,7 +500,7 @@ n_tasks,ifail,n_trials_in)
         type is (particle_kinetic_relativistic)
           call sampling_uniform_ppitchgyro_kinetic_relativistic(particle,&
           fields,rands(1:3),time,momentum_box,cospitch_box,gyro_box)
-          particle%q = sampling_uniform_charge(rands(7),q_box)
+          particle%q = sampling_uniform_charge(rands(4),q_box)
         type is (particle_gc_relativistic)
           call sampling_uniform_ppitchgyro_gc_relativistic(particle,fields,&
           rands(1:3),groups(active_group_ids(ii))%mass,time,&
