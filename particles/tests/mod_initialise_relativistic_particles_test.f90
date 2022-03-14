@@ -99,8 +99,10 @@ subroutine run_fruit_initialise_relativistic_particles()
   call test_find_psithetaphi_minmax_global_list
   call test_sample_position_uniformly_psi_theta_phi
   call test_sample_position_uniformly_cylinder
+  call test_sample_position_acceptreject_from_fluid_profiles
   call test_init_p_gc_relativistic_psithetaphi_energypitchgyro
   call test_init_p_gc_relativistic_RZPhi_energypitchgyro
+  call test_init_p_gc_relativistic_from_fluid_energypitchgyro
   call test_sampling_cartesian_p_kinetic_relativistic
   call test_sampling_cartesian_gc_kinetic_relativistic
   call test_sampling_uniform_ppitchgyro_kinetic_relativistic
@@ -110,7 +112,6 @@ subroutine run_fruit_initialise_relativistic_particles()
   call test_check_thetapsiphi_interval
   call test_check_RZPhi_interval
   call test_check_energykinpitchgyro_interval
-  call test_sample_position_acceptreject_from_fluid_profiles
   write(*,'(/A)') "  ... tearing-down: initialise relativistic particles tests"
   call teardown
   call teardown_field_minmax
@@ -616,6 +617,91 @@ subroutine test_init_p_gc_relativistic_RZPhi_energypitchgyro()
     deallocate(success_pos); deallocate(success_vel); deallocate(success_q);
   enddo
 end subroutine test_init_p_gc_relativistic_RZPhi_energypitchgyro
+
+!> test the initialisaiton via accpet-reject sampling using
+!> normalised fluid profiles as distribution
+subroutine test_init_p_gc_relativistic_from_fluid_energypitchgyro()
+  use constants, only: EL_CHG,ATOMIC_MASS_UNIT,SPEED_OF_LIGHT
+  use mod_coordinate_transforms,             only: vector_cylindrical_to_cartesian
+  use mod_pcg32_rng,                         only: pcg32_rng
+  use mod_interp,                            only: interp_PRZ
+  use mod_particle_types,                    only: particle_kinetic_relativistic
+  use mod_particle_types,                    only: particle_gc_relativistic
+  use mod_pusher_tools,                      only: get_orthonormals
+  use mod_particle_common_test_tools,        only: EThetaChi_RE_lowbnd,EThetaChi_RE_uppbnd
+  use mod_particle_common_test_tools,        only: q1_posneg_interval
+  use mod_accept_reject_funct,               only: accept_lower_values_rand
+  use mod_initialise_relativistic_particles, only: init_particle_kinetic_relativistic_to_zero
+  use mod_initialise_relativistic_particles, only: init_particle_gc_relativistic_to_zero
+  use mod_initialise_relativistic_particles, only: init_p_gc_relativistic_from_fluid_energypitchgyro
+  implicit none
+  !> variables:
+  integer                          :: ii,jj,rank,n_tasks,ifail
+  real*8                           :: psi_test,B_norm,psi_2,U
+  real*8,dimension(2)              :: phi_box_test,p_box,energy_box
+  real*8,dimension(2)              :: pitch_box,gyro_box
+  real*8,dimension(3)              :: B,e2,e3,E
+  logical,dimension(:),allocatable :: success_pos,success_vel,success_q
+  !> initialisations
+  rank = 0; n_tasks = 1; phi_box_test = phi_small_sol;
+  energy_box = (/EThetaChi_RE_lowbnd(1),EThetaChi_RE_uppbnd(1)/)
+  pitch_box  = (/EThetaChi_RE_lowbnd(2),EThetaChi_RE_uppbnd(2)/)
+  gyro_box   = (/EThetaChi_RE_lowbnd(3),EThetaChi_RE_uppbnd(3)/)
+  !> initialise particle groups
+  call init_p_gc_relativistic_from_fluid_energypitchgyro(groups_sol,&
+  fields_linear_sol,time_sol,pcg32_rng(),n_fields_sol,field_ids_sol,&
+  accept_lower_values_rand,phi_box_test,energy_box,pitch_box,gyro_box,&
+  q1_posneg_interval,rank,n_tasks,ifail,n_trials_sol)
+  !> perform checks
+  do ii=1,n_groups
+    select type (p_list=>groups_sol(ii)%particles)
+    type is (particle_kinetic_relativistic)
+      p_box = (EL_CHG*(/EThetaChi_RE_lowbnd(1),EThetaChi_RE_uppbnd(1)/))/&
+      (ATOMIC_MASS_UNIT*groups_sol(ii)%mass*SPEED_OF_LIGHT*SPEED_OF_LIGHT)
+      p_box = (p_box+1.d0)*(p_box+1.0); p_box = sqrt(p_box-1.d0);
+      p_box = SPEED_OF_LIGHT*groups_sol(ii)%mass*p_box;
+    type is (particle_gc_relativistic)
+      p_box = (EL_CHG*(/EThetaChi_RE_lowbnd(1),EThetaChi_RE_uppbnd(1)/))/&
+      (ATOMIC_MASS_UNIT*groups_sol(ii)%mass*SPEED_OF_LIGHT*SPEED_OF_LIGHT)
+      p_box = (p_box+1.d0)*(p_box+1.0); p_box = sqrt(p_box-1.d0);
+      p_box = SPEED_OF_LIGHT*groups_sol(ii)%mass*p_box;
+    end select
+    allocate(success_vel(n_particles(ii))); success_vel = .false.;
+    allocate(success_q(n_particles(ii))); success_q = .false.;
+    do jj=1,n_particles(ii)
+      if(groups_sol(ii)%particles(jj)%i_elm.gt.0) then
+        !> TODO: TEST SPATIAL DISTRIBUTION
+        !> compute magnetic coordinate system
+        call fields_linear_sol%calc_EBpsiU(time_sol,&
+        groups_sol(ii)%particles(jj)%i_elm,groups_sol(ii)%particles(jj)%st,&
+        groups_sol(ii)%particles(jj)%x(3),E,B,psi_2,U)
+        B_norm = norm2(B); B = B/B_norm;
+        B = vector_cylindrical_to_cartesian(groups_sol(ii)%particles(jj)%x(3),B)
+        call get_orthonormals(B,e2,e3)
+        !> check momentum and charge solutions
+        select type(p_test=>groups_sol(ii)%particles(jj))
+        type is (particle_kinetic_relativistic)
+          call test_momentum_in_ppitchgyro_box_p(p_test,B,e2,e3,&
+          p_box,pitch_box,gyro_box,success_vel(jj))
+          success_q(jj) = (p_test%q.ge.q1_posneg_interval(1)).and.&
+          (p_test%q.le.q1_posneg_interval(2))
+          call init_particle_kinetic_relativistic_to_zero(p_test) !< cleanup
+        type is (particle_gc_relativistic)
+          call test_momentum_in_ppitch_box_gc(p_test,groups_sol(ii)%mass,&
+          B_norm,p_box,pitch_box,success_vel(jj))
+          success_q(jj) = (p_test%q.ge.q1_posneg_interval(1)).and.&
+          (p_test%q.le.q1_posneg_interval(2))
+          call init_particle_gc_relativistic_to_zero(p_test) !< cleanup
+        end select
+      endif
+    enddo
+    call assert_true(all(success_vel),&
+    "Error initialise relativistic kinetic p gc fluid prof. - E/pitch/gyro: E,pitch,gyro not in bound!")
+    call assert_true(all(success_q),&
+    "Error initialise relativistic kinetic p gc fluid prof. - E/pitch/gyro: charge not in bound!")
+    deallocate(success_vel); deallocate(success_q);
+  enddo
+end subroutine test_init_p_gc_relativistic_from_fluid_energypitchgyro
 
 !> test initialisation particle momentum between limits
 subroutine test_sampling_cartesian_p_kinetic_relativistic()
