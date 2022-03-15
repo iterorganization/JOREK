@@ -402,7 +402,7 @@ subroutine test_sample_position_acceptreject_from_fluid_profiles()
   use mod_rng,                               only: type_rng
   use mod_rng,                               only: setup_shared_rngs
   use mod_pcg32_rng,                         only: pcg32_rng
-  use mod_accept_reject_funct,               only: accept_lower_values_rand 
+  use mod_accept_reject_funct,               only: accept_larger_values_rand 
   use mod_particle_types,                    only: particle_kinetic_relativistic
   use mod_initialise_relativistic_particles, only: sample_position_acceptreject_from_fluid_profiles
   implicit none
@@ -638,7 +638,7 @@ subroutine test_init_p_gc_relativistic_from_fluid_energypitchgyro()
   use mod_pusher_tools,                      only: get_orthonormals
   use mod_particle_common_test_tools,        only: EThetaChi_RE_lowbnd,EThetaChi_RE_uppbnd
   use mod_particle_common_test_tools,        only: q1_posneg_interval
-  use mod_accept_reject_funct,               only: accept_lower_values_rand
+  use mod_accept_reject_funct,               only: accept_larger_values_rand
   use mod_initialise_relativistic_particles, only: init_particle_kinetic_relativistic_to_zero
   use mod_initialise_relativistic_particles, only: init_particle_gc_relativistic_to_zero
   use mod_initialise_relativistic_particles, only: init_p_gc_relativistic_from_fluid_energypitchgyro

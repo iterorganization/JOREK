@@ -481,11 +481,11 @@ n_tasks,ifail,n_trials_in)
   !$omp maxit,active_group_ids,n_profiles) shared(groups,fields,rngs,&
   !$omp prof_ids,prof_norms,phi_box,time,momentum_box,cospitch_box,&
   !$omp gyro_box,q_box)
-  thread_id = 1;
   !$omp single
   do ii=1,n_active_groups
     do jj=1,size(groups(active_group_ids(ii))%particles)
       !$omp task
+      thread_id = 1
       !$ thread_id = omp_get_thread_num()+1
       !> initialise particle to 0
       call init_particle_base_to_zero(groups(active_group_ids(ii))%particles(jj))
@@ -508,7 +508,7 @@ n_tasks,ifail,n_trials_in)
           particle%q = sampling_uniform_charge(rands(4),q_box)
         end select 
       endif
-      !$omp end task
+     !$omp end task
     enddo
   enddo
   !$omp end single
@@ -707,7 +707,7 @@ fields,n_rngs,n_profiles,rng_id,prof_ids,prof_norms,phi_box,rngs,accept)
     !> sampling the particle position in local coordinates
     particle%st = rands(1:2); particle%x(3)=phi_box(1)+&
     (phi_box(2)-phi_box(1))*rands(3);
-    particle%i_elm = floor(1+fields%element_list%n_elements*rands(4))
+    particle%i_elm = 1+floor(real(fields%element_list%n_elements,kind=8)*rands(4))
     !> interpolate the profiles
     call interp_PRZ(fields%node_list,fields%element_list,particle%i_elm,&
     prof_ids,n_profiles,particle%st(1),particle%st(2),particle%x(3),&

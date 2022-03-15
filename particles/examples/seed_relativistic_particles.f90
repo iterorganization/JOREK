@@ -18,7 +18,7 @@ program seed_relativistic_particles
   use mod_fields_linear,                     only: read_jorek_fields_interp_linear
   use mod_project_particles
   use mod_particle_io
-  use mod_accept_reject_funct,               only: accept_lower_values_rand
+  use mod_accept_reject_funct,               only: accept_larger_values_rand
   use mod_initialise_relativistic_particles, only: init_p_gc_relativistic_from_fluid_energypitchgyro
   use mod_fields_minmax,                     only: field_minmax_monte_carlo
   implicit none
@@ -42,8 +42,8 @@ program seed_relativistic_particles
   n_fields=1; allocate(fluid_field_ids(n_fields)); fluid_field_ids=(/5/); !< fluid density
   allocate(particle_field_ids(n_fields)); particle_field_ids=(/1/) !< particledensity
   phi_box=(/0.d0,TWOPI/); pitch_box=(/0.d0,PI/); gyro_box=(/0.d0,TWOPI/);
-  energy_kin_box=(/1.d5,5.d7/); n_groups=1; n_particles_per_task=10000000;
-  mass_e = 5.48579909065d-4; q_box=(/-1,-1/); n_trials=1000000;
+  energy_kin_box=(/1.d5,5.d7/); n_groups=1; n_particles_per_task=1000000;
+  mass_e = 5.48579909065d-4; q_box=(/-1,-1/); n_trials=1000;
   !> set initialisation variables ------------------------------------------------
   call sim%initialize(n_groups,.true.)
 
@@ -69,7 +69,7 @@ program seed_relativistic_particles
   !> initialise the particles ----------------------------------------------------
   call init_p_gc_relativistic_from_fluid_energypitchgyro(&
   sim%groups,sim%fields,sim%time,pcg32_rng(),n_fields,fluid_field_ids,&
-  accept_lower_values_rand,phi_box,energy_kin_box,pitch_box,&
+  accept_larger_values_rand,phi_box,energy_kin_box,pitch_box,&
   gyro_box,q_box,sim%my_id,sim%n_cpu,ifail,n_trials)
 
   !> write particle in restart file ----------------------------------------------
@@ -148,7 +148,7 @@ program seed_relativistic_particles
     !$omp do
     do ii=1,n_trials
       call rngs(thread_id)%next(rands)
-      i_elm = 1+element_list_fluid%n_elements*rands(1)
+      i_elm = 1+floor(real(element_list_fluid%n_elements,kind=8)*rands(1))
       phi = phi_box(1) + (phi_box(2)-phi_box(1))*rands(2)
       call interp_prz(node_list_fluid,element_list_fluid,i_elm,&
       fluid_field_ids,n_fields,rands(3),rands(4),phi,fluid_fields,R,Z)
