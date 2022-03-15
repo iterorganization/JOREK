@@ -710,7 +710,7 @@ fields,n_rngs,n_profiles,rng_id,prof_ids,prof_norms,phi_box,rngs,accept)
     particle%i_elm = floor(1+fields%element_list%n_elements*rands(4))
     !> interpolate the profiles
     call interp_PRZ(fields%node_list,fields%element_list,particle%i_elm,&
-    prof_ids,n_profiles,particle%st(1),particle%st(2),particle%x(2),&
+    prof_ids,n_profiles,particle%st(1),particle%st(2),particle%x(3),&
     profiles,particle%x(1),particle%x(2))
     !> check for failures
     fail = .not.accept(n_profiles,profiles,prof_norms,rands(5:n_profiles+4))
