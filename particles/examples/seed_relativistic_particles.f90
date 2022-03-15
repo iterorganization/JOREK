@@ -42,8 +42,8 @@ program seed_relativistic_particles
   n_fields=1; allocate(fluid_field_ids(n_fields)); fluid_field_ids=(/5/); !< fluid density
   allocate(particle_field_ids(n_fields)); particle_field_ids=(/1/) !< particledensity
   phi_box=(/0.d0,TWOPI/); pitch_box=(/0.d0,PI/); gyro_box=(/0.d0,TWOPI/);
-  energy_kin_box=(/1.d5,5.d7/); n_groups=1; n_particles_per_task=1000000;
-  mass_e = 5.48579909065d-4; q_box=(/-1,-1/); n_trials=1000;
+  energy_kin_box=(/1.d5,5.d7/); n_groups=1; n_particles_per_task=10000000;
+  mass_e = 5.48579909065d-4; q_box=(/-1,-1/); n_trials=1000000;
   !> set initialisation variables ------------------------------------------------
   call sim%initialize(n_groups,.true.)
 
@@ -77,11 +77,10 @@ program seed_relativistic_particles
 
   !> project particle to vtk readable file ----------------------------------------
   project_density = new_projection(sim%fields%node_list,sim%fields%element_list, &
-  filter= filter_perp,filter_hyper=filter_hyper,filter_parallel=filter_par, &
+  filter=filter_perp,filter_hyper=filter_hyper,filter_parallel=filter_par, &
   filter_n0=filter_perp,filter_hyper_n0=filter_hyper,filter_parallel_n0=filter_par_n0, &
   f=[proj_f(proj_one,group=1)],fractional_digits = 16,calc_integrals=.true.,to_vtk=.true.,&
   to_h5=.false.,basename='initial_relativistic_particle_density',nsub=5)
-  project_density_event = new_event_ptr(project_density)
   call with(sim,project_density_event)
 
   !> verify congruency between normalised particle and fluid profiles -------------
