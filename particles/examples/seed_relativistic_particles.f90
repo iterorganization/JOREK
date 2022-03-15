@@ -34,15 +34,16 @@ program seed_relativistic_particles
   integer                             :: n_trials,ifail
   integer,dimension(:),allocatable    :: fluid_field_ids,particle_field_ids
   real*8                              :: mass_e,max_error
-  real*8,dimension(2)                 :: phi_box,energy_kin_box,pitch_box,gyro_box
+  real*8,dimension(2)                 :: R_box,Z_box,phi_box,energy_kin_box,pitch_box,gyro_box
   real*8,dimension(:,:),allocatable   :: minmax_global_particle,minmax_global_fluid
   real*8,dimension(:,:,:),allocatable :: minmax_list
 
   !> initialise the simulation ---------------------------------------------------
   n_fields=1; allocate(fluid_field_ids(n_fields)); fluid_field_ids=(/5/); !< fluid density
   allocate(particle_field_ids(n_fields)); particle_field_ids=(/1/) !< particledensity
-  phi_box=(/0.d0,TWOPI/); pitch_box=(/0.d0,PI/); gyro_box=(/0.d0,TWOPI/);
-  energy_kin_box=(/1.d5,5.d7/); n_groups=1; n_particles_per_task=10000000;
+  phi_box=(/0.d0,TWOPI/); R_box=(/-1.d0,-1.d0/); Z_box=(/-1.d21,-1.d21/); 
+  pitch_box=(/0.d0,PI/); gyro_box=(/0.d0,TWOPI/); energy_kin_box=(/1.d5,5.d7/);
+  n_groups=1; n_particles_per_task=10000000;
   mass_e = 5.48579909065d-4; q_box=(/-1,-1/); n_trials=1000000;
   !> set initialisation variables ------------------------------------------------
   call sim%initialize(n_groups,.true.)
@@ -69,7 +70,7 @@ program seed_relativistic_particles
   !> initialise the particles ----------------------------------------------------
   call init_p_gc_relativistic_from_fluid_energypitchgyro(&
   sim%groups,sim%fields,sim%time,pcg32_rng(),n_fields,fluid_field_ids,&
-  accept_larger_values_rand,phi_box,energy_kin_box,pitch_box,&
+  accept_larger_values_rand,R_box,Z_box,phi_box,energy_kin_box,pitch_box,&
   gyro_box,q_box,sim%my_id,sim%n_cpu,ifail,n_trials)
 
   !> write particle in restart file ----------------------------------------------
