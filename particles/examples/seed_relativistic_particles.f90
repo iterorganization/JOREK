@@ -81,7 +81,7 @@ program seed_relativistic_particles
   filter_n0=filter_perp,filter_hyper_n0=filter_hyper,filter_parallel_n0=filter_par_n0, &
   f=[proj_f(proj_one,group=1)],fractional_digits = 16,calc_integrals=.true.,to_vtk=.true.,&
   to_h5=.false.,basename='initial_relativistic_particle_density',nsub=5)
-  call with(sim,project_density_event)
+  call with(sim,project_density)
 
   !> verify congruency between normalised particle and fluid profiles -------------
   allocate(minmax_list(n_fields,2,project_density%element_list%n_elements))
