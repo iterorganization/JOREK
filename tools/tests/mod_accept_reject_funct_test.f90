@@ -24,6 +24,7 @@ subroutine run_fruit_accept_reject_funct()
   call setup()
   write(*,'(/A)') "  ... running: accept reject funct tests"
   call test_accept_lower_value_rand
+  call test_accept_larger_value_rand
   write(*,'(/A)') "  ... tearing-down: accept reject funct tests"
   call teardown()
 end subroutine run_fruit_accept_reject_funct
@@ -69,6 +70,34 @@ subroutine test_accept_lower_value_rand()
   test = .not.accept_lower_values_rand(n_trials,values,negative_interval,rand_fail*ones)
   call assert_true(test,"Error accept-reject accept lower value: negative interval not fail!")
 end subroutine test_accept_lower_value_rand
+
+!> test acceptance if value larger than rand
+subroutine test_accept_larger_value_rand()
+  use mod_accept_reject_funct, only: accept_larger_values_rand
+  implicit none
+  !> variables
+  real*8 :: rand_success,rand_fail
+  real*8,dimension(n_trials) :: values,ones
+  logical :: test
+  !> initialisation
+  ones = 1.d0; 
+  rand_fail=maxval(rands); rand_fail=max(1.d0,1.01*rand_fail);
+  rand_success=minval(rands); rand_success=max(0.d0,0.99*rand_success);
+  !> test positive interval
+  values = positive_interval(:,1)+(positive_interval(:,2)-&
+  positive_interval(:,1))*rands
+  test = accept_larger_values_rand(n_trials,values,positive_interval,rand_success*ones)
+  call assert_true(test,"Error accept-reject accept larger value: positive interval not success!")
+  test = .not.accept_larger_values_rand(n_trials,values,positive_interval,rand_fail*ones)
+  call assert_true(test,"Error accept-reject accept largervalue: positive interval not fail!")
+  !> test negative interval
+  values = negative_interval(:,1)+(negative_interval(:,2)-&
+  negative_interval(:,1))*rands
+  test = accept_larger_values_rand(n_trials,values,negative_interval,rand_success*ones)
+  call assert_true(test,"Error accept-reject accept larger value: negative interval not success!")
+  test = .not.accept_larger_values_rand(n_trials,values,negative_interval,rand_fail*ones)
+  call assert_true(test,"Error accept-reject accept larger value: negative interval not fail!")
+end subroutine test_accept_larger_value_rand
 
 !> Tools ------------------------------------------------
 !>-------------------------------------------------------
