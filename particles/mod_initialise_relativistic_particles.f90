@@ -218,11 +218,10 @@ energy_kin_box,pitch_box,gyro_box,q_box)
   !$omp cospitch_box,gyro_box,q_box)
   !> initialise the the relativistic and particle lists
   thread_id = 1;
-  !$omp single
+  !$ thread_id = omp_get_thread_num()+1
   do ii=1,n_active_groups
+    !$omp do
     do jj=1,size(groups(active_group_ids(ii))%particles)
-      !$omp task
-      !$ thread_id = omp_get_thread_num()+1
       !> initialise particle to 0
       call init_particle_base_to_zero(groups(active_group_ids(ii))%particles(jj))
       !> while loop until a valid element is not found
@@ -247,10 +246,9 @@ energy_kin_box,pitch_box,gyro_box,q_box)
           momentum_box,cospitch_box,gyro_box)
           particle%q = sampling_uniform_charge(rands(7),q_box)
         end select 
-        !$omp end task
       enddo
+      !$omp end do
   enddo
-  !$omp end single
   !$omp end parallel
 
   !> cleanup
@@ -335,11 +333,10 @@ energy_kin_box,pitch_box,gyro_box,q_box)
   !$omp maxit,active_group_ids) shared(groups,fields,rngs,R2_box,&
   !$omp Z_box,phi_box,time,momentum_box,cospitch_box,gyro_box,q_box)
   thread_id = 1;
-  !$omp single
+  !$ thread_id = omp_get_thread_num()+1
   do ii=1,n_active_groups
+    !$omp do
     do jj=1,size(groups(active_group_ids(ii))%particles)
-      !$omp task
-      !$ thread_id = omp_get_thread_num()+1
       !> initialise particle to 0
       call init_particle_base_to_zero(groups(active_group_ids(ii))%particles(jj))
       !> while loop until a valid element is not found
@@ -366,10 +363,9 @@ energy_kin_box,pitch_box,gyro_box,q_box)
           particle%q = sampling_uniform_charge(rands(7),q_box)
         end select 
       endif
-      !$omp end task
     enddo
+    !$omp end do
   enddo
-  !$omp end single
   !$omp end parallel
 
   !> cleanup
@@ -481,12 +477,11 @@ n_tasks,ifail,n_trials_in)
   !$omp maxit,active_group_ids,n_profiles) shared(groups,fields,rngs,&
   !$omp prof_ids,prof_norms,phi_box,time,momentum_box,cospitch_box,&
   !$omp gyro_box,q_box)
-  !$omp single
+  thread_id = 1
+  !$ thread_id = omp_get_thread_num()+1
   do ii=1,n_active_groups
+    !$omp do
     do jj=1,size(groups(active_group_ids(ii))%particles)
-      !$omp task
-      thread_id = 1
-      !$ thread_id = omp_get_thread_num()+1
       !> initialise particle to 0
       call init_particle_base_to_zero(groups(active_group_ids(ii))%particles(jj))
       !> initialise particle in space from plasma profiles
@@ -508,10 +503,9 @@ n_tasks,ifail,n_trials_in)
           particle%q = sampling_uniform_charge(rands(4),q_box)
         end select 
       endif
-     !$omp end task
     enddo
+    !$omp end do
   enddo
-  !$omp end single
   !$omp end parallel
 end subroutine init_p_gc_relativistic_from_fluid_energypitchgyro
 
