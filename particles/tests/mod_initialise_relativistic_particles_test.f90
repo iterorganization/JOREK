@@ -42,36 +42,36 @@ integer,dimension(n_groups_2),parameter    :: p_types_2_sol=(/&
                       particle_kinetic_leapfrog_id,&
                       particle_gc_relativistic_id,&
                       particle_gc_vpar_id/)
-integer,dimension(n_fields_sol),parameter  :: field_ids_sol=(/5/) !< index of the density
+integer,dimension(n_fields_sol),parameter   :: field_ids_sol=(/5/) !< index of the density
 integer,dimension(n_min_prof_sol),parameter :: min_prof_to_set_ids_sol=(/1/)
-integer,dimension(n_groups_2),parameter    :: active_group_ids_2_sol=(/2,4,0,0,0/)
-real*8,dimension(n_min_prof_sol),parameter :: min_prof_to_set_val_sol=(/0.d0/)
-real*8,parameter                           :: tol_real8=5.d-13
-real*8,parameter                           :: tol_interp_real8=7.5d-10
-real*8,parameter                           :: time_sol=0.d0
-real*8,parameter                           :: p_neg=-2.d0
-real*8,dimension(2),parameter              :: psi_big_sol=(/-2.d1,3.d2/)
-real*8,dimension(2),parameter              :: psi_small_sol=(/3.d-1,6.d-1/)
-real*8,dimension(2),parameter              :: psi_axisbnd=(/-1.d0,2.5d0/)
-real*8,dimension(2),parameter              :: R_big_sol=(/1.d-1,3.d2/)
-real*8,dimension(2),parameter              :: R_small_sol=(/1.d0,2.5d0/)
-real*8,dimension(2),parameter              :: Z_big_sol=(/-3.d1,3.d1/)
-real*8,dimension(2),parameter              :: Z_small_sol=(/-1.d0,2.5d0/)
-real*8,dimension(2),parameter              :: theta_big_sol=(/-3.d1,3.d1/)
-real*8,dimension(2),parameter              :: theta_small_sol=(/PI/6.d0,TWOPI/3.d0/)
-real*8,dimension(2),parameter              :: phi_big_sol=(/-3.d1,3.d1/)
-real*8,dimension(2),parameter              :: phi_small_sol=(/PI/6.d0,TWOPI/3.d0/)
-real*8,dimension(2),parameter              :: pitch_small_sol=(/PI/6.d0,2.d0*PI/3.d0/)
-real*8,dimension(2),parameter              :: gyro_small_sol=(/PI/6.d0,3.d0*PI/2.d0/)
-real*8,dimension(2),parameter              :: pitch_big_sol=(/-PI/2.d0,TWOPI/)
-real*8,dimension(2),parameter              :: gyro_big_sol=(/-PI/2.d0,3.d0*PI/)
-real*8,dimension(2),parameter              :: psi_minmax_sol=(/-5.d0,1.d1/)
-real*8,dimension(2),parameter              :: R_minmax=(/5.d-1,1.d1/)
-real*8,dimension(2),parameter              :: Z_minmax=(/-1.d1,1.d1/)
-real*8,dimension(2),parameter              :: theta_minmax=(/0.d0,TWOPI/)
-real*8,dimension(2),parameter              :: phi_minmax=(/0.d0,TWOPI/)
-real*8,dimension(2),parameter              :: R_box_fraction_sol=(/0.22,0.34/)
-real*8,dimension(2),parameter              :: Z_box_fraction_sol=(/0.41,0.73/)
+integer,dimension(n_groups_2),parameter     :: active_group_ids_2_sol=(/2,4,0,0,0/)
+real*8,dimension(n_min_prof_sol),parameter  :: min_prof_to_set_val_sol=(/0.d0/)
+real*8,parameter                            :: tol_real8=5.d-13
+real*8,parameter                            :: tol_interp_real8=7.5d-10
+real*8,parameter                            :: time_sol=0.d0
+real*8,parameter                            :: p_neg=-2.d0
+real*8,dimension(2),parameter               :: psi_big_sol=(/-2.d1,3.d2/)
+real*8,dimension(2),parameter               :: psi_small_sol=(/3.d-1,6.d-1/)
+real*8,dimension(2),parameter               :: psi_axisbnd=(/-1.d0,2.5d0/)
+real*8,dimension(2),parameter               :: R_big_sol=(/1.d-1,3.d2/)
+real*8,dimension(2),parameter               :: R_small_sol=(/1.d0,2.5d0/)
+real*8,dimension(2),parameter               :: Z_big_sol=(/-3.d1,3.d1/)
+real*8,dimension(2),parameter               :: Z_small_sol=(/-1.d0,2.5d0/)
+real*8,dimension(2),parameter               :: theta_big_sol=(/-3.d1,3.d1/)
+real*8,dimension(2),parameter               :: theta_small_sol=(/PI/6.d0,TWOPI/3.d0/)
+real*8,dimension(2),parameter               :: phi_big_sol=(/-3.d1,3.d1/)
+real*8,dimension(2),parameter               :: phi_small_sol=(/PI/6.d0,TWOPI/3.d0/)
+real*8,dimension(2),parameter               :: pitch_small_sol=(/PI/6.d0,2.d0*PI/3.d0/)
+real*8,dimension(2),parameter               :: gyro_small_sol=(/PI/6.d0,3.d0*PI/2.d0/)
+real*8,dimension(2),parameter               :: pitch_big_sol=(/-PI/2.d0,TWOPI/)
+real*8,dimension(2),parameter               :: gyro_big_sol=(/-PI/2.d0,3.d0*PI/)
+real*8,dimension(2),parameter               :: psi_minmax_sol=(/-5.d0,1.d1/)
+real*8,dimension(2),parameter               :: R_minmax=(/5.d-1,1.d1/)
+real*8,dimension(2),parameter               :: Z_minmax=(/-1.d1,1.d1/)
+real*8,dimension(2),parameter               :: theta_minmax=(/0.d0,TWOPI/)
+real*8,dimension(2),parameter               :: phi_minmax=(/0.d0,TWOPI/)
+real*8,dimension(2),parameter               :: R_box_fraction_sol=(/0.22,0.34/)
+real*8,dimension(2),parameter               :: Z_box_fraction_sol=(/0.41,0.73/)
 type(particle_group),dimension(:),allocatable :: groups_sol
 type(particle_group),dimension(n_groups_2)    :: groups_2_sol
 type(fields_analytical)                       :: fields_sol
@@ -81,7 +81,7 @@ real*8,dimension(2)                           :: Z_box_jorek_sol
 real*8,dimension(2)                           :: R_minmax_jorek_sol
 real*8,dimension(2)                           :: Z_minmax_jorek_sol
 real*8,dimension(2)                           :: psi_minmax_global_jorek_sol
-real*8,dimension(2)                           :: field_minmax_global_sol
+real*8,dimension(n_fields_sol,2)              :: field_minmax_global_sol
 real*8,dimension(:,:),allocatable             :: psi_minmax_list_jorek_sol
 real*8,dimension(:,:,:),allocatable           :: field_minmax_list_sol
 !> Interfaces--------------------------------------------------
@@ -402,6 +402,7 @@ end subroutine test_sample_position_uniformly_psi_theta_phi
 
 !> test the sampling w.r.t. fluid field profile via accept-reject method
 subroutine test_sample_position_acceptreject_from_fluid_profiles()
+  use mod_array_handlers,                    only: set_values_in_array
   use mod_rng,                               only: type_rng
   use mod_rng,                               only: setup_shared_rngs
   use mod_pcg32_rng,                         only: pcg32_rng
@@ -413,27 +414,43 @@ subroutine test_sample_position_acceptreject_from_fluid_profiles()
   class(type_rng),dimension(:),allocatable :: rngs
   type(particle_kinetic_relativistic)      :: p_test
   integer                                  :: ii,jj,n_rngs,rng_id
-  logical,dimension(:),allocatable         :: success
+  real*8                                   :: R_out,Z_out
+  real*8,dimension(:),allocatable          :: errors_pos,zeros
+  logical,dimension(:),allocatable         :: success_pos,success_field
   real*8,dimension(2)                      :: R2_box
+  real*8,dimension(n_fields_sol)           :: test_values
+  real*8,dimension(n_fields_sol,2)         :: minmax_global
   !> initialisationi
   call setup_shared_rngs(4+n_fields_sol,pcg32_rng(),rngs); 
   n_rngs=size(rngs); rng_id=1; R2_box=R_box_jorek_sol**2;
+  minmax_global = field_minmax_global_sol;
+  call set_values_in_array(n_fields_sol,n_min_prof_sol,&
+  min_prof_to_set_ids_sol,min_prof_to_set_val_sol,minmax_global(:,1))
   !> sampled the particle positions
   do ii=1,n_groups
-     allocate(success(n_particles(ii)))
-     do jj=1,n_particles(ii)
-       !> generate a particle
-       call sample_position_acceptreject_from_fluid_profiles(p_test,&
-       fields_linear_sol,n_rngs,n_fields_sol,rng_id,field_ids_sol,&
-       field_minmax_global_sol,R2_box,Z_box_jorek_sol,phi_small_sol,&
-       rngs,accept_larger_values_rand)
-       !> check if the particle is in the st element box
-       call test_position_in_stelement_box(p_test,&
-       fields_linear_sol%element_list%n_elements,phi_small_sol,success(jj))
-     enddo
-     call assert_true(all(success),&
-     "Error sample position accept-reject from fluid: s,t,i_elm not in bound!")
-     deallocate(success)
+    allocate(success_pos(n_particles(ii)));   success_pos = .false.
+    allocate(success_field(n_particles(ii))); success_field = .false.
+    allocate(errors_pos(n_particles(ii)));    errors_pos = 1.d21
+    allocate(zeros(n_particles(ii)));         zeros = 0.d0
+    do jj=1,n_particles(ii)
+      !> generate a particle
+      call sample_position_acceptreject_from_fluid_profiles(p_test,&
+      fields_linear_sol,n_rngs,n_fields_sol,rng_id,field_ids_sol,&
+      minmax_global,R2_box,Z_box_jorek_sol,phi_small_sol,&
+      rngs,accept_larger_values_rand)
+      !> check if the particle is in the R,Z,phi box and fields within extrema
+      call test_position_in_RZPhi_box(p_test,fields_linear_sol,R_box_jorek_sol,&
+      Z_box_jorek_sol,phi_small_sol,success_pos(jj),errors_pos(jj))
+      call test_field_in_field_box(p_test,fields_linear_sol,&
+      n_fields_sol,field_ids_sol,minmax_global,success_field(jj))
+    enddo
+    call assert_true(all(success_pos),&
+    "Error sample position accept-reject from fluid: R,Z,phi not in bound!")
+    call assert_equals(errors_pos,zeros,n_particles(ii),tol_interp_real8,&
+    "Error sample position accept-reject from fluid: R,Z,phi mismatch!")
+    call assert_true(all(success_field),&
+    "Error sample position accept-reject from fluid: MHD fields not in bound!")
+    deallocate(success_pos); deallocate(success_field); deallocate(errors_pos)
   enddo
   !> cleanup
   if(allocated(rngs)) deallocate(rngs)
@@ -635,6 +652,7 @@ end subroutine test_init_p_gc_relativistic_RZPhi_energypitchgyro
 !> normalised fluid profiles as distribution
 subroutine test_init_p_gc_relativistic_from_fluid_energypitchgyro()
   use constants, only: EL_CHG,ATOMIC_MASS_UNIT,SPEED_OF_LIGHT
+  use mod_array_handlers,                    only: set_values_in_array
   use mod_coordinate_transforms,             only: vector_cylindrical_to_cartesian
   use mod_pcg32_rng,                         only: pcg32_rng
   use mod_interp,                            only: interp_PRZ
@@ -654,13 +672,19 @@ subroutine test_init_p_gc_relativistic_from_fluid_energypitchgyro()
   real*8,dimension(2)              :: R_box_test,Z_box_test,phi_box_test
   real*8,dimension(2)              :: p_box,energy_box,pitch_box,gyro_box
   real*8,dimension(3)              :: B,e2,e3,E
-  logical,dimension(:),allocatable :: success_pos,success_vel,success_q
+  real*8,dimension(n_fields_sol,2) :: minmax_global
+  real*8,dimension(:),allocatable  :: errors_pos,zeros
+  logical,dimension(:),allocatable :: success_pos,success_field
+  logical,dimension(:),allocatable :: success_vel,success_q
   !> initialisations
   rank = 0; n_tasks = 1; phi_box_test = phi_small_sol;
   R_box_test=R_box_jorek_sol; Z_box_test=Z_box_jorek_sol; phi_box_test=phi_small_sol;
   energy_box = (/EThetaChi_RE_lowbnd(1),EThetaChi_RE_uppbnd(1)/)
   pitch_box  = (/EThetaChi_RE_lowbnd(2),EThetaChi_RE_uppbnd(2)/)
   gyro_box   = (/EThetaChi_RE_lowbnd(3),EThetaChi_RE_uppbnd(3)/)
+  minmax_global = field_minmax_global_sol;
+  call set_values_in_array(n_fields_sol,n_min_prof_sol,&
+  min_prof_to_set_ids_sol,min_prof_to_set_val_sol,minmax_global(:,1))
   !> initialise particle groups
   call init_p_gc_relativistic_from_fluid_energypitchgyro(groups_sol,&
   fields_linear_sol,time_sol,pcg32_rng(),n_fields_sol,field_ids_sol,&
@@ -683,15 +707,21 @@ subroutine test_init_p_gc_relativistic_from_fluid_energypitchgyro()
       p_box = (p_box+1.d0)*(p_box+1.0); p_box = sqrt(p_box-1.d0);
       p_box = SPEED_OF_LIGHT*groups_sol(ii)%mass*p_box;
     end select
-    allocate(success_pos(n_particles(ii))); success_pos = .false.;
-    allocate(success_vel(n_particles(ii))); success_vel = .false.;
-    allocate(success_q(n_particles(ii))); success_q = .false.;
+    allocate(success_pos(n_particles(ii)));   success_pos = .false.;
+    allocate(success_field(n_particles(ii))); success_field = .false.;
+    allocate(success_vel(n_particles(ii)));   success_vel = .false.;
+    allocate(success_q(n_particles(ii)));     success_q = .false.;
+    allocate(errors_pos(n_particles(ii)));    errors_pos = 1.d21;
+    allocate(zeros(n_particles(ii)));         zeros = 0.d0;
     do jj=1,n_particles(ii)
       if(groups_sol(ii)%particles(jj)%i_elm.gt.0) then
-        !> TODO: TEST SPATIAL DISTRIBUTION
-        !> check if the particle is in the st element box
-        call test_position_in_stelement_box(groups_sol(ii)%particles(jj),&
-        fields_linear_sol%element_list%n_elements,phi_small_sol,success_pos(jj))
+        !> TODO: IMPROVE TEST SPATIAL DISTRIBUTION
+        !> check if the particle is in the R,Z,phi box and fields within extrema
+        call test_position_in_RZPhi_box(groups_sol(ii)%particles(jj),&
+        fields_linear_sol,R_box_jorek_sol,Z_box_jorek_sol,phi_small_sol,&
+        success_pos(jj),errors_pos(jj))
+        call test_field_in_field_box(groups_sol(ii)%particles(jj),fields_linear_sol,&
+        n_fields_sol,field_ids_sol,minmax_global,success_field(jj))
         !> compute magnetic coordinate system
         call fields_linear_sol%calc_EBpsiU(time_sol,&
         groups_sol(ii)%particles(jj)%i_elm,groups_sol(ii)%particles(jj)%st,&
@@ -717,12 +747,18 @@ subroutine test_init_p_gc_relativistic_from_fluid_energypitchgyro()
       endif
     enddo
     call assert_true(all(success_pos),&
-    "Error initialise relativistic kinetic p gc fluid prof. - E/pitch/gyro: s,t,i_elm not in bound!")
+    "Error initialise relativistic kinetic p gc fluid prof. - E/pitch/gyro: R,Z,phi not in bound!")
+    call assert_equals(errors_pos,zeros,n_particles(ii),tol_interp_real8,&
+    "Error initialise relativistic kinetic p gc fluid prof. - E/pitch/gyro: R,Z,phi mismatch!")
+    call assert_true(all(success_field),&
+    "Error initialise relativistic kinetic p gc fluid prof. - E/pitch/gyro: fields not in bound!")
     call assert_true(all(success_vel),&
     "Error initialise relativistic kinetic p gc fluid prof. - E/pitch/gyro: E,pitch,gyro not in bound!")
     call assert_true(all(success_q),&
     "Error initialise relativistic kinetic p gc fluid prof. - E/pitch/gyro: charge not in bound!")
-    deallocate(success_pos); deallocate(success_vel); deallocate(success_q);
+    deallocate(success_pos); deallocate(success_field);
+    deallocate(success_vel); deallocate(success_q);
+    deallocate(errors_pos); deallocate(zeros);
   enddo
 end subroutine test_init_p_gc_relativistic_from_fluid_energypitchgyro
 
@@ -1293,6 +1329,43 @@ subroutine test_position_in_stelement_box(p_test,n_elements,phi_box,success)
             ((p_test%i_elm.ge.1).and.(p_test%i_elm.le.n_elements)).and.&
             ((p_test%x(3).ge.phi_box(1)).and.(p_test%x(3).le.phi_box(2)))
 end subroutine test_position_in_stelement_box
+
+!> test if fields interpolated at the particle positions are
+!> within a set of extrema
+!> inputs:
+!>   p_test:       (particle_base) particle to test
+!>   fields:       (fields_base) jorek fields
+!>   n_fields:     (integer) number of fields to interpolate
+!>   field_ids:    (integer)(n_fields) indices fo the fields to interpolate
+!>   field_minmax: (integer)(n_fields,2) field minima and maxima
+!> outputs:
+!>   success:       (logical) true if fields in bounds
+subroutine test_field_in_field_box(p_test,fields,n_fields,field_ids,&
+field_minmax,success)
+  use mod_interp,         only: interp_prz
+  use mod_fields,         only: fields_base
+  use mod_particle_types, only: particle_base
+  implicit none
+  !> inputs:
+  class(particle_base),intent(in)         :: p_test
+  class(fields_base),intent(in)           :: fields
+  integer,intent(in)                      :: n_fields
+  integer,dimension(n_fields),intent(in)  :: field_ids
+  real*8,dimension(n_fields,1),intent(in) :: field_minmax
+  !> outputs:
+  logical,intent(out) :: success
+  !> variables:
+  real*8 :: R_out,Z_out
+  real*8,dimension(n_fields) :: test_values
+  !> initialisaiton
+  success = .false.
+  if(p_test%i_elm.gt.0) then
+     call interp_prz(fields%node_list,fields%element_list,p_test%i_elm,field_ids,&
+     n_fields,p_test%st(1),p_test%st(2),p_test%x(3),test_values,R_out,Z_out)
+     success = (all(test_values.ge.field_minmax(:,1))).and.&
+               (all(test_values.le.field_minmax(:,2)))
+   endif
+end subroutine test_field_in_field_box
 
 !> test if the kinetic particle momentum is within the momentum,
 !> pitch and gryo angle boxes
