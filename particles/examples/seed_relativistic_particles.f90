@@ -59,14 +59,16 @@ program seed_relativistic_particles
   enddo
 
   !> logs ------------------------------------------------------------------------
-  write(*,*) "--------------------------------------------------------------------"
-  write(*,*) " "
-  write(*,*) "Example: initialise relativistic particles from fluid density profile"
-  write(*,*) "Number of groups: ",size(sim%groups)
-  write(*,*) "Number of particles per task: ",(/(size(sim%groups(ii)%particles),ii=1,size(sim%groups))/)
-  write(*,*) "Domain R_box: ",R_box," Z_box: ",Z_box," phi_box: ",phi_box 
-  write(*,*) " " 
-  write(*,*) "--------------------------------------------------------------------"
+  if(sim%my_id.eq.0) then
+    write(*,*) "--------------------------------------------------------------------"
+    write(*,*) " "
+    write(*,*) "Example: initialise relativistic particles from fluid density profile"
+    write(*,*) "Number of groups: ",size(sim%groups)
+    write(*,*) "Number of particles per task: ",(/(size(sim%groups(ii)%particles),ii=1,size(sim%groups))/)
+    write(*,*) "Domain R_box: ",R_box," Z_box: ",Z_box," phi_box: ",phi_box 
+    write(*,*) " " 
+    write(*,*) "--------------------------------------------------------------------"
+  endif
 
   !> load the jorek fields -------------------------------------------------------
   read_field = event(read_jorek_fields_interp_linear(basename=trim(fields_name),i=-1))
@@ -104,7 +106,7 @@ program seed_relativistic_particles
   sim%fields%element_list,project_density%element_list,pcg32_rng(),rngs,&
   minmax_global_fluid,minmax_global_particle,n_fields,fluid_field_ids,&
   particle_field_ids,phi_box,max_error,n_trials)
-  write(*,*) "Maximum error between fluid and particle profiles: ",max_error
+  if(sim%my_id.eq.0) write(*,*) "Maximum error between fluid and particle profiles: ",max_error
 
   !> cleanup ----------------------------------------------------------------------
   deallocate(particle_field_ids); deallocate(fluid_field_ids); deallocate(minmax_list); 
