@@ -381,25 +381,35 @@ end subroutine init_p_gc_relativistic_RZPhi_energypitchgyro
 !>       w.r.t. the mesh element and not randomly
 !>       for increasing data coherency
 !> inputs:
-!>   groups:         (particle_group) particle groups
-!>   fields:         (fields_base) jorek fields
-!>   time:           (real8) simulation time
-!>   rng_type:       (type_rng) type of the RNG to use
-!>   n_profiles:     (integer) number of fluid fields to use
-!>   prof_ids:       (integer)(n_fields) node indices of the
-!>                   fluid fields to use
-!>   accept:         (accept_function) function for accepting
-!>                   a Monte-Carlo solution
-!>   phi_box:        (real8)(2) toroidal angle sampling box
-!>   energy_kin_box: (real8)(2) kinetic energy (eV) sampling box
-!>   pitch_box:      (real8)(2) pitch angle sampling box
-!>   gyro_box:       (real8)(2) gyro angle sampling box
-!>   q_box:          (integer1)(2) charge sampling box
-!>   my_id:          (integer) id of the MPI task
-!>   n_tasks:        (integer) total number of MPI tasks
-!>   ifail:          (integer) MPI error
-!>   n_trials_in:    (integer)(optional) N# trials for finding
-!>                   the minimum and maximum values of fluid fields
+!>   groups:              (particle_group) particle groups
+!>   fields:              (fields_base) jorek fields
+!>   time:                (real8) simulation time
+!>   rng_type:            (type_rng) type of the RNG to use
+!>   n_profiles:          (integer) number of fluid fields to use
+!>   prof_ids:            (integer)(n_fields) node indices of the
+!>                        fluid fields to use
+!>   accept:              (accept_function) function for accepting
+!>                        a Monte-Carlo solution
+!>   phi_box:             (real8)(2) toroidal angle sampling box
+!>   energy_kin_box:      (real8)(2) kinetic energy (eV) sampling box
+!>   pitch_box:           (real8)(2) pitch angle sampling box
+!>   gyro_box:            (real8)(2) gyro angle sampling box
+!>   q_box:               (integer1)(2) charge sampling box
+!>   my_id:               (integer) id of the MPI task
+!>   n_tasks:             (integer) total number of MPI tasks
+!>   ifail:               (integer) MPI error
+!>   n_trials_in:         (integer)(optional) N# trials for finding
+!>                        the minimum and maximum values of fluid fields
+!>   n_min_prof_to_set:   (integer) number of the field minima to override
+!>   n_max_prof_to_set:   (integer) number of the field maxima to override
+!>   min_prof_to_set_ids: (integer)(n_min_prof_to_set) indices of
+!>                        the field minima to override
+!>   max_prof_to_set_ids: (integer)(n_min_prof_to_set) indices of
+!>                        the field maxima to override
+!>   min_prof_to_set_val: (real8)(n_min_prof_to_set) values of the field
+!>                        minima to override
+!>   min_prof_to_set_val: (real8)(n_min_prof_to_set) values of the field
+!>                        maxima to override
 !> outputs:
 !>   groups:         (particle_group) particle groups
 !>   fields:         (fields_base) jorek fields

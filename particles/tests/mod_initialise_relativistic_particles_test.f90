@@ -328,7 +328,7 @@ subroutine test_sample_position_uniformly_cylinder()
   logical,dimension(:),allocatable    :: success
   real*8,dimension(:),allocatable     :: errors,zeros
   !> initialisation
-  maxit=100; R2_box = R_box_jorek_sol*R_box_jorek_sol
+  maxit=100; R2_box = R_box_jorek_sol**2
   !> loop for initialising particles
   do ii=1,n_groups
     allocate(success(n_particles(ii))); allocate(errors(n_particles(ii)));
@@ -497,13 +497,13 @@ subroutine test_init_p_gc_relativistic_psithetaphi_energypitchgyro()
     select type (p_list=>groups_sol(ii)%particles)
     type is (particle_kinetic_relativistic)
       p_box = (EL_CHG*(/EThetaChi_RE_lowbnd(1),EThetaChi_RE_uppbnd(1)/))/&
-      (ATOMIC_MASS_UNIT*groups_sol(ii)%mass*SPEED_OF_LIGHT*SPEED_OF_LIGHT)
-      p_box = (p_box+1.d0)*(p_box+1.0); p_box = sqrt(p_box-1.d0);
+      (ATOMIC_MASS_UNIT*groups_sol(ii)%mass*SPEED_OF_LIGHT**2)
+      p_box = sqrt(((p_box+1.d0)**2)-1.d0);
       p_box = SPEED_OF_LIGHT*groups_sol(ii)%mass*p_box;
     type is (particle_gc_relativistic)
       p_box = (EL_CHG*(/EThetaChi_RE_lowbnd(1),EThetaChi_RE_uppbnd(1)/))/&
-      (ATOMIC_MASS_UNIT*groups_sol(ii)%mass*SPEED_OF_LIGHT*SPEED_OF_LIGHT)
-      p_box = (p_box+1.d0)*(p_box+1.0); p_box = sqrt(p_box-1.d0);
+      (ATOMIC_MASS_UNIT*groups_sol(ii)%mass*SPEED_OF_LIGHT**2)
+      p_box = sqrt(((p_box+1.d0)**2)-1.d0);
       p_box = SPEED_OF_LIGHT*groups_sol(ii)%mass*p_box;
     end select
     allocate(success_pos(n_particles(ii))); success_pos = .false.;
@@ -592,13 +592,13 @@ subroutine test_init_p_gc_relativistic_RZPhi_energypitchgyro()
     select type (p_list=>groups_sol(ii)%particles)
     type is (particle_kinetic_relativistic)
       p_box = (EL_CHG*(/EThetaChi_RE_lowbnd(1),EThetaChi_RE_uppbnd(1)/))/&
-      (ATOMIC_MASS_UNIT*groups_sol(ii)%mass*SPEED_OF_LIGHT*SPEED_OF_LIGHT)
-      p_box = (p_box+1.d0)*(p_box+1.0); p_box = sqrt(p_box-1.d0);
+      (ATOMIC_MASS_UNIT*groups_sol(ii)%mass*SPEED_OF_LIGHT**2)
+      p_box = sqrt(((p_box+1.d0)**2)-1.d0);
       p_box = SPEED_OF_LIGHT*groups_sol(ii)%mass*p_box;
     type is (particle_gc_relativistic)
       p_box = (EL_CHG*(/EThetaChi_RE_lowbnd(1),EThetaChi_RE_uppbnd(1)/))/&
-      (ATOMIC_MASS_UNIT*groups_sol(ii)%mass*SPEED_OF_LIGHT*SPEED_OF_LIGHT)
-      p_box = (p_box+1.d0)*(p_box+1.0); p_box = sqrt(p_box-1.d0);
+      (ATOMIC_MASS_UNIT*groups_sol(ii)%mass*SPEED_OF_LIGHT**2)
+      p_box = sqrt(((p_box+1.d0)**2)-1.d0);
       p_box = SPEED_OF_LIGHT*groups_sol(ii)%mass*p_box;
     end select
     allocate(success_pos(n_particles(ii))); success_pos = .false.;
@@ -1164,8 +1164,8 @@ subroutine test_check_energykinpitchgyro_interval()
   E0 = (groups_sol(1)%mass*ATOMIC_MASS_UNIT*&
   SPEED_OF_LIGHT*SPEED_OF_LIGHT)/EL_CHG
   p_small_sol = groups_sol(1)%mass*SPEED_OF_LIGHT*sqrt(&
-  (/((EThetaChi_RE_lowbnd(1)/E0 + 1.d0)**2.d0)-1.d0,&
-  ((EThetaChi_RE_uppbnd(1)/E0 + 1.d0)**2.d0)-1.d0/))
+  (/((EThetaChi_RE_lowbnd(1)/E0 + 1.d0)**2)-1.d0,&
+  ((EThetaChi_RE_uppbnd(1)/E0 + 1.d0)**2)-1.d0/))
   !> check complete inflow
   e_test=(/EThetaChi_RE_lowbnd(1),EThetaChi_RE_uppbnd(1)/);
   pitch_test=pitch_small_sol;gyro_test=gyro_small_sol;
@@ -1424,7 +1424,7 @@ B_norm,p_box,pitch_box,success)
   !> variables:
   real*8 :: p_norm_test,theta_test,theta_test_2
   !> checks
-  p_norm_test = sqrt(p_test%p(1)*p_test%p(1) + p_test%p(2)*2.d0*B_norm*mass) 
+  p_norm_test = sqrt(p_test%p(1)**2 + p_test%p(2)*2.d0*B_norm*mass) 
   theta_test = acos(p_test%p(1)/p_norm_test)
   theta_test_2 = asin(sqrt(p_test%p(2)*2.d0*B_norm*mass)/p_norm_test)
   success = ((p_norm_test.ge.p_box(1)).and.(p_norm_test.le.p_box(2))).and.&
