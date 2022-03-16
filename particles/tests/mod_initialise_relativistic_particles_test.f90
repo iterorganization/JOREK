@@ -47,7 +47,7 @@ integer,dimension(n_min_prof_sol),parameter :: min_prof_to_set_ids_sol=(/1/)
 integer,dimension(n_groups_2),parameter     :: active_group_ids_2_sol=(/2,4,0,0,0/)
 real*8,dimension(n_min_prof_sol),parameter  :: min_prof_to_set_val_sol=(/0.d0/)
 real*8,parameter                            :: tol_real8=5.d-13
-real*8,parameter                            :: tol_interp_real8=7.5d-10
+real*8,parameter                            :: tol_interp_real8=5.d-9
 real*8,parameter                            :: time_sol=0.d0
 real*8,parameter                            :: p_neg=-2.d0
 real*8,dimension(2),parameter               :: psi_big_sol=(/-2.d1,3.d2/)
@@ -450,7 +450,8 @@ subroutine test_sample_position_acceptreject_from_fluid_profiles()
     "Error sample position accept-reject from fluid: R,Z,phi mismatch!")
     call assert_true(all(success_field),&
     "Error sample position accept-reject from fluid: MHD fields not in bound!")
-    deallocate(success_pos); deallocate(success_field); deallocate(errors_pos)
+    deallocate(success_pos); deallocate(success_field); 
+    deallocate(errors_pos); deallocate(zeros);
   enddo
   !> cleanup
   if(allocated(rngs)) deallocate(rngs)
