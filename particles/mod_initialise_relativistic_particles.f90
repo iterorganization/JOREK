@@ -414,8 +414,11 @@ end subroutine init_p_gc_relativistic_RZPhi_energypitchgyro
 subroutine init_p_gc_relativistic_from_fluid_energypitchgyro(&
 groups,fields,time,rng_type,n_profiles,prof_ids,accept,&
 R_box,Z_box,phi_box,energy_kin_box,pitch_box,gyro_box,&
-q_box,my_id,n_tasks,ifail,n_trials_in)
+q_box,my_id,n_tasks,ifail,n_trials_in,n_min_prof_to_set,&
+n_max_prof_to_set,min_prof_to_set_ids,max_prof_to_set_ids,&
+min_prof_to_set_val,max_prof_to_set_val)
   use constants,          only: TWOPI
+  use mod_array_handlers, only: set_values_in_array
   use mod_rng,            only: type_rng
   use mod_rng,            only: setup_shared_rngs
   use mod_fields,         only: fields_base
@@ -434,12 +437,16 @@ q_box,my_id,n_tasks,ifail,n_trials_in)
   real*8,dimension(2),intent(inout) :: energy_kin_box,pitch_box,gyro_box
   !> inputs:
   class(type_rng),intent(in)                :: rng_type
-  integer,intent(in)                        :: my_id,n_tasks
-  integer,intent(in),optional               :: n_trials_in
   integer*1,dimension(2),intent(in)         :: q_box
-  integer,intent(in)                        :: n_profiles
-  real*8,intent(in)                         :: time
+  integer,intent(in)                        :: n_profiles,my_id,n_tasks
+  integer,intent(in),optional               :: n_trials_in
   integer,dimension(n_profiles),intent(in)  :: prof_ids 
+  integer,intent(in),optional               :: n_min_prof_to_set,n_max_prof_to_set
+  integer,dimension(:),intent(in),optional :: min_prof_to_set_ids
+  integer,dimension(:),intent(in),optional :: max_prof_to_set_ids
+  real*8,intent(in)                         :: time
+  real*8,dimension(:),intent(in),optional :: min_prof_to_set_val
+  real*8,dimension(:),intent(in),optional :: max_prof_to_set_val
   !> variables:
   class(type_rng),dimension(:),allocatable :: rngs
   integer :: ii,jj,kk,n_rngs,n_groups,thread_id,maxit,n_active_groups
@@ -473,6 +480,11 @@ q_box,my_id,n_tasks,ifail,n_trials_in)
   call field_minmax_monte_carlo(fields%node_list,fields%element_list,&
   n_profiles,prof_ids,n_trials,phi_box,rng_type,rngs,prof_norms_list,&
   prof_norms,my_id,n_tasks,ifail)
+  !> set minimum and maximum profiles if present
+  if(present(n_min_prof_to_set).and.present(min_prof_to_set_ids).and.present(min_prof_to_set_val)) &
+  call set_values_in_array(n_min_prof_to_set,n_profiles,min_prof_to_set_ids,min_prof_to_set_val,prof_norms(:,1))
+  if(present(n_max_prof_to_set).and.present(max_prof_to_set_ids).and.present(max_prof_to_set_val)) &
+  call set_values_in_array(n_max_prof_to_set,n_profiles,max_prof_to_set_ids,max_prof_to_set_val,prof_norms(:,2))
   !> initialise random number generator
   call setup_shared_rngs(4+n_profiles,rng_type,rngs)
   n_rngs = size(rngs)
@@ -480,7 +492,7 @@ q_box,my_id,n_tasks,ifail,n_trials_in)
   !> initialise particle groups
   !$omp parallel default(private) firstprivate(n_rngs,n_active_groups,&
   !$omp maxit,active_group_ids,n_profiles) shared(groups,fields,rngs,&
-  !$omp prof_ids,prof_norms,phi_box,R2_box,Z_box,time,momentum_box,&
+  !$omp prof_ids,prof_norms,R2_box,Z_box,phi_box,time,momentum_box,&
   !$omp cospitch_box,gyro_box,q_box)
   thread_id = 1
   !$ thread_id = omp_get_thread_num()+1

@@ -31,20 +31,24 @@ program seed_relativistic_particles
   character(len=33),parameter :: particle_name="test_part_relativistic_init_3d.h5"
   integer*1,dimension(2)              :: q_box
   integer                             :: ii,n_fields,n_groups,n_particles_per_task
-  integer                             :: n_trials,ifail
-  integer,dimension(:),allocatable    :: fluid_field_ids,particle_field_ids
+  integer                             :: n_trials,n_min_profiles,ifail
+  integer,dimension(:),allocatable    :: fluid_field_ids,particle_field_ids,min_profile_ids
   real*8                              :: mass_e,max_error
   real*8,dimension(2)                 :: R_box,Z_box,phi_box,energy_kin_box,pitch_box,gyro_box
+  real*8,dimension(:),allocatable     :: min_profile_values
   real*8,dimension(:,:),allocatable   :: minmax_global_particle,minmax_global_fluid
   real*8,dimension(:,:,:),allocatable :: minmax_list
 
   !> initialise the simulation ---------------------------------------------------
   n_fields=1; allocate(fluid_field_ids(n_fields)); fluid_field_ids=(/5/); !< fluid density
   allocate(particle_field_ids(n_fields)); particle_field_ids=(/1/) !< particledensity
-  phi_box=(/0.d0,TWOPI/); R_box=(/-1.d0,-1.d0/); Z_box=(/-1.d21,-1.d21/); 
+  phi_box=(/0.d0,TWOPI/); R_box=(/-1.d21,1.d21/); Z_box=(/-1.d21,1.d21/); 
   pitch_box=(/0.d0,PI/); gyro_box=(/0.d0,TWOPI/); energy_kin_box=(/1.d5,5.d7/);
-  n_groups=1; n_particles_per_task=10000000;
-  mass_e = 5.48579909065d-4; q_box=(/-1,-1/); n_trials=1000000;
+  n_groups=1; n_particles_per_task=1000000; mass_e = 5.48579909065d-4; q_box=(/-1,-1/); 
+  n_trials=1000000; n_min_profiles=1; allocate(min_profile_ids(n_min_profiles)); 
+  allocate(min_profile_values(n_min_profiles));min_profile_ids=(/1/); 
+  min_profile_values=(/0.d0/);
+
   !> set initialisation variables ------------------------------------------------
   call sim%initialize(n_groups,.true.)
 
@@ -59,7 +63,8 @@ program seed_relativistic_particles
   write(*,*) " "
   write(*,*) "Example: initialise relativistic particles from fluid density profile"
   write(*,*) "Number of groups: ",size(sim%groups)
-  write(*,*) "Number of particles per task: ",(/(size(sim%groups(ii)%particles),ii=1,size(sim%groups))/)  
+  write(*,*) "Number of particles per task: ",(/(size(sim%groups(ii)%particles),ii=1,size(sim%groups))/)
+  write(*,*) "Domain R_box: ",R_box," Z_box: ",Z_box," phi_box: ",phi_box 
   write(*,*) " " 
   write(*,*) "--------------------------------------------------------------------"
 
@@ -71,7 +76,9 @@ program seed_relativistic_particles
   call init_p_gc_relativistic_from_fluid_energypitchgyro(&
   sim%groups,sim%fields,sim%time,pcg32_rng(),n_fields,fluid_field_ids,&
   accept_larger_values_rand,R_box,Z_box,phi_box,energy_kin_box,pitch_box,&
-  gyro_box,q_box,sim%my_id,sim%n_cpu,ifail,n_trials)
+  gyro_box,q_box,sim%my_id,sim%n_cpu,ifail,n_trials_in=n_trials,&
+  n_min_prof_to_set=n_min_profiles,min_prof_to_set_ids=min_profile_ids,&
+  min_prof_to_set_val=min_profile_values)
 
   !> write particle in restart file ----------------------------------------------
   call write_simulation_hdf5(sim,trim(particle_name))
@@ -101,8 +108,9 @@ program seed_relativistic_particles
 
   !> cleanup ----------------------------------------------------------------------
   deallocate(particle_field_ids); deallocate(fluid_field_ids); deallocate(minmax_list); 
-  deallocate(minmax_global_particle); deallocate(minmax_global_fluid); call sim%finalize
-
+  deallocate(minmax_global_particle); deallocate(minmax_global_fluid);   
+  deallocate(min_profile_ids); deallocate(min_profile_values);
+  call sim%finalize
   !> Program procedure ------------------------------------------------------------
   contains
 
