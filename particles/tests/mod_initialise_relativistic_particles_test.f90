@@ -29,6 +29,7 @@ integer,parameter  :: n_samples=343
 integer,parameter  :: n_fields_sol=1
 integer,parameter  :: n_active_groups_2_sol=2
 integer,parameter  :: n_trials_sol=1000
+integer,parameter  :: n_min_prof_sol=1 !< user lower profile limit
 integer,parameter,dimension(n_v)           :: i_psi=(/1/)
 integer,dimension(n_groups),parameter      :: n_particles=(/123,234/)
 integer,dimension(n_groups),parameter      :: p_types_sol=(/&
@@ -42,7 +43,9 @@ integer,dimension(n_groups_2),parameter    :: p_types_2_sol=(/&
                       particle_gc_relativistic_id,&
                       particle_gc_vpar_id/)
 integer,dimension(n_fields_sol),parameter  :: field_ids_sol=(/5/) !< index of the density
+integer,dimension(n_min_prof_sol),parameter :: min_prof_to_set_ids_sol=(/1/)
 integer,dimension(n_groups_2),parameter    :: active_group_ids_2_sol=(/2,4,0,0,0/)
+real*8,dimension(n_min_prof_sol),parameter :: min_prof_to_set_val_sol=(/0.d0/)
 real*8,parameter                           :: tol_real8=5.d-13
 real*8,parameter                           :: tol_interp_real8=7.5d-10
 real*8,parameter                           :: time_sol=0.d0
@@ -411,9 +414,10 @@ subroutine test_sample_position_acceptreject_from_fluid_profiles()
   type(particle_kinetic_relativistic)      :: p_test
   integer                                  :: ii,jj,n_rngs,rng_id
   logical,dimension(:),allocatable         :: success
-  !> initialisation
+  real*8,dimension(2)                      :: R2_box
+  !> initialisationi
   call setup_shared_rngs(4+n_fields_sol,pcg32_rng(),rngs); 
-  n_rngs=size(rngs); rng_id=1;
+  n_rngs=size(rngs); rng_id=1; R2_box=R_box_jorek_sol**2;
   !> sampled the particle positions
   do ii=1,n_groups
      allocate(success(n_particles(ii)))
@@ -421,7 +425,8 @@ subroutine test_sample_position_acceptreject_from_fluid_profiles()
        !> generate a particle
        call sample_position_acceptreject_from_fluid_profiles(p_test,&
        fields_linear_sol,n_rngs,n_fields_sol,rng_id,field_ids_sol,&
-       field_minmax_global_sol,phi_small_sol,rngs,accept_lower_values_rand)
+       field_minmax_global_sol,R2_box,Z_box_jorek_sol,phi_small_sol,&
+       rngs,accept_larger_values_rand)
        !> check if the particle is in the st element box
        call test_position_in_stelement_box(p_test,&
        fields_linear_sol%element_list%n_elements,phi_small_sol,success(jj))
@@ -646,20 +651,24 @@ subroutine test_init_p_gc_relativistic_from_fluid_energypitchgyro()
   !> variables:
   integer                          :: ii,jj,rank,n_tasks,ifail
   real*8                           :: psi_test,B_norm,psi_2,U
-  real*8,dimension(2)              :: phi_box_test,p_box,energy_box
-  real*8,dimension(2)              :: pitch_box,gyro_box
+  real*8,dimension(2)              :: R_box_test,Z_box_test,phi_box_test
+  real*8,dimension(2)              :: p_box,energy_box,pitch_box,gyro_box
   real*8,dimension(3)              :: B,e2,e3,E
   logical,dimension(:),allocatable :: success_pos,success_vel,success_q
   !> initialisations
   rank = 0; n_tasks = 1; phi_box_test = phi_small_sol;
+  R_box_test=R_box_jorek_sol; Z_box_test=Z_box_jorek_sol; phi_box_test=phi_small_sol;
   energy_box = (/EThetaChi_RE_lowbnd(1),EThetaChi_RE_uppbnd(1)/)
   pitch_box  = (/EThetaChi_RE_lowbnd(2),EThetaChi_RE_uppbnd(2)/)
   gyro_box   = (/EThetaChi_RE_lowbnd(3),EThetaChi_RE_uppbnd(3)/)
   !> initialise particle groups
   call init_p_gc_relativistic_from_fluid_energypitchgyro(groups_sol,&
   fields_linear_sol,time_sol,pcg32_rng(),n_fields_sol,field_ids_sol,&
-  accept_lower_values_rand,phi_box_test,energy_box,pitch_box,gyro_box,&
-  q1_posneg_interval,rank,n_tasks,ifail,n_trials_sol)
+  accept_larger_values_rand,R_box_test,Z_box_test,phi_box_test,&
+  energy_box,pitch_box,gyro_box,q1_posneg_interval,rank,n_tasks,ifail,&
+  n_trials_in=n_trials_sol,n_min_prof_to_set=n_min_prof_sol,&
+  min_prof_to_set_ids=min_prof_to_set_ids_sol,&
+  min_prof_to_set_val=min_prof_to_set_val_sol)
   !> perform checks
   do ii=1,n_groups
     select type (p_list=>groups_sol(ii)%particles)
