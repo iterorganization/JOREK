@@ -653,7 +653,7 @@ psi_element_minmax,RZ_axis,ifail)
   real*8              :: R_test,Z_test
   real*8,dimension(1) :: psi_test
   !> initialisation
-  ifail = .false.;
+  ifail = .true.;
   !> compute particle position in global coordinates
   particle%x = thetapsiphi_bound(:,1)+(thetapsiphi_bound(:,2)-&
   thetapsiphi_bound(:,1))*rand
@@ -662,11 +662,13 @@ psi_element_minmax,RZ_axis,ifail)
   particle%i_elm,particle%st(1),particle%st(2),particle%x(1),&
   particle%x(2),.false.)
   !> check if psi is in bound
-  call interp_PRZ(node_list,element_list,particle%i_elm,(/1/),1,&
-  particle%st(1),particle%st(2),particle%x(3),psi_test,R_test,Z_test) 
-  !> it does not work for psi box values of different sign!
-  psi_test = (psi_test-thetapsiphi_bound(2,1))/(thetapsiphi_bound(2,2)-thetapsiphi_bound(2,1))
-  if((psi_test(1).lt.0.d0).or.(psi_test(1).gt.1.d0)) ifail=.true.;
+  if(particle%i_elm.gt.0) then
+    call interp_PRZ(node_list,element_list,particle%i_elm,(/1/),1,&
+    particle%st(1),particle%st(2),particle%x(3),psi_test,R_test,Z_test) 
+    !> it does not work for psi box values of different sign!
+    psi_test = (psi_test-thetapsiphi_bound(2,1))/(thetapsiphi_bound(2,2)-thetapsiphi_bound(2,1))
+    if((psi_test(1).ge.0.d0).or.(psi_test(1).le.1.d0)) ifail=.false.;
+  endif
 end subroutine sample_position_uniformly_psi_theta_phi
 
 !> Sample position from fluid profiles using the accept-reject method.
