@@ -64,6 +64,10 @@ n_trials,phi_int,rng_type,rngs,minmax_list,minmax_global,my_id,n_tasks,ifail)
   n_elements=element_list%n_elements; n_trials_per_task = n_trials/n_tasks
   if(my_id.eq.0) n_trials_per_task = n_trials - n_trials_per_task*(n_tasks-1);
   min_list=1.21; max_list=-1.d21;
+  !> check for local maxima and minima via a Monte-Carlo strategy:
+  !> for all elements generate a set of random positions in local
+  !> coordinates, evaluate the MHD fields and store the minimum and
+  !> maximum values
   !$omp parallel default(private) firstprivate(n_trials_per_task,phi_int,&
   !$omp n_fields,thread_id) shared(node_list,element_list,field_ids,rngs,&
   !$omp min_list,max_list)
