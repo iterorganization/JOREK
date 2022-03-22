@@ -88,6 +88,13 @@ end subroutine teardown
 
 !> Tests ----------------------------------------------------
 !> test the find of minimum and maximum values of a field 2d
+!> The test procedure use the field_minmax_monte_carlo routine
+!> for searching the local and global minima and maxima of 
+!> a set of JOREK fields then it tests the correctness of 
+!> the minima and maximuma randomly sampling positions
+!> in the mesh elements, evaluating the fields at the 
+!> random positions and checking that the fields are within the
+!> local and global maxima and minima
 subroutine test_field_minmax_monte_carlo_2d(rank,n_tasks,ifail)
   use mod_pcg32_rng,     only: pcg32_rng
   use mod_interp,        only: interp_PRZ
