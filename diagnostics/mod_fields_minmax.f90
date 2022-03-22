@@ -13,7 +13,7 @@ contains
 !> inputs:
 !>   node_list:    (type_node_list) jorek mesh node list
 !>   element_list: (type_element_list) jorek mesh element list
-!>   n_fields:     (integer) number of fluid fierlds to treat
+!>   n_fields:     (integer) number of fluid fields to treat
 !>   fields_ids:   (integer)(n_fields) node indices of each field
 !>   n_trials:     (integer) number of trials of the testing method
 !>   phi_int:      (real8)(2) toroidal angle interval
