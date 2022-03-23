@@ -1273,7 +1273,7 @@ do ms=1, n_gauss
                     + v * BigR * ((GAMMA - 1.)/2.) * vv2 * (source_bg + source_imp)            * xjac * tstep &
 !==============================End of friction terms=================
 !============================Behold, the parallel viscous heating terms!=============
-                    + (GAMMA - 1.) * v * BigR * (visco_par + visco_par_sc_num * tau_sc) * (vpar0_x * vpar0_x + vpar0_y * vpar0_y)      * xjac * tstep &
+                    + (GAMMA - 1.) * v * BigR * visco_par * (vpar0_x * vpar0_x + vpar0_y * vpar0_y)      * xjac * tstep &
 !==========================End of viscous heating terms==============================
 
                     + v * BigR * (GAMMA - 1.) * eta_T_ohm * (zj0/BigR)**2           * xjac * tstep  &
@@ -2134,7 +2134,7 @@ do ms=1, n_gauss
                        - v * BigR *(GAMMA - 1.) * vpar0 * Vpar * BB2 * (source_bg + source_imp) * xjac * theta * tstep &
 !==============================End of friction terms=================
 !============================Behold, the parallel viscous heating terms!=============
-                       - (GAMMA - 1.) * v * BigR * (visco_par + visco_par_sc_num * tau_sc) * 2.d0 * (vpar_x*vpar0_x + vpar_y*vpar0_y) * xjac * theta * tstep  &
+                       - (GAMMA - 1.) * v * BigR * visco_par * 2.d0 * (vpar_x*vpar0_x + vpar_y*vpar0_y) * xjac * theta * tstep  &
 !==========================End of viscous heating terms==============================
  
                    + TG_num6 * 0.25d0 / BigR * 2.d0 * vpar0*vpar &
@@ -3077,27 +3077,27 @@ R_p =    + (r0 + rn0*alpha_imp_bis) * BigR**2 * ( T0_x * u0_y - T0_y * u0_x)    
          - T0 * Vpar0 * alpha_imp * (rn0_x * ps0_y - rn0_y * ps0_x)             &
 
          - (r0 + rn0*alpha_imp) * T0 * GAMMA * (vpar0_x * ps0_y - vpar0_y * ps0_x) &
-         - (r0 + rn0*alpha_imp) * T0 * GAMMA * F0 / BigR * vpar0_p                 &
+         - (r0 + rn0*alpha_imp) * T0 * GAMMA * F0 / BigR * vpar0_p                 !&
 
-         + (GAMMA - 1.) * rn0 * dE_ion_dT * BigR**2 * ( T0_x * u0_y - T0_y * u0_x)     &
-         + (GAMMA - 1.) * E_ion * BigR**2 * (rn0_x * u0_y - rn0_y * u0_x)              &
-         + (GAMMA - 1.) * E_ion_bg * BigR**2*((r0_x-rn0_x)*u0_y - (r0_y-rn0_y)*u0_x)   &
+         !+ (GAMMA - 1.) * rn0 * dE_ion_dT * BigR**2 * ( T0_x * u0_y - T0_y * u0_x)     &
+         !+ (GAMMA - 1.) * E_ion * BigR**2 * (rn0_x * u0_y - rn0_y * u0_x)              &
+         !+ (GAMMA - 1.) * E_ion_bg * BigR**2*((r0_x-rn0_x)*u0_y - (r0_y-rn0_y)*u0_x)   &
 
-         - (GAMMA - 1.) * rn0 * dE_ion_dT * F0 / BigR * Vpar0 * T0_p     &
-         - (GAMMA - 1.) * E_ion * F0 / BigR * Vpar0 * rn0_p              &
-         - (GAMMA - 1.) * E_ion_bg * F0 / BigR * Vpar0 * (r0_p - rn0_p)  &
+         !- (GAMMA - 1.) * rn0 * dE_ion_dT * F0 / BigR * Vpar0 * T0_p     &
+         !- (GAMMA - 1.) * E_ion * F0 / BigR * Vpar0 * rn0_p              &
+         !- (GAMMA - 1.) * E_ion_bg * F0 / BigR * Vpar0 * (r0_p - rn0_p)  &
 
-         - (GAMMA - 1.) * rn0 * dE_ion_dT * Vpar0 * (T0_x * ps0_y - T0_y * ps0_x)      &
-         - (GAMMA - 1.) * E_ion * Vpar0 * (rn0_x * ps0_y - rn0_y * ps0_x)              &
-         - (GAMMA - 1.) * E_ion_bg * Vpar0*((r0_x-rn0_x)*ps0_y - (r0_y-rn0_y)*ps0_x)   &
+         !- (GAMMA - 1.) * rn0 * dE_ion_dT * Vpar0 * (T0_x * ps0_y - T0_y * ps0_x)      &
+         !- (GAMMA - 1.) * E_ion * Vpar0 * (rn0_x * ps0_y - rn0_y * ps0_x)              &
+         !- (GAMMA - 1.) * E_ion_bg * Vpar0*((r0_x-rn0_x)*ps0_y - (r0_y-rn0_y)*ps0_x)   &
 
-         + (GAMMA - 1.) * E_ion * rn0 * 2.d0 * BigR * u0_y                             &
-         - (GAMMA - 1.) * E_ion * rn0 * (vpar0_x * ps0_y - vpar0_y * ps0_x)            &
-         - (GAMMA - 1.) * E_ion * rn0 * F0 / BigR * vpar0_p                            &
+         !+ (GAMMA - 1.) * E_ion * rn0 * 2.d0 * BigR * u0_y                             &
+         !- (GAMMA - 1.) * E_ion * rn0 * (vpar0_x * ps0_y - vpar0_y * ps0_x)            &
+         !- (GAMMA - 1.) * E_ion * rn0 * F0 / BigR * vpar0_p                            &
 
-         + (GAMMA - 1.) * E_ion_bg * (r0-rn0) * 2.d0 * BigR * u0_y                     &
-         - (GAMMA - 1.) * E_ion_bg * (r0-rn0) * (vpar0_x * ps0_y - vpar0_y * ps0_x)    &
-         - (GAMMA - 1.) * E_ion_bg * (r0-rn0) * F0 / BigR * vpar0_p 
+         !+ (GAMMA - 1.) * E_ion_bg * (r0-rn0) * 2.d0 * BigR * u0_y                     &
+         !- (GAMMA - 1.) * E_ion_bg * (r0-rn0) * (vpar0_x * ps0_y - vpar0_y * ps0_x)    &
+         !- (GAMMA - 1.) * E_ion_bg * (r0-rn0) * F0 / BigR * vpar0_p 
 
 ! 1/BigR removes the factor R from the integrand in (R dR)
 d_p = T0 * R_rho / BigR + R_p / BigR + T0 * R_rhon / BigR
@@ -3108,13 +3108,14 @@ f_p = dsqrt( P0_x*P0_x + P0_y*P0_y + P0_p*P0_p/ (BigR*BigR) ) / P0_corr * h_e
 tau_sc = h_e * h_e * abs(d_p) / P0_corr * f_p
 
 ! Use of source terms to increase the stabilization coefficients
+s_p = 0.d0
 if(add_sources_in_sc)then
   src_rho  =  (particle_source(ms,mt) + source_bg + source_imp)
   src_rhon =  source_imp
   src_p    =  heat_source(ms,mt) &
              + ((GAMMA - 1.)/2.) * vpar0**2 * BB2 * (source_bg + source_imp) &
              + ((GAMMA - 1.)/2.) * vv2 * (source_bg + source_imp)            &
-             + (GAMMA - 1.) * (visco_par + visco_par_sc_num * tau_sc) * (vpar0_x * vpar0_x + vpar0_y * vpar0_y) &
+             + (GAMMA - 1.) * visco_par * (vpar0_x * vpar0_x + vpar0_y * vpar0_y) &
              + (GAMMA - 1.) * eta_T_ohm * (zj0/BigR)**2  &
              - (r0_corr+beta_imp*rn0_corr) * rn0_corr * Lrad  &
              - (r0_corr+beta_imp*rn0_corr) * frad_bg 
