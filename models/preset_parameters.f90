@@ -741,6 +741,7 @@ subroutine preset_parameters
   tstep_particles   = 0.0
   nstep_particles   = 0
   nsubstep_particles = 0
+  nout_particle     = huge(0.d0)
   filter_perp       = 0.0
   filter_hyper      = 0.0
   filter_par        = 0.0
@@ -780,6 +781,19 @@ subroutine preset_parameters
 !===================== not used?
   Q_bar = 0.d0
   Sigma = 0.d0
+
+!==================== Gas_puffing parameters=============
+  use_puffing   = .false.
+  fueling_rate  = 0.d0 
+  valve_r       = 5.d-2
+  R_valve_loc   = 0.d0 
+  Z_valve_loc   = 0.d0 
+  PHI_valve_loc = 0.d0 
+  initial_E     = 3.d2
+  puffing_direction = (/0.d0,0.d0,0.d0/)
+  puffing_timestep  = 1.d-6
+  puff_starttime    = 0.d0
+  puffingtime       = 1.d-3 
 
 !===================== particle input values
 n_particles        = 0

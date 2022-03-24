@@ -474,6 +474,20 @@ module phys_module
   type (coronal), allocatable   :: imp_cor(:)  !< The coronal equilibrium distribution of impurities
 
   logical :: output_prad_phi    !< Output Prad(phi) into a file using integrals_3D
+
+  !> @name Particle gas puffing related input parameters
+  logical :: use_puffing   !<  Switch to use gas puffing
+  real*8  :: fueling_rate  !< puffing fueling rate (/s)
+  real*8  :: R_valve_loc   !< valve location R
+  real*8  :: Z_valve_loc   !< valve location Z
+  real*8  :: PHI_valve_loc !< valve location phi
+  real*8  :: valve_r   !< radius of gas valve
+  real*8  :: initial_E   !< initial energy in Kelvin
+  real*8  :: puffing_direction(3)   !< puffing direction
+  real*8  :: puffing_timestep   !< timesteps between 2 puffing events(action) in SI unit
+  real*8  :: puff_starttime    !< Puffing start time
+  real*8  :: puffingtime  !< The duration of the puffing 
+
   
   !> @name Fix boundary equilibrium parameters
   real*8  :: amix              !< Mix Poisson solution with previous one with a given factor
@@ -869,6 +883,7 @@ module phys_module
   real*8  :: tstep_particles  ! the time step for the particles
   integer :: nstep_particles  ! the number of particle time steps
   integer :: nsubstep_particles ! the number of particles substeps (without projection)
+  integer :: nout_particle      ! Output vtk/h5 every nout_particle timesteps
   real*8  :: filter_perp      ! particle projection smoothing parameter, poloidal plane
   real*8  :: filter_hyper     ! particle projection smoothing parameter, poloidal plane
   real*8  :: filter_par       ! particle projection smoothing parameter, parallel direction

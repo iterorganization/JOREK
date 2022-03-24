@@ -902,6 +902,7 @@ write(*,'(1x,a)',advance='no') ' USE_BICGSTAB : '
   write(*,REAL_FMT) 'n_particles         ',n_particles
   write(*,INTG_FMT) 'nstep_particles     ',nstep_particles
   write(*,INTG_FMT) 'nsubstep_particles  ',nsubstep_particles
+  write(*,INTG_FMT) 'nout_particle       ',nout_particle
   write(*,REAL_FMT) 'tstep_particles     ',tstep_particles
   write(*,REAL_FMT) 'filter_perp,        ',filter_perp
   write(*,REAL_FMT) 'filter_hyper,       ',filter_hyper
@@ -916,6 +917,18 @@ write(*,'(1x,a)',advance='no') ' USE_BICGSTAB : '
   write(*,LOGI_FMT) 'use_ionisation,     ',use_ionisation    
   write(*,LOGI_FMT) 'use_sputtering,     ',use_sputtering    
   write(*,LOGI_FMT) 'use_cx,             ',use_cx            
+
+  write(*,LOGI_FMT) 'use_puffing,        ',use_puffing     
+  write(*,REAL_FMT) 'fueling_rate,       ',fueling_rate  
+  write(*,REAL_FMT) 'valve_r,            ',valve_r  
+  write(*,REAL_FMT) 'R_valve_loc,        ',R_valve_loc
+  write(*,REAL_FMT) 'Z_valve_loc,        ',Z_valve_loc   
+  write(*,REAL_FMT) 'PHI_valve_loc,      ',PHI_valve_loc  
+  write(*,REAL_FMT) 'initial_E,          ',initial_E
+  write(*,REAL_FMT) 'puffing_direction,  ',puffing_direction
+  write(*,REAL_FMT) 'puffing_timestep,   ',puffing_timestep
+  write(*,REAL_FMT) 'puff_starttime,     ',puff_starttime
+  write(*,REAL_FMT) 'puffingtime,        ',puffingtime 
 
   write(*,*)
   write(*,200)

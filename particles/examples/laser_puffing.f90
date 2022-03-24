@@ -22,6 +22,8 @@ use phys_module, only: ns_R, ns_Z, ns_phi, ns_radius, ns_amplitude
 use phys_module, only: tstep, imp_type, imp_adas, imp_cor, adas_dir, xtime_radiation, xtime_rad_power, nout
 use phys_module, only: xtime_E_ion, xtime_E_ion_power, index_main_imp, n_adas
 use phys_module, only: CENTRAL_MASS, CENTRAL_DENSITY
+use phys_module, only: use_puffing, fueling_rate, valve_r, R_valve_loc, Z_valve_loc, PHI_valve_loc,   &
+                       initial_E, puffing_direction, puffing_timestep, puff_starttime, puffingtime, use_sputtering 
 use constants,   only: MU_ZERO, MASS_PROTON, ATOMIC_MASS_UNIT, K_BOLTZ, EL_CHG
 
 use mod_particle_sputtering, only: particle_sputter, sample_fluid_particle_energy
@@ -75,7 +77,7 @@ timesteps         = tstep_particles
 ! --- Read ADAS data and generate coronal equilibrium is needed
 call init_imp_adas(sim%my_id)
 
-use_puffing    = .true. 
+!use_puffing    = .true. 
 ! use_cx         = .false.
 ! use_ionisation = .true.
 ! use_sputtering = .false.
@@ -89,29 +91,27 @@ call with(sim, fieldreader)
 !  D_sputter_source = initialise_sputtering(sim%fields%node_list, sim%fields%element_list, n_reflect)
 !endif
 
-r_valve     = .005d0
-R_valve_loc = 2.07!2.6!2.1 !< for JET test !1.98991!2.58888  or 1.98991
-Z_valve     = 0.d0!-1.86 !-1.0!-1.75 !-0.550736!1.86579   or -0.550736
-phi_valve   = 0.d0!
-puffing_timestep = 1.d-6
+!r_valve     = .005d0
+!R_valve_loc = 2.07!2.6!2.1 !< for JET test !1.98991!2.58888  or 1.98991
+!Z_valve     = 0.d0!-1.86 !-1.0!-1.75 !-0.550736!1.86579   or -0.550736
+!phi_valve   = 0.d0!
+!puffing_timestep = 1.d-6
 
 physical_particles = 1.d18 !1.d21
 weight = physical_particles/n_particles
 
-if (use_puffing) then  
-  n_puffing_times = 1000
-  n_puff      = int(n_particles_local/n_puffing_times)
-  gas_puff = laser_puffing(n_puff, physical_particles/(real(n_puffing_times*sim%n_cpu,8)*puffing_timestep), &
-                           r_valve, R_valve_loc, Z_valve, phi=phi_valve)
-!  gas_puff = laser_puffing(n_puff, physical_particles/(real(n_puffing_times*sim%n_cpu,8)*puffing_timestep), &
-!                           r_valve, R_valve_loc, Z_valve)
-  !gas_puff2 = particle_puffing(n_puff, 2.d21, r_valve, 2.8d0, -1.77)!-0.0) !-1.77
-  !gas_puff = particle_puffing(n_puff, 5d22, r_valve, R_valve_loc, Z_valve)
-else 
-  n_puff = 0.d0 
-  gas_puff = laser_puffing(n_puff, 5d20, r_valve, R_valve_loc, Z_valve)
-  !gas_puff2 = particle_puffing(n_puff, 5d20, r_valve, R_valve_loc, Z_valve)
-endif
+if (use_puffing) then
+  puffing_times = floor(puffingtime/puffing_timestep)
+  n_puff = n_particles_local / puffing_times
+  gas_puff = particle_puffing(n_puff, fueling_rate, valve_r, R_valve_loc,             &
+                              Z_valve_loc, PHI_valve_loc, initial_E, puffing_direction)
+  if (puff_starttime .eq. 0.d0) puff_starttime = sim%time
+else
+  n_puff = 0
+  gas_puff = particle_puffing(n_puff, fueling_rate, valve_r, R_valve_loc,             &
+                              Z_valve_loc, PHI_valve_loc, initial_E, puffing_direction)
+  puff_starttime = huge(0.d0)
+end if
 
 n_norm   = CENTRAL_DENSITY * 1.d20                              ! (number) density normalisation
 rho_norm = CENTRAL_MASS * MASS_PROTON * n_norm                  ! rho_SI = rho_norm * rho
