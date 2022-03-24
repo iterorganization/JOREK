@@ -330,12 +330,8 @@ real*8     :: drho0_corr_dn, dTi0_corr_dT, dTe0_corr_dT
 
 ! neutral source
 real*8     :: source_neutral
-real*8     :: source_neutral_tmp
 ! time normalisation
 real*8     :: t_norm
-! Temporary variables serving the SPI module
-integer    :: spi_i
-real*8     :: ng_radius !< Radius of neutral gas cloud as a result of the ablation
 ! Atomic physics coefficients:
 real*8     :: Te_eV                                           ! Electron temperature in eV
 !   -Ionization

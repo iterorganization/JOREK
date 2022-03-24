@@ -195,6 +195,8 @@ subroutine assert_equal_particle_gc_vpar(particle_1,particle_2,lfail)
       "Error particle gc vpar: parallel velocity vpar mismatch!")
       call assert_equals(p_1%mu,p_2%mu,tol_real8,&
       "Error particle gc vpar: magnetic moment mu mistmatch!")
+      call assert_equals(p_1%B_norm,p_2%B_norm,tol_real8,&
+      "Error particle gc vpar: norm B field B_norm mistmatch!")
       call assert_equals(int(p_1%q,kind=4),int(p_2%q,kind=4),&
       "Error particle gc vpar: charge q mistmatch!")
       lfail = .false.

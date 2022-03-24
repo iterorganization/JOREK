@@ -302,15 +302,20 @@ do while (.not. sim%stop_now)
  
   select type (particles => sim%groups(1)%particles)
   type is (particle_kinetic_leapfrog)
+
 #ifdef __GFORTRAN__
-    !$omp parallel do default(shared) & 
+    !$omp parallel do default(shared) & !This is to avoid GNU compiler failure
 #else
-    !$omp parallel do default(none)   &
+    !$omp parallel do default(none) &
+#endif
+#ifdef __GFORTRAN__
+    !$omp shared(sim, n_particles, n_steps, timesteps, rng, particle_start_time, & ! This is to work around the GNU compiler error: ASSOCIATE name '__tmp_type_particle_kinetic_leapfrog' in SHARED clause
+#else
     !$omp shared(sim, particles, n_particles, n_steps, timesteps, rng, particle_start_time, &
+#endif
     !$omp        rho_norm, t_norm, v_norm, E_norm, M_norm, N_norm,                          &
     !$omp        use_cx, use_ionisation, use_sputtering,                                    &
     !$omp        CENTRAL_DENSITY, CENTRAL_MASS)                                             &
-#endif
     !$omp private(i_rng, i,j,k,l,m, t, E, B, psi, U, rz_old, st_old,                        &
     !$omp         i_elm_old, n_e, T_e, ion_rate, ion_prob, ion_ran, ion_source, ion_energy, kinetic_energy,& 
     !$omp         R_g, R_s, R_t, Z_g, Z_s, Z_t, xjac, HH, HH_s, HH_t, HZ, index_lm,                 &
@@ -487,13 +492,14 @@ do while (.not. sim%stop_now)
 
 #ifdef __GFORTRAN__
   !$omp parallel do default(shared) & 
+  !$omp shared(sim)      &
 #else
   !$omp parallel do default(none)   &
   !$omp shared(sim, particles)      &
 #endif
   !$omp private(j, E, B, psi, U, B_norm) &
   !$omp reduction(+:particles_remaining, momentum_remaining, energy_remaining)
-  do j=1,size(particles,1)
+    do j=1,size(particles,1)
 
       if (particles(j)%i_elm .le. 0) cycle
 

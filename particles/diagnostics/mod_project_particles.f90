@@ -987,7 +987,7 @@ integer    :: i, j, k, l, m, in, im, ilarge, index_large_i, index_large_k, inode
 integer    :: nz_AA, n_AA, nz_bnd, i_elm, index_ij, index_kl, im_index, in_index, index1
 integer    :: ms, mt, mp, my_id, my_id_n, my_id_master, ierr, MPI_COMM_MUMPS
 logical    :: apply_dirichlet_condition
-logical    :: halt(size(IEEE_USUAL,1))
+logical    :: halt(size(IEEE_USUAL,1)), do_facto
 
 ! We need a separate communicator to be able to run multiple MUMPSes
 call MPI_Comm_dup(this_mpi_comm_n, MPI_COMM_MUMPS, ierr)
@@ -1005,7 +1005,7 @@ call MPI_COMM_RANK(mumps_par%COMM,       my_id_n, ierr)
 nz_AA = 4 * element_list%n_elements * (n_vertex_max * (n_order+1))**2
 n_AA  = 2 * maxval(node_list%node(1:node_list%n_nodes)%index(4))
 
-apply_dirichlet_condition = .false.
+apply_dirichlet_condition = .true.
 
 nz_bnd = 0
 if (apply_dirichlet_condition) then
@@ -1325,13 +1325,20 @@ mumps_par%icntl(7)  = 7 ! compute symmetric permutation (PORD or SCOTCH autosele
 mumps_par%icntl(8)  = 8 ! scaling
 mumps_par%icntl(14) = 80 ! memory relaxation parameter
 
-if (present(skip_factorisation) .and. skip_factorisation) then
-else
+do_facto = .true.
+if (present(skip_factorisation)) then
+  if (skip_factorisation) then
+    do_facto = .false.
+  endif
+endif
+if (do_facto) then
   call ieee_get_halting_mode(IEEE_USUAL, halt)
   call ieee_set_halting_mode(IEEE_USUAL, [.false., .false., .false.])
   call DMUMPS(mumps_par)
   call ieee_set_halting_mode(IEEE_USUAL, halt)
 endif
+
+if (my_id_n .eq. 0) write(*,*) " n<>0 MUMPS INFO(1) : ",mumps_par%infog(1),mumps_par%infog(2),mumps_par%info(1),mumps_par%info(2)
 
 end subroutine prepare_mumps_par
 
@@ -1377,7 +1384,7 @@ real*8     :: filter_n0, filter_hyper_n0, filter_parallel_n0, zonal_factor
 integer    :: i, j, k, l, m, in, im, ilarge, index_large_i, index_large_k, inode, knode
 integer    :: nz_AA, n_AA, nz_bnd, i_elm, index_ij, index_kl, im_index, in_index, index1, index2, index_rhs
 integer    :: ms, mt, mp, my_id, my_id_n, my_id_master, ierr, MPI_COMM_MUMPS
-logical    :: halt(size(IEEE_USUAL,1))
+logical    :: halt(size(IEEE_USUAL,1)), do_facto
 logical    :: apply_dirichlet_condition, apply_zonal
 real*8, dimension(n_vertex_max,n_order+1) :: basisfunction_volume
 
@@ -1397,7 +1404,7 @@ call MPI_COMM_RANK(mumps_par%COMM,       my_id_n, ierr)
 apply_zonal = .false.
 if (present(do_zonal)) apply_zonal = do_zonal
 
-apply_dirichlet_condition = .false.
+apply_dirichlet_condition = .true.
 if (apply_zonal)  apply_dirichlet_condition = .true.
 
 
@@ -1758,13 +1765,20 @@ mumps_par%icntl(7)  = 7 ! compute symmetric permutation (PORD or SCOTCH autosele
 mumps_par%icntl(8)  = 8 ! scaling
 mumps_par%icntl(14) = 80 ! memory relaxation parameter
 
-if (present(skip_factorisation) .and. skip_factorisation) then
-else
+do_facto = .true.
+if (present(skip_factorisation)) then
+  if (skip_factorisation) then
+    do_facto = .false.
+  endif
+endif
+if (do_facto) then
   call ieee_get_halting_mode(IEEE_USUAL, halt)
   call ieee_set_halting_mode(IEEE_USUAL, [.false., .false., .false.])
   call DMUMPS(mumps_par)
   call ieee_set_halting_mode(IEEE_USUAL, halt)
 endif
+
+if (my_id_n .eq. 0) write(*,*) " n=0 MUMPS INFOG(1:2) : ",mumps_par%infog(1),mumps_par%infog(2)
 
 end subroutine prepare_mumps_par_n0
 

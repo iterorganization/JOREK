@@ -143,7 +143,7 @@ contains
     tmp = val
     do while (tmp > 0)
       res = res + 1
-      tmp = shiftr(tmp, 1)
+      tmp = rshift(tmp, 1)
     end do
     ! round up if not an exact fit
     if (val .gt. 2**res) res = res + 1

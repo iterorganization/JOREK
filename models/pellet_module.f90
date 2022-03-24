@@ -29,11 +29,6 @@ module pellet_module
                             particle_source, volume_source)
   
   implicit none
-#if _OPENMP >= 201511
-  !$omp declare simd uniform(pellet_amplitude,pellet_R,pellet_Z,pellet_psi,pellet_phi,              &
-  !$omp pellet_radius, pellet_delta_psi, pellet_sig, pellet_length, pellet_ellipse, pellet_theta,   &
-  !$omp R, Z, r0, T0, central_density, pellet_particles, pellet_density, pellet_volume)
-#endif
 
     real*8, intent(in)  :: R, Z, psi                 ! position where the particle source is calculated
     real*8, intent(inout) :: phi                     ! toroidal position
@@ -55,6 +50,12 @@ module pellet_module
     
     ! --- local variables
     real*8  :: radius, atn, atn_psi, atn_phi, atomic_mass, ablation_rate
+
+#if _OPENMP >= 201511
+  !$omp declare simd uniform(pellet_amplitude,pellet_R,pellet_Z,pellet_psi,pellet_phi,              &
+  !$omp pellet_radius, pellet_delta_psi, pellet_sig, pellet_length, pellet_ellipse, pellet_theta,   &
+  !$omp R, Z, r0, T0, central_density, pellet_particles, pellet_density, pellet_volume)
+#endif
     
     particle_source = 0.d0
     volume_source   = 0.d0
@@ -194,7 +195,7 @@ module pellet_module
     use phys_module, only: pellets, imp_type, central_density, central_mass, spi_abl_model, spi_tor_rot,      &
                            ns_phi_rotate, tor_frequency, tstep, pellet_density, pellet_density_bg,            &
                            index_now, xtime_spi_ablation, xtime_spi_ablation_bg, xtime_spi_ablation_rate,&
-                           xtime_spi_ablation_bg_rate, F0, R_geo, imp_cor, index_main_imp, n_adas
+                           xtime_spi_ablation_bg_rate, F0, R_geo, imp_cor, index_main_imp, n_adas, drift_distance
     use mpi_mod
     use corr_neg
     
@@ -227,6 +228,15 @@ module pellet_module
 
     integer, intent(in) :: i_inj
     integer, intent(in) :: n_spi_begin
+
+    ! - Extra variables when considering plasmoid drift by teleportation
+    real*8  :: R_out_drift, Z_out_drift
+    integer :: i_elm_drift, ifail_drift
+    real*8, dimension(4) :: P_drift, P_s_drift, P_t_drift, P_phi_drift
+    real*8  :: R_drift, R_s_drift, R_t_drift, Z_drift, Z_s_drift, Z_t_drift
+    real*8  :: s_out_drift,t_out_drift
+    real*8  :: xjac_drift, psi_R_drift, psi_Z_drift
+
   
     spi_delta_phi   = 0.
     spi_Vel_R_tmp   = 0.
@@ -322,13 +332,27 @@ module pellet_module
           stop
         end if
 
+        if (drift_distance /= 0) then ! when considering plasmoid drift by shifting neutral source
+          call find_RZ(node_list,element_list,pellets(i_p)%spi_R+drift_distance,pellets(i_p)%spi_Z,&
+                           R_out_drift,Z_out_drift,i_elm_drift,s_out_drift,t_out_drift,ifail_drift) 
+        end if
+
 #if ((defined WITH_Impurities) || (defined WITH_Neutrals))
 #ifdef WITH_TiTe
         call interp_PRZ(node_list,element_list,i_elm,[var_rho,var_Te,var_rhon,1],4,s_out,t_out,pellets(i_p)%spi_phi,&
-                        P,P_s,P_t,P_phi,R,R_s,R_t,Z,Z_s,Z_t)
+                        P,P_s,P_t,P_phi,R,R_s,R_t,Z,Z_s,Z_t)        
+        if (drift_distance /= 0) then
+          call interp_PRZ(node_list,element_list,i_elm_drift,[var_rho,var_Te,var_rhon,1],4,s_out_drift,t_out_drift,pellets(i_p)%spi_phi,&
+                                 P_drift,P_s_drift,P_t_drift,P_phi_drift,R_drift,R_s_drift,R_t_drift,Z_drift,Z_s_drift,Z_t_drift)
+        end if
+
 #else /* WITH_TiTe */
         call interp_PRZ(node_list,element_list,i_elm,[var_rho,var_T,var_rhon,1],4,s_out,t_out,pellets(i_p)%spi_phi,&
                         P,P_s,P_t,P_phi,R,R_s,R_t,Z,Z_s,Z_t)
+        if (drift_distance /= 0) then
+          call interp_PRZ(node_list,element_list,i_elm_drift,[var_rho,var_T,var_rhon,1],4,s_out_drift,t_out_drift,pellets(i_p)%spi_phi,&
+                                 P_drift,P_s_drift,P_t_drift,P_phi_drift,R_drift,R_s_drift,R_t_drift,Z_drift,Z_s_drift,Z_t_drift)
+        end if
 #endif /* WITH_TiTe */
 #endif /* ((defined WITH_Impurities) || (defined WITH_Neutrals)) */
 
@@ -337,6 +361,14 @@ module pellet_module
         psi_Z = (- P_s(4) * R_t + P_t(4) * R_s ) / xjac
         pellets(i_p)%spi_psi = P(4)
         pellets(i_p)%spi_grad_psi = sqrt(psi_R**2 + psi_Z**2)
+
+        if (drift_distance /= 0) then
+          xjac_drift  = R_s_drift * Z_t_drift - R_t_drift * Z_s_drift
+          psi_R_drift = (  P_s_drift(4) * Z_t_drift - P_t_drift(4) * Z_s_drift ) / xjac_drift
+          psi_Z_drift = (- P_s_drift(4) * R_t_drift + P_t_drift(4) * R_s_drift ) / xjac_drift
+          pellets(i_p)%spi_psi_drift = P_drift(4)
+          pellets(i_p)%spi_grad_psi_drift = sqrt(psi_R_drift**2 + psi_Z_drift**2)
+        end if
 
         ! Now, P(1) represents mass density and P(2) represents temperature, P(3)
         ! is the impurity density
@@ -830,6 +862,9 @@ module pellet_module
         pellets(i_p)%spi_vol     = 0.0
         pellets(i_p)%spi_psi     = 0.0
         pellets(i_p)%spi_grad_psi= 0.0
+        pellets(i_p)%spi_vol_drift     = 0.0
+        pellets(i_p)%spi_psi_drift     = 0.0
+        pellets(i_p)%spi_grad_psi_drift= 0.0
 
         write(*,'(A,I5,5ES10.2)') ' *** SHATTERED PELLET PARAMETERS :',i_p, pellets(i_p)%spi_R, pellets(i_p)%spi_Z, &
                               pellets(i_p)%spi_Vel_R, pellets(i_p)%spi_Vel_Z, pellets(i_p)%spi_radius
@@ -1166,6 +1201,9 @@ module pellet_module
         pellets(i_p)%spi_vol     =   0.d0
         pellets(i_p)%spi_psi     =   0.d0
         pellets(i_p)%spi_grad_psi=   0.d0
+        pellets(i_p)%spi_vol_drift      =   0.d0
+        pellets(i_p)%spi_psi_drift      =   0.d0
+        pellets(i_p)%spi_grad_psi_drift =   0.d0
 
         write(*,'(A,I5,5ES10.2)') ' *** SHATTERED PELLET PARAMETERS :',i_p, pellets(i_p)%spi_R, pellets(i_p)%spi_Z, &
                               pellets(i_p)%spi_Vel_R, pellets(i_p)%spi_Vel_Z, pellets(i_p)%spi_radius
@@ -1208,12 +1246,13 @@ module pellet_module
     integer, save         :: dtype
     logical, save         :: dtype_set = .false.
   
-    integer :: len(13) = (/1,1,1,1,1,1,1,1,1,1,1,1,1/), t(13) = (/ &
+    integer :: len(16) = (/1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1/), t(16) = (/ &
       MPI_REAL8,MPI_REAL8,MPI_REAL8,MPI_REAL8,MPI_REAL8, &
       MPI_REAL8,MPI_REAL8,MPI_REAL8,MPI_REAL8,MPI_REAL8, &
-      MPI_REAL8,MPI_REAL8,MPI_REAL8/) ! MPI_INTEGER1 == MPI_LOGICAL1
+      MPI_REAL8,MPI_REAL8,MPI_REAL8,MPI_REAL8,MPI_REAL8, &
+      MPI_REAL8/) ! MPI_INTEGER1 == MPI_LOGICAL1
   
-    integer(kind=MPI_ADDRESS_KIND) :: base, disp(13)
+    integer(kind=MPI_ADDRESS_KIND) :: base, disp(16)
     type(type_SPI) :: sample_pellet
   
     dtype_out = dtype
@@ -1234,12 +1273,15 @@ module pellet_module
     call MPI_Get_address(sample_pellet%spi_vol,     disp(11),ierr)
     call MPI_Get_address(sample_pellet%spi_psi,     disp(12),ierr)
     call MPI_Get_address(sample_pellet%spi_grad_psi,disp(13),ierr)
+    call MPI_Get_address(sample_pellet%spi_vol_drift,     disp(14),ierr)
+    call MPI_Get_address(sample_pellet%spi_psi_drift,     disp(15),ierr)
+    call MPI_Get_address(sample_pellet%spi_grad_psi_drift,disp(16),ierr)
   
     ! Rebase to particle memory beginning
     disp = disp - base
   
     ! Commit the structured type
-    call MPI_Type_create_struct(13, len, disp, t, dtype, ierr)
+    call MPI_Type_create_struct(16, len, disp, t, dtype, ierr)
     call MPI_Type_commit(dtype, ierr)
   
     ! Set the save bit

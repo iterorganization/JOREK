@@ -61,6 +61,7 @@ module phys_module
   logical :: regrid               !< Re-generate the flux-aligned grid (does not work currently)?
   logical :: import_equil         !< (presently unused)
   logical :: xpoint               !< X-point plasma or not? see also xcase
+  real*8  :: Z_xpoint_limit(2)    !< Search the lower X-point in the region Z < Z_xpoint_limit(1) and the upper X-point in the region Z > Z_xpoint_limit(2) 
   logical :: bootstrap            !< Evolve the Bootstrap current consistently with time?
   real*8  :: minRad               !< Approximation of minor radius for bootstrap current calculation
   logical :: refinement           !< Use mesh refinement? (not presently available)
@@ -265,14 +266,14 @@ module phys_module
   
   !> @name Hyper-resistivity, -viscosity and -diffusivities
   real*8  :: eta_num, visco_num, visco_par_num, D_perp_num, Zk_perp_num, Dn_perp_num, Zk_i_perp_num, Zk_e_perp_num
-
   !> @name Shock-capturing terms
   logical :: use_sc  !< Use shock-capturing stabilization
   real*8  :: D_perp_sc_num, D_par_sc_num, Dn_pol_sc_num, Dn_p_sc_num
   real*8  :: ZK_perp_sc_num, ZK_par_sc_num, ZK_i_perp_sc_num, ZK_i_par_sc_num, ZK_e_perp_sc_num, ZK_e_par_sc_num
   real*8  :: visco_sc_num, visco_par_sc_num
-
-  logical :: eta_num_T_dependent  !< Hyper-resistivity dependent on temperature? Otherwise constant.
+  logical :: eta_num_T_dependent     !< Hyper-resistivity dependent on temperature? Otherwise constant.
+  logical :: eta_num_psin_dependent  !< Give profile for Hyper-resistivity as function of \psi_N? Useful for 2D current flattening
+  real*8  :: eta_num_prof(10)        !< Coefficients to specify \psi_N profile for hyper-resistivity
   logical :: visco_num_T_dependent!< Hyper-visocsity dependent on temperature? Otherwise constant.
   logical :: add_sources_in_sc    !< Whether to add effect of sources in shock-capturing stabilization or not
 
@@ -380,11 +381,14 @@ module phys_module
   real*8  :: ns_phi(n_inj_max) !< Phi position of gas source
   real*8  :: ns_radius         !< Poloidal radius of gas source
   real*8  :: ns_deltaphi       !< Toroidal extension of gas source
-  real*8  :: ns_deltaminrad    !< Extension of gas source in the minor radial direction (if greater than 0.)
+  real*8  :: ns_delta_minor_rad  !< Extension of gas source in the minor radial direction (if greater than 0.)
   real*8  :: ns_tor_norm       !< Gas source normalization factor related to its toroidal shape
+  real*8  :: drift_distance    !< Shift the R position of the neutral deposition outward by drift_distance (in meters) for plasmoid drift
+  real*8  :: energy_teleported !< Energy (in eV) teleported per atom to consider plasmoid drift effects
 
   character(len=80) :: imp_type(n_imp_max) !< Type of injected material or background impurity species: Argon, neon, ...
   logical :: use_imp_adas       !< Use open adas to calculate ionization, recombination and radiation coeffients for impurities
+
 
   !> @name Massive gas injection-related input parameters
   
@@ -410,7 +414,7 @@ module phys_module
   real*8  :: spi_Vel_RxZref(n_inj_max) !< Reference velocity of pellet center along RxZ direction upon injection
   real*8  :: spi_quantity(n_inj_max)   !< Total injected atom number for impurity SPI
   real*8  :: spi_quantity_bg(n_inj_max)!< Total injected atom number for background species SPI
-  real*8  :: ng_radius_ratio           !< We are assuming a constant ratio between the radius of NG clouds
+  real*8  :: ns_radius_ratio           !< We are assuming a constant ratio between the radius of NG clouds
                                        !< and that of shattered pellets
 
   real*8  :: spi_Vel_diff(n_inj_max)   !< The velocity difference from the reference velocity
@@ -420,7 +424,7 @@ module phys_module
   real*8  :: ns_phi_rotate             !< The toroidal position of rotated injection point
   real*8  :: tor_frequency             !< The rigid body rotation frequency
 
-  real*8  :: ng_radius_min      !< This defines the minimum radius of neutral cloud for numerical reasons (in m)
+  real*8  :: ns_radius_min      !< This defines the minimum radius of neutral cloud for numerical reasons (in m)
 
   real*8, allocatable  :: xtime_spi_ablation(:,:)         !< The time history of SPI ablation
   real*8, allocatable  :: xtime_spi_ablation_rate(:,:)    !< The time history of SPI ablation rate
@@ -564,6 +568,7 @@ module phys_module
   real*8  :: D_neutral_y          !< Neutral particle diffusivity in Z-direction
   real*8  :: D_neutral_p          !< Neutral particle diffusivity in phi-direction
   logical :: ZKpar_T_dependent    !< Use a temperature dependent parallel heat diffusivity
+  real*8  :: HW_coef(10)   = 0.d0 !< Coefficients for Hasegawa-Wakatani fluctuation term
 
   !> @name Numerical heat and particle diffusivity profiles
   character(len=512)  :: d_perp_file        !< ASCII file with perpendicular particle diffusion profile
@@ -794,14 +799,24 @@ module phys_module
   real*8              :: ZK_par_neg         !< Parallel diffusion coefficient in regions with negative temperature
   real*8              :: ZK_prof_neg_thresh !< ZK_prof_neg becomes effective if T < ZK_prof_neg_thresh
   real*8              :: ZK_par_neg_thresh  !< ZK_par_neg becomes effective if T < ZK_par_neg_thresh
+  real*8              :: ZK_e_prof_neg        !< Perp. heat diffusion coefficient in regions with negative temperature
+  real*8              :: ZK_e_par_neg         !< Parallel diffusion coefficient in regions with negative temperature
+  real*8              :: ZK_e_prof_neg_thresh !< ZK_e_prof_neg becomes effective if T < ZK_e_prof_neg_thresh
+  real*8              :: ZK_e_par_neg_thresh  !< ZK_e_par_neg becomes effective if T < ZK_e_par_neg_thresh
+  real*8              :: ZK_i_prof_neg        !< Perp. heat diffusion coefficient in regions with negative temperature
+  real*8              :: ZK_i_par_neg         !< Parallel diffusion coefficient in regions with negative temperature
+  real*8              :: ZK_i_prof_neg_thresh !< ZK_i_prof_neg becomes effective if T < ZK_i_prof_neg_thresh
+  real*8              :: ZK_i_par_neg_thresh  !< ZK_i_par_neg becomes effective if T < ZK_i_par_neg_thresh
   real*8              :: D_imp_extra_R           !< Additional impurity diffusivity in R-direction
   real*8              :: D_imp_extra_Z           !< Additional impurity diffusivity in Z-direction
   real*8              :: D_imp_extra_p           !< Additional impurity diffusivity in phi-direction
   real*8              :: D_imp_extra_neg         !< Additional impurity diffusion coefficient in regions with negative impurity density
   real*8              :: D_imp_extra_neg_thresh  !< D_imp_extra_neg becomes effective if rho_imp < D_imp_extra_neg_thresh
-  real*8              :: T_min              !< minimum temperature (limits on the temperature dependence of resistivity etc.)
+  real*8              :: T_min              !< minimum temperature (limits on the temperature dependence of resistivity etc.) value in jorek units: 2.01d-5*central_density*Tmin_ev (preset central_density = 1, 20 eV)
   real*8              :: rho_min            !< minimum density
-
+  real*8              :: T_min_neg          !< minimum temperature,used for correcting negative values,in jorek units: 2.01d-5*central_density*Tmin_ev (preset central_density = 1, 20 eV)  
+  real*8              :: rho_min_neg        !< minimum density, used for correcting negative values  
+  
   real*8              :: ne_SI_min          !< minimum e density (in SI unit) below which we cut-off the radiation loss
   real*8              :: Te_eV_min          !< minimum temperature (in eV) below which we cut-off the radiation loss
   real*8              :: rn0_min            !< minimum impurity density (in JU) for radiation loss cut-off

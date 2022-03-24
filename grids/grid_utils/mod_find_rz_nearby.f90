@@ -42,6 +42,7 @@ subroutine find_RZ_nearby(node_list, element_list, R_old, Z_old, s_old, t_old, i
         R_new, Z_new, s_new, t_new, i_elm_new, ifail)
 use data_structure
 use mod_neighbours
+use, intrinsic :: ieee_arithmetic, only: ieee_is_nan
 implicit none
 !> Input parameters
 type (type_node_list),    intent(in)    :: node_list
@@ -140,7 +141,7 @@ do newton_iter_number = 1, newton_iter_max
 enddo
 
 
-if (isnan(err2)) then
+if (ieee_is_nan(err2)) then
   !write(*,*) "WARNING: NaN encountered after newton iteration, using find_RZ"
   call find_RZ(node_list,element_list,x_new(1),x_new(2),x_step(1),x_step(2),i_elm_new,s_new,t_new,ifail)
   if (ifail .eq. 0) ifail=2
