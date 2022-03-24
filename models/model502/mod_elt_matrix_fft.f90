@@ -3769,6 +3769,7 @@ f_p = dsqrt( Ptot_x*Ptot_x + Ptot_y*Ptot_y + Ptot_p*Ptot_p/ (BigR*BigR) ) / Ptot
 ! Estimation of the numerical stabilization coefficient
 tau_sc = h_e * h_e * abs(d_p) / Ptot_corr * f_p
 
+s_p = 0.d0
 ! Use of source terms to increase the stabilization coefficients
 if(add_sources_in_sc)then
   src_rho = (particle_source(ms,mt) + source_pellet+source_bg+source_imp)

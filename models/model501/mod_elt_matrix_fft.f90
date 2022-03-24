@@ -3077,27 +3077,27 @@ R_p =    + (r0 + rn0*alpha_imp_bis) * BigR**2 * ( T0_x * u0_y - T0_y * u0_x)    
          - T0 * Vpar0 * alpha_imp * (rn0_x * ps0_y - rn0_y * ps0_x)             &
 
          - (r0 + rn0*alpha_imp) * T0 * GAMMA * (vpar0_x * ps0_y - vpar0_y * ps0_x) &
-         - (r0 + rn0*alpha_imp) * T0 * GAMMA * F0 / BigR * vpar0_p                 !&
+         - (r0 + rn0*alpha_imp) * T0 * GAMMA * F0 / BigR * vpar0_p                 &
 
-         !+ (GAMMA - 1.) * rn0 * dE_ion_dT * BigR**2 * ( T0_x * u0_y - T0_y * u0_x)     &
-         !+ (GAMMA - 1.) * E_ion * BigR**2 * (rn0_x * u0_y - rn0_y * u0_x)              &
-         !+ (GAMMA - 1.) * E_ion_bg * BigR**2*((r0_x-rn0_x)*u0_y - (r0_y-rn0_y)*u0_x)   &
+         + (GAMMA - 1.) * rn0 * dE_ion_dT * BigR**2 * ( T0_x * u0_y - T0_y * u0_x)     &
+         + (GAMMA - 1.) * E_ion * BigR**2 * (rn0_x * u0_y - rn0_y * u0_x)              &
+         + (GAMMA - 1.) * E_ion_bg * BigR**2*((r0_x-rn0_x)*u0_y - (r0_y-rn0_y)*u0_x)   &
 
-         !- (GAMMA - 1.) * rn0 * dE_ion_dT * F0 / BigR * Vpar0 * T0_p     &
-         !- (GAMMA - 1.) * E_ion * F0 / BigR * Vpar0 * rn0_p              &
-         !- (GAMMA - 1.) * E_ion_bg * F0 / BigR * Vpar0 * (r0_p - rn0_p)  &
+         - (GAMMA - 1.) * rn0 * dE_ion_dT * F0 / BigR * Vpar0 * T0_p     &
+         - (GAMMA - 1.) * E_ion * F0 / BigR * Vpar0 * rn0_p              &
+         - (GAMMA - 1.) * E_ion_bg * F0 / BigR * Vpar0 * (r0_p - rn0_p)  &
 
-         !- (GAMMA - 1.) * rn0 * dE_ion_dT * Vpar0 * (T0_x * ps0_y - T0_y * ps0_x)      &
-         !- (GAMMA - 1.) * E_ion * Vpar0 * (rn0_x * ps0_y - rn0_y * ps0_x)              &
-         !- (GAMMA - 1.) * E_ion_bg * Vpar0*((r0_x-rn0_x)*ps0_y - (r0_y-rn0_y)*ps0_x)   &
+         - (GAMMA - 1.) * rn0 * dE_ion_dT * Vpar0 * (T0_x * ps0_y - T0_y * ps0_x)      &
+         - (GAMMA - 1.) * E_ion * Vpar0 * (rn0_x * ps0_y - rn0_y * ps0_x)              &
+         - (GAMMA - 1.) * E_ion_bg * Vpar0*((r0_x-rn0_x)*ps0_y - (r0_y-rn0_y)*ps0_x)   &
 
-         !+ (GAMMA - 1.) * E_ion * rn0 * 2.d0 * BigR * u0_y                             &
-         !- (GAMMA - 1.) * E_ion * rn0 * (vpar0_x * ps0_y - vpar0_y * ps0_x)            &
-         !- (GAMMA - 1.) * E_ion * rn0 * F0 / BigR * vpar0_p                            &
+         + (GAMMA - 1.) * E_ion * rn0 * 2.d0 * BigR * u0_y                             &
+         - (GAMMA - 1.) * E_ion * rn0 * (vpar0_x * ps0_y - vpar0_y * ps0_x)            &
+         - (GAMMA - 1.) * E_ion * rn0 * F0 / BigR * vpar0_p                            &
 
-         !+ (GAMMA - 1.) * E_ion_bg * (r0-rn0) * 2.d0 * BigR * u0_y                     &
-         !- (GAMMA - 1.) * E_ion_bg * (r0-rn0) * (vpar0_x * ps0_y - vpar0_y * ps0_x)    &
-         !- (GAMMA - 1.) * E_ion_bg * (r0-rn0) * F0 / BigR * vpar0_p 
+         + (GAMMA - 1.) * E_ion_bg * (r0-rn0) * 2.d0 * BigR * u0_y                     &
+         - (GAMMA - 1.) * E_ion_bg * (r0-rn0) * (vpar0_x * ps0_y - vpar0_y * ps0_x)    &
+         - (GAMMA - 1.) * E_ion_bg * (r0-rn0) * F0 / BigR * vpar0_p 
 
 ! 1/BigR removes the factor R from the integrand in (R dR)
 d_p = T0 * R_rho / BigR + R_p / BigR + T0 * R_rhon / BigR
