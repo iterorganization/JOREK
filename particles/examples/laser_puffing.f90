@@ -201,14 +201,6 @@ endif
 
 jorek_feedback%rhs = 0.d0
 
-!project_density = new_projection(sim%fields%node_list, sim%fields%element_list, &
-!                     filter    = filter_perp,    filter_hyper    = filter_hyper,    filter_parallel    = filter_par, &
-!                     filter_n0 = filter_perp_n0, filter_hyper_n0 = filter_hyper_n0, filter_parallel_n0 = filter_par_n0, &
-!                     f=[proj_f(proj_one, group = 1)], &
-!                     fractional_digits = 9,  to_vtk=.TRUE., to_h5=.FALSE., basename='density', nsub=5)
-
-!call with(sim, project_density)
-
 ! For proper timestepping, the projections need to be defined before the jorek timestepper
 jorek_stepper = new_jorek_timestep_action(jorek_feedback%node_list)
 
