@@ -593,7 +593,7 @@ subroutine initialise_particles_H_mu_psi(particles, fields, rng_base, mass, T_ma
 
         ! 4. Output to particles (dependent on type of particle)
         chi = TWOPI*ran(6)
-        select type(p => particles_tmp(i))
+        select type(p1 => particles_tmp(i))
           type is (particle_kinetic_leapfrog)
 
 ! the generic copy of particle_kinetic_leapfrog, i.e p = ..., seems broken, therefor using the non-generic copy
@@ -608,7 +608,7 @@ subroutine initialise_particles_H_mu_psi(particles, fields, rng_base, mass, T_ma
           type is (particle_gc)
             particles_tmp(i) = particle
           type is (particle_gc_vpar)
-            call convert_gc_to_gc_vpar(particle, norm2(B), mass, p)
+            call convert_gc_to_gc_vpar(particle, norm2(B), mass, p1)
         end select
       else
         found(i) = .false.
@@ -1068,7 +1068,7 @@ subroutine initialise_particles_H_mu_psi_phiplanes(particles, fields, rng_base, 
           i_gyro_temp=(i-1)*n_gyro_orbit+i_gyro_orbit
 
           if (i*n_gyro_orbit .gt. blocksize) exit
-          select type(p => particles_tmp(i_gyro_temp))
+          select type(p1 => particles_tmp(i_gyro_temp))
             type is (particle_kinetic_leapfrog)
 
               ! the generic copy of particle_kinetic_leapfrog, i.e p = ..., seems broken, therefore using the non-generic copy
@@ -1078,16 +1078,16 @@ subroutine initialise_particles_H_mu_psi_phiplanes(particles, fields, rng_base, 
 !                [0.d0, 0.d0, 0.d0], B, mass, dt=0.d0), &
 !                p )
 
-              p = gc_to_kinetic_leapfrog(particle, fields%node_list, fields%element_list, chi, [0.d0,0.d0,0.d0], B, mass, dt=0.d0)
+              particles_tmp(i_gyro_temp) = gc_to_kinetic_leapfrog(particle, fields%node_list, fields%element_list, TWOPI*REAL(i_gyro_orbit,8)/REAL(n_gyro_orbit,8)+chi, [0.d0,0.d0,0.d0], B, mass, dt=0.d0)
   
               ! if the kinetic position is not in the grid particles(i)%i_elm the particle is lost
               found(i_gyro_temp) = .true.
-              if (p%i_elm .le. 0) found(i_gyro_temp) = .false.
+              if (p1%i_elm .le. 0) found(i_gyro_temp) = .false.
 
             type is (particle_gc)
-              p = particle
+              p1 = particle
             type is (particle_gc_vpar)
-              call convert_gc_to_gc_vpar(particle, norm2(B), mass, p)
+              call convert_gc_to_gc_vpar(particle, norm2(B), mass, p1)
           end select !particle type
         end do !n_gyro_orbit
 
