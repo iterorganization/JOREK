@@ -1132,6 +1132,7 @@ if (my_id .ne. 0) then
 
   call MPI_UNPACK(buffer,bufsize,position,use_puffing,            1,MPI_LOGICAL,MPI_COMM_WORLD,ierr)
   if (use_puffing) then
+    call MPI_UNPACK(buffer,bufsize,position,phys_particles_puff,  1,MPI_REAL8,MPI_COMM_WORLD,ierr)
     call MPI_UNPACK(buffer,bufsize,position,fueling_rate,         1,MPI_REAL8,MPI_COMM_WORLD,ierr)
     call MPI_UNPACK(buffer,bufsize,position,valve_r,              1,MPI_REAL8,MPI_COMM_WORLD,ierr)
     call MPI_UNPACK(buffer,bufsize,position,R_valve_loc,          1,MPI_REAL8,MPI_COMM_WORLD,ierr)
