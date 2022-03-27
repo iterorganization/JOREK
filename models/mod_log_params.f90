@@ -919,6 +919,7 @@ write(*,'(1x,a)',advance='no') ' USE_BICGSTAB : '
   write(*,LOGI_FMT) 'use_cx,             ',use_cx            
 
   write(*,LOGI_FMT) 'use_puffing,        ',use_puffing     
+  write(*,REAL_FMT) 'phys_particles_puff,',phys_particles_puff
   write(*,REAL_FMT) 'fueling_rate,       ',fueling_rate  
   write(*,REAL_FMT) 'valve_r,            ',valve_r  
   write(*,REAL_FMT) 'R_valve_loc,        ',R_valve_loc

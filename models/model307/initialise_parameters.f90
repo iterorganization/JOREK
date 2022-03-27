@@ -151,7 +151,12 @@ namelist /in1/  tstep, nstep, tstep_n, nstep_n,                     &
                 filter_perp_n0, filter_hyper_n0, filter_par_n0,     &
                 use_cx, use_sputtering, use_ionisation,             &
                 use_ncs, use_pcs, use_ccs, use_pcs_full, use_rcs,   &
-                cte_current_FB_fact, Z_xpoint_limit
+                cte_current_FB_fact, Z_xpoint_limit,                &
+                use_puffing, fueling_rate, valve_r,                 &
+                R_valve_loc, Z_valve_loc, PHI_valve_loc,            &
+                initial_E, puffing_direction, puffing_timestep,     &
+                puff_starttime, puffingtime, nout_particle,         &
+                phys_particles_puff 
 
 if (my_id .eq. 0) then
 

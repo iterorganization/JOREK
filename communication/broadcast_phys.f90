@@ -354,6 +354,7 @@ if (my_id .eq. 0) then
   
   CALL MPI_PACK(use_puffing,            1,MPI_LOGICAL,buffer,bufsize,position,MPI_COMM_WORLD,ierr)
   if (use_puffing) then 
+    call MPI_PACK(phys_particles_puff,  1,MPI_REAL8,buffer,bufsize,position,MPI_COMM_WORLD,ierr)
     call MPI_PACK(fueling_rate,         1,MPI_REAL8,buffer,bufsize,position,MPI_COMM_WORLD,ierr)
     call MPI_PACK(valve_r,              1,MPI_REAL8,buffer,bufsize,position,MPI_COMM_WORLD,ierr)
     call MPI_PACK(R_valve_loc,          1,MPI_REAL8,buffer,bufsize,position,MPI_COMM_WORLD,ierr)

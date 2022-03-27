@@ -23,7 +23,8 @@ use phys_module, only: tstep, imp_type, imp_adas, imp_cor, adas_dir, xtime_radia
 use phys_module, only: xtime_E_ion, xtime_E_ion_power, index_main_imp, n_adas
 use phys_module, only: CENTRAL_MASS, CENTRAL_DENSITY
 use phys_module, only: use_puffing, fueling_rate, valve_r, R_valve_loc, Z_valve_loc, PHI_valve_loc,   &
-                       initial_E, puffing_direction, puffing_timestep, puff_starttime, puffingtime, use_sputtering 
+                       initial_E, puffing_direction, puffing_timestep, puff_starttime, puffingtime, &
+                       use_sputtering, phys_particles_puff
 use constants,   only: MU_ZERO, MASS_PROTON, ATOMIC_MASS_UNIT, K_BOLTZ, EL_CHG
 
 use mod_particle_sputtering, only: particle_sputter, sample_fluid_particle_energy
@@ -97,7 +98,7 @@ call with(sim, fieldreader)
 !phi_valve   = 0.d0!
 !puffing_timestep = 1.d-6
 
-physical_particles = 1.d18 !1.d21
+physical_particles = phys_particles_puff
 weight = physical_particles/n_particles
 
 if (use_puffing) then

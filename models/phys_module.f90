@@ -477,6 +477,7 @@ module phys_module
 
   !> @name Particle gas puffing related input parameters
   logical :: use_puffing   !<  Switch to use gas puffing
+  real*8  :: phys_particles_puff  !< physical puffing amount
   real*8  :: fueling_rate  !< puffing fueling rate (/s)
   real*8  :: R_valve_loc   !< valve location R
   real*8  :: Z_valve_loc   !< valve location Z

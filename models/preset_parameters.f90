@@ -784,6 +784,7 @@ subroutine preset_parameters
 
 !==================== Gas_puffing parameters=============
   use_puffing   = .false.
+  phys_particles_puff = 0.d0
   fueling_rate  = 0.d0 
   valve_r       = 5.d-2
   R_valve_loc   = 0.d0 
