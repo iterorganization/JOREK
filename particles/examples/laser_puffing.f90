@@ -61,7 +61,6 @@ integer   :: i_imp
 ! For live updating the rhs of the projection
 real*8  :: R_g, Z_g, R_s, R_t, Z_s, Z_t, xjac, HZ(n_tor), HH(4,4), HH_s(4,4), HH_t(4,4)
 integer :: i_tor, index_lm, i_elm_temp
-logical :: use_puffing !use_cx, use_ionisation, use_sputtering
 
 character(len=50)  :: part_fileout
 character(len=500) :: part_file = 'part_restart.h5'
