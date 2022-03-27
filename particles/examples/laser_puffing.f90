@@ -109,7 +109,7 @@ if (use_puffing) then
   if (puff_starttime .eq. 0.d0) puff_starttime = sim%time
 else
   n_puff = 0.d0
-  gas_puff = laser_puffing(n_puff, 5d20, r_valve, R_valve_loc, Z_valve)
+  gas_puff = laser_puffing(n_puff, 5d20, valve_r, R_valve_loc, Z_valve_loc)
   puff_starttime = huge(0.d0)
 end if
 
