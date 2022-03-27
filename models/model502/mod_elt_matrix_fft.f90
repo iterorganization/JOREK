@@ -3684,8 +3684,12 @@ CONTAINS
 ! subroutine that calculates shock-capturing stabilization related terms
 subroutine calculate_sc_quantities()
 
-! Total pressure is already available as P0, getting only P0_corr
-Ptot_corr = (r0_corr+rn0_corr*alpha_i) * Ti0_corr + (r0_corr+rn0_corr*alpha_e) * Te0_corr
+Ptot     = P0      + (gamma-1.d0)*( rn0*E_ion + (r0-rn0)*E_ion_bg )
+Ptot_corr= (r0_corr+rn0_corr*alpha_i) * Ti0_corr + (r0_corr+rn0_corr*alpha_e) * Te0_corr &
+         + (gamma-1.d0)*( rn0_corr*E_ion + (r0_corr-rn0_corr)*E_ion_bg ) 
+Ptot_x   = P0_x    + (gamma-1.d0)*( rn0_x*E_ion + rn0*dE_ion_dT*Te0_x + (r0_x-rn0_x)*E_ion_bg )
+Ptot_y   = P0_y    + (gamma-1.d0)*( rn0_y*E_ion + rn0*dE_ion_dT*Te0_y + (r0_y-rn0_y)*E_ion_bg )
+Ptot_p   = P0_p    + (gamma-1.d0)*( rn0_p*E_ion + rn0*dE_ion_dT*Te0_p + (r0_p-rn0_p)*E_ion_bg )
 
 d_p = 0.d0
 
@@ -3762,7 +3766,7 @@ R_pe = + (r0 + rn0*alpha_e_bis) * BigR**2 * ( Te0_x * u0_y - Te0_y * u0_x)    &
        - (GAMMA-1.) * E_ion_bg * (r0-rn0) * F0 / BigR * vpar0_p 
 
 ! 1/BigR removes the factor R from the integrand in (R dR)                 
-d_p = (Ti0 + Te0) * R_rho / BigR +  (R_pi + R_pe) / BigR  + Ti0 * R_rhon / BigR
+d_p = (Ti0 + Te0) * R_rho / BigR +  (R_pi + R_pe) / BigR  + (alpha_i*Ti0 + alpha_e*Te0) * R_rhon / BigR
 
 ! Shock-detector term based on the total pressure gradient
 f_p = dsqrt( Ptot_x*Ptot_x + Ptot_y*Ptot_y + Ptot_p*Ptot_p/ (BigR*BigR) ) / Ptot_corr * h_e
@@ -3786,7 +3790,7 @@ if(add_sources_in_sc)then
           - (r0_corr+alpha_e*rn0_corr) * rn0_corr * Lrad  &
           - (r0_corr+alpha_e*rn0_corr) * frad_bg
 
-  s_p = (Ti0 + Te_0) * src_rho + (src_pi + src_pe) + Ti0 * src_rhon
+  s_p = (Ti0 + Te_0) * src_rho + (src_pi + src_pe) + (alpha_i*Ti0 + alpha_e*Te0) * src_rhon
 
   tau_sc = h_e * h_e * (abs(s_p) + abs(d_p)) / Ptot_corr * f_p
 

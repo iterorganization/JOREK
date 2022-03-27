@@ -187,6 +187,7 @@ real*8, dimension(n_plane,n_var,n_gauss,n_gauss) :: delta_g, delta_s, delta_t
 real*8     :: midp_edge1(1:2), midp_edge2(1:2), midp_edge3(1:2), midp_edge4(1:2)
 real*8     :: len1, len2, h_e
 real*8     :: P0_corr, f_p, d_p, tau_sc, R_rho, R_p, R_rhon, s_p, src_rho, src_p, src_rhon
+real*8     :: Ptot, Ptot_x, Ptot_y, Ptot_p, Ptot_corr
 
 ELM_p = 0.d0
 ELM_n = 0.d0
@@ -3040,10 +3041,14 @@ CONTAINS
 ! subroutine that calculates shock-capturing stabilization related terms
 subroutine calculate_sc_quantities()
 
-d_p = 0.d0
+Ptot     = P0      + (gamma-1.d0)*( rn0*E_ion + (r0-rn0)*E_ion_bg )
+Ptot_corr= (r0_corr + rn0_corr*alpha_imp) * T0_corr &
+         + (gamma-1.d0)*( rn0_corr*E_ion + (r0_corr-rn0_corr)*E_ion_bg )
+Ptot_x   = P0_x    + (gamma-1.d0)*( rn0_x*E_ion + rn0*dE_ion_dT*T0_x + (r0_x-rn0_x)*E_ion_bg )
+Ptot_y   = P0_y    + (gamma-1.d0)*( rn0_y*E_ion + rn0*dE_ion_dT*T0_y + (r0_y-rn0_y)*E_ion_bg )
+Ptot_p   = P0_p    + (gamma-1.d0)*( rn0_p*E_ion + rn0*dE_ion_dT*T0_p + (r0_p-rn0_p)*E_ion_bg )
 
-! Total pressure is already available as P0, getting only P0_corr
-P0_corr = (r0_corr + rn0_corr*alpha_imp) * T0_corr
+d_p = 0.d0
 
 ! approximate residual in the density equation: \nabla \cdot (\rho \boldsymbol{v})
 R_rho = + BigR**2 * ( r0_x * u0_y - r0_y * u0_x)    &
@@ -3100,12 +3105,12 @@ R_p =    + (r0 + rn0*alpha_imp_bis) * BigR**2 * ( T0_x * u0_y - T0_y * u0_x)    
          - (GAMMA - 1.) * E_ion_bg * (r0-rn0) * F0 / BigR * vpar0_p 
 
 ! 1/BigR removes the factor R from the integrand in (R dR)
-d_p = T0 * R_rho / BigR + R_p / BigR + T0 * R_rhon / BigR
+d_p = T0 * R_rho / BigR + R_p / BigR + alpha_imp * T0 * R_rhon / BigR
 
 ! Shock-detector term based on the total pressure gradient
-f_p = dsqrt( P0_x*P0_x + P0_y*P0_y + P0_p*P0_p/ (BigR*BigR) ) / P0_corr * h_e
+f_p = dsqrt( Ptot_x*Ptot_x + Ptot_y*Ptot_y + Ptot_p*Ptot_p/ (BigR*BigR) ) / Ptot_corr * h_e
 ! Estimation of the numerical stabilization coefficient
-tau_sc = h_e * h_e * abs(d_p) / P0_corr * f_p
+tau_sc = h_e * h_e * abs(d_p) / Ptot_corr * f_p
 
 ! Use of source terms to increase the stabilization coefficients
 s_p = 0.d0
@@ -3120,10 +3125,10 @@ if(add_sources_in_sc)then
              - (r0_corr+beta_imp*rn0_corr) * rn0_corr * Lrad  &
              - (r0_corr+beta_imp*rn0_corr) * frad_bg 
 
-  s_p = T0 * src_rho + src_p + T0 * src_rhon
+  s_p = T0 * src_rho + src_p + alpha_imp * T0 * src_rhon
 endif
 
-tau_sc = h_e * h_e * (abs(s_p) + abs(d_p)) / P0_corr * f_p
+tau_sc = h_e * h_e * (abs(s_p) + abs(d_p)) / Ptot_corr * f_p
 
 ! Updates in the physical diffsivities to locally add numerical stabilization.
 ! visco_par, D_par and D_par_imp are directly updated in the equations
