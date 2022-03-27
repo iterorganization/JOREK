@@ -963,6 +963,7 @@ do i=1,n_vertex_max
 
             rhs_ij(6) =  v * BigR * (heat_source(ms,mt) + aux_T0)                         * xjac * tstep &
                        - v * BigR * (aux_dEion_dt + aux_rad)                              * xjac * tstep &
+                       + v * BigR * (GAMMA - 1.) * eta_T_ohm * (zj0/BigR)**2              * xjac * tstep  &
 
 !!!! terms not in 303 but 500!
                     + 0.5d0 * v * (particle_source(ms,mt) + source_pellet + aux_rho0) * vpar0**2 * BB2 * BigR * xjac * tstep &
