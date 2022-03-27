@@ -102,15 +102,14 @@ physical_particles = phys_particles_puff
 weight = physical_particles/n_particles
 
 if (use_puffing) then
-  puffing_times = floor(puffingtime/puffing_timestep)
-  n_puff = n_particles_local / puffing_times
-  gas_puff = particle_puffing(n_puff, fueling_rate, valve_r, R_valve_loc,             &
-                              Z_valve_loc, PHI_valve_loc, initial_E, puffing_direction)
+  n_puffing_times = int(puffingtime/puffing_timestep)
+  n_puff = n_particles_local / n_puffing_times
+  gas_puff = laser_puffing(n_puff, fueling_rate/(real(sim%n_cpu,8)), &
+                           valve_r, R_valve_loc, Z_valve_loc, phi=PHI_valve_loc)
   if (puff_starttime .eq. 0.d0) puff_starttime = sim%time
 else
-  n_puff = 0
-  gas_puff = particle_puffing(n_puff, fueling_rate, valve_r, R_valve_loc,             &
-                              Z_valve_loc, PHI_valve_loc, initial_E, puffing_direction)
+  n_puff = 0.d0
+  gas_puff = laser_puffing(n_puff, 5d20, r_valve, R_valve_loc, Z_valve)
   puff_starttime = huge(0.d0)
 end if
 
