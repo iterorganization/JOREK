@@ -589,7 +589,7 @@ do i=1,element_list%n_elements
       i_tor_old = i_tor
       i_tor     = 1
       ! compute all derivatives, as in loop below
-      if ( (xjac .gt. 1.d-6) .and. (jorek_model .ge. 100) ) then
+      if ( (xjac .gt. 1.d-6) .and. (jorek_model .ge. 83) ) then
 
 #ifndef fullmhd
         call interp(node_list,element_list,i,var_psi,i_tor,s,t,Ps0,Ps0_s,Ps0_t,Ps0_st,Ps0_ss,Ps0_tt)
@@ -717,7 +717,7 @@ do i=1,element_list%n_elements
           call interp(node_list,element_list,i,m,i_tor,s,t,P,P_s,P_t,P_st,P_ss,P_tt)
           scalars(inode,m) = P * HZ(i_tor,i_plane)
         enddo
-        if (jorek_model .lt. 100) cycle
+        if (jorek_model .lt. 83) cycle
         
         ! The real current density
         currdens(inode) = -scalars(inode,3)/BigR
@@ -1030,7 +1030,7 @@ do i=1,element_list%n_elements
              call interp(node_list,element_list,i,m,i_tor,s,t,P,P_s,P_t,P_st,P_ss,P_tt)
              scalars(inode,m) = scalars(inode,m) + P * HZ(i_tor,i_plane)
           enddo
-          if (jorek_model .lt. 100) cycle
+          if (jorek_model .lt. 83) cycle
           
           call interp_delta(node_list,element_list,i,var_psi,i_tor,s,t,dpsi,dPs_s, dPs_t, dPs_st, dPs_ss, dPs_tt)
           call interp_delta(node_list,element_list,i,var_u,  i_tor,s,t,dU,dU_s, dU_t, dU_st, dU_ss, dU_tt)         
@@ -1127,7 +1127,19 @@ do i=1,element_list%n_elements
 
 !          endif ! xjac
         enddo  ! end loop toroidal harmonics
-        if (jorek_model .lt. 100) cycle
+        if (jorek_model .lt. 83) cycle
+
+        Psi_tot = 0.d0
+        do i_tor =1, n_tor
+           call interp(node_list,element_list,i,1,i_tor,s,t,P,P_s,P_t,P_st,P_ss,P_tt)
+           Psi_tot = Psi_tot + P * HZ(i_tor,i_plane)
+        enddo
+        
+        if (mod(jorek_model, 100) .eq. 83) then
+          call interp_gvec(node_list,element_list,i,4,1,i_tor,s,t,psi_norm,BRg_s,BRg_t,BRg_st,BRg_ss,BRg_tt)
+        else
+          psi_norm = get_psi_n(Psi_tot, Z)
+        endif
 
         if (include_gvec_field) then
           call interp_gvec(node_list,element_list,i,3,1,i_tor,s,t,BRg,BRg_s,BRg_t,BRg_st,BRg_ss,BRg_tt)
@@ -1144,15 +1156,7 @@ do i=1,element_list%n_elements
             vectors(inode,:,s_gvec_vec + 2) =  vectors(inode,:,s_gvec_vec + 2) + (/ JRg, JZg, JPg /) * HZ_coord(i_tor, i_plane)         
           enddo
         end if
-
-        Psi_tot = 0.d0
-        do i_tor =1, n_tor
-           call interp(node_list,element_list,i,1,i_tor,s,t,P,P_s,P_t,P_st,P_ss,P_tt)
-           Psi_tot = Psi_tot + P * HZ(i_tor,i_plane)
-        enddo
- 
-        psi_norm = get_psi_n(Psi_tot, Z)
-
+   
         if (include_bootstrap) then
           call bootstrap_current(R, Z, ES%R_axis, ES%Z_axis, ES%psi_axis, ES%R_xpoint, ES%Z_xpoint, ES%psi_bnd, psi_norm,&
                                  psi_sum, ps_x, ps_y, zn_sum,  zn_x, zn_y,      &
