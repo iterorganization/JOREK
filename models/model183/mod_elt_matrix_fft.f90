@@ -83,6 +83,7 @@ real*8, dimension(DIM1, DIM2)       :: RHS_k
 real*8, dimension(n_plane,n_gauss,n_gauss) :: x_g, x_s, x_t, x_p, x_ss, x_st, x_tt, x_sp, x_tp, x_pp
 real*8, dimension(n_plane,n_gauss,n_gauss) :: y_g, y_s, y_t, y_p, y_ss, y_st, y_tt, y_sp, y_tp, y_pp
 real*8, dimension(n_plane,n_gauss,n_gauss) :: current_source, particle_source, heat_source
+real*8, dimension(n_gauss, n_gauss)        :: s_norm
 
 real*8, dimension(n_plane,n_var,n_gauss,n_gauss) :: eq_g, eq_s, eq_t, eq_p, eq_ss, eq_st, eq_tt, eq_pp, eq_sp, eq_tp
 real*8, dimension(n_plane,n_var,n_gauss,n_gauss) :: delta_g, delta_s, delta_t, delta_p
@@ -149,6 +150,7 @@ do i=1,n_vertex_max
         psieq_s(ms,mt) = psieq_s(ms,mt) + nodes(i)%psi_eq(j)*element%size(i,j)*H_s(i,j,ms,mt)
         psieq_t(ms,mt) = psieq_t(ms,mt) + nodes(i)%psi_eq(j)*element%size(i,j)*H_t(i,j,ms,mt)
 #endif
+        s_norm(ms, mt) = s_norm(ms, mt) + nodes(i)%s_eq(1)*element%size(i,j)*H(i,j,ms,mt)
 
         do mp=1,n_plane
           do in=1,n_coord_tor
@@ -202,10 +204,10 @@ do i=1,n_vertex_max
           end if
 
 #ifdef altcs
-          call sources(xpoint2, xcase2, y_g(mp,ms,mt), Z_xpoint, psieq(ms,mt),psi_axis,psi_bnd,particle_source(mp,ms,mt),heat_source(mp,ms,mt))
+          call sources(xpoint2, xcase2, y_g(mp,ms,mt), Z_xpoint, s_norm(ms,mt),0.0,1.0,particle_source(mp,ms,mt),heat_source(mp,ms,mt))
 #else
-          call sources(xpoint2, xcase2, y_g(mp,ms,mt), Z_xpoint, psi_axis, & !eq_g(mp,var_Psi,ms,mt),
-                       psi_axis,psi_bnd,particle_source(mp,ms,mt),heat_source(mp,ms,mt))
+          call sources(xpoint2, xcase2, y_g(mp,ms,mt), Z_xpoint, s_norm(ms,mt), & !eq_g(mp,var_Psi,ms,mt),
+                       0.0,1.0,particle_source(mp,ms,mt),heat_source(mp,ms,mt))
 #endif
         enddo
       enddo
@@ -298,7 +300,7 @@ do ms=1, n_gauss
       
       eq(2*n_var+4,0,0,0,:) = x_g(mp,ms,mt); eq(2*n_var+4,1,0,0,:) = 1.d0 ! Cylindrical R coordinate
 
-      psi_norm = get_psi_n(eq(1,0,0,0,1), y_g(mp,ms,mt))
+      psi_norm = s_norm(ms,mt)
 
       ! The Psi in the equations differs by a factor of F0 from the normal JOREK Psi
       eq(1,:,:,:,:) = eq(1,:,:,:,:)/F0

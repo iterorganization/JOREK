@@ -57,7 +57,7 @@ module mod_equations
   type(algexpr), private :: amat61, amat62, amat63, amat65, amat66
   type(algexpr), private :: a_Bv2
 
-  integer, parameter :: n_rhs = 3, n_amat = 7, n_aux = 4
+  integer, parameter :: n_rhs = 2, n_amat = 7, n_aux = 4
 
   type(algexpr), private :: rhs2e, rhs3e, rhs4e, rhs5e, rhs6e
   type(algexpr), private :: amat22e, amat25e, amat26e
@@ -80,9 +80,6 @@ module mod_equations
 
     rhs3 = -dx(v)*(dy(chi)*B0p_gvec - dp(chi)*B0y_gvec/R) + dy(v)*(dx(chi)*B0p_gvec - dp(chi)*B0x_gvec/R) &
          - dp(v)*(dx(chi)*B0y_gvec - dy(chi)*B0x_gvec)/R
-
-    rhs6 = v*(p0_gvec/rho0 - T0)
-
 
     amat11 = Bv2*inprod(v,Psi)
     amat13 = v*Bv2*zj
@@ -112,7 +109,6 @@ module mod_equations
 #ifdef DEBUG
         allocate(thread_eq(i)%rhs1seq(countsubexprs(rhs1)))
         allocate(thread_eq(i)%rhs3seq(countsubexprs(rhs3)))
-        allocate(thread_eq(i)%rhs6seq(countsubexprs(rhs6)))
         allocate(thread_eq(i)%amat11seq(countsubexprs(amat11)))
         allocate(thread_eq(i)%amat13seq(countsubexprs(amat13)))
         allocate(thread_eq(i)%amat22seq(countsubexprs(amat22)))
@@ -138,7 +134,6 @@ module mod_equations
     do i=1,nbthreads
       call buildsequence(rhs1, thread_eq(i)%rhs1seq, thread_eq(i)%eq)
       call buildsequence(rhs3, thread_eq(i)%rhs3seq, thread_eq(i)%eq)
-      call buildsequence(rhs6, thread_eq(i)%rhs6seq, thread_eq(i)%eq)
 
       call buildsequence(amat11, thread_eq(i)%amat11seq, thread_eq(i)%eq)
       call buildsequence(amat13, thread_eq(i)%amat13seq, thread_eq(i)%eq)
@@ -166,8 +161,8 @@ module mod_equations
     type(algexpr), dimension(n_rhs), intent(out) :: rhs
     character(8),  dimension(n_rhs), intent(out) :: varnames
 
-    rhs = (/ rhs1, rhs3, rhs6 /)
-    varnames = (/ "rhs_ij_1", "rhs_ij_3", "rhs_ij_6" /)
+    rhs = (/ rhs1, rhs3 /)
+    varnames = (/ "rhs_ij_1", "rhs_ij_3" /)
   end subroutine get_rhs
 
   subroutine get_amat(amat,varnames)
