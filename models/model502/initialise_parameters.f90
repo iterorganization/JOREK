@@ -161,7 +161,7 @@ namelist /in1/  tstep, nstep, tstep_n, nstep_n,                     &
                 mode_families_modes, n_mode_families,               &
                 weights_per_family, autodistribute_ranks,           &
                 ranks_per_family, cte_current_FB_fact,              &
-                Z_xpoint_limit
+                Z_xpoint_limit, visco_par_heating
 
 if (my_id .eq. 0) then
   ! --- Preset input parameters to reasonable default values.

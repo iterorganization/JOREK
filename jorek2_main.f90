@@ -415,6 +415,12 @@ required = 0
     write(*,*) 'WARNING: tauIC in model401 has been modified to match model303. '
     write(*,*) '         tauIC should be = m_{ion} / ( e * F0 * sqrt_mu0_rho0 * (1. + T_i/T_e) )'
   endif
+  if (abs(visco_par-visco_par_heating)/(visco_par+visco_par_heating+1.d-12) > 1.d-6) then
+    write(*,*) 'WARNING: The viscosity visco_par and the viscosity used for viscous heating '
+    write(*,*) '  visco_par_heating are not the same. No problem if you know what you are doing,  ' 
+    write(*,*) '  but with this setup you are not conserving energy.   '
+  endif
+
   if (abs(eta-eta_ohmic)/(eta+eta_ohmic+1.d-12) > 1.d-6) then
     write(*,*) 'WARNING: The resistivity eta and the resistivity used for Ohmic heating '
     write(*,*) '  eta_ohm are not the same. No problem if you know what you are doing,  ' 
