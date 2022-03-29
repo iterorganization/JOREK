@@ -3105,7 +3105,8 @@ R_p =    + (r0 + rn0*alpha_imp_bis) * BigR**2 * ( T0_x * u0_y - T0_y * u0_x)    
          - (GAMMA - 1.) * E_ion_bg * (r0-rn0) * F0 / BigR * vpar0_p 
 
 ! 1/BigR removes the factor R from the integrand in (R dR)
-d_p = T0 * R_rho / BigR + R_p / BigR + alpha_imp * T0 * R_rhon / BigR
+!d_p = T0 * R_rho / BigR + R_p / BigR + alpha_imp * T0 * R_rhon / BigR
+d_p = R_p / BigR
 
 ! Shock-detector term based on the total pressure gradient
 f_p = dsqrt( Ptot_x*Ptot_x + Ptot_y*Ptot_y + Ptot_p*Ptot_p/ (BigR*BigR) ) / Ptot_corr * h_e
@@ -3125,7 +3126,8 @@ if(add_sources_in_sc)then
              - (r0_corr+beta_imp*rn0_corr) * rn0_corr * Lrad  &
              - (r0_corr+beta_imp*rn0_corr) * frad_bg 
 
-  s_p = T0 * src_rho + src_p + alpha_imp * T0 * src_rhon
+  !s_p = T0 * src_rho + src_p + alpha_imp * T0 * src_rhon
+  s_p = src_p
 endif
 
 tau_sc = h_e * h_e * (abs(s_p) + abs(d_p)) / Ptot_corr * f_p
