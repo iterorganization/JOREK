@@ -34,11 +34,11 @@ call MPI_BCAST(node_list%n_nodes,1,MPI_INTEGER,0,MPI_COMM_WORLD,ierr)
 call MPI_BCAST(node_list%n_dof,1,MPI_INTEGER,0,MPI_COMM_WORLD,ierr)
 
 #ifdef fullmhd
-bufsize = node_list%n_nodes * ((n_coord_tor*(n_order+1)*n_dim + 2*n_tor*(n_order+1)*n_var+2*(n_order+1)+2)*IDBL_EXT + (n_order+1 + 1+3+1)*INT_EXT + (2)*ILOG_EXT)
+bufsize = node_list%n_nodes * ((n_coord_tor*(n_order+1)*n_dim + 2*n_tor*(n_order+1)*n_var+2*(n_order+1)+2)*IDBL_EXT + (n_order+1 +1+3+1+1)*INT_EXT + (2)*ILOG_EXT)
 #elif altcs                          
-bufsize = node_list%n_nodes * ((n_coord_tor*(n_order+1)*n_dim + 2*n_tor*(n_order+1)*n_var+2*(n_order+1)+2)*IDBL_EXT + (n_order+1 + 1+3+1)*INT_EXT + (2)*ILOG_EXT)
+bufsize = node_list%n_nodes * ((n_coord_tor*(n_order+1)*n_dim + 2*n_tor*(n_order+1)*n_var+2*(n_order+1)+2)*IDBL_EXT + (n_order+1 +1+3+1+1)*INT_EXT + (2)*ILOG_EXT)
 #else                                
-bufsize = node_list%n_nodes * ((n_coord_tor*(n_order+1)*n_dim + 2*n_tor*(n_order+1)*n_var+2)*IDBL_EXT + (n_order+1 + 1+3+1)*INT_EXT + (2)*ILOG_EXT)
+bufsize = node_list%n_nodes * ((n_coord_tor*(n_order+1)*n_dim + 2*n_tor*(n_order+1)*n_var+2)*IDBL_EXT + (n_order+1 + 1+3+1+1)*INT_EXT + (2)*ILOG_EXT)
 #endif
 
 
@@ -63,6 +63,7 @@ if (my_id .eq. 0) then
     call MPI_PACK(anode%boundary       ,1        ,MPI_INTEGER,buffer,bufsize,position,MPI_COMM_WORLD,ierr)
     call MPI_PACK(anode%boundary_index ,1        ,MPI_INTEGER,buffer,bufsize,position,MPI_COMM_WORLD,ierr)
     call MPI_PACK(anode%axis_node      ,1        ,MPI_LOGICAL,buffer,bufsize,position,MPI_COMM_WORLD,ierr)
+    call MPI_PACK(anode%axis_dof       ,1        ,MPI_INTEGER,buffer,bufsize,position,MPI_COMM_WORLD,ierr)
     call MPI_PACK(anode%constrained    ,1        ,MPI_LOGICAL,buffer,bufsize,position,MPI_COMM_WORLD,ierr)
     call MPI_PACK(anode%parents(1:2)   ,2        ,MPI_INTEGER,buffer,bufsize,position,MPI_COMM_WORLD,ierr)
     call MPI_PACK(anode%parent_elem    ,1        ,MPI_INTEGER,buffer,bufsize,position,MPI_COMM_WORLD,ierr)
@@ -92,6 +93,7 @@ if (my_id .ne. 0) then
     call MPI_UNPACK(buffer,bufsize,position,anode%boundary       ,1        ,MPI_INTEGER,MPI_COMM_WORLD,ierr)
     call MPI_UNPACK(buffer,bufsize,position,anode%boundary_index ,1        ,MPI_INTEGER,MPI_COMM_WORLD,ierr)
     call MPI_UNPACK(buffer,bufsize,position,anode%axis_node      ,1        ,MPI_LOGICAL,MPI_COMM_WORLD,ierr)
+    call MPI_UNPACK(buffer,bufsize,position,anode%axis_dof       ,1        ,MPI_INTEGER,MPI_COMM_WORLD,ierr)
     call MPI_UNPACK(buffer,bufsize,position,anode%constrained    ,1        ,MPI_LOGICAL,MPI_COMM_WORLD,ierr)
     call MPI_UNPACK(buffer,bufsize,position,anode%parents(1:2)   ,2        ,MPI_INTEGER,MPI_COMM_WORLD,ierr)
     call MPI_UNPACK(buffer,bufsize,position,anode%parent_elem    ,1        ,MPI_INTEGER,MPI_COMM_WORLD,ierr)

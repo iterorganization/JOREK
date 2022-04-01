@@ -24,6 +24,7 @@ module data_structure
                                                   !< in grids/grid_utils/update_boundary_types.f90
     integer    :: boundary_index                  !< index of the boundary node 
     logical    :: axis_node                       !< Flag nodes that are on the axis (and can/need-to-be be stabilised)
+    integer    :: axis_dof                        !< which dof to enforce to zero
     integer    :: parents(2)                      !< Parent nodes (used if node is constrained)"refinement"
     integer    :: parent_elem                     !< which element do parent nodes belong to ? "refinement"
     real*8     :: ref_lambda, ref_mu              !< Local coordinates of node inside the parent element. "refinement"

@@ -7,7 +7,7 @@ use tr_module
 use mod_parameters
 use data_structure
 use mod_neighbours, only: update_neighbours
-use phys_module, only: psi_axis_init, XR_r, SIG_r, XR_tht, SIG_tht, fix_axis_nodes, force_central_node
+use phys_module, only: psi_axis_init, XR_r, SIG_r, XR_tht, SIG_tht, fix_axis_nodes, force_central_node, treat_axis, n_flux
 
 implicit none
 
@@ -299,9 +299,32 @@ do i=1,nr
    if (i .eq. nr) node_list%node(index)%boundary = 2
 
    node_list%node(index)%axis_node = .false.
-   if ( fix_axis_nodes .and. (.not. doing_polar_square) .and. (i .eq. 1) ) node_list%node(index)%axis_node = .true.
+   node_list%node(index)%axis_dof  = 0    
+   
+   if ( (.not. doing_polar_square) .and. (i .eq. 1) ) node_list%node(index)%axis_node = .true.
 
-   if (force_central_node .and. (.not. doing_polar_square) .and. (i.eq.1)) then
+   ! Share 4 degrees of freedom for all nodes on the grid axis and flag the axis nodes. 
+   if(treat_axis .and. (.not. doing_polar_square) .and. (n_flux .le. 1))then
+
+      if(i.eq.1)then
+        node_list%node(index)%index(1) = 1
+        node_list%node(index)%index(2) = 2
+        node_list%node(index)%index(3) = 3
+        node_list%node(index)%index(4) = 4
+        n_index_start = 4
+        node_list%node(index)%X(1,3,:) = 0.d0
+        node_list%node(index)%axis_node = .true.
+        node_list%node(index)%axis_dof  = 3
+
+      else
+        do k=1,n_order+1
+          node_list%node(index)%index(k) = n_index_start + k
+        enddo
+          n_index_start = n_index_start + n_order+1
+          node_list%node(index)%axis_node = .false.
+      endif
+
+   elseif (force_central_node .and. (.not. doing_polar_square) .and. (i.eq.1)) then
 
      node_list%node(index)%index(1) = 1
 
@@ -393,5 +416,6 @@ do k=n_element_start+1 , element_list%n_elements   ! fill in the size of the ele
 enddo
 
 if ( .not. skip_update_neighbours ) call update_neighbours(node_list,element_list, force_rtree_initialize=.true.)
+
 return
 end subroutine grid_polar_bezier

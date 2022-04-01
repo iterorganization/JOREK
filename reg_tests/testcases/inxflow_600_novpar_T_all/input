@@ -74,6 +74,7 @@
  visco_num = 1.d-11
  visco_par_num = 1.d-11
  eta_num = 3.d-10
+ treat_axis = .t.
 
  D_par     = 0.d0
  D_perp(1) = 1.d-5

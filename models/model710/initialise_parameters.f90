@@ -116,7 +116,7 @@ namelist /in1/  tstep, nstep, tstep_n, nstep_n,                     &
                 autodistribute_modes, modes_per_family,             &
                 mode_families_modes, n_mode_families,               &
                 weights_per_family, autodistribute_ranks,           &
-                ranks_per_family,                                   &
+                ranks_per_family, treat_axis, force_central_node,   &
                 n_particles, tstep_particles, nstep_particles,      & !Particles extension
                 nsubstep_particles, restart_particles,              &
                 filter_perp,    filter_hyper,    filter_par,        &

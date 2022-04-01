@@ -26,7 +26,7 @@ contains
     use mpi_mod
 
     ! --- Routine parameters
-    type (type_element),              intent(in)     :: element
+    type (type_element),              intent(inout)  :: element
     type (type_node),                 intent(inout)  :: nodes(n_vertex_max)
     logical,                          intent(in)     :: xpoint2
     integer,                          intent(in)     :: xcase2
@@ -179,8 +179,6 @@ contains
 #ifdef COMPARE_ELEMENT_MATRIX
     ! --- Comparison is performed only for one finite element
     if (ife .eq. n_local_elms/2) then
-
-      ! --- Call both routines
       if (     (jorek_model .eq. 303) &
           .or. (jorek_model .eq. 333) &
           .or. (jorek_model .eq. 500) &
@@ -283,6 +281,8 @@ subroutine construct_matrix(my_id, MPI_COMM_N, my_id_n, MPI_COMM_MASTER, my_id_m
   use mod_fix_axis_nodes, only : fix_nodes_on_axis
   use mod_locate_irn_jcn
   use mod_integer_types
+  use mod_axis_treatment
+  
   !$ use omp_lib
   implicit none
   
@@ -340,6 +340,8 @@ subroutine construct_matrix(my_id, MPI_COMM_N, my_id_n, MPI_COMM_MASTER, my_id_m
   integer                           :: random_element, n_var_reduced, v1, v2, im, index_ij_model400_e, index_kl_model400_e
   real*8                            :: tmp_rhs, tmp_elm, tmp_elm_v2_8
   CHARACTER(LEN=128)                :: fname
+  integer                           :: i_v(n_var)
+  integer, allocatable              :: i_harm(:)
 
   ! --- Timing call
   call r3_info_begin (r3_info_index_0, 'construct_matrix')
@@ -402,7 +404,7 @@ subroutine construct_matrix(my_id, MPI_COMM_N, my_id_n, MPI_COMM_MASTER, my_id_m
 
   call tr_allocate(rhs_local, Int1,ndof,"rhs_local", CAT_DMATRIX)
   rhs_local  = 0.d0
-  
+ 
   ! --- Declare shared and private variables for omp
   !$omp parallel default(none) &
   !$omp   shared(n_local_elms,local_elms,element_list,node_list, aux_node_list,                                &
@@ -415,7 +417,8 @@ subroutine construct_matrix(my_id, MPI_COMM_N, my_id_n, MPI_COMM_MASTER, my_id_m
   !$omp           l,index_kl,ilarge2,iv2,vertex,direction,inode2,omp_nthreads,omp_tid,                     &
   !$omp           i_father,element_father, nodes_father, inode_father, node_out, ivertex, iorder,          &
   !$omp           ivar, itor, jvertex, jorder, jvar, jtor, random_element, n_var_reduced, v1, v2, im,      &
-  !$omp           index_ij_model400_e, index_kl_model400_e,  tmp_rhs, tmp_elm, tmp_elm_v2_8        )
+  !$omp           index_ij_model400_e, index_kl_model400_e,  tmp_rhs, tmp_elm, tmp_elm_v2_8, treat_axis,   &
+  !$omp           i_v, i_harm                                                                              )
 
 ! --- omp id
 #ifdef _OPENMP
@@ -425,8 +428,18 @@ subroutine construct_matrix(my_id, MPI_COMM_N, my_id_n, MPI_COMM_MASTER, my_id_m
   omp_nthreads = 1
   omp_tid      = 1
 #endif
+ 
+  n_tor_local = i_tor_max - i_tor_min + 1
+  if(treat_axis) then
+     do i = 1, n_var
+       i_v(i) = i
+     enddo
+     if (.not. allocated(i_harm)) allocate(i_harm(n_tor_local))
+     do i = i_tor_min, i_tor_max
+       i_harm(i) = i
+     enddo
+  endif
   
-  n_tor_local = i_tor_max - i_tor_min + 1 
 ! --- Loop over local elements
   !$omp do schedule(runtime)
   do ife = 1, n_local_elms
@@ -451,16 +464,21 @@ subroutine construct_matrix(my_id, MPI_COMM_N, my_id_n, MPI_COMM_MASTER, my_id_m
     else
        
       do iv = 1, n_vertex_max
-        inode         = element%vertex(iv)
-        nodes(iv)     = node_list%node(inode)
-        aux_nodes(iv) = aux_node_list%node(inode)
+       inode   = element%vertex(iv)
+       nodes(iv) = node_list%node(inode)
+       aux_nodes(iv) = aux_node_list%node(inode)
       enddo
 
     endif
 
     call elementary_matrix_build(element, nodes, xpoint2, xcase2, R_axis, Z_axis, psi_axis,        &
       psi_bnd, R_xpoint, Z_xpoint, omp_tid, ife, n_local_elms, node_list, i_tor_min, i_tor_max, aux_nodes)
-    
+
+    ! Transform basis functions for the axis nodes. This will solve for new degrees of freedom at the axis.
+    if(treat_axis .and. (nodes(1)%axis_node .or. nodes(2)%axis_node .or. nodes(3)%axis_node .or. nodes(4)%axis_node) ) then
+      call transform_basis_for_axis_element(nodes, thread_struct(omp_tid)%ELM, thread_struct(omp_tid)%RHS, i_v, n_var, i_harm, n_tor_local)
+    endif
+
 #ifdef PRINT_ELM_RHS
     if (.not. harmonic_matrix) then
       ! --- Write out rhs and elm for one element to compare models.
@@ -659,9 +677,11 @@ subroutine construct_matrix(my_id, MPI_COMM_N, my_id_n, MPI_COMM_MASTER, my_id_m
     end if
 
   end do
+
   !$omp end do
+
   !$omp end parallel
-  
+ 
   ! --- Memory tracking
   call tr_vnorms("cm_A_bef_bc",A_mat,nz)
   
@@ -673,6 +693,9 @@ subroutine construct_matrix(my_id, MPI_COMM_N, my_id_n, MPI_COMM_MASTER, my_id_m
 
   if (fix_axis_nodes) then
     call fix_nodes_on_axis(node_list, element_list, local_elms, n_local_elms, index_min, index_max, & 
+                           ijA_index, ijA_size, irn_jcn, irn, jcn, A_mat, i_tor_min, i_tor_max )
+  elseif(treat_axis)then
+    call penalize_dof_on_axis(node_list, 4, element_list, local_elms, n_local_elms, index_min, index_max, &
                            ijA_index, ijA_size, irn_jcn, irn, jcn, A_mat, i_tor_min, i_tor_max )
   endif
 

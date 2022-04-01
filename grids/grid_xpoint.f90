@@ -10,7 +10,7 @@ use tr_module
 use data_structure
 use mod_neighbours, only: update_neighbours
 use mod_interp
-use phys_module, only: force_central_node, write_ps, fix_axis_nodes
+use phys_module, only: force_central_node, write_ps, fix_axis_nodes, treat_axis
 
 implicit none
 
@@ -1371,7 +1371,12 @@ index = 0
 do i=1,newnode_list%n_nodes
 
   newnode_list%node(i)%axis_node = .false.
-  if ( fix_axis_nodes .and. (i .lt. n_tht) ) newnode_list%node(i)%axis_node = .true.
+  newnode_list%node(i)%axis_dof  = 0
+
+  if (i .lt. n_tht) then
+    newnode_list%node(i)%axis_node = .true.
+    newnode_list%node(i)%axis_dof  = 2
+  endif
 
   do k=1,n_order+1
 
@@ -1382,6 +1387,11 @@ do i=1,newnode_list%n_nodes
       newnode_list%node(i)%index(k) = newnode_list%node(1)%index(1)
       index = index - 1
     endif
+    ! Share 4 degrees of freedom for all nodes on the grid axis.    
+    if ((treat_axis) .and. (i .gt. 1) .and. (i .lt. n_tht) .and. (k.le.n_order+1)) then
+      newnode_list%node(i)%index(k) = newnode_list%node(1)%index(k)
+      index = index - 1
+    endif    
     if ((i .eq. index_xpoint+1).and.(k.eq.1)) then
       newnode_list%node(i)%index(k) = newnode_list%node(index_xpoint)%index(k)
       index = index - 1
