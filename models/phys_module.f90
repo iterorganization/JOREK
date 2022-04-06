@@ -79,6 +79,7 @@ module phys_module
   logical :: equil                !< compute equilibrium
   logical :: no_mach1_bc          !< Never apply Mach-1 BCs
   logical :: Mach1_openBC         !< Full-MHD: Apply Mach-1 BCs inside mod_boundary_matrix_open.f90 (or mod_boundary_conditions.f90)
+  logical :: Mach1_fix_B          !< Full-MHD: With Mach-1 BCs, use initial Grad-Shafranov magnetic field
 
   ! --- RESISTIVITY SWITCHES FOR AR AND AZ EQUATIONS
   ! --- 1.

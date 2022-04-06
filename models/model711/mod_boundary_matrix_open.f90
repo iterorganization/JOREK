@@ -25,8 +25,8 @@ type (type_node)      :: nodes(4)        ! the two nodes containing the boundary
 integer, intent(in)   :: i_tor_min   
 integer, intent(in)   :: i_tor_max   
 
-real*8     :: ELM(n_vertex_max*n_var*n_degrees*n_tor,n_vertex_max*n_var*n_degrees*n_tor)
-real*8     :: RHS(n_vertex_max*n_var*n_degrees*n_tor)
+real*8     :: ELM(n_vertex_max*n_var*(n_order+1)*n_tor,n_vertex_max*n_var*(n_order+1)*n_tor)
+real*8     :: RHS(n_vertex_max*n_var*(n_order+1)*n_tor)
 
 integer    :: vertex(2), direction(2), xcase2
 real*8     :: psi_axis, R_axis, Z_axis, psi_bnd, R_xpoint(2), Z_xpoint(2)
@@ -89,19 +89,48 @@ integer    :: n_tor_local
 
 logical    :: parallel_projection
 
+type (type_node)         :: tmp_node
+
 ! --- Time integration parameters
 theta = time_evol_theta
 !zeta  = time_evol_zeta
 ! change zeta for variable dt
 zeta  = time_evol_zeta * 2.0d0 * tstep / (tstep + tstep_prev)
 
-! --- Needs adaptation for t-derivatives
-if (direction(2) == 3) return
+!--------------------- reorder the nodes to have the same direction as full element (maybe not necesary)
+if ((vertex(1) .eq. 3) .and. (vertex(2) .eq. 4)) then
+  tmP_node = nodes(1)
+  nodes(1)  = nodes(2)
+  nodes(2)  = tmp_node
+  vertex(1) = 4
+  vertex(2) = 3
+endif
+if ((vertex(1) .eq. 4) .and. (vertex(2) .eq. 1)) then
+  tmP_node = nodes(1)
+  nodes(1)  = nodes(2)
+  nodes(2)  = tmp_node
+  vertex(1) = 1
+  vertex(2) = 4
+endif
+if ((vertex(1) .eq. 3) .and. (vertex(2) .eq. 2)) then
+  tmP_node = nodes(1)
+  nodes(1)  = nodes(2)
+  nodes(2)  = tmp_node
+  vertex(1) = 2
+  vertex(2) = 3
+endif
+if ((vertex(1) .eq. 2) .and. (vertex(2) .eq. 1)) then
+  tmP_node = nodes(1)
+  nodes(1)  = nodes(2)
+  nodes(2)  = tmp_node
+  vertex(1) = 1
+  vertex(2) = 2
+endif
 
 ! --- Flag to switch Mach-1 between boundary_conditions and boundary_matrix_open
 Mach1 = 0.d0
 if (Mach1_openBC) Mach1 = 1.d0
-parallel_projection = .true. ! note this is not exactly the same as the projection of the momentum equation, so we keep the option here...
+parallel_projection = .false. ! note this is not exactly the same as the projection of the momentum equation, so we keep the option here...
 
 ! --- Penalisation cofficient to impose BCs
 zbig = 1.d11
@@ -113,6 +142,11 @@ eq_g    = 0.d0; eq_s    = 0.d0; eq_t    = 0.d0; eq_p = 0.d0;
 delta_g = 0.d0; delta_s = 0.d0; delta_t = 0.d0;
 Fprofile = 0.d0
 
+! --- Mach1 directions
+direction_perp(1) = 6 / direction(2)     ! =3 if direction(2)=2, =2 if
+direction(2)=3
+direction_perp(2) = 4
+
 ! --- Strategic points on elements to define normal vector properly
 R_mid = sum(nodes(1:2)%x(1,1,1)) / 2.d0     ! mid point on boundary (approx.)
 Z_mid = sum(nodes(1:2)%x(1,1,2)) / 2.d0
@@ -120,8 +154,6 @@ R_cnt = sum(nodes(1:4)%x(1,1,1)) / 4.d0     ! center point within element (appro
 Z_cnt = sum(nodes(1:4)%x(1,1,2)) / 4.d0
 
 normal_direction = (/R_mid - R_cnt, Z_mid - Z_cnt /) / norm2((/R_mid - R_cnt, Z_mid - Z_cnt /))
-direction_perp(1) = 6 / direction(2)     ! =3 if direction(2)=2, =3 if direction(2)=3
-direction_perp(2) = 4
 
 ! --- Loop over nodes
 do i=1,2
@@ -129,14 +161,13 @@ do i=1,2
   do j=1,2
 
     j2 = direction(j)
-    j3 = direction_perp(j)
-
     element_size_ij = element%size(vertex(i),j2)
-    !element_size_perp = - element%size(vertex(i),direction_perp(1)) * 3.d0
-    if(vertex(1) == 1)then ! NEEDS TO BE CONFIRMED FOR WALL-GRIDS AND t-derivaties !
-      element_size_perp = + element%size(vertex(i),j3) * 3.d0
-    elseif(vertex(1)==3)then
-      element_size_perp = - element%size(vertex(i),j3) * 3.d0
+
+    j3 = direction_perp(j)
+    element_size_perp = - element%size(vertex(i),direction_perp(1)) * 3.d0
+
+    if ((vertex(1)*vertex(2) .eq. 2)) then
+      element_size_perp = + element%size(vertex(i),direction_perp(1)) * 3.d0
     endif
 
     ! --- Gaussian integration
@@ -176,6 +207,10 @@ do i=1,2
     enddo
   enddo
 enddo
+
+! --- changes deltas for variable time steps
+delta_g = delta_g * tstep / tstep_prev
+delta_s = delta_s * tstep / tstep_prev
 
 n_tor_local = i_tor_max - i_tor_min + 1
 ! --- Gaussian integration
@@ -320,7 +355,7 @@ do ms=1, n_gauss
           Qbnd(var_Te) = - v * (gamma_sheath_e - 1.d0) * rho0 * Te0 * cs_direction * c_s * B_dot_n / sqrt(BB2)
 
           ! --- Fill in RHS
-          index_ij = n_tor_local*n_var*n_degrees*(vertex(i)-1) + n_tor_local * n_var * (j2-1) + im - i_tor_min +1  ! index in the ELM matrix
+          index_ij = n_tor_local*n_var*(n_order+1)*(vertex(i)-1) + n_tor_local * n_var * (j2-1) + im - i_tor_min +1  ! index in the ELM matrix
           do ivar= 1,n_var
             ij = index_ij + (ivar-1)*n_tor_local
             RHS(ij) =  RHS(ij) + Qbnd(ivar) * integrand * tstep
@@ -471,7 +506,7 @@ do ms=1, n_gauss
                 Qjac(var_Te, var_Ti)   = + v * (gamma_sheath - 1.d0) * rho0 * Te0 * cs_direction * cs_Ti * B_dot_n    / sqrt(BB2)
 
                 ! --- Fill-in Matrix
-                index_kl = n_tor_local*n_var*n_degrees*(vertex(k)-1) + n_tor_local * n_var * (l2-1) + in - i_tor_min +1! index in the ELM matrix 
+                index_kl = n_tor_local*n_var*(n_order+1)*(vertex(k)-1) + n_tor_local * n_var * (l2-1) + in - i_tor_min +1! index in the ELM matrix 
                 do ivar= 1,n_var
                   do kvar= 1,n_var
                     ij = index_ij + (ivar-1)*n_tor_local

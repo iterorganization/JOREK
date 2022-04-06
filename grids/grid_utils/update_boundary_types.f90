@@ -372,6 +372,7 @@ subroutine update_boundary_types_final(element_list,node_list)
   logical, parameter :: debug  = .false.
   real*8  :: xjac
   real*8  :: psi_s, psi_t, psi_x, psi_y
+  real*8  :: AR_p, AZ_p, A3_s, A3_t, A3_R, A3_Z
   real*8  :: R, R_s, R_t
   real*8  :: Z, Z_s, Z_t
   real*8  :: BR, BZ
@@ -413,6 +414,19 @@ subroutine update_boundary_types_final(element_list,node_list)
     Z_s       = node_list%node(i_node)%x(1,2,2)
     Z_t       = node_list%node(i_node)%x(1,3,2)
     xjac      =  R_s*Z_t - R_t*Z_s
+
+    ! --- Magnetic field
+#ifdef fullmhd
+    ! --- Obviously we assume d/dphi=0
+    AR_p = 0.d0
+    AZ_p = 0.d0
+    A3_s = node_list%node(i_node)%values(1,2,var_A3)
+    A3_t = node_list%node(i_node)%values(1,3,var_A3)
+    A3_R = (   Z_t * A3_s - Z_s * A3_t ) / xjac
+    A3_Z = ( - R_t * A3_s + R_s * A3_t ) / xjac
+    BR   = ( A3_Z - AZ_p )/ R
+    BZ   = ( AR_p - A3_R )/ R
+#else
     psi_s     = node_list%node(i_node)%values(1,2,1)
     psi_t     = node_list%node(i_node)%values(1,3,1)
     psi_x     = (   Z_t * psi_s - Z_s * psi_t ) / xjac
@@ -421,6 +435,7 @@ subroutine update_boundary_types_final(element_list,node_list)
     ! --- Poloidal field
     BR =  psi_y / R
     BZ = -psi_x / R
+#endif
     alpha_Bp = atan2(BZ,BR)
     if (alpha_Bp .lt. 0.d0) alpha_Bp = alpha_Bp + 2.d0*PI
            

@@ -603,6 +603,7 @@ subroutine preset_parameters
   no_mach1_bc        = .false.              ! Never apply Mach-1 BCs
 
   Mach1_openBC       = .true.               ! Full-MHD: Apply Mach-1 BCs inside mod_boundary_matrix_open.f90 (or mod_boundary_conditions.f90)
+  Mach1_fix_B        = .false.              ! Full-MHD: With Mach-1 BCs, use initial Grad-Shafranov magnetic field
 
   eta_ARAZ_const     = 0.d0                 !< Use uniform resistivity for AR and AZ equations, used only if eta_ARAZ_on=.false.
   eta_ARAZ_on        = .true.               !< Full-MHD: to switch on/off resistive   terms for AR and AZ equations

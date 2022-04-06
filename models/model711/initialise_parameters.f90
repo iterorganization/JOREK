@@ -24,6 +24,7 @@ namelist /in1/  tstep, nstep, tstep_n, nstep_n,                     &
                 restart, regrid, write_ps, time_evol_theta,         &
                 time_evol_zeta, force_horizontal_Xline,             &
                 Mach1_openBC, thermalization,                       &
+                Mach1_fix_B,                                        &
                 eta_ARAZ_const, eta_ARAZ_on, eta_ARAZ_simple,       & 
                 tauIC_ARAZ_on,                                      &
                 n_tor_fft_thresh, fix_axis_nodes,                   &
