@@ -93,7 +93,7 @@ do i = 1, element_list%n_elements
 
     inode = element_list%element(i)%vertex(iv)
 
-    do k=1, n_order+1
+    do k=1, n_degrees
 
       if ( (node_list%node(inode)%index(k) .ge. index_min(my_id+1)) .and. &
            (node_list%node(inode)%index(k) .le. index_max(my_id+1)) ) then
@@ -105,7 +105,7 @@ do i = 1, element_list%n_elements
     if(node_list%node(inode)%constrained) then
 	     do j = 1, 2
 		 index1 = node_list%node(inode)%parents(j)
-		  do k=1, n_order+1
+		  do k=1, n_degrees
 
                        if ( (node_list%node(index1)%index(k) .ge. index_min(my_id+1)) .and. &
                         (node_list%node(index1)%index(k) .le. index_max(my_id+1)) ) then
@@ -134,7 +134,7 @@ mpi_distr_count=0
 if (restart .and. freeboundary) then 
   do ib = 1, node_list%n_nodes	
     if ( node_list%node(ib)%boundary > 0 ) then
-      do ik=1, n_order+1
+      do ik=1, n_degrees
         l_index = node_list%node(ib)%index(ik)
           if ((l_index .ge. index_min(my_id+1)) .and. (l_index .le. index_max(my_id+1))) then ! This MPI proc responsible?
             mpi_distr_count=mpi_distr_count+1

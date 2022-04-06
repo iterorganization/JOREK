@@ -86,7 +86,7 @@ type, extends(io_action) :: projection
 
   !> Right-hand side
   type(proj_f), dimension(:),   allocatable :: f   !< List of projection transformations to use (n_proj)
-  real*8, dimension(:,:,:,:,:), allocatable :: rhs !< dim (n_order+1,n_vertex_max,n_elements,n_tor,n_proj2)
+  real*8, dimension(:,:,:,:,:), allocatable :: rhs !< dim (n_degrees,n_vertex_max,n_elements,n_tor,n_proj2)
   !< right-hand side for accumulation during sampling
   !< assumed to be filled by the user. Will be MPI_Reduced (+) before projecting
   !< n_proj + n_proj2 should be less than n_var (extra input will be ignored)
@@ -105,7 +105,7 @@ type, extends(io_action) :: projection
 
   real*8 :: area, volume
 
-  real*8, dimension(:,:,:,:,:), allocatable :: rhs_f !< dim (n_order+1,n_vertex_max,n_elements,n_tor,n_proj) storage
+  real*8, dimension(:,:,:,:,:), allocatable :: rhs_f !< dim (n_degrees,n_vertex_max,n_elements,n_tor,n_proj) storage
   !< location for proj_f output
 
   integer :: mpi_comm_world    ! mpi communicator of the whole world
@@ -578,7 +578,7 @@ subroutine project_only(this, sim)
 
         inode = this%element_list%element(i_elm)%vertex(i)
 
-        do j=1,n_order+1
+        do j=1,n_degrees
 
           index_large_i = 2 * (this%node_list%node(inode)%index(j)-1) + 1 + i_start ! base index in the main matrix + rhs index
 
@@ -615,7 +615,7 @@ subroutine project_only(this, sim)
       
         inode = this%element_list%element(i_elm)%vertex(i)
           
-        do j=1,n_order+1
+        do j=1,n_degrees
 
           index_large_i = 2*(this%node_list%node(inode)%index(j)-1) + 1 + i_start ! base index in the main matrix + rhs index
 
@@ -712,7 +712,7 @@ subroutine project_only(this, sim)
       
       do i=1,this%node_list%n_nodes
 
-        do k=1,n_order+1
+        do k=1,n_degrees
       
           index = this%node_list%node(i)%index(k)
 
@@ -819,7 +819,7 @@ subroutine sample_rhs(this, sim)
       return
     end if
 
-    allocate(this%rhs_f(n_vertex_max,n_order+1,this%element_list%n_elements,n_tor,n_sample))
+    allocate(this%rhs_f(n_vertex_max,n_degrees,this%element_list%n_elements,n_tor,n_sample))
   
   end if
   
@@ -830,7 +830,7 @@ subroutine sample_rhs(this, sim)
   ! variable instead of all-at-once, helping with the stack size requirements
   ! there is however some thread-creation overhead
 
-  allocate(my_rhs(n_vertex_max,n_order+1,this%element_list%n_elements,n_tor,1))
+  allocate(my_rhs(n_vertex_max,n_degrees,this%element_list%n_elements,n_tor,1))
 
   do i_f=1,n_sample
 
@@ -863,7 +863,7 @@ subroutine sample_rhs(this, sim)
       call mode_moivre(x(3), HP)
             
       do i=1,n_vertex_max
-        do j=1,n_order+1
+        do j=1,n_degrees
        
           v = HH(i,j) * this%element_list%element(sim%groups(i_group)%particles(m)%i_elm)%size(i,j)
 
@@ -1067,7 +1067,7 @@ call MPI_COMM_RANK(mumps_par%COMM,       my_id_n, ierr)
 call MPI_COMM_SIZE(this_mpi_comm_world,  this_n_cpu, ierr)
 call MPI_COMM_SIZE(mumps_par%COMM,       this_n_cpu_mumps, ierr)
 
-nz_AA = 4 * element_list%n_elements * (n_vertex_max * (n_order+1))**2
+nz_AA = 4 * element_list%n_elements * (n_vertex_max * n_degrees)**2
 n_AA  = 2 * maxval(node_list%node(1:node_list%n_nodes)%index(4))
 
 apply_dirichlet_condition = .true.
@@ -1087,7 +1087,7 @@ endif
 ! Only perform the construction of the matrix on the host
 if (my_id_n .eq. 0) then
 
-  allocate(ELM(2*n_vertex_max*(n_order+1),2*n_vertex_max*(n_order+1)))
+  allocate(ELM(2*n_vertex_max*n_degrees,2*n_vertex_max*n_degrees))
 
 ! Allocate space for elements
 
@@ -1144,7 +1144,7 @@ do i_elm=1,element_list%n_elements
   psi_g = 0.d0; psi_s = 0.d0; psi_t = 0.d0; psi_ss = 0.d0; psi_st = 0.d0; psi_tt = 0.d0
   
   do i=1,n_vertex_max
-    do j=1,n_order+1
+    do j=1,n_degrees
       do ms=1, n_gauss
         do mt=1, n_gauss
           x_g(ms,mt)  = x_g(ms,mt)  + nodes(i)%x(1,j,1) * element%size(i,j) * H(i,j,ms,mt)
@@ -1237,13 +1237,13 @@ do i_elm=1,element_list%n_elements
       do mp = 1, n_plane
 
         do i=1,n_vertex_max
-          do j=1,n_order+1
+          do j=1,n_degrees
 
             do im = 1, n_tor_local
 
               im_index = i_tor_local + im - 1   ! i_tor_local is the starting index in HZ
 
-              index_ij = 2*(n_order+1)*(i-1) + 2 * (j-1) + im   ! index in the ELM matrix
+              index_ij = 2*n_degrees*(i-1) + 2 * (j-1) + im   ! index in the ELM matrix
 
               v    = H(i,j,ms,mt)    * element%size(i,j) * HZ(im_index,mp)
               v_s  = H_s(i,j,ms,mt)  * element%size(i,j) * HZ(im_index,mp)
@@ -1283,13 +1283,13 @@ do i_elm=1,element_list%n_elements
               endif
 
               do k=1,n_vertex_max
-                do l=1,n_order+1
+                do l=1,n_degrees
 
                   do in = 1, n_tor_local
 
                     in_index = i_tor_local + in - 1
 
-                    index_kl = 2*(n_order+1)*(k-1) + 2 * (l-1) + in   ! index in the ELM matrix
+                    index_kl = 2*n_degrees*(k-1) + 2 * (l-1) + in   ! index in the ELM matrix
 
                     p   = h(k,l,ms,mt)     * element%size(k,l) * HZ(in_index,mp)
                     p_s = h_s(k,l,ms,mt)   * element%size(k,l) * HZ(in_index,mp)
@@ -1342,11 +1342,11 @@ do i_elm=1,element_list%n_elements
 
     inode = element_list%element(i_elm)%vertex(i)
   
-    do j=1,n_order+1
+    do j=1,n_degrees
 
       do im =1, n_tor_local
     
-        index_ij = 2*(n_order+1)*(i-1) + 2 * (j-1) + im   ! index in the ELM matrix
+        index_ij = 2*n_degrees*(i-1) + 2 * (j-1) + im   ! index in the ELM matrix
 
         index_large_i = 2*(node_list%node(inode)%index(j)-1) + im   ! base index in the main matrix
 
@@ -1354,25 +1354,26 @@ do i_elm=1,element_list%n_elements
       
           knode = element_list%element(i_elm)%vertex(k)
         
-          do l=1,n_order+1
+          do l=1,n_degrees
 
             do in =1, n_tor_local
         
-              index_kl = 2*(n_order+1)*(k-1) + 2 * (l-1) + in   ! index in the ELM matrix
+              index_kl = 2*n_degrees*(k-1) + 2 * (l-1) + in   ! index in the ELM matrix
 
               index_large_k = 2*(node_list%node(knode)%index(l)-1) + in   ! base index in the main matrix
 
              ! Explicitly calculate the index
 
-              ilarge = in + (l-1) * 2 + (k-1)*2*(n_order+1) &
+              ilarge = in + (l-1) * 2 + (k-1)*2*n_degrees &
                       
-                     + (im-1) * 2    * n_vertex_max*(n_order+1)       &
+                     + (im-1) * 2    * n_vertex_max*n_degrees       &
                      
-                     + (j-1)  * 4 * n_vertex_max*(n_order+1)       &
+                     + (j-1)  * 4 * n_vertex_max*n_degrees       &
                      
-                     + (i-1)  * 4 * n_vertex_max*(n_order+1)**2    &
+                     + (i-1)  * 4 * n_vertex_max*n_degrees**2    &
                      
-                     + (i_elm-1)*(4 * (n_vertex_max*(n_order+1))**2 )
+                     + (i_elm-1)*(4 * (n_vertex_max*n_degrees)**2 )
+
 !$omp critical
               mumps_par%irn(ilarge) = index_large_i
               mumps_par%jcn(ilarge) = index_large_k
@@ -1510,7 +1511,7 @@ integer    :: ms, mt, mp, my_id, my_id_n, my_id_master, ierr, MPI_COMM_MUMPS
 integer    :: this_n_cpu, this_n_cpu_mumps
 logical    :: halt(size(IEEE_USUAL,1)), do_facto
 logical    :: apply_dirichlet_condition, apply_zonal
-real*8, dimension(n_vertex_max,n_order+1) :: basisfunction_volume
+real*8, dimension(n_vertex_max,n_degrees) :: basisfunction_volume
 
 call cpu_time(t0)
 
@@ -1534,7 +1535,7 @@ apply_dirichlet_condition = .true.
 if (apply_zonal)  apply_dirichlet_condition = .true.
 
 
-nz_AA = 4 * element_list%n_elements * (n_vertex_max * (n_order+1))**2
+nz_AA = 4 * element_list%n_elements * (n_vertex_max * n_degrees)**2
 n_AA =  2 * maxval(node_list%node(1:node_list%n_nodes)%index(4))
 
 nz_bnd = 0
@@ -1552,7 +1553,7 @@ endif
 ! Only perform the construction of the matrix on the host
 if (my_id_n .eq. 0) then
 
-  allocate(ELM(2*n_vertex_max*(n_order+1),2*n_vertex_max*(n_order+1)))
+  allocate(ELM(2*n_vertex_max*n_degrees,2*n_vertex_max*n_degrees))
   allocate(mumps_par%A(nz_AA+nz_bnd),mumps_par%irn(nz_AA+nz_bnd),mumps_par%jcn(nz_AA+nz_bnd))
   
   mumps_par%irn = 0
@@ -1616,7 +1617,7 @@ do i_elm=1,element_list%n_elements
   psi_g = 0.d0; psi_s = 0.d0; psi_t = 0.d0; psi_ss = 0.d0; psi_st = 0.d0; psi_tt = 0.d0
 
   do i=1,n_vertex_max
-    do j=1,n_order+1
+    do j=1,n_degrees
       do ms=1, n_gauss
         do mt=1, n_gauss
           x_g(ms,mt)  = x_g(ms,mt)  + nodes(i)%x(1,j,1) * element%size(i,j) * H(i,j,ms,mt)
@@ -1674,9 +1675,9 @@ do i_elm=1,element_list%n_elements
       volume = volume + TWOPI * x_g(ms,mt) * xjac * wst
 
       do i=1,n_vertex_max
-        do j=1,n_order+1
+        do j=1,n_degrees
 
-          index_ij = 2*(n_order+1)*(i-1) + 2*(j-1) + 1   ! index in the ELM matrix
+          index_ij = 2*n_degrees*(i-1) + 2*(j-1) + 1   ! index in the ELM matrix
 
           v    = H(i,j,ms,mt)    * element%size(i,j) 
           v_s  = H_s(i,j,ms,mt)  * element%size(i,j)
@@ -1706,9 +1707,9 @@ do i_elm=1,element_list%n_elements
           basisfunction_volume(i,j) = basisfunction_volume(i,j) +  v * TWOPI * x_g(ms,mt) * xjac * wst
 
           do k=1,n_vertex_max
-            do l=1,n_order+1
+            do l=1,n_degrees
 
-              index_kl = 2*(n_order+1)*(k-1) + 2*(l-1) + 1   ! index in the ELM matrix
+              index_kl = 2*n_degrees*(k-1) + 2*(l-1) + 1   ! index in the ELM matrix
 
               p   = h(k,l,ms,mt)     * element%size(k,l) 
               p_s = h_s(k,l,ms,mt)   * element%size(k,l)
@@ -1781,7 +1782,7 @@ do i_elm=1,element_list%n_elements
 
     inode = element_list%element(i_elm)%vertex(i)
   
-    do j=1,n_order+1
+    do j=1,n_degrees
 
       index_rhs = 2*(node_list%node(inode)%index(j)-1) + 1   ! base index in the main matrix
 
@@ -1789,7 +1790,7 @@ do i_elm=1,element_list%n_elements
 
       do im =1, 2
     
-        index_ij = 2*(n_order+1)*(i-1) + 2 * (j-1) + im   ! index in the ELM matrix
+        index_ij = 2*n_degrees*(i-1) + 2 * (j-1) + im   ! index in the ELM matrix
 
         index_large_i = 2*(node_list%node(inode)%index(j)-1) + im   ! base index in the main matrix
 
@@ -1797,25 +1798,25 @@ do i_elm=1,element_list%n_elements
       
           knode = element_list%element(i_elm)%vertex(k)
         
-          do l=1,n_order+1
+          do l=1,n_degrees
 
             do in =1, 2
         
-              index_kl = 2*(n_order+1)*(k-1) + 2 * (l-1) + in   ! index in the ELM matrix
+              index_kl = 2*n_degrees*(k-1) + 2 * (l-1) + in   ! index in the ELM matrix
 
               index_large_k = 2*(node_list%node(knode)%index(l)-1) + in   ! base index in the main matrix
 
              ! Explicitly calculate the index
 
-              ilarge = in + 2*(l-1) + 2*(k-1)*(n_order+1) &
+              ilarge = in + 2*(l-1) + 2*(k-1)*n_degrees &
                       
-                     + 2*(im-1)* n_vertex_max*(n_order+1)       &
+                     + 2*(im-1)* n_vertex_max*n_degrees       &
                      
-                     + 4*(j-1) * n_vertex_max*(n_order+1)       &
+                     + 4*(j-1) * n_vertex_max*n_degrees       &
                      
-                     + 4*(i-1) * n_vertex_max*(n_order+1)**2    &
+                     + 4*(i-1) * n_vertex_max*n_degrees**2    &
                      
-                     + 4*(i_elm-1)*((n_vertex_max*(n_order+1))**2 )
+                     + 4*(i_elm-1)*((n_vertex_max*n_degrees)**2 )
 
               mumps_par%irn(ilarge) = index_large_i
               mumps_par%jcn(ilarge) = index_large_k
@@ -1940,22 +1941,22 @@ integer(HID_T)     :: file_id
 integer            :: ierr
 
 ! type_node, node_list%n_nodes
-real(RKIND), allocatable :: t_x(:,:,:,:)                   ! n_coord_tor, n_order+1, n_dim
-real(RKIND), allocatable :: t_values(:,:,:,:)              !       n_tor, n_order+1, n_fields
+real(RKIND), allocatable :: t_x(:,:,:,:)                   ! n_coord_tor, n_degrees, n_dim
+real(RKIND), allocatable :: t_values(:,:,:,:)              !       n_tor, n_degrees, n_fields
 
 ! element, element_list%n_elements
 integer,     allocatable :: t_vertex(:,:)                ! n_vertex_max
 integer,     allocatable :: t_neighbours(:,:)            ! n_vertex_max
-real(RKIND), allocatable :: t_size(:,:,:)                ! n_vertex_max,n_order+1
+real(RKIND), allocatable :: t_size(:,:,:)                ! n_vertex_max,n_degrees
 
 ! type_node, node_list%n_nodes
-call tr_allocate(t_x,     1,node_list%n_nodes,1,n_coord_tor,1,n_order+1,1,n_dim,   "node_list%x",     CAT_UNKNOWN)
-call tr_allocate(t_values,1,node_list%n_nodes,1,n_tor,      1,n_order+1,1,n_fields,"node_list%values",CAT_UNKNOWN)
+call tr_allocate(t_x,     1,node_list%n_nodes,1,n_coord_tor,1,n_degrees,1,n_dim,   "node_list%x",     CAT_UNKNOWN)
+call tr_allocate(t_values,1,node_list%n_nodes,1,n_tor,      1,n_degrees,1,n_fields,"node_list%values",CAT_UNKNOWN)
 
 ! element_list%n_elements
 call tr_allocate(t_vertex,    1,element_list%n_elements,1,n_vertex_max,"vertex",CAT_UNKNOWN)
 call tr_allocate(t_neighbours,1,element_list%n_elements,1,n_vertex_max,"neighbours",CAT_UNKNOWN)
-call tr_allocate(t_size,      1,element_list%n_elements,1,n_vertex_max,1,n_order+1,"size",CAT_UNKNOWN)
+call tr_allocate(t_size,      1,element_list%n_elements,1,n_vertex_max,1,n_degrees,"size",CAT_UNKNOWN)
 
 do i=1,node_list%n_nodes
    t_x(i,:,:,:)      = node_list%node(i)%x
@@ -1997,16 +1998,16 @@ call HDF5_integer_saving(file_id,element_list%n_elements,'n_elements'//char(0))
 call HDF5_integer_saving(file_id,node_list%n_dof,'n_dof'//char(0))
 
 call HDF5_array4D_saving(file_id,t_x, &
-     node_list%n_nodes,n_coord_tor,n_order+1,n_dim,'x'//char(0))
+     node_list%n_nodes,n_coord_tor,n_degrees,n_dim,'x'//char(0))
 call HDF5_array4D_saving(file_id,t_values, &
-     node_list%n_nodes,n_tor,n_order+1,n_fields,'values'//char(0))
+     node_list%n_nodes,n_tor,n_degrees,n_fields,'values'//char(0))
 
 call HDF5_array2D_saving_int(file_id,t_vertex, &
      element_list%n_elements,n_vertex_max,'vertex'//char(0))
 call HDF5_array2D_saving_int(file_id,t_neighbours, &
      element_list%n_elements,n_vertex_max,'neighbours'//char(0))
 call HDF5_array3D_saving(file_id,t_size, &
-     element_list%n_elements,n_vertex_max,n_order+1,'size'//char(0))
+     element_list%n_elements,n_vertex_max,n_degrees,'size'//char(0))
 call HDF5_real_saving(file_id,time,'t_now'//char(0))
 
 ! -> close file

@@ -46,6 +46,8 @@ do i = 1, n_nodes_max
   newnode_list%node(i)%deltas      = 0.d0
   newnode_list%node(i)%index       = 0
   newnode_list%node(i)%boundary    = 0
+  newnode_list%node(i)%axis_node   = .false.
+  newnode_list%node(i)%axis_dof    = 0
   newnode_list%node(i)%parents     = 0
   newnode_list%node(i)%parent_elem = 0
   newnode_list%node(i)%ref_lambda  = 0.d0
@@ -98,10 +100,13 @@ endif
 
 ! --- Copy 1st patch into new grid
 do i=1,node_list1%n_nodes
-  newnode_list%node(i)%x        = node_list1%node(i)%x          
-  newnode_list%node(i)%values   = node_list1%node(i)%values     
-  newnode_list%node(i)%deltas   = node_list1%node(i)%deltas     
-  newnode_list%node(i)%boundary = node_list1%node(i)%boundary   
+  newnode_list%node(i)%x         = node_list1%node(i)%x          
+  newnode_list%node(i)%values    = node_list1%node(i)%values     
+  newnode_list%node(i)%deltas    = node_list1%node(i)%deltas     
+  newnode_list%node(i)%boundary  = node_list1%node(i)%boundary   
+  newnode_list%node(i)%index     = node_list1%node(i)%index
+  newnode_list%node(i)%axis_node = node_list1%node(i)%axis_node
+  newnode_list%node(i)%axis_dof  = node_list1%node(i)%axis_dof
 enddo
 newnode_list%n_nodes = node_list1%n_nodes
 do i=1,element_list1%n_elements
@@ -134,10 +139,13 @@ do i=n_start,node_list2%n_nodes
   if (avoid_this_one) cycle
   newnode_list%n_nodes = newnode_list%n_nodes + 1
   new_index(i) = newnode_list%n_nodes
-  newnode_list%node(newnode_list%n_nodes)%x        = node_list2%node(i)%x          
-  newnode_list%node(newnode_list%n_nodes)%values   = node_list2%node(i)%values     
-  newnode_list%node(newnode_list%n_nodes)%deltas   = node_list2%node(i)%deltas     
-  newnode_list%node(newnode_list%n_nodes)%boundary = node_list2%node(i)%boundary   
+  newnode_list%node(newnode_list%n_nodes)%x         = node_list2%node(i)%x          
+  newnode_list%node(newnode_list%n_nodes)%values    = node_list2%node(i)%values     
+  newnode_list%node(newnode_list%n_nodes)%deltas    = node_list2%node(i)%deltas     
+  newnode_list%node(newnode_list%n_nodes)%boundary  = node_list2%node(i)%boundary   
+  newnode_list%node(newnode_list%n_nodes)%index     = node_list2%node(i)%index
+  newnode_list%node(newnode_list%n_nodes)%axis_node = node_list2%node(i)%axis_node
+  newnode_list%node(newnode_list%n_nodes)%axis_dof  = node_list2%node(i)%axis_dof
 enddo
 ! --- Then the elements
 do i=1,element_list2%n_elements

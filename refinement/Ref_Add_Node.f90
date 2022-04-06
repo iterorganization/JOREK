@@ -19,7 +19,7 @@ subroutine Ref_Add_Node(node_list, element_list,lambda, mu, iref,iside, i12, ine
  type (type_node_list)    :: node_list
  type (type_element_list) :: element_list 
 
- real*8, dimension(n_vertex_max,n_order+1)	:: H, H_s, H_t, H_st
+ real*8, dimension(n_vertex_max,n_degrees)	:: H, H_s, H_t, H_st
  real*8, dimension(2)				:: P, dP_ds, dP_dt, d2P_dsdt, u, v, w 
  real*8						:: Somme_X, Somme_Y, dX_ds, dY_ds, dX_dt, dY_dt, &
                  				   d2X_dsdt, d2Y_dsdt
@@ -65,7 +65,7 @@ subroutine Ref_Add_Node(node_list, element_list,lambda, mu, iref,iside, i12, ine
        
        do k = 1, n_vertex_max	     
 
-            do l = 1, n_order+1
+            do l = 1, n_degrees
 	    
 	         Somme_X = Somme_X + node_list%node(pr(k))%x(1,l,1) * H(k,l)	 &
 		     * element_list%element(iref)%size(k,l)
@@ -172,7 +172,7 @@ subroutine Ref_Add_Node(node_list, element_list,lambda, mu, iref,iside, i12, ine
             
             do k = 1, n_vertex_max	     
 
-               do l = 1, n_order+1      
+               do l = 1, n_degrees      
                  
 
                  Psi(i_tor) = Psi(i_tor) + node_list%node(pr(k))%values(i_tor,l,i_var)* H(k,l) &

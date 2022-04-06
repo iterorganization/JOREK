@@ -52,8 +52,8 @@ endif
 n_tries = 500          ! --- number of attempts to find the axis 
 found_axis = .false.
 
-allocate(grad_psi(element_list%n_elements,4,4))            ! --- vector storing |grad_psi| at gaussian poitns
-allocate(include_pt(element_list%n_elements,4,4))          ! --- vector storing if point should be considered or not
+allocate(grad_psi(element_list%n_elements,n_gauss,n_gauss))            ! --- vector storing |grad_psi| at gaussian poitns
+allocate(include_pt(element_list%n_elements,n_gauss,n_gauss))          ! --- vector storing if point should be considered or not
 grad_psi    = 0.d0
 include_pt  = .false.
 
@@ -86,8 +86,8 @@ endif
 ! save |grad_psi| at gaussian points of all elements
 do i=1,element_list%n_elements   ! --- loop over elements
 
-  do ms = 1, 4           ! 4 Gaussian points
-    do mt = 1, 4         ! 4 Gaussian points
+  do ms = 1, n_gauss           ! 4 Gaussian points
+    do mt = 1, n_gauss         ! 4 Gaussian points
 
       ps_s = 0.d0
       ps_t = 0.d0
@@ -98,8 +98,8 @@ do i=1,element_list%n_elements   ! --- loop over elements
       R    = 0.d0
       Z    = 0.d0
 
-      do kf = 1, 4       ! 4 basis functions
-        do kv = 1, 4     ! 4 vertices
+      do kf = 1, n_degrees ! 4 basis functions
+        do kv = 1, 4       ! 4 vertices
 
           iv = element_list%element(i)%vertex(kv)
 

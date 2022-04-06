@@ -29,7 +29,7 @@ type(type_node_list),    intent(inout) :: node_list      !< list of grid nodes
 type(type_element_list), intent(inout) :: element_list   !< list of finite elements
 
 ! --- Local variables
-real*8  :: radius, x_tmp(n_coord_tor, n_order+1,n_dim), index_tmp(n_order+1)
+real*8  :: radius, x_tmp(n_coord_tor, n_degrees,n_dim), index_tmp(n_degrees)
 real*8  :: Rgeo, Zgeo, u_length, angle_start
 integer :: n_pol, i, k, n_node_start, n_element_start, n_element_polar, n_polar, n_glue, n_sqr
 integer :: i_glue, i_polar, n_index_start
@@ -366,7 +366,7 @@ enddo
 
 do i=(nR-1)*(nZ-1)+1,(nR-1)*(nZ-1) + 2*(nR-1)+2*(nZ-1)
 
-  do k=1,(n_order+1)
+  do k=1,n_degrees
     element_list%element(i)%size(k,1) = 1.
     element_list%element(i)%size(k,4) = element_list%element(i)%size(k,2) * element_list%element(i)%size(k,3)
   enddo

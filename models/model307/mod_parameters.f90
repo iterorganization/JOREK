@@ -36,7 +36,7 @@ module mod_parameters
   integer, parameter :: n_elements_max = 60001     !< maximum number of elements
   integer, parameter :: n_boundary_max = 1001      !< maximum number of boundary elements
   integer, parameter :: n_pieces_max   = 6001      !< maximum number of line pieces describing a flux surface
-  integer, parameter :: n_degrees      = n_order+1 !< degrees of freedom per variable per node
+  integer, parameter :: n_degrees      = (n_order+1)**2/4 !< degrees of freedom per variable per node
   integer, parameter :: nref_max       = 10000     !< (refinement)
   integer, parameter :: n_ref_list     = 10000     !< (refinement)
  

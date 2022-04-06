@@ -779,6 +779,10 @@ subroutine preset_parameters
 
   thermalization = .false.
 
+!===================== Polar axis treatment flag========
+
+  treat_axis = .false.
+  
 !===================== not used?
   Q_bar = 0.d0
   Sigma = 0.d0

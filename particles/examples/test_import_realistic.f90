@@ -86,7 +86,7 @@ program test_import_realistic
                                          filter    = filter_perp, filter_hyper    = filter_hyper, filter_parallel    = filter_par, &
                                          filter_n0 = filter_perp, filter_hyper_n0 = filter_hyper, filter_parallel_n0 = filter_par_n0, &
                                          calc_integrals=.false., to_vtk=.true., to_h5 = .false., basename='projections')
-  allocate(jorek_feedback%rhs(n_order+1, n_vertex_max, sim%fields%element_list%n_elements, n_tor, 1))
+  allocate(jorek_feedback%rhs(n_degrees, n_vertex_max, sim%fields%element_list%n_elements, n_tor, 1))
 
   jorek_feedback%rhs = 0.d0
   allocate(feedback_rhs,source=jorek_feedback%rhs)                                         
@@ -126,9 +126,9 @@ program test_import_realistic
           call mode_moivre(particle_tmp%x(3), HZ)
 
           do l=1,n_vertex_max
-            do m=1,n_order+1
+            do m=1,n_degrees
 
-              index_lm = (l-1)*(n_order+1) + m
+              index_lm = (l-1)*n_degrees + m
 
               v = HH(l,m) * sim%fields%element_list%element(i_elm)%size(l,m)
 

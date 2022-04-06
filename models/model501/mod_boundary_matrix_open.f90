@@ -214,7 +214,7 @@ do ms=1, n_gauss
 
          do im=i_tor_min, i_tor_max
 
-           index_ij = n_tor_local*n_var*(n_order+1)*(vertex(i)-1) + n_tor_local * n_var * (j-1) + im - i_tor_min + 1  ! index in the ELM matrix
+           index_ij = n_tor_local*n_var*n_degrees*(vertex(i)-1) + n_tor_local * n_var * (j-1) + im - i_tor_min + 1  ! index in the ELM matrix
 
            v   =  H1(i,j,ms) * element_size_ij * HZ(im,mp)         ! test function
 
@@ -262,7 +262,7 @@ do ms=1, n_gauss
                            + v * (GAMMA - 1.d0) * vpar * visco_par_heating * gradvpar0dotn * BigR  * dl * theta * tstep &
                            + v * (GAMMA - 1.d0) * vpar0 * visco_par_heating * gradvpardotn * BigR  * dl * theta * tstep
 
-                 index_kl = n_tor_local*n_var*(n_order+1)*(vertex(k)-1) + n_tor_local * n_var * (l-1) + in - i_tor_min + 1  ! index in the ELM matrix                
+                 index_kl = n_tor_local*n_var*n_degrees*(vertex(k)-1) + n_tor_local * n_var * (l-1) + in - i_tor_min + 1  ! index in the ELM matrix                
 
                  kl1 = index_kl
                  kl5 = index_kl + 4*n_tor_local

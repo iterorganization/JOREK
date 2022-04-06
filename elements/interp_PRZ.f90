@@ -4,6 +4,7 @@ subroutine interp_PRZ(node_list, element_list, i_elm, i_v, n_v, s, t, phi, P, P_
 use data_structure
 use phys_module, only : mode
 use mod_basisfunctions
+use mod_parameters, only: n_degrees
 implicit none
 
 ! --- Routine parameters
@@ -17,7 +18,7 @@ real*8,                   intent(out) :: R, R_s, R_t, Z, Z_s, Z_t
 real*8,                   intent(out) :: P_phi(n_v)
 
 ! --- Local variables
-real*8  :: H(4,4), H_s(4,4), H_t(4,4), xx1, xx2, ss
+real*8  :: H(4,n_degrees), H_s(4,n_degrees), H_t(4,n_degrees), xx1, xx2, ss
 integer :: kv, iv, kf, m, i, i_harm, i_tor
 
 call basisfunctions3(s,t,H,H_s,H_t)
@@ -31,7 +32,7 @@ do kv = 1,n_vertex_max  ! 4 vertices
 
   iv = element_list%element(i_elm)%vertex(kv)  ! the node number
 
-  do kf = 1, n_order+1       ! 4 basis functions
+  do kf = 1, n_degrees       ! 4 basis functions
 
     xx1 = node_list%node(iv)%x(1,kf,1)
     xx2 = node_list%node(iv)%x(1,kf,2)

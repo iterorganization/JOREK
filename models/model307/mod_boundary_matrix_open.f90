@@ -32,8 +32,8 @@ real*8     :: eq_g(n_plane,n_var,n_gauss), eq_s(n_plane,n_var,n_gauss), eq_p(n_p
 real*8     :: eq_t(n_plane,n_var,n_gauss), eq_ss(n_plane,n_var,n_gauss)
 real*8     :: delta_g(n_plane,n_var,n_gauss), delta_s(n_plane,n_var,n_gauss)
 
-real*8     :: ELM(n_vertex_max*n_var*(n_order+1)*n_tor,n_vertex_max*n_var*(n_order+1)*n_tor)
-real*8     :: RHS(n_vertex_max*n_var*(n_order+1)*n_tor)
+real*8     :: ELM(n_vertex_max*n_var*n_degrees*n_tor,n_vertex_max*n_var*n_degrees*n_tor)
+real*8     :: RHS(n_vertex_max*n_var*n_degrees*n_tor)
 
 integer    :: vertex(2), direction(2), direction_perp(2)
 integer    :: i, j, j2, j3, ms, mt, mp, k, l, l2, l3, index_ij, index_kl, index, xcase2, is
@@ -255,7 +255,7 @@ do ms=1, n_gauss
           rhs_ij_7 = - v * (vpar0 * Btot * normal_sign - cs0 * factor) * dl * Zbig                ! right hand side equation 7
 
 
-          index_ij = n_tor_local*n_var*(n_order+1)*(vertex(i)-1) + n_tor_local * n_var * (j2-1) + im - i_tor_min +1  ! index in the ELM matrix
+          index_ij = n_tor_local*n_var*n_degrees*(vertex(i)-1) + n_tor_local * n_var * (j2-1) + im - i_tor_min +1  ! index in the ELM matrix
 
           ij5 = index_ij + 4*n_tor_local                                          ! local index in element matrix
           ij6 = index_ij + 5*n_tor_local                                          ! local index in element matrix
@@ -322,7 +322,7 @@ do ms=1, n_gauss
                 amat_77 =   v * (vpar * Btot * normal_sign) * dl * Zbig 
 
 
-                index_kl = n_tor_local*n_var*(n_order+1)*(vertex(k)-1) + n_tor_local * n_var * (l2-1) + in - i_tor_min +1  ! index in the ELM matrix
+                index_kl = n_tor_local*n_var*n_degrees*(vertex(k)-1) + n_tor_local * n_var * (l2-1) + in - i_tor_min +1  ! index in the ELM matrix
                  
                 kl1 = index_kl
                 kl2 = index_kl + 1*n_tor_local

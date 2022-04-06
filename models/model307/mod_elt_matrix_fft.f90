@@ -32,7 +32,7 @@ type (type_element)        :: element
 type (type_node)           :: nodes(n_vertex_max)
 type (type_node), optional :: aux_nodes(n_vertex_max)
 
-#define DIM0 n_tor*n_vertex_max*(n_order+1)*n_var
+#define DIM0 n_tor*n_vertex_max*n_degrees*n_var
 
 integer, intent(in)            :: tid
 integer, intent(in)            :: i_tor_min, i_tor_max
@@ -116,7 +116,7 @@ integer*8  :: plan
 integer    :: i_v, i_loc, j_loc
 
 #define DIM1 n_plane
-#define DIM2 1:n_vertex_max*n_var*(n_order+1)
+#define DIM2 1:n_vertex_max*n_var*n_degrees
 
 real*8, dimension(DIM1, DIM2, DIM2) :: ELM_p
 real*8, dimension(DIM1, DIM2, DIM2) :: ELM_n
@@ -229,7 +229,7 @@ amu_neo_prof   = 0.d0
 aki_neo_prof   = 0.d0
 
 do i=1,n_vertex_max
-  do j=1,n_order+1
+  do j=1,n_degrees
     do ms=1, n_gauss
       do mt=1, n_gauss
 
@@ -324,7 +324,7 @@ eq_zTe = eq_zTe / 2.d0  ! electron temperature
 
 !--------------------------------------------------- sum over the Gaussian integration points
 do i=1,n_vertex_max
-  do j=1,n_order+1
+  do j=1,n_degrees
     ELM_p(:,:,1:n_var)  = 0
     ELM_n(:,:,1:n_var)  = 0
     ELM_k(:,:,1:n_var)  = 0
@@ -1077,9 +1077,9 @@ do i=1,n_vertex_max
             !###################################################################################################
 
             if (use_fft) then
-              index_ij = n_var*(n_order+1)*(i-1) +       n_var*(j-1) + 1
+              index_ij = n_var*n_degrees*(i-1) +       n_var*(j-1) + 1
             else
-              index_ij = n_tor_local*n_var*(n_order+1)*(i-1) + n_tor_local*n_var*(j-1) + im - n_tor_start +1 
+              index_ij = n_tor_local*n_var*n_degrees*(i-1) + n_tor_local*n_var*(j-1) + im - n_tor_start +1 
             endif
 
             ! --- Fill up the rhs
@@ -1102,7 +1102,7 @@ do i=1,n_vertex_max
 
             do k=1,n_vertex_max
 
-              do l=1,n_order+1
+              do l=1,n_degrees
 
                 do in = n_tor_start, n_tor_end
 
@@ -1814,7 +1814,7 @@ do i=1,n_vertex_max
                   ! --- Fill up the matrix
                   if (use_fft) then
 
-                    index_kl = n_var*(n_order+1)*(k-1) + n_var*(l-1) + 1
+                    index_kl = n_var*n_degrees*(k-1) + n_var*(l-1) + 1
  
                     do kl = 1, n_var
                       do ij = 1, n_var
@@ -1829,7 +1829,7 @@ do i=1,n_vertex_max
 
                   else
 
-                    index_kl = n_tor_local*n_var*(n_order+1)*(k-1) + n_tor_local*n_var*(l-1) + in - n_tor_start +1
+                    index_kl = n_tor_local*n_var*n_degrees*(k-1) + n_tor_local*n_var*(l-1) + in - n_tor_start +1
 
                     do kl = 1, n_var
                       do ij = 1, n_var
@@ -1845,7 +1845,7 @@ do i=1,n_vertex_max
 
                 enddo ! in loop (n_tor, or not...)
 
-              enddo ! l loop (n_order+1)
+              enddo ! l loop n_degrees
             enddo ! k loop (n_vertex)
 
           enddo ! im loop (n_tor, or not...)
@@ -1859,9 +1859,9 @@ do i=1,n_vertex_max
     if (use_fft) then
 
       do i_v = 1, n_var
-        do j_loc=1, n_vertex_max*n_var*(n_order+1)
+        do j_loc=1, n_vertex_max*n_var*n_degrees
 
-          i_loc = n_var*(n_order+1)*(i-1) + n_var * (j-1) + i_v 
+          i_loc = n_var*n_degrees*(i-1) + n_var * (j-1) + i_v 
           in_fft =  ELM_p(1:n_plane,j_loc,i_v)
 #ifdef USE_FFTW
           call dfftw_execute_dft_r2c(fftw_plan, in_fft, out_fft)
@@ -2071,14 +2071,14 @@ do i=1,n_vertex_max
 
     endif ! apply fft (or not)
 
-  enddo ! j loop (n_order+1)
+  enddo ! j loop n_degrees
 enddo ! i loop (n_vertex)
 
 if (.NOT. use_fft) return
 
 ELM = 0.5d0 * ELM
 
-do j=1, n_vertex_max*n_var*(n_order+1)
+do j=1, n_vertex_max*n_var*n_degrees
 
   in_fft = RHS_p(1:n_plane,j)
 #ifdef USE_FFTW
@@ -2098,7 +2098,7 @@ do j=1, n_vertex_max*n_var*(n_order+1)
 
 enddo
 
-do j=1, n_vertex_max*n_var*(n_order+1)
+do j=1, n_vertex_max*n_var*n_degrees
 
   in_fft = RHS_k(1:n_plane,j)
 #ifdef USE_FFTW

@@ -1092,7 +1092,7 @@ module exec_commands
     
     weight = 0.d0
     if (first_step) then
-      allocate(values(n_tor,n_order+1,n_var,node_list%n_nodes))
+      allocate(values(n_tor,n_degrees,n_var,node_list%n_nodes))
       values = 0.d0
     else
       weight = xtime(index_now)-xtime(prev_index)
@@ -2701,7 +2701,7 @@ module exec_commands
     logical :: get_terms 
     real*8,   allocatable :: result(:,:,:,:), res2d(:,:,:)
     real*8,   allocatable :: rhs(:,:), BSmat(:,:), BSmat_elm(:,:), BSmat_tmp(:,:)
-    real*8  :: rhs_term(n_vertex_max*(n_order+1))
+    real*8  :: rhs_term(n_vertex_max*n_degrees)
     real*8  :: wst, wgauss2(n_gauss), phi_val, xjac
     real*8, allocatable     :: ELM(:,:), A_tmp(:), rhs_save(:)
     real*8, dimension(n_gauss,n_gauss) :: x_g,   x_s,   x_t,   x_ss,   x_tt,   x_st
@@ -2780,7 +2780,7 @@ module exec_commands
       eq_index  = to_int(command%args(1), ierr); 
     endif
 
-    n_basis = n_vertex_max*(n_order+1)
+    n_basis = n_vertex_max*n_degrees
     allocate( BSmat(n_basis, n_basis), BSmat_elm(n_basis, n_basis), ipiv(n_basis))
     allocate( BSmat_tmp(n_basis, n_basis))
 
@@ -2796,9 +2796,9 @@ module exec_commands
     if (allocated(test_struct))  deallocate(test_struct)
     allocate(test_struct(nbthreads))
   
-    dim0 = n_tor*n_vertex_max*(n_order+1)*n_var
+    dim0 = n_tor*n_vertex_max*n_degrees*n_var
     dim1 = n_plane
-    dim2 = n_vertex_max*n_var*(n_order+1)
+    dim2 = n_vertex_max*n_var*n_degrees
  
     do i = 1, nbthreads
   
@@ -2965,7 +2965,7 @@ module exec_commands
       
           inode = element%vertex(iv)
       
-          do i_order = 1, n_order+1
+          do i_order = 1, n_degrees
       
             index_node = node_list%node(inode)%index(i_order)
       
@@ -2973,7 +2973,7 @@ module exec_commands
       
             do j = 1, n_var * n_tor
       
-              index_ij = n_tor * n_var * (n_order+1) * (iv-1) + n_tor * n_var * (i_order-1) + j   ! index in the ELM matrix
+              index_ij = n_tor * n_var * n_degrees * (iv-1) + n_tor * n_var * (i_order-1) + j   ! index in the ELM matrix
               
              !$omp atomic
               rhs(i_term, index_large_i+j) = rhs(i_term, index_large_i+j) + test_struct(omp_tid)%ELM(i_term, index_ij) 
@@ -3011,7 +3011,7 @@ module exec_commands
 
 
 #if defined(USE_PASTIX) || defined(USE_MUMPS)
-    nz_AA = element_list%n_elements * (n_vertex_max * (n_order+1))**2
+    nz_AA = element_list%n_elements * (n_vertex_max * n_degrees)**2
     n_AA  = maxval(node_list%node(1:node_list%n_nodes)%index(4))
 
     if (associated(mumps_par%A))     call tr_deallocatep(mumps_par%irn,"mumps_par%irn",CAT_DMATRIX)
@@ -3045,7 +3045,7 @@ module exec_commands
     wgauss2 = wgauss
     ilarge  = 0
 
-    allocate(ELM(n_vertex_max*(n_order+1), n_vertex_max*(n_order+1)))
+    allocate(ELM(n_vertex_max*n_degrees, n_vertex_max*n_degrees))
 
     do i_elm=1,element_list%n_elements
       
@@ -3060,7 +3060,7 @@ module exec_commands
       y_g = 0.d0;   y_s = 0.d0;   y_t = 0.d0;   y_ss = 0.d0;   y_st = 0.d0;   y_tt = 0.d0
  
       do i=1,n_vertex_max
-        do j=1,n_order+1
+        do j=1,n_degrees
           do ms=1, n_gauss
             do mt=1, n_gauss
               x_g(ms,mt)  = x_g(ms,mt)  + nodes(i)%x(1,j,1) * element%size(i,j) * H(i,j,ms,mt)
@@ -3091,14 +3091,14 @@ module exec_commands
           xjac =  x_s(ms,mt)*y_t(ms,mt) - x_t(ms,mt)*y_s(ms,mt)
    
           do i=1,n_vertex_max
-            do j=1,n_order+1
+            do j=1,n_degrees
     
-              index_ij = (n_order+1)*(i-1) + j   ! index in the ELM matrix
+              index_ij = n_degrees*(i-1) + j   ! index in the ELM matrix
     
               do k=1,n_vertex_max
-                do l=1,n_order+1
+                do l=1,n_degrees
     
-                  index_kl = (n_order+1)*(k-1) + l   ! index in the ELM matrix
+                  index_kl = n_degrees*(k-1) + l   ! index in the ELM matrix
     
                   ELM(index_ij,index_kl) = ELM(index_ij,index_kl)    &
                                          + xjac*x_g(ms,mt)*H(i,j,ms,mt) * h(k,l,ms,mt) * element%size(i,j)*element%size(k,l) * wst 
@@ -3114,9 +3114,9 @@ module exec_commands
     
         inode = element_list%element(i_elm)%vertex(i)
       
-        do j=1,n_order+1
+        do j=1,n_degrees
             
-            index_ij = (n_order+1)*(i-1) + j    ! index in the ELM matrix
+            index_ij = n_degrees*(i-1) + j    ! index in the ELM matrix
     
             index_large_i = node_list%node(inode)%index(j)  ! base index in the main matrix
     
@@ -3124,9 +3124,9 @@ module exec_commands
           
               knode = element_list%element(i_elm)%vertex(k)
             
-              do l=1,n_order+1
+              do l=1,n_degrees
                 
-                  index_kl = (n_order+1)*(k-1) + l    ! index in the ELM matrix
+                  index_kl = n_degrees*(k-1) + l    ! index in the ELM matrix
     
                   index_large_k = node_list%node(knode)%index(l)   ! base index in the main matrix
     
@@ -3185,7 +3185,7 @@ module exec_commands
 
           ! --- Collect RHS for a single harmonic
           do inode=1,node_list%n_nodes
-            do i_order=1, n_order+1
+            do i_order=1, n_degrees
               index_node = node_list%node(inode)%index(i_order)
               index_RHS  = n_tor*n_var*(index_node - 1) + n_tor*(k_var-1) + i_tor 
               index_RHS0 = index_node 
@@ -3200,7 +3200,7 @@ module exec_commands
           call DMUMPS(mumps_par)
 #elif USE_PASTIX
 
-          nz_AA = element_list%n_elements * (n_vertex_max * (n_order+1))**2
+          nz_AA = element_list%n_elements * (n_vertex_max * n_degrees)**2
           n_AA  = maxval(node_list%node(1:node_list%n_nodes)%index(4))
       
           if (associated(mumps_par%A))     call tr_deallocatep(mumps_par%irn,"mumps_par%irn",CAT_DMATRIX)
@@ -3316,7 +3316,7 @@ module exec_commands
     
             do iv=1, n_vertex_max
     
-              do i_order=1, n_order+1
+              do i_order=1, n_degrees
               
                 index_node = pol_pos_list%pos(i,1)%nodes(iv)%index(i_order)
        

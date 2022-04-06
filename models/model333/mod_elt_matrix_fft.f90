@@ -48,9 +48,9 @@ contains
     ! --- Matrix elements and toroidal functions
     integer, intent(in)        :: tid
     integer, intent(in)        :: i_tor_min, i_tor_max
-#define DIM0 n_tor*n_vertex_max*(n_order+1)*n_var
+#define DIM0 n_tor*n_vertex_max*n_degrees*n_var
 #define DIM1 n_plane
-#define DIM2 1:n_vertex_max*n_var*(n_order+1)
+#define DIM2 1:n_vertex_max*n_var*n_degrees
 
     real*8, dimension (DIM0,DIM0)	     	:: ELM
     real*8, dimension (DIM0)	     		:: RHS
@@ -143,15 +143,15 @@ contains
     	  ! --- Now the equations, first the RHS
     	  do i_vertex =1,n_vertex_max
 
-    	    do i_order =1,n_order+1
+    	    do i_order =1,n_degrees
 
     	      do i_tor =n_tor_start, n_tor_end
 
     		! --- Index in the ELM matrix	    
     		if (use_fft) then
-    		  index_ij =       n_var*(n_order+1)*(i_vertex-1) +       n_var*(i_order-1) + 1
+    		  index_ij =       n_var*n_degrees*(i_vertex-1) +       n_var*(i_order-1) + 1
     		else
-    		  index_ij = (n_tor_end - n_tor_start +1)*n_var*(n_order+1)*(i_vertex-1) + (n_tor_end - n_tor_start +1)*n_var*(i_order-1) + & 
+    		  index_ij = (n_tor_end - n_tor_start +1)*n_var*n_degrees*(i_vertex-1) + (n_tor_end - n_tor_start +1)*n_var*(i_order-1) + & 
                              i_tor - n_tor_start +1
     		endif
 		
@@ -192,15 +192,15 @@ contains
     		! --- And the LHS (linearised part)
     		do j_vertex =1,n_vertex_max
 
-    		  do j_order =1,n_order+1
+    		  do j_order =1,n_degrees
 
     		    do j_tor =n_tor_start, n_tor_end 
 
     		      ! --- Index in the ELM matrix
     		      if (use_fft) then
-    			index_kl =       n_var*(n_order+1)*(j_vertex-1) +       n_var*(j_order-1) + 1
+    			index_kl =       n_var*n_degrees*(j_vertex-1) +       n_var*(j_order-1) + 1
     		      else
-    			index_kl = (n_tor_end - n_tor_start +1)*n_var*(n_order+1)*(j_vertex-1) + & 
+    			index_kl = (n_tor_end - n_tor_start +1)*n_var*n_degrees*(j_vertex-1) + & 
                                    (n_tor_end - n_tor_start +1)*n_var*(j_order-1) + j_tor - n_tor_start +1
     		      endif
 
@@ -273,11 +273,11 @@ contains
 
     		    
     		    enddo ! inner n_tor_loop
-    		  enddo   ! inner n_order+1
+    		  enddo   ! inner n_degrees
     		enddo	  ! inner n_vertex_max
 
     	      enddo	  ! outer n_tor_loop
-    	    enddo	  ! outer n_order+1
+    	    enddo	  ! outer n_degrees
     	  enddo 	  ! outer n_vertex_max
 
     	enddo		  ! n_plane

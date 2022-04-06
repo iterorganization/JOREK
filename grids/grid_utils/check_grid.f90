@@ -22,7 +22,7 @@ type (type_node)    :: node
 integer             :: ielm, ivert, idof, ms, mt
 real*8              :: x_g, x_s, x_t, y_g, y_s, y_t, xjac, xjac_min, xjac_max, s, t
 logical             :: problem_found
-real*8, dimension(4,4,NST,NST) :: H, H_s, H_t
+real*8, dimension(4,n_degrees,NST,NST) :: H, H_s, H_t
 
 problem_found = .false.
 
@@ -50,7 +50,7 @@ do ielm = 1, element_list%n_elements
       x_g  = 0.d0; x_s  = 0.d0; x_t  = 0.d0; y_g  = 0.d0; y_s  = 0.d0; y_t  = 0.d0
       do ivert = 1, n_vertex_max
         node    = node_list%node(element%vertex(ivert))
-        do idof = 1, n_order+1
+        do idof = 1, n_degrees
           x_g = x_g  + node%x(1,idof,1) * element%size(ivert,idof) * H  (ivert,idof,ms,mt)
           x_s = x_s  + node%x(1,idof,1) * element%size(ivert,idof) * H_s(ivert,idof,ms,mt)
           x_t = x_t  + node%x(1,idof,1) * element%size(ivert,idof) * H_t(ivert,idof,ms,mt)

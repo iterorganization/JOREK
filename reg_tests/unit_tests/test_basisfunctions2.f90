@@ -10,11 +10,11 @@ contains
 subroutine test_basisfunctions_2D_1_basisfunctions_2D_2
   use gauss
   use mod_basisfunctions
-  use mod_parameters, only: n_vertex_max, n_order
+  use mod_parameters, only: n_vertex_max, n_degrees
 
   integer :: k, l, m, n
   real*8  :: s, t
-  real*8, dimension(n_vertex_max,n_order+1) :: H, H_s, H_t, H_st, H_ss, H_tt, G, G_s, G_t, G_st, F, F_s, F_t
+  real*8, dimension(n_vertex_max,n_degrees) :: H, H_s, H_t, H_st, H_ss, H_tt, G, G_s, G_t, G_st, F, F_s, F_t
 
   ! Verify against other expression
   do k=1,n_gauss
@@ -26,7 +26,7 @@ subroutine test_basisfunctions_2D_1_basisfunctions_2D_2
       call basisfunctions(s,t,F, F_s, F_t)
 
       do m=1,n_vertex_max
-        do n=1,n_order+1
+        do n=1,n_degrees
           call assert_equals(H(m,n), G(m,n), tol, 'value match')
           call assert_equals(H(m,n), F(m,n), tol, 'value match')
           call assert_equals(H_s(m,n), G_s(m,n), tol, 's-derivative match')
@@ -44,11 +44,11 @@ end subroutine test_basisfunctions_2D_1_basisfunctions_2D_2
 subroutine test_basisfunctions_2D_vs_transpose
   use gauss
   use mod_basisfunctions
-  use mod_parameters, only: n_vertex_max, n_order
+  use mod_parameters, only: n_vertex_max, n_degrees
 
   integer :: k, l, m, n
   real*8  :: s, t
-  real*8, dimension(n_vertex_max,n_order+1) :: H, H_s, H_t, G, G_s, G_t
+  real*8, dimension(n_vertex_max,n_degrees) :: H, H_s, H_t, G, G_s, G_t
 
   do k=1,n_gauss
     s = xgauss(k)
@@ -58,7 +58,7 @@ subroutine test_basisfunctions_2D_vs_transpose
       call basisfunctions_T(s,t,G, G_s, G_t)
 
       do m=1,n_vertex_max
-        do n=1,n_order+1
+        do n=1,n_degrees
           call assert_equals(H(m,n), G(n,m), tol, 'value match')
           call assert_equals(H_s(m,n), G_s(n,m), tol, 's-derivative match')
           call assert_equals(H_t(m,n), G_t(n,m), tol, 't-derivative match')
@@ -72,11 +72,11 @@ end subroutine test_basisfunctions_2D_vs_transpose
 !> Test if the basisfunctions are 1 on their node
 subroutine test_basisfunction_properties
   use mod_basisfunctions
-  use mod_parameters, only: n_vertex_max, n_order
+  use mod_parameters, only: n_vertex_max, n_degrees
 
   integer :: j, k
   real*8  :: s, t
-  real*8, dimension(n_vertex_max,n_order+1) :: H
+  real*8, dimension(n_vertex_max,n_degrees) :: H
 
   do k=1,n_vertex_max
   

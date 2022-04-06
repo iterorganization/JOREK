@@ -7,7 +7,7 @@ use tr_module
 use mod_parameters
 use data_structure
 use mod_neighbours, only: update_neighbours
-use phys_module, only: psi_axis_init, XR_r, SIG_r, XR_tht, SIG_tht, fix_axis_nodes, force_central_node
+use phys_module, only: psi_axis_init, XR_r, SIG_r, XR_tht, SIG_tht, fix_axis_nodes, force_central_node, treat_axis, n_flux
 
 implicit none
 
@@ -33,7 +33,7 @@ real*8, allocatable :: RR(:,:),ZZ(:,:),PSI(:,:)
 real*8              :: dt, ds, thtj, radius, rm, drm, drmt, drmtr, angle, psi_axis
 real*8              :: delta_rm, delta_zm, delta_rp, delta_zp, dir_2, dir_3
 integer             :: i, j, m, index, index0, node, k, iv, ivp, ivm, node_iv, node_ivp, node_ivm,i_sons
-integer             :: n_element_start, n_node_start, n_index_start
+integer             :: n_element_start, n_node_start, n_index_start, n_max
 real*8              :: abltg(3), dr_ds, dtht_dt
 real*8, allocatable :: S1(:), S2(:), SP1(:), SP2(:), SP3(:), SP4(:)
 real*8, allocatable :: T1(:), T2(:), TP1(:), TP2(:), TP3(:), TP4(:)
@@ -41,10 +41,10 @@ real*8, external    :: spwert
 logical             :: skip_update_neighbours
 logical             :: doing_polar_square
 
-
-call tr_allocate(RR,1,4,1,nr*np,"RR",CAT_GRID)
-call tr_allocate(ZZ,1,4,1,nr*np,"ZZ",CAT_GRID)
-call tr_allocate(PSI,1,4,1,nr*np,"PSI",CAT_GRID)
+n_max = n_degrees
+call tr_allocate(RR,1,n_max,1,nr*np,"RR",CAT_GRID)
+call tr_allocate(ZZ,1,n_max,1,nr*np,"ZZ",CAT_GRID)
+call tr_allocate(PSI,1,n_max,1,nr*np,"PSI",CAT_GRID)
 
 dt = 2.d0*pi/real(np)
 ds = 1.d0/real(nr-1)
@@ -259,14 +259,14 @@ enddo
 !-------------------- translate cubic Hermite to Bezier parameters
 !
 !  type type_node                                      ! type definition of a node (i.e. a vertex)
-!    real*8    :: x(n_order+1,ndim)                      ! x,y coordinates of points and additional nodal geometry
+!    real*8    :: x(n_degrees,ndim)                      ! x,y coordinates of points and additional nodal geometry
 !    integer :: boundary                               ! = 1 for boundary nodes
 !  endtype type_node                                   ! x(:,1) : position, x(:,2) : vector u, x(:,3) : vector v, x(4) : vector w
 !
 !  type type_element
 !    integer :: vertex(n_vertex_max)
 !    integer :: neighbours(n_vertex_max)
-!    real*8    :: size(n_vertex_max,n_order+1)
+!    real*8    :: size(n_vertex_max,n_degrees)
 !  endtype type_element
 !-----------------------------------------------------------
 
@@ -299,9 +299,32 @@ do i=1,nr
    if (i .eq. nr) node_list%node(index)%boundary = 2
 
    node_list%node(index)%axis_node = .false.
-   if ( fix_axis_nodes .and. (.not. doing_polar_square) .and. (i .eq. 1) ) node_list%node(index)%axis_node = .true.
+   node_list%node(index)%axis_dof  = 0    
+   
+   if ( (.not. doing_polar_square) .and. (i .eq. 1) ) node_list%node(index)%axis_node = .true.
 
-   if (force_central_node .and. (.not. doing_polar_square) .and. (i.eq.1)) then
+   ! Share 4 degrees of freedom for all nodes on the grid axis and flag the axis nodes. 
+   if(treat_axis .and. (.not. doing_polar_square) .and. (n_flux .le. 1))then
+
+      if(i.eq.1)then
+        node_list%node(index)%index(1) = 1
+        node_list%node(index)%index(2) = 2
+        node_list%node(index)%index(3) = 3
+        node_list%node(index)%index(4) = 4
+        n_index_start = 4
+        node_list%node(index)%X(1,3,:) = 0.d0
+        node_list%node(index)%axis_node = .true.
+        node_list%node(index)%axis_dof  = 3
+
+      else
+        do k=1,n_degrees
+          node_list%node(index)%index(k) = n_index_start + k
+        enddo
+          n_index_start = n_index_start + n_degrees
+          node_list%node(index)%axis_node = .false.
+      endif
+
+   elseif (force_central_node .and. (.not. doing_polar_square) .and. (i.eq.1)) then
 
      node_list%node(index)%index(1) = 1
 
@@ -310,13 +333,13 @@ do i=1,nr
      node_list%node(index)%index(2) = n_index_start + 1
      node_list%node(index)%index(3) = n_index_start + 2
      node_list%node(index)%index(4) = n_index_start + 3
-     n_index_start = n_index_start + n_order
+     n_index_start = n_index_start + n_degrees-1
 
    else
-     do k=1,n_order+1
+     do k=1,n_degrees
        node_list%node(index)%index(k) = n_index_start + k
      enddo
-     n_index_start = n_index_start + n_order+1
+     n_index_start = n_index_start + n_degrees
    endif
   
    node_list%node(index)%constrained=.false.
@@ -393,5 +416,6 @@ do k=n_element_start+1 , element_list%n_elements   ! fill in the size of the ele
 enddo
 
 if ( .not. skip_update_neighbours ) call update_neighbours(node_list,element_list, force_rtree_initialize=.true.)
+
 return
 end subroutine grid_polar_bezier

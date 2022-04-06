@@ -16,20 +16,20 @@ implicit none
  type (type_node)      :: nodes(n_vertex_max)
  type (type_node)      :: nodes_father(n_vertex_max)
 
- real*8, dimension(n_vertex_max*(n_order+1),&
-                 n_vertex_max*(n_order+1))	:: ELM, ELM_bis, ELM_tr, C_matrix
+ real*8, dimension(n_vertex_max*n_degrees,&
+                 n_vertex_max*n_degrees)        :: ELM, ELM_bis, ELM_tr, C_matrix
 
- real*8, dimension( n_vertex_max*(n_order+1))	:: RHS,RHS_bis
- real*8, dimension(4,4)			  	:: H, H_s, H_t, H_st
- real*8, dimension(2,4) 			:: c, dc_ds, dc_dt, d2c_dsdt					   
- real*8						:: lambda, mu						   						   
- integer, dimension(n_vertex_max)		:: pr, pos_node_constrained
+ real*8, dimension( n_vertex_max*n_degrees)     :: RHS,RHS_bis
+ real*8, dimension(4,n_degrees)                 :: H, H_s, H_t, H_st
+ real*8, dimension(2,4)                         :: c, dc_ds, dc_dt, d2c_dsdt
+ real*8                                         :: lambda, mu
+ integer, dimension(n_vertex_max)               :: pr, pos_node_constrained
  integer, dimension(n_vertex_max)               :: node_out
- integer, dimension(2,2)			:: pos_parent, parent
- real*8               				:: h_u, h_v,h_w
- integer					:: i_element,index_elm
- integer			 		:: pos1, pos2,n_constrained,i_constrained
- integer                                        :: i, j,k,l,n, p,prj					   
+ integer, dimension(2,2)                        :: pos_parent, parent
+ real*8                                         :: h_u, h_v,h_w
+ integer                                        :: i_element,index_elm
+ integer                                        :: pos1, pos2,n_constrained,i_constrained
+ integer                                        :: i, j,k,l,n, p,prj
  
 
 
@@ -99,7 +99,7 @@ implicit none
 
        C_matrix = 0.
 	
-       do i = 1, n_vertex_max*(n_order+1)
+       do i = 1, n_vertex_max*n_degrees
 	
 	    C_matrix(i,i) = 1.
 	
@@ -137,7 +137,7 @@ implicit none
 		 do p = 1, 2
 		      if(pr(k)==parent(j,p)) then
 		       
-        	           do l = 1, n_order + 1
+        	           do l = 1, n_degrees
                                 c(p,l) 	 	= (H(k,l)*element_father%size(k,l))
 		                dc_ds(p,l) 	= (H_s(k,l)*element_father%size(k,l)) / (3.*h_u)
 		                dc_dt(p,l)	= (H_t(k,l)*element_father%size(k,l)) / (3.*h_v)
@@ -161,8 +161,8 @@ implicit none
 	     
 
   
-	    Pos1 = (pos_parent(j,1)-1)*(n_order+1) +1                       ! Position of parent node that is in element
-            Pos2 = (pos_parent(j,2)-1)*(n_order+1) +1                       ! Position of parent node that is outside of element
+	    Pos1 = (pos_parent(j,1)-1)*n_degrees +1                       ! Position of parent node that is in element
+            Pos2 = (pos_parent(j,2)-1)*n_degrees +1                       ! Position of parent node that is outside of element
             
 
           
@@ -175,7 +175,7 @@ implicit none
 	
           
 	    
-	    do k = 1, n_order + 1
+	    do k = 1, n_degrees
 	         
 	    	 C_matrix(Pos2,Pos1+k-1) = c(1,k) 		 
 	    	 C_matrix(Pos2,Pos2+k-1) = c(2,k) 		
@@ -207,9 +207,9 @@ implicit none
             !Right multprlication of the stiffness matrix  by C_matrix             *
             !***********************************************************************
 
-       do i = 1, n_vertex_max*(n_order+1)
-            do k = 1, n_vertex_max*(n_order+1)
-                 do n = 1, n_vertex_max*(n_order+1)
+       do i = 1, n_vertex_max*n_degrees
+            do k = 1, n_vertex_max*n_degrees
+                 do n = 1, n_vertex_max*n_degrees
                       ELM_bis(i,k) = ELM_bis(i,k) + ELM(i,n)*C_matrix(n,k)
                  enddo     
             enddo
@@ -220,9 +220,9 @@ implicit none
             !*************************************************************************
 
 
-       do i = 1, n_vertex_max*(n_order+1)
-            do k = 1, n_vertex_max*(n_order+1)
-                 do n = 1, n_vertex_max*(n_order+1)
+       do i = 1, n_vertex_max*n_degrees
+            do k = 1, n_vertex_max*n_degrees
+                 do n = 1, n_vertex_max*n_degrees
                       ELM_tr(i,k) = ELM_tr(i,k) + C_matrix(n,i)*ELM_bis(n,k)
                  enddo     
             enddo
@@ -234,8 +234,8 @@ implicit none
             !************************************************************************
 
 
-       do i = 1, n_vertex_max*(n_order+1)
-            do k = 1, n_vertex_max*(n_order+1)
+       do i = 1, n_vertex_max*n_degrees
+            do k = 1, n_vertex_max*n_degrees
 		 RHS_bis(i) = RHS_bis(i) + C_matrix(k,i)*RHS(k) 	 
 	    enddo  
        enddo	    

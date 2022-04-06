@@ -17,21 +17,21 @@ subroutine Ch_nod_rhs_elm(i_element, element,nodes,element_father,nodes_father,E
 
   real*8, dimension (:,:), allocatable  :: ELM
   real*8, dimension (:)  , allocatable  :: RHS
-  real*8, dimension(n_vertex_max*n_var*(n_order+1)*n_tor,&
-		 n_vertex_max*n_var*(n_order+1)*n_tor)  	:: ELM_bis, ELM_tr, C_matrix
+  real*8, dimension(n_vertex_max*n_var*n_degrees*n_tor,&
+                 n_vertex_max*n_var*n_degrees*n_tor)    :: ELM_bis, ELM_tr, C_matrix
 
-  real*8, dimension(n_vertex_max*n_var*(n_order+1)*n_tor)	:: RHS_bis
-  real*8, dimension(4,4)			  	:: H, H_s, H_t, H_st
-  real*8, dimension(2,4) 			:: c, dc_ds, dc_dt, d2c_dsdt					   
-  real*8						:: lambda, mu,h_u,h_v,h_w						   
-						   
-  integer, dimension(n_vertex_max)		:: pr, pos_node_constrained
-  integer, dimension(n_vertex_max)               :: node_out
-  integer, dimension(2,2)			:: pos_parent, parent
-  integer					:: i_element,index_elm,my_id
-  integer			 		:: pos1, pos2, prj, n_constrained, i_constrained 					   
-  integer                                        :: i_tor,i_shift,i_var1,i_var,i_shift1,i_order,i_order1
-  integer                                        :: i,j,k,l,n,p
+  real*8, dimension(n_vertex_max*n_var*n_degrees*n_tor) :: RHS_bis
+  real*8, dimension(4,n_degrees)                :: H, H_s, H_t, H_st
+  real*8, dimension(2,4)                        :: c, dc_ds, dc_dt, d2c_dsdt
+  real*8                                        :: lambda, mu,h_u,h_v,h_w
+                                            
+  integer, dimension(n_vertex_max)              :: pr, pos_node_constrained
+  integer, dimension(n_vertex_max)              :: node_out
+  integer, dimension(2,2)                       :: pos_parent, parent
+  integer                                       :: i_element,index_elm,my_id
+  integer                                       :: pos1, pos2, prj, n_constrained, i_constrained 
+  integer                                       :: i_tor,i_shift,i_var1,i_var,i_shift1,i_order,i_order1
+  integer                                       :: i,j,k,l,n,p
 
 
 
@@ -99,7 +99,7 @@ subroutine Ch_nod_rhs_elm(i_element, element,nodes,element_father,nodes_father,E
 
        C_matrix = 0.
 	
-       do i = 1, n_var*(n_order + 1)*(n_vertex_max)*n_tor
+       do i = 1, n_var*n_degrees*(n_vertex_max)*n_tor
 	
 	    C_matrix(i,i) = 1.
 	
@@ -140,7 +140,7 @@ subroutine Ch_nod_rhs_elm(i_element, element,nodes,element_father,nodes_father,E
 		 do p = 1, 2
 		      if(pr(k)==parent(j,p)) then
 	       
-        	           do l = 1, n_order + 1
+        	           do l = 1, n_degrees
 	                       
 	                        c(p,l) 	 	= (H(k,l)*element_father%size(k,l))
 		                dc_ds(p,l) 	= (H_s(k,l)*element_father%size(k,l)) / (3.*h_u)
@@ -161,13 +161,13 @@ subroutine Ch_nod_rhs_elm(i_element, element,nodes,element_father,nodes_father,E
 	    	    	    	   
 	    
   
-	    Pos1 = (pos_parent(j,1)-1)*(n_order+1)*n_var*n_tor +1 ! Position of parent node that is in element
-            Pos2 = (pos_parent(j,2)-1)*(n_order+1)*n_var*n_tor +1 ! Position of parent node that is outside of element
+	    Pos1 = (pos_parent(j,1)-1)*n_degrees*n_var*n_tor +1 ! Position of parent node that is in element
+            Pos2 = (pos_parent(j,2)-1)*n_degrees*n_var*n_tor +1 ! Position of parent node that is outside of element
            
 	   ! print*,"pos1",i_element,j,Pos1,Pos2
 	      
 	   ! stop
-                do i_order = 1, n_order+1
+                do i_order = 1, n_degrees
 	        
                    do i_tor = 1, n_tor
                      
@@ -182,7 +182,7 @@ subroutine Ch_nod_rhs_elm(i_element, element,nodes,element_father,nodes_father,E
                    enddo 
                 enddo
 
-	    do k = 1, n_order+1
+	    do k = 1, n_degrees
 	         
                  do i_var = 1, n_var   
 	              
@@ -222,11 +222,11 @@ subroutine Ch_nod_rhs_elm(i_element, element,nodes,element_father,nodes_father,E
             !Right multprlication of the stiffness matrix  by C_matrix *
             !***********************************************************
 
-       do i = 1, n_var*(n_order + 1)*(n_vertex_max)*n_tor
+       do i = 1, n_var*n_degrees*(n_vertex_max)*n_tor
 
-            do k = 1, n_var*(n_order + 1)*(n_vertex_max)*n_tor
+            do k = 1, n_var*n_degrees*(n_vertex_max)*n_tor
 
-                 do n = 1, n_var*(n_order + 1)*(n_vertex_max)*n_tor
+                 do n = 1, n_var*n_degrees*(n_vertex_max)*n_tor
 
                       ELM_bis(i,k) = ELM_bis(i,k) + ELM(i,n)*C_matrix(n,k)
 
@@ -240,11 +240,11 @@ subroutine Ch_nod_rhs_elm(i_element, element,nodes,element_father,nodes_father,E
             !Left multprlication of the stiffness matrix by the transposed C_matrix *
             !************************************************************************
 
-       do i = 1, n_var*(n_order + 1)*(n_vertex_max)*n_tor
+       do i = 1, n_var*n_degrees*(n_vertex_max)*n_tor
 
-            do k = 1, n_var*(n_order + 1)*(n_vertex_max)*n_tor
+            do k = 1, n_var*n_degrees*(n_vertex_max)*n_tor
 
-                 do n = 1, n_var*(n_order + 1)*(n_vertex_max)*n_tor
+                 do n = 1, n_var*n_degrees*(n_vertex_max)*n_tor
 
                       ELM_tr(i,k) = ELM_tr(i,k) + C_matrix(n,i)*ELM_bis(n,k)
 
@@ -259,9 +259,9 @@ subroutine Ch_nod_rhs_elm(i_element, element,nodes,element_father,nodes_father,E
             !*******************************************************************
 
 
-       do i = 1, n_var*(n_order + 1)*(n_vertex_max)*n_tor
+       do i = 1, n_var*n_degrees*(n_vertex_max)*n_tor
 
-            do k = 1, n_var*(n_order + 1)*(n_vertex_max)*n_tor
+            do k = 1, n_var*n_degrees*(n_vertex_max)*n_tor
 
 		    RHS_bis(i) = RHS_bis(i) + C_matrix(k,i)*RHS(k) 
 		

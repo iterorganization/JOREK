@@ -21,7 +21,7 @@ character(len=*),             intent(in)   :: gridname        !< Used for the na
 ! --- Local variables
 real*8,allocatable :: xp(:,:)
 real*8             :: xs(2,n_dim), xx_0(n_dim), uu_0(n_dim), vv_0(n_dim), ww_0(n_dim)
-real*8             :: uv_0(n_dim), uv_p(n_dim), xx_p(n_dim) ,xb(4,n_dim)
+real*8             :: uv_0(n_dim), uv_p(n_dim), xx_p(n_dim) ,xb(n_degrees,n_dim)
 real*8             :: xmax, xmin, ymax, ymin, s, huv_0, huv_p, x_length
 integer            :: i, j, inode_0, inode_p, iplot, k, ip, np, iuv, idir_0, idir_p
 character*3        :: label

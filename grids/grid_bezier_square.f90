@@ -104,8 +104,8 @@ do j=1,nZ
     ! --- Psi vacuum initial conditions
     node_list%node(inode)%values(1,1,1) = rect_grid_vac_psi * (node_list%node(inode)%x(1,1,1))**2
 
-    do k=1, n_order+1
-      node_list%node(inode)%index(k) = (n_order+1)*(inode-1) + k
+    do k=1, n_degrees
+      node_list%node(inode)%index(k) = n_degrees*(inode-1) + k
     enddo
 
   enddo
