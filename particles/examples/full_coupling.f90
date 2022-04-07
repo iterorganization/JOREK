@@ -513,7 +513,7 @@ do while (.not. sim%stop_now)
 !      energy_remaining    = energy_remaining    + particles(j)%weight * 2.18d-15
 
     enddo
-    !omp end parallel do
+    !$omp end parallel do
   end select
 
   call MPI_REDUCE(particles_remaining, all_particles, 1, MPI_DOUBLE_PRECISION, MPI_SUM, 0, MPI_COMM_WORLD, ierr)
