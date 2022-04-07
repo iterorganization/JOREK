@@ -290,6 +290,7 @@ subroutine find_wall_crossings_with_flux_surface(node_list, element_list, surfac
   use phys_module
   use high_resolution_wall
   use mod_interp, only: interp_RZ
+  use check_point_is_inside_wall_contour
   implicit none
   
   ! --- Routine parameters
@@ -468,6 +469,7 @@ subroutine find_wall_crossings_with_flux_surface_old(node_list, element_list, su
   use phys_module
   use high_resolution_wall
   use mod_interp, only: interp_RZ
+  use check_point_is_inside_wall_contour
   implicit none
   
   ! --- Routine parameters

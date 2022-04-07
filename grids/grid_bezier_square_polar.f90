@@ -366,7 +366,7 @@ enddo
 
 do i=(nR-1)*(nZ-1)+1,(nR-1)*(nZ-1) + 2*(nR-1)+2*(nZ-1)
 
-  do k=1,n_degrees
+  do k=1,n_vertex_max
     element_list%element(i)%size(k,1) = 1.
     element_list%element(i)%size(k,4) = element_list%element(i)%size(k,2) * element_list%element(i)%size(k,3)
   enddo
