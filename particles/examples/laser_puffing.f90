@@ -393,6 +393,10 @@ do while (.not. sim%stop_now)
 
 #ifdef __GFORTRAN__
     !$omp parallel do default(shared) &
+    !$omp shared(sim, n_particles, n_steps, timesteps, rng, particle_start_time, &
+    !$omp        use_rcs, use_ncs, use_pcs, use_ccs, aux_node_list,                         &
+    !$omp        rho_norm, t_norm, v_norm, E_norm, M_norm, N_norm, &
+    !$omp        CENTRAL_DENSITY, CENTRAL_MASS)                    &
 #else
     !$omp parallel do default(none) &
     !$omp shared(sim, particles, n_particles, n_steps, timesteps, rng, particle_start_time, &
@@ -599,6 +603,7 @@ do while (.not. sim%stop_now)
 
 #ifdef __GFORTRAN__
     !$omp parallel do default(shared) &
+    !$omp shared(sim)      &
 #else
     !$omp parallel do default(none)   &
     !$omp shared(sim, particles)      &
