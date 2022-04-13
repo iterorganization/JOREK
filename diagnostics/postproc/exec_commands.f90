@@ -2233,16 +2233,16 @@ module exec_commands
     call determine_q_profile(node_list, element_list, surface_list, ES%psi_axis, ES%psi_xpoint,    &
       ES%Z_xpoint, q, rad)
     
-    ! --- Clean up q-profile from "jumps" -- TODO: a better solution is needed
-    do k = 5, 1, -1
-      do i = k+1, npts-k
-        if ( abs(q(i+k)-q(i-k)) < abs(q(i)-0.5d0*(q(i+k)+q(i-k))) ) then
-          q(i) = q(i-k) + (q(i+k)-q(i-k)) * &
-            (surface_list%psi_values(i)  -surface_list%psi_values(i-k)) / &
-            (surface_list%psi_values(i+k)-surface_list%psi_values(i-k))
-        end if
-      end do
-    end do
+!    ! --- Clean up q-profile from "jumps" -- TODO: a better solution is needed
+!    do k = 5, 1, -1
+!      do i = k+1, npts-k
+!        if ( abs(q(i+k)-q(i-k)) < abs(q(i)-0.5d0*(q(i+k)+q(i-k))) ) then
+!          q(i) = q(i-k) + (q(i+k)-q(i-k)) * &
+!            (surface_list%psi_values(i)  -surface_list%psi_values(i-k)) / &
+!            (surface_list%psi_values(i+k)-surface_list%psi_values(i-k))
+!        end if
+!      end do
+!    end do
     
     
     ! --- Write out q-profile versus Psi_n
