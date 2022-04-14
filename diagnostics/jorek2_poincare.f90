@@ -425,7 +425,11 @@ L_IL: do i_lines=1,n_lines
     Rp(ip) = R_line
     Zp(ip) = Z_line
     Tp(ip)  = atan2( Z_line - ES%Z_axis, R_line - ES%R_axis)
+#if (JOREK_MODEL == 83) || (JOREK_MODEL == 183)
+    call interp_gvec(node_list,element_list,i_elm,4,1,1,s_line,t_line,Pp(ip),dummy,dummy,dummy,dummy,dummy)
+#else
     Pp(ip)  = get_psi_n(psi_out, Z_line)
+#endif
 
     if (i_elm .eq. 0) exit
      

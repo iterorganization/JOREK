@@ -753,7 +753,7 @@ do kv = 1,n_vertex_max  ! 4 vertices
       P_ss = P_ss + node_list%node(iv)%j_field(i_harm,kf,i_dim) * element_list%element(i_elm)%size(kv,kf) * G_ss(kv,kf)
       P_tt = P_tt + node_list%node(iv)%j_field(i_harm,kf,i_dim) * element_list%element(i_elm)%size(kv,kf) * G_tt(kv,kf)
     else if (i_var == 3) then                
-      ! The equilibrium is a scalar, axisymmetric profile, so i_dim and i_var have no influence on the results
+      ! The equilibrium is a scalar, axisymmetric profile, so i_dim and i_harm have no influence on the results
       P    = P    + node_list%node(iv)%pressure(kf) * element_list%element(i_elm)%size(kv,kf) * G(kv,kf)
       P_s  = P_s  + node_list%node(iv)%pressure(kf) * element_list%element(i_elm)%size(kv,kf) * G_s(kv,kf)
       P_t  = P_t  + node_list%node(iv)%pressure(kf) * element_list%element(i_elm)%size(kv,kf) * G_t(kv,kf)
@@ -761,7 +761,7 @@ do kv = 1,n_vertex_max  ! 4 vertices
       P_ss = P_ss + node_list%node(iv)%pressure(kf) * element_list%element(i_elm)%size(kv,kf) * G_ss(kv,kf)
       P_tt = P_tt + node_list%node(iv)%pressure(kf) * element_list%element(i_elm)%size(kv,kf) * G_tt(kv,kf)
     else if (i_var == 4) then                
-      ! The equilibrium is a scalar, axisymmetric profile, so i_dim and i_var have no influence on the results
+      ! The equilibrium is a scalar, axisymmetric profile, so i_dim and i_harm have no influence on the results
       P    = P    + node_list%node(iv)%s_eq(kf) * element_list%element(i_elm)%size(kv,kf) * G(kv,kf)
       P_s  = P_s  + node_list%node(iv)%s_eq(kf) * element_list%element(i_elm)%size(kv,kf) * G_s(kv,kf)
       P_t  = P_t  + node_list%node(iv)%s_eq(kf) * element_list%element(i_elm)%size(kv,kf) * G_t(kv,kf)
