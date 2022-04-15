@@ -5,7 +5,7 @@ use constants
 use data_structure
 use gauss
 use basis_at_gaussian
-use phys_module, only: tokamak_device
+use phys_module, only: tokamak_device, Z_xpoint_limit
 use mod_interp
 
 implicit none
@@ -47,9 +47,9 @@ R_xpoint   = 0.;    Z_xpoint = 0.
 s_xpoint   = 0.;    t_xpoint = 0.
 i_elm_xpoint = 0
 
-allocate(grad_psi      (element_list%n_elements,4,4))            ! --- vector storing |grad_psi| at gaussian poitns
-allocate(include_pt_lw (element_list%n_elements,4,4))
-allocate(include_pt_up (element_list%n_elements,4,4))
+allocate(grad_psi      (element_list%n_elements,n_gauss,n_gauss))            ! --- vector storing |grad_psi| at gaussian poitns
+allocate(include_pt_lw (element_list%n_elements,n_gauss,n_gauss))
+allocate(include_pt_up (element_list%n_elements,n_gauss,n_gauss))
 grad_psi    = 0.d0
 include_pt_lw = .false.
 include_pt_up = .false.
@@ -60,8 +60,8 @@ found_lower = .false.
 
 do i=1,element_list%n_elements    ! --- loop over elements
   
-  do ms = 1, 4           ! 4 Gaussian points
-    do mt = 1, 4         ! 4 Gaussian points
+  do ms = 1, n_gauss           ! Gaussian points
+    do mt = 1, n_gauss         ! Gaussian points
 
       ps_s = 0.d0
       ps_t = 0.d0
@@ -72,8 +72,8 @@ do i=1,element_list%n_elements    ! --- loop over elements
       R    = 0.d0
       Z    = 0.d0
 
-      do kf = 1, 4       ! 4 basis functions
-        do kv = 1, 4     ! 4 vertices
+      do kf = 1, n_degrees ! basis functions
+        do kv = 1, 4       ! 4 vertices
 
           iv = element_list%element(i)%vertex(kv)
 
@@ -99,7 +99,7 @@ do i=1,element_list%n_elements    ! --- loop over elements
     
       ! --- Look for the lower Xpoint
       if (xcase .ne. UPPER_XPOINT) then
-        if (     ((tokamak_device(1:4) .ne. 'MAST') .and. (tokamak_device(1:7) .ne. 'COMPASS') .and. (Z .lt. -0.4d0)) &
+        if (     ((tokamak_device(1:4) .ne. 'MAST') .and. (tokamak_device(1:7) .ne. 'COMPASS') .and. (Z .lt. Z_xpoint_limit(1))) &
             .or. ((tokamak_device(1:4) .eq. 'MAST') .and. (Z .lt. -0.4d0) .and. (R .gt. 0.45d0) .and. (R .lt. 1.d0))  &
             .or. ((tokamak_device(1:7) .eq. 'COMPASS') .and. (Z .lt. -0.2d0))) then
           include_pt_lw(i,ms,mt) = .true.        
@@ -108,7 +108,7 @@ do i=1,element_list%n_elements    ! --- loop over elements
       
       ! --- And for the upper Xpoint
       if (xcase .ne. LOWER_XPOINT) then
-        if (     ((tokamak_device(1:4) .ne. 'MAST') .and. (Z .gt.  0.4d0)) &
+        if (     ((tokamak_device(1:4) .ne. 'MAST') .and. (Z .gt.  Z_xpoint_limit(2))) &
             .or. ((tokamak_device(1:4) .eq. 'MAST') .and. (Z .gt.  0.4d0) .and. (R .gt. 0.45d0) .and. (R .lt. 1.d0)) ) then
           include_pt_up(i,ms,mt) = .true.
         endif

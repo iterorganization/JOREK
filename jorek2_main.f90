@@ -87,7 +87,6 @@ program JOREK2
   use mod_bicgstab, only: bicgstab_driver, bicgstab_finalize
 #endif  
 
-
   use, intrinsic :: iso_c_binding
   use, intrinsic :: iso_fortran_env, only : stdin=>input_unit, &
                                             stdout=>output_unit, &
@@ -178,7 +177,9 @@ program JOREK2
 
   integer :: nsolvers=0
   logical :: solvers(4), solvers_eq(3)
- 
+
+  logical :: input_treat_axis
+  
   call init_expr()
   allocate(res(exprs_all_int%n_expr+1))
   res = 0.d0   
@@ -248,6 +249,32 @@ required = 0
   ! --- Preset input parameters to reasonable defaults, then read the input file.
   call initialise_and_broadcast_parameters(my_id, "__NO_FILENAME__")
   
+  ! WARNING for axis treatment
+  if(treat_axis .and. (fix_axis_nodes .or. force_central_node))then
+    write(*,*) 'WARNING :'
+    write(*,*) 'If using treat_axis = .true. then'
+    write(*,*) 'fix_axis_nodes and force_central_node both MUST be .false.'
+    write(*,*) 'Setting fix_axis_nodes and force_central_node to .false.'    
+    force_central_node  = .false.
+    fix_axis_nodes      = .false.
+  endif
+  if(treat_axis .and. (n_order .gt. 3))then
+    write(*,*) 'WARNING :'
+    write(*,*) 'treat_axis = .true. is not possible'
+    write(*,*) 'at the moment with n_order>3, please use fix_axis_nodes instead.'
+    call MPI_FINALIZE(IERR) 
+    stop
+  endif
+
+  ! WARNING for freeboundary with n_order>3
+  if(freeboundary .and. (n_order .gt. 3))then
+    write(*,*) 'WARNING :'
+    write(*,*) 'freeboundary = .true. is not possible'
+    write(*,*) 'at the moment with n_order>3, aborting.'
+    call MPI_FINALIZE(IERR) 
+    stop
+  endif
+
   ! --- Initialize the vacuum part.
   call vacuum_init(my_id, freeboundary_equil, freeboundary, resistive_wall)
   
@@ -415,6 +442,12 @@ required = 0
     write(*,*) 'WARNING: tauIC in model401 has been modified to match model303. '
     write(*,*) '         tauIC should be = m_{ion} / ( e * F0 * sqrt_mu0_rho0 * (1. + T_i/T_e) )'
   endif
+  if (abs(visco_par-visco_par_heating)/(visco_par+visco_par_heating+1.d-12) > 1.d-6) then
+    write(*,*) 'WARNING: The viscosity visco_par and the viscosity used for viscous heating '
+    write(*,*) '  visco_par_heating are not the same. No problem if you know what you are doing,  ' 
+    write(*,*) '  but with this setup you are not conserving energy.   '
+  endif
+
   if (abs(eta-eta_ohmic)/(eta+eta_ohmic+1.d-12) > 1.d-6) then
     write(*,*) 'WARNING: The resistivity eta and the resistivity used for Ohmic heating '
     write(*,*) '  eta_ohm are not the same. No problem if you know what you are doing,  ' 
@@ -425,6 +458,11 @@ required = 0
         energy conservation. No problem if you know what you are doing (a good reason to &
 	do this could be to avoid spurious Ohmic heating in the plasma core).'
   end if
+  if ((T_min_neg .lt. 0.d0) .or. (rho_min_neg .lt. 0.d0)) then
+	write(*,*) 'WARNING: You did not specify T_min_neg and/or rho_min_neg for the correction of negative temperatures and densities.  & 
+	   The lower values of the equilibrium profiles (T_1 and/or rho_1) will be used instead.'
+	write(*,*) 'For instance, try in your input file: rho_min_neg = 1.d-3 and T_min_neg = 4.02d-4 !=2.01d-5*central_density*Tmin_ev (with central_density = 1 and Tmin_eV= 20 eV)'    
+  endif
 
 #ifndef USE_BLOCK
   write(*,*) 'WARNING: You are not using USE_BLOCK=1 which might be inefficient.'
@@ -463,6 +501,8 @@ required = 0
   !*                  read restart file                                  *
   !***********************************************************************
   
+  input_treat_axis = treat_axis   ! store the value from the input file
+
   if ( restart .and. (my_id == 0) ) then
     
     call import_restart(node_list, element_list, 'jorek_restart', rst_format, ierr)
@@ -474,6 +514,15 @@ required = 0
     else
       tstep_prev = xtime(index_start) - xtime(index_start-1)
     end if
+
+    ! check consistency for axis treatment with restart file
+    if (input_treat_axis .neqv. treat_axis) then
+      write(*,*) 'WARNING: Axis treatments set via input file is not the same as that in the restart file.'
+      write(*,*) 'You are trying to restart the simulation with treat_axis = ', input_treat_axis
+      write(*,*) 'Earlier treat_axis was set to = ', treat_axis
+      write(*,*) 'STOP' 
+      stop      
+    endif
 
     ! --- Write live data for previous time-steps
     if ( .not. bench_without_plot ) then
@@ -553,7 +602,7 @@ required = 0
         
         call grid_polar_bezier(R_geo, Z_geo, amin, 0.d0, 0.d0, fbnd, fpsi, mf, n_radial, n_pol,    &
           node_list, element_list)
-        
+
       else
         write(*,*) ' FATAL : no valid combination of grid-sizes specified'
         call MPI_Abort(MPI_COMM_WORLD, 1, ierr)
@@ -626,7 +675,7 @@ required = 0
     if (n_flux > 1) then
 
       if (my_id == 0) then
-        
+
         if (xpoint)  then
 
           if ( (xcase .ge. UPPER_XPOINT) .or. (grid_to_wall .and. (n_wall_blocks .gt. 0)) .or. RZ_grid_inside_wall ) then
@@ -1139,6 +1188,9 @@ required = 0
 
 #if (defined WITH_Neutrals) || (defined WITH_Impurities)
        if (using_spi) then
+         if (nonlocal_abl) then
+           if (nl_avg_Te(1) .eq. 0.d0) call int3d_new(my_id, node_list, element_list, bnd_node_list, bnd_elm_list, exprs_all_int, res, 1)
+         endif
          n_spi_begin = 1
          do i = 1, n_inj !< Do one update for each injection location
            if (t_now >= t_ns(i)) call update_spi(my_id,node_list,element_list,i,n_spi_begin)
@@ -1150,7 +1202,7 @@ required = 0
 
       call update_values(my_id,element_list,node_list,deltas)         ! add solution to node values
       call update_deltas(my_id,node_list)
- 
+
       t_now = t_now + tstep
 
       ! save previous time step
@@ -1376,7 +1428,7 @@ required = 0
 #endif
 
 #ifdef USE_BICGSTAB
-    call bicgstab_finalize()
+    if (gmres) call bicgstab_finalize()
 #endif
 
 #ifdef USE_PASTIX6

@@ -15,7 +15,7 @@ implicit none
 type (type_element)   :: element
 type (type_node)      :: nodes(n_vertex_max)
 
-#define DIM0 n_tor*n_vertex_max*(n_order+1)*n_var
+#define DIM0 n_tor*n_vertex_max*n_degrees*n_var
 real*8, dimension (DIM0,DIM0):: ELM
 real*8, dimension (DIM0)     :: RHS
 
@@ -26,7 +26,7 @@ logical                      :: xpoint2
 integer, intent(in)          :: i_tor_min, i_tor_max
 
 #define DIM1 n_plane
-#define DIM2 1:n_vertex_max*n_var*(n_order+1)
+#define DIM2 1:n_vertex_max*n_var*n_degrees
 
 real*8, dimension(DIM1, DIM2, DIM2) :: ELM_p
 real*8, dimension(DIM1, DIM2, DIM2) :: ELM_n

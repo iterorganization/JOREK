@@ -453,6 +453,8 @@ subroutine fill_particle_gc_vpar(n_particles,particles,rank_in)
     particles(ii)%vpar = rn_real
     call gnu_rng_interval(mu_interval,rn_real)
     particles(ii)%mu = rn_real
+    call gnu_rng_interval(Bnorm_interval,rn_real)
+    particles(ii)%B_norm = rn_real
     call gnu_rng_interval(q_interval,rn_integer)
     particles(ii)%q = int(rn_integer,kind=1)
   enddo

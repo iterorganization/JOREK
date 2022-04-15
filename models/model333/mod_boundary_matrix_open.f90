@@ -29,8 +29,8 @@ integer,                intent(inout) :: vertex(2)
 integer,                intent(in)    :: direction(2), xcase2
 logical,                intent(in)    :: xpoint2
 real*8,                 intent(in)    :: R_axis, Z_axis, psi_axis, psi_bnd, R_xpoint(2), Z_xpoint(2)
-real*8,                 intent(inout) :: ELM(n_vertex_max*n_var*(n_order+1)*n_tor,n_vertex_max*n_var*(n_order+1)*n_tor)
-real*8,                 intent(inout) :: RHS(n_vertex_max*n_var*(n_order+1)*n_tor)
+real*8,                 intent(inout) :: ELM(n_vertex_max*n_var*n_degrees*n_tor,n_vertex_max*n_var*n_degrees*n_tor)
+real*8,                 intent(inout) :: RHS(n_vertex_max*n_var*n_degrees*n_tor)
 
 ! --- Internal variables
 real*8     :: x_g(n_gauss), x_s(n_gauss), x_t(n_gauss), x_ss(n_gauss)
@@ -210,7 +210,7 @@ do ms=1, n_gauss
 
         do im=i_tor_min, i_tor_max
 
-          index_ij = n_tor_local*n_var*(n_order+1)*(vertex(i)-1) + n_tor_local * n_var * (j2-1) + im - i_tor_min + 1  ! index in the ELM matrix
+          index_ij = n_tor_local*n_var*n_degrees*(vertex(i)-1) + n_tor_local * n_var * (j2-1) + im - i_tor_min + 1  ! index in the ELM matrix
 
           v   =  H1(i,j,ms) * element_size_ij * HZ(im,mp)         ! test function
 
@@ -271,7 +271,7 @@ do ms=1, n_gauss
                 !amat_77 =   v * (vpar  * Btot     * normal_sign) * Zbig
 
 
-                index_kl = n_tor_local*n_var*(n_order+1)*(vertex(k)-1) + n_tor_local * n_var * (l2-1) + in - i_tor_min + 1  ! index in the ELM matrix
+                index_kl = n_tor_local*n_var*n_degrees*(vertex(k)-1) + n_tor_local * n_var * (l2-1) + in - i_tor_min + 1  ! index in the ELM matrix
                 
                 kl1 = index_kl
                 kl5 = index_kl + 4*n_tor_local

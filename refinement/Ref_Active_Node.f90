@@ -25,8 +25,8 @@ integer                               :: i,j,k,l,p,iv,ielm,inode,ov
             !if((node_list%node(i)%constrained==.false.) )  then
                 ! n_active_nodes = n_active_nodes + 1
 	        ! active_node(i) = n_active_nodes	
-           !do k=1,n_order+1
-            !node_list%node(i)%index(k) =  (n_order+1)*(active_node(i)-1)+k 
+           !do k=1,n_degrees
+            !node_list%node(i)%index(k) =  n_degrees*(active_node(i)-1)+k 
            
            !enddo	
         ! else

@@ -22,6 +22,7 @@ module phys_module
   real*8  :: eta_rst              !< eta value from restart file
   logical :: visco_T_dependent    !< Viscosity dependent on temperature? Otherwise constant.
   real*8  :: visco_par            !< Parallel viscosity (normalized)
+  real*8  :: visco_par_heating    !< Parallel viscosity used in the parallel viscous heating term (normalized)
   real*8  :: F0                   !< Determines fixed toroidal magnetic field: \f$ B_\phi = F_0/R \f$
   real*8  :: central_density      !< particle density at the magnetic axis (in units of \f$10^{20} m^{-3}\f$)
   real*8  :: central_mass         !< average ion mass in atomic mass units (constant in time and space)
@@ -62,11 +63,13 @@ module phys_module
   logical :: regrid               !< Re-generate the flux-aligned grid (does not work currently)?
   logical :: import_equil         !< (presently unused)
   logical :: xpoint               !< X-point plasma or not? see also xcase
+  real*8  :: Z_xpoint_limit(2)    !< Search the lower X-point in the region Z < Z_xpoint_limit(1) and the upper X-point in the region Z > Z_xpoint_limit(2) 
   logical :: bootstrap            !< Evolve the Bootstrap current consistently with time?
   real*8  :: minRad               !< Approximation of minor radius for bootstrap current calculation
   logical :: refinement           !< Use mesh refinement? (not presently available)
   logical :: force_central_node   !< Force all nodes in the center to have the same values in flux aligned grids or independent values?
   logical :: fix_axis_nodes       !< Fix t-derivative and cross st-derivative on axis to avoid noise
+  logical :: treat_axis           !> Flag for chosing grid axis treatment (see grids/mod_axis_treatment.f90)
   logical :: bc_natural_flux      !< boundary conditions for flux surface boundaries (2 and 3)
   logical :: bc_natural_open      !< use natural boundary conditions on the open fieldlines
   logical :: produce_live_data    !< Write data 'macroscopic_vars.dat' during the code run allowing to use plot_live_data.sh?
@@ -187,6 +190,7 @@ module phys_module
   integer :: last_target_point		   !< index of the last  target point on the limiter (does NOT need to be > first_target_point)
   
   !> Points used as blocks to extend grid into complex wall structures, see https://www.jorek.eu/wiki/doku.php?id=wallgrid_tutorial
+  real*8  :: surface_cross_tol                                                  !< Tolerance when looking for crossing of polar lines and surfaces, needs to be > 1.0
   real*8  :: eqdsk_psi_fact                                                     !< multiply eqdsk psi by factor for grid_inside_wall
   logical :: extend_existing_grid                                               !< Add patches to existing grid from restart file
   integer, parameter :: n_wall_blocks_max = 30                                  !< Maximum number of blocks (30 should be enough)
@@ -266,14 +270,14 @@ module phys_module
   
   !> @name Hyper-resistivity, -viscosity and -diffusivities
   real*8  :: eta_num, visco_num, visco_par_num, D_perp_num, Zk_perp_num, Dn_perp_num, Zk_i_perp_num, Zk_e_perp_num
-
   !> @name Shock-capturing terms
   logical :: use_sc  !< Use shock-capturing stabilization
   real*8  :: D_perp_sc_num, D_par_sc_num, Dn_pol_sc_num, Dn_p_sc_num
   real*8  :: ZK_perp_sc_num, ZK_par_sc_num, ZK_i_perp_sc_num, ZK_i_par_sc_num, ZK_e_perp_sc_num, ZK_e_par_sc_num
   real*8  :: visco_sc_num, visco_par_sc_num
-
-  logical :: eta_num_T_dependent  !< Hyper-resistivity dependent on temperature? Otherwise constant.
+  logical :: eta_num_T_dependent     !< Hyper-resistivity dependent on temperature? Otherwise constant.
+  logical :: eta_num_psin_dependent  !< Give profile for Hyper-resistivity as function of \psi_N? Useful for 2D current flattening
+  real*8  :: eta_num_prof(10)        !< Coefficients to specify \psi_N profile for hyper-resistivity
   logical :: visco_num_T_dependent!< Hyper-visocsity dependent on temperature? Otherwise constant.
   logical :: add_sources_in_sc    !< Whether to add effect of sources in shock-capturing stabilization or not
 
@@ -381,11 +385,14 @@ module phys_module
   real*8  :: ns_phi(n_inj_max) !< Phi position of gas source
   real*8  :: ns_radius         !< Poloidal radius of gas source
   real*8  :: ns_deltaphi       !< Toroidal extension of gas source
-  real*8  :: ns_deltaminrad    !< Extension of gas source in the minor radial direction (if greater than 0.)
+  real*8  :: ns_delta_minor_rad  !< Extension of gas source in the minor radial direction (if greater than 0.)
   real*8  :: ns_tor_norm       !< Gas source normalization factor related to its toroidal shape
+  real*8  :: drift_distance    !< Shift the R position of the neutral deposition outward by drift_distance (in meters) for plasmoid drift
+  real*8  :: energy_teleported !< Energy (in eV) teleported per atom to consider plasmoid drift effects
 
   character(len=80) :: imp_type(n_imp_max) !< Type of injected material or background impurity species: Argon, neon, ...
   logical :: use_imp_adas       !< Use open adas to calculate ionization, recombination and radiation coeffients for impurities
+
 
   !> @name Massive gas injection-related input parameters
   
@@ -412,7 +419,7 @@ module phys_module
   real*8  :: spi_Vel_RxZref(n_inj_max) !< Reference velocity of pellet center along RxZ direction upon injection
   real*8  :: spi_quantity(n_inj_max)   !< Total injected atom number for impurity SPI
   real*8  :: spi_quantity_bg(n_inj_max)!< Total injected atom number for background species SPI
-  real*8  :: ng_radius_ratio           !< We are assuming a constant ratio between the radius of NG clouds
+  real*8  :: ns_radius_ratio           !< We are assuming a constant ratio between the radius of NG clouds
                                        !< and that of shattered pellets
 
   real*8  :: spi_Vel_diff(n_inj_max)   !< The velocity difference from the reference velocity
@@ -422,7 +429,7 @@ module phys_module
   real*8  :: ns_phi_rotate             !< The toroidal position of rotated injection point
   real*8  :: tor_frequency             !< The rigid body rotation frequency
 
-  real*8  :: ng_radius_min      !< This defines the minimum radius of neutral cloud for numerical reasons (in m)
+  real*8  :: ns_radius_min      !< This defines the minimum radius of neutral cloud for numerical reasons (in m)
 
   real*8, allocatable  :: xtime_spi_ablation(:,:)         !< The time history of SPI ablation
   real*8, allocatable  :: xtime_spi_ablation_rate(:,:)    !< The time history of SPI ablation rate
@@ -459,11 +466,33 @@ module phys_module
 
   type (type_SPI), allocatable :: pellets(:) !< Each element corresponds to one injected pellet (shard)
 
+  !> @name This is to record the flux-surface averaged ne and Te for the non-local ablation calculation
+  logical               :: nonlocal_abl ! Whether non-local ablation is on
+  integer               :: n_nonlocal_array  !< Length of the nonlocal array, the larger the higher the resolution
+  real*8, allocatable   :: nl_Psi(:)    !< The psi coordinate of the nonlocal array
+  real*8, allocatable   :: nl_avg_Te(:) !< The average fluid temperature of the nonlocal array
+  real*8, allocatable   :: nl_avg_ne(:) !< The average fluid density of the nonlocal array
+
   character(len=512)            :: adas_dir    !< The directory of ADAS data file to be read
   type (adf11_all), allocatable :: imp_adas(:) !< The ADAS data for impurities
   type (coronal), allocatable   :: imp_cor(:)  !< The coronal equilibrium distribution of impurities
 
   logical :: output_prad_phi    !< Output Prad(phi) into a file using integrals_3D
+
+  !> @name Particle gas puffing related input parameters
+  logical :: use_puffing   !<  Switch to use gas puffing
+  real*8  :: phys_particles_puff  !< physical puffing amount
+  real*8  :: fueling_rate  !< puffing fueling rate (/s)
+  real*8  :: R_valve_loc   !< valve location R
+  real*8  :: Z_valve_loc   !< valve location Z
+  real*8  :: PHI_valve_loc !< valve location phi
+  real*8  :: valve_r   !< radius of gas valve
+  real*8  :: initial_E   !< initial energy in Kelvin
+  real*8  :: puffing_direction(3)   !< puffing direction
+  real*8  :: puffing_timestep   !< timesteps between 2 puffing events(action) in SI unit
+  real*8  :: puff_starttime    !< Puffing start time
+  real*8  :: puffingtime  !< The duration of the puffing 
+
   
   !> @name Fix boundary equilibrium parameters
   real*8  :: amix              !< Mix Poisson solution with previous one with a given factor
@@ -568,6 +597,7 @@ module phys_module
   real*8  :: D_neutral_y          !< Neutral particle diffusivity in Z-direction
   real*8  :: D_neutral_p          !< Neutral particle diffusivity in phi-direction
   logical :: ZKpar_T_dependent    !< Use a temperature dependent parallel heat diffusivity
+  real*8  :: HW_coef(10)   = 0.d0 !< Coefficients for Hasegawa-Wakatani fluctuation term
 
   !> @name Numerical heat and particle diffusivity profiles
   character(len=512)  :: d_perp_file        !< ASCII file with perpendicular particle diffusion profile
@@ -811,9 +841,11 @@ module phys_module
   real*8              :: D_imp_extra_p           !< Additional impurity diffusivity in phi-direction
   real*8              :: D_imp_extra_neg         !< Additional impurity diffusion coefficient in regions with negative impurity density
   real*8              :: D_imp_extra_neg_thresh  !< D_imp_extra_neg becomes effective if rho_imp < D_imp_extra_neg_thresh
-  real*8              :: T_min              !< minimum temperature (limits on the temperature dependence of resistivity etc.)
+  real*8              :: T_min              !< minimum temperature (limits on the temperature dependence of resistivity etc.) value in jorek units: 2.01d-5*central_density*Tmin_ev (preset central_density = 1, 20 eV)
   real*8              :: rho_min            !< minimum density
-
+  real*8              :: T_min_neg          !< minimum temperature,used for correcting negative values,in jorek units: 2.01d-5*central_density*Tmin_ev (preset central_density = 1, 20 eV)  
+  real*8              :: rho_min_neg        !< minimum density, used for correcting negative values  
+  
   real*8              :: ne_SI_min          !< minimum e density (in SI unit) below which we cut-off the radiation loss
   real*8              :: Te_eV_min          !< minimum temperature (in eV) below which we cut-off the radiation loss
   real*8              :: rn0_min            !< minimum impurity density (in JU) for radiation loss cut-off
@@ -856,6 +888,7 @@ module phys_module
   real*8  :: tstep_particles  ! the time step for the particles
   integer :: nstep_particles  ! the number of particle time steps
   integer :: nsubstep_particles ! the number of particles substeps (without projection)
+  integer :: nout_particle      ! Output vtk/h5 every nout_particle timesteps
   real*8  :: filter_perp      ! particle projection smoothing parameter, poloidal plane
   real*8  :: filter_hyper     ! particle projection smoothing parameter, poloidal plane
   real*8  :: filter_par       ! particle projection smoothing parameter, parallel direction
@@ -872,7 +905,7 @@ module phys_module
   real*8  :: weights_per_family(n_fam_max)            !< Multiplication factor of family's contribution to the full solution
   logical :: autodistribute_ranks                     !< use automatic or manual rank distribution
   integer :: ranks_per_family(n_fam_max)              !< Number of MPI ranks per mode families
-  
+ 
   contains
   
 end module phys_module

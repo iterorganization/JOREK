@@ -368,7 +368,7 @@ do ife = 1, element_list%n_elements
  delta_g = 0.d0; delta_s = 0.d0; delta_t = 0.d0; delta_ss = 0.d0; delta_tt = 0.d0; delta_st = 0.d0
 
  do i=1,n_vertex_max
-  do j=1,n_order+1
+  do j=1,n_degrees
    do ms=1,n_gauss
     do mt=1,n_gauss
 

@@ -5,10 +5,14 @@ module mod_gc_variational
   use mod_particle_types
   use constants, only: EL_CHG, ATOMIC_MASS_UNIT
   implicit none  
-  public copy_particle_gc_vpar, copy_particle_gc_Qin, copy_particle_gc_Qin_to_vpar
-  public initialise_gc_Qin, push_gc_Qin, push_gc_rk4
+  public copy_particle_gc_vpar
+  public copy_particle_gc_Qin
+  public copy_particle_gc_Qin_to_vpar
+  public initialise_gc_Qin
+  public push_gc_Qin
+  public push_gc_rk4
   public convert_leapfrog_to_gc_vpar
-    
+  public convert_gc_to_gc_vpar
 contains
 
 subroutine copy_particle_gc_vpar(particle_in, particle_out)
@@ -34,7 +38,7 @@ subroutine convert_gc_to_gc_vpar(particle_in, B_norm, mass, particle_out)
   type(particle_gc), intent(in) :: particle_in
   real*8, intent(in)            :: B_norm      !< Norm magnetic field at  guiding (gyro) center position [T]
   real*8, intent(in)            :: mass        !< Mass of the particle [amu]
-  type(particle_gc_vpar)        :: particle_out
+  type(particle_gc_vpar),intent(out) :: particle_out
 
   real*8 :: v2, v_par
 
@@ -43,9 +47,6 @@ subroutine convert_gc_to_gc_vpar(particle_in, B_norm, mass, particle_out)
   particle_out%st     = particle_in%st
   particle_out%q      = particle_in%q
   particle_out%weight = particle_in%weight
-
-!  out%E  = mass * ATOMIC_MASS_UNIT * 0.5d0 * v2 / EL_CHG ! [eV]
-!  mu     = mass * ATOMIC_MASS_UNIT * 0.5d0 * (v2 - v_par**2)/B_norm/EL_CHG
 
   v2 = 2.d0 * particle_in%E * EL_CHG / (mass*ATOMIC_MASS_UNIT) ![m/s]
 
@@ -195,7 +196,7 @@ subroutine convert_gc_vpar_to_kinetic(node_list, element_list, particle_in, B, m
   endif
 
 
-  B_norm = norm2(B)
+  B_norm = sqrt(dot_product(B,B))
   B_hat  = B/B_norm
 
   v_perp = sqrt(2.d0 * particle_in%mu * B_norm) ! [m/s]
@@ -225,7 +226,7 @@ subroutine convert_gc_vpar_to_kinetic(node_list, element_list, particle_in, B, m
       call find_RZ_nearby(node_list, element_list, &
              particle_in%x(1),     particle_in%x(2),     particle_in%st(1),     particle_in%st(2),     particle_in%i_elm, &
              particle_out(i)%x(1), particle_out(i)%x(2), particle_out(i)%st(1), particle_out(i)%st(2), particle_out(i)%i_elm, ifail)
-
+  
       if (ifail .ne. 0) my_ifail = ifail
     else
 

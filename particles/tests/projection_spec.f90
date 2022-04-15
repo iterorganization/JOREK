@@ -47,7 +47,7 @@ subroutine test_project_1_square_10_10
   ! verify that no node shares the same index and all indices are used exactly once
   index = 0
   do i=1,node_list%n_nodes
-    do j=1,n_order+1
+    do j=1,n_degrees
       index(node_list%node(i)%index(j)) = index(node_list%node(i)%index(j)) + 1
     end do
   end do

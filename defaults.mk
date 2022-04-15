@@ -73,6 +73,11 @@ ifeq ($(COMPILER_FAMILY), intel)
   else
     FLAGS += -openmp
   endif
+
+  ifeq ($(shell test $(COMPILER_MAJOR_VERSION) -ge 19; echo $$?),0)
+    FFLAGS += -warn noexternal
+  endif
+
   FFLAGS += -warn all
   FFLAGS += -warn nointerfaces
   FFLAGS += -warn nounused

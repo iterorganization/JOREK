@@ -224,6 +224,7 @@ write(*,'(1x,a)',advance='no') ' USE_BICGSTAB : '
   write(*,LOGI_FMT) 'visco_T_dependent     ', visco_T_dependent
   write(*,REAL_FMT) 'visco                 ', visco
   write(*,REAL_FMT) 'visco_par             ', visco_par
+  write(*,REAL_FMT) 'visco_par_heating     ', visco_par_heating
   write(*,LOGI_FMT) 'restart               ', restart
   write(*,INTG_FMT) 'rst_format            ', rst_format
   write(*,INTG_FMT) 'rst_hdf5              ', rst_hdf5
@@ -251,6 +252,7 @@ write(*,'(1x,a)',advance='no') ' USE_BICGSTAB : '
   write(*,LOGI_FMT) 'n_tht_equidistant     ', n_tht_equidistant
   write(*,INTG_FMT) 'n_flux                ', n_flux
   write(*,LOGI_FMT) 'xpoint                ', xpoint
+  write(*,REAL_FMT) 'Z_xpoint_limit        ', Z_xpoint_limit(:)
 
   if ( xpoint ) then
     write(*,INTG_FMT) 'xcase                 ', xcase
@@ -286,6 +288,7 @@ write(*,'(1x,a)',advance='no') ' USE_BICGSTAB : '
     write(*,REAL_FMT) 'SDN_threshold         ', SDN_threshold
   end if
 
+  write(*,REAL_FMT) 'surface_cross_tol     ',surface_cross_tol
   if ( ( (grid_to_wall) .or. (extend_existing_grid) ) .and. (n_wall_blocks .gt. 0) ) then
     write(*,REAL_FMT) 'eqdsk_psi_fact        ', eqdsk_psi_fact
     write(*,LOGI_FMT) 'RZ_grid_inside_wall   ', RZ_grid_inside_wall
@@ -484,6 +487,8 @@ write(*,'(1x,a)',advance='no') ' USE_BICGSTAB : '
   write(*,LOGI_FMT) 'Wdia                  ', Wdia
   write(*,REAL_FMT) 'eta_num               ', eta_num
   write(*,LOGI_FMT) 'eta_num_T_dependent   ', eta_num_T_dependent
+  write(*,LOGI_FMT) 'eta_num_psin_dependent', eta_num_psin_dependent
+  write(*,REAL_FMT) 'eta_num_prof          ', eta_num_prof(1:6)
   write(*,REAL_FMT) 'visco_num             ', visco_num
   write(*,LOGI_FMT) 'visco_num_T_dependent ', visco_num_T_dependent
   write(*,REAL_FMT) 'visco_par_num         ', visco_par_num
@@ -503,6 +508,10 @@ write(*,'(1x,a)',advance='no') ' USE_BICGSTAB : '
   write(*,REAL_FMT) 'visco_par_sc_num      ', visco_par_sc_num
   write(*,REAL_FMT) 'Dn_pol_sc_num         ', Dn_pol_sc_num
   write(*,REAL_FMT) 'Dn_p_sc_num           ', Dn_p_sc_num
+
+  if(jorek_model == 004 ) then
+    write(*,REAL_FMT) 'HW_coef               ', HW_coef(1:2)
+  endif
 
   write(*,LOGI_FMT) 'add_sources_in_sc     ', add_sources_in_sc
   if (with_TiTe) then
@@ -557,10 +566,12 @@ write(*,'(1x,a)',advance='no') ' USE_BICGSTAB : '
   write(*,REAL_FMT) 'D_imp_extra_neg       ', D_imp_extra_neg
   write(*,REAL_FMT) 'D_imp_extra_neg_thresh', D_imp_extra_neg_thresh
   write(*,REAL_FMT) 'T_min                 ', T_min
+  write(*,REAL_FMT) 'T_min_neg             ', T_min_neg
   write(*,REAL_FMT) 'ne_SI_min             ', ne_SI_min
   write(*,REAL_FMT) 'Te_eV_min             ', Te_eV_min
   write(*,REAL_FMT) 'rn0_min               ', rn0_min
   write(*,REAL_FMT) 'rho_min               ', rho_min
+  write(*,REAL_FMT) 'rho_min_neg           ', rho_min_neg
   write(*,LOGI_FMT) 'use_pellet            ', use_pellet
   write(*,REAL_FMT) 'corr_neg_temp_coef    ', corr_neg_temp_coef(:)
   write(*,REAL_FMT) 'corr_neg_dens_coef    ', corr_neg_dens_coef(:)
@@ -731,7 +742,6 @@ write(*,'(1x,a)',advance='no') ' USE_BICGSTAB : '
   write(*,INTG_FMT) 'pastix_maxthrd        ', pastix_maxthrd
   write(*,LOGI_FMT) 'refinement            ', refinement
   write(*,LOGI_FMT) 'force_central_node    ', force_central_node
-  write(*,LOGI_FMT) 'fix_axis_nodes        ', fix_axis_nodes
   write(*,LOGI_FMT) 'grid_to_wall          ', grid_to_wall
   write(*,LOGI_FMT) 'adaptive_time         ', adaptive_time
   write(*,LOGI_FMT) 'equil                 ', equil
@@ -751,6 +761,9 @@ write(*,'(1x,a)',advance='no') ' USE_BICGSTAB : '
     write(*,LOGI_FMT) 'eta_ARAZ_simple       ', eta_ARAZ_simple
     write(*,LOGI_FMT) 'tauIC_ARAZ_on         ', tauIC_ARAZ_on
 #endif
+
+  write(*,LOGI_FMT) 'fix_axis_nodes        ',fix_axis_nodes 
+  write(*,LOGI_FMT) 'treat_axis            ',treat_axis
 
   if (use_mumps) then
     write(*,INTG_FMT) 'mumps_ordering        ', mumps_ordering
@@ -820,9 +833,9 @@ write(*,'(1x,a)',advance='no') ' USE_BICGSTAB : '
      write(*,REAL_FMT) 'ns_Z                ',  ns_Z
      write(*,REAL_FMT) 'ns_phi              ',  ns_phi
      write(*,REAL_FMT) 'ns_radius           ',  ns_radius
-     write(*,REAL_FMT) 'ng_radius_min       ',  ng_radius_min
+     write(*,REAL_FMT) 'ns_radius_min       ',  ns_radius_min
      write(*,REAL_FMT) 'ns_deltaphi         ',  ns_deltaphi
-     write(*,REAL_FMT) 'ns_deltaminrad      ',  ns_deltaminrad
+     write(*,REAL_FMT) 'ns_delta_minor_rad  ',  ns_delta_minor_rad
      write(*,REAL_FMT) 'ns_tor_norm         ',  ns_tor_norm
      write(*,REAL_FMT) 'ksi_ion             ',  ksi_ion
      write(*,LOGI_FMT) 'JET_MGI             ',  JET_MGI
@@ -849,20 +862,23 @@ write(*,'(1x,a)',advance='no') ' USE_BICGSTAB : '
      write(*,REAL_FMT) 'neutral_reflection  ', neutral_reflection
      write(*,REAL_FMT) 'imp_reflection      ', imp_reflection
      write(*,LOGI_FMT) 'output_prad_phi     ', output_prad_phi
-     write(*,CHAR_FMT) 'adas_dir            ',  trim(adas_dir)
-     write(*,LOGI_FMT) 'use_imp_adas        ',  use_imp_adas
+     write(*,CHAR_FMT) 'adas_dir            ', trim(adas_dir)
+     write(*,LOGI_FMT) 'use_imp_adas        ', use_imp_adas
+     write(*,REAL_FMT) 'drift_distance      ', drift_distance
+     write(*,REAL_FMT) 'energy_teleported   ', energy_teleported
 
      !< Additional log for SPI model
    if(using_spi) then
      write(*,LOGI_FMT) 'using_spi           ',  using_spi
      write(*,LOGI_FMT) 'restart_spi         ',  restart_spi
+     write(*,LOGI_FMT) 'nonlocal_abl        ',  nonlocal_abl
      write(*,LOGI_FMT) 'spi_tor_rot         ',  spi_tor_rot
      write(*,LOGI_FMT) 'spi_num_vol         ',  spi_num_vol
      write(*,CHAR_FMT) 'adas_dir            ',  trim(adas_dir)
-     write(*,INTG_FMT) 'n_adas              ',  n_adas
      write(*,INTG_FMT) 'n_spi               ',  n_spi
      write(*,INTG_FMT) 'n_spi_tot           ',  n_spi_tot
      write(*,INTG_FMT) 'n_inj               ',  n_inj
+     write(*,INTG_FMT) 'n_nonlocal_array    ',  n_nonlocal_array
      do i = 1,n_inj
        write(*,CHAR_FMT2) 'spi_plume_file(',i,')    ',  trim(spi_plume_file(i))
      end do
@@ -891,6 +907,7 @@ write(*,'(1x,a)',advance='no') ' USE_BICGSTAB : '
   write(*,REAL_FMT) 'n_particles         ',n_particles
   write(*,INTG_FMT) 'nstep_particles     ',nstep_particles
   write(*,INTG_FMT) 'nsubstep_particles  ',nsubstep_particles
+  write(*,INTG_FMT) 'nout_particle       ',nout_particle
   write(*,REAL_FMT) 'tstep_particles     ',tstep_particles
   write(*,REAL_FMT) 'filter_perp,        ',filter_perp
   write(*,REAL_FMT) 'filter_hyper,       ',filter_hyper
@@ -905,6 +922,19 @@ write(*,'(1x,a)',advance='no') ' USE_BICGSTAB : '
   write(*,LOGI_FMT) 'use_ionisation,     ',use_ionisation    
   write(*,LOGI_FMT) 'use_sputtering,     ',use_sputtering    
   write(*,LOGI_FMT) 'use_cx,             ',use_cx            
+
+  write(*,LOGI_FMT) 'use_puffing,        ',use_puffing     
+  write(*,REAL_FMT) 'phys_particles_puff,',phys_particles_puff
+  write(*,REAL_FMT) 'fueling_rate,       ',fueling_rate  
+  write(*,REAL_FMT) 'valve_r,            ',valve_r  
+  write(*,REAL_FMT) 'R_valve_loc,        ',R_valve_loc
+  write(*,REAL_FMT) 'Z_valve_loc,        ',Z_valve_loc   
+  write(*,REAL_FMT) 'PHI_valve_loc,      ',PHI_valve_loc  
+  write(*,REAL_FMT) 'initial_E,          ',initial_E
+  write(*,REAL_FMT) 'puffing_direction,  ',puffing_direction
+  write(*,REAL_FMT) 'puffing_timestep,   ',puffing_timestep
+  write(*,REAL_FMT) 'puff_starttime,     ',puff_starttime
+  write(*,REAL_FMT) 'puffingtime,        ',puffingtime 
 
   write(*,*)
   write(*,200)

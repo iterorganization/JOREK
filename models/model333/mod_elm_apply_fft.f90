@@ -33,7 +33,7 @@ subroutine ELM_apply_fft(RHS, RHS_p, RHS_k, ELM, ELM_p, ELM_n, ELM_k, ELM_kn, ti
   integer    :: index, index_k, index_m
 	  
   ! --- RHS_p
-  do j=1, n_vertex_max*n_var*(n_order+1)
+  do j=1, n_vertex_max*n_var*n_degrees
 
     in_fft = RHS_p(1:n_plane,j)
 
@@ -59,7 +59,7 @@ subroutine ELM_apply_fft(RHS, RHS_p, RHS_k, ELM, ELM_p, ELM_n, ELM_k, ELM_kn, ti
   enddo
 
   ! --- RHS_k
-  do j=1, n_vertex_max*n_var*(n_order+1)
+  do j=1, n_vertex_max*n_var*n_degrees
 
     in_fft = RHS_k(1:n_plane,j)
 
@@ -87,8 +87,8 @@ subroutine ELM_apply_fft(RHS, RHS_p, RHS_k, ELM, ELM_p, ELM_n, ELM_k, ELM_kn, ti
   enddo
 
   ! --- ELM_p
-  do i=1,n_vertex_max*n_var*(n_order+1)
-    do j=1, n_vertex_max*n_var*(n_order+1)
+  do i=1,n_vertex_max*n_var*n_degrees
+    do j=1, n_vertex_max*n_var*n_degrees
 
       in_fft =  ELM_p(1:n_plane,i,j)
 
@@ -148,8 +148,8 @@ subroutine ELM_apply_fft(RHS, RHS_p, RHS_k, ELM, ELM_p, ELM_n, ELM_k, ELM_kn, ti
   enddo
 
   ! --- ELM_n
-  do i=1,n_vertex_max*n_var*(n_order+1)
-    do j=1, n_vertex_max*n_var*(n_order+1)
+  do i=1,n_vertex_max*n_var*n_degrees
+    do j=1, n_vertex_max*n_var*n_degrees
       if (maxval(abs(ELM_n(1:n_plane,i,j))) .ne. 0.d0) then
 
 	in_fft =  ELM_n(1:n_plane,i,j)
@@ -212,8 +212,8 @@ subroutine ELM_apply_fft(RHS, RHS_p, RHS_k, ELM, ELM_p, ELM_n, ELM_k, ELM_kn, ti
   enddo
 
   ! --- ELM_k
-  do i=1,n_vertex_max*n_var*(n_order+1)
-    do j=1, n_vertex_max*n_var*(n_order+1)
+  do i=1,n_vertex_max*n_var*n_degrees
+    do j=1, n_vertex_max*n_var*n_degrees
       if (maxval(abs(ELM_k(1:n_plane,i,j))) .ne. 0.d0) then
 
 	in_fft =  ELM_k(1:n_plane,i,j)
@@ -277,8 +277,8 @@ subroutine ELM_apply_fft(RHS, RHS_p, RHS_k, ELM, ELM_p, ELM_n, ELM_k, ELM_kn, ti
 
 
   ! --- ELM_kn
-  do i=1,n_vertex_max*n_var*(n_order+1)
-    do j=1, n_vertex_max*n_var*(n_order+1)
+  do i=1,n_vertex_max*n_var*n_degrees
+    do j=1, n_vertex_max*n_var*n_degrees
       if (maxval(abs(ELM_kn(1:n_plane,i,j))) .ne. 0.d0) then
 
 	in_fft =  ELM_kn(1:n_plane,i,j)

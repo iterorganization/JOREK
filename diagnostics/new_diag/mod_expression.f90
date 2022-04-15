@@ -126,7 +126,7 @@ module mod_expression
     call add(exprs_all, 'JZ          ', 'Physical current density (Z component)                ')
     call add(exprs_all, 'Jtor        ', 'Physical current density (phi component)              ')
     call add(exprs_all, 'Jpol        ', 'Poloidal current value in the poloidal field direction')
-    call add(exprs_all, 'FFprime_loc ', 'Local FFprime value, calculated from 3D JxB=\grad p   ')
+    call add(exprs_all, 'FFprime_loc ', 'Local FFprime value, calculated from 3D JxB= grad p   ')
     call add(exprs_all, 'JxB_R       ', 'JxB force (R component)                               ')
     call add(exprs_all, 'JxB_Z       ', 'JxB force (Z component)                               ')
     call add(exprs_all, 'JxB_phi     ', 'JxB force (phi component)                             ')
@@ -196,7 +196,7 @@ module mod_expression
     call add(exprs_all, 'vpar_norm   ', 'Perpendicular velocity to the boundary (vpar contrib) ', 'boundary    ')
     call add(exprs_all, 'vu_norm     ', 'Perpendicular velocity to the boundary (u contrib)    ', 'boundary    ')
     call add(exprs_all, 'vtot_norm   ', 'Total perpendicular velocity to the JOREKs boundary   ', 'boundary    ')
-    call add(exprs_all, 'heatF_sheath', 'Sheath theory heatflux (gamma_sh nT vpar\cdot n)      ', 'boundary    ')
+    call add(exprs_all, 'heatF_sheath', 'Sheath theory heatflux (gamma_sh nT vpar dot n)       ', 'boundary    ')
     call add(exprs_all, 'heatF_par_cd', 'Conductive parallel heat flux (normal to the boundary)', 'boundary    ')
     call add(exprs_all, 'heatF_prp_cd', 'Conductive perpend  heat flux (normal to the boundary)', 'boundary    ')
     call add(exprs_all, 'heatF_tot_cd', 'Conductive total    heat flux (normal to the boundary)', 'boundary    ')
@@ -243,12 +243,12 @@ module mod_expression
     call add(exprs_all_int, 'Thermal_tot ', 'Total thermal energy                                  ')
     call add(exprs_all_int, 'Thermal_in  ', 'Thermal energy (inside  LCFS)                         ')
     call add(exprs_all_int, 'Thermal_out ', 'Thermal energy (outside LCFS)                         ')
-    call add(exprs_all_int, 'Thermal_e_tot','Total electron thermal energy                                  ')
-    call add(exprs_all_int, 'Thermal_e_in ','Thermal electron energy (inside  LCFS)                         ')
-    call add(exprs_all_int, 'Thermal_e_out','Thermal electron energy (outside LCFS)                         ')
-    call add(exprs_all_int, 'Thermal_i_tot','Total ion thermal energy                                  ')
-    call add(exprs_all_int, 'Thermal_i_in ','Thermal ion energy (inside  LCFS)                         ')
-    call add(exprs_all_int, 'Thermal_i_out','Thermal ion energy (outside LCFS)                         ')
+    call add(exprs_all_int, 'Thermal_e_tot','Total electron thermal energy                         ')
+    call add(exprs_all_int, 'Thermal_e_in ','Thermal electron energy (inside  LCFS)                ')
+    call add(exprs_all_int, 'Thermal_e_out','Thermal electron energy (outside LCFS)                ')
+    call add(exprs_all_int, 'Thermal_i_tot','Total ion thermal energy                              ')
+    call add(exprs_all_int, 'Thermal_i_in ','Thermal ion energy (inside  LCFS)                     ')
+    call add(exprs_all_int, 'Thermal_i_out','Thermal ion energy (outside LCFS)                     ')
     call add(exprs_all_int, 'Kin_par_tot ', 'Total parallel kinetic energy                         ')
     call add(exprs_all_int, 'Kin_par_in  ', 'Parallel kinetic energy (inside  LCFS)                ')
     call add(exprs_all_int, 'Kin_par_out ', 'Parallel kinetic energy (outside LCFS)                ')
@@ -260,8 +260,8 @@ module mod_expression
     call add(exprs_all_int, 'Part_out    ', 'Number of ions  (outside LCFS)                        ')
     call add(exprs_all_int, 'NPart_tot   ', 'Total number of neutral particles                     ')
     call add(exprs_all_int, 'Helicity_tot', 'Total magnetic helicity                               ')
-    call add(exprs_all_int, 'Mag_work_tot', 'Total magnetic work = -\int v\cdot(JxB) dV            ')
-    call add(exprs_all_int, 'Thm_work_tot', 'Total thermal work  = \int vpar\cdot\nabla p dV       ')
+    call add(exprs_all_int, 'Mag_work_tot', 'Total magnetic work = -int v dot(JxB) dV              ')
+    call add(exprs_all_int, 'Thm_work_tot', 'Total thermal work  = int vpar dot grad p dV          ')
     call add(exprs_all_int, 'Part_src_tot', 'Total particle source                                 ')
     call add(exprs_all_int, 'Part_src_in ', 'Particle source (inside  LCFS)                        ')
     call add(exprs_all_int, 'Part_src_out', 'Particle source (outside LCFS)                        ')
@@ -301,6 +301,12 @@ module mod_expression
     call add(exprs_all_int, 'q99         ', 'Safety factor at psin=0.99                            ')
     call add(exprs_all_int, 'I_halo      ', 'Total poloidal halo currents                          ')
     call add(exprs_all_int, 'TPF_halo    ', 'Toroidal peaking factor of the poloidal halos         ')
+    call add(exprs_all_int, 'LCFS_Rgeo   ', 'Major radius          (as in PPCF 55 (2013) 095009)   ')
+    call add(exprs_all_int, 'LCFS_a      ', 'Minor radius          (as in PPCF 55 (2013) 095009)   ')
+    call add(exprs_all_int, 'LCFS_epsilon', 'Inverse aspect ratio  (as in PPCF 55 (2013) 095009)   ')
+    call add(exprs_all_int, 'LCFS_kappa  ', 'Elongation            (as in PPCF 55 (2013) 095009)   ')
+    call add(exprs_all_int, 'LCFS_deltaU ', 'Upper triangularity   (as in PPCF 55 (2013) 095009)   ')
+    call add(exprs_all_int, 'LCFS_deltaL ', 'Lower triangularity   (as in PPCF 55 (2013) 095009)   ')
 
     call add(exprs_all_four, 'absolute    ', 'Absolute value of 2D Fourier analysis                 ')
     call add(exprs_all_four, 'real        ', 'Real part      of 2D Fourier analysis                 ')
@@ -545,8 +551,8 @@ module mod_expression
     type(type_node)          :: nodes(n_vertex_max)
     integer :: ipolpos, jpolpos, itorpos, iexpr, ielm, i, j, k, i_tor
     real*8  :: xjac, xjac_R, xjac_Z, R, R_s, R_t, R_st, R_ss, R_tt, Z, Z_s, Z_t, Z_st, Z_ss, Z_tt, &
-      s, t, H(n_vertex_max,n_order+1), H_s(n_vertex_max,n_order+1), H_t(n_vertex_max,n_order+1),   &
-      H_st(n_vertex_max,n_order+1), H_ss(n_vertex_max,n_order+1), H_tt(n_vertex_max,n_order+1),    &
+      s, t, H(n_vertex_max,n_degrees), H_s(n_vertex_max,n_degrees), H_t(n_vertex_max,n_degrees),   &
+      H_st(n_vertex_max,n_degrees), H_ss(n_vertex_max,n_degrees), H_tt(n_vertex_max,n_degrees),    &
       HZ(n_tor), HZ_p(n_tor), HZ_pp(n_tor), phi, res, BigR, BigR_R, x_cart, y_cart, theta
     real*8  :: ps0, ps0_s, ps0_t, ps0_ss, ps0_tt, ps0_st, ps0_p, ps0_pp, u0, u0_s, u0_t, u0_ss,    &
       u0_tt, u0_st, u0_p, u0_pp, zj0, zj0_s, zj0_t, zj0_ss, zj0_tt, zj0_st, zj0_p, zj0_pp, w0,     &
@@ -761,7 +767,7 @@ module mod_expression
           
           ! --- Reconstruct variables
           do i = 1, n_vertex_max
-            do j = 1, n_order+1
+            do j = 1, n_degrees
               
               sz    = element%size(i,j)
               hh    = H   (i,j)

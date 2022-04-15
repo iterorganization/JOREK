@@ -93,9 +93,10 @@ integer :: i, j, k, in, ms, mt, mp, iv, inode, ife, n_elements, i_elm_axis, i_el
 integer :: ierr, n_cpu, my_id, ife_delta, ife_min, ife_max, omp_nthreads, omp_tid
 integer :: k_vertex, k_dof, k_node, k_dir, k_dir_perp, m_bndelem, dir_perp(2), mv1, m_elm
 integer :: iexpr
+integer :: i_surface, i_interp1, i_interp2
 real*8  :: R_c, Z_c, vec_inside(2), grad_t(2)
 real*8  :: k_size, k_size_perp
-real*8  :: G(4,4), sign_out, psi_n, ps0_sbnd, u0_sbnd
+real*8  :: G(4,n_degrees), sign_out, psi_n, ps0_sbnd, u0_sbnd
 real*8  :: dt_back, dt_now, r_dt, r_dt2
 real*8  :: I_halo, TPF, q02, q95, q99
 real*8, allocatable :: qval(:), radav(:)
@@ -151,6 +152,10 @@ real*8  :: u0_p, u_s, u_t, u_p
 real*8  :: u0_x, u0_y
 real*8  :: viscopar_flux, viscopar_f, vpar_s, vpar_t, vpar_x, vpar_y, li3_tot, li3
 real*8  :: varmin(n_var), varmax(n_var), V_min(n_var), V_max(n_var)
+real*8  :: Psi_surface(n_flux)
+real*8  :: Vol_surface(n_flux), Volume_surface(n_flux)
+real*8  :: De_surface(n_flux), PNum_e_surface(n_flux)
+real*8  :: Pe_surface(n_flux), Pres_e_surface(n_flux)
 real*8  :: R_curr_cent, Z_curr_cent, Zcurr_tmp, R2curr_tmp, R2curr
 
 #if (defined WITH_Neutrals) && (!defined WITH_Impurities)
@@ -171,14 +176,13 @@ integer    :: i_inj,  n_spi_tmp
 real*8     :: spi_R_tmp
 real*8     :: spi_Z_tmp
 real*8     :: spi_phi_tmp
-real*8     :: spi_abl_tmp
 real*8     :: spi_psi_tmp
 real*8     :: spi_grad_psi_tmp
-real*8     :: ng_radius_tmp !< Radius of neutral gas cloud as a result of the ablation
+real*8     :: ns_radius_tmp !< Radius of neutral gas cloud as a result of the ablation
 real*8     :: source_tmp
 real*8     :: ns_shape ! variable for numerical integration of source volume
-real*8     :: V_ns
-real*8, allocatable :: local_source_volume(:)
+real*8     :: V_ns, V_ns_drift
+real*8, allocatable :: local_source_volume(:), local_source_volume_drift(:)
 
 #endif
 
@@ -305,6 +309,13 @@ varmax   = -1.d99
 R2curr_tmp = 0.d0
 Zcurr_tmp  = 0.d0
 
+if (nonlocal_abl) then
+  Psi_surface = 0.d0
+  Vol_surface = 0.d0
+  De_surface  = 0.d0
+  Pe_surface  = 0.d0
+endif
+
 Dpar_part_flux   = 0.d0 
 Dperp_part_flux  = 0.d0
 vpar_part_flux   = 0.d0
@@ -329,14 +340,26 @@ if (using_spi) then
    if (allocated(local_source_volume)) then
       deallocate(local_source_volume)
    end if
+   if (allocated(local_source_volume_drift)) then
+      deallocate(local_source_volume_drift)
+   end if
 
    allocate (local_source_volume(n_spi_tot))
+   allocate (local_source_volume_drift(n_spi_tot))
 
    do spi_i=1, n_spi_tot
-      local_source_volume(spi_i)      = 0.d0
+      local_source_volume(spi_i)            = 0.d0
+      local_source_volume_drift(spi_i)      = 0.d0
    end do
 end if
-
+if (.not. allocated(local_source_volume)) allocate (local_source_volume(1)) ! Allocate a dummy array for omp
+if (.not. allocated(local_source_volume_drift)) allocate (local_source_volume_drift(1)) 
+! Setup the coarse non-local array Psi coordinate
+if (nonlocal_abl) then
+  do i_surface=1, n_flux
+     Psi_surface(i_surface)= ES%psi_axis + float(i_surface-1)/(n_flux) * (ES%psi_bnd-ES%psi_axis) ! Psi coordinate, linear
+  end do
+end if
 #endif
 
 delta_phi     = 2.d0 * PI / float(n_plane) / float(n_period)
@@ -357,6 +380,8 @@ ife_max   = min((my_id +1) * ife_delta, element_list%n_elements)
 !$omp          VK_ext, VK_int, VK_tot, VM_ext, VM_int, VM_tot, J2_tot, J2_ext, J2_int,         &
 !$omp          H_int, H_ext, S_int, S_ext,psi_xpoint,  F0, VP_tot,eta, T_0, Te_0, T_min,       &
 !$omp          ne_SI_min, Te_eV_min, rn0_min, P_e_tot, P_i_tot, P_e_int, P_i_int, P_e_ext, P_i_ext, &
+!$omp          Psi_surface, Vol_surface, De_surface, Pe_surface, nonlocal_abl,                 &
+!$omp          n_nonlocal_array, n_flux,                                                       &
 !$omp          pellet_amplitude,pellet_R,pellet_Z,pellet_psi,pellet_phi,                       &
 !$omp          pellet_radius, pellet_delta_psi, pellet_sig, pellet_length, pellet_ellipse, pellet_theta,  &
 !$omp          central_density, pellet_particles,pellet_density, pellet_volume,                &
@@ -365,11 +390,11 @@ ife_max   = min((my_id +1) * ife_delta, element_list%n_elements)
 !$omp          mag_wk_tot, vpar_disp_tot, fric_disp_tot, area1, mag_src_tot,                   &
 !$omp          eta_ohmic, central_mass, R2curr_tmp, Zcurr_tmp,                                 &
 #if (defined WITH_Neutrals) || (defined WITH_Impurities)
-!$omp          spi_num_vol, local_source_volume,                                               &
+!$omp          spi_num_vol, local_source_volume, local_source_volume_drift, drift_distance,    &
 !$omp          using_spi, n_spi_tot, n_inj, n_spi,                                             &
-!$omp          pellets, ng_radius_ratio, ng_radius_min,                                        &
+!$omp          pellets, ns_radius_ratio, ns_radius_min,                                        &
 !$omp          local_n_particles_inj, local_n_particles, ns_amplitude, ns_R, ns_Z,             &
-!$omp          ns_phi, ns_radius, ns_deltaphi, ns_deltaminrad, ns_tor_norm, spi_tor_rot, local_E_ion,          &
+!$omp          ns_phi, ns_radius, ns_deltaphi, ns_delta_minor_rad, ns_tor_norm, spi_tor_rot, local_E_ion,  &
 !$omp          t_now, A_Dmv, K_Dmv, V_Dmv, P_Dmv, t_ns, L_tube, JET_MGI,ASDEX_MGI, local_P_ion,&
 !$omp          local_radiation, local_radiation_phi, imp_cor, imp_adas, imp_type, local_P_ei,  &
 !$omp          n_adas, nimp_bg,                                                                &
@@ -382,7 +407,7 @@ ife_max   = min((my_id +1) * ife_delta, element_list%n_elements)
 #endif
 !$omp          T_1, T_max_eta, T_max_eta_ohm, eta_T_dependent,                                 &
 !$omp          wgauss_copy, varmin, varmax)                                                    &
-!$omp   private(ife,iv,inode,element,nodes,aux_nodes,i,j, k,in, mp, ms, mt,                    &
+!$omp   private(ife,iv,inode,element,nodes,aux_nodes,i,j, k,in, mp, ms, mt, i_surface,         &
 !$omp           x_g, y_g, x_s, y_s, x_t, y_t, xjac, xjac_R, xjac_Z, eq_g, eq_s, eq_t, eq_p,    &
 !$omp           x_ss, x_tt, x_st, y_ss, y_tt, y_st, eq_ss, eq_tt, eq_st, eq_sp, eq_tp,         &
 !$omp           psi_axisym, eq_aux_g, eq_aux_s, eq_aux_t, eq_aux_p,                            &
@@ -402,7 +427,7 @@ ife_max   = min((my_id +1) * ife_delta, element_list%n_elements)
 
 #if (defined WITH_Neutrals) || (defined WITH_Impurities)
 !$omp           rn0, rn0_corr, i_imp, frad_bg, Lrad_imp, Te_corr_eV, Te_eV, ne_SI, Ti_eV,      &
-!$omp           spi_R_tmp, spi_Z_tmp, spi_phi_tmp, spi_abl_tmp, ng_radius_tmp,                 &
+!$omp           spi_R_tmp, spi_Z_tmp, spi_phi_tmp, ns_radius_tmp,                              &
 !$omp           spi_psi_tmp, spi_grad_psi_tmp,                                                 &
 !$omp           n_spi_tmp, source_tmp, ns_shape,                                               &
 #endif
@@ -442,14 +467,15 @@ omp_tid      = 0
 #if (defined WITH_Neutrals) || (defined WITH_Impurities)
 !$omp                local_n_particles_inj,  local_n_particles,                               &
 !$omp                local_radiation, local_radiation_phi, local_E_ion, local_P_ei, local_P_ion, &
-!$omp                local_source_volume,                                                     &
+!$omp                local_source_volume, local_source_volume_drift,                          &
 #endif
 !$omp                D_int, D_ext, P_int, H_int, S_int, H_ext, S_ext, P_ext, C_intern, C_ext, &
 !$omp                P_e_int, P_i_int, P_e_ext, P_i_ext, P_e_tot, P_i_tot,                    &
 !$omp                VP_int, VP_ext, VP_tot, VK_tot, VK_int, VK_ext, VM_ext,                  &
 !$omp                VM_int, VM_tot, Vol, P_tot, D_tot,J2_tot, J2_int, J2_ext,                &
 !$omp                heli_tot, mag_wk_tot, vpar_disp_tot, thm_wk_tot, area1, mag_src_tot,     &
-!$omp                fric_disp_tot, R2curr_tmp, Zcurr_tmp, thm_wk_e_tot, thm_wk_i_tot)
+!$omp                fric_disp_tot, Vol_surface, De_surface, Pe_surface, R2curr_tmp, Zcurr_tmp,&
+!$omp                thm_wk_e_tot, thm_wk_i_tot)
 
 do ife = ife_min, ife_max
 
@@ -466,7 +492,7 @@ do ife = ife_min, ife_max
   psi_axisym(:,:) = 0.d0
 
   do i=1,n_vertex_max
-    do j=1,n_order+1
+    do j=1,n_degrees
 
       do ms=1, n_gauss
         do mt=1, n_gauss
@@ -501,7 +527,7 @@ do ife = ife_min, ife_max
   eq_aux_g(:,:,:,:) = 0.d0; eq_aux_s(:,:,:,:) = 0.d0; eq_aux_t(:,:,:,:) = 0.d0; eq_aux_p(:,:,:,:) = 0.d0;
 
   do i=1,n_vertex_max
-    do j=1,n_order+1
+    do j=1,n_degrees
 
       do mp=1,n_plane
         do ms=1, n_gauss
@@ -1123,25 +1149,36 @@ do ife = ife_min, ife_max
                  spi_R_tmp   = pellets(spi_i)%spi_R
                  spi_Z_tmp   = pellets(spi_i)%spi_Z
                  spi_phi_tmp = pellets(spi_i)%spi_phi
-                 spi_abl_tmp = pellets(spi_i)%spi_abl
 
                  spi_psi_tmp = pellets(spi_i)%spi_psi
                  spi_grad_psi_tmp = pellets(spi_i)%spi_grad_psi
                  
-                 ng_radius_tmp   = pellets(spi_i)%spi_radius * ng_radius_ratio
+                 ns_radius_tmp   = pellets(spi_i)%spi_radius * ns_radius_ratio
 
-                 if (ng_radius_tmp < ng_radius_min) then
-                    ng_radius_tmp = ng_radius_min
+                 if (ns_radius_tmp < ns_radius_min) then
+                    ns_radius_tmp = ns_radius_min
                  end if
 
                  ! Compute the source shape
                  ns_shape = source_shape(x_g(ms,mt),y_g(ms,mt),phi, &
                       spi_R_tmp,spi_Z_tmp,spi_phi_tmp,              &
-                      ng_radius_tmp,ns_deltaphi,                    &
-                      ps0,spi_psi_tmp,spi_grad_psi_tmp,ns_deltaminrad)
+                      ns_radius_tmp,ns_deltaphi,                    &
+                      ps0,spi_psi_tmp,spi_grad_psi_tmp,ns_delta_minor_rad)
 
                  local_source_volume(spi_i) = local_source_volume(spi_i) &
                       + ns_shape * bigR * xjac * wst * delta_phi
+
+                 if (drift_distance /= 0) then ! Get the volume at the post-drift location (for normalization)
+                   ns_shape = source_shape(x_g(ms,mt),y_g(ms,mt),phi,     &
+                        spi_R_tmp+drift_distance,spi_Z_tmp,spi_phi_tmp,   &
+                        ns_radius_tmp,ns_deltaphi,                        &
+                        ps0,pellets(spi_i)%spi_psi_drift,                 &
+                        pellets(spi_i)%spi_grad_psi_drift,                &
+                        ns_delta_minor_rad)
+
+                   local_source_volume_drift(spi_i) = local_source_volume_drift(spi_i) &
+                        + ns_shape * bigR * xjac * wst * delta_phi
+                 end if
 
               end if
 
@@ -1251,6 +1288,48 @@ do ife = ife_min, ife_max
           J2_ext = J2_ext + eta_T_ohm * (ZJ0/BigR)**2.d0 * xjac * BigR * wst * delta_phi
         endif
 
+        ! Fill in the nonlocal array
+        if (nonlocal_abl .and. get_psi_n(psi_as_coord, y_g(ms,mt)) < 1. &
+          .and. get_psi_n(psi_as_coord, y_g(ms,mt)) >= 0.) then
+
+          if (get_psi_n(psi_as_coord, y_g(ms,mt)) >= get_psi_n(Psi_surface(n_flux))) then
+            i_surface = n_flux
+          else
+            i_surface = INT(get_psi_n(psi_as_coord, y_g(ms,mt))*REAL(n_flux,8)) + 1 ! Initial guess
+            if (get_psi_n(psi_as_coord, y_g(ms,mt)) < get_psi_n(Psi_surface(i_surface))) then
+              do while (get_psi_n(psi_as_coord, y_g(ms,mt)) < get_psi_n(Psi_surface(i_surface)) &
+                  .and. i_surface > 1)
+                i_surface = i_surface - 1
+              enddo
+            else if (get_psi_n(psi_as_coord, y_g(ms,mt)) >= get_psi_n(Psi_surface(i_surface))) then
+              !write(*,*) "SANITY CHECK", i_surface, get_psi_n(psi_as_coord, y_g(ms,mt)),  get_psi_n(Psi_surface(i_surface)), REAL(n_flux,8)
+              do while (get_psi_n(psi_as_coord, y_g(ms,mt)) >= get_psi_n(Psi_surface(i_surface+1)) &
+                  .and. i_surface < n_flux - 1)
+                i_surface = i_surface + 1
+              enddo
+            end if
+          end if
+
+          Vol_surface(i_surface) = Vol_surface(i_surface) + xjac * BigR * wst * delta_phi
+#ifdef WITH_Impurities
+#ifdef WITH_TiTe
+          De_surface(i_surface)  = De_surface(i_surface)  + (r0+alpha_e*rn0) * xjac * BigR * wst * delta_phi
+          Pe_surface(i_surface)  = Pe_surface(i_surface)  + (r0+alpha_e*rn0) * T0e * xjac * BigR * wst * delta_phi
+#else /* WITH_TiTe */
+          De_surface(i_surface)  = De_surface(i_surface)  + (r0+alpha_imp*rn0) * xjac * BigR * wst * delta_phi
+          Pe_surface(i_surface)  = Pe_surface(i_surface)  + (r0+alpha_imp*rn0)*T0e * xjac * BigR * wst * delta_phi
+#endif /* WITH_TiTe */
+#else /* WITH_Impurities */
+          De_surface(i_surface)  = De_surface(i_surface)  + r0 * xjac * BigR * wst * delta_phi
+#ifdef WITH_TiTe
+          Pe_surface(i_surface)  = Pe_surface(i_surface)  + r0 * T0e * xjac * BigR * wst * delta_phi
+#else /* WITH_TiTe */
+          Pe_surface(i_surface)  = Pe_surface(i_surface)  + r0 * T0e * xjac * BigR * wst * delta_phi
+#endif /* WITH_TiTe */
+#endif /* WITH_Impurities */
+
+        endif
+
       enddo
     enddo
   enddo
@@ -1313,7 +1392,7 @@ do m_bndelem = 1, bnd_elm_list%n_bnd_elements
   call basisfunctions(xgauss(2),xgauss(2), G)  
   R_c = 0.d0 ;  Z_c = 0.d0 
   do i = 1, n_vertex_max
-    do j = 1, n_order+1
+    do j = 1, n_degrees
       node_k = node_list%node(elm_k%vertex(i)) 
       R_c    = R_c + node_k%x(1,j,1) * elm_k%size(i,j) * G(i,j)
       Z_c    = Z_c + node_k%x(1,j,2) * elm_k%size(i,j) * G(i,j)
@@ -1745,6 +1824,11 @@ call MPI_AllReduce(fric_disp_tot, friction_dissip_tot,1,MPI_DOUBLE_PRECISION,MPI
 call MPI_AllReduce(mag_src_tot, mag_source_tot,1,MPI_DOUBLE_PRECISION,MPI_SUM,MPI_COMM_WORLD,ierr)
 call MPI_AllReduce(varmin,V_min,n_var,MPI_DOUBLE_PRECISION,MPI_MIN,MPI_COMM_WORLD,ierr)
 call MPI_AllReduce(varmax,V_max,n_var,MPI_DOUBLE_PRECISION,MPI_MAX,MPI_COMM_WORLD,ierr)
+if (nonlocal_abl) then
+  call MPI_AllReduce(Vol_surface,Volume_surface,n_flux,MPI_DOUBLE_PRECISION,MPI_SUM,MPI_COMM_WORLD,ierr)
+  call MPI_AllReduce(De_surface,PNum_e_surface,n_flux,MPI_DOUBLE_PRECISION,MPI_SUM,MPI_COMM_WORLD,ierr)
+  call MPI_AllReduce(Pe_surface,Pres_e_surface,n_flux,MPI_DOUBLE_PRECISION,MPI_SUM,MPI_COMM_WORLD,ierr)
+endif
 #if (defined WITH_Neutrals) || (defined WITH_Impurities)
 call MPI_AllReduce(local_radiation, total_radiation,1,MPI_DOUBLE_PRECISION,MPI_SUM,MPI_COMM_WORLD,ierr)
 call MPI_AllReduce(local_E_ion, total_E_ion,1,MPI_DOUBLE_PRECISION,MPI_SUM,MPI_COMM_WORLD,ierr)
@@ -1798,6 +1882,11 @@ friction_dissip_tot  = fric_disp_tot
 mag_source_tot       = mag_src_tot
 V_min                = varmin
 V_max                = varmax
+if (nonlocal_abl) then
+  Volume_surface     = Vol_surface
+  PNum_e_surface     = De_surface
+  Pres_e_surface     = Pe_surface
+endif
 
 #if (defined WITH_Neutrals) || (defined WITH_Impurities)
 total_radiation      = local_radiation
@@ -1825,12 +1914,17 @@ if (using_spi) then
    do spi_i=1, n_spi_tot
 #ifndef NOMPIVERSION
       call MPI_AllReduce(local_source_volume(spi_i),pellets(spi_i)%spi_vol,1,MPI_DOUBLE_PRECISION,MPI_SUM,MPI_COMM_WORLD,ierr)
+      call MPI_AllReduce(local_source_volume_drift(spi_i),pellets(spi_i)%spi_vol_drift,1,MPI_DOUBLE_PRECISION,MPI_SUM,MPI_COMM_WORLD,ierr)
 #else /* NOMPIVERSION */
       pellets(spi_i)%spi_vol = local_source_volume(spi_i)
+      pellets(spi_i)%spi_vol_drift = local_source_volume_drift(spi_i)
 #endif /* NOMPIVERSION */
    end do
    deallocate(local_source_volume)
+   deallocate(local_source_volume_drift)
 end if
+if (allocated(local_source_volume)) deallocate(local_source_volume) !In case of dummy array
+if (allocated(local_source_volume_drift)) deallocate(local_source_volume_drift)
 #endif
 
 #if (defined WITH_Neutrals) || (defined WITH_Impurities)
@@ -1845,6 +1939,45 @@ end if
 #else
   neut_particles_tot = 0.d0
 #endif
+
+! Final fill-in for the non-local array, all in JOREK unit
+if (nonlocal_abl) then
+
+  do i_surface = 1, n_flux
+    if (Volume_surface(i_surface) <= 0. .or. PNum_e_surface(i_surface) <= 0.) then
+      write(*,*) "Something wrong in filling in the memory array, exiting!"
+      write(*,*) "i_surface = ", i_surface, "Volume = ", Volume_surface(i_surface), "Particle number = ", PNum_e_surface(i_surface)
+      stop
+    endif
+    Pres_e_surface(i_surface)  = Pres_e_surface(i_surface) / PNum_e_surface(i_surface)
+    PNum_e_surface(i_surface)  = PNum_e_surface(i_surface) / Volume_surface(i_surface)
+    if (i_surface .eq. n_flux) then
+      Volume_surface(i_surface) = (Volume_surface(i_surface))/(ES%psi_bnd-Psi_surface(i_surface)) 
+    else
+      Volume_surface(i_surface) = (Volume_surface(i_surface))/(Psi_surface(i_surface+1)-Psi_surface(i_surface)) 
+    endif
+  enddo
+
+  if (my_id .eq. 0) open(20,file="nonlocal_array.dat")
+
+  do i_surface = 1, n_nonlocal_array
+
+    nl_Psi(i_surface)= ES%psi_axis + float(i_surface-1)/(n_nonlocal_array) * (ES%psi_bnd-ES%psi_axis) ! Psi coordinate, linear
+
+    i_interp1 = minloc(abs(Psi_surface - nl_Psi(i_surface)), dim=1)
+    if (abs(nl_Psi(i_surface)-ES%psi_axis) .ge. abs(Psi_surface(i_interp1)-ES%psi_axis)) i_interp2 = i_interp1 + 1 ! find other index
+    if (abs(nl_Psi(i_surface)-ES%psi_axis) .lt. abs(Psi_surface(i_interp1)-ES%psi_axis)) i_interp2 = i_interp1 - 1 ! find other index
+    if (i_interp2 .gt. n_flux) i_interp2 = n_flux - 1 ! if it does not exist, extrapolate
+    nl_avg_Te(i_surface) = (Pres_e_surface(i_interp1)-Pres_e_surface(i_interp2))/(Psi_surface(i_interp1)-Psi_surface(i_interp2))*(nl_Psi(i_surface)-Psi_surface(i_interp1))+Pres_e_surface(i_interp1)
+    nl_avg_ne(i_surface) = (PNum_e_surface(i_interp1)-PNum_e_surface(i_interp2))/(Psi_surface(i_interp1)-Psi_surface(i_interp2))*(nl_Psi(i_surface)-Psi_surface(i_interp1))+PNum_e_surface(i_interp1)
+
+    if (my_id .eq. 0) write(20,'(1i5,3e14.6)') i_surface, get_psi_n(nl_Psi(i_surface)), nl_avg_Te(i_surface), nl_avg_ne(i_surface)
+
+  enddo
+  if (my_id .eq. 0) close (20)
+  if (my_id .eq. 0) write(*,*) "Output the non-local array to nonlocal_array.dat."
+
+endif
 
 ! --- Normalization factors
 rho_norm = central_density*1.d20 * central_mass * MASS_PROTON 
@@ -2218,6 +2351,23 @@ if (my_id .eq. 0) then
       case ( 'TPF_halo' )
         res(iexpr+1) = TPF 
 
+      case ( 'LCFS_Rgeo' )
+        res(iexpr+1) = ES%LCFS_Rgeo 
+
+      case ( 'LCFS_a' )
+        res(iexpr+1) = ES%LCFS_a
+
+      case ( 'LCFS_epsilon' )
+        res(iexpr+1) = ES%LCFS_epsilon
+
+      case ( 'LCFS_kappa' )
+        res(iexpr+1) = ES%LCFS_kappa
+
+      case ( 'LCFS_deltaU' )
+        res(iexpr+1) = ES%LCFS_deltaU 
+
+      case ( 'LCFS_deltaL' )
+        res(iexpr+1) = ES%LCFS_deltaL
 
     end select
             
@@ -2240,28 +2390,41 @@ if (my_id .eq. 0) then
           write(*,'(A,3es14.6)')"Pellet ablation (radius,abl) = ", pellets(i)%spi_radius, pellets(i)%spi_abl
           write(*,'(A,f14.6)')  "Pellet species               = ", pellets(i)%spi_species
 
-          ng_radius_tmp   = pellets(i)%spi_radius * ng_radius_ratio
+          ns_radius_tmp   = pellets(i)%spi_radius * ns_radius_ratio
 
-          if (ng_radius_tmp < ng_radius_min) then
-             ng_radius_tmp = ng_radius_min
+          if (ns_radius_tmp < ns_radius_min) then
+             ns_radius_tmp = ns_radius_min
           end if
 
-          if (ns_deltaminrad .gt. 0.) then
+          if (ns_delta_minor_rad .gt. 0.) then
              ! i.e., with poloidally elongated ablation cloud
              ! in this case the analytical formula below is approximate (usually it agrees with the numerical integral within a few percents)
-             V_ns  = PI * pellets(i)%spi_R * ns_tor_norm * ng_radius_tmp * min(ns_deltaminrad,ng_radius_tmp)
+             V_ns  = PI * pellets(i)%spi_R * ns_tor_norm * ns_radius_tmp * min(ns_delta_minor_rad,ns_radius_tmp)
+             if (drift_distance /= 0.d0) then
+               V_ns_drift  = PI * (pellets(i)%spi_R + drift_distance) * ns_tor_norm * ns_radius_tmp * min(ns_delta_minor_rad,ns_radius_tmp)
+             end if
           else
              ! i.e., standard case with circular ablation cloud in the poloidal plane
              ! in this case the ablation source volume is given by the exact analytical formula as derived by E. Nardon
-             V_ns  = PI * pellets(i)%spi_R * ns_tor_norm * ng_radius_tmp**2.d0
+             V_ns  = PI * pellets(i)%spi_R * ns_tor_norm * ns_radius_tmp**2.d0
+             if (drift_distance /= 0.d0) then
+               V_ns_drift  = PI * (pellets(i)%spi_R + drift_distance) * ns_tor_norm * ns_radius_tmp**2.d0
+             end if
           endif
           
           write(*,'(A,2es14.6,f14.6)') "Source vol (num,an,diff %)   = ", pellets(i)%spi_vol, V_ns, 1d2*(pellets(i)%spi_vol - V_ns)/V_ns
           if (abs((pellets(i)%spi_vol - V_ns)/V_ns) .gt. 0.1d0) write(*,*) "WARNING: Difference larger than 10% "
 
-          ! recommended ablation source radius in the poloidal direction from ng_radius / (R*ns_deltaphi) = B_pol/B_tor
-          write(*,'(A,2f14.6)') "Source pol rad (actual,recom)= ", ng_radius_tmp, pellets(i)%spi_R * ns_deltaphi * pellets(i)%spi_grad_psi / abs(F0)
+          if (drift_distance /= 0.d0) then 
+            write(*,'(A,2es14.6,f14.6)') "Drifted source vol (num,an,diff %)   = ", pellets(i)%spi_vol_drift, V_ns_drift, 1d2*(pellets(i)%spi_vol_drift - V_ns_drift)/V_ns_drift
+            if (abs((pellets(i)%spi_vol_drift - V_ns_drift)/V_ns_drift) .gt. 0.1d0) write(*,*) "WARNING: Difference larger than 10% "
+          end if
 
+          ! recommended ablation source radius in the poloidal direction from ns_radius / (R*ns_deltaphi) = B_pol/B_tor
+          write(*,'(A,2f14.6)') "Source pol rad (actual,recom)= ", ns_radius_tmp, pellets(i)%spi_R * ns_deltaphi * pellets(i)%spi_grad_psi / abs(F0)
+          if (drift_distance /= 0.d0) then 
+            write(*,'(A,2f14.6)') "Drifted source pol rad (actual,recom)= ", ns_radius_tmp, (pellets(i)%spi_R + drift_distance) * ns_deltaphi * pellets(i)%spi_grad_psi_drift / abs(F0)
+          end if
        end if
     end do
   endif

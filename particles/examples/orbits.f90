@@ -262,7 +262,7 @@ do i=1, nstep_particles
     call sim%fields%calc_RK4(sim%time, p_gc(1)%i_elm, p_gc(1)%st, p_gc(1)%x(3), A, dA, B, dB, Bnorm, dBnorm, bn, dbn, E)
     !call sim%fields%calc_RK4_analytic(p_gc(1)%x(1), p_gc(1)%x(2), p_gc(1)%x(3), A, dA, B, dB, Bnorm, dBnorm, bn, dbn, E)
     
- !   call convert_gc_vpar_to_kinetic(sim%fields%node_list, sim%fields%element_list, p_gc(1), B, sim%groups(2)%mass, n_phases, p_orbit, ifail)
+ !   call convert_gc_vpar_to_kinetic(sim%fields%node_list, sim%fields%element_list, p_gc(1), B, sim%groups(2)%mass, 0, p_orbit, ifail)
  !   write(112,'(3e18.10)') (p_orbit(j)%x,j=1,n_phases)
 
     p_phi_gc  = p_gc(1)%x(1) * ( p_gc(1)%vpar * Bnorm(3) + qom * A(3))

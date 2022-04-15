@@ -13,6 +13,8 @@ use mod_random_seed
 use mod_interp, only: mode_moivre, interp_RZ
 use mod_basisfunctions
 use nodes_elements
+use corr_neg, only: corr_neg_dens
+use diffusivities, only: get_dperp
 use phys_module, only: n_particles, nstep_particles, nsubstep_particles, tstep_particles, use_ncs, use_pcs, use_ccs
 use phys_module, only: filter_perp, filter_hyper, filter_par, filter_perp_n0, filter_hyper_n0, filter_par_n0
 use phys_module, only: tstep, imp_type, imp_adas, imp_cor, adas_dir, use_marker, restart_particles, index_now
@@ -140,7 +142,7 @@ endif
 jorek_feedback = new_projection(sim%fields%node_list, sim%fields%element_list, &
                      filter    = filter_perp,    filter_hyper    = filter_hyper,    filter_parallel    = filter_par, &
                      filter_n0 = filter_perp_n0, filter_hyper_n0 = filter_hyper_n0, filter_parallel_n0 = filter_par_n0, &
-                     fractional_digits = 9,  to_vtk=.true., to_h5 = .FALSE., basename='projections')
+                     fractional_digits = 9,  to_vtk=.FALSE., to_h5 = .true., basename='projections')
 
 aux_node_list => jorek_feedback%node_list
 
@@ -203,17 +205,15 @@ use mod_random_seed
 use mod_interp, only: mode_moivre, interp_RZ
 use mod_jorek_timestepping
 use mod_basisfunctions
-use corr_neg, only: corr_neg_dens
 use phys_module, only: tstep, use_ncs, use_pcs, use_ccs, use_marker
 use phys_module, only: pellets, n_spi_tot, ns_amplitude, n_inj, t_ns, t_now
-use phys_module, only: ng_radius_ratio, ns_radius, ng_radius_min, ns_R, ns_Z, ns_phi, D_prof_neg
+use phys_module, only: ns_radius_ratio, ns_radius, ns_radius_min, ns_R, ns_Z, ns_phi, D_prof_neg
 use phys_module, only: CENTRAL_MASS, CENTRAL_DENSITY, GAMMA
 use constants,   only: MU_ZERO, MASS_PROTON, ATOMIC_MASS_UNIT, K_BOLTZ, EL_CHG
 use mod_integrals3D, only: int3d_new
 use mod_radiation, only: proj_Lz, get_Lz
 use mod_impurity, only: radiation_function_linear
 use equil_info, only : get_psi_n
-use diffusivities, only: get_dperp
 
 implicit none
 real*8, parameter  :: binding_energy = 2.18d-18 ! ionization energy of a hydrogen atom [J] (= 13.6 eV)
@@ -233,7 +233,7 @@ integer   :: i, j, k, l, m, n_steps, i_elm_old, iZ, spi_i, i_inj
 integer   :: seed, i_rng, n_stream, ierr, nthreads, myid
 real*8    :: ion_rate, ion_source, ion_prob, ion_rec_ran(2), cx_ran(7), cx_source, cx_energy
 real*8    :: rec_rate, dEion_dT, Z_imp, Z_eff, N_imp, Lrad, rad_sink, spi_source_imp, spi_source_imp_local
-real*8    :: spi_source_R(2), spi_source_Z(2), spi_source_phi(2), ng_radius
+real*8    :: spi_source_R(2), spi_source_Z(2), spi_source_phi(2), ns_radius_local
 real*8    :: cx_prob, CX_rate, Z_imp_tmp, n_imp_tmp, grad_n_imp_tmp(3), grad_n_imp_fluid(3), V_ext(3)
 real*8    :: particle_source, velocity_par_source, energy_source, D_prof, psi_norm
 real*8    :: v_temp(3), T_eV, K_eV, B_norm(3), v_1, v_2, v_3, v_4, v_5
@@ -391,15 +391,15 @@ do while (.not. sim%stop_now)
     
     do spi_i=1, n_spi_tot
 
-      ng_radius   = pellets(spi_i)%spi_radius * ng_radius_ratio
-      if (ng_radius < ng_radius_min) then
-        ng_radius = ng_radius_min
+      ns_radius_local   = pellets(spi_i)%spi_radius * ns_radius_ratio
+      if (ns_radius_local < ns_radius_min) then
+        ns_radius_local = ns_radius_min
       end if
 
-      spi_source_R(1) = min(spi_source_R(1),pellets(spi_i)%spi_R - 5.*ng_radius)
-      spi_source_R(2) = max(spi_source_R(2),pellets(spi_i)%spi_R + 5.*ng_radius)
-      spi_source_Z(1) = min(spi_source_Z(1),pellets(spi_i)%spi_Z - 5.*ng_radius)
-      spi_source_Z(2) = max(spi_source_Z(2),pellets(spi_i)%spi_Z + 5.*ng_radius)
+      spi_source_R(1) = min(spi_source_R(1),pellets(spi_i)%spi_R - 5.*ns_radius_local)
+      spi_source_R(2) = max(spi_source_R(2),pellets(spi_i)%spi_R + 5.*ns_radius_local)
+      spi_source_Z(1) = min(spi_source_Z(1),pellets(spi_i)%spi_Z - 5.*ns_radius_local)
+      spi_source_Z(2) = max(spi_source_Z(2),pellets(spi_i)%spi_Z + 5.*ns_radius_local)
 
       spi_source_imp = spi_source_imp + pellets(spi_i)%spi_abl * pellets(spi_i)%spi_species
     enddo

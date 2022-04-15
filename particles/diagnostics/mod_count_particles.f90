@@ -270,7 +270,7 @@ do i_elm=1,element_list%n_elements
   ! Set up gauss points in this element
   x_s = 0.d0; x_t = 0.d0; y_s = 0.d0; y_t = 0.d0
   do i=1,n_vertex_max
-    do j=1,n_order+1
+    do j=1,n_degrees
       do ms=1, n_gauss
         do mt=1, n_gauss
           x_s(ms,mt) = x_s(ms,mt) + nodes(i)%x(1,j,1) * element%size(i,j) * H_s(i,j,ms,mt)

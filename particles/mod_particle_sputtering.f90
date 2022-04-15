@@ -441,6 +441,7 @@ subroutine do_particle_sputter(this, sim, ev)
     !$omp private(q, velocity, theta, E, &
     !$omp        sputtering_yield, sputtered_energy_coeff, i_rng, u, i_patch,j, i_edge_nodes, vector_normal, T_eV, &
     !$omp        k, area, i_edge_elm, toroidal_offset, dphi, is_prompt_loss, Efield, B, psi, pot, T_e, n_e)
+
     i_rng = 1
     !$ i_rng = omp_get_thread_num()+1
     !$omp do schedule(dynamic, 10)
@@ -771,7 +772,8 @@ subroutine do_particle_sputter(this, sim, ev)
     !$omp shared(this, sim, i, k, rng_sample, xyz_sampled, st_sampled, i_elm_sampled, n_samples_fluid, i_free, &
     !$omp        integral, delta_t, q, Z, n_particle_groups) &
 #endif
-    !$omp private(i_rng, j, theta, E, sputtering_yield, av_yield, sputtered_energy_coeff, u, i_p, vector_normal, T_e, T_eV, n_e)
+    !$omp private(i_rng, j, theta, E, sputtering_yield, av_yield, sputtered_energy_coeff, u, i_p, vector_normal, &
+    !$omp         T_e, T_eV, n_e)
     i_rng = 1
     !$ i_rng = omp_get_thread_num()+1
     !$omp do schedule(static,1)
@@ -874,14 +876,16 @@ subroutine do_particle_sputter(this, sim, ev)
         stop
       end select
 
-      associate (pa => sim%groups(this%target_group)%particles(i_p))
       ! NaN checks
-      if (any(pa%x .ne. pa%x) .or. E .ne. E .or. pa%weight .ne. pa%weight) then
-        pa%i_elm = 0 ! skip this one since sputtering went wrong
-        write(*,*) 'NaN check failed', E, pa%weight, pa%x
-        ! TODO debug logging? openmp threading though
+      if (     (sim%groups(this%target_group)%particles(i_p)%x(1) .ne. sim%groups(this%target_group)%particles(i_p)%x(1)) &
+          .or. (sim%groups(this%target_group)%particles(i_p)%x(2) .ne. sim%groups(this%target_group)%particles(i_p)%x(2)) &
+          .or. (sim%groups(this%target_group)%particles(i_p)%x(3) .ne. sim%groups(this%target_group)%particles(i_p)%x(3)) &
+          .or. (E .ne. E)                                                                                                 &
+          .or. (sim%groups(this%target_group)%particles(i_p)%weight .ne. sim%groups(this%target_group)%particles(i_p)%weight) ) then
+       
+        sim%groups(this%target_group)%particles(i_p)%i_elm = 0 ! skip this one since sputtering went wrong
+       
       end if
-      end associate
     end do
     !$omp end do
     !$omp end parallel

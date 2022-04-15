@@ -568,11 +568,7 @@ module live_data
     write(LIVE_DATA_HANDLE,'(A)') '@mag_energy_balance: %"time"    "dWmagdt"   "Ohmic"  "Poynting"  "JxB.v"  "magSource"  "sum all losses + sources"  '
     write(LIVE_DATA_HANDLE,*)
  
-#if (defined WITH_Neutrals) || (defined WITH_Impurities)
     write(LIVE_DATA_HANDLE,'(A,I5)') '@n_dissipative_terms: ', 5
-#else
-    write(LIVE_DATA_HANDLE,'(A,I5)') '@n_dissipative_terms: ', 3
-#endif
     write(LIVE_DATA_HANDLE,'(A)') '@dissipative_terms_xlabel: normalized time'
     write(LIVE_DATA_HANDLE,'(A)') '@dissipative_terms_xlabel_si: time [ms]'
     write(LIVE_DATA_HANDLE,'(A)') '@dissipative_terms_ylabel: Dissipative powers [W]'
@@ -580,12 +576,8 @@ module live_data
     write(LIVE_DATA_HANDLE,'(A,5ES17.9)') '@dissipative_terms_x2si: ', sqrt_mu0_rho0*1.e3
     write(LIVE_DATA_HANDLE,'(A,5ES17.9)') '@dissipative_terms_y2si: ', 1.0
     write(LIVE_DATA_HANDLE,'(A)') '@dissipative_terms_logy: 0'
-#if (defined WITH_Neutrals) || (defined WITH_Impurities)
     write(LIVE_DATA_HANDLE,'(A)') '@dissipative_terms: %"time"         "Ohmic power"   "Frictional heating"   "Parallel viscosity power"  &
                                                         "Radiated power"  "Ionization power"'
-#else
-    write(LIVE_DATA_HANDLE,'(A)') '@dissipative_terms: %"time"         "Ohmic power"   "Frictional heating"   "Parallel viscosity power" '
-#endif
     write(LIVE_DATA_HANDLE,*)
 
     write(LIVE_DATA_HANDLE,'(A,I5)') '@n_work_terms: ', 4 
@@ -799,14 +791,10 @@ module live_data
     write(LIVE_DATA_HANDLE,'(A,5ES17.9)') '@volume: ', xtime(index), volume_t(index)
     write(LIVE_DATA_HANDLE,'(A,5ES17.9)') '@li3: ', xtime(index), li3_t(index), li3_tot_t(index)
 
-#if (defined WITH_Neutrals) || (defined WITH_Impurities)
     if (index>1) then
       write(LIVE_DATA_HANDLE,'(A,6ES17.9)') '@dissipative_terms: ', xtime(index-1), ohmic_tot_t(index-1), friction_dissip_tot_t(index-1), viscopar_dissip_tot_t(index-1), &
                                                                     xtime_rad_power(index-1), xtime_E_ion_power(index-1)
     endif
-#else
-    write(LIVE_DATA_HANDLE,'(A,4ES17.9)') '@dissipative_terms: ', xtime(index), ohmic_tot_t(index), friction_dissip_tot_t(index), viscopar_dissip_tot_t(index)
-#endif
 
     write(LIVE_DATA_HANDLE,'(A,5ES17.9)') '@mag_energy_src: ', xtime(index), mag_ener_src_tot(index)
     write(LIVE_DATA_HANDLE,'(A,5ES17.9)') '@work_terms: ', xtime(index), Magwork_tot_t(index), thmwork_tot_t(index), thmwork_e_tot_t(index), thmwork_i_tot_t(index)

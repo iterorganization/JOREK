@@ -15,6 +15,7 @@ use mod_project_particles
 use mod_ionisation_recombination
 use mpi
 use mod_sampling
+use mod_particle_io
 use mod_radiation, only: proj_Lz
 use mod_sputtering, only: simple_sputter !< simple sputtering implementation
 use phys_module, only: central_density

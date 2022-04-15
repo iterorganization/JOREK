@@ -35,7 +35,7 @@ type (type_element)       :: element
 type (type_node)          :: nodes(n_vertex_max)
 type (type_node),optional :: aux_nodes(n_vertex_max)
 
-#define DIM0 n_tor*n_vertex_max*(n_order+1)*n_var
+#define DIM0 n_tor*n_vertex_max*n_degrees*n_var
 
 integer, intent(in)            :: tid
 integer, intent(in)            :: i_tor_min, i_tor_max
@@ -107,14 +107,15 @@ real*8     :: dTe_dpsi(n_gauss,n_gauss),dTe_dz, dTe_dpsi2, dTe_dz2, dTe_dpsi_dz,
 logical    :: xpoint2, use_fft
 real*8     :: Btheta2, epsil, Btheta2_psi
 real*8, dimension(n_gauss,n_gauss)    :: amu_neo_prof, aki_neo_prof
+
 ! neutral source
 real*8     :: source_neutral
-real*8     :: source_neutral_tmp
+real*8     :: source_neutral_drift ! Neutral source deposited at R+drift_distance to impose plasmoid drift
+real*8     :: power_dens_teleport_ju ! Teleported power density in JOREK unit (sink at R and source at R+drift)
+
 ! time normalisation
 real*8     :: t_norm
-! Temporary variables serving the SPI module
-integer    :: spi_i
-real*8     :: ng_radius !< Radius of neutral gas cloud as a result of the ablation
+
 ! Atomic physics coefficients:
 !   -Ionization
 real*8     :: Sion_T, dSion_dT                                ! Ionization rate and its derivative wrt. temperature
@@ -160,7 +161,7 @@ real*8     :: T_or_Te, T_or_Te_corr, T_or_Te_0, dT_or_Te_corr_dT
 real*8     :: fact_conservative_u = 1.d0
 
 #define DIM1 n_plane
-#define DIM2 1:n_vertex_max*n_var*(n_order+1)
+#define DIM2 1:n_vertex_max*n_var*n_degrees
 
 real*8, dimension(DIM1, DIM2, DIM2) :: ELM_p
 real*8, dimension(DIM1, DIM2, DIM2) :: ELM_n
@@ -272,7 +273,7 @@ amu_neo_prof   = 0.d0
 aki_neo_prof   = 0.d0
 
 do i=1,n_vertex_max
-  do j=1,n_order+1
+  do j=1,n_degrees
     do ms=1, n_gauss
       do mt=1, n_gauss
 
@@ -388,7 +389,7 @@ enddo
 
 !--------------------------------------------------- sum over the Gaussian integration points
 do i=1,n_vertex_max
-  do j=1,n_order+1
+  do j=1,n_degrees
 
     if (.not. present(get_terms)) then
       ELM_p(:,:,1:n_var)  = 0
@@ -523,7 +524,7 @@ do i=1,n_vertex_max
             zn_x  =  dn_dpsi(ms,mt) * ps0_x
             zn_y  =  dn_dpsi(ms,mt) * ps0_y
 
-          else ! (with_TiTe), i.e. with single temperature *****************************************
+          else ! (with_TiTe = .f.), i.e. with single temperature *****************************************
 
             T0    = eq_g(mp,var_T,ms,mt)
             T0_x  = (   y_t(ms,mt) * eq_s(mp,var_T,ms,mt) - y_s(ms,mt) * eq_t(mp,var_T,ms,mt) ) / xjac
@@ -899,7 +900,7 @@ do i=1,n_vertex_max
             T_or_Te_0        = Te_0
             dT_or_Te_corr_dT = dTe0_corr_dT
             
-          else ! (with_TiTe), i.e. with single temperature *****************************************
+          else ! (with_TiTe = .f.), i.e. with single temperature *****************************************
 
             ! --- Temperature dependent parallel heat diffusivity
             if ( ZKpar_T_dependent ) then
@@ -977,11 +978,14 @@ do i=1,n_vertex_max
             dvisco_dT   = 0.d0
             d2visco_dT2 = 0.d0
           end if
-          
 
+          psi_norm = get_psi_n( ps0, y_g(ms,mt))
           
-          ! --- Temperature dependent hyper-resistivity
-          if ( eta_num_T_dependent ) then
+          ! --- Hyper-resistivity
+          if ( eta_num_psin_dependent ) then
+            eta_num_T   = eta_num * 0.5d0 * ( 1.d0 - tanh( (psi_norm-eta_num_prof(1))/eta_num_prof(2)) )      
+            deta_num_dT = 0.d0      
+          else if ( eta_num_T_dependent ) then
             eta_num_T     =   eta_num   * (T_or_Te_corr/T_or_Te_0)**(-3.d0)
             deta_num_dT   = - eta_num   * (3.d0)  * T_or_Te_corr**(-4.d0) * T_or_Te_0**(3.d0)
             if (T_or_Te .lt. T_min) then
@@ -992,6 +996,7 @@ do i=1,n_vertex_max
             eta_num_T     = eta_num
             deta_num_dT   = 0.d0
           end if
+
           
           ! --- Temperature dependent hyper-viscosity
           if ( visco_num_T_dependent ) then
@@ -1013,8 +1018,6 @@ do i=1,n_vertex_max
           else
             W_dia = 0.d0
           endif
-
-          psi_norm = get_psi_n( ps0, y_g(ms,mt))
 
           ! --- Bootstrap current 
           if (bootstrap) then
@@ -1069,7 +1072,7 @@ do i=1,n_vertex_max
             if (Te0 .lt. ZK_e_par_neg_thresh) then
               ZKe_par_T = ZK_e_par_neg
             endif
-          else ! (with_TiTe), i.e. with single temperature ***************************************
+          else ! (with_TiTe = .f.), i.e. with single temperature ***************************************
             if (T0 .lt. ZK_prof_neg_thresh) then
               ZK_prof = ZK_prof_neg
             end if
@@ -1133,11 +1136,13 @@ do i=1,n_vertex_max
             ! --- Source of neutrals, e.g. from MGI/SPI
             !--------------------------------------------------------
       
-            source_neutral = 0.d0                    
+            source_neutral       = 0.d0    
+            source_neutral_drift = 0.d0 
       
-            call total_neutral_source(x_g(ms,mt),y_g(ms,mt),phi,ps0,source_neutral)
+            call total_neutral_source(x_g(ms,mt),y_g(ms,mt),phi,ps0,source_neutral,source_neutral_drift)
           
-            source_neutral = max(source_neutral,0.)
+            source_neutral       = max(source_neutral,0.)
+            source_neutral_drift = max(source_neutral_drift,0.)
 
           else ! no neutrals (neutral terms are always multiplied by one of these coefficients)
             
@@ -1151,7 +1156,17 @@ do i=1,n_vertex_max
             dLradDrays_dT = 0.d0
 
           endif  ! with_neutrals
-      
+                 
+          !------------------------------------------------------------------------------------------
+          ! ---Calculate energy teleported in JOREK unit (sink at R and source at R + drift_distance)
+          !------------------------------------------------------------------------------------------
+          ! Input energy_teleported is in eV
+          power_dens_teleport_ju = 0.d0
+          if (with_neutrals .and. energy_teleported /= 0.d0) then
+            power_dens_teleport_ju = (-source_neutral + source_neutral_drift)  * energy_teleported * &
+                                     EL_CHG * (GAMMA-1) * MU_ZERO * 1.d20 * central_density
+          end if
+
           !-----------------------------------------------------------------
           ! --- Radiation from background impurity, using ADAS (by default)
           !-----------------------------------------------------------------
@@ -1469,7 +1484,7 @@ do i=1,n_vertex_max
 
 !===============================End of new TG_num terms============================
             end if ! (with_vpar)
-
+            
 
             if ( with_TiTe ) then ! (with_TiTe) ****************************************************
               
@@ -1496,7 +1511,7 @@ do i=1,n_vertex_max
                               - (ZKi_par_T-ZKi_prof) * BigR / BB2 * Bgrad_T_star * Bgrad_Ti      * xjac * tstep * factor(var_Ti,5) &
                               - ZKi_prof * BigR * (v_x*Ti0_x + v_y*Ti0_y                   )     * xjac * tstep * factor(var_Ti,6) &
                               
-                              - ZK_perp_num  *  (v_xx + v_x/Bigr + v_yy)*(Ti0_xx + Ti0_x/Bigr + Ti0_yy) * BigR * xjac * tstep * factor(var_Ti,7) &
+                              - ZK_i_perp_num  *  (v_xx + v_x/Bigr + v_yy)*(Ti0_xx + Ti0_x/Bigr + Ti0_yy) * BigR * xjac * tstep * factor(var_Ti,7) &
   
                          - tgnum_Ti* 0.25d0 * BigR**3 * Ti0 * (r0_x * u0_y - r0_y * u0_x)                         &
                                             * ( v_x * u0_y - v_y * u0_x)                  * xjac * tstep * tstep  * factor(var_Ti,8)&
@@ -1514,7 +1529,11 @@ do i=1,n_vertex_max
                             + v * BigR * ((GAMMA - 1.)/2.) * vpar0**2 * BB2 * (r0*rn0*Sion_T)      * xjac * tstep * factor(var_Ti,10) &
                             + v * BigR * ((GAMMA - 1.)/2.) * vv2 * ((r0*rn0*Sion_T))               * xjac * tstep * factor(var_Ti,10) &
                             !==============================End of friction terms=================
-  
+                            !============================Behold, the parallel viscous heating terms!=============
+                            + (GAMMA - 1.) * v * BigR * visco_par_heating * (vpar0_x * vpar0_x + vpar0_y * vpar0_y) * xjac * tstep * factor(var_Ti,12) &
+                            + (GAMMA - 1.) * vpar0 * BigR * visco_par_heating * (v_x * vpar0_x     + v_y * vpar0_y) * xjac * tstep * factor(var_Ti,12) &
+                            !==========================End of viscous heating terms==============================
+
                          + zeta * v * r0_corr  * delta_g(mp,var_Ti,ms,mt) * BigR                 * xjac         * factor(var_Ti,9)   &
                          + zeta * v * Ti0_corr * delta_g(mp,var_rho,ms,mt) * BigR                * xjac         * factor(var_Ti,9)   &
                          ! Energy exchange term
@@ -1553,15 +1572,18 @@ do i=1,n_vertex_max
                               - (ZKe_par_T-ZKe_prof) * BigR / BB2 * Bgrad_T_star * Bgrad_Te      * xjac * tstep * factor(var_Te,5 ) &
                               - ZKe_prof * BigR * (v_x*Te0_x + v_y*Te0_y                   )     * xjac * tstep * factor(var_Te,6 ) &
                               
-                              - ZK_perp_num  *  (v_xx + v_x/Bigr + v_yy)*(Te0_xx + Te0_x/Bigr + Te0_yy) * BigR * xjac * tstep * factor(var_Te,7 ) &
+                              - ZK_e_perp_num  *  (v_xx + v_x/Bigr + v_yy)*(Te0_xx + Te0_x/Bigr + Te0_yy) * BigR * xjac * tstep * factor(var_Te,7 ) &
 
                               + v * (gamma-1.d0) * eta_T_ohm * (zj0 / BigR)**2.d0         * BigR * xjac * tstep * factor(var_Te,9 ) &
-  
+
                               - v * BigR * ksiion  * r0 * rn0 * Sion_T                           * xjac * tstep * factor(var_Te,12) &
                               - v * BigR * r0_corr * rn0_corr * LradDrays_T                      * xjac * tstep * factor(var_Te,13) &
                               - v * BigR * r0_corr * r0_corr  * LradDcont_T                      * xjac * tstep * factor(var_Te,14) &
                               - v * BigR * r0_corr * frad_bg                                     * xjac * tstep * factor(var_Te,15) &
   
+                              ! Additional energy teleportation term for plasmoid drift
+                              + v * BigR * power_dens_teleport_ju                                * xjac * tstep * factor(var_Te,16) &  
+                          
                          - tgnum_Te * 0.25d0 * BigR**3 * Te0 * (r0_x * u0_y - r0_y * u0_x)                         &
                                             * ( v_x * u0_y - v_y * u0_x)                   * xjac * tstep * tstep * factor(var_Te,8 )&
                          - tgnum_Te * 0.25d0 * BigR**3 * r0 * (Te0_x * u0_y - Te0_y * u0_x)                       &
@@ -1589,7 +1611,7 @@ do i=1,n_vertex_max
                                    * r0 * (Te0_x * ps0_y - Te0_y * ps0_x + F0 / BigR * Te0_p)                       &
                                    * (                                   + F0 / BigR * v_p) * xjac * tstep * tstep * factor(var_Te,8 )
 
-            else ! (with_TiTe), i.e. with single temperature ***************************************
+            else ! (with_TiTe = .f.), i.e. with single temperature ***************************************
   
               !###################################################################################################
               !#  Electron + Ion Energy Equation                                                                 #
@@ -1622,11 +1644,19 @@ do i=1,n_vertex_max
                              + v * BigR * ((GAMMA - 1.)/2.) * vpar0**2 * BB2 * (r0*rn0*Sion_T)  * xjac * tstep * factor(var_T,11) &
                              + v * BigR * ((GAMMA - 1.)/2.) * vv2 * ((r0*rn0*Sion_T))           * xjac * tstep * factor(var_T,11) &
                              !==============================End of friction terms=================
+                             !============================Behold, the parallel viscous heating terms!=============
+                             + (GAMMA - 1.) * v * BigR * visco_par_heating * (vpar0_x * vpar0_x + vpar0_y * vpar0_y) * xjac * tstep * factor(var_T,17) &
+                             + (GAMMA - 1.) * vpar0 * BigR * visco_par_heating * (v_x * vpar0_x     + v_y * vpar0_y) * xjac * tstep * factor(var_T,17) &
+                             !==========================End of viscous heating terms==============================
 
                              - v * BigR * ksiion  * r0 * rn0 * Sion_T                           * xjac * tstep * factor(var_T,12) &
                              - v * BigR * r0_corr * rn0_corr * LradDrays_T                      * xjac * tstep * factor(var_T,13) &
                              - v * BigR * r0_corr * r0_corr  * LradDcont_T                      * xjac * tstep * factor(var_T,14) &
                              - v * BigR * r0_corr * frad_bg                                     * xjac * tstep * factor(var_T,15) &
+                             
+                             ! Additional energy teleportation term for plasmoid drift
+                             + v * BigR * power_dens_teleport_ju                                * xjac * tstep * factor(var_T,16) &
+
                             
                              - tgnum_T * 0.25d0 * BigR**3 * T0 * (r0_x * u0_y - r0_y * u0_x)                           &
                                                 * ( v_x * u0_y - v_y * u0_x)                    * xjac * tstep * tstep * factor(var_T,8 )&
@@ -1674,7 +1704,7 @@ do i=1,n_vertex_max
 
                     - BigR * v * r0 * rn0 * Sion_T                                           * xjac * tstep * factor(var_rhon,3)&  
                     + BigR * v * r0 * r0  * Srec_T                                           * xjac * tstep * factor(var_rhon,4)&
-                    + BigR * v * source_neutral                                              * xjac * tstep * factor(var_rhon,5)&
+                    + BigR * v * source_neutral_drift                                        * xjac * tstep * factor(var_rhon,5)&
                     - Dn_perp_num * (v_xx + v_x/Bigr + v_yy)*(rn0_xx + rn0_x/Bigr + rn0_yy)  * BigR * xjac * tstep * factor(var_rhon,6)&
 
                     + v * delta_g(mp,var_rhon,ms,mt) * BigR * xjac * zeta * factor(var_rhon,7)
@@ -1688,9 +1718,9 @@ do i=1,n_vertex_max
             !###################################################################################################
 
             if (use_fft) then
-              index_ij = n_var*(n_order+1)*(i-1) +       n_var*(j-1) + 1
+              index_ij = n_var*n_degrees*(i-1) +       n_var*(j-1) + 1
             else
-              index_ij = n_tor_local*n_var*(n_order+1)*(i-1) + n_tor_local*n_var*(j-1) + im - n_tor_start +1 
+              index_ij = n_tor_local*n_var*n_degrees*(i-1) + n_tor_local*n_var*(j-1) + im - n_tor_start +1 
             endif
 
 
@@ -1734,7 +1764,7 @@ do i=1,n_vertex_max
 
             do k=1,n_vertex_max
 
-              do l=1,n_order+1
+              do l=1,n_degrees
 
                 do in = n_tor_start, n_tor_end
 
@@ -1874,7 +1904,7 @@ do i=1,n_vertex_max
                               - v * tauIC*2./(r0_corr*BB2) * F0**3/BigR**3 * Te * r0_p * xjac                    * theta * tstep
 
                     amat_n(var_psi,var_Te) = - v * tauIC*2./(r0_corr*BB2) * F0**3/BigR**3 * r0 * Te_p     * xjac * theta * tstep
-                  else ! (with_TiTe), i.e. with single temperature *********************************
+                  else ! (with_TiTe = .f.), i.e. with single temperature *********************************
                     amat(var_psi,var_T) = - deta_dT * v * T * (zj0 - current_source(ms,mt) - Jb)/ BigR    * xjac * theta * tstep &
                                    - deta_num_dT * T * (v_x * zj0_x + v_y * zj0_y)                        * xjac * theta * tstep &
                               + v * tauIC/(r0_corr*BB2) * F0**2/BigR**2 * r0 * (ps0_s * T_t  - ps0_t * T_s)   * theta * tstep &
@@ -2067,7 +2097,7 @@ do i=1,n_vertex_max
                                 - d2visco_dT2*Te * bigR * W_dia   * (v_x*Ti0_x + v_y*Ti0_y)  * xjac * theta * tstep  &
                                 - dvisco_dT*Te   * bigR * W_dia   * (v_xx + v_x/bigR + v_yy) * xjac * theta * tstep
 
-                  else ! (with_TiTe), i.e. with single temperature *********************************
+                  else ! (with_TiTe = .f.), i.e. with single temperature *********************************
 
                     amat(var_u,var_T) = - BigR**2 * (v_s * r0_t * T   - v_t * r0_s * T)           * theta * tstep  &
                                         - BigR**2 * (v_s * r0   * T_t - v_t * r0   * T_s)         * theta * tstep  &
@@ -2431,7 +2461,7 @@ do i=1,n_vertex_max
     
 
                       amat_n(var_vpar,var_Te) = + v * F0 / BigR * Te_p * r0                       * xjac * theta * tstep
-                    else ! (with_TiTe), i.e. with single temperature *******************************
+                    else ! (with_TiTe = .f.), i.e. with single temperature *******************************
                       amat(var_vpar,var_T)    = + v * (T_s  * r0   * ps0_t - T_t  * r0   * ps0_s)        * theta * tstep  &
                                                 + v * (T    * r0_s * ps0_t - T    * r0_t * ps0_s)        * theta * tstep  &
                                                 + v * F0 / BigR * T  * r0_p                       * xjac * theta * tstep  &
@@ -2542,7 +2572,7 @@ do i=1,n_vertex_max
                         amat(var_vpar,var_Ti) = amat(var_vpar,var_Ti) -v*amu_neo_prof(ms,mt)*BB2/(Btheta2+epsil)           &
                                   * (tauIC*2. * (ps0_x * (r0_x*Ti + r0*Ti_x) + ps0_y*(r0_y*Ti + r0*Ti_y)) &
                                   + aki_neo_prof(ms,mt) * tauIC*2. * r0 * (ps0_x*Ti_x + ps0_y*Ti_y)) * BigR * xjac * tstep * theta
-                      else ! (with_TiTe), i.e. with single temperature *****************************
+                      else ! (with_TiTe = .f.), i.e. with single temperature *****************************
                         amat(var_vpar,var_T)  = amat(var_vpar,var_T)  -v*amu_neo_prof(ms,mt)*BB2/(Btheta2+epsil)           &
                                   * (tauIC * (ps0_x * (r0_x*T  + r0*T_x ) + ps0_y*(r0_y*T  + r0*T_y )) &
                                   + aki_neo_prof(ms,mt) * tauIC * r0 * (ps0_x*T_x  + ps0_y*T_y )) * BigR * xjac * tstep * theta
@@ -2695,7 +2725,7 @@ do i=1,n_vertex_max
   
                               + dZKi_par_dT * Ti * BigR / BB2 * Bgrad_T_star * Bgrad_Ti       * xjac * theta * tstep &
     
-                              + ZK_perp_num * (v_xx + v_x/BigR + v_yy)*(Ti_xx + Ti_x/BigR + Ti_yy) * BigR * xjac * theta * tstep &
+                              + ZK_i_perp_num * (v_xx + v_x/BigR + v_yy)*(Ti_xx + Ti_x/BigR + Ti_yy) * BigR * xjac * theta * tstep &
   
   !!!!                            -v * Te * (gamma-1.d0) * deta_dT_ohm * (zj0 / BigR)**2.d0 * BigR * xjac * theta * tstep &
   
@@ -2745,7 +2775,13 @@ do i=1,n_vertex_max
                                !===================== Additional terms from friction terms============
                                 - v * BigR *(GAMMA - 1.) * vpar0 * Vpar * BB2 * (r0*rn0*Sion_T) * xjac * theta * tstep &
                                !==============================End of friction terms=================
- 
+                               !============================Behold, the parallel viscous heating terms!=============
+                               - (GAMMA - 1.) * v * BigR * visco_par_heating * 2.d0 * (vpar_x*vpar0_x + vpar_y*vpar0_y) * xjac * theta * tstep  &
+                               - (GAMMA - 1.) * vpar0 * BigR * visco_par_heating    * (vpar_x*v_x     + vpar_y*v_y)     * xjac * theta * tstep  &
+                               - (GAMMA - 1.) * vpar * BigR * visco_par_heating    * (vpar0_x*v_x     + vpar0_y*v_y)    * xjac * theta * tstep  &
+                               !==========================End of viscous heating terms==============================
+
+
                                 + tgnum_Ti* 0.25d0 / BigR * 2.d0 * vpar0*vpar &
                                       * Ti0 * (r0_x * ps0_y - r0_y * ps0_x + F0 / BigR * r0_p)                               &
                                       * ( v_x * ps0_y -  v_y * ps0_x                        ) * xjac * theta * tstep * tstep &
@@ -2909,7 +2945,7 @@ do i=1,n_vertex_max
   
                               + dZKe_par_dT * Te * BigR / BB2 * Bgrad_T_star * Bgrad_Te       * xjac * theta * tstep &
     
-                              + ZK_perp_num * (v_xx + v_x/BigR + v_yy)*(Te_xx + Te_x/BigR + Te_yy) * BigR * xjac * theta * tstep &
+                              + ZK_e_perp_num * (v_xx + v_x/BigR + v_yy)*(Te_xx + Te_x/BigR + Te_yy) * BigR * xjac * theta * tstep &
   
                               - v * Te * (gamma-1.d0) * deta_dT_ohm * (zj0 / BigR)**2.d0 * BigR * xjac * theta * tstep &
 
@@ -2984,7 +3020,7 @@ do i=1,n_vertex_max
                                               + v * BigR * rhon * r0 * LradDrays_T                   * xjac * theta * tstep 
                     endif
                     
-                  else ! (with_TiTe), i.e. with single temperature *********************************
+                  else ! (with_TiTe = .f.), i.e. with single temperature *********************************
    
                     !###################################################################################################
                     !#  Electron + Ion Energy Equation                                                                 #
@@ -3183,7 +3219,13 @@ do i=1,n_vertex_max
                             !===================== Additional terms from friction terms============
                             - v * BigR *(GAMMA - 1.) * vpar0 * Vpar * BB2 * (r0*rn0*Sion_T) * xjac * theta * tstep &
                             !==============================End of friction terms=================
-      
+                            !============================Behold, the parallel viscous heating terms!=============
+                            - (GAMMA - 1.) * v * BigR * visco_par_heating * 2.d0 * (vpar_x*vpar0_x + vpar_y*vpar0_y) * xjac * theta * tstep  &
+                            - (GAMMA - 1.) * vpar0 * BigR * visco_par_heating    * (vpar_x*v_x     + vpar_y*v_y)     * xjac * theta * tstep  &
+                            - (GAMMA - 1.) * vpar * BigR * visco_par_heating    * (vpar0_x*v_x     + vpar0_y*v_y)    * xjac * theta * tstep  &
+                            !==========================End of viscous heating terms==============================
+
+     
                           + tgnum_T * 0.25d0 / BigR * 2.d0 * vpar0*vpar                                               &
                                     * T0 * (r0_x * ps0_y - r0_y * ps0_x + F0 / BigR * r0_p)                           &
                                     * ( v_x * ps0_y -  v_y * ps0_x                   ) * xjac * theta * tstep * tstep &
@@ -3277,9 +3319,9 @@ do i=1,n_vertex_max
                   !###################################################################################################
 
                   if (use_fft) then
-                    index_kl = n_var*(n_order+1)*(k-1) + n_var*(l-1) + 1
+                    index_kl = n_var*n_degrees*(k-1) + n_var*(l-1) + 1
                   else
-                    index_kl = n_tor_local*n_var*(n_order+1)*(k-1) + n_tor_local*n_var*(l-1) + in - n_tor_start +1
+                    index_kl = n_tor_local*n_var*n_degrees*(k-1) + n_tor_local*n_var*(l-1) + in - n_tor_start +1
                   endif
 
                   ! --- Fill up the matrix
@@ -3312,7 +3354,7 @@ do i=1,n_vertex_max
 
                 enddo ! in loop (n_tor, or not...)
 
-              enddo ! l loop (n_order+1)
+              enddo ! l loop n_degrees
             enddo ! k loop (n_vertex)
 
           enddo ! im loop (n_tor, or not...)
@@ -3326,9 +3368,9 @@ do i=1,n_vertex_max
     if (use_fft) then
 
       do i_v = 1, n_var
-        do j_loc=1, n_vertex_max*n_var*(n_order+1)
+        do j_loc=1, n_vertex_max*n_var*n_degrees
 
-          i_loc = n_var*(n_order+1)*(i-1) + n_var * (j-1) + i_v 
+          i_loc = n_var*n_degrees*(i-1) + n_var * (j-1) + i_v 
           in_fft =  ELM_p(1:n_plane,j_loc,i_v)
 #ifdef USE_FFTW
           call dfftw_execute_dft_r2c(fftw_plan, in_fft, out_fft)
@@ -3538,7 +3580,7 @@ do i=1,n_vertex_max
 
     endif ! apply fft (or not)
 
-  enddo ! j loop (n_order+1)
+  enddo ! j loop n_degrees
 enddo ! i loop (n_vertex)
 
 if (.NOT. use_fft) return
@@ -3548,7 +3590,7 @@ if (present(get_terms)) then
 
   do i_term=1, max_terms
 
-    do j=1, n_vertex_max*n_var*(n_order+1)
+    do j=1, n_vertex_max*n_var*n_degrees
     
       in_fft = ELM_p(1:n_plane,i_term, j)
 #ifdef USE_FFTW
@@ -3568,7 +3610,7 @@ if (present(get_terms)) then
     
     enddo
     
-    do j=1, n_vertex_max*n_var*(n_order+1)
+    do j=1, n_vertex_max*n_var*n_degrees
     
       in_fft = ELM_k(1:n_plane,i_term,j)
 #ifdef USE_FFTW
@@ -3597,7 +3639,7 @@ else
 
   ELM = 0.5d0 * ELM
   
-  do j=1, n_vertex_max*n_var*(n_order+1)
+  do j=1, n_vertex_max*n_var*n_degrees
   
     in_fft = RHS_p(1:n_plane,j)
 #ifdef USE_FFTW
@@ -3617,7 +3659,7 @@ else
   
   enddo
   
-  do j=1, n_vertex_max*n_var*(n_order+1)
+  do j=1, n_vertex_max*n_var*n_degrees
   
     in_fft = RHS_k(1:n_plane,j)
 #ifdef USE_FFTW
@@ -3751,7 +3793,7 @@ if(add_sources_in_sc)then
 
   src_rhon = - r0_corr * rn0_corr * Sion_T      &
            + r0_corr * r0_corr  * Srec_T        &
-           + source_neutral
+           + source_neutral_drift
 
   if ( with_TiTe ) then ! (with_TiTe)
     src_pi  = heat_source_i(ms,mt)                                      &

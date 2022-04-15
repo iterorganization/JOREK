@@ -143,23 +143,25 @@ do i=1,index_start
 enddo
 close(20)
 
-open(20,file="thermal_history.dat")
+if (with_TiTe) then
+  open(20,file="thermal_history.dat")
+  
+  write(20,'(3A20)') 'time', 'e_th_energy (MJ)', 'i_th_energy (MJ)'
+  
+  do i=1,index_start
+    write(20,'(i7,f12.3,2e14.6)') i,xtime(i), thermal_e_tot_t(i)/1.d6, thermal_i_tot_t(i)/1.d6
+  enddo
+  close(20)
 
-write(20,'(3A20)') 'time', 'e_th_energy (MJ)', 'i_th_energy (MJ)'
-
-do i=1,index_start
-  write(20,'(i7,f12.3,2e14.6)') i,xtime(i), thermal_e_tot_t(i)/1.d6, thermal_i_tot_t(i)/1.d6
-enddo
-close(20)
-
-open(20,file="Pei_history.dat")
-
-write(20,'(2A20)') 'time', 'E_th exchange e-i (MW)'
-
-do i=1,index_start
-  write(20,'(i7,f12.3,1e14.6)') i,xtime(i), xtime_P_ei(i)/1.d6
-enddo
-close(20)
+  open(20,file="Pei_history.dat")
+  
+  write(20,'(2A20)') 'time', 'E_th exchange e-i (MW)'
+  
+  do i=1,index_start
+    write(20,'(i7,f12.3,1e14.6)') i,xtime(i), xtime_P_ei(i)/1.d6
+  enddo
+  close(20)
+endif
 
 if (using_spi) then
 

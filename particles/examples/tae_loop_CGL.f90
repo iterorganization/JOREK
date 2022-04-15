@@ -148,7 +148,7 @@ program tae_loop_CGL
 
 !Full tensor has 6 elements due to symmetry
 
-  allocate(jorek_feedback%rhs(n_order+1, n_vertex_max, sim%fields%element_list%n_elements, n_tor, 6))
+  allocate(jorek_feedback%rhs(n_degrees, n_vertex_max, sim%fields%element_list%n_elements, n_tor, 6))
 
   jorek_feedback%rhs = 0.d0
 
@@ -342,9 +342,9 @@ subroutine loop_particle_kinetic_local(sim, jorek_feedback, rng, timesteps, n_st
 
 
               do l=1,n_vertex_max
-                do m=1,n_order+1
+                do m=1,n_degrees
 
-                  index_lm = (l-1)*(n_order+1) + m
+                  index_lm = (l-1)*n_degrees + m
 
                   v = HH(l,m) * sim%fields%element_list%element(i_elm)%size(l,m)
 

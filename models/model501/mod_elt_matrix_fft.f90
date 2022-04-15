@@ -33,7 +33,7 @@ type (type_element)       :: element
 type (type_node)          :: nodes(n_vertex_max)     ! fluid variables
 type (type_node),optional :: aux_nodes(n_vertex_max) ! particle moments
 
-#define DIM0 n_tor*n_vertex_max*(n_order+1)*n_var
+#define DIM0 n_tor*n_vertex_max*n_degrees*n_var
 
 real*8, dimension (DIM0,DIM0)  :: ELM
 real*8, dimension (DIM0)       :: RHS
@@ -170,7 +170,7 @@ complex*16 :: out_fft(1:n_plane)
 integer*8  :: plan
 
 #define DIM1 n_plane
-#define DIM2 1:n_vertex_max*n_var*(n_order+1)
+#define DIM2 1:n_vertex_max*n_var*n_degrees
 
 real*8, dimension(DIM1, DIM2, DIM2) :: ELM_p
 real*8, dimension(DIM1, DIM2, DIM2) :: ELM_n
@@ -245,7 +245,7 @@ aux_P0    = 0.d0; aux_P0_s  = 0.d0; aux_P0_t  = 0.d0; aux_P0_p  = 0.d0
 aux_q0    = 0.d0; aux_jx0   = 0.d0; aux_jy0   = 0.d0; aux_jz0   = 0.d0; aux_jz0_pcs = 0.d0
 
 do i=1,n_vertex_max
- do j=1,n_order+1
+ do j=1,n_degrees
 
    do ms=1, n_gauss
      do mt=1, n_gauss
@@ -960,6 +960,7 @@ do ms=1, n_gauss
            dZ_eff_dT  = dZ_eff_dT + m_i_over_m_imp * rn0_corr * dP_imp_dT(ion_i) * real(ion_i,8)**2
          end do
          dZ_eff_dT    = dZ_eff_dT / ne_JOREK
+         dZ_eff_dT    = dZ_eff_dT * dTe_corr_eV_dT * EL_CHG / K_BOLTZ ! convert from K to JOREK unit
          dZ_eff_dT    = dZ_eff_dT - Z_eff * dbeta_imp_dT * rn0_corr / ne_JOREK
     
          dZ_eff_dr0   = (1. - Z_eff)/ne_JOREK
@@ -992,12 +993,12 @@ do ms=1, n_gauss
 
        deta_dr0  = eta_T * deta_coef_dZeff * dZ_eff_dr0 * dr0_corr_dn
        deta_drn0 = eta_T * deta_coef_dZeff * dZ_eff_drn0 * drn0_corr_dn
-       deta_dT   = deta_dT * eta_coef + eta_T * deta_coef_dZeff * dZ_eff_dT * dT0_corr_dT
+       deta_dT   = deta_dT * eta_coef + eta_T * deta_coef_dZeff * dZ_eff_dT
        eta_T     = eta_T * eta_coef
 
        deta_dr0_ohm  = eta_T_ohm * deta_coef_dZeff * dZ_eff_dr0 * dr0_corr_dn
        deta_drn0_ohm = eta_T_ohm * deta_coef_dZeff * dZ_eff_drn0 * drn0_corr_dn
-       deta_dT_ohm   = deta_dT_ohm * eta_coef + eta_T_ohm * deta_coef_dZeff * dZ_eff_dT * dT0_corr_dT	   
+       deta_dT_ohm   = deta_dT_ohm * eta_coef + eta_T_ohm * deta_coef_dZeff * dZ_eff_dT
        eta_T_ohm = eta_T_ohm * eta_coef
 
      end if
@@ -1120,9 +1121,9 @@ do ms=1, n_gauss
 
      do i=1,n_vertex_max
 
-       do j=1,n_order+1
+       do j=1,n_degrees
 
-         index_ij = n_var*(n_order+1)*(i-1) + n_var * (j-1) + 1   ! index in the ELM matrix
+         index_ij = n_var*n_degrees*(i-1) + n_var * (j-1) + 1   ! index in the ELM matrix
 
          v   =  H(i,j,ms,mt) * element%size(i,j)
          v_x = (  y_t(ms,mt) * h_s(i,j,ms,mt) - y_s(ms,mt) * h_t(i,j,ms,mt) ) * element%size(i,j) / xjac
@@ -1383,7 +1384,8 @@ do ms=1, n_gauss
                     + v * BigR * ((GAMMA - 1.)/2.) * vv2 * (source_bg + source_imp)            * xjac * tstep &
 !==============================End of friction terms=================
 !============================Behold, the parallel viscous heating terms!=============
-                    + (GAMMA - 1.) * v * BigR * visco_par * (vpar0_x * vpar0_x + vpar0_y * vpar0_y)      * xjac * tstep &
+                    + (GAMMA - 1.) * v * BigR * visco_par_heating * (vpar0_x * vpar0_x + vpar0_y * vpar0_y)      * xjac * tstep &
+                    + (GAMMA - 1.) * vpar0 * BigR * visco_par_heating * (v_x * vpar0_x     + v_y * vpar0_y)      * xjac * tstep &
 !==========================End of viscous heating terms==============================
 
                     + v * BigR * (GAMMA - 1.) * eta_T_ohm * (zj0/BigR)**2           * xjac * tstep  &
@@ -1555,7 +1557,7 @@ do ms=1, n_gauss
 	 
          do k=1,n_vertex_max
 
-           do l=1,n_order+1
+           do l=1,n_degrees
 
              psi   = H(k,l,ms,mt) * element%size(k,l)
 
@@ -1621,7 +1623,7 @@ do ms=1, n_gauss
              rhon_x_hat = 2.d0 * BigR * BigR_x  * rhon + BigR**2 * rhon_x    
              rhon_y_hat = BigR**2 * rhon_y                                   
 
-             index_kl = n_var*(n_order+1)*(k-1) + n_var * (l-1) + 1   ! index in the ELM matrix
+             index_kl = n_var*n_degrees*(k-1) + n_var * (l-1) + 1   ! index in the ELM matrix
 
 !###################################################################################################
 !#  equation 1   (induction equation)                                                              #
@@ -2024,7 +2026,7 @@ do ms=1, n_gauss
                              * T0 * ((    +alpha_imp_x*rn0) * psi_y - (    +alpha_imp_y*rn0) * psi_x)         &
                              * (                            + F0 / BigR * v_p) * xjac * theta * tstep * tstep &
                    + TG_num6 * 0.25d0 / BigR * vpar0**2                                                       &
-                             * (r0_x+alpha_imp*rn0_x) * (T0_x * psi_y - T0_y * psi_x)                         &
+                             * (r0+alpha_imp*rn0) * (T0_x * psi_y - T0_y * psi_x)                         &
                              * (                            + F0 / BigR * v_p) * xjac * theta * tstep * tstep
 
 
@@ -2299,7 +2301,9 @@ do ms=1, n_gauss
                        - v * BigR *(GAMMA - 1.) * vpar0 * Vpar * BB2 * (source_bg + source_imp) * xjac * theta * tstep &
 !==============================End of friction terms=================
 !============================Behold, the parallel viscous heating terms!=============
-                       - (GAMMA - 1.) * v * BigR * visco_par * 2.d0 * (vpar_x*vpar0_x + vpar_y*vpar0_y) * xjac * theta * tstep  &
+                       - (GAMMA - 1.) * v * BigR * visco_par_heating * 2.d0 * (vpar_x*vpar0_x + vpar_y*vpar0_y) * xjac * theta * tstep  &
+                       - (GAMMA - 1.) * vpar0 * BigR * visco_par_heating    * (vpar_x*v_x     + vpar_y*v_y)     * xjac * theta * tstep  &
+                       - (GAMMA - 1.) * vpar * BigR * visco_par_heating    * (vpar0_x*v_x     + vpar0_y*v_y)    * xjac * theta * tstep  &
 !==========================End of viscous heating terms==============================
  
                    + TG_num6 * 0.25d0 / BigR * 2.d0 * vpar0*vpar &
@@ -2911,9 +2915,9 @@ do ms=1, n_gauss
  enddo
 enddo
 
-do i=1,n_vertex_max*n_var*(n_order+1)
+do i=1,n_vertex_max*n_var*n_degrees
 
-  do j=1, n_vertex_max*n_var*(n_order+1)
+  do j=1, n_vertex_max*n_var*n_degrees
 
     in_fft =  ELM_p(1:n_plane,i,j)
 #ifdef USE_FFTW
@@ -2974,9 +2978,9 @@ do i=1,n_vertex_max*n_var*(n_order+1)
 
 enddo
 
-do i=1,n_vertex_max*n_var*(n_order+1)
+do i=1,n_vertex_max*n_var*n_degrees
 
-  do j=1, n_vertex_max*n_var*(n_order+1)
+  do j=1, n_vertex_max*n_var*n_degrees
 
   if (maxval(abs(ELM_n(1:n_plane,i,j))) .ne. 0.d0) then
 
@@ -3042,9 +3046,9 @@ do i=1,n_vertex_max*n_var*(n_order+1)
 
 enddo
 
-do i=1,n_vertex_max*n_var*(n_order+1)
+do i=1,n_vertex_max*n_var*n_degrees
 
-  do j=1, n_vertex_max*n_var*(n_order+1)
+  do j=1, n_vertex_max*n_var*n_degrees
 
   if (maxval(abs(ELM_k(1:n_plane,i,j))) .ne. 0.d0) then
 
@@ -3109,9 +3113,9 @@ do i=1,n_vertex_max*n_var*(n_order+1)
 
 enddo
 
-do i=1,n_vertex_max*n_var*(n_order+1)
+do i=1,n_vertex_max*n_var*n_degrees
 
-  do j=1, n_vertex_max*n_var*(n_order+1)
+  do j=1, n_vertex_max*n_var*n_degrees
 
   if (maxval(abs(ELM_kn(1:n_plane,i,j))) .ne. 0.d0) then
 
@@ -3180,7 +3184,7 @@ enddo
 
 ELM = 0.5d0 * ELM
 
-do j=1, n_vertex_max*n_var*(n_order+1)
+do j=1, n_vertex_max*n_var*n_degrees
 
   in_fft = RHS_p(1:n_plane,j)
 #ifdef USE_FFTW
@@ -3204,7 +3208,7 @@ do j=1, n_vertex_max*n_var*(n_order+1)
 
 enddo
 
-do j=1, n_vertex_max*n_var*(n_order+1)
+do j=1, n_vertex_max*n_var*n_degrees
 
   in_fft = RHS_k(1:n_plane,j)
 #ifdef USE_FFTW
