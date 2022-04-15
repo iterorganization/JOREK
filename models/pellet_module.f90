@@ -343,18 +343,18 @@ module pellet_module
 
 #if ((defined WITH_Impurities) || (defined WITH_Neutrals))
 #ifdef WITH_TiTe
-        call interp_PRZ(node_list,element_list,i_elm,[var_rho,var_Te,var_rhon,var_psi],4,s_out,t_out,pellets(i_p)%spi_phi,&
+        call interp_PRZ(node_list,element_list,i_elm,[var_rho,var_Te,var_rhoimp,var_psi],4,s_out,t_out,pellets(i_p)%spi_phi,&
                         P,P_s,P_t,P_phi,R,R_s,R_t,Z,Z_s,Z_t)
         if (drift_distance /= 0) then
-          call interp_PRZ(node_list,element_list,i_elm_drift,[var_rho,var_Te,var_rhon,var_psi],4,s_out_drift,t_out_drift,pellets(i_p)%spi_phi,&
+          call interp_PRZ(node_list,element_list,i_elm_drift,[var_rho,var_Te,var_rhoimp,var_psi],4,s_out_drift,t_out_drift,pellets(i_p)%spi_phi,&
                                  P_drift,P_s_drift,P_t_drift,P_phi_drift,R_drift,R_s_drift,R_t_drift,Z_drift,Z_s_drift,Z_t_drift)
         end if
 
 #else /* WITH_TiTe */
-        call interp_PRZ(node_list,element_list,i_elm,[var_rho,var_T,var_rhon,var_psi],4,s_out,t_out,pellets(i_p)%spi_phi,&
+        call interp_PRZ(node_list,element_list,i_elm,[var_rho,var_T,var_rhoimp,var_psi],4,s_out,t_out,pellets(i_p)%spi_phi,&
                         P,P_s,P_t,P_phi,R,R_s,R_t,Z,Z_s,Z_t)
         if (drift_distance /= 0) then
-          call interp_PRZ(node_list,element_list,i_elm_drift,[var_rho,var_T,var_rhon,var_psi],4,s_out_drift,t_out_drift,pellets(i_p)%spi_phi,&
+          call interp_PRZ(node_list,element_list,i_elm_drift,[var_rho,var_T,var_rhoimp,var_psi],4,s_out_drift,t_out_drift,pellets(i_p)%spi_phi,&
                                  P_drift,P_s_drift,P_t_drift,P_phi_drift,R_drift,R_s_drift,R_t_drift,Z_drift,Z_s_drift,Z_t_drift)
         end if
 #endif /* WITH_TiTe */
