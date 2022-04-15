@@ -242,7 +242,6 @@ use mod_random_seed
 use mod_interp,  only: mode_moivre, interp_RZ
 use mod_jorek_timestepping
 use mod_basisfunctions
-use corr_neg,    only: corr_neg_dens
 use phys_module, only: tstep, use_ncs, use_pcs, use_ccs, use_rcs
 use phys_module, only: CENTRAL_MASS, CENTRAL_DENSITY
 use constants,   only: MU_ZERO, MASS_PROTON, ATOMIC_MASS_UNIT, K_BOLTZ, EL_CHG
