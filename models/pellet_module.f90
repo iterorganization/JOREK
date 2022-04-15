@@ -423,6 +423,7 @@ module pellet_module
  
         ! NGS model
         if (spi_abl_model == 1) then
+          ne_SI = n_SI
           pellets(i_p)%spi_abl    = 4.12d16 * (pellets(i_p)%spi_radius**(4.0/3.0)) * (ne_SI**(1.0/3.0)) * &
                                    (T_eV**1.64)
           if (nonlocal_abl) then
