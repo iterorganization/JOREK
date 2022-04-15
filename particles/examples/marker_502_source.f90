@@ -13,6 +13,8 @@ use mod_random_seed
 use mod_interp, only: mode_moivre, interp_RZ
 use mod_basisfunctions
 use nodes_elements
+use corr_neg, only: corr_neg_dens
+use diffusivities, only: get_dperp
 use phys_module, only: n_particles, nstep_particles, nsubstep_particles, tstep_particles, use_ncs, use_pcs, use_ccs
 use phys_module, only: filter_perp, filter_hyper, filter_par, filter_perp_n0, filter_hyper_n0, filter_par_n0
 use phys_module, only: tstep, imp_type, imp_adas, imp_cor, adas_dir, use_marker, restart_particles, index_now
@@ -203,7 +205,6 @@ use mod_random_seed
 use mod_interp, only: mode_moivre, interp_RZ
 use mod_jorek_timestepping
 use mod_basisfunctions
-use corr_neg, only: corr_neg_dens
 use phys_module, only: tstep, use_ncs, use_pcs, use_ccs, use_marker
 use phys_module, only: pellets, n_spi_tot, ns_amplitude, n_inj, t_ns, t_now
 use phys_module, only: ns_radius_ratio, ns_radius, ns_radius_min, ns_R, ns_Z, ns_phi, D_prof_neg
@@ -213,7 +214,6 @@ use mod_integrals3D, only: int3d_new
 use mod_radiation, only: proj_Lz, get_Lz
 use mod_impurity, only: radiation_function_linear
 use equil_info, only : get_psi_n
-use diffusivities, only: get_dperp
 
 implicit none
 real*8, parameter  :: binding_energy = 2.18d-18 ! ionization energy of a hydrogen atom [J] (= 13.6 eV)
