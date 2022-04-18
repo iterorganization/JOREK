@@ -748,10 +748,11 @@ do while (.not. sim%stop_now)
 
 #ifdef __GFORTRAN__
     !$omp parallel do default(shared) & ! workaround for Error: '__vtab_mod_openadas_Adf11' not specified in enclosing 'parallel'
+    !$omp shared(sim) &
 #else
     !$omp parallel do default(none) & 
+    !$omp shared(sim,particles) &
 #endif
-    !$omp shared(sim) &
     !$omp private(j, E, B, psi, U, B_norm) &
     !$omp reduction(+:particles_remaining, momentum_remaining, energy_remaining)
     do j=1,size(particles,1)
