@@ -84,6 +84,8 @@ type, extends(io_action) :: projection
   !> Output storage (optional)
   type(vtk_grid), allocatable, private :: vtk_grid !< if allocated output to vtk
   logical, public :: to_h5 = .false.    !< Output to hdf5 file
+  logical, public :: index_h5 = .false. !< Number projection outputs (vtk, or hdf5) in the same way as its fluid counterpart (e.g. projections00100.vtk(h5))
+                                        !< if set false, outputs will be numbered by physical time.
 
   !> Right-hand side
   type(proj_f), dimension(:),   allocatable :: f   !< List of projection transformations to use (n_proj)
@@ -448,7 +450,7 @@ end function new_proj_f
 function new_projection(node_list, element_list,                                                     &
                         filter,    filter_hyper,    filter_parallel,                                 &
                         filter_n0, filter_hyper_n0, filter_parallel_n0,                              &
-                        f, do_zonal, to_h5, to_vtk,                                                  &
+                        f, do_zonal, to_h5, to_vtk, index_h5,                                        &
                         nsub, filename, basename, decimal_digits, fractional_digits, calc_integrals, &
                         do_ion_polarisation, ion_mass                                                &
                         ) result(new)
@@ -463,6 +465,7 @@ function new_projection(node_list, element_list,                                
   logical, intent(in), optional          :: do_zonal    !< solve zonal flow  system for n=0 instead of projection (false if omitted)
   logical, intent(in), optional          :: to_h5 !< Write HDF5 output after projecting (false if omitted)
   logical, intent(in), optional          :: to_vtk !< Write vtk output after projecting (false if omitted)
+  logical, intent(in), optional          :: index_h5 !< numbering projection outputs in the same way as fluid output: e.g. projections00100.vtk(h5) (false if omitted)
   integer, intent(in), optional          :: nsub !< number of subdivisions of the finite elements
   character(len=*), intent(in), optional :: filename
   character(len=*), intent(in), optional :: basename
@@ -558,6 +561,7 @@ function new_projection(node_list, element_list,                                
     end if
   end if
   if (present(to_h5)) new%to_h5 = to_h5
+  if (present(index_h5)) new%index_h5 = index_h5
 
   new%basename = "proj"
   if (present(filename)) new%filename = filename
@@ -619,7 +623,7 @@ subroutine project(this, sim, ev)
   ! Save output if requested
   if (this%to_h5) then
     if (mod(index_now,nout_particles) == 0) then
-      call save_to_h5(this, sim, index_now)
+      call save_to_h5(this, sim)
     end if
   end if
   if (allocated(this%vtk_grid)) then
@@ -1030,9 +1034,10 @@ end subroutine sample_rhs
 !> Save an already-projected set to a vtk file with current parameters
 subroutine save_to_vtk(this, sim)
   use mod_event
+  use phys_module, only: index_now
   !$ use omp_lib
-  class(projection), intent(inout) :: this
-  type(particle_sim), intent(inout)    :: sim
+  class(projection), intent(inout)  :: this
+  type(particle_sim), intent(inout) :: sim
   integer :: i, ierr, n_proj
   real*8 :: t0, t1, ostart, oend
   character(len=120) :: filename
@@ -1043,10 +1048,15 @@ subroutine save_to_vtk(this, sim)
     return
   end if
 
-  if (len_trim(this%filename) .eq. 0) then
-    filename = this%get_filename(sim%time)
-  else
-    filename = this%filename
+  if (.not. this%index_h5) then ! put file name with physical time
+    if (len_trim(this%filename) .eq. 0) then
+      filename = this%get_filename(sim%time)
+    else
+      filename = this%filename
+    end if
+  else ! put file name with 'index_now'
+    write(filename,'(a,i5.5)') trim(this%basename), index_now
+    filename = trim(filename)//this%extension
   end if
 
   call cpu_time(t0)
@@ -1076,26 +1086,29 @@ end subroutine save_to_vtk
 
 
 !> Action for projecting all particles and writing output to a hdf5 file
-subroutine save_to_h5(this, sim, index_now)
+subroutine save_to_h5(this, sim)
   use mpi_mod
   use mod_event
+  use phys_module, only: index_now
   !$ use omp_lib
   class(projection),  intent(inout)  :: this
   type(particle_sim), intent(inout)  :: sim
-  integer,            intent(in)     :: index_now
   integer :: my_id, ierr, n_proj
   character(len=120) :: filename
   real*8 :: t0, t1, ostart, oend
 
   this%extension = '.h5'
 
-!  if (len_trim(this%filename) .eq. 0) then
-!    filename = this%get_filename(sim%time)
-!  else
-!    filename = this%filename
-!  end if
-  write(filename,'(A13,i5.5)') 'aux_node_list',index_now  ! temporary base name for aux_node_list
-  filename = trim(filename)//'.h5'
+  if (.not. this%index_h5) then ! put file name with physical time
+    if (len_trim(this%filename) .eq. 0) then
+      filename = this%get_filename(sim%time)
+    else
+      filename = this%filename
+    end if
+  else ! put file name with 'index_now'
+    write(filename,'(a,i5.5)') trim(this%basename), index_now
+    filename = trim(filename)//this%extension
+  end if
 
   call cpu_time(t0)
   !$ ostart = omp_get_wtime()
