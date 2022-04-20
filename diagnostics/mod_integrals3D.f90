@@ -1218,7 +1218,8 @@ do ife = ife_min, ife_max
 
         ! Background species contribution in case of marker particles
         if (use_marker) then
-          local_P_ion = local_P_ion + E_ion_bg * source_bg * bigR * xjac * wst * delta_phi
+          local_P_ion = local_P_ion + E_ion_bg * source_bg * central_density * 1.d20 &
+                                               * bigR * xjac * wst * delta_phi
         endif
 
         ! Neutral injection rate in particles/s
