@@ -2135,10 +2135,10 @@ subroutine import_hdf5_restart_aux(aux_node_list, filename, format_rst, error)
   call HDF5_integer_reading(file_id,jorek_model_tmp,"jorek_model")
   call HDF5_integer_reading(file_id,n_var_tmp,"n_var")
   if ( n_var /= n_var_tmp ) then
-    write(*,*) 'WARNING: The number of variables in the restart file and the compiled JOREK binary does not agree.'
-    write(*,*) 'n_var in binary : ', n_var
-    write(*,*) 'n_var in HDF5   : ', n_var_tmp
-    write(*,*) ' --> But we are with particle projection HDF5, therefore we proceed with the n_var in the binary '
+  !  write(*,*) 'WARNING: The number of variables in the restart file and the compiled JOREK binary does not agree.'
+  !  write(*,*) 'n_var in binary : ', n_var
+  !  write(*,*) 'n_var in HDF5   : ', n_var_tmp
+  !  write(*,*) ' --> But we are with particle projection HDF5, therefore we proceed with the n_var in the binary '
     n_var_tmp = n_var
   end if
   call HDF5_integer_reading(file_id,n_dim_tmp,"n_dim")
