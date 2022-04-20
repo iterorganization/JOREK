@@ -138,7 +138,7 @@ namelist /in1/  tstep, nstep, tstep_n, nstep_n,                     &
                 psi_offset_freeb, diag_coils, rmp_coils,            &
                 voltage_coils, vert_FB_amp, find_pf_coil_currents,  &
                 delta_psi_GS, newton_GS_fixbnd, newton_GS_freebnd,  &
-                pastix_maxthrd, centralize_harm_mat,                &
+                pastix_maxthrd, centralize_harm_mat, treat_axis,    &
                 n_particles, tstep_particles, nstep_particles,      & !Particles extension
                 nsubstep_particles, restart_particles,              &
                 filter_perp,    filter_hyper,    filter_par,        &

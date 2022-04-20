@@ -11,7 +11,7 @@ use data_structure
 use tr_module 
 use gauss
 use basis_at_gaussian
-use phys_module, only:   n_limiter, R_limiter, Z_limiter, write_ps, fix_axis_nodes, force_central_node
+use phys_module, only:   n_limiter, R_limiter, Z_limiter, write_ps, fix_axis_nodes, force_central_node, treat_axis
 use mod_neighbours, only: update_neighbours
 use mod_interp
 
@@ -1741,9 +1741,14 @@ index = 0
 do i=1,newnode_list%n_nodes
 
   newnode_list%node(i)%axis_node = .false.
-  if ( fix_axis_nodes .and. (i .lt. n_tht) ) newnode_list%node(i)%axis_node = .true.
+  newnode_list%node(i)%axis_dof  = 0
 
-  do k=1,n_order+1
+  if (i .lt. n_tht) then 
+    newnode_list%node(i)%axis_node = .true.
+    newnode_list%node(i)%axis_dof  = 2
+  endif
+
+  do k=1,n_degrees
 
     index = index + 1
     newnode_list%node(i)%index(k) = index
@@ -1752,6 +1757,10 @@ do i=1,newnode_list%n_nodes
       newnode_list%node(i)%index(k) = newnode_list%node(1)%index(1)
       index = index - 1
     endif
+    if ((treat_axis) .and. (i .gt. 1) .and. (i .lt. n_tht) .and. (k.le.n_order+1)) then ! Only for C1-elements !
+      newnode_list%node(i)%index(k) = newnode_list%node(1)%index(k)
+      index = index - 1
+    endif    
     if ((i .eq. index_xpoint+1).and.(k.eq.1)) then
       newnode_list%node(i)%index(k) = newnode_list%node(index_xpoint)%index(k)
       index = index - 1
@@ -1822,13 +1831,13 @@ do i=1,newnode_list%n_nodes
 
 enddo
 
-newnode_list%node(index_xpoint  )%values(1,2:4,1) = 0.d0
-newnode_list%node(index_xpoint+1)%values(1,2:4,1) = 0.d0
-newnode_list%node(index_xpoint+2)%values(1,2:4,1) = 0.d0
-newnode_list%node(index_xpoint+3)%values(1,2:4,1) = 0.d0
+newnode_list%node(index_xpoint  )%values(1,2:n_degrees,1) = 0.d0
+newnode_list%node(index_xpoint+1)%values(1,2:n_degrees,1) = 0.d0
+newnode_list%node(index_xpoint+2)%values(1,2:n_degrees,1) = 0.d0
+newnode_list%node(index_xpoint+3)%values(1,2:n_degrees,1) = 0.d0
 
 do i=1,n_tht - 1
-  newnode_list%node(i)%values(1,2:4,1) = 0.d0
+  newnode_list%node(i)%values(1,2:n_degrees,1) = 0.d0
 enddo
 
 n_remove_elements = 0

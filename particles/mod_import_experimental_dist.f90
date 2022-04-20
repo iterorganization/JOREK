@@ -10,7 +10,7 @@ module mod_import_experimental_dist
   use hdf5
   implicit none
   private
-  public import_particles
+  public import_particles, calculate_B
 
 contains
 

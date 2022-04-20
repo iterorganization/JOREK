@@ -147,7 +147,7 @@ program tae_loop_full_isotrop
 
 !Full tensor has 6 elements due to symmetry
 
-  allocate(jorek_feedback%rhs(n_order+1, n_vertex_max, sim%fields%element_list%n_elements, n_tor, 6))
+  allocate(jorek_feedback%rhs(n_degrees, n_vertex_max, sim%fields%element_list%n_elements, n_tor, 6))
 
   jorek_feedback%rhs = 0.d0
 
@@ -326,9 +326,9 @@ subroutine loop_particle_kinetic_local(sim, jorek_feedback, rng, timesteps, n_st
               p_isotrop=1.d0/3.d0*(particle_tmp%v(1)**2+particle_tmp%v(2)**2+particle_tmp%v(3)**2)
 
               do l=1,n_vertex_max
-                do m=1,n_order+1
+                do m=1,n_degrees
 
-                  index_lm = (l-1)*(n_order+1) + m
+                  index_lm = (l-1)*n_degrees + m
 
                   v = HH(l,m) * sim%fields%element_list%element(i_elm)%size(l,m)
 

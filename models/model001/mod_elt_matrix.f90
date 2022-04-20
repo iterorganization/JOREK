@@ -79,7 +79,7 @@ mp = 1
 in = 1
 
 do i=1,n_vertex_max 
-  do j=1,n_order+1
+  do j=1,n_degrees
 
     do ms=1, n_gauss
       do mt=1, n_gauss
@@ -181,9 +181,9 @@ do ms=1, n_gauss
 
     do i=1,n_vertex_max
 
-      do j=1,n_order+1
+      do j=1,n_degrees
 
-        index_ij = n_var*(n_order+1)*(i-1) + n_var * (j-1) + 1   ! index in the ELM matrix
+        index_ij = n_var*n_degrees*(i-1) + n_var * (j-1) + 1   ! index in the ELM matrix
 
         v   =  H(i,j,ms,mt) * element%size(i,j) 
         v_x = (  y_t(ms,mt) * h_s(i,j,ms,mt) - y_s(ms,mt) * h_t(i,j,ms,mt) ) * element%size(i,j) / xjac 
@@ -224,7 +224,7 @@ do ms=1, n_gauss
 
         do k=1,n_vertex_max
 
-          do l=1,n_order+1
+          do l=1,n_degrees
 
             u    = h(k,l,ms,mt)    * element%size(k,l)
             u_s  = h_s(k,l,ms,mt)  * element%size(k,l)
@@ -248,7 +248,7 @@ do ms=1, n_gauss
 	          + w_t * (x_st(ms,mt)*x_s(ms,mt) - x_ss(ms,mt)*x_t(ms,mt) ) )    / xjac**2          &		
 		  - xjac_y * (- w_s * x_t(ms,mt) + w_t * x_s(ms,mt) ) / xjac**2
 		
-            index_kl = n_var*(n_order+1)*(k-1) + n_var * (l-1) + 1   ! index in the ELM matrix
+            index_kl = n_var*n_degrees*(k-1) + n_var * (l-1) + 1   ! index in the ELM matrix
 
 !---------------------------------------------------------------- equation 1
  		      

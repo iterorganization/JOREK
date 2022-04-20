@@ -28,7 +28,7 @@ namelist /in1/  tstep, nstep, tstep_n, nstep_n,                     &
                 n_R, n_Z, n_radial, n_pol, n_tht, n_flux,           &
                 n_open, n_private, n_leg, n_leg_out, n_ext,         &
                 n_outer, n_inner, n_up_priv, n_up_leg, n_up_leg_out,&
-                n_tht_equidistant,                                  &
+                n_tht_equidistant, eqdsk_psi_fact,                  &
                 psi_axis_init, XR_r, SIG_r, XR_tht, SIG_tht,        &
                 SIG_closed, SIG_open, SIG_private, SIG_theta,       &
                 SIG_leg_0, SIG_leg_1, dPSI_open, dPSI_private,      &
@@ -44,7 +44,7 @@ namelist /in1/  tstep, nstep, tstep_n, nstep_n,                     &
                 Rmin_pfc, Rmax_pfc, Zmin_pfc, Zmax_pfc, current_pfc,&
                 extend_existing_grid, no_mach1_bc,                  &
                 grid_to_wall, RZ_grid_inside_wall, eqdsk_psi_fact,  &
-                RZ_grid_jump_thres,                                 &
+                RZ_grid_jump_thres, surface_cross_tol,              &
                 n_wall_blocks, n_ext_block, corner_block,           &
                 n_ext_equidistant,                                  &
                 n_block_points_left,  n_block_points_right,         &
@@ -133,7 +133,7 @@ namelist /in1/  tstep, nstep, tstep_n, nstep_n,                     &
                 autodistribute_modes, modes_per_family,             &
                 mode_families_modes, n_mode_families,               &
                 weights_per_family, autodistribute_ranks,           &
-                ranks_per_family,                                   &
+                ranks_per_family, treat_axis,                       &
                 n_particles, tstep_particles, nstep_particles,      &
                 nsubstep_particles,                                 &
                 filter_perp,    filter_hyper,    filter_par,        &

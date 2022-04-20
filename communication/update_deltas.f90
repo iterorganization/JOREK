@@ -17,7 +17,7 @@ endif
 
 do i = 1, node_list%n_nodes
  if ((.not. node_list%node(i)%constrained)) then
-  do j=1,n_order+1
+  do j=1,n_degrees
 
     index_node = node_list%node(i)%index(j)
 

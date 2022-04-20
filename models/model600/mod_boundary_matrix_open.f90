@@ -32,8 +32,8 @@ real*8     :: eq_g(n_plane,n_var,n_gauss), eq_s(n_plane,n_var,n_gauss), eq_p(n_p
 real*8     :: eq_t(n_plane,n_var,n_gauss), eq_ss(n_plane,n_var,n_gauss)
 real*8     :: delta_g(n_plane,n_var,n_gauss), delta_s(n_plane,n_var,n_gauss)
 
-real*8     :: ELM(n_vertex_max*n_var*(n_order+1)*n_tor,n_vertex_max*n_var*(n_order+1)*n_tor)
-real*8     :: RHS(n_vertex_max*n_var*(n_order+1)*n_tor)
+real*8     :: ELM(n_vertex_max*n_var*n_degrees*n_tor,n_vertex_max*n_var*n_degrees*n_tor)
+real*8     :: RHS(n_vertex_max*n_var*n_degrees*n_tor)
 real*8     :: rhs_ij(n_var), amat(n_var,n_var)
 
 integer    :: vertex(2), direction(2), direction_perp(2), bnd_type1, bnd_type2
@@ -355,7 +355,7 @@ do ms=1, n_gauss
             endif ! with_neutrals
 
           endif ! with_vpar
-          index_ij = n_tor_local*n_var*(n_order+1)*(vertex(i)-1) + n_tor_local * n_var * (j2-1) + im - i_tor_min +1  ! index in the ELM matrix
+          index_ij = n_tor_local*n_var*n_degrees*(vertex(i)-1) + n_tor_local * n_var * (j2-1) + im - i_tor_min +1  ! index in the ELM matrix
 
           do i_var = 1, n_var
             if ( .not. apply_natural_bc(i_var) ) cycle
@@ -466,7 +466,7 @@ do ms=1, n_gauss
                   endif ! with neutrals
 
                 endif   ! with_vpar
-                index_kl = n_tor_local*n_var*(n_order+1)*(vertex(k)-1) + n_tor_local * n_var * (l2-1) + in - i_tor_min +1  ! index in the ELM matrix
+                index_kl = n_tor_local*n_var*n_degrees*(vertex(k)-1) + n_tor_local * n_var * (l2-1) + in - i_tor_min +1  ! index in the ELM matrix
 
                 ! --- Add contributions to ELM matrix                 
                 do k_var = 1, n_var

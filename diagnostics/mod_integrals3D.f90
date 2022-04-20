@@ -89,7 +89,7 @@ integer :: k_vertex, k_dof, k_node, k_dir, k_dir_perp, m_bndelem, dir_perp(2), m
 integer :: iexpr
 real*8  :: R_c, Z_c, vec_inside(2), grad_t(2)
 real*8  :: k_size, k_size_perp
-real*8  :: G(4,4), sign_out, psi_n, ps0_sbnd, u0_sbnd
+real*8  :: G(4,n_degrees), sign_out, psi_n, ps0_sbnd, u0_sbnd
 real*8  :: dt_back, dt_now, r_dt, r_dt2
 real*8  :: I_halo, TPF, q02, q95, q99
 real*8, allocatable :: qval(:), radav(:)
@@ -454,7 +454,7 @@ do ife = ife_min, ife_max
   psi_axisym(:,:) = 0.d0
 
   do i=1,n_vertex_max
-    do j=1,n_order+1
+    do j=1,n_degrees
 
       do ms=1, n_gauss
         do mt=1, n_gauss
@@ -488,7 +488,7 @@ do ife = ife_min, ife_max
   eq_sp(:,:,:,:) = 0.d0; eq_tp(:,:,:,:) = 0.d0;
 
   do i=1,n_vertex_max
-    do j=1,n_order+1
+    do j=1,n_degrees
 
       do mp=1,n_plane
         do ms=1, n_gauss
@@ -1206,7 +1206,7 @@ do m_bndelem = 1, bnd_elm_list%n_bnd_elements
   call basisfunctions(xgauss(2),xgauss(2), G)  
   R_c = 0.d0 ;  Z_c = 0.d0 
   do i = 1, n_vertex_max
-    do j = 1, n_order+1
+    do j = 1, n_degrees
       node_k = node_list%node(elm_k%vertex(i)) 
       R_c    = R_c + node_k%x(1,j,1) * elm_k%size(i,j) * G(i,j)
       Z_c    = Z_c + node_k%x(1,j,2) * elm_k%size(i,j) * G(i,j)

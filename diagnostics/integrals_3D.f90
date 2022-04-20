@@ -195,7 +195,7 @@ do ife = ife_min, ife_max
   y_g(:,:)    = 0.d0; y_s(:,:)    = 0.d0; y_t(:,:)    = 0.d0;
 
   do i=1,n_vertex_max
-    do j=1,n_order+1
+    do j=1,n_degrees
 
       do ms=1, n_gauss
         do mt=1, n_gauss
@@ -216,7 +216,7 @@ do ife = ife_min, ife_max
   eq_g(:,:,:,:) = 0.d0; eq_s(:,:,:,:) = 0.d0; eq_t(:,:,:,:) = 0.d0; eq_p(:,:,:,:) = 0.d0;
 
   do i=1,n_vertex_max
-    do j=1,n_order+1
+    do j=1,n_degrees
 
       do mp=1,n_plane
         do ms=1, n_gauss

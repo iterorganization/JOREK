@@ -287,6 +287,7 @@ write(*,'(1x,a)',advance='no') ' USE_BICGSTAB : '
     write(*,REAL_FMT) 'SDN_threshold         ', SDN_threshold
   end if
 
+  write(*,REAL_FMT) 'surface_cross_tol     ',surface_cross_tol
   if ( ( (grid_to_wall) .or. (extend_existing_grid) ) .and. (n_wall_blocks .gt. 0) ) then
     write(*,REAL_FMT) 'eqdsk_psi_fact        ', eqdsk_psi_fact
     write(*,LOGI_FMT) 'RZ_grid_inside_wall   ', RZ_grid_inside_wall
@@ -739,7 +740,6 @@ write(*,'(1x,a)',advance='no') ' USE_BICGSTAB : '
   write(*,INTG_FMT) 'pastix_maxthrd        ', pastix_maxthrd
   write(*,LOGI_FMT) 'refinement            ', refinement
   write(*,LOGI_FMT) 'force_central_node    ', force_central_node
-  write(*,LOGI_FMT) 'fix_axis_nodes        ', fix_axis_nodes
   write(*,LOGI_FMT) 'grid_to_wall          ', grid_to_wall
   write(*,LOGI_FMT) 'adaptive_time         ', adaptive_time
   write(*,LOGI_FMT) 'equil                 ', equil
@@ -759,6 +759,9 @@ write(*,'(1x,a)',advance='no') ' USE_BICGSTAB : '
     write(*,LOGI_FMT) 'eta_ARAZ_simple       ', eta_ARAZ_simple
     write(*,LOGI_FMT) 'tauIC_ARAZ_on         ', tauIC_ARAZ_on
 #endif
+
+  write(*,LOGI_FMT) 'fix_axis_nodes        ',fix_axis_nodes 
+  write(*,LOGI_FMT) 'treat_axis            ',treat_axis
 
   if (use_mumps) then
     write(*,INTG_FMT) 'mumps_ordering        ', mumps_ordering

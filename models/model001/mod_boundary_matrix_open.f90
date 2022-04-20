@@ -22,8 +22,8 @@ type (type_node)      :: nodes(2)        ! the two nodes containing the boundary
 integer, intent(in)   :: i_tor_min   
 integer, intent(in)   :: i_tor_max   
 
-real*8     :: ELM(n_vertex_max*n_var*(n_order+1)*n_tor,n_vertex_max*n_var*(n_order+1)*n_tor)
-real*8     :: RHS(n_vertex_max*n_var*(n_order+1)*n_tor)
+real*8     :: ELM(n_vertex_max*n_var*n_degrees*n_tor,n_vertex_max*n_var*n_degrees*n_tor)
+real*8     :: RHS(n_vertex_max*n_var*n_degrees*n_tor)
 real*8     :: psi_axis, R_axis, Z_axis, psi_bnd, R_xpoint(2), Z_xpoint(2)
 integer    :: vertex(2), direction(2), xcase2
 logical    :: xpoint2

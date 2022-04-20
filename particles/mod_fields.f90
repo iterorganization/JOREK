@@ -181,7 +181,7 @@ pure subroutine calc_F_profile(fields,i_elm,s,t,phi,Fprof)
   call basisfunctions3(s,t,H,H_s,H_t)
   do i = 1, n_vertex_max
     iv=fields%element_list%element(i_elm)%vertex(i)
-    do j=1, n_order+1
+    do j=1, n_degrees
       ss=fields%element_list%element(i_elm)%size(i,j)
       Fprof_temp = Fprof_temp +fields%node_list%node(iv)%Fprof_eq(j)*ss*H(i,j)
     enddo!order

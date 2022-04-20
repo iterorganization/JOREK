@@ -644,6 +644,7 @@ subroutine preset_parameters
   R_limiter = 0.d0
   Z_limiter = 0.d0
   
+  surface_cross_tol = 1.005
   eqdsk_psi_fact = 1.d0
   extend_existing_grid = .false.
   n_wall_blocks        = 0
@@ -752,6 +753,10 @@ subroutine preset_parameters
 
   thermalization = .false.
 
+!===================== Polar axis treatment flag========
+
+  treat_axis = .false.
+  
 !===================== not used?
   Q_bar = 0.d0
   Sigma = 0.d0

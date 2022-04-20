@@ -92,6 +92,7 @@ subroutine export_binary_restart(node_list,element_list,filename)
      write(21) node_list%node(i)%index
      write(21) node_list%node(i)%boundary
      write(21) node_list%node(i)%axis_node
+     write(21) node_list%node(i)%axis_dof
      write(21) node_list%node(i)%parents
      write(21) node_list%node(i)%parent_elem
      write(21) node_list%node(i)%ref_lambda
@@ -104,6 +105,9 @@ subroutine export_binary_restart(node_list,element_list,filename)
   write(21) index_now
   write(21) t_now
 
+  ! save axis treatment
+  write(21) treat_axis
+  
   if (index_now .gt. 0) then
      write(21) xtime(1:index_now)
      write(21) energies(:,:,1:index_now)
@@ -285,16 +289,17 @@ subroutine export_hdf5_restart(node_list,element_list,filename)
   integer            :: ind, ierr
 
   ! type_node, node_list%n_nodes
-  real(RKIND), allocatable :: t_x(:,:,:,:)                 ! n_coord_tor, n_order+1, n_dim
-  real(RKIND), allocatable :: t_values(:,:,:,:)            !       n_tor, n_order+1, n_var
-  real(RKIND), allocatable :: t_deltas(:,:,:,:)            !       n_tor, n_order+1, n_var
+  real(RKIND), allocatable :: t_x(:,:,:,:)                 ! n_coord_tor, n_degrees, n_dim
+  real(RKIND), allocatable :: t_values(:,:,:,:)            !       n_tor, n_degrees, n_var
+  real(RKIND), allocatable :: t_deltas(:,:,:,:)            !       n_tor, n_degrees, n_var
 
-  real(RKIND), allocatable :: t_psi_eq(:,:)                ! n_order+1
-  real(RKIND), allocatable :: t_Fprof_eq(:,:)              ! n_order+1
+  real(RKIND), allocatable :: t_psi_eq(:,:)                ! n_degrees
+  real(RKIND), allocatable :: t_Fprof_eq(:,:)              ! n_degrees
 
-  integer,     allocatable :: t_index(:,:)                 ! n_order+1
+  integer,     allocatable :: t_index(:,:)                 ! n_degrees
   integer,     allocatable :: t_boundary(:)                ! 
   character,   allocatable :: t_axis_node(:)     
+  integer,     allocatable :: t_axis_dof(:)
   integer,     allocatable :: t_parents(:,:)               ! 2
   integer,     allocatable :: t_parent_elem(:)             ! 
   real(RKIND), allocatable :: t_ref_lambda(:)
@@ -304,7 +309,7 @@ subroutine export_hdf5_restart(node_list,element_list,filename)
   ! element, element_list%n_elements
   integer,     allocatable :: t_vertex(:,:)                ! n_vertex_max
   integer,     allocatable :: t_neighbours(:,:)            ! n_vertex_max
-  real(RKIND), allocatable :: t_size(:,:,:)                ! n_vertex_max,n_order+1
+  real(RKIND), allocatable :: t_size(:,:,:)                ! n_vertex_max,n_degrees
   integer,     allocatable :: t_father(:)
   integer,     allocatable :: t_n_sons(:)
   integer,     allocatable :: t_n_gen(:)
@@ -312,6 +317,9 @@ subroutine export_hdf5_restart(node_list,element_list,filename)
   integer,     allocatable :: t_contain_node(:,:)          ! 5
   integer,     allocatable :: t_nref(:)
 
+  ! for axis treatment setting
+  character(len=50)        :: t_treat_axis
+  
   ! local variables
   real*8, allocatable :: spi_R_arr (:)
   real*8, allocatable :: spi_Z_arr (:)
@@ -342,26 +350,27 @@ subroutine export_hdf5_restart(node_list,element_list,filename)
 #endif
 
   ! type_node, node_list%n_nodes
-  call tr_allocate(t_x,1,node_list%n_nodes,1,n_coord_tor,1,n_order+1,1,n_dim, &
+  call tr_allocate(t_x,1,node_list%n_nodes,1,n_coord_tor,1,n_degrees,1,n_dim, &
       "node_list%x",CAT_UNKNOWN)
-  call tr_allocate(t_values,1,node_list%n_nodes,1,n_tor,1,n_order+1,1,n_var, &
+  call tr_allocate(t_values,1,node_list%n_nodes,1,n_tor,1,n_degrees,1,n_var, &
        "node_list%values",CAT_UNKNOWN)
-  call tr_allocate(t_deltas,1,node_list%n_nodes,1,n_tor,1,n_order+1,1,n_var, &
+  call tr_allocate(t_deltas,1,node_list%n_nodes,1,n_tor,1,n_degrees,1,n_var, &
        "node_list%deltas",CAT_UNKNOWN)
 
 #ifdef fullmhd
-  call tr_allocate(t_psi_eq,1,node_list%n_nodes,1,n_order+1, &
+  call tr_allocate(t_psi_eq,1,node_list%n_nodes,1,n_degrees, &
        "node_list%psi_eq",CAT_UNKNOWN)
-  call tr_allocate(t_Fprof_eq,1,node_list%n_nodes,1,n_order+1, &
+  call tr_allocate(t_Fprof_eq,1,node_list%n_nodes,1,n_degrees, &
        "node_list%Fprof_eq",CAT_UNKNOWN)
 #elif altcs
-  call tr_allocate(t_psi_eq,1,node_list%n_nodes,1,n_order+1, &
+  call tr_allocate(t_psi_eq,1,node_list%n_nodes,1,n_degrees, &
        "node_list%psi_eq",CAT_UNKNOWN)
 #endif
 
-  call tr_allocate(t_index,1,node_list%n_nodes,1,n_order+1,"index",CAT_UNKNOWN)
+  call tr_allocate(t_index,1,node_list%n_nodes,1,n_degrees,"index",CAT_UNKNOWN)
   call tr_allocate(t_boundary,1,node_list%n_nodes,"boundary",CAT_UNKNOWN)
   call tr_allocate(t_axis_node,1,node_list%n_nodes,"axis_node",CAT_UNKNOWN)
+  call tr_allocate(t_axis_dof,1,node_list%n_nodes,"axis_dof",CAT_UNKNOWN)
   call tr_allocate(t_parents,1,node_list%n_nodes,1,2,"parent",CAT_UNKNOWN)
   call tr_allocate(t_parent_elem,1,node_list%n_nodes,"parent_elem",CAT_UNKNOWN)
   call tr_allocate(t_ref_lambda,1,node_list%n_nodes,"ref_lambade",CAT_UNKNOWN)
@@ -371,7 +380,7 @@ subroutine export_hdf5_restart(node_list,element_list,filename)
   ! element_list%n_elements
   call tr_allocate(t_vertex,1,element_list%n_elements,1,n_vertex_max,"vertex",CAT_UNKNOWN)
   call tr_allocate(t_neighbours,1,element_list%n_elements,1,n_vertex_max,"neighbours",CAT_UNKNOWN)
-  call tr_allocate(t_size,1,element_list%n_elements,1,n_vertex_max,1,n_order+1,"size",CAT_UNKNOWN)
+  call tr_allocate(t_size,1,element_list%n_elements,1,n_vertex_max,1,n_degrees,"size",CAT_UNKNOWN)
   call tr_allocate(t_father,1,element_list%n_elements,"father",CAT_UNKNOWN)
   call tr_allocate(t_n_sons,1,element_list%n_elements,"n_sons",CAT_UNKNOWN)
   call tr_allocate(t_n_gen,1,element_list%n_elements,"n_gen",CAT_UNKNOWN)
@@ -426,6 +435,7 @@ subroutine export_hdf5_restart(node_list,element_list,filename)
      else
         t_axis_node(i)  = 'F'
      end if
+     t_axis_dof(i)     = node_list%node(i)%axis_dof
      t_parents(i,:)    = node_list%node(i)%parents(1:2)
      t_parent_elem(i)  = node_list%node(i)%parent_elem
      t_ref_lambda(i)   = node_list%node(i)%ref_lambda
@@ -497,32 +507,34 @@ subroutine export_hdf5_restart(node_list,element_list,filename)
   
   if (rst_hdf5_version .eq. 2) then
     call HDF5_array4D_saving(file_id,t_x, &
-         node_list%n_nodes,n_coord_tor,n_order+1,n_dim,'x'//char(0))
+         node_list%n_nodes,n_coord_tor,n_degrees,n_dim,'x'//char(0))
   else
     call HDF5_array3D_saving(file_id,t_x(:,1,:,:), &
-         node_list%n_nodes,n_order+1,n_dim,'x'//char(0))
+         node_list%n_nodes,n_degrees,n_dim,'x'//char(0))
   endif
   call HDF5_array4D_saving(file_id,t_values, &
-       node_list%n_nodes,n_tor,n_order+1,n_var,'values'//char(0))
+       node_list%n_nodes,n_tor,n_degrees,n_var,'values'//char(0))
   call HDF5_array4D_saving(file_id,t_deltas, &
-       node_list%n_nodes,n_tor,n_order+1,n_var,'deltas'//char(0))
+       node_list%n_nodes,n_tor,n_degrees,n_var,'deltas'//char(0))
 
 #ifdef fullmhd
   call HDF5_array2D_saving(file_id,t_psi_eq, &
-       node_list%n_nodes,n_order+1,'psi_eq'//char(0))
+       node_list%n_nodes,n_degrees,'psi_eq'//char(0))
   call HDF5_array2D_saving(file_id,t_Fprof_eq, &
-       node_list%n_nodes,n_order+1,'Fprof_eq'//char(0))
+       node_list%n_nodes,n_degrees,'Fprof_eq'//char(0))
 #elif altcs
   call HDF5_array2D_saving(file_id,t_psi_eq, &
-       node_list%n_nodes,n_order+1,'psi_eq'//char(0))
+       node_list%n_nodes,n_degrees,'psi_eq'//char(0))
 #endif
 
   call HDF5_array2D_saving_int(file_id,t_index, &
-       node_list%n_nodes,n_order+1,'index'//char(0))
+       node_list%n_nodes,n_degrees,'index'//char(0))
   call HDF5_array1D_saving_int(file_id,t_boundary, &
        node_list%n_nodes,'boundary'//char(0))
   call HDF5_array1D_saving_char(file_id,t_axis_node, &
        node_list%n_nodes,'axis_node'//char(0))
+  call HDF5_array1D_saving_int(file_id,t_axis_dof, &
+       node_list%n_nodes,'axis_dof'//char(0))
   call HDF5_array2D_saving_int(file_id,t_parents, &
        node_list%n_nodes,2,'parents'//char(0))
   call HDF5_array1D_saving_int(file_id,t_parent_elem, &
@@ -539,7 +551,7 @@ subroutine export_hdf5_restart(node_list,element_list,filename)
   call HDF5_array2D_saving_int(file_id,t_neighbours, &
        element_list%n_elements,n_vertex_max,'neighbours'//char(0))
   call HDF5_array3D_saving(file_id,t_size, &
-       element_list%n_elements,n_vertex_max,n_order+1,'size'//char(0))
+       element_list%n_elements,n_vertex_max,n_degrees,'size'//char(0))
   call HDF5_array1D_saving_int(file_id,t_father, &
        element_list%n_elements,'father'//char(0))
   call HDF5_array1D_saving_int(file_id,t_n_sons, &
@@ -552,6 +564,7 @@ subroutine export_hdf5_restart(node_list,element_list,filename)
        element_list%n_elements,5,'contain_node'//char(0))
   call HDF5_array1D_saving_int(file_id,t_nref, &
        element_list%n_elements,'nref'//char(0))
+
   call HDF5_real_saving(file_id,tstep,'tstep'//char(0))
   call HDF5_real_saving(file_id,eta,'eta'//char(0))
   call HDF5_real_saving(file_id,visco,'visco'//char(0))
@@ -785,6 +798,12 @@ subroutine export_hdf5_restart(node_list,element_list,filename)
     call HDF5_integer_saving(file_id,n_spi_tot,"n_spi_tot"//char(0))
   end if
 
+  ! -> Save status of the axis treatment
+  t_treat_axis = 'F'
+  if(treat_axis) t_treat_axis = 'T'
+  write(t_treat_axis,'(A)') trim(adjustl(t_treat_axis))
+  call HDF5_char_saving(file_id,t_treat_axis,"treat_axis"//char(0))
+  
   ! Export restart vacuum 
   call export_HDF5_restart_vacuum(file_id, freeboundary, resistive_wall)
 
@@ -804,6 +823,7 @@ subroutine export_hdf5_restart(node_list,element_list,filename)
   call tr_deallocate(t_index,"index",CAT_UNKNOWN)
   call tr_deallocate(t_boundary,"boundary",CAT_UNKNOWN)
   call tr_deallocate(t_axis_node,"axis_node",CAT_UNKNOWN)
+  call tr_deallocate(t_axis_dof,"axis_dof",CAT_UNKNOWN)
   call tr_deallocate(t_parents,"parents",CAT_UNKNOWN)
   call tr_deallocate(t_parent_elem,"parent_elem",CAT_UNKNOWN)
   call tr_deallocate(t_ref_lambda,"ref_lambda",CAT_UNKNOWN)

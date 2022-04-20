@@ -11,6 +11,7 @@ program jorek2_fast_camera
   use constants, only: PI, LOWER_XPOINT, UPPER_XPOINT
   use equil_info
   use mod_element_rtree, only: populate_element_rtree
+  use check_point_is_inside_wall_contour
 
   implicit none
   !include 'mpif.h'

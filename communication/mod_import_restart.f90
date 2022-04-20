@@ -124,7 +124,7 @@ subroutine import_binary_restart(node_list, element_list, filename, format_rst, 
 
   read(21) n_tor_tmp
 
-  allocate(mode_tmp(n_tor_tmp), values_tmp(n_tor_tmp,n_order+1,n_var), deltas_tmp(n_tor_tmp,n_order+1,n_var))
+  allocate(mode_tmp(n_tor_tmp), values_tmp(n_tor_tmp,n_degrees,n_var), deltas_tmp(n_tor_tmp,n_degrees,n_var))
 
   if (format_rst == 1) then
     read(21) mode_tmp
@@ -175,6 +175,7 @@ subroutine import_binary_restart(node_list, element_list, filename, format_rst, 
     read(21) node_list%node(i)%index
     read(21) node_list%node(i)%boundary
     read(21) node_list%node(i)%axis_node
+    read(21) node_list%node(i)%axis_dof
     read(21) node_list%node(i)%parents
     read(21) node_list%node(i)%parent_elem
     read(21) node_list%node(i)%ref_lambda
@@ -206,6 +207,9 @@ subroutine import_binary_restart(node_list, element_list, filename, format_rst, 
   read(21) index_start
   read(21) t_start
   
+  ! Status of the axis treatment
+  read(21) treat_axis
+ 
   write(*,*) 'CHECK (1): allocating energies in import_restart : ',index_start,index_start+nstep
 
   if (index_start .ge. 1) then
@@ -689,8 +693,8 @@ endif
       endif
 
       allocate( mode_tmp_perturbation  (n_tor_tmp_perturbation                ) )
-      allocate( values_tmp_perturbation(n_tor_tmp_perturbation,n_order+1,n_var) )
-      allocate( deltas_tmp_perturbation(n_tor_tmp_perturbation,n_order+1,n_var) )
+      allocate( values_tmp_perturbation(n_tor_tmp_perturbation,n_degrees,n_var) )
+      allocate( deltas_tmp_perturbation(n_tor_tmp_perturbation,n_degrees,n_var) )
 
       if (format_rst == 1) then
    	read(21) mode_tmp_perturbation
@@ -731,6 +735,7 @@ endif
    	read(21) node_list_perturbation%node(i)%index
    	read(21) node_list_perturbation%node(i)%boundary
    	read(21) node_list_perturbation%node(i)%axis_node
+        read(21) node_list_perturbation%node(i)%axis_dof
    	read(21) node_list_perturbation%node(i)%parents
    	read(21) node_list_perturbation%node(i)%parent_elem
    	read(21) node_list_perturbation%node(i)%ref_lambda
@@ -863,7 +868,7 @@ subroutine import_hdf5_restart(node_list, element_list, filename, format_rst, er
   real*8               :: growth_mag, growth_kin, amplitude
   integer, allocatable :: mode_tmp(:), new_mode(:)
   real*8,  allocatable :: values_tmp(:,:,:), deltas_tmp(:,:,:)
-  character*50         :: version_control, version_control_tmp
+  character*50         :: version_control, version_control_tmp, t_treat_axis
   logical              :: kept, modes_changed, import_3xx_4xx
   
 #ifdef USE_HDF5
@@ -880,6 +885,7 @@ subroutine import_hdf5_restart(node_list, element_list, filename, format_rst, er
   integer,     allocatable :: t_index(:,:)
   integer,     allocatable :: t_boundary(:)
   character,   allocatable :: t_axis_node(:)     
+  integer,     allocatable :: t_axis_dof(:)
   integer,     allocatable :: t_parents(:,:)
   integer,     allocatable :: t_parent_elem(:)
   real(RKIND), allocatable :: t_ref_lambda(:)
@@ -1043,36 +1049,37 @@ subroutine import_hdf5_restart(node_list, element_list, filename, format_rst, er
   call HDF5_integer_reading(file_id,node_list%n_dof,"n_dof")
 
   ! -> Allocate temporary arrays 
-  call tr_allocate(t_x,     1,node_list%n_nodes,1,n_coord_tor_tmp,1,n_order+1,1,n_dim,         "node_list%x",     CAT_UNKNOWN)
-  call tr_allocate(t_values,1,node_list%n_nodes,1,      n_tor_tmp,1,n_order+1,1,n_var_tmp, "node_list%values",CAT_UNKNOWN)
-  call tr_allocate(t_deltas,1,node_list%n_nodes,1,      n_tor_tmp,1,n_order+1,1,n_var_tmp, "node_list%deltas",CAT_UNKNOWN)
+  call tr_allocate(t_x,     1,node_list%n_nodes,1,n_coord_tor_tmp,1,n_degrees_tmp,1,n_dim,         "node_list%x",     CAT_UNKNOWN)
+  call tr_allocate(t_values,1,node_list%n_nodes,1,      n_tor_tmp,1,n_degrees_tmp,1,n_var_tmp, "node_list%values",CAT_UNKNOWN)
+  call tr_allocate(t_deltas,1,node_list%n_nodes,1,      n_tor_tmp,1,n_degrees_tmp,1,n_var_tmp, "node_list%deltas",CAT_UNKNOWN)
  
 #ifdef fullmhd
-  call tr_allocate(t_psi_eq,  1,node_list%n_nodes,1,n_order+1, "node_list%psi_eq",  CAT_UNKNOWN)
-  call tr_allocate(t_Fprof_eq,1,node_list%n_nodes,1,n_order+1, "node_list%Fprof_eq",CAT_UNKNOWN)
+  call tr_allocate(t_psi_eq,  1,node_list%n_nodes,1,n_degrees_tmp, "node_list%psi_eq",  CAT_UNKNOWN)
+  call tr_allocate(t_Fprof_eq,1,node_list%n_nodes,1,n_degrees_tmp, "node_list%Fprof_eq",CAT_UNKNOWN)
 #elif altcs
-  call tr_allocate(t_psi_eq,  1,node_list%n_nodes,1,n_order+1, "node_list%psi_eq",  CAT_UNKNOWN)
+  call tr_allocate(t_psi_eq,  1,node_list%n_nodes,1,n_degrees_tmp, "node_list%psi_eq",  CAT_UNKNOWN)
 #endif
  
-  call tr_allocate(t_index,      1,node_list%n_nodes,1,n_order+1,"index",      CAT_UNKNOWN)
-  call tr_allocate(t_boundary,   1,node_list%n_nodes,            "boundary",   CAT_UNKNOWN)
-  call tr_allocate(t_axis_node,  1,node_list%n_nodes,            "axis_node",  CAT_UNKNOWN)
-  call tr_allocate(t_parents,    1,node_list%n_nodes,1,2,        "parent",     CAT_UNKNOWN)
-  call tr_allocate(t_parent_elem,1,node_list%n_nodes,            "parent_elem",CAT_UNKNOWN)
-  call tr_allocate(t_ref_lambda, 1,node_list%n_nodes,            "ref_lambda" ,CAT_UNKNOWN)
-  call tr_allocate(t_ref_mu,     1,node_list%n_nodes,            "ref_mu",     CAT_UNKNOWN)
-  call tr_allocate(t_constrained,1,node_list%n_nodes,            "constrained",CAT_UNKNOWN)
+  call tr_allocate(t_index,      1,node_list%n_nodes,1,n_degrees_tmp,"index",      CAT_UNKNOWN)
+  call tr_allocate(t_boundary,   1,node_list%n_nodes,                "boundary",   CAT_UNKNOWN)
+  call tr_allocate(t_axis_node,  1,node_list%n_nodes,                "axis_node",  CAT_UNKNOWN)
+  call tr_allocate(t_axis_dof,   1,node_list%n_nodes,                "axis_dof",  CAT_UNKNOWN)
+  call tr_allocate(t_parents,    1,node_list%n_nodes,1,2,            "parent",     CAT_UNKNOWN)
+  call tr_allocate(t_parent_elem,1,node_list%n_nodes,                "parent_elem",CAT_UNKNOWN)
+  call tr_allocate(t_ref_lambda, 1,node_list%n_nodes,                "ref_lambda" ,CAT_UNKNOWN)
+  call tr_allocate(t_ref_mu,     1,node_list%n_nodes,                "ref_mu",     CAT_UNKNOWN)
+  call tr_allocate(t_constrained,1,node_list%n_nodes,                "constrained",CAT_UNKNOWN)
 
   ! type_element, element_list%n_elements
-  call tr_allocate(t_vertex,      1,element_list%n_elements,1,n_vertex_max,             "vertex",CAT_UNKNOWN)
-  call tr_allocate(t_neighbours,  1,element_list%n_elements,1,n_vertex_max,             "neighbours",CAT_UNKNOWN)
-  call tr_allocate(t_size,        1,element_list%n_elements,1,n_vertex_max,1,n_order+1, "size",CAT_UNKNOWN)
-  call tr_allocate(t_father,      1,element_list%n_elements,                            "father",CAT_UNKNOWN)
-  call tr_allocate(t_n_sons,      1,element_list%n_elements,                            "n_sons",CAT_UNKNOWN)
-  call tr_allocate(t_n_gen,       1,element_list%n_elements,                            "n_gen",CAT_UNKNOWN)
-  call tr_allocate(t_sons,        1,element_list%n_elements,1,4,                        "sons",CAT_UNKNOWN)
-  call tr_allocate(t_contain_node,1,element_list%n_elements,1,5,                        "contain_node",CAT_UNKNOWN)
-  call tr_allocate(t_nref,        1,element_list%n_elements,                            "nref",CAT_UNKNOWN)
+  call tr_allocate(t_vertex,      1,element_list%n_elements,1,n_vertex_max,                 "vertex",CAT_UNKNOWN)
+  call tr_allocate(t_neighbours,  1,element_list%n_elements,1,n_vertex_max,                 "neighbours",CAT_UNKNOWN)
+  call tr_allocate(t_size,        1,element_list%n_elements,1,n_vertex_max,1,n_degrees_tmp, "size",CAT_UNKNOWN)
+  call tr_allocate(t_father,      1,element_list%n_elements,                                "father",CAT_UNKNOWN)
+  call tr_allocate(t_n_sons,      1,element_list%n_elements,                                "n_sons",CAT_UNKNOWN)
+  call tr_allocate(t_n_gen,       1,element_list%n_elements,                                "n_gen",CAT_UNKNOWN)
+  call tr_allocate(t_sons,        1,element_list%n_elements,1,4,                            "sons",CAT_UNKNOWN)
+  call tr_allocate(t_contain_node,1,element_list%n_elements,1,5,                            "contain_node",CAT_UNKNOWN)
+  call tr_allocate(t_nref,        1,element_list%n_elements,                                "nref",CAT_UNKNOWN)
 
   if (rst_hdf5_version .eq. 2) then
     call HDF5_array4D_reading(file_id,t_x,        'x')
@@ -1092,6 +1099,7 @@ subroutine import_hdf5_restart(node_list, element_list, filename, format_rst, er
   call HDF5_array2D_reading_int (file_id,t_index,       'index')
   call HDF5_array1D_reading_int (file_id,t_boundary,    'boundary')
   call HDF5_array1D_reading_char(file_id,t_axis_node,   'axis_node')
+  call HDF5_array1D_reading_int (file_id,t_axis_dof,    'axis_dof')
   call HDF5_array2D_reading_int (file_id,t_parents,     'parents')
   call HDF5_array1D_reading_int (file_id,t_parent_elem, 'parent_elem')
   call HDF5_array1D_reading     (file_id,t_ref_lambda,  'ref_lambda')
@@ -1118,33 +1126,39 @@ subroutine import_hdf5_restart(node_list, element_list, filename, format_rst, er
   if (any(new_mode .ne. 0)) write(*,'(a,999i4)') ' need initialization  : ', new_mode
   
   do i=1,node_list%n_nodes
-    node_list%node(i)%x = t_x(i,:,:,:) 
+    do j=1,n_degrees_tmp
+      node_list%node(i)%x(:,j,:)  = t_x(i,:,j,:) 
+    enddo
 
     node_list%node(i)%values = 0.d0 
     node_list%node(i)%deltas = 0.d0 
 
     do m=1,n_tor_tmp,2
-      do k=1, n_tor,2 
-        if (mode_tmp(m) .eq. mode(k)) then
-          if ((m .eq. 1) .and. (k.eq.1)) then
-            node_list%node(i)%values(k,:,1:n_var_tmp)   = t_values(i,m,:,1:n_var_tmp)
-            node_list%node(i)%deltas(k,:,1:n_var_tmp)   = t_deltas(i,m,:,1:n_var_tmp)
-          else
-            node_list%node(i)%values(k-1,:,1:n_var_tmp) = t_values(i,m-1,:,1:n_var_tmp)
-            node_list%node(i)%deltas(k-1,:,1:n_var_tmp) = t_deltas(i,m-1,:,1:n_var_tmp) 
-            node_list%node(i)%values(k,:,1:n_var_tmp)   = t_values(i,m,:,1:n_var_tmp) 
-            node_list%node(i)%deltas(k,:,1:n_var_tmp)   = t_deltas(i,m,:,1:n_var_tmp)
+      do k=1, n_tor,2
+        do j=1,n_degrees_tmp 
+          if (mode_tmp(m) .eq. mode(k)) then
+            if ((m .eq. 1) .and. (k.eq.1)) then
+              node_list%node(i)%values(k,j,1:n_var_tmp)   = t_values(i,m,j,1:n_var_tmp)
+              node_list%node(i)%deltas(k,j,1:n_var_tmp)   = t_deltas(i,m,j,1:n_var_tmp)
+            else
+              node_list%node(i)%values(k-1,j,1:n_var_tmp) = t_values(i,m-1,j,1:n_var_tmp)
+              node_list%node(i)%deltas(k-1,j,1:n_var_tmp) = t_deltas(i,m-1,j,1:n_var_tmp) 
+              node_list%node(i)%values(k,j,1:n_var_tmp)   = t_values(i,m,j,1:n_var_tmp) 
+              node_list%node(i)%deltas(k,j,1:n_var_tmp)   = t_deltas(i,m,j,1:n_var_tmp)
+            end if
           end if
-        end if
+        enddo
       end do
     end do
 
     ! --- Split "total" temperature into electron and ion temperature
     if ( import_3xx_4xx ) then
-      node_list%node(i)%values(:,:,var_Te) = node_list%node(i)%values(:,:,6) / 2.d0
-      node_list%node(i)%deltas(:,:,var_Te) = node_list%node(i)%deltas(:,:,6) / 2.d0
-      node_list%node(i)%values(:,:,var_Ti) = node_list%node(i)%values(:,:,6) / 2.d0
-      node_list%node(i)%deltas(:,:,var_Ti) = node_list%node(i)%deltas(:,:,6) / 2.d0
+      do j=1,n_degrees_tmp
+        node_list%node(i)%values(:,j,var_Te) = node_list%node(i)%values(:,j,6) / 2.d0
+        node_list%node(i)%deltas(:,j,var_Te) = node_list%node(i)%deltas(:,j,6) / 2.d0
+        node_list%node(i)%values(:,j,var_Ti) = node_list%node(i)%values(:,j,6) / 2.d0
+        node_list%node(i)%deltas(:,j,var_Ti) = node_list%node(i)%deltas(:,j,6) / 2.d0
+      enddo
     end if
 
 
@@ -1155,13 +1169,14 @@ subroutine import_hdf5_restart(node_list, element_list, filename, format_rst, er
     node_list%node(i)%psi_eq   = t_psi_eq(i,:)
 #endif
 
-    node_list%node(i)%index = t_index(i,:)
+    node_list%node(i)%index(1:n_degrees_tmp) = t_index(i,1:n_degrees_tmp)
     node_list%node(i)%boundary = t_boundary(i)
     if (t_axis_node(i) == 'T') then
        node_list%node(i)%axis_node = .true.
     else
        node_list%node(i)%axis_node = .false.
     end if
+    node_list%node(i)%axis_dof = t_axis_dof(i)
     node_list%node(i)%parents = t_parents(i,:)
     node_list%node(i)%parent_elem = t_parent_elem(i)
     node_list%node(i)%ref_lambda = t_ref_lambda(i)
@@ -1184,17 +1199,17 @@ subroutine import_hdf5_restart(node_list, element_list, filename, format_rst, er
   call HDF5_array1D_reading_int(file_id,t_nref,        'nref')
 
   do i=1,element_list%n_elements
-    element_list%element(i)%vertex	 = t_vertex(i,:)
-    element_list%element(i)%neighbours   = t_neighbours(i,:)
-    element_list%element(i)%size	 = t_size(i,:,:)
-    element_list%element(i)%father	 = t_father(i)
-    element_list%element(i)%n_sons	 = t_n_sons(i)
-    element_list%element(i)%n_gen	 = t_n_gen(i)
-    element_list%element(i)%sons	 = t_sons(i,:)
-    element_list%element(i)%contain_node = t_contain_node(i,:)
-    element_list%element(i)%nref	 = t_nref(i)
+    element_list%element(i)%vertex                  = t_vertex(i,:)
+    element_list%element(i)%neighbours              = t_neighbours(i,:)
+    element_list%element(i)%size(:,1:n_degrees_tmp) = t_size(i,:,1:n_degrees_tmp)
+    element_list%element(i)%father                  = t_father(i)
+    element_list%element(i)%n_sons                  = t_n_sons(i)
+    element_list%element(i)%n_gen                   = t_n_gen(i)
+    element_list%element(i)%sons                    = t_sons(i,:)
+    element_list%element(i)%contain_node            = t_contain_node(i,:)
+    element_list%element(i)%nref                    = t_nref(i)
   end do
- 
+   
   call HDF5_real_reading(file_id,tstep,'tstep')
   call HDF5_real_reading(file_id,eta_rst,'eta')
   call HDF5_real_reading(file_id,visco_rst,'visco')
@@ -1879,6 +1894,14 @@ subroutine import_hdf5_restart(node_list, element_list, filename, format_rst, er
     end if
   end if
 
+  ! Status of the axis treatment
+  call HDF5_char_reading(file_id,t_treat_axis,"treat_axis")
+  if (trim(t_treat_axis) .eq. 'T') then
+    treat_axis = .true.
+  else
+    treat_axis = .false.
+  endif
+  
   call HDF5_close(file_id)
  
   write(*,*) '************* restart ******************'
@@ -1966,6 +1989,7 @@ subroutine import_hdf5_restart(node_list, element_list, filename, format_rst, er
   call tr_deallocate(t_index,"index",CAT_UNKNOWN)
   call tr_deallocate(t_boundary,"boundary",CAT_UNKNOWN)
   call tr_deallocate(t_axis_node,"axis_node",CAT_UNKNOWN)
+  call tr_deallocate(t_axis_dof,"axis_dof",CAT_UNKNOWN)
   call tr_deallocate(t_parents,"parents",CAT_UNKNOWN)
   call tr_deallocate(t_parent_elem,"parent_elem",CAT_UNKNOWN)
   call tr_deallocate(t_ref_lambda,"ref_lambda",CAT_UNKNOWN)
