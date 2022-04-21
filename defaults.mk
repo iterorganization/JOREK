@@ -285,6 +285,7 @@ $(MODDIR)/version.h:
 	@echo "Generate .mod/version.h"
 	@rm -f $@.tmp
 	@echo "#define RCS_VERSION '`git describe --always --dirty --abbrev 2> /dev/null`'" >> $@.tmp
+	@echo "#define JOREK_VERSION '`git describe --tags \`git rev-list --tags --max-count=1\` 2> /dev/null`'" >> $@.tmp
 	@echo "#define RCS_LABEL '`git log -1 --format="%s (%D)" 2> /dev/null | sed -e "s/'/''/g" `'" >> $@.tmp
 	@echo "#define RCS_TIME '`git log -1 --format="%ad" 2> /dev/null`'" >> $@.tmp
 	@echo "#define compile_command '$(FC)'" >> $@.tmp
