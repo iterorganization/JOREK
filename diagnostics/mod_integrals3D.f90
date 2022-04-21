@@ -1219,8 +1219,6 @@ do ife = ife_min, ife_max
 
         ! Background species contribution in case of marker particles
         if (use_marker) then
-rho_norm = central_density*1.d20 * central_mass * MASS_PROTON
-t_norm   = sqrt(MU_zero*rho_norm)
           local_P_ion = local_P_ion + E_ion_bg * source_bg * (central_density * 1.d20 / sqrt(MU_zero * central_density * 1.d20 * central_mass * MASS_PROTON))&
                                                * bigR * xjac * wst * delta_phi
         endif
