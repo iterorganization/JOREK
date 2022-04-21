@@ -889,6 +889,7 @@ do ife = ife_min, ife_max
 
           E_ion     = 0.
           E_ion_bg  = 13.6
+          E_ion_bg  = E_ion_bg * EL_CHG
         endif
 #ifdef WITH_TiTe
         alpha_i       = m_i_over_m_imp - 1.
@@ -1218,7 +1219,9 @@ do ife = ife_min, ife_max
 
         ! Background species contribution in case of marker particles
         if (use_marker) then
-          local_P_ion = local_P_ion + E_ion_bg * source_bg * central_density * 1.d20 &
+rho_norm = central_density*1.d20 * central_mass * MASS_PROTON
+t_norm   = sqrt(MU_zero*rho_norm)
+          local_P_ion = local_P_ion + E_ion_bg * source_bg * (central_density * 1.d20 / sqrt(MU_zero * central_density * 1.d20 * central_mass * MASS_PROTON))&
                                                * bigR * xjac * wst * delta_phi
         endif
 
