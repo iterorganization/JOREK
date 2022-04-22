@@ -609,7 +609,7 @@ end subroutine close_mumps
 
 subroutine project(this, sim, ev)
   use mod_event
-  use phys_module, only: nout_projection, index_now
+  use phys_module, only: nout, nout_projection, index_now
   class(projection), intent(inout)     :: this
   type(particle_sim), intent(inout)    :: sim
   type(event), intent(inout), optional :: ev
@@ -620,14 +620,30 @@ subroutine project(this, sim, ev)
   ! Project all right-hand sides
   call project_only(this, sim)
 
+  ! Some checks for 'nout_projection'
+  if ((this%to_h5) .or. (allocated(this%vtk_grid))) then
+    if (nout_projection .lt. 0) then
+      nout_projection = nout
+      if (this%my_id .eq. 0) then
+        write(*,*) "WARNING: Trying to write projection output files without specifying 'nout_projection'"
+        write(*,*) "         Projections will be written in every 'nout' timesteps"
+      end if
+    else if (.not. (mod(nout,nout_projection) .eq. 0)) then
+      if (this%my_id .eq. 0) then
+        write(*,*) "WARNING: Double check 'nout' and 'nout_projection' in the namelist"
+        write(*,*) "         You will get staggered projection outputs with JOREK restart files"
+      end if
+    end if
+  end if
+
   ! Save output if requested
   if (this%to_h5) then
-    if (mod(index_now,nout_projection) == 0) then
+    if (mod(index_now,nout_projection) .eq. 0) then
       call save_to_h5(this, sim)
     end if
   end if
   if (allocated(this%vtk_grid)) then
-    if (mod(index_now,nout_projection) == 0) then
+    if (mod(index_now,nout_projection) .eq. 0) then
       call save_to_vtk(this, sim)
     end if
   end if
