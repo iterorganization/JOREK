@@ -888,7 +888,8 @@ do ife = ife_min, ife_max
           Z_imp_t    = (Z_imp_t - n_imp_t * Z_imp) / n_imp
 
           E_ion     = 0.
-          E_ion_bg  = 0.
+          E_ion_bg  = 13.6
+          E_ion_bg  = E_ion_bg * EL_CHG
         endif
 #ifdef WITH_TiTe
         alpha_i       = m_i_over_m_imp - 1.
@@ -1215,6 +1216,12 @@ do ife = ife_min, ife_max
         fric_disp     =   0.5 * BigR**2 * (u0_x**2.0 + u0_y**2.0) * (source_bg + source_imp)&
                         + 0.5 * vpar0**2 * BB2 * (source_bg + source_imp)
         fric_disp_tot = fric_disp_tot + fric_disp * BigR * xjac * wst * delta_phi 
+
+        ! Background species contribution in case of marker particles
+        if (use_marker) then
+          local_P_ion = local_P_ion + E_ion_bg * source_bg * (central_density * 1.d20 / sqrt(MU_zero * central_density * 1.d20 * central_mass * MASS_PROTON))&
+                                               * bigR * xjac * wst * delta_phi
+        endif
 
         ! Neutral injection rate in particles/s
         local_n_particles_inj = local_n_particles_inj + 0.5d0 * central_density * 1.d20 * source_imp * m_i_over_m_imp * bigR &
@@ -2497,6 +2504,11 @@ if (my_id .eq. 0) then
     if (index_now > 0) then
       xtime_E_ion(index_now) = total_E_ion
     end if
+  else if (with_impurities .and. use_marker) then ! If use_marker, add background species contribution
+    if (index_now > 0) then
+      xtime_E_ion_power(index_now) = xtime_E_ion_power(index_now) + total_P_ion
+      xtime_E_ion(index_now) = xtime_E_ion(index_now) + t_norm * tstep * total_P_ion ! The index_now instead of index_now - 1 here is intentional, as we have already calculated the xtime_E_ion(index_now) impurity contribution from the particle model
+    end if
   endif
   if (with_TiTe) then
     if (index_now > 0) xtime_P_ei(index_now) = total_P_ei
@@ -2586,7 +2598,7 @@ if (my_id .eq. 0) then
       dnpart_tot_dt(index_now-1) = (npart_tot_t(index_now) - r_dt2*npart_tot_t(index_now-2) &
         -(1.d0-r_dt2)*npart_tot_t(index_now-1))  / (dt_now + dt_back*r_dt2) / t_norm
 
-      if (with_impurities) then ! Calculate the ionization energy change
+      if (with_impurities .and. (.not. use_marker)) then ! Calculate the ionization energy change
         xtime_E_ion_power(index_now-1) = (xtime_E_ion(index_now) - r_dt2*xtime_E_ion(index_now-2) &
         -(1.d0-r_dt2)*xtime_E_ion(index_now-1))  / (dt_now + dt_back*r_dt2) / t_norm
       endif
@@ -2611,7 +2623,7 @@ if (my_id .eq. 0) then
 
       dnpart_tot_dt(index_now-1)   = (npart_tot_t(index_now)-npart_tot_t(index_now-1))       / dt_now / t_norm
 
-      if (with_impurities) then ! Calculate the ionization energy change
+      if (with_impurities .and. (.not. use_marker)) then ! Calculate the ionization energy change
         xtime_E_ion_power(index_now-1) = (xtime_E_ion(index_now)-xtime_E_ion(index_now-1))   / dt_now / t_norm
       endif
 
