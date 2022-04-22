@@ -793,7 +793,7 @@ do ms=1, n_gauss
 
      ! --- Increase diffusivity if very small density/temperature
      if (xpoint2) then
-       if (r0 .lt. D_prof_neg_thresh) then
+       if ((r0-rn0) .lt. D_prof_neg_thresh) then
          D_prof  = D_prof_neg
          D_par   = D_prof_neg
        endif
