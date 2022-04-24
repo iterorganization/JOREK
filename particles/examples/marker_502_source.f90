@@ -142,7 +142,7 @@ endif
 jorek_feedback = new_projection(sim%fields%node_list, sim%fields%element_list, &
                      filter    = filter_perp,    filter_hyper    = filter_hyper,    filter_parallel    = filter_par, &
                      filter_n0 = filter_perp_n0, filter_hyper_n0 = filter_hyper_n0, filter_parallel_n0 = filter_par_n0, &
-                     fractional_digits = 9,  to_vtk=.FALSE., to_h5 = .true., basename='projections')
+                     fractional_digits = 9,  to_vtk=.FALSE., to_h5 = .true., basename='projections', index_h5=.false.)
 
 aux_node_list => jorek_feedback%node_list
 

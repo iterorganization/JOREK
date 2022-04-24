@@ -316,6 +316,7 @@ write(*,'(1x,a)',advance='no') ' USE_BICGSTAB : '
   endif
 
   write(*,INTG_FMT) 'nout                  ', nout
+  write(*,INTG_FMT) 'nout_projection       ', nout_projection
   write(*,REAL_FMT) 'xr1                   ', xr1
   write(*,REAL_FMT) 'sig1                  ', sig1
   write(*,REAL_FMT) 'xr2                   ', xr2
