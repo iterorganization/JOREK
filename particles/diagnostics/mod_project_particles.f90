@@ -1367,17 +1367,17 @@ do i_elm=1,element_list%n_elements
         enddo
       enddo
     enddo
-  endif
-  ! unnormalise to [1/m^3] and [eV]
-  zn_norm  = CENTRAL_DENSITY * 1.d20
-  Tev_norm = 1.d0 / (2.d0 * EL_CHG * MU_ZERO * zn_norm)          ! T_ev [eV] = Tev_norm * T_jorek
+    ! unnormalise to [1/m^3] and [eV]
+    zn_norm  = CENTRAL_DENSITY * 1.d20
+    Tev_norm = 1.d0 / (2.d0 * EL_CHG * MU_ZERO * zn_norm)          ! T_ev [eV] = Tev_norm * T_jorek
 
-  zn0_g  = zn0_g * zn_norm  
-  zn0_s  = zn0_s * zn_norm
-  zn0_t  = zn0_t * zn_norm
-  T0_g   = T0_g  * TeV_norm
-  T0_s   = T0_s  * Tev_norm
-  T0_t   = T0_t  * Tev_norm
+    zn0_g  = zn0_g * zn_norm  
+    zn0_s  = zn0_s * zn_norm
+    zn0_t  = zn0_t * zn_norm
+    T0_g   = T0_g  * TeV_norm
+    T0_s   = T0_s  * Tev_norm
+    T0_t   = T0_t  * Tev_norm
+  end if
 
   do ms=1, n_gauss
     do mt=1, n_gauss
