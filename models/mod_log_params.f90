@@ -907,7 +907,6 @@ write(*,'(1x,a)',advance='no') ' USE_BICGSTAB : '
   write(*,REAL_FMT) 'n_particles         ',n_particles
   write(*,INTG_FMT) 'nstep_particles     ',nstep_particles
   write(*,INTG_FMT) 'nsubstep_particles  ',nsubstep_particles
-  write(*,INTG_FMT) 'nout_particle       ',nout_particle
   write(*,REAL_FMT) 'tstep_particles     ',tstep_particles
   write(*,REAL_FMT) 'filter_perp,        ',filter_perp
   write(*,REAL_FMT) 'filter_hyper,       ',filter_hyper

@@ -744,7 +744,6 @@ subroutine preset_parameters
   tstep_particles   = 0.0
   nstep_particles   = 0
   nsubstep_particles = 0
-  nout_particle     = huge(0)
   filter_perp       = 0.0
   filter_hyper      = 0.0
   filter_par        = 0.0
