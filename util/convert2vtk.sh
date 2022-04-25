@@ -60,6 +60,9 @@ function usage () {
   echo "  -[no]psiN                   Include normalized poloidal flux or not [default: on] (2D VTK ONLY)"
   echo "  -bootstrap                  Include bootstrap current decomposition [default: off] (2D VTK ONLY)"
   echo "  -RphiZ_coords               (R,phi,Z) coordinate system instead of (R,Z,phi) in the VTK file"
+  echo "  -proj <proj_basename>       Include particle projections. Proper basename for particle projection output file should follow (2D VTK ONLY)"
+  echo "                               - Projection HDF5 file should be prepared by setting the 'to_h5', 'index_h5' flag .true. in the 'new_projection' function"
+  echo "                               - 'nout_projection' can be specified separately from the 'nout' in the namelist, but make sure every JOREK restart file has its projection counterpart"
   echo ""
   echo "  binary                      executable (jorek2vtk, jorek2vtk_3d, jorek2_target2vtk)"
   echo "  infile                      Input file of the corresponding JOREK run"
@@ -125,6 +128,8 @@ function is_selected () {
 function do_convert () {
   file="$1"
   ithread="$2"
+  proj="$3"
+  proj_base="$4"
   
   cd ${tmpdir[$ithread]}
   
@@ -140,6 +145,12 @@ function do_convert () {
     &&  ( [ ! -z "$select_arguments" ] || [ `is_selected $stepnum` == "yes" ] ) ; then
     rm -f jorek_restart.${RST_TYPE}
     ln -s $file jorek_restart.${RST_TYPE}
+
+    if [ "$proj" == ".true." ]; then 
+      rm -f ${proj_base}_restart.h5
+      ln -s "../../${proj_base}${stepnum}.h5" ${proj_base}_restart.h5
+    fi
+
     for copyfile in $copyfiles; do
       cp $startDir/$copyfile .
     done
@@ -194,6 +205,8 @@ include_velocity_field="" # include vector of velocity field (or not)
 include_electric_field="" # include vector of electric field (or not)
 include_Jpol=""           # include vector of poloidal currents (or not)
 include_bootstrap=""      # include bootstrap current and averaged current
+include_projections=""    # include particle projections
+proj_basename=""          # basename for particle projection output files
 include_psi_norm=".true." # include normalized flux
 RphiZ_coords=".false."    # use (R,0,Z) xyz coordinates instead of (R,Z,0)
 while [ $# -gt 1 ]; do
@@ -276,6 +289,11 @@ while [ $# -gt 1 ]; do
   elif [ "$1" == "-bootstrap" ]; then
     include_bootstrap=".true."
     shift 1
+    writenml="yes"
+  elif [ "$1" == "-proj" ]; then
+    include_projections=".true."
+    proj_basename="$2"
+    shift 2
     writenml="yes"
   elif [ "$1" == "-nopsiN" ] || [ "$1" == "-nopsi_norm" ]; then
     include_psi_norm=".false."
@@ -521,6 +539,10 @@ if [ "$writenml" == "yes" ]; then
   if [ ! -z "$include_bootstrap" ]; then
     echo "  include_bootstrap = $include_bootstrap" >> $vtk_nml
   fi
+  if [ ! -z "$include_projections" ]; then
+    echo "  include_projections = $include_projections" >> $vtk_nml
+    echo "  proj_basename       = '$proj_basename'" >> $vtk_nml
+  fi
   if [ ! -z "$include_psi_norm" ]; then
     echo "  include_psi_norm = $include_psi_norm" >> $vtk_nml
   fi
@@ -552,7 +574,7 @@ for file in $files; do
   ithread=`get_available_thread`
   if [ ! -f "$ERROR_STOP_FILE" ]; then
     mark_running $ithread
-    do_convert $file $ithread &
+    do_convert $file $ithread $include_projections $proj_basename &
   fi
 done
 
