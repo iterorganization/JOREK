@@ -1155,25 +1155,25 @@ do i=1,newnode_list%n_nodes
 enddo
 
 !-------------------------------- Empty Xpoints
-newnode_list%node(1)%values(1,2:4,1) = 0.d0
-newnode_list%node(2)%values(1,2:4,1) = 0.d0
-newnode_list%node(3)%values(1,2:4,1) = 0.d0
-newnode_list%node(4)%values(1,2:4,1) = 0.d0
+newnode_list%node(1)%values(1,2:n_degrees,1) = 0.d0
+newnode_list%node(2)%values(1,2:n_degrees,1) = 0.d0
+newnode_list%node(3)%values(1,2:n_degrees,1) = 0.d0
+newnode_list%node(4)%values(1,2:n_degrees,1) = 0.d0
 if (xcase .eq. DOUBLE_NULL) then
-  newnode_list%node(5)%values(1,2:4,1) = 0.d0
-  newnode_list%node(6)%values(1,2:4,1) = 0.d0
-  newnode_list%node(7)%values(1,2:4,1) = 0.d0
-  newnode_list%node(8)%values(1,2:4,1) = 0.d0
+  newnode_list%node(5)%values(1,2:n_degrees,1) = 0.d0
+  newnode_list%node(6)%values(1,2:n_degrees,1) = 0.d0
+  newnode_list%node(7)%values(1,2:n_degrees,1) = 0.d0
+  newnode_list%node(8)%values(1,2:n_degrees,1) = 0.d0
 endif
 
 !-------------------------------- Empty Axis
 if (xcase .ne. DOUBLE_NULL) then
   do j=5,4+n_tht-1
-    newnode_list%node(j)%values(1,2:4,1) = 0.d0
+    newnode_list%node(j)%values(1,2:n_degrees,1) = 0.d0
   enddo
 else
   do j=9,8+n_tht-2
-    newnode_list%node(j)%values(1,2:4,1) = 0.d0
+    newnode_list%node(j)%values(1,2:n_degrees,1) = 0.d0
   enddo
 endif
 
@@ -1253,7 +1253,7 @@ do i=1,newnode_list%n_nodes
     endif
   endif
 
-  do k=1,n_order+1
+  do k=1,n_degrees
 
     index = index + 1
     node_list%node(i)%index(k) = index
@@ -1273,7 +1273,7 @@ do i=1,newnode_list%n_nodes
       endif
     endif
     
-    ! Share 4 degrees of freedom for all nodes on the grid axis and flag the axis nodes.
+    ! Share 4 degrees of freedom for all nodes on the grid axis and flag the axis nodes. ONLY FOR C1-elements at the moment!
     if (treat_axis) then
       if (xcase .ne. DOUBLE_NULL) then
         if ((i .gt. 5) .and. (i .le. 4+n_tht-1) .and. (k.le.n_order+1)) then

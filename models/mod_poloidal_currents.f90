@@ -264,6 +264,7 @@ module mod_poloidal_currents
   subroutine normal_bnd_curr(node_list, element_list, bnd_node_list, bnd_elm_list, i_plane, si_units)
 
     use mod_basisfunctions
+    use mod_parameters, only: n_degrees
 
     implicit none
 
@@ -281,7 +282,7 @@ module mod_poloidal_currents
     real*8                :: rho_s(n_gauss), T0_s(n_gauss) 
     real*8                :: P0_s(n_gauss), J_normal(n_gauss)
     real*8                :: k_size, fact, R_c, Z_c, vec_inside(2), grad_t(2)
-    real*8                :: G(4,4), sign_out
+    real*8                :: G(4,n_degrees), sign_out
     real*8                :: R(n_gauss), Z(n_gauss), R_s(n_gauss), Z_s(n_gauss)    
     type(type_node)       :: node_k
     type(type_element)    :: elm_k
@@ -349,7 +350,7 @@ module mod_poloidal_currents
       call basisfunctions(xgauss(2),xgauss(2), G)  
       R_c = 0.d0 ;  Z_c = 0.d0 
       do i = 1, n_vertex_max
-        do j = 1, n_order+1
+        do j = 1, n_degrees
           node_k = node_list%node(elm_k%vertex(i)) 
           R_c    = R_c + node_k%x(1,j,1) * elm_k%size(i,j) * G(i,j)
           Z_c    = Z_c + node_k%x(1,j,2) * elm_k%size(i,j) * G(i,j)

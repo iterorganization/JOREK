@@ -9,16 +9,16 @@ module data_structure
   implicit none
 
   type type_node                                  !< type definition of a node (i.e. a vertex)
-    real*8     :: x(n_coord_tor,n_order+1,n_dim)        !< x,y,z coordinates of points and additional nodal geometry
-    real*8     :: values(n_tor,n_order+1,n_var)   !< Variable values and derivatives
-    real*8     :: deltas(n_tor,n_order+1,n_var)   !< Change of variable values and derivatives in last timestep
+    real*8     :: x(n_coord_tor,n_degrees,n_dim)        !< x,y,z coordinates of points and additional nodal geometry
+    real*8     :: values(n_tor,n_degrees,n_var)   !< Variable values and derivatives
+    real*8     :: deltas(n_tor,n_degrees,n_var)   !< Change of variable values and derivatives in last timestep
 #ifdef fullmhd
-    real*8     :: psi_eq(n_order+1)               !< equilibrium flux at the nodes
-    real*8     :: Fprof_eq(n_order+1)             !< equilibrium profile R*B_phi at the nodes
+    real*8     :: psi_eq(n_degrees)               !< equilibrium flux at the nodes
+    real*8     :: Fprof_eq(n_degrees)             !< equilibrium profile R*B_phi at the nodes
 #elif altcs
-    real*8     :: psi_eq(n_order+1)               !< equilibrium flux at the nodes
+    real*8     :: psi_eq(n_degrees)               !< equilibrium flux at the nodes
 #endif
-    integer    :: index(n_order+1)                !< index in the main matrix
+    integer    :: index(n_degrees)                !< index in the main matrix
     integer    :: boundary                        !< = 1, 2 or 3 for boundary nodes.
                                                   !< For wall-aligned grids, check routine update_boundary_types_final
                                                   !< in grids/grid_utils/update_boundary_types.f90
@@ -40,7 +40,7 @@ module data_structure
   type type_element                               !< type definition for one elements
     integer :: vertex(n_vertex_max)               !< nodes of the corners
     integer :: neighbours(n_vertex_max)           !< neighbouring elements
-    real*8  :: size(n_vertex_max,n_order+1)       !< size of vectors at each vertex of the element
+    real*8  :: size(n_vertex_max,n_degrees)       !< size of vectors at each vertex of the element
     integer :: father                             !< index of father element (0 if no father)"refinement"
     integer :: n_sons                             !< Number of sons elements"refinement"
     integer :: n_gen                              !< Generation rank of the element"refinement"
@@ -167,14 +167,14 @@ contains
        call tr_register_mem(sizeof(thread_struct),"thread_struct",CAT_MATELEM)
        do i = 1, nbthreads
           call tr_debug_write("Init thread_struct, thread_id=",i)
-          call tr_allocate(thread_struct(i)%ELM_p, 1,n_plane,1,n_vertex_max*n_var*(n_order+1),1,n_vertex_max*n_var*(n_order+1),"ELM_p",CAT_MATELEM)
-          call tr_allocate(thread_struct(i)%ELM_n, 1,n_plane,1,n_vertex_max*n_var*(n_order+1),1,n_vertex_max*n_var*(n_order+1),"ELM_n",CAT_MATELEM)
-          call tr_allocate(thread_struct(i)%ELM_k, 1,n_plane,1,n_vertex_max*n_var*(n_order+1),1,n_vertex_max*n_var*(n_order+1),"ELM_k",CAT_MATELEM)
-          call tr_allocate(thread_struct(i)%ELM_kn,1,n_plane,1,n_vertex_max*n_var*(n_order+1),1,n_vertex_max*n_var*(n_order+1),"ELM_kn",CAT_MATELEM)
-          call tr_allocate(thread_struct(i)%RHS_p, 1,n_plane,1,n_vertex_max*n_var*(n_order+1),"RHS_p",CAT_MATELEM)                                     
-          call tr_allocate(thread_struct(i)%RHS_k, 1,n_plane,1,n_vertex_max*n_var*(n_order+1),"RHS_k",CAT_MATELEM)                                     
-          call tr_allocate(thread_struct(i)%ELM,   1,n_tor*n_vertex_max*(n_order+1)*n_var,1,n_tor*n_vertex_max*(n_order+1)*n_var,"ELM",CAT_MATELEM)       
-          call tr_allocate(thread_struct(i)%RHS,   1,n_tor*n_vertex_max*(n_order+1)*n_var,"RHS",CAT_MATELEM)
+          call tr_allocate(thread_struct(i)%ELM_p, 1,n_plane,1,n_vertex_max*n_var*n_degrees,1,n_vertex_max*n_var*n_degrees,"ELM_p",CAT_MATELEM)
+          call tr_allocate(thread_struct(i)%ELM_n, 1,n_plane,1,n_vertex_max*n_var*n_degrees,1,n_vertex_max*n_var*n_degrees,"ELM_n",CAT_MATELEM)
+          call tr_allocate(thread_struct(i)%ELM_k, 1,n_plane,1,n_vertex_max*n_var*n_degrees,1,n_vertex_max*n_var*n_degrees,"ELM_k",CAT_MATELEM)
+          call tr_allocate(thread_struct(i)%ELM_kn,1,n_plane,1,n_vertex_max*n_var*n_degrees,1,n_vertex_max*n_var*n_degrees,"ELM_kn",CAT_MATELEM)
+          call tr_allocate(thread_struct(i)%RHS_p, 1,n_plane,1,n_vertex_max*n_var*n_degrees,"RHS_p",CAT_MATELEM)                                     
+          call tr_allocate(thread_struct(i)%RHS_k, 1,n_plane,1,n_vertex_max*n_var*n_degrees,"RHS_k",CAT_MATELEM)                                     
+          call tr_allocate(thread_struct(i)%ELM,   1,n_tor*n_vertex_max*n_degrees*n_var,1,n_tor*n_vertex_max*n_degrees*n_var,"ELM",CAT_MATELEM)       
+          call tr_allocate(thread_struct(i)%RHS,   1,n_tor*n_vertex_max*n_degrees*n_var,"RHS",CAT_MATELEM)
           call tr_allocate(thread_struct(i)%synch_buff, 1,n_tor*n_var*n_tor*n_var,"synch_buff",CAT_MATELEM)
           thread_struct(i)%ELM_p   = 0.d0
           thread_struct(i)%ELM_n   = 0.d0
@@ -208,8 +208,8 @@ contains
           thread_struct(i)%delta_s = 0.d0
           thread_struct(i)%delta_t = 0.d0
 #ifdef COMPARE_ELEMENT_MATRIX
-          call tr_allocate(thread_struct(i)%ELM2,  1,n_tor*n_vertex_max*(n_order+1)*n_var,1,n_tor*n_vertex_max*(n_order+1)*n_var,"ELM2",CAT_MATELEM)
-          call tr_allocate(thread_struct(i)%RHS2,  1,n_tor*n_vertex_max*(n_order+1)*n_var,"RHS2",CAT_MATELEM)
+          call tr_allocate(thread_struct(i)%ELM2,  1,n_tor*n_vertex_max*n_degrees*n_var,1,n_tor*n_vertex_max*n_degrees*n_var,"ELM2",CAT_MATELEM)
+          call tr_allocate(thread_struct(i)%RHS2,  1,n_tor*n_vertex_max*n_degrees*n_var,"RHS2",CAT_MATELEM)
           thread_struct(i)%ELM2    = 0.d0
           thread_struct(i)%RHS2    = 0.d0
 #endif

@@ -138,7 +138,7 @@ if (my_id .eq. 0) then
 endif
 
 ! --- This is the special Poisson for Fprofile (it will not overwrite var_A3)
-call Poisson(my_id,710,node_list,element_list,bnd_node_list,bnd_elm_list, &
+call Poisson(my_id,0,node_list,element_list,bnd_node_list,bnd_elm_list, &
              var_A3,710,1, ES%psi_axis,ES%psi_bnd,xpoint2, xcase2,ES%Z_xpoint,freeboundary_equil,refinement,1)      ! inverse Poisson
 
 

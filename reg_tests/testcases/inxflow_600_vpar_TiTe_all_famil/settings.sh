@@ -28,13 +28,15 @@ function initial_run () {
   ${codedir}/util/setinput.sh input nstep_n=10,10,10,5,5,5 tstep_n=1.d-3,1.d-2,1.d-1,1.d0,1.d1,2.d1 || exit 1
   $MPIRUN $mpitasks ./jorek_model${jorekmodel}_1 < input | tee logfile_initial               || exit 1
   ${codedir}/util/setinput.sh input nstep_n=175 tstep_n=2.d1 restart=.t.             || exit 1
+  ${codedir}/util/setinput.sh input autodistribute_modes=.f.                         || exit 1
+  ${codedir}/util/setinput.sh input autodistribute_ranks=.f.                         || exit 1
   $MPIRUN $mpitasks ./jorek_model${jorekmodel}_5 < input | tee logfile_initial2      || exit 1
 }
 
 
 # --- Carry out the test case
 function restart_run () {
-  ${codedir}/util/setinput.sh input restart=.t. nstep_n=1 tstep_n=20                 || exit 1
+  ${codedir}/util/setinput.sh input restart=.t. nstep_n=1 tstep_n=5                 || exit 1
   ${codedir}/util/setinput.sh input autodistribute_modes=.f.                         || exit 1
   ${codedir}/util/setinput.sh input autodistribute_ranks=.f.                         || exit 1
   $MPIRUN $mpitasks ./jorek_model${jorekmodel}_5 < input | tee logfile               || exit 1

@@ -19,6 +19,7 @@
 !! writer: Mark Verbeek
 !! data  : 11-02-2016
 subroutine jorek2help(n_cpu, nbthreads)
+  use constants
   use mod_parameters
   use mod_log_params
 
@@ -67,19 +68,21 @@ contains
   subroutine print_about()
     200 format(79('*'))
     write(*,200)
-    write(*,'(A)') '*                    3D Reduced MHD : JOREK_2.0                               *'
+    write(*,'(A)') '*                            JOREK ' // trim(JOREK_VERSION) // '                                 *'
+    write(*,'(A)') '*                            https://www.jorek.eu/                            *'
     write(*,200)
     write(*,'(A)') '* Solves the (reduced) MHD equations in 3D toroidal geometry                  *'
     write(*,'(A)') '*                                                                             *'
     write(*,'(A)') '* - solvers implemented:                                                      *'
     write(*,'(A)') '*   - MUMPS                                                                   *'
     write(*,'(A)') '*   - PastiX                                                                  *'
-    write(*,'(A)') '*   - GMRES (+MUMPS or PastiX preconditioner)                                 *'
+    write(*,'(A)') '*   - STRUMPACK                                                               *'
+    write(*,'(A)') '*   - GMRES or BICGSTAB (+direct solver in the preconditioner)                *'
     write(*,'(A)') '*                                                                             *'
     write(*,'(A)') '* - required libraries :                                                      *'
     write(*,'(A)') '*   - MPI                                                                     *'
-    write(*,'(A)') '*   - MUMPS                                                                   *'
-    write(*,'(A)') '*   - PastiX                                                                  *'
+    write(*,'(A)') '*   - HDF5                                                                    *'
+    write(*,'(A)') '*   - MUMPS and/or PaStiX and/or STRUMPACK                                    *'
     write(*,'(A)') '*   - SCOTCH (metis)                                                          *'
     write(*,'(A)') '*   - FFTW                                                                    *'
     write(*,'(A)') '*   - SCALAPACK (BLACS)                                                       *'
@@ -87,7 +90,7 @@ contains
     write(*,'(A)') '*   - PPPLIB                                                                  *'
     write(*,'(A)') '*                                                                             *'
     write(*,'(A)') '* Original author : Guido Huysmans (Euratom / CEA Association)                *'
-    write(*,'(A)') '*          authors: ...                                                       *'
+    write(*,'(A)') '*          authors: various, see https://www.jorek.eu                         *'
     write(*,'(A)') '* start date: 18-7-2008                                                       *'
     write(*,'(A)') '*                                                                             *'
     write(*,200)
@@ -106,7 +109,8 @@ contains
   subroutine print_version()
     111 format(2x,a,': ',a)
     write(*,*) '*************************************************'
-    write(*,*) '*   3D Reduced MHD : JOREK_2.0                  *'
+    write(*,'(A)') '*                 JOREK ' // trim(JOREK_VERSION) // '               *'
+    write(*,*) '*                https://www.jorek.eu/          *'
     write(*,*) '*************************************************'
     write(*,*) ' MPI processes       : ', n_cpu
     write(*,*) ' OpenMP threads      : ', nbthreads

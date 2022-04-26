@@ -7,6 +7,7 @@ use data_structure
 use grid_xpoint_data
 use mod_interp
 use phys_module, only:   SDN_threshold
+use mod_newton_methods
 use equil_info
 
 implicit none
@@ -37,6 +38,8 @@ real*8  :: r_psi_copy(4), s_psi_copy(4), tht_copy(4)
 integer :: l, i_neigh, Xneigh, icount
 integer :: i, j, k, ifound, iv, im, is, n1, n2, n3
 integer :: ifail, itht(4), itmp
+integer :: n_found
+real*8  :: st_found(n_order)
 
 if (my_id == 0) then
   write(*,*) '***********************************'
@@ -84,28 +87,51 @@ do i=1, element_list%n_elements
 
       do iv=1, 4
 
-        im = MOD(iv,4) + 1
-        n1 = element_list%element(i)%vertex(iv)
-        n2 = element_list%element(i)%vertex(im)
+        ! --- For bi-cubic elements
+        if (n_order .eq. 3) then
 
-        if (node_list%node(n1)%axis_node .and. node_list%node(n2)%axis_node) cycle
+          im = MOD(iv,4) + 1
+          n1 = element_list%element(i)%vertex(iv)
+          n2 = element_list%element(i)%vertex(im)
+         
+          if (node_list%node(n1)%axis_node .and. node_list%node(n2)%axis_node) cycle
+         
+          is = mod(iv+1,2) + 2
+         
+          p1  =  node_list%node(n1)%values(1,1,1)  * element_list%element(i)%size(iv,1)
+          dp1 =  node_list%node(n1)%values(1,is,1) * element_list%element(i)%size(iv,is)
+          p4  =  node_list%node(n2)%values(1,1,1)  * element_list%element(i)%size(im,1)
+          dp4 =  node_list%node(n2)%values(1,is,1) * element_list%element(i)%size(im,is)
+         
+          p2  = p1 + dp1
+          p3  = p4 + dp4
+         
+          a3 = -        p1 + 3.d0 * p2 - 3.d0 * p3 + p4
+          a2 = + 3.d0 * p1 - 6.d0 * p2 + 3.d0 * p3
+          a1 = - 3.d0 * p1 + 3.d0 * p2
+          a0 =          p1                                       - surface_list%psi_values(j)
+         
+          call SOLVP3(a0,a1,a2,a3,s,s2,s3,ifail)
 
-        is = mod(iv+1,2) + 2
-
-        p1  =  node_list%node(n1)%values(1,1,1)  * element_list%element(i)%size(iv,1)
-        dp1 =  node_list%node(n1)%values(1,is,1) * element_list%element(i)%size(iv,is)
-        p4  =  node_list%node(n2)%values(1,1,1)  * element_list%element(i)%size(im,1)
-        dp4 =  node_list%node(n2)%values(1,is,1) * element_list%element(i)%size(im,is)
-
-        p2  = p1 + dp1
-        p3  = p4 + dp4
-
-        a3 = -        p1 + 3.d0 * p2 - 3.d0 * p3 + p4
-        a2 = + 3.d0 * p1 - 6.d0 * p2 + 3.d0 * p3
-        a1 = - 3.d0 * p1 + 3.d0 * p2
-        a0 =          p1                                       - surface_list%psi_values(j)
-
-        call SOLVP3(a0,a1,a2,a3,s,s2,s3,ifail)
+        ! --- For higher order, cubic root finder need to be replaced by Newton methods
+        else
+          im = MOD(iv,4) + 1
+          n1 = element_list%element(i)%vertex(iv)
+          n2 = element_list%element(i)%vertex(im)
+          if (node_list%node(n1)%axis_node .and. node_list%node(n2)%axis_node) cycle
+          call newton_1D_find_value_on_element_side(node_list,element_list,i, iv, var_psi, surface_list%psi_values(j), n_found, st_found)
+          if (n_found .gt. 3) write(*,*)'Warning, found more than 3 intersections!',i,iv,n_found,surface_list%psi_values(j)
+          ! SOLVP3 reverses the search on sides 3 and 4
+          if (iv .ge. 3) then
+            st_found(1:n_found) = 1.d0 - st_found(1:n_found)
+          endif
+          s  = 99.
+          s2 = 999.
+          s3 = 9999.
+          if (n_found .ge. 1) s  = st_found(1)
+          if (n_found .ge. 2) s2 = st_found(2)
+          if (n_found .ge. 3) s3 = st_found(3)
+        endif
           
         if ((s .ge. 0.d0) .and. (s .le. 1.d0)) then
 

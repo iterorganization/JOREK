@@ -15,7 +15,7 @@ contains
                                      aux_nodes)
 
     ! --- Modules
-    use mod_parameters,           only : n_tor, jorek_model, n_vertex_max, n_order, unified_element_matrix
+    use mod_parameters,           only : n_tor, jorek_model, n_vertex_max, n_degrees, unified_element_matrix
     use phys_module,              only : bc_natural_open, bc_natural_flux, n_tor_fft_thresh, grid_to_wall, n_wall_blocks, keep_n0_const
     USE data_structure,           only : type_element, type_node, type_node_list, thread_struct
     use mod_boundary_matrix_open, only : boundary_matrix_open
@@ -165,10 +165,10 @@ contains
     n_tor_local = i_tor_max - i_tor_min + 1
     ! --- If keep_n0_const then the n0 component should be frozen = diagonal entries high
     if ( keep_n0_const ) then
-      i_max =  (n_order+1)*n_vertex_max*n_var*n_tor_local
+      i_max =  n_degrees*n_vertex_max*n_var*n_tor_local
 #ifdef JECCD
       ! n0 component of eccd current should not be frozen when keep_n0_const=.t. (last variable)
-      i_max = (n_order+1)*n_vertex_max*(n_var-1)*n_tor_local
+      i_max = n_degrees*n_vertex_max*(n_var-1)*n_tor_local
 #endif
       do i = 1, i_max, n_tor_local
         thread_struct(omp_tid)%ELM(i,i) = 1.d15
@@ -210,7 +210,7 @@ contains
 
       write(*,'(A)') '  #    my_id       i    ivtx iodr itor         ivar' // &
                      '                    RHS            RHS2        RHS-RHS2'
-      do i = 1, n_tor_local*n_vertex_max*(n_order+1)*n_var
+      do i = 1, n_tor_local*n_vertex_max*n_degrees*n_var
     	
     	if (abs(thread_struct(omp_tid)%RHS(i)-thread_struct(omp_tid)%RHS2(i)) / &
             (abs(thread_struct(omp_tid)%RHS(i))+abs(thread_struct(omp_tid)%RHS2(i))+1.d0) .gt. 1.d-12) then
@@ -229,8 +229,8 @@ contains
       write(*,*)
       write(*,'(A)') '  #    my_id       i       j    ivtx iodr itor      ivar       jvtx jodr jtor      jvar' // &
                      '                    ELM            ELM2        ELM-ELM2'
-      do i = 1, n_tor_local*n_vertex_max*(n_order+1)*n_var
-    	do j = 1, n_tor_local*n_vertex_max*(n_order+1)*n_var
+      do i = 1, n_tor_local*n_vertex_max*n_degrees*n_var
+    	do j = 1, n_tor_local*n_vertex_max*n_degrees*n_var
     	  
     	  if (abs(thread_struct(omp_tid)%ELM(i,j)-thread_struct(omp_tid)%ELM2(i,j))/  &
     	      (abs(thread_struct(omp_tid)%ELM(i,j))+abs(thread_struct(omp_tid)%ELM2(i,j))+1.d0) .gt. 1.d-10) then
@@ -503,9 +503,9 @@ subroutine construct_matrix(my_id, MPI_COMM_N, my_id_n, MPI_COMM_MASTER, my_id_m
             
               do k = 1, n_vertex_max
               
-                do j = 1, n_order+1
+                do j = 1, n_degrees
                 
-                  do l = 1, n_order+1
+                  do l = 1, n_degrees
                   
                     do im = 1, n_tor_local
                     
@@ -513,16 +513,16 @@ subroutine construct_matrix(my_id, MPI_COMM_N, my_id_n, MPI_COMM_MASTER, my_id_m
                       do in = 1, n_tor_local
                       
                         ! --- Indices for RHS (index_ij) and ELM matrix (index_ij, index_kl)
-                        index_ij            = n_tor_local * n_var * (n_order+1) * (i-1) &
+                        index_ij            = n_tor_local * n_var * n_degrees * (i-1) &
                                             + n_tor_local * n_var * (j-1) + n_tor_local * (v1-1) + im
                       
-                        index_kl            = n_tor_local * n_var * (n_order+1) * (k-1) &
+                        index_kl            = n_tor_local * n_var * n_degrees * (k-1) &
                                             + n_tor_local * n_var * (l-1) + n_tor_local * (v2-1) + in
                       
                         ! --- Indices for T_e (model400)
-                        index_ij_model400_e = n_tor_local * n_var * (n_order+1) * (i-1) &
+                        index_ij_model400_e = n_tor_local * n_var * n_degrees * (i-1) &
                                             + n_tor_local * n_var * (j-1) + n_tor_local * (var_Te -1) + im
-                        index_kl_model400_e = n_tor_local * n_var * (n_order+1) * (k-1) &
+                        index_kl_model400_e = n_tor_local * n_var * n_degrees * (k-1) &
                                             + n_tor_local * n_var * (l-1) + n_tor_local * (var_Te -1) + in
 
                         !--- RHS: simple output of vector element
@@ -574,9 +574,9 @@ subroutine construct_matrix(my_id, MPI_COMM_N, my_id_n, MPI_COMM_MASTER, my_id_m
                     
                     end do ! n_tor_local
                   
-                  end do ! n_order+1
+                  end do ! n_degrees
                 
-                end do ! n_order+1
+                end do ! n_degrees
               
               end do ! n_vertex_max
             
@@ -610,7 +610,7 @@ subroutine construct_matrix(my_id, MPI_COMM_N, my_id_n, MPI_COMM_MASTER, my_id_m
 
         inode1 = node_out(i)
 
-        do i_order = 1, n_order+1
+        do i_order = 1, n_degrees
 
           index_node1 = node_list%node(inode1)%index(i_order)
 
@@ -620,7 +620,7 @@ subroutine construct_matrix(my_id, MPI_COMM_N, my_id_n, MPI_COMM_MASTER, my_id_m
 
             do j = 1, n_var * n_tor_local
 
-              index_ij = n_tor_local * n_var * (n_order+1) * (i-1) + n_tor_local * n_var * (i_order-1) + j   ! index in the ELM matrix
+              index_ij = n_tor_local * n_var * n_degrees * (i-1) + n_tor_local * n_var * (i_order-1) + j   ! index in the ELM matrix
              
               !$omp atomic
               rhs_local(index_large_i+j) = rhs_local(index_large_i+j) + thread_struct(omp_tid)%RHS(index_ij) 
@@ -631,7 +631,7 @@ subroutine construct_matrix(my_id, MPI_COMM_N, my_id_n, MPI_COMM_MASTER, my_id_m
 
               knode = node_out(k)
 
-              do k_order = 1, n_order+1
+              do k_order = 1, n_degrees
 
                 index_node2 = node_list%node(knode)%index(k_order)
 
@@ -641,11 +641,11 @@ subroutine construct_matrix(my_id, MPI_COMM_N, my_id_n, MPI_COMM_MASTER, my_id_m
 
                 thread_struct(omp_tid)%synch_buff(1:n_var*n_tor_local*n_var*n_tor_local) = 0.d0
                 do j = 1, n_var * n_tor_local
-                  index_ij = n_tor_local * n_var * (n_order+1) * (i-1) + n_tor_local * n_var * (i_order-1) + j   ! index in the ELM matrix
+                  index_ij = n_tor_local * n_var * n_degrees * (i-1) + n_tor_local * n_var * (i_order-1) + j   ! index in the ELM matrix
 
                   do l = 1, n_var * n_tor_local
 
-                    index_kl = n_tor_local * n_var * (n_order+1) * (k-1) +  n_tor_local * n_var * (k_order-1) + l   ! index in the ELM matrix
+                    index_kl = n_tor_local * n_var * n_degrees * (k-1) +  n_tor_local * n_var * (k_order-1) + l   ! index in the ELM matrix
 
                     ilarge2 = ijA_position - 1 + (j-1) * n_var * n_tor_local + l
 
@@ -665,12 +665,12 @@ subroutine construct_matrix(my_id, MPI_COMM_N, my_id_n, MPI_COMM_MASTER, my_id_m
                   thread_struct(omp_tid)%synch_buff(1:n_var*n_tor_local*n_var*n_tor_local)
                 !$omp end critical 
 
-              enddo ! n_order+1
+              enddo ! n_degrees
             enddo ! n_vertex_max
 
           endif ! index_min < index < index_max
 
-        enddo ! n_order+1
+        enddo ! n_degrees
 
       enddo ! n_vertex_max
       
@@ -771,7 +771,7 @@ end subroutine construct_matrix
 !> Helps to interprete an element matrix index
 subroutine  decrypt_index(ind, ivertex, iorder, ivar, itor)
 
-  use mod_parameters,  only : n_tor, jorek_model, n_vertex_max, n_var, n_order 
+  use mod_parameters,  only : n_tor, jorek_model, n_vertex_max, n_var, n_degrees
 
   integer, intent(in)  :: ind     !< Element matrix index
   integer, intent(out) :: ivertex !< Vertex index
@@ -783,8 +783,8 @@ subroutine  decrypt_index(ind, ivertex, iorder, ivar, itor)
 
   ind2 = ind
 
-  ivertex = ( ind2 - 1 ) / ( n_tor*n_var*(n_order+1) ) + 1
-  ind2 = ind2 - ( ivertex - 1 ) * ( n_tor*n_var*(n_order+1) )
+  ivertex = ( ind2 - 1 ) / ( n_tor*n_var*n_degrees ) + 1
+  ind2 = ind2 - ( ivertex - 1 ) * ( n_tor*n_var*n_degrees )
 
   iorder = ( ind2 - 1 ) / ( n_tor*n_var ) + 1
   ind2 = ind2 - ( iorder - 1 ) * ( n_tor*n_var )

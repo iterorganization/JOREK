@@ -18,7 +18,7 @@ use mod_coicsr
 use mpi_mod
 use mod_interp
 use mod_basisfunctions
-    use mod_integer_types
+use mod_integer_types
 
 #ifdef USE_STRUMPACK
 use strumpack_module
@@ -33,6 +33,11 @@ implicit none
 ! --- Routine parameters
 integer,                  intent(in)    :: my_id             ! MPI id
 integer,                  intent(in)    :: itype             ! selects the physics model (GS, Laplace)
+                                                             ! -1: GS_perturbation
+                                                             ! -2: GS_inverse
+                                                             ! +2: Poisson_inverse
+                                                             ! +1 or +3: Poisson
+                                                             ! 0: variable projection
 type (type_node_list),    intent(inout) :: node_list
 type (type_element_list), intent(inout) :: element_list
 integer,                  intent(in)    :: ivar_in           ! index of the input variable
@@ -52,11 +57,11 @@ type (type_node)         :: nodes_father(n_vertex_max)
 type (type_bnd_node_list)    :: bnd_node_list
 type (type_bnd_element_list) :: bnd_elm_list
 
-real*8   :: ELM(n_vertex_max*(n_order+1),n_vertex_max*(n_order+1)), RHS(n_vertex_max*(n_order+1))
-real*8   :: ELM_axis(n_vertex_max*(n_order+1),n_vertex_max*(n_order+1)),  ELM_bnd(n_vertex_max*(n_order+1),n_vertex_max*(n_order+1))
+real*8   :: ELM(n_vertex_max*n_degrees,n_vertex_max*n_degrees), RHS(n_vertex_max*n_degrees)
+real*8   :: ELM_axis(n_vertex_max*n_degrees,n_vertex_max*n_degrees),  ELM_bnd(n_vertex_max*n_degrees,n_vertex_max*n_degrees)
 real*8   :: zbig, Z_xpoint(2), psi_axis, psi_bnd, psi_xpoint(2), R_xpoint(2), s_xpoint(2), t_xpoint(2)
 real*8   :: R_axis, Z_axis, s_axis, t_axis
-real*8   :: psi_axis_kl(n_vertex_max,(n_order+1)), psi_bnd_kl(n_vertex_max,(n_order+1)) 
+real*8   :: psi_axis_kl(n_vertex_max,n_degrees), psi_bnd_kl(n_vertex_max,n_degrees) 
 real*8   :: G_axis(4,4), G_bnd(4,4), G_s(4,4), G_t(4,4), G_st(4,4), G_ss(4,4), G_tt(4,4)
 real*8   :: amix_used
 real*8   :: psi_lim, R_lim, Z_lim, R_out, Z_out, s_bnd, t_bnd, P_s,P_t,P_st,P_ss,P_tt
@@ -65,13 +70,13 @@ integer  :: n_AA, nz_AA, nz_AA_old, n_border, ilarge, ife, iv, i,j,k,l
 integer  :: inode, index_large_i, knode, index_large_k, index_ij, index_kl, index, index_i
 logical   :: newton_method_GS
 
-real*8, dimension(4,4)	 :: H, H_s, H_t, H_st
-real*8			 :: lambda, mu	
-real*8			 :: Psi,dPsi_ds,dPsi_dt,d2Psi_dsdt
-real*8			 :: dX_ds, dX_dt, dY_ds, dY_dt, d2X_dsdt, d2Y_dsdt, h_u, h_v, h_w
-integer			 :: inode_father, Index_elm, i_father
+real*8, dimension(4,n_degrees)   :: H, H_s, H_t, H_st
+real*8                           :: lambda, mu
+real*8                           :: Psi,dPsi_ds,dPsi_dt,d2Psi_dsdt
+real*8                           :: dX_ds, dX_dt, dY_ds, dY_dt, d2X_dsdt, d2Y_dsdt, h_u, h_v, h_w
+integer                          :: inode_father, Index_elm, i_father
 integer, dimension(n_vertex_max) :: pr
-integer, dimension(2)		 :: parent
+integer, dimension(2)            :: parent
 integer, dimension(n_vertex_max) :: node_out
 integer:: nnz, ierr
 integer*8 :: check_data
@@ -87,6 +92,12 @@ if (my_id == 0) then
   write(*,*) '*            Poisson                 *'
   write(*,*) '**************************************'
   
+  if (itype .eq. 0) then
+    write(*,*)'*************************************'
+    write(*,*)'*   Projection of Variable: ',ivar_out
+    write(*,*)'*************************************'
+  endif
+  
   if (iter .le. 1) then
     write(*,*) ' i_type       : ',itype
     write(*,*) ' n_elements   : ',element_list%n_elements
@@ -98,20 +109,22 @@ if (my_id == 0) then
   if (freeboundary_equil) newton_method_GS = newton_GS_freebnd
  
   if (newton_method_GS .and. (itype==-1)) then  
-    nz_AA = 3 * element_list%n_elements * (n_vertex_max * (n_order+1))**2  !factor 3 comes from axis and x-point contributions 
+    nz_AA = 3 * element_list%n_elements * (n_vertex_max * n_degrees)**2  !factor 3 comes from axis and x-point contributions 
   else
-    nz_AA = 1 * element_list%n_elements * (n_vertex_max * (n_order+1))**2  
+    nz_AA = 1 * element_list%n_elements * (n_vertex_max * n_degrees)**2  
   endif
 
   call tr_debug_write("Deb_poisson",nz_AA)
   
   n_border = 0
-  if (itype .ne. 710) then
+  if (itype .ne. 0) then
     do i=1,node_list%n_nodes
       if(treat_axis)then
-        if (node_list%node(i)%axis_node      ) n_border = n_border+1
+        ! --- Only one fixed for fixed-axis (only valid for G1-cases at the moment!!!)
+        if (node_list%node(i)%axis_node    ) n_border = n_border+1
       else
-        if (node_list%node(i)%axis_node      ) n_border = n_border+2
+        ! --- t-derivatives and cross derivatives are switched off on axis, so (n_order+1)/2 are not fixed
+        if (node_list%node(i)%axis_node    ) n_border = n_border+2
       endif    
       if (node_list%node(i)%boundary .eq. 1) n_border = n_border+2
       if (node_list%node(i)%boundary .eq. 2) n_border = n_border+2
@@ -136,13 +149,13 @@ if (my_id == 0) then
     
   n_AA = 0
   do inode = 1, node_list%n_nodes
-      do k = 1, n_order+1 
+      do k = 1, n_degrees 
         n_AA = max(n_AA,node_list%node(inode)%index(k))
       enddo
   enddo
   
   if (iter .le. 1) then
-    write(*,*) ' number of unknowns      : ',n_AA, node_list%n_nodes * (n_order+1)
+    write(*,*) ' number of unknowns      : ',n_AA, node_list%n_nodes * n_degrees
     write(*,*) ' number of boundary nodes: ',n_border
     write(*,*) ' nz_AA                   : ',nz_AA
   endif
@@ -168,7 +181,7 @@ if (my_id == 0) then
     call basisfunctions(ES%s_axis, ES%t_axis, G_axis, G_s, G_t, G_st, G_ss, G_tt)
     call basisfunctions(ES%s_bnd ,  ES%t_bnd,  G_bnd, G_s, G_t, G_st, G_ss, G_tt)
     do k=1,n_vertex_max  
-      do l=1,n_order+1
+      do l=1,n_degrees
         psi_axis_kl(k,l) =  G_axis(k,l) * element_list%element(ES%i_elm_axis)%size(k,l)  !--- matrix contributions of axis dofs
         psi_bnd_kl(k,l)  =  G_bnd(k,l)  * element_list%element(ES%i_elm_bnd)%size(k,l)   !--- matrix contributions of bnd point dofs
       enddo
@@ -227,9 +240,9 @@ if (my_id == 0) then
   
       call element_matrix_Poisson_inverse(itype,element,nodes,ivar_in,ivar_out,i_harm,ELM,RHS)
   
-    elseif (itype .eq. 710) then
+    elseif (itype .eq. 0) then
   
-      call element_matrix_710_equi(itype,element,nodes,ivar_in,ivar_out,i_harm,ELM,RHS)
+      call element_matrix_projection(itype,element,nodes,ivar_in,ivar_out,i_harm,ELM,RHS)
   
     else
   
@@ -252,9 +265,9 @@ if (my_id == 0) then
   
       inode = node_out(i)
   
-      do j=1,n_order+1
+      do j=1,n_degrees
   
-        index_ij = (i-1)*(n_order+1) + j     ! index in the ELM matrix
+        index_ij = (i-1)*n_degrees + j     ! index in the ELM matrix
   
         index_large_i = node_list%node(inode)%index(j)  ! base index in the main matrix
   
@@ -264,9 +277,9 @@ if (my_id == 0) then
   
           knode         =node_out(k)! element%vertex(k)
   
-          do l=1,n_order+1
+          do l=1,n_degrees
   
-            index_kl = (k-1)*(n_order+1) + l
+            index_kl = (k-1)*n_degrees + l
   
             index_large_k = node_list%node(knode)%index(l)  ! base index in the main matrix
   
@@ -286,9 +299,9 @@ if (my_id == 0) then
     
             knode = element_list%element(ES%i_elm_axis)%vertex(k)
     
-            do l=1,n_order+1
+            do l=1,n_degrees
     
-              index_kl = (k-1)*(n_order+1) + l
+              index_kl = (k-1)*n_degrees + l
     
               index_large_k = node_list%node(knode)%index(l)  ! base index in the main matrix
     
@@ -306,9 +319,9 @@ if (my_id == 0) then
     
             knode = element_list%element(ES%i_elm_bnd)%vertex(k)
     
-            do l=1,n_order+1
+            do l=1,n_degrees
     
-              index_kl = (k-1)*(n_order+1) + l
+              index_kl = (k-1)*n_degrees + l
     
               index_large_k = node_list%node(knode)%index(l)  ! base index in the main matrix
     
@@ -342,14 +355,15 @@ if (freeboundary_equil .and. (itype .eq. -1)) then
   
   call vacuum_equil(my_id,node_list,bnd_node_list,bnd_elm_list,psi_axis,psi_bnd)
   
-elseif (itype .ne. 710) then        ! apply fixed boundary conditions
+elseif (itype .ne. 0) then        ! apply fixed boundary conditions (not for variable projection)
 
   if (my_id == 0 ) then
     do i=1,node_list%n_nodes
   
+      ! --- On axis, we fix the t-derivatives, plus all cross-derivatives
       if (node_list%node(i)%axis_node) then
       
-        if (treat_axis) then
+        if (treat_axis) then ! For G1 elements only at the moment !
           ! penalize 4th DoF to enforce C0 continuity at the grid center        
           index_i = node_list%node(i)%index(4)  ! base index in the main matrix
           mumps_par%irn(ilarge+1) = index_i
@@ -376,8 +390,8 @@ elseif (itype .ne. 710) then        ! apply fixed boundary conditions
 
       if (node_list%node(i)%boundary .ne. 0) then
   
+        ! --- fix node value (index is always 1)
         index_i = node_list%node(i)%index(1)  ! base index in the main matrix
-  
         mumps_par%irn(ilarge+1) = index_i
         mumps_par%jcn(ilarge+1) = index_i
         mumps_par%A(ilarge+1)   = zbig
@@ -421,7 +435,7 @@ elseif (itype .ne. 710) then        ! apply fixed boundary conditions
           ilarge = ilarge + 1
       
         endif
-  
+
       endif
     enddo
   
@@ -576,18 +590,18 @@ if (my_id == 0) then
       ! are updated during the transformation. At the end of the loop,
       ! we recover RHS entries so that they same can be used for all the axis nodes.            
       if(treat_axis .and. node_list%node(i)%axis_node)then
-        do k=1,n_order+1
+        do k=1,n_degrees
           index = node_list%node(i)%index(k)
           new_dofs(k) = mumps_par%RHS(index)
         enddo
         call new_to_old_dofs_on_the_axis(node_list, i, new_dofs, old_dofs)
-        do k=1,n_order+1
+        do k=1,n_degrees
           index = node_list%node(i)%index(k)
           mumps_par%RHS(index) = old_dofs(k)
         enddo
       endif
             
-      do k=1,n_order+1
+      do k=1,n_degrees
   
         index = node_list%node(i)%index(k)
   
@@ -596,11 +610,15 @@ if (my_id == 0) then
           node_list%node(i)%deltas(i_harm,k,ivar_out) = mumps_par%RHS(index)
           node_list%node(i)%values(i_harm,k,ivar_out) = node_list%node(i)%values(i_harm,k,ivar_out) &
                                                       + (1.d0 - amix_used) * mumps_par%RHS(index)
-        !--------------- for model710 when solving Fprofile to get accurate profiles on nodes
+        !--------------- Variable projection
+        elseif (itype .eq. 0) then
+          if (ivar_out .eq. 710) then
 #ifdef fullmhd
-        elseif (itype .eq. 710) then
-          node_list%node(i)%Fprof_eq(k) = node_list%node(i)%Fprof_eq(k) + (1.d0 - amix_used) * mumps_par%RHS(index)
+            node_list%node(i)%Fprof_eq(k) = node_list%node(i)%Fprof_eq(k) + (1.d0 - amix_used) * mumps_par%RHS(index)
 #endif
+          else
+            node_list%node(i)%values(1,k,ivar_out) = node_list%node(i)%values(1,k,ivar_out) + (1.d0 - amix_used) * mumps_par%RHS(index)
+          endif
         !--------------- for equation on total flux
         else
           node_list%node(i)%deltas(i_harm,k,ivar_out) = node_list%node(i)%values(i_harm,k,ivar_out) - mumps_par%RHS(index)
@@ -612,7 +630,7 @@ if (my_id == 0) then
 
       ! recover RHS entries.
       if(treat_axis .and. node_list%node(i)%axis_node)then
-        do k=1,n_order+1
+        do k=1,n_degrees
           index = node_list%node(i)%index(k)
           mumps_par%RHS(index) = new_dofs(k)
         enddo
@@ -658,7 +676,7 @@ if (my_id == 0) then
   
           if ((pr(k)==parent(1)).or.(pr(k)==parent(2))) then
   
-            do l = 1, n_order+1
+            do l = 1, n_degrees
     
               dx_ds = dx_ds + node_list%node(pr(k))%x(1,l,1) * H_s(k,l) 	&
               * element_list%element(index_elm)%size(k,l)

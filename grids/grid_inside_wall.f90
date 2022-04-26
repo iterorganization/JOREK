@@ -221,8 +221,8 @@ subroutine grid_inside_wall(n_R,n_Z,R_begin,R_end,Z_begin,Z_end,boundary,node_li
       node_list%node(i_node)%boundary = 0
       
       ! --- matrix index
-      do k=1, n_order+1
-        node_list%node(i_node)%index(k) = (n_order+1)*(i_node-1) + k
+      do k=1, n_degrees
+        node_list%node(i_node)%index(k) = n_degrees*(i_node-1) + k
       enddo
       
       ! --- psi values from eqdsk

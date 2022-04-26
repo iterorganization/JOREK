@@ -2,9 +2,10 @@ subroutine Bezier_1d(n,s,xx,xout)
 !--------------------------------------------------------------
 ! defined on the interval ( 0 < s < 1 )
 !--------------------------------------------------------------
+use mod_parameters, only: n_order
 implicit none
 integer :: n
-real*8  :: xx(4,n)
+real*8  :: xx(n_order+1,n)
 real*8  :: xout(n),s
 
 !xout       =             (1. - s)**3   * xx(1,:)  &

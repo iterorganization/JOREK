@@ -44,6 +44,7 @@ subroutine preset_parameters
 
   visco = 1.d-5
   visco_par = 1.d-5
+  visco_par_heating = 0.d0
   
   central_density = 1.d0        ! the central density in units 10^20 m^-3
   central_mass    = 2.d0        ! the central average ion mass (D)
@@ -503,6 +504,7 @@ subroutine preset_parameters
   index_start = 0
 
   nout = 9999999
+  nout_projection = -1
 
   rst_hdf5 = 1   ! =0,restart with binary files; =1, with HDF5 files
 
@@ -644,6 +646,7 @@ subroutine preset_parameters
   R_limiter = 0.d0
   Z_limiter = 0.d0
   
+  surface_cross_tol = 1.005
   eqdsk_psi_fact = 1.d0
   extend_existing_grid = .false.
   n_wall_blocks        = 0
@@ -779,5 +782,6 @@ use_pcs_full       = .false.
 use_ionisation     = .true.
 use_sputtering     = .false.
 use_cx             = .true.
+use_marker         = .false.
 
 end subroutine preset_parameters

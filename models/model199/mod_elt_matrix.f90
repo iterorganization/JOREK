@@ -103,7 +103,7 @@ particle_source = 0.d0
 heat_source     = 0.d0
 
 do i=1,n_vertex_max
- do j=1,n_order+1
+ do j=1,n_degrees
 
    do ms=1, n_gauss
      do mt=1, n_gauss
@@ -318,11 +318,11 @@ do ms=1, n_gauss
      n_tor_local = i_tor_max - i_tor_min + 1
      do i=1,n_vertex_max
 
-       do j=1,n_order+1
+       do j=1,n_degrees
 
          do im=i_tor_min, i_tor_max
 
-           index_ij = n_tor_local*n_var*(n_order+1)*(i-1) + n_tor_local * n_var * (j-1) + im - i_tor_min + 1  ! index in the ELM matrix
+           index_ij = n_tor_local*n_var*n_degrees*(i-1) + n_tor_local * n_var * (j-1) + im - i_tor_min + 1  ! index in the ELM matrix
 
            v   =  H(i,j,ms,mt) * element%size(i,j) * HZ(im,mp)
            v_x = (  y_t(ms,mt) * h_s(i,j,ms,mt) - y_s(ms,mt) * h_t(i,j,ms,mt) ) * element%size(i,j) / xjac * HZ(im,mp)
@@ -408,7 +408,7 @@ do ms=1, n_gauss
 
            do k=1,n_vertex_max
 
-             do l=1,n_order+1
+             do l=1,n_degrees
 
                do in = i_tor_min, i_tor_max
 
@@ -452,7 +452,7 @@ do ms=1, n_gauss
                  rho_y_hat = BigR**2 * rho_y
 
 
-                 index_kl = n_tor_local*n_var*(n_order+1)*(k-1) + n_tor_local * n_var * (l-1) + in - i_tor_min + 1   ! index in the ELM matrix
+                 index_kl = n_tor_local*n_var*n_degrees*(k-1) + n_tor_local * n_var * (l-1) + in - i_tor_min + 1   ! index in the ELM matrix
 
 !---------------------------------------------------------------- equation 1
                  amat_11 = v * psi / BigR * xjac * (1.d0+zeta)                                       &

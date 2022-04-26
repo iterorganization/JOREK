@@ -137,11 +137,11 @@ jorek_feedback = new_projection(sim%fields%node_list, sim%fields%element_list, &
 aux_node_list => jorek_feedback%node_list
 
 if (use_ncs) then
-  allocate(jorek_feedback%rhs(n_order+1, n_vertex_max, sim%fields%element_list%n_elements, n_tor, 3))
+  allocate(jorek_feedback%rhs(n_degrees, n_vertex_max, sim%fields%element_list%n_elements, n_tor, 3))
 elseif (use_pcs) then  ! not implemented yet!
-  allocate(jorek_feedback%rhs(n_order+1, n_vertex_max, sim%fields%element_list%n_elements, n_tor, 1))
+  allocate(jorek_feedback%rhs(n_degrees, n_vertex_max, sim%fields%element_list%n_elements, n_tor, 1))
 elseif (use_ccs) then  ! not implemented yet!
-  allocate(jorek_feedback%rhs(n_order+1, n_vertex_max, sim%fields%element_list%n_elements, n_tor, 4))
+  allocate(jorek_feedback%rhs(n_degrees, n_vertex_max, sim%fields%element_list%n_elements, n_tor, 4))
 else
   stop 'define use_ncs, use_pcs or use_ccs'
 endif
@@ -426,9 +426,9 @@ do while (.not. sim%stop_now)
         call mode_moivre(particles(j)%x(3), HZ)
               
         do l=1,n_vertex_max
-          do m=1,n_order+1
+          do m=1,n_degrees
 
-            index_lm = (l-1)*(n_order+1) + m
+            index_lm = (l-1)*n_degrees + m
 
             v   = HH(l,m) * sim%fields%element_list%element(i_elm_old)%size(l,m) * particle_source     * t_norm / rho_norm
             v_E = HH(l,m) * sim%fields%element_list%element(i_elm_old)%size(l,m) * energy_source       * t_norm / E_norm

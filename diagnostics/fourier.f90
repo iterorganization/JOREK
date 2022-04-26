@@ -5,7 +5,7 @@ module fourier
   
   use constants
   use tr_module 
-  use mod_parameters,      only: n_vertex_max, n_order, n_plane, n_tor, n_var, variable_names
+  use mod_parameters,      only: n_vertex_max, n_degrees, n_plane, n_tor, n_var, variable_names
   use nodes_elements,  only: node_list, element_list
   use phys_module,     only: F0, xpoint, xcase
   use mod_straight_field_line
@@ -33,7 +33,7 @@ module fourier
     integer,               intent(in)    :: nTht !< Number of poloidal equidistant points
     
     real*8, allocatable :: vve(:,:,:,:) ! Variable values (ipol,itor,irad,ivar)
-    real*8  :: G(4,4), G_s(4,4), G_t(4,4), G_st(4,4), G_ss(4,4), G_tt(4,4)
+    real*8, dimension(4,n_degrees)  :: G, G_s, G_t, G_st, G_ss, G_tt
     integer :: i, j, k, l, iharm, nn, kv, iv, kf
     real*8  :: R_out, Z_out, s_out, t_out
     integer :: i_elm_out, ifail
@@ -78,8 +78,7 @@ module fourier
 	      basis_function = sin(2.*PI*nn*REAL(j-1)/REAL(nequidist_tor))
             end if
 	    
-            call basisfunctions(s_out,t_out,G(1:4,1:4),G_s(1:4,1:4),G_t(1:4,1:4),G_st(1:4,1:4),   &
-              G_ss(1:4,1:4),G_tt(1:4,1:4))
+            call basisfunctions(s_out,t_out,G,G_s,G_t,G_st,G_ss,G_tt)
   
 	    do l = 1, n_var
 
@@ -89,7 +88,7 @@ module fourier
     
                 iv = element_list%element(i_elm_out)%vertex(kv)  ! the node number
     
-                do kf = 1, n_order+1       ! 4 basis functions
+                do kf = 1, n_degrees       ! basis functions
     
                   v = v + node_list%node(iv)%values(iharm,kf,l)                                    &
                     * element_list%element(i_elm_out)%size(kv,kf) * G(kv,kf)

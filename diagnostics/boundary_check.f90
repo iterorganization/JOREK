@@ -12,6 +12,7 @@ subroutine boundary_check(my_id)
   use mpi_mod
   use mod_interp
   use mod_basisfunctions
+  use mod_parameters, only: n_degrees_1d
   
   implicit none
   
@@ -27,7 +28,7 @@ subroutine boundary_check(my_id)
   integer  :: m_bndelem, m_pt, m_elm, mv1
   integer  :: i_vertex, i_dof, i_node, i_node_bnd, i_resp, i_resp_old, i_resp_0
   real*8   :: i_size, basfunc_i
-  real*8   :: H1(2,2), H1_s(2,2), H1_ss(2,2)
+  real*8   :: H1(2,n_degrees_1d), H1_s(2,n_degrees_1d), H1_ss(2,n_degrees_1d)
   real*8   :: P, P_s, P_t, P_st, P_ss, P_tt
   real*8   :: R, R_s, R_t, Z, Z_s, Z_t
   real*8   :: s_pt, t_pt, s_or_t ! s and t values at current point

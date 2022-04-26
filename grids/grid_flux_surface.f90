@@ -48,7 +48,7 @@ real*8             :: psi_bnd
 real*8, external   :: spwert
 integer            :: ifail, inode, node, index, index0, n_node_start, n_element_start, iv, ivp, ivm
 integer            :: my_id, n_index_start, node_iv, node_ivp, node_ivm
-integer            :: i_sons
+integer            :: i_sons, n_max
 
 real*8             :: psi_axis_local, R_axis_local, Z_axis_local, s_axis_local, t_axis_local
 real*8             :: psi_xpoint_local(2), R_xpoint_local(2), Z_xpoint_local(2), s_xpoint_local(2), t_xpoint_local(2)
@@ -68,15 +68,17 @@ surface_list%n_psi = n_flux - 1
 nrnew              = n_flux
 npnew              = n_tht
 
+n_max = n_degrees
+
 call tr_allocate(surface_list%psi_values,1,surface_list%n_psi,"surface_list%psi_values",CAT_GRID)
 call tr_allocate(psi_values,1,surface_list%n_psi+1,"psi_values",CAT_GRID)
 call tr_allocate(s_values,1,nrnew,"s_values",CAT_GRID)
 call tr_allocate(radius,1,nrnew,"radius",CAT_GRID)
 call tr_allocate(tht_start,1,n_pieces_max,"tht_start",CAT_GRID)
 call tr_allocate(tht_end,1,n_pieces_max,"tht_end",CAT_GRID)
-call tr_allocate(RRnew,1,4,1,nrnew*npnew,"RRnew",CAT_GRID)
-call tr_allocate(ZZnew,1,4,1,nrnew*npnew,"ZZnew",CAT_GRID)
-call tr_allocate(PSInew,1,4,1,nrnew*npnew,"PSInew",CAT_GRID)
+call tr_allocate(RRnew,1,n_max,1,nrnew*npnew,"RRnew",CAT_GRID)
+call tr_allocate(ZZnew,1,n_max,1,nrnew*npnew,"ZZnew",CAT_GRID)
+call tr_allocate(PSInew,1,n_max,1,nrnew*npnew,"PSInew",CAT_GRID)
 
 s_values = 0.d0
 call meshac2(surface_list%n_psi+1,s_values,xr1,xr2,sig1,sig2,0.6d0,1.0d0)
@@ -100,9 +102,9 @@ enddo
 radius(1)     = 0.d0
 psi_values(1) = ES%psi_axis
 
-RRnew(1:4,1:nrnew*npnew)  = 0.d0
-ZZnew(1:4,1:nrnew*npnew)  = 0.d0
-PSInew(1:4,1:nrnew*npnew) = 0.d0
+RRnew(1:n_max,1:nrnew*npnew)  = 0.d0
+ZZnew(1:n_max,1:nrnew*npnew)  = 0.d0
+PSInew(1:n_max,1:nrnew*npnew) = 0.d0
 
 call find_flux_surfaces(my_id,xpoint,xcase,node_list,element_list,surface_list)
 call plot_flux_surfaces(node_list,element_list,surface_list,.true.,1,xpoint,xcase)
@@ -466,10 +468,10 @@ do i=1,nrnew
            node_list%node(index)%axis_dof  = 2
 
          else
-           do k=1,n_order+1
+           do k=1,n_degrees
              node_list%node(index)%index(k) = n_index_start + k
            enddo
-           n_index_start = n_index_start + n_order+1
+           n_index_start = n_index_start + n_degrees
            node_list%node(index)%axis_node = .false.
          endif
 
@@ -482,19 +484,19 @@ do i=1,nrnew
         node_list%node(index)%index(2) = n_index_start + 1
         node_list%node(index)%index(3) = n_index_start + 2
         node_list%node(index)%index(4) = n_index_start + 3
-        n_index_start = n_index_start + n_order
+        n_index_start = n_index_start + n_degrees-1
 
       else
-        do k=1,n_order+1
+        do k=1,n_degrees
           node_list%node(index)%index(k) = n_index_start + k
         enddo
-        n_index_start = n_index_start + n_order+1
+        n_index_start = n_index_start + n_degrees
       endif
    
     else      ! in case of refinement
   
-      do k=1,n_order+1
-        node_list%node(index)%index(k) = n_index_start + (n_order+1)*(index0-1)+k
+      do k=1,n_degrees
+        node_list%node(index)%index(k) = n_index_start + n_degrees*(index0-1)+k
       enddo
   
           !Neighbours of the element (for refinement procedure)

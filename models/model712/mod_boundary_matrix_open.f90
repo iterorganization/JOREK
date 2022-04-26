@@ -25,8 +25,8 @@ type (type_node)      :: nodes(4)        ! the two nodes containing the boundary
 integer, intent(in)   :: i_tor_min   
 integer, intent(in)   :: i_tor_max   
 
-real*8     :: ELM(n_vertex_max*n_var*(n_order+1)*n_tor,n_vertex_max*n_var*(n_order+1)*n_tor)
-real*8     :: RHS(n_vertex_max*n_var*(n_order+1)*n_tor)
+real*8     :: ELM(n_vertex_max*n_var*n_degrees*n_tor,n_vertex_max*n_var*n_degrees*n_tor)
+real*8     :: RHS(n_vertex_max*n_var*n_degrees*n_tor)
 
 integer    :: vertex(2), direction(2), xcase2
 real*8     :: psi_axis, R_axis, Z_axis, psi_bnd, R_xpoint(2), Z_xpoint(2)
@@ -321,7 +321,7 @@ do ms=1, n_gauss
           Qbnd(var_rhon) = + v * neutral_reflection * rho0 * cs_direction * c_s * B_dot_n / sqrt(BB2)
 
           ! --- Fill in RHS
-          index_ij = n_tor_local*n_var*(n_order+1)*(vertex(i)-1) + n_tor_local * n_var * (j2-1) + im - i_tor_min +1  ! index in the ELM matrix
+          index_ij = n_tor_local*n_var*n_degrees*(vertex(i)-1) + n_tor_local * n_var * (j2-1) + im - i_tor_min +1  ! index in the ELM matrix
           do ivar= 1,n_var
             ij = index_ij + (ivar-1)*n_tor_local
             RHS(ij) =  RHS(ij) + Qbnd(ivar) * integrand * tstep
@@ -483,7 +483,7 @@ do ms=1, n_gauss
                 Qjac(var_rhon, var_Te ) = - v * neutral_reflection * rho0 * cs_direction * cs_Te * B_dot_n / sqrt(BB2)
 
                 ! --- Fill-in Matrix
-                index_kl = n_tor_local*n_var*(n_order+1)*(vertex(k)-1) + n_tor_local * n_var * (l2-1) + in - i_tor_min +1! index in the ELM matrix 
+                index_kl = n_tor_local*n_var*n_degrees*(vertex(k)-1) + n_tor_local * n_var * (l2-1) + in - i_tor_min +1! index in the ELM matrix 
                 do ivar= 1,n_var
                   do kvar= 1,n_var
                     ij = index_ij + (ivar-1)*n_tor_local

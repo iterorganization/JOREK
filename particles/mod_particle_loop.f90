@@ -246,9 +246,9 @@ endif
 
         if (use_ncs) then
            do l=1,n_vertex_max
-              do m=1,n_order+1
+              do m=1,n_degrees
 
-                 index_lm = (l-1)*(n_order+1) + m
+                 index_lm = (l-1)*n_degrees + m
                  
                  v   = HH(l,m) * sim%fields%element_list%element(i_elm_old)%size(l,m) 
                  
@@ -283,8 +283,8 @@ endif
         HZ(:) = HZ(:)/PI    ! int 1 from 0 to 2pi = 2pi
        
         do l=1,n_vertex_max
-          do m=1,n_order+1
-             index_lm = (l-1)*(n_order+1) + m
+          do m=1,n_degrees
+             index_lm = (l-1)*n_degrees + m
              v   = HH(l,m) * sim%fields%element_list%element(i_elm)%size(l,m) 
 
              !< Ccs cannot be used in the same time as ncs for now
