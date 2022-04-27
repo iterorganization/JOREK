@@ -889,7 +889,6 @@ module phys_module
   real*8  :: tstep_particles  ! the time step for the particles
   integer :: nstep_particles  ! the number of particle time steps
   integer :: nsubstep_particles ! the number of particles substeps (without projection)
-  integer :: nout_particle      ! Output vtk/h5 every nout_particle timesteps
   real*8  :: filter_perp      ! particle projection smoothing parameter, poloidal plane
   real*8  :: filter_hyper     ! particle projection smoothing parameter, poloidal plane
   real*8  :: filter_par       ! particle projection smoothing parameter, parallel direction
