@@ -64,6 +64,9 @@ program JOREK2
   use centralization_mod
   use mod_exchange_indices
   use mod_gmres, only: gmres_driver
+  use mod_startup_teardown
+  use mod_initial_grid
+  use mod_flux_grid
 
 ! these write additional live data (global data) used when an ECCD current is applied)
 #ifdef JECCD
@@ -135,7 +138,7 @@ program JOREK2
   integer                  :: MPI_COMM_N, MPI_GROUP_MASTER, MPI_GROUP_WORLD, MPI_COMM_MASTER, MPI_COMM_TRANS
   character*8              :: label, itlabel
   character*14             :: fileout
-  integer                  :: required,provided,StatInfo
+  integer                  :: mpi_required,mpi_provided,StatInfo
   integer, allocatable     :: local_elms(:), index_min(:), index_max(:)
   real*8                   :: zjz, E_min, E_max
   logical                  :: solve_only, to_quit, freeb_equil2
@@ -175,9 +178,6 @@ program JOREK2
   integer :: holder
   integer :: getpid
 
-  integer :: nsolvers=0
-  logical :: solvers(4), solvers_eq(3)
-
   logical :: input_treat_axis
   
   call init_expr()
@@ -192,14 +192,14 @@ program JOREK2
   
   ! --- Initialise MPI / threaded MPI
 #ifdef FUNNELED
-  required = MPI_THREAD_FUNNELED
+  mpi_required = MPI_THREAD_FUNNELED
 #else
-  required = MPI_THREAD_MULTIPLE
+  mpi_required = MPI_THREAD_MULTIPLE
 #endif
 #ifdef STAN_FLAG
-required = 0
+mpi_required = 0
 #endif
-  call MPI_Init_thread(required, provided, StatInfo)
+  call MPI_Init_thread(mpi_required, mpi_provided, StatInfo)
 
   call init_threads()  ! on some systems init_threads needs to come after mpi_init_thread
   
@@ -249,233 +249,8 @@ required = 0
   ! --- Preset input parameters to reasonable defaults, then read the input file.
   call initialise_and_broadcast_parameters(my_id, "__NO_FILENAME__")
   
-  ! WARNING for axis treatment
-  if(treat_axis .and. (fix_axis_nodes .or. force_central_node))then
-    write(*,*) 'WARNING :'
-    write(*,*) 'If using treat_axis = .true. then'
-    write(*,*) 'fix_axis_nodes and force_central_node both MUST be .false.'
-    write(*,*) 'Setting fix_axis_nodes and force_central_node to .false.'    
-    force_central_node  = .false.
-    fix_axis_nodes      = .false.
-  endif
-  if(treat_axis .and. (n_order .gt. 3))then
-    write(*,*) 'WARNING :'
-    write(*,*) 'treat_axis = .true. is not possible'
-    write(*,*) 'at the moment with n_order>3, please use fix_axis_nodes instead.'
-    call MPI_FINALIZE(IERR) 
-    stop
-  endif
-
-  ! WARNING for freeboundary with n_order>3
-  if(freeboundary .and. (n_order .gt. 3))then
-    write(*,*) 'WARNING :'
-    write(*,*) 'freeboundary = .true. is not possible'
-    write(*,*) 'at the moment with n_order>3, aborting.'
-    call MPI_FINALIZE(IERR) 
-    stop
-  endif
-
   ! --- Initialize the vacuum part.
   call vacuum_init(my_id, freeboundary_equil, freeboundary, resistive_wall)
-  
-  ! --- GMRES makes no sense with n_tor=1
-  if (n_tor == 1) then
-    write(*,*) 'Remark: Setting gmres=.false. since n_tor=1'
-    gmres     = .false. 
-  end if
-
-#if (defined WITH_Neutrals) || (defined WITH_Impurities)
-  ! --- Read ADAS data and generate coronal equilibrium if needed
-  call init_imp_adas(my_id)
-#else
-  if (use_imp_adas .and. (nimp_bg(1) > 0.d0)) then
-    call init_imp_adas(my_id)
-  endif
-#endif
-
-  ! --- Write out all parameters defined in parameters and the namelist input file.
-  call log_parameters(my_id)
- 
-  call MPI_Barrier(MPI_COMM_WORLD,ierr)
-
-
-#if (!defined(USE_PASTIX))&&(!defined(USE_PASTIX6))
-  if (use_pastix.or.use_pastix_eq) then
-    write(*,*) ' FATAL : use_pastix requires defined USE_PASTIX or USE_PASTIX6'
-    call MPI_Abort(MPI_COMM_WORLD, 3, ierr)
-    stop
-  endif
-#endif
-
-#ifndef USE_MUMPS
-  if (use_mumps.or.use_mumps_eq) then
-    write(*,*) ' FATAL : use_mumps requires defined USE_MUMPS'
-    call MPI_Abort(MPI_COMM_WORLD, 3, ierr)
-    stop
-  endif
-#endif
-
-#ifndef USE_WSMP
-  if (use_wsmp) then
-    write(*,*) ' FATAL : use_wsmp requires defined USE_WSMP'
-    call MPI_Abort(MPI_COMM_WORLD, 3, ierr)
-    stop
-  endif
-#endif
-
-#ifndef USE_STRUMPACK
-  if (use_strumpack.or.use_strumpack_eq) then
-    write(*,*) ' FATAL : use_strumpack requires defined USE_STRUMPACK'
-    call MPI_Abort(MPI_COMM_WORLD, 3, ierr)
-    stop
-  endif
-#endif
-  
-  ! --- Check solver consistency
-  solvers = (/use_mumps,use_pastix,use_wsmp,use_strumpack/)
-  nsolvers = 0
-  do i=1,size(solvers)
-    if (solvers(i)) nsolvers = nsolvers + 1
-  enddo
-  if (nsolvers.eq.0) then
-    write(*,*) ' FATAL : specify a valid solver'
-    call MPI_Abort(MPI_COMM_WORLD, 3, ierr)
-    stop
-  elseif (nsolvers.gt.1) then
-    write(*,*) ' FATAL : specify only one solver'
-    call MPI_Abort(MPI_COMM_WORLD, 3, ierr)
-    stop
-  endif
-  
-  solvers_eq = (/use_mumps_eq,use_pastix_eq,use_strumpack_eq/)
-  nsolvers = 0
-  do i=1,size(solvers_eq)
-    if (solvers_eq(i)) nsolvers = nsolvers + 1
-  enddo
-  if (nsolvers.eq.0) then
-    write(*,*) ' FATAL : specify a valid equilibrium solver'
-    call MPI_Abort(MPI_COMM_WORLD, 3, ierr)
-    stop
-  elseif (nsolvers.gt.1) then
-    write(*,*) ' FATAL : specify only one equilibrium solver'
-    call MPI_Abort(MPI_COMM_WORLD, 3, ierr)
-    stop
-  endif
-
-  ! --- Some checks not to waste any cpu time
-  if ( (n_tor < 1) .or. (mod(n_tor,2) == 0) ) then
-    write(*,*) 'FATAL : Hard-coded parameter n_tor has an illegal value', n_tor
-    call MPI_Abort(MPI_COMM_WORLD, 23, ierr)
-    stop
-  else if ( (n_coord_tor > 1) .and. (rst_hdf5_version .eq. 1) ) then
-    write(*,*) 'FATAL : Hard-coded parameter n_coord_tor > 1 is only possible with rst_hdf5_version > 1'
-    call MPI_Abort(MPI_COMM_WORLD, 23, ierr)
-  else if ( n_period<1 ) then
-    write(*,*) 'FATAL : Hard-coded parameter n_period has an illegal value', n_period
-    call MPI_Abort(MPI_COMM_WORLD, 24, ierr)
-    stop
-  else if ( n_elements_max<1 ) then
-    write(*,*) 'FATAL : Hard-coded parameter n_elements_max has an illegal value', n_elements_max
-    call MPI_Abort(MPI_COMM_WORLD, 25, ierr)
-    stop
-  else if ( n_nodes_max<1 ) then
-    write(*,*) 'FATAL : Hard-coded parameter n_nodes_max has an illegal value', n_nodes_max
-    call MPI_Abort(MPI_COMM_WORLD, 25, ierr)
-    stop
-  else if ( n_boundary_max<1 ) then
-    write(*,*) 'FATAL : Hard-coded parameter n_boundary_max has an illegal value', n_boundary_max
-    call MPI_Abort(MPI_COMM_WORLD, 25, ierr)
-    stop
-  else if ( n_pieces_max<1 ) then
-    write(*,*) 'FATAL : Hard-coded parameter n_pieces_max has an illegal value', n_pieces_max
-    call MPI_Abort(MPI_COMM_WORLD, 25, ierr)
-    stop
-  else if ( n_vertex_max/=4 ) then
-    write(*,*) 'WARNING : hard-coded parameter n_vertex_max /= 4', n_vertex_max
-    call MPI_Abort(MPI_COMM_WORLD, 25, ierr)
-    stop
-  else if (required .ne. provided) then
-    write(*,*) 'FATAL : MPI_THREAD_MULTIPLE (provided < required)', my_id, required, provided
-    call MPI_Abort(MPI_COMM_WORLD, 2, ierr)
-    stop
-  else if ( mod(n_tor,2) == 0 ) then
-    write(*,*) ' FATAL: n_tor must be an uneven number.'
-    call MPI_Abort(MPI_COMM_WORLD, 4, ierr)
-    stop
-  else if ( n_plane < 2*(n_tor-1) ) then
-    write(*,*) ' FATAL: n_plane >= 2 * (n_tor-1) required to avoid aliasing.'
-    call MPI_Abort(MPI_COMM_WORLD, 4, ierr)
-    stop
-#ifndef USE_FFTW
-  else if ( ( n_tor >= n_tor_fft_thresh ) .and. ( iand(n_plane,n_plane-1) /= 0 ) ) then
-    write(*,*) ' FATAL: If n_tor >= n_tor_fft_thresh, n_plane must be a power of 2.'
-    write(*,*) ' Hint: USE_FFTW removes this constraint.'
-    call MPI_Abort(MPI_COMM_WORLD, 5, ierr)
-    stop
-#endif
-  else if ( n_tor_fft_thresh < 2 ) then
-    write(*,*) ' FATAL: n_tor_fft_thresh < 2 presently not allowed. Will cause problems for n_tor=1.'
-    call MPI_Abort(MPI_COMM_WORLD, 5, ierr)
-    stop
-  else if ( use_wsmp ) then
-#ifdef USE_BLOCK
-    write(*,*) 'FATAL : USE_BLOCK=1 in Makefile.inc is currently not possible with use_wsmp'
-    call MPI_Abort(MPI_COMM_WORLD, 11, ierr)
-    stop
-#endif
-    if ( .not. restart ) then
-      write(*,*) 'FATAL : use_wsmp is currently not supported for the equilibrium'
-      call MPI_Abort(MPI_COMM_WORLD, 12, ierr)
-      stop
-    end if
-  end if
-  if ( iand(n_plane,n_plane-1) /= 0 ) then
-    write(*,*) 'WARNING: n_plane is not a power of two. This might be inefficient.'
-    write(*,*) '  When using FFTW, it is possible to run like this, but it might not be fast.'
-  end if
-  if ( (nbthreads > 24) .and. (my_id == 0) ) then
-    write(*,*) 'WARNING: You are using more than 24 OpenMP threads which might be inefficient.'
-    write(*,*) '  Consider testing, whether you get better performance by increasing the number'
-    write(*,*) '  of MPI tasks and reducing the number of OpenMP threads in the jobscript.'
-  end if
-  if ( ( tauIC .ne. 0.d0 ) .and. ( jorek_model == 401 ) ) then
-    write(*,*) 'WARNING: tauIC in model401 has been modified to match model303. '
-    write(*,*) '         tauIC should be = m_{ion} / ( e * F0 * sqrt_mu0_rho0 * (1. + T_i/T_e) )'
-  endif
-  if (abs(visco_par-visco_par_heating)/(visco_par+visco_par_heating+1.d-12) > 1.d-6) then
-    write(*,*) 'WARNING: The viscosity visco_par and the viscosity used for viscous heating '
-    write(*,*) '  visco_par_heating are not the same. No problem if you know what you are doing,  ' 
-    write(*,*) '  but with this setup you are not conserving energy.   '
-  endif
-
-  if (abs(eta-eta_ohmic)/(eta+eta_ohmic+1.d-12) > 1.d-6) then
-    write(*,*) 'WARNING: The resistivity eta and the resistivity used for Ohmic heating '
-    write(*,*) '  eta_ohm are not the same. No problem if you know what you are doing,  ' 
-    write(*,*) '  but with this setup you are not conserving energy.   '
-  endif
-  if (abs(T_max_eta-T_max_eta_ohm)/(T_max_eta+T_max_eta_ohm) > 1.d-6) then
-    write(*,*) 'WARNING: T_max_eta and T_max_eta_ohm are not the same, which breaks  &
-        energy conservation. No problem if you know what you are doing (a good reason to &
-	do this could be to avoid spurious Ohmic heating in the plasma core).'
-  end if
-  if ((T_min_neg .lt. 0.d0) .or. (rho_min_neg .lt. 0.d0)) then
-	write(*,*) 'WARNING: You did not specify T_min_neg and/or rho_min_neg for the correction of negative temperatures and densities.  & 
-	   The lower values of the equilibrium profiles (T_1 and/or rho_1) will be used instead.'
-	write(*,*) 'For instance, try in your input file: rho_min_neg = 1.d-3 and T_min_neg = 4.02d-4 !=2.01d-5*central_density*Tmin_ev (with central_density = 1 and Tmin_eV= 20 eV)'    
-  endif
-
-#ifndef USE_BLOCK
-  write(*,*) 'WARNING: You are not using USE_BLOCK=1 which might be inefficient.'
-  write(*,*) '  Consider setting USE_BLOCK=1 in your Makefile.inc'
-#endif
-#ifndef USE_FFTW
-  write(*,*) 'WARNING: You are not using USE_FFTW=1 which might be inefficient.'
-  write(*,*) '  Consider setting USE_FFTW=1 in your Makefile.inc'
-#endif
-  if (use_pastix .and. use_BLR_compression) then
-    write(*,*) 'WARNING: PaStiX versions before 6.x do not support BLR compression.'
-    write(*,*) '  No compression will be used in this run.'
-  endif
 
   if (nstep .gt. 0)   call check_preconditioner_consistency
   
@@ -495,6 +270,22 @@ required = 0
   ! --- Define the basis functions at the Gaussian points
   call initialise_basis()
   
+#if (defined WITH_Neutrals) || (defined WITH_Impurities)
+  ! --- Read ADAS data and generate coronal equilibrium if needed
+  call init_imp_adas(my_id)
+#else
+  if (use_imp_adas .and. (nimp_bg(1) > 0.d0)) then
+    call init_imp_adas(my_id)
+  endif
+#endif
+
+  ! --- Write out all parameters defined in parameters and the namelist input file.
+  call log_parameters(my_id)
+ 
+  call MPI_Barrier(MPI_COMM_WORLD,ierr)
+  
+  call sanity_checks(my_id, n_cpu, mpi_required, mpi_provided)
+
   call tr_print_memsize("InitStep")
 
   !***********************************************************************
@@ -576,54 +367,8 @@ required = 0
   
   if_not_restart: if (.not. restart) then
     call tr_resetfile()
-    element_list%n_elements      = 0
-    bnd_elm_list%n_bnd_elements  = 0
-    node_list%n_nodes            = 0
-    if (my_id == 0) then
-      
-      ! --- Define the boundary of the initial grid
-      call define_boundary()
-      
-      if ((n_R > 0) .and. (n_Z > 0) .and. RZ_grid_inside_wall) then
-        
-        call grid_inside_wall(n_R,n_Z,R_begin,R_end,Z_begin,Z_end,fbnd,node_list,element_list)
-        
-      else if ((n_R > 0) .and. (n_Z > 0) .and. (n_radial > 0)) then
-        
-        call grid_bezier_square_polar(n_R, n_Z, n_radial, R_begin, R_end, Z_begin, Z_end, R_geo,   &
-          Z_geo, amin, fbnd, fpsi, mf, .true., node_list, element_list)
-        
-      else if ((n_R > 0) .and. (n_Z > 0) ) then
-        
-        call grid_bezier_square(n_R, n_Z, R_begin, R_end, Z_begin, Z_end, .true., node_list,       &
-          element_list)
-        
-      else if ((n_radial > 0) .and. (n_pol > 0) ) then
-        
-        call grid_polar_bezier(R_geo, Z_geo, amin, 0.d0, 0.d0, fbnd, fpsi, mf, n_radial, n_pol,    &
-          node_list, element_list)
-
-      else
-        write(*,*) ' FATAL : no valid combination of grid-sizes specified'
-        call MPI_Abort(MPI_COMM_WORLD, 1, ierr)
-        stop
-      end if 
-
-      ! --- Optional: Add patches to an existing grid imported from restart file
-      if ( extend_existing_grid .and. (n_flux .le. 0) ) &
-          call grid_patches_on_existing_grid(node_list, element_list)
-
-      if ( freeboundary .and. (n_flux==0) .and. freeb_change_indices ) call exchange_indices(node_list, my_id, n_cpu, .false.)
-      
-      ! --- Determine boundary information from the grid
-      call boundary_from_grid(node_list, element_list, bnd_node_list, bnd_elm_list, .false.)
-      call populate_element_rtree(node_list, element_list)
-
-      call tr_debug_write("JMAIN:Def_grid elt_list",element_list%n_elements)
-      call tr_debug_write("JMAIN:Def_grid node_list",node_list%n_nodes)
-      call tr_debug_write("JMAIN:Def_grid bnd_elt_list",bnd_elm_list%n_bnd_elements)
-      
-    end if
+    
+    call initial_grid(node_list, element_list, bnd_node_list, bnd_elm_list, my_id, n_cpu)
     
     ! --- Synchronizing MPI processes avoid deadlock issues on some machine
     call MPI_Barrier(MPI_COMM_WORLD,ierr)
@@ -669,69 +414,11 @@ required = 0
       if (my_id == 0) call update_equil_state(my_id,node_list, element_list, bnd_elm_list, xpoint, xcase)
     end if ! if (equil) then
 
-  
-
-      ! --- Determine a flux surface aligned grid
+    ! --- Determine a flux surface aligned grid and re-calculate the equilibrium on it
     if (n_flux > 1) then
 
-      if (my_id == 0) then
-
-        if (xpoint)  then
-
-          if ( (xcase .ge. UPPER_XPOINT) .or. (grid_to_wall .and. (n_wall_blocks .gt. 0)) .or. RZ_grid_inside_wall ) then
-            if (grid_to_wall) then
-              call grid_double_xpoint_inside_wall(node_list, element_list)
-            else
-              call grid_double_xpoint(node_list, element_list)
-            endif
-          else
-   
-            if (.not. grid_to_wall) then
-              call grid_xpoint(node_list,element_list,n_flux,n_open,n_private,n_leg,n_tht,   &
-                               SIG_open,SIG_closed,SIG_private,SIG_theta,SIG_leg_0,SIG_leg_1,dPSI_open,dPSI_private, xcase)
-            else
-!!! works only for ITER wall for the moment
- !            write(*,*) 'ITER wall started'
-              if(my_id == 0 ) call grid_xpoint_wall(node_list,element_list,n_flux,n_open,n_private,n_leg,n_tht, n_ext,  &
-                                    SIG_open,SIG_closed,SIG_private,SIG_theta,SIG_leg_0,SIG_leg_1,dPSI_open,dPSI_private)
-            endif !  if (.not. grid_to_wall) then
-             
-          endif !if (xcase .ge. 2) then
-                   
-            call plot_grid(node_list,element_list,bnd_elm_list,bnd_node_list,.false.,.false.,'xpoint')
-          
-        else ! (if xpoint)
-          
-          call grid_flux_surface(xpoint,xcase, node_list, element_list, surface_list, n_flux, n_tht,     &
-                                 xr1, sig1, xr2, sig2,refinement)
-          
-          call plot_grid(node_list, element_list, bnd_elm_list, bnd_node_list, .true., .false.,'fluxsurface')
-          
-          ! --- Refine elements (equilibrum)
-          if (refinement) then
-            n_to_be_refined=0
-            call Refine_Elem_List(node_list, element_list, list_to_be_refined, n_to_be_refined)
-            call Ref_Update_Index(element_list, node_list)
-          end if
-             
-        end if ! (if xpoint)
-
-        ! --- Optional: Add patches to an existing grid imported from restart file
-        if (extend_existing_grid) &
-            call grid_patches_on_existing_grid(node_list, element_list)
-
-        if ( freeboundary .and. freeb_change_indices ) call exchange_indices(node_list, my_id, n_cpu, .false.)
-
-        ! --- Determine boundary information from the grid
-        call boundary_from_grid(node_list, element_list, bnd_node_list, bnd_elm_list, .false.) 
-        call export_boundary(node_list, bnd_elm_list, bnd_node_list)
-
-      endif ! if (my_id == 0) then        
-
-      ! --- Check sanity of grid
-      call check_grid(my_id, node_list, element_list)
-
-      call broadcast_boundary(my_id,bnd_elm_list,bnd_node_list) 
+      call flux_grid(node_list, element_list, bnd_node_list, bnd_elm_list, my_id, n_cpu)
+      
       if ( freeb_equil2) then
         freeboundary_equil = .true.
         call get_vacuum_response(my_id, node_list, bnd_elm_list, bnd_node_list, freeboundary_equil,  &
