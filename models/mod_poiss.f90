@@ -18,7 +18,7 @@ use mod_coicsr
 use mpi_mod
 use mod_interp
 use mod_basisfunctions
-    use mod_integer_types
+use mod_integer_types
 
 #ifdef USE_STRUMPACK
 use strumpack_module
@@ -33,6 +33,11 @@ implicit none
 ! --- Routine parameters
 integer,                  intent(in)    :: my_id             ! MPI id
 integer,                  intent(in)    :: itype             ! selects the physics model (GS, Laplace)
+                                                             ! -1: GS_perturbation
+                                                             ! -2: GS_inverse
+                                                             ! +2: Poisson_inverse
+                                                             ! +1 or +3: Poisson
+                                                             ! 0: variable projection
 type (type_node_list),    intent(inout) :: node_list
 type (type_element_list), intent(inout) :: element_list
 integer,                  intent(in)    :: ivar_in           ! index of the input variable
@@ -87,6 +92,12 @@ if (my_id == 0) then
   write(*,*) '*            Poisson                 *'
   write(*,*) '**************************************'
   
+  if (itype .eq. 0) then
+    write(*,*)'*************************************'
+    write(*,*)'*   Projection of Variable: ',ivar_out
+    write(*,*)'*************************************'
+  endif
+  
   if (iter .le. 1) then
     write(*,*) ' i_type       : ',itype
     write(*,*) ' n_elements   : ',element_list%n_elements
@@ -106,12 +117,14 @@ if (my_id == 0) then
   call tr_debug_write("Deb_poisson",nz_AA)
   
   n_border = 0
-  if (itype .ne. 710) then
+  if (itype .ne. 0) then
     do i=1,node_list%n_nodes
       if(treat_axis)then
-        if (node_list%node(i)%axis_node      ) n_border = n_border+1
+        ! --- Only one fixed for fixed-axis (only valid for G1-cases at the moment!!!)
+        if (node_list%node(i)%axis_node    ) n_border = n_border+1
       else
-        if (node_list%node(i)%axis_node      ) n_border = n_border+2
+        ! --- t-derivatives and cross derivatives are switched off on axis, so (n_order+1)/2 are not fixed
+        if (node_list%node(i)%axis_node    ) n_border = n_border+2
       endif    
       if (node_list%node(i)%boundary .eq. 1) n_border = n_border+2
       if (node_list%node(i)%boundary .eq. 2) n_border = n_border+2
@@ -227,9 +240,9 @@ if (my_id == 0) then
   
       call element_matrix_Poisson_inverse(itype,element,nodes,ivar_in,ivar_out,i_harm,ELM,RHS)
   
-    elseif (itype .eq. 710) then
+    elseif (itype .eq. 0) then
   
-      call element_matrix_710_equi(itype,element,nodes,ivar_in,ivar_out,i_harm,ELM,RHS)
+      call element_matrix_projection(itype,element,nodes,ivar_in,ivar_out,i_harm,ELM,RHS)
   
     else
   
@@ -342,14 +355,15 @@ if (freeboundary_equil .and. (itype .eq. -1)) then
   
   call vacuum_equil(my_id,node_list,bnd_node_list,bnd_elm_list,psi_axis,psi_bnd)
   
-elseif (itype .ne. 710) then        ! apply fixed boundary conditions
+elseif (itype .ne. 0) then        ! apply fixed boundary conditions (not for variable projection)
 
   if (my_id == 0 ) then
     do i=1,node_list%n_nodes
   
+      ! --- On axis, we fix the t-derivatives, plus all cross-derivatives
       if (node_list%node(i)%axis_node) then
       
-        if (treat_axis) then
+        if (treat_axis) then ! For G1 elements only at the moment !
           ! penalize 4th DoF to enforce C0 continuity at the grid center        
           index_i = node_list%node(i)%index(4)  ! base index in the main matrix
           mumps_par%irn(ilarge+1) = index_i
@@ -376,8 +390,8 @@ elseif (itype .ne. 710) then        ! apply fixed boundary conditions
 
       if (node_list%node(i)%boundary .ne. 0) then
   
+        ! --- fix node value (index is always 1)
         index_i = node_list%node(i)%index(1)  ! base index in the main matrix
-  
         mumps_par%irn(ilarge+1) = index_i
         mumps_par%jcn(ilarge+1) = index_i
         mumps_par%A(ilarge+1)   = zbig
@@ -421,7 +435,7 @@ elseif (itype .ne. 710) then        ! apply fixed boundary conditions
           ilarge = ilarge + 1
       
         endif
-  
+
       endif
     enddo
   
@@ -596,11 +610,15 @@ if (my_id == 0) then
           node_list%node(i)%deltas(i_harm,k,ivar_out) = mumps_par%RHS(index)
           node_list%node(i)%values(i_harm,k,ivar_out) = node_list%node(i)%values(i_harm,k,ivar_out) &
                                                       + (1.d0 - amix_used) * mumps_par%RHS(index)
-        !--------------- for model710 when solving Fprofile to get accurate profiles on nodes
+        !--------------- Variable projection
+        elseif (itype .eq. 0) then
+          if (ivar_out .eq. 710) then
 #ifdef fullmhd
-        elseif (itype .eq. 710) then
-          node_list%node(i)%Fprof_eq(k) = node_list%node(i)%Fprof_eq(k) + (1.d0 - amix_used) * mumps_par%RHS(index)
+            node_list%node(i)%Fprof_eq(k) = node_list%node(i)%Fprof_eq(k) + (1.d0 - amix_used) * mumps_par%RHS(index)
 #endif
+          else
+            node_list%node(i)%values(1,k,ivar_out) = node_list%node(i)%values(1,k,ivar_out) + (1.d0 - amix_used) * mumps_par%RHS(index)
+          endif
         !--------------- for equation on total flux
         else
           node_list%node(i)%deltas(i_harm,k,ivar_out) = node_list%node(i)%values(i_harm,k,ivar_out) - mumps_par%RHS(index)

@@ -1561,6 +1561,7 @@ module mod_expression
             Lrad = 0.
             call radiation_function_linear(imp_adas(index_main_imp),imp_cor(index_main_imp),log10(ne_SI),   &
                                            log10(Te_corr_eV*EL_CHG/K_BOLTZ),.true.,Lrad)
+            Lrad = Lrad * m_i_over_m_imp ! Adjust since rimp0 is MASS density
           else
             Lrad = 0.
           end if

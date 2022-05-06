@@ -24,7 +24,7 @@ integer,               intent(in)     :: i_tor_min
 integer,               intent(in)     :: i_tor_max   
 ! --- Routine variables
 type (type_element),    intent(in)    :: element
-type (type_node),       intent(inout) :: nodes(4)
+type (type_node),       intent(inout) :: nodes(n_vertex_max)
 integer,                intent(inout) :: vertex(2)
 integer,                intent(in)    :: direction(2), xcase2
 logical,                intent(in)    :: xpoint2

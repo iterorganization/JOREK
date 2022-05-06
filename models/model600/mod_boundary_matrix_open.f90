@@ -42,12 +42,14 @@ integer    :: in, im, ij1, ij2, ij3, ij4, ij5, ij6, ij7, ij8, kl1, kl2, kl3, kl4
 real*8     :: ws, xjac,  dl, BigR, phi, eps_cyl, Btot
 real*8     :: R_axis, Z_axis, psi_axis, psi_bnd, R_xpoint(2), Z_xpoint(2)
 real*8     :: rhs_ij_5, rhs_ij_6, rhs_ij_7, rhs_ij_8
-real*8     :: theta, zeta, Zbig, BB2, bdotn, factor, psi_ss, vpar_ss
+real*8     :: theta, zeta, Zbig, BB2, bdotn, gradvpar0dotn, gradvpardotn, factor, psi_ss, vpar_ss
 real*8     :: R_inside, Z_inside, R_mid, Z_mid, R_cnt, Z_cnt, normal(2), normal_direction(2)
 real*8     :: normal_sign, normal_sign3
 
 real*8     :: v, v_x, v_y, v_s, v_p, v_ss, v_xx, v_yy, v_xs, v_ys
 real*8     :: ps0, ps0_s, ps0_t, ps0_x, ps0_y, Vpar0, r0_corr, T0_corr, Ti0_corr, Te0_corr, cs0  
+real*8     :: vpar0_s, vpar0_t, vpar0_x, vpar0_y 
+real*8     :: vpar_s, vpar_t, vpar_x, vpar_y 
 real*8     :: psi, psi_s, psi_t, vpar, T, Ti, Te, cs_T, cs_Ti, cs_Te
 real*8     :: T0,   T0_s,  T0_t, T0_p
 real*8     :: Ti0, Ti0_s, Ti0_t, Ti0_x, Ti0_y, Ti0_p
@@ -274,9 +276,17 @@ do ms=1, n_gauss
     Te0_y = ( - x_t(ms) * Te0_s + x_s(ms) * Te0_t ) / xjac
 
     if (with_vpar) then
-      Vpar0 = eq_g(mp,var_vpar,ms)
+      Vpar0   = eq_g(mp,var_vpar,ms)
+      vpar0_s = eq_s(mp,var_vpar,ms) 
+      vpar0_t = eq_t(mp,var_vpar,ms)   
+      vpar0_x = (   y_t(ms) * vpar0_s - y_s(ms) * vpar0_t ) / xjac
+      vpar0_y = ( - x_t(ms) * vpar0_s + x_s(ms) * vpar0_t ) / xjac
     else
-      Vpar0 = 0.d0
+      Vpar0   = 0.d0
+      vpar0_s = 0.d0 
+      vpar0_t = 0.d0 
+      vpar0_x = 0.d0 
+      vpar0_y = 0.d0 
     endif
 
     T0_corr  = corr_neg_temp1(T0)
@@ -295,6 +305,7 @@ do ms=1, n_gauss
     BB2 = Btot**2
 
     bdotn = (+ ps0_y * normal(1) - ps0_x * normal(2)) / x_g(ms) / Btot
+    gradvpar0dotn = (+ vpar0_x * normal(1) + vpar0_y * normal(2)) 
 
     normal_sign  = sign(1.d0,bdotn)
     normal_sign3 = sign(1.d0,ps0_s) * normal_sign
@@ -335,13 +346,15 @@ do ms=1, n_gauss
             ! --- Sheath heat flux (c_angle for mininum heat fluxes at grazing angles)
             if (with_TiTe) then
               rhs_ij(var_Ti)  = - v * (gamma_sheath_i-1.d0) * r0 * Ti0 * vpar0 * ps0_s * normal_sign3 * tstep &
-                                - v * (gamma_sheath_i-1.d0) * r0 * Ti0 * cs0    * BigR * dl * c_angle * tstep  
+                                - v * (gamma_sheath_i-1.d0) * r0 * Ti0 * cs0    * BigR * dl * c_angle * tstep & 
+                                - v * (GAMMA - 1.d0) * vpar0 * visco_par_heating * gradvpar0dotn * BigR * dl  * tstep  
 
               rhs_ij(var_Te)  = - v * (gamma_sheath_e-1.d0) * r0 * Te0 * vpar0 * ps0_s * normal_sign3 * tstep &
                                 - v * (gamma_sheath_e-1.d0) * r0 * Te0 * cs0  * BigR * dl * c_angle   * tstep  
             else
               rhs_ij(var_T)   = - v * (gamma_sheath  -1.d0) * r0 * T0  * vpar0 * ps0_s * normal_sign3 * tstep &
-                                - v * (gamma_sheath  -1.d0) * r0 * T0  * cs0    * BigR * dl * c_angle * tstep  
+                                - v * (gamma_sheath  -1.d0) * r0 * T0  * cs0    * BigR * dl * c_angle * tstep & 
+                                - v * (GAMMA - 1.d0) * vpar0 * visco_par_heating * gradvpar0dotn * BigR * dl  * tstep  
             endif
 
             ! --- Mach=1 through boundary integral penalization method
@@ -388,6 +401,13 @@ do ms=1, n_gauss
 
                 T = psi; Ti = psi; Te = psi; vpar = psi; vpar_ss = psi_ss
 
+                vpar_s = psi_s   
+                vpar_t = psi_t
+                vpar_x = (   y_t(ms) * vpar_s - y_s(ms) * vpar_t ) / xjac
+                vpar_y = ( - x_t(ms) * vpar_s + x_s(ms) * vpar_t ) / xjac
+
+                gradvpardotn  = (+ vpar_x * normal(1) + vpar_y * normal(2)) 
+
                 cs_T   = gamma * T  / (2.d0 * cs0)
                 cs_Ti  = gamma * Ti / (2.d0 * cs0)
                 cs_Te  = gamma * Te / (2.d0 * cs0)
@@ -425,7 +445,9 @@ do ms=1, n_gauss
                                             + v * (gamma_sheath_e-1.d0) * r0  * Te  * cs0   * BigR  * dl * c_angle * theta * tstep &
                                             + v * (gamma_sheath_e-1.d0) * r0  * Te0 * cs_Te * BigR  * dl * c_angle * theta * tstep
 
-                    amat(var_Ti,var_vpar) = + v * (gamma_sheath_i-1.d0) * r0  * Ti0 * vpar  * ps0_s * normal_sign3 * theta * tstep 
+                    amat(var_Ti,var_vpar) = + v * (gamma_sheath_i-1.d0) * r0  * Ti0 * vpar  * ps0_s * normal_sign3 * theta * tstep &
+                                            + v * (GAMMA - 1.d0) * vpar * visco_par_heating * gradvpar0dotn * BigR * dl    * theta * tstep &
+                                            + v * (GAMMA - 1.d0) * vpar0 * visco_par_heating * gradvpardotn * BigR * dl    * theta * tstep
                     amat(var_Te,var_vpar) = + v * (gamma_sheath_e-1.d0) * r0  * Te0 * vpar  * ps0_s * normal_sign3 * theta * tstep 
                   else
                     amat(var_T,var_psi)   = + v * (gamma_sheath  -1.d0) * r0  *  T0 * vpar0 * psi_s * normal_sign3 * theta * tstep 
@@ -435,7 +457,9 @@ do ms=1, n_gauss
                                             + v * (gamma_sheath  -1.d0) * r0  *  T  * cs0   * BigR  * dl * c_angle * theta * tstep &
                                             + v * (gamma_sheath  -1.d0) * r0  *  T0 * cs_T  * BigR  * dl * c_angle * theta * tstep
 
-                    amat(var_T,var_vpar)  = + v * (gamma_sheath  -1.d0) * r0  * T0  * vpar  * ps0_s * normal_sign3 * theta * tstep 
+                    amat(var_T,var_vpar)  = + v * (gamma_sheath  -1.d0) * r0  * T0  * vpar  * ps0_s * normal_sign3 * theta * tstep & 
+                                            + v * (GAMMA - 1.d0) * vpar * visco_par_heating * gradvpar0dotn * BigR * dl    * theta * tstep &
+                                            + v * (GAMMA - 1.d0) * vpar0 * visco_par_heating * gradvpardotn * BigR * dl    * theta * tstep
                   endif ! with_TiTe
 
                   ! --- Mach 1 condition through penalization boundary integral method

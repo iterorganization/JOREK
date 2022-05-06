@@ -36,7 +36,7 @@ namelist /in1/  tstep, nstep, tstep_n, nstep_n,                     &
                 SIG_up_leg_0, SIG_up_leg_1, SIG_up_priv,            &
                 SIG_outer, SIG_inner,                               &
                 dPSI_outer, dPSI_inner, dPSI_up_priv,               &
-                nout, xr1, sig1, xr2, sig2,                         &
+                nout, nout_projection, xr1, sig1, xr2, sig2,        &
                 R_begin, R_end, Z_begin, Z_end,                     &
                 R_geo, Z_geo, amin, mf, fbnd, fpsi, mode,           &
                 R_Z_psi_bnd_file,                                   &
@@ -144,7 +144,8 @@ namelist /in1/  tstep, nstep, tstep_n, nstep_n,                     &
                 filter_perp,    filter_hyper,    filter_par,        &
                 filter_perp_n0, filter_hyper_n0, filter_par_n0,     &
                 use_cx, use_sputtering, use_ionisation,             &
-                use_ncs, use_pcs, use_ccs, cte_current_FB_fact
+                use_ncs, use_pcs, use_ccs, cte_current_FB_fact,     &
+                eta_ohmic
 
 if (my_id .eq. 0) then
 

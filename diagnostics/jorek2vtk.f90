@@ -24,6 +24,7 @@ use mod_atomic_coeff_deuterium, only : ad_deuterium , atomic_coeff_deuterium
 implicit none
 
 type (type_node_list)   ,     pointer :: node_list
+type (type_node_list)   ,     pointer :: aux_node_list
 type (type_element_list),     pointer :: element_list
 type (type_bnd_element_list), pointer :: bnd_elm_list    
 type (type_bnd_node_list),    pointer :: bnd_node_list 
@@ -88,6 +89,8 @@ integer               :: i_elm_axis, i_elm_xpoint(2), k_tor, ifail, ierr
 logical               :: without_n0_mode, SI_units
 logical               :: include_fluxes, include_neo, include_magnetic_field, include_velocity_field
 logical               :: include_bootstrap, include_psi_norm, include_electric_field, include_Jpol, RphiZ_coords
+logical               :: include_projections
+character*80          :: proj_basename, filename_proj
 real*8                :: toroidal_angle
 
 real*8                :: Er, psi_abs, Vtheta, Btheta, Mach_par,Mach_pol,Vsound, Vneo
@@ -104,11 +107,11 @@ real*8                :: LradDrays_T, coef_ion_1, coef_ion_2, coef_ion_3, S_ion_
 real*8                :: r0_real8, rn0_real8
 real*8                :: T0_corr, r0_corr, rn0_corr
 integer               :: i_imp, offset_bgimp, i_bg     ! Loop for more than one background impurity
-
+integer               :: i_proj
 integer               :: i_psin, i_test, iimp(6), ineu(7), ibg_tot, i_pellet(2), i_flux(8), i_neo(10), i_boot(2)
 integer               :: i_full(11), i_vec_B, i_vec_V, i_vec_E, i_vec_Jpol
-integer, allocatable  :: iibg(:)
-character*36          :: imp_label
+integer, allocatable  :: iibg(:), iproj(:)
+character*36          :: imp_label, proj_label
 
 
 #ifdef WITH_Impurities
@@ -117,7 +120,7 @@ character*36          :: imp_label
 !   -Mass ratio between main ions and impurites (m_i/m_imp)
 real*8     :: m_i_over_m_imp
 !   -Mean impurity ionization state
-real*8     :: Z_imp, T0_Zimp, alpha_Zimp
+real*8     :: Z_imp, T0_Zimp, alpha_Zimp, n_imp
 !   -Coefficients related to Z_imp
 real*8     :: alpha_imp
 real*8     :: beta_imp
@@ -150,7 +153,8 @@ real*8  :: Rp, Zp, Rmin, Rmax, Zmin, Zmax, s_out, t_out, R_out, Z_out
 
 namelist /vtk_params/ nsub, i_tor, i_plane, without_n0_mode, SI_units, &
                       include_fluxes, include_neo, include_magnetic_field, include_velocity_field,&
-                      include_bootstrap, include_psi_norm, include_electric_field, include_Jpol, RphiZ_coords
+                      include_bootstrap, include_psi_norm, include_electric_field, include_Jpol, RphiZ_coords,&
+                      include_projections, proj_basename
 
 
 write(*,*) '***************************************'
@@ -166,11 +170,13 @@ write(*,*) '   -include_electric_field'
 write(*,*) '   -include_Jpol'
 write(*,*) '   -include_bootstrap'
 write(*,*) '   -include_psi_norm'
+write(*,*) '   -include_projections'
 write(*,*) '***************************************'
 
 call flush_it(6)
 
 allocate(node_list)
+allocate(aux_node_list)
 allocate(element_list)
 allocate(bnd_elm_list)
 allocate(bnd_node_list)
@@ -193,6 +199,8 @@ include_electric_field = .false. ! include vector of E-field (or not), evaluated
 include_Jpol           = .false. ! include poloidal current vector (J_phi=0 for visualization)
 include_bootstrap      = .false. ! include bootstrap current and averaged current
 include_psi_norm       = .true.  ! include normalized flux
+include_projections    = .false. ! include projections from particles
+proj_basename          = 'projections' ! basename for particle projection output files
 RphiZ_coords           = .false. ! use xyz transformation (R,0,Z) instead of (R,Z,0)
 
 include_radiation = .false. 
@@ -232,7 +240,11 @@ write(*,*) 'include_electric_field =',include_electric_field
 write(*,*) 'include_Jpol      =', include_Jpol
 write(*,*) 'include_bootstrap =', include_bootstrap
 write(*,*) 'include_psi_norm  =', include_psi_norm
+write(*,*) 'include_projections =', include_projections
 
+if (include_projections) then
+  write(*,*) ' -proj_basename =', trim(proj_basename)
+end if
 
 write(*,*) '-----------'
 write(*,*) 'n_tor           =', n_tor
@@ -241,7 +253,6 @@ write(*,*) 'F0              =', F0
 write(*,*) 'R_geo,Z_geo     =', R_geo, Z_geo
 write(*,*)
 call flush_it(6)
-
 
 ! --- Assign variable names in SI units
 allocate(variable_names_si(0:n_var))
@@ -322,7 +333,7 @@ if (include_psi_norm) then
   call add_vtk_entry('psi_norm    ', 'psi_norm    ',    i_psin, n_scalars, si_units, scalar_names) 
 endif
 
-allocate(iibg(n_adas))
+allocate(iibg(n_adas),iproj(n_var))
 
 #if (defined WITH_Neutrals) && (!defined WITH_Impurities)
   if (include_neutral_dens) then
@@ -339,6 +350,13 @@ if (include_radiation) then
   call add_vtk_entry('Brems       ', 'Brems_Wm-3  ',    ineu(3), n_scalars, si_units, scalar_names) 
   call add_vtk_entry('Joule       ', 'Joule_Wm-3  ',    ineu(4), n_scalars, si_units, scalar_names) 
 #endif
+
+if (include_projections) then
+  do i = 1, n_var
+    write(proj_label, '(a4,i2.2)') 'aux_', i
+    call add_vtk_entry(proj_label, proj_label, iproj(i), n_scalars, si_units, scalar_names) 
+  end do
+end if
 
 #ifdef WITH_Impurities
   call add_vtk_entry('Ionis       ', 'Ionis_Jm-3  ',    iimp(1), n_scalars, si_units, scalar_names) 
@@ -400,6 +418,14 @@ do k_tor=1, n_tor
   mode(k_tor) = + int(k_tor / 2) * n_period
 enddo
 
+if (include_projections) then
+  filename_proj = trim(proj_basename)//'_restart.h5' ! only hdf5 format supported for particle projections
+  call import_hdf5_restart_aux(aux_node_list, filename_proj, rst_format, ierr)
+  if (ierr .ne. 0) then
+    write(*,*) 'ERROR: Cannot find projection restart file. Check if proj_basename is set properly.'
+    stop
+  end if
+end if
 
 call import_restart(node_list, element_list, 'jorek_restart', rst_format, ierr, .true.)
 
@@ -626,6 +652,14 @@ do i=1,element_list%n_elements
           call interp(node_list,element_list,i,m,i_tor,s,t,P,P_s,P_t,P_st,P_ss,P_tt)
           scalars(inode,m) = P * HZ(i_tor,i_plane)
         enddo
+
+        if (include_projections) then
+          do i_proj=1,n_var
+            call interp(aux_node_list,element_list,i,i_proj,i_tor,s,t,P,P_s,P_t,P_st,P_ss,P_tt)
+            scalars(inode,iproj(i_proj)) = P * HZ(i_tor,i_plane)
+          end do
+        end if
+
         if (jorek_model .lt. 100) cycle
         
         ! The real current density
@@ -959,6 +993,14 @@ do i=1,element_list%n_elements
              call interp(node_list,element_list,i,m,i_tor,s,t,P,P_s,P_t,P_st,P_ss,P_tt)
              scalars(inode,m) = scalars(inode,m) + P * HZ(i_tor,i_plane)
           enddo
+
+          if (include_projections) then
+            do i_proj=1,n_var
+              call interp(aux_node_list,element_list,i,i_proj,i_tor,s,t,P,P_s,P_t,P_st,P_ss,P_tt)
+              scalars(inode,iproj(i_proj)) = scalars(inode,iproj(i_proj)) + P * HZ(i_tor,i_plane)
+            end do
+          end if
+
           if (jorek_model .lt. 100) cycle
           
           call interp_delta(node_list,element_list,i,var_psi,i_tor,s,t,dpsi,dPs_s, dPs_t, dPs_st, dPs_ss, dPs_tt)
@@ -1317,7 +1359,7 @@ enddo  ! n_elements
      ! We estimate the effective charge by a test density 10^20/m^3
      ! Later maybe we should implement a iterative method
 
-     if (allocated(imp_adas(index_main_imp)%ionisation_energy)) then
+     if (allocated(imp_adas(index_main_imp)%ionisation_energy) .and. (.not. use_marker)) then
        if (allocated(P_imp)) deallocate(P_imp)
        allocate(P_imp(0:imp_adas(index_main_imp)%n_Z))
 
@@ -1333,26 +1375,43 @@ enddo  ! n_elements
          end do
        end do
      ! Convert from eV to JOREK unit
-       E_ion     = E_ion * EL_CHG*MU_ZERO*central_density*1.d20
-     else
+       E_ion     = E_ion * EL_CHG*MU_ZERO*central_density*1.d20*m_i_over_m_imp
+     else if (.not. use_marker) then
        call imp_cor(index_main_imp)%interp_linear(density=20.,temperature=log10(Te_corr_eV*EL_CHG/K_BOLTZ),z_avg=Z_imp)
        E_ion     = 0.
        write(*,*) 'The ionization energy file of the main impuritity is required'
        stop
+     else ! use_marker
+       E_ion     = 0.
+       Z_imp     = 0.
+       Z_eff     = 0.
+
+       Z_eff     = max(scalars(i,iproj(3)),0.0)
+       Z_imp     = max(scalars(i,iproj(4)),0.0)
+       n_imp     = max(scalars(i,iproj(5)),1.d-2)
+       Z_eff     = Z_eff / n_imp
+       Z_imp     = Z_imp / n_imp
      end if
 
-     alpha_imp    = 0.5*m_i_over_m_imp*(Z_imp+1.) - 1.
+     !alpha_imp    = 0.5*m_i_over_m_imp*(Z_imp+1.) - 1.
      beta_imp     = m_i_over_m_imp*Z_imp - 1.
 
      ne_SI       = (r0_corr + beta_imp * rn0_corr) * 1.d20 * central_density ! electron density (SI)
      scalars(i,var_rho) = (r0_corr + beta_imp * rn0_corr)                           ! electron density (JOREK units)
 
      !Calculate the Z_eff, as it is done in mod_elt_matrix
-     Z_eff = r0_corr - rn0_corr
-     do ion_i=1, imp_adas(index_main_imp)%n_Z
-       Z_eff = Z_eff + m_i_over_m_imp * rn0_corr * P_imp(ion_i) * real(ion_i,8)**2
-     end do
-     Z_eff = Z_eff / scalars(i,var_rho)  
+     if (.not. use_marker) then
+       Z_eff = r0_corr - rn0_corr
+       do ion_i=1, imp_adas(index_main_imp)%n_Z
+         Z_eff = Z_eff + m_i_over_m_imp * rn0_corr * P_imp(ion_i) * real(ion_i,8)**2
+       end do
+       Z_eff = Z_eff / scalars(i,var_rho)
+     else
+       Z_eff = Z_eff * n_imp
+       Z_eff = Z_eff + max((r0_corr - rn0_corr),0.)
+       Z_eff = max(Z_eff / scalars(i,var_rho), 1.)
+     end if
+
      scalars(inode,iimp(5)) = Z_eff
 
      ! This is to represent the dependence on Z_eff in resistivity

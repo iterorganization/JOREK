@@ -309,15 +309,16 @@ subroutine penalize_dof_on_axis(node_list, dof, element_list, local_elms, n_loca
   type (type_node_list),     intent(in)    :: node_list             !< List of nodes
   integer,                   intent(in)    :: dof                   !< which dof to penalize  
   type (type_element_list),  intent(in)    :: element_list          !< List of all elements
-  integer, allocatable,      intent(in)    :: ijA_index(:,:), ijA_size(:), irn_jcn(:,:)
+  integer(kind=int_all), allocatable,      intent(in)    :: ijA_index(:,:), ijA_size(:), irn_jcn(:,:)
   integer,                   intent(in)    :: i_tor_min, i_tor_max
-  integer, allocatable,      intent(inout) :: irn(:), jcn(:)
+  integer(kind=int_all), allocatable,      intent(inout) :: irn(:), jcn(:)
   real*8,  allocatable,      intent(inout) :: A_mat(:)
   ! Internal parameters
   real*8  :: zbig
   integer :: i, in, iv, inode, k
   integer :: index_large_i, index_node, index_node2, ielm
- integer :: ijA_position,ijA_position2, ilarge2, n_tor_local
+  integer :: ilarge2, n_tor_local
+  integer(kind=int_all):: ijA_position,ijA_position2
 
   n_tor_local = (i_tor_max - i_tor_min + 1)
 

@@ -80,6 +80,8 @@ type, extends(io_action) :: projection
   !> Output storage (optional)
   type(vtk_grid), allocatable, private :: vtk_grid !< if allocated output to vtk
   logical, public :: to_h5 = .false.    !< Output to hdf5 file
+  logical, public :: index_h5 = .false. !< Number projection outputs (vtk, or hdf5) in the same way as its fluid counterpart (e.g. projections00100.vtk(h5))
+                                        !< if set false, outputs will be numbered by physical time.
 
   !> Right-hand side
   type(proj_f), dimension(:),   allocatable :: f   !< List of projection transformations to use (n_proj)
@@ -424,7 +426,7 @@ end function new_proj_f
 function new_projection(node_list, element_list,                                                    &
                         filter,    filter_hyper,    filter_parallel,                                &
                         filter_n0, filter_hyper_n0, filter_parallel_n0,                             &
-                        f, do_zonal, to_h5, to_vtk,                                                 &
+                        f, do_zonal, to_h5, to_vtk, index_h5,                                       &
                         nsub, filename, basename, decimal_digits, fractional_digits, calc_integrals &
                         ) result(new)
   use mpi_mod
@@ -438,6 +440,7 @@ function new_projection(node_list, element_list,                                
   logical, intent(in), optional          :: do_zonal    !< solve zonal flow  system for n=0 instead of projection (false if omitted)
   logical, intent(in), optional          :: to_h5 !< Write HDF5 output after projecting (false if omitted)
   logical, intent(in), optional          :: to_vtk !< Write vtk output after projecting (false if omitted)
+  logical, intent(in), optional          :: index_h5 !< numbering projection outputs in the same way as fluid output: e.g. projections00100.vtk(h5) (false if omitted)
   integer, intent(in), optional          :: nsub !< number of subdivisions of the finite elements
   character(len=*), intent(in), optional :: filename
   character(len=*), intent(in), optional :: basename
@@ -528,6 +531,7 @@ function new_projection(node_list, element_list,                                
     end if
   end if
   if (present(to_h5)) new%to_h5 = to_h5
+  if (present(index_h5)) new%index_h5 = index_h5
 
   new%basename = "proj"
   if (present(filename)) new%filename = filename
@@ -574,6 +578,7 @@ end subroutine close_mumps
 
 subroutine project(this, sim, ev)
   use mod_event
+  use phys_module, only: nout, nout_projection, index_now
   class(projection), intent(inout)     :: this
   type(particle_sim), intent(inout)    :: sim
   type(event), intent(inout), optional :: ev
@@ -584,11 +589,33 @@ subroutine project(this, sim, ev)
   ! Project all right-hand sides
   call project_only(this, sim)
 
+  ! Some checks for 'nout_projection'
+  if ((this%to_h5) .or. (allocated(this%vtk_grid))) then
+    if (nout_projection .lt. 0) then
+      nout_projection = nout
+      if (this%my_id .eq. 0) then
+        write(*,*) "WARNING: Trying to write projection output files without specifying 'nout_projection'"
+        write(*,*) "         Projections will be written in every 'nout' timesteps"
+      end if
+    else if (.not. (mod(nout,nout_projection) .eq. 0)) then
+      if (this%my_id .eq. 0) then
+        write(*,*) "WARNING: Double check 'nout' and 'nout_projection' in the namelist"
+        write(*,*) "         You will get staggered projection outputs with JOREK restart files"
+      end if
+    end if
+  end if
+
   ! Save output if requested
-  if (this%to_h5) call save_to_h5(this, sim)
+  if (this%to_h5) then
+    if (mod(index_now,nout_projection) .eq. 0) then
+      call save_to_h5(this, sim)
+    end if
+  end if
   if (allocated(this%vtk_grid)) then
-    call save_to_vtk(this, sim)
-  endif
+    if (mod(index_now,nout_projection) .eq. 0) then
+      call save_to_vtk(this, sim)
+    end if
+  end if
 
   ! Clean up storage
   if (allocated(this%rhs)) this%rhs = 0.d0
@@ -980,9 +1007,10 @@ end subroutine sample_rhs
 !> Save an already-projected set to a vtk file with current parameters
 subroutine save_to_vtk(this, sim)
   use mod_event
+  use phys_module, only: index_now
   !$ use omp_lib
-  class(projection), intent(inout) :: this
-  type(particle_sim), intent(inout)    :: sim
+  class(projection), intent(inout)  :: this
+  type(particle_sim), intent(inout) :: sim
   integer :: i, ierr, n_proj
   real*8 :: t0, t1, ostart, oend
   character(len=120) :: filename
@@ -993,10 +1021,15 @@ subroutine save_to_vtk(this, sim)
     return
   end if
 
-  if (len_trim(this%filename) .eq. 0) then
-    filename = this%get_filename(sim%time)
-  else
-    filename = this%filename
+  if (.not. this%index_h5) then ! put file name with physical time
+    if (len_trim(this%filename) .eq. 0) then
+      filename = this%get_filename(sim%time)
+    else
+      filename = this%filename
+    end if
+  else ! put file name with 'index_now'
+    write(filename,'(a,i5.5)') trim(this%basename), index_now
+    filename = trim(filename)//this%extension
   end if
 
   call cpu_time(t0)
@@ -1029,19 +1062,25 @@ end subroutine save_to_vtk
 subroutine save_to_h5(this, sim)
   use mpi_mod
   use mod_event
+  use phys_module, only: index_now
   !$ use omp_lib
-  class(projection), intent(inout)  :: this
-  type(particle_sim), intent(inout)    :: sim
+  class(projection),  intent(inout)  :: this
+  type(particle_sim), intent(inout)  :: sim
   integer :: my_id, ierr, n_proj
   character(len=120) :: filename
   real*8 :: t0, t1, ostart, oend
 
   this%extension = '.h5'
 
-  if (len_trim(this%filename) .eq. 0) then
-    filename = this%get_filename(sim%time)
-  else
-    filename = this%filename
+  if (.not. this%index_h5) then ! put file name with physical time
+    if (len_trim(this%filename) .eq. 0) then
+      filename = this%get_filename(sim%time)
+    else
+      filename = this%filename
+    end if
+  else ! put file name with 'index_now'
+    write(filename,'(a,i5.5)') trim(this%basename), index_now
+    filename = trim(filename)//this%extension
   end if
 
   call cpu_time(t0)

@@ -113,66 +113,177 @@ end subroutine initialise
 
 !> Verify that we are not doing stupid things. Run this after loading parameters
 !> from the input file.
-subroutine sanity_checks(my_id, n_cpu)
+subroutine sanity_checks(my_id, n_cpu, mpi_required, mpi_provided)
   use mumps_module
   use pastix_module
   use wsmp_module
   use mod_parameters, only: n_tor, n_plane
   use phys_module
 
-  integer :: ierr
+  integer :: ierr, i
   integer, intent(in) :: my_id, n_cpu
+  integer :: nsolvers=0
+  logical :: solvers(4), solvers_eq(3)
+  integer :: mpi_required, mpi_provided
 
-  if ( (.not. use_mumps) .and. (.not. use_pastix) .and. (.not. use_wsmp) ) then
+  ! WARNING for axis treatment
+  if(treat_axis .and. (fix_axis_nodes .or. force_central_node))then
+    write(*,*) 'WARNING :'
+    write(*,*) 'If using treat_axis = .true. then'
+    write(*,*) 'fix_axis_nodes and force_central_node both MUST be .false.'
+    write(*,*) 'Setting fix_axis_nodes and force_central_node to .false.'    
+    force_central_node  = .false.
+    fix_axis_nodes      = .false.
+  endif
+  if(treat_axis .and. (n_order .gt. 3))then
+    write(*,*) 'WARNING :'
+    write(*,*) 'treat_axis = .true. is not possible'
+    write(*,*) 'at the moment with n_order>3, please use fix_axis_nodes instead.'
+    call MPI_FINALIZE(IERR) 
+    stop
+  endif
+
+  ! WARNING for freeboundary with n_order>3
+  if(freeboundary .and. (n_order .gt. 3))then
+    write(*,*) 'WARNING :'
+    write(*,*) 'freeboundary = .true. is not possible'
+    write(*,*) 'at the moment with n_order>3, aborting.'
+    call MPI_FINALIZE(IERR) 
+    stop
+  endif
+
+  ! --- GMRES makes no sense with n_tor=1
+  if (n_tor == 1) then
+    write(*,*) 'Remark: Setting gmres=.false. since n_tor=1'
+    gmres     = .false. 
+  end if
+
+#if (!defined(USE_PASTIX))&&(!defined(USE_PASTIX6))
+  if (use_pastix.or.use_pastix_eq) then
+    write(*,*) ' FATAL : use_pastix requires defined USE_PASTIX or USE_PASTIX6'
+    call MPI_Abort(MPI_COMM_WORLD, 3, ierr)
+    stop
+  endif
+#endif
+
+#ifndef USE_MUMPS
+  if (use_mumps.or.use_mumps_eq) then
+    write(*,*) ' FATAL : use_mumps requires defined USE_MUMPS'
+    call MPI_Abort(MPI_COMM_WORLD, 3, ierr)
+    stop
+  endif
+#endif
+
+#ifndef USE_WSMP
+  if (use_wsmp) then
+    write(*,*) ' FATAL : use_wsmp requires defined USE_WSMP'
+    call MPI_Abort(MPI_COMM_WORLD, 3, ierr)
+    stop
+  endif
+#endif
+
+#ifndef USE_STRUMPACK
+  if (use_strumpack.or.use_strumpack_eq) then
+    write(*,*) ' FATAL : use_strumpack requires defined USE_STRUMPACK'
+    call MPI_Abort(MPI_COMM_WORLD, 3, ierr)
+    stop
+  endif
+#endif
+  
+  ! --- Check solver consistency
+  solvers = (/use_mumps,use_pastix,use_wsmp,use_strumpack/)
+  nsolvers = 0
+  do i=1,size(solvers)
+    if (solvers(i)) nsolvers = nsolvers + 1
+  enddo
+  if (nsolvers.eq.0) then
     write(*,*) ' FATAL : specify a valid solver'
+    call MPI_Abort(MPI_COMM_WORLD, 3, ierr)
+    stop
+  elseif (nsolvers.gt.1) then
+    write(*,*) ' FATAL : specify only one solver'
+    call MPI_Abort(MPI_COMM_WORLD, 3, ierr)
+    stop
+  endif
+  
+  solvers_eq = (/use_mumps_eq,use_pastix_eq,use_strumpack_eq/)
+  nsolvers = 0
+  do i=1,size(solvers_eq)
+    if (solvers_eq(i)) nsolvers = nsolvers + 1
+  enddo
+  if (nsolvers.eq.0) then
+    write(*,*) ' FATAL : specify a valid equilibrium solver'
+    call MPI_Abort(MPI_COMM_WORLD, 3, ierr)
+    stop
+  elseif (nsolvers.gt.1) then
+    write(*,*) ' FATAL : specify only one equilibrium solver'
+    call MPI_Abort(MPI_COMM_WORLD, 3, ierr)
+    stop
+  endif
+
+  ! --- Some checks not to waste any cpu time
+  if ( (n_tor < 1) .or. (mod(n_tor,2) == 0) ) then
+    write(*,*) 'FATAL : Hard-coded parameter n_tor has an illegal value', n_tor
+    call MPI_Abort(MPI_COMM_WORLD, 23, ierr)
+    stop
+  else if ( (n_coord_tor > 1) .and. (rst_hdf5_version .eq. 1) ) then
+    write(*,*) 'FATAL : Hard-coded parameter n_coord_tor > 1 is only possible with rst_hdf5_version > 1'
+    call MPI_Abort(MPI_COMM_WORLD, 23, ierr)
+  else if ( n_period<1 ) then
+    write(*,*) 'FATAL : Hard-coded parameter n_period has an illegal value', n_period
+    call MPI_Abort(MPI_COMM_WORLD, 24, ierr)
+    stop
+  else if ( n_elements_max<1 ) then
+    write(*,*) 'FATAL : Hard-coded parameter n_elements_max has an illegal value', n_elements_max
+    call MPI_Abort(MPI_COMM_WORLD, 25, ierr)
+    stop
+  else if ( n_nodes_max<1 ) then
+    write(*,*) 'FATAL : Hard-coded parameter n_nodes_max has an illegal value', n_nodes_max
+    call MPI_Abort(MPI_COMM_WORLD, 25, ierr)
+    stop
+  else if ( n_boundary_max<1 ) then
+    write(*,*) 'FATAL : Hard-coded parameter n_boundary_max has an illegal value', n_boundary_max
+    call MPI_Abort(MPI_COMM_WORLD, 25, ierr)
+    stop
+  else if ( n_pieces_max<1 ) then
+    write(*,*) 'FATAL : Hard-coded parameter n_pieces_max has an illegal value', n_pieces_max
+    call MPI_Abort(MPI_COMM_WORLD, 25, ierr)
+    stop
+  else if ( n_vertex_max/=4 ) then
+    write(*,*) 'WARNING : hard-coded parameter n_vertex_max /= 4', n_vertex_max
+    call MPI_Abort(MPI_COMM_WORLD, 25, ierr)
+    stop
+  else if (mpi_required .ne. mpi_provided) then
+    write(*,*) 'FATAL : MPI_THREAD_MULTIPLE (provided < required)', my_id, mpi_required, mpi_provided
     call MPI_Abort(MPI_COMM_WORLD, 2, ierr)
+    stop
+  else if ( mod(n_tor,2) == 0 ) then
+    write(*,*) ' FATAL: n_tor must be an uneven number.'
+    call MPI_Abort(MPI_COMM_WORLD, 4, ierr)
     stop
   else if ( n_plane < 2*(n_tor-1) ) then
     write(*,*) ' FATAL: n_plane >= 2 * (n_tor-1) required to avoid aliasing.'
-    call MPI_Abort(MPI_COMM_WORLD, 3, ierr)
+    call MPI_Abort(MPI_COMM_WORLD, 4, ierr)
     stop
 #ifndef USE_FFTW
   else if ( ( n_tor >= n_tor_fft_thresh ) .and. ( iand(n_plane,n_plane-1) /= 0 ) ) then
     write(*,*) ' FATAL: If n_tor >= n_tor_fft_thresh, n_plane must be a power of 2.'
     write(*,*) ' Hint: USE_FFTW removes this constraint.'
-    call MPI_Abort(MPI_COMM_WORLD, 4, ierr)
-    stop
-#endif
-  else if ( gmres .and. (nstep > 0) .and. (mod(n_cpu,(n_tor-1)/2+1) /= 0) ) then
-    write(*,'(A,i4,A,i4,A)') ' FATAL : need a multiple of ',(n_tor-1)/2+1,' cpus for ',            &
-      (n_tor-1)/2+1,' harmonics'
     call MPI_Abort(MPI_COMM_WORLD, 5, ierr)
     stop
-  else if ( use_mumps ) then
-#ifndef USE_MUMPS
-    write(*,*) 'FATAL : use_mumps=.true. requires USE_MUMPS=1 in Makefile.inc'
-    call MPI_Abort(MPI_COMM_WORLD, 6, ierr)
+#endif
+  else if ( n_tor_fft_thresh < 2 ) then
+    write(*,*) ' FATAL: n_tor_fft_thresh < 2 presently not allowed. Will cause problems for n_tor=1.'
+    call MPI_Abort(MPI_COMM_WORLD, 5, ierr)
     stop
-#endif
-  else if ( use_pastix ) then
-#ifndef USE_PASTIX
-     write(*,*) 'FATAL : use_pastix=.true. requires USE_PASTIX=1 in Makefile.inc'
-     call MPI_Abort(MPI_COMM_WORLD, 7, ierr)
-     stop
-#endif
   else if ( use_wsmp ) then
-#ifndef USE_WSMP
-    write(*,*) 'FATAL : use_wsmp=.true. requires USE_WSMP=1 in Makefile.inc'
-    call MPI_Abort(MPI_COMM_WORLD, 9, ierr)
-    stop
-#endif
 #ifdef USE_BLOCK
     write(*,*) 'FATAL : USE_BLOCK=1 in Makefile.inc is currently not possible with use_wsmp'
-    call MPI_Abort(MPI_COMM_WORLD, 10, ierr)
+    call MPI_Abort(MPI_COMM_WORLD, 11, ierr)
     stop
 #endif
-      if ( .not. restart ) then
+    if ( .not. restart ) then
       write(*,*) 'FATAL : use_wsmp is currently not supported for the equilibrium'
-      call MPI_Abort(MPI_COMM_WORLD, 11, ierr)
-      stop
-    end if
-    if ( use_pastix ) then
-      write(*,*) 'FATAL : you should only select one of use_wsmp or use_pastix'
       call MPI_Abort(MPI_COMM_WORLD, 12, ierr)
       stop
     end if
@@ -186,6 +297,32 @@ subroutine sanity_checks(my_id, n_cpu)
     write(*,*) '  Consider testing, whether you get better performance by increasing the number'
     write(*,*) '  of MPI tasks and reducing the number of OpenMP threads in the jobscript.'
   end if
+  if ( ( tauIC .ne. 0.d0 ) .and. ( jorek_model == 401 ) ) then
+    write(*,*) 'WARNING: tauIC in model401 has been modified to match model303. '
+    write(*,*) '         tauIC should be = m_{ion} / ( e * F0 * sqrt_mu0_rho0 * (1. + T_i/T_e) )'
+  endif
+  if (abs(visco_par-visco_par_heating)/(visco_par+visco_par_heating+1.d-12) > 1.d-6) then
+    write(*,*) 'WARNING: The viscosity visco_par and the viscosity used for viscous heating '
+    write(*,*) '  visco_par_heating are not the same. No problem if you know what you are doing,  ' 
+    write(*,*) '  but with this setup you are not conserving energy.   '
+  endif
+
+  if (abs(eta-eta_ohmic)/(eta+eta_ohmic+1.d-12) > 1.d-6) then
+    write(*,*) 'WARNING: The resistivity eta and the resistivity used for Ohmic heating '
+    write(*,*) '  eta_ohm are not the same. No problem if you know what you are doing,  ' 
+    write(*,*) '  but with this setup you are not conserving energy.   '
+  endif
+  if (abs(T_max_eta-T_max_eta_ohm)/(T_max_eta+T_max_eta_ohm) > 1.d-6) then
+    write(*,*) 'WARNING: T_max_eta and T_max_eta_ohm are not the same, which breaks  &
+        energy conservation. No problem if you know what you are doing (a good reason to &
+	do this could be to avoid spurious Ohmic heating in the plasma core).'
+  end if
+  if ((T_min_neg .lt. 0.d0) .or. (rho_min_neg .lt. 0.d0)) then
+	write(*,*) 'WARNING: You did not specify T_min_neg and/or rho_min_neg for the correction of negative temperatures and densities.  & 
+	   The lower values of the equilibrium profiles (T_1 and/or rho_1) will be used instead.'
+	write(*,*) 'For instance, try in your input file: rho_min_neg = 1.d-3 and T_min_neg = 4.02d-4 !=2.01d-5*central_density*Tmin_ev (with central_density = 1 and Tmin_eV= 20 eV)'    
+  endif
+
 #ifndef USE_BLOCK
   write(*,*) 'WARNING: You are not using USE_BLOCK=1 which might be inefficient.'
   write(*,*) '  Consider setting USE_BLOCK=1 in your Makefile.inc'
@@ -194,6 +331,11 @@ subroutine sanity_checks(my_id, n_cpu)
   write(*,*) 'WARNING: You are not using USE_FFTW=1 which might be inefficient.'
   write(*,*) '  Consider setting USE_FFTW=1 in your Makefile.inc'
 #endif
+  if (use_pastix .and. use_BLR_compression) then
+    write(*,*) 'WARNING: PaStiX versions before 6.x do not support BLR compression.'
+    write(*,*) '  No compression will be used in this run.'
+  endif
+  
 end subroutine sanity_checks
 
 

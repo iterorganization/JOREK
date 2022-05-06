@@ -568,6 +568,26 @@ if (my_id == 0) then
 
   enddo
   
+  ! --- Variable projection is better at higher order...
+  ! --- (by the way, we could use this for n_order=3 and remove all the above as well, 
+  ! --- and remove all derivatives from profiles functions, which are not really needed, 
+  ! --- except dn_dpsi and dT_dpsi for current profile...)
+  if (n_order .ge. 5) then
+    call find_axis(my_id,node_list,element_list,psi_axis,R_axis,Z_axis,i_elm_axis,s_axis,t_axis,ifail)
+    call find_xpoint(my_id,node_list,element_list,psi_xpoint,R_xpoint2,Z_xpoint2,i_elm_xpoint,s_xpoint,t_xpoint,xcase2,ifail)
+    if (xpoint2) then
+      ES%xpoint = xpoint2
+      ES%Z_xpoint = Z_xpoint
+    endif
+    ES%psi_bnd  = psi_bnd
+    ES%psi_axis = psi_axis
+    ES%Z_xpoint = Z_xpoint
+    ES%xpoint   = xpoint
+    ES%xcase    = xcase
+    call Poisson(my_id,0,node_list,element_list,bnd_node_list,bnd_elm_list, &
+                 var_psi,var_zj,1, psi_axis,psi_bnd,xpoint2,xcase2,Z_xpoint,freeboundary_equil,refinement,1)
+  endif
+  
   ! --- Find flux surfaces and plot them; determine the q-profile.  
   if (xpoint2 .and. (n_flux .gt. 1)) then
     
