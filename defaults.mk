@@ -12,9 +12,9 @@ $(shell mkdir -p $(MODDIR) $(OBJDIR) $(DEPDIR) >/dev/null)
 INCLUDES += -I$(MODDIR)
 
 # Detect the compiler vendors (sort to remove duplicates)
-F_COMPILER_FAMILY :=$(sort $(shell $(FC) --version | grep -oim 1 'intel\|gcc\|gnu' | tr A-Z a-z | sed 's/gcc/gnu/'))
-C_COMPILER_FAMILY :=$(sort $(shell $(CC) --version | grep -oim 1 'intel\|gcc\|gnu' | tr A-Z a-z | sed 's/gcc/gnu/'))
-CXX_COMPILER_FAMILY :=$(sort $(shell $(CXX) --version | grep -oim 1 'intel\|gcc\|gnu\|g[+][+]' | tr A-Z a-z | sed -e 's/gcc/gnu/' -e 's/g[+][+]/gnu/'))
+F_COMPILER_FAMILY :=$(sort $(shell $(FC) --version | grep -oim 1 'pg\|intel\|gcc\|gnu' | tr A-Z a-z | sed 's/gcc/gnu/'))
+C_COMPILER_FAMILY :=$(sort $(shell $(CC) --version | grep -oim 1 'pg\|intel\|gcc\|gnu' | tr A-Z a-z | sed 's/gcc/gnu/'))
+CXX_COMPILER_FAMILY :=$(sort $(shell $(CXX) --version | grep -oim 1 'pg\|intel\|gcc\|gnu\|g[+][+]' | tr A-Z a-z | sed -e 's/gcc/gnu/' -e 's/g[+][+]/gnu/'))
 ifneq ($(F_COMPILER_FAMILY),$(C_COMPILER_FAMILY))
   $(error "Fortran compiler ($(F_COMPILER_FAMILY)) must be same as C compiler ($(C_COMPILER_FAMILY))")
 endif
@@ -105,6 +105,17 @@ ifeq ($(COMPILER_FAMILY), intel)
   endif
 
   FFLAGS +=-module $(MODDIR)
+endif
+
+# Default flags for nvidia/portland - for kernels
+ifeq ($(COMPILER_FAMILY), pg)
+  FLAGS += -cuda -fortranlibs -g77libs -mp=gpu
+  FFLAGS += -Minfo=mp
+  FFLAGS += -cpp
+  FFLAGS += -cuda
+  FFLAGS += -r8
+  FFLAGS +=-module $(MODDIR)
+  LIBS += -lgfortran -lcuda -L/$(CUDA_LIB) -lcudart
 endif
 
 #TODO identify good default flags for XLF
