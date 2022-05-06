@@ -186,7 +186,7 @@ real*8, dimension(n_plane,n_var,n_gauss,n_gauss) :: delta_g, delta_s, delta_t
 !  --- For shock capturing stabilization
 real*8     :: midp_edge1(1:2), midp_edge2(1:2), midp_edge3(1:2), midp_edge4(1:2)
 real*8     :: len1, len2, h_e
-real*8     :: f_p, d_p, tau_sc, R_rho, R_T, R_rhon, s_p, src_rho, src_T, src_rhon
+real*8     :: f_p, d_p, tau_sc, R_rho, R_T, R_rhon, src_p
 real*8     :: Ptot, Ptot_x, Ptot_y, Ptot_p, Ptot_corr, rho_eff, T_eff
 
 ELM_p = 0.d0
@@ -3086,18 +3086,14 @@ d_p = T0 * R_rho / BigR + rho_eff * R_T / BigR + T_eff * R_rhon / BigR
 f_p = dsqrt( Ptot_x*Ptot_x + Ptot_y*Ptot_y + Ptot_p*Ptot_p/ (BigR*BigR) ) / Ptot_corr * h_e
 
 ! take into account effect of source terms
-src_rho  =  ( particle_source(ms,mt) + source_bg + source_imp)
-src_rhon =  source_imp
-src_T    =  ( heat_source(ms,mt) &
+src_p   =  heat_source(ms,mt) &
          + ((GAMMA - 1.)/2.) * vpar0**2 * BB2 * (source_bg + source_imp) &
          + ((GAMMA - 1.)/2.) * vv2 * (source_bg + source_imp)            &
          - (r0_corr+beta_imp*rn0_corr) * rn0_corr * Lrad                 &
-         - (r0_corr+beta_imp*rn0_corr) * frad_bg                         &
-         - T0 * src_rho - T_eff * src_rhon ) / rho_eff
-s_p = T0 * src_rho + rho_eff * src_T + T_eff * src_rhon
+         - (r0_corr+beta_imp*rn0_corr) * frad_bg 
 
 ! Estimation of the numerical stabilization coefficient
-tau_sc = h_e * h_e * (abs(s_p) + abs(d_p)) / Ptot_corr * f_p
+tau_sc = h_e * h_e * (abs(d_p) + abs(src_p)) / Ptot_corr * f_p
 
 ! Updates in the physical diffsivities to locally add numerical stabilization.
 ! visco_par, D_par and D_par_imp are directly updated in the equations

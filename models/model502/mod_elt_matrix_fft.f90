@@ -208,7 +208,7 @@ real*8     :: midp_edge1(1:2), midp_edge2(1:2), midp_edge3(1:2), midp_edge4(1:2)
 real*8     :: len1, len2, h_e
 real*8     :: Ptot, Ptot_x,  Ptot_y,  Ptot_p, Ptot_corr
 real*8     :: f_p, d_p, tau_sc, R_rho, R_Ti, R_Te, R_rhon
-real*8     :: s_p, src_rho, src_Ti, src_Te, src_rhon
+real*8     :: s_p, src_rho, src_pi, src_pe
 real*8     :: rho_i_eff, rho_e_eff, T_i_eff, T_e_eff
 
 ELM_p = 0.d0
@@ -3735,29 +3735,24 @@ R_Te = + BigR**2 * ( Te0_x * u0_y - Te0_y * u0_x)    &
        -  (GAMMA - 1.0d0) * Pe0 / rho_e_eff  * F0 / BigR * vpar0_p &
        -  (GAMMA - 1.d0 ) * Pe0 / rho_e_eff  * (vpar0_x * ps0_y - vpar0_y * ps0_x)
 
-
 ! 1/BigR removes the factor R from the integrand in (R dR)                 
-d_p = ( (Ti0+Te0)*R_rho +  rho_i_eff*R_Ti + rho_e_eff*R_Te + (alpha_i*Ti0+alpha_e*Te0+(gamma-1.0d0)*E_ion)*R_rhon ) / BigR
+d_p = ( (Ti0+Te0)*R_rho +  rho_i_eff*R_Ti + rho_e_eff*R_Te + (T_i_eff+T_e_eff)*R_rhon ) / BigR
 
 ! Shock-detector term based on the total pressure gradient
 f_p = dsqrt( Ptot_x*Ptot_x + Ptot_y*Ptot_y + Ptot_p*Ptot_p/ (BigR*BigR) ) / Ptot_corr * h_e
 
 ! take into account effect of source terms
-src_rho  = (particle_source(ms,mt) + source_pellet+source_bg+source_imp)
-src_rhon = source_imp
-src_Ti   = ( heat_source_i(ms,mt)                                              &
+src_rho  = (particle_source(ms,mt) + source_pellet)
+src_pi   =   heat_source_i(ms,mt)                                              &
           + ((GAMMA - 1.)/2.) * vpar0**2 * BB2 * (source_bg + source_imp)      &
-          + ((GAMMA - 1.)/2.) * vv2 * (source_bg + source_imp)                 &
-          - Ti0 * src_rho - T_i_eff * src_rhon) / rho_i_eff
-src_Te  = ( heat_source_e(ms,mt)                          &
+          + ((GAMMA - 1.)/2.) * vv2 * (source_bg + source_imp) 
+src_pe  =   heat_source_e(ms,mt)                          &
           - (r0_corr+alpha_e*rn0_corr) * rn0_corr * Lrad  &
-          - (r0_corr+alpha_e*rn0_corr) * frad_bg          &
-          - Te0 * src_rho - T_i_eff * src_rhon) / rho_i_eff
-s_p = (Ti0+Te0)*src_rho + rho_i_eff*src_Ti + rho_e_eff*src_Te + (alpha_i*Ti0 + alpha_e*Te0 +(gamma-1.0d0)*E_ion) * src_rhon
+          - (r0_corr+alpha_e*rn0_corr) * frad_bg
+s_p = (Ti0+Te0)*src_rho + src_pi + src_pe
 
 ! Estimation of the numerical stabilization coefficient
 tau_sc = h_e * h_e * (abs(s_p) + abs(d_p)) / Ptot_corr * f_p
-
 
 ! Updates in the physical diffsivities to locally add numerical stabilization.
 visco_T    = visco_T    + visco_sc_num     * tau_sc
