@@ -126,10 +126,11 @@ contains
   subroutine test_copy_device_data
 
     type(particle_kinetic_leapfrog), managed, dimension(:), allocatable  :: particles
+    type(fields_linear_device), managed                                         :: fields
 
     integer    :: n_particles
 
-    call copy_device_data( sim , particles )
+    call copy_device_data( sim , particles , fields )
 
   end subroutine test_copy_device_data
   
