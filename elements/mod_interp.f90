@@ -25,6 +25,9 @@ end interface interp_PRZ
 contains
 
 !> This subroutine interpolates some variables at a specific position within one element at a given position (s,t)
+#ifdef CUDA_KERNELS
+  attributes(host,device) &
+#endif
 pure subroutine interp_PRZ_0(node_list, element_list, i_elm, i_v, n_v, s, t, phi, P, R, Z, deltas)
 type (type_node_list),    intent(in)  :: node_list
 type (type_element_list), intent(in)  :: element_list
@@ -92,6 +95,9 @@ enddo
 end subroutine interp_PRZ_0
 
 !> This subroutine interpolates some variables at a specific position within one element at a given position (s,t)
+#ifdef CUDA_KERNELS
+  attributes(host,device) &
+#endif
 pure subroutine interp_PRZ_1(node_list, element_list, i_elm, i_v, n_v, s, t, phi, P, P_s, P_t, P_phi, R, R_s, R_t, Z, Z_s, Z_t, deltas)
 type (type_node_list),    intent(in)  :: node_list
 type (type_element_list), intent(in)  :: element_list
@@ -171,6 +177,9 @@ end subroutine interp_PRZ_1
 
 
 !> This subroutine interpolates some variables at a specific position within one element at a given position (s,t)
+#ifdef CUDA_KERNELS
+  attributes(host,device) &
+#endif
 pure subroutine interp_PRZ_2(node_list, element_list, i_elm, i_v, n_v, s, t, phi, &
         P, P_s, P_t, P_phi, P_st, P_ss, P_tt, P_sphi, P_tphi, P_phiphi, R, R_s, R_t, R_st, R_ss, R_tt, &
         Z, Z_s, Z_t, Z_st, Z_ss, Z_tt, deltas)
