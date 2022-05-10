@@ -35,9 +35,10 @@ module mod_particle_kernels
 contains
 
 
-  subroutine particle_kinetic_leapfrog_loop( sim  , n_steps )! , timestep , particle_start_time )
+  subroutine particle_kinetic_leapfrog_loop( sim  , n_steps , timestep , particle_start_time )
     type(particle_sim), intent(inout)                                    :: sim
-    integer, intent(in)                                                  :: n_steps
+    integer, intent(inout)                                               :: n_steps
+    real*8, intent(inout)                                                :: particle_start_time, timestep
     
     type(particle_kinetic_leapfrog), managed, dimension(:), allocatable  :: particles
     type(fields_linear_device), managed, allocatable                     :: fields
@@ -49,6 +50,7 @@ contains
     if(sim%my_id==0) call device_query()
 
     n_steps = 1000
+    timestep = 1e-10
     n_particles = size( sim%groups(1)%particles,1)
     tBlock_size = 256
     tBlock = dim3(tBlock_size,1,1)
@@ -62,22 +64,25 @@ contains
     write(*,*) "Proc ",sim%my_id," data copy completed in ",MPI_Wtime()-start_time," s"
 
     start_time = MPI_WTime()
-    call particle_kinetic_leapfrog_loop_kernel<<<grid, tBlock>>>(n_particles, particles, fields, n_steps) ! timesteps, particle_start_time )
+    call particle_kinetic_leapfrog_loop_kernel<<<grid, tBlock>>>(n_particles, particles, fields, n_steps, timestep, particle_start_time )
     istat = cudaDeviceSynchronize()
     if (istat /= cudaSuccess) write(*,*) cudaGetErrorString(istat)
     write(*,*) "Proc ",sim%my_id," kernel completed in ",MPI_Wtime()-start_time," s"
    
   end subroutine particle_kinetic_leapfrog_loop
 
-  attributes(global) subroutine particle_kinetic_leapfrog_loop_kernel(n_particles, particles, fields, n_steps) !timesteps, particle_start_time )
+  attributes(global) subroutine particle_kinetic_leapfrog_loop_kernel( n_particles, particles, fields, n_steps, timestep, particle_start_time )
     type(particle_kinetic_leapfrog), managed, dimension(:), intent(inout)  :: particles
     type(fields_linear_device), managed , intent(inout)                    :: fields
     integer, value, intent(in)                                             :: n_particles, n_steps
+    real*8, value, intent(in)                                              :: timestep, particle_start_time
 
     type(particle_kinetic_leapfrog)         :: particle_tmp
     integer                                 :: i,j
     real*8                                  :: t, E(3), B(3), psi, U
- 
+    real*8                                  :: rz_old(2), st_old(2)
+    integer                                 :: i_elm_old, ifail
+
     i = threadIdx%x + (blockIdx%x-1) * blockDim%x 
     if(i == 10) write(*,*) "Seems to be working"
     if ( i <= n_particles ) then
@@ -87,11 +92,18 @@ contains
              write(*,*) "Losing particle",j
              exit
           endif
+
+          t = particle_start_time + (j-1)*timestep
           call calc_EBpsiU_device(fields, t, particle_tmp%i_elm, particle_tmp%st, particle_tmp%x(3), E, B, psi, U)
+
+          rz_old    = particle_tmp%x(1:2)
+          st_old    = particle_tmp%st
+          i_elm_old = particle_tmp%i_elm
+
        end do
        call copy_particle_kinetic_leapfrog( particle_tmp , particles(i) )
     end if
-    
+
   end subroutine particle_kinetic_leapfrog_loop_kernel
   
   subroutine device_query()

@@ -137,10 +137,15 @@ contains
   
   subroutine test_particle_kinetic_leapfrog_loop
 
-    real*8 :: start_time
+    real*8   :: start_time, particle_start_time, timestep
+    integer  :: n_steps
 
+    start_time = 0
+    n_steps = 1000
+    timestep = 1e-10
+    
     start_time = MPI_Wtime()
-    call particle_kinetic_leapfrog_loop( sim )
+    call particle_kinetic_leapfrog_loop( sim , n_steps , timestep , particle_start_time )
     write(*,*) "Proc ",sim%my_id," full loop completed in ",MPI_Wtime()-start_time," s"
 
     
