@@ -134,10 +134,9 @@ contains
 
   !> Copy one particle of a type kinetic_leapfrog to another
 #ifdef CUDA_KERNELS
-  attributes(host,device) subroutine copy_particle_kinetic_leapfrog(in, out)
-#else
-  pure subroutine copy_particle_kinetic_leapfrog(in, out)
+  attributes(host,device) &
 #endif
+  pure subroutine copy_particle_kinetic_leapfrog(in, out)
     type(particle_kinetic_leapfrog), intent(in)    :: in
     type(particle_kinetic_leapfrog), intent(inout) :: out
     out%x       = in%x

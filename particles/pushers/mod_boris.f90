@@ -20,7 +20,10 @@ contains
 !> Push a single particle for some timesteps with the boris method
 !> See G.L. Delzanno, E. Camporeale / JCP 253 (2013) 259-277 for details.
 !> This routine works in RZPhi coordinates
-pure subroutine boris_push_cylindrical(particle, m, E, B, dt)
+#ifdef CUDA_KERNELS
+  attributes(host,device) & 
+#endif
+  pure subroutine boris_push_cylindrical(particle, m, E, B, dt)
   use mod_math_operators, only: cross_product
   type(particle_kinetic_leapfrog), intent(inout)  :: particle
   real*8, intent(in) :: m

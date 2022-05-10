@@ -8,7 +8,10 @@ module mod_math_operators
 contains
   
 !> The vector cross product
-pure function cross_product(a, b)
+#ifdef CUDA_KERNELS
+  attributes(host,device) &
+#endif
+  pure function cross_product(a, b)
   real*8, dimension(3) :: cross_product
   real*8, dimension(3), intent(in) :: a, b
 

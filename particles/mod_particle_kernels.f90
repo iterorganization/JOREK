@@ -6,8 +6,9 @@ module mod_particle_kernels
 
   use cudafor
   use mpi
-  use mod_particle_sim, only: particle_sim
+  use mod_particle_sim,   only: particle_sim
   use mod_particle_types, only: particle_kinetic_leapfrog, copy_particle_kinetic_leapfrog
+  use mod_boris,          only: boris_push_cylindrical
   use data_structure
   
   implicit none
@@ -79,12 +80,12 @@ contains
 
     type(particle_kinetic_leapfrog)         :: particle_tmp
     integer                                 :: i,j
-    real*8                                  :: t, E(3), B(3), psi, U
+    real*8                                  :: t, E(3), B(3), psi, U, mass
     real*8                                  :: rz_old(2), st_old(2)
     integer                                 :: i_elm_old, ifail
 
+    mass = 2
     i = threadIdx%x + (blockIdx%x-1) * blockDim%x 
-    if(i == 10) write(*,*) "Seems to be working"
     if ( i <= n_particles ) then
        call copy_particle_kinetic_leapfrog( particles(i) , particle_tmp )
        do j=1,n_steps
@@ -99,6 +100,10 @@ contains
           rz_old    = particle_tmp%x(1:2)
           st_old    = particle_tmp%st
           i_elm_old = particle_tmp%i_elm
+
+          if (particle_tmp%i_elm .gt. 0) then
+             call boris_push_cylindrical(particle_tmp, mass, E, B, timestep)                 
+          endif
 
        end do
        call copy_particle_kinetic_leapfrog( particle_tmp , particles(i) )
