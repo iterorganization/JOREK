@@ -270,6 +270,9 @@ end subroutine interp_PRZ_2
 ! This is roughly 3-4 times faster in my tests than just calculating the sines
 ! and cosines (even when that is vectorized). Perhaps that changes for n_tor >> 10
 ! I tested n_tor = 17.
+#ifdef CUDA_KERNELS
+  attributes(host,device) &
+#endif
 pure subroutine sincosperiod_moivre(phi,HZ,dHZ)
   integer, parameter  :: n_mode = (n_tor-1)/2 ! number of modes excluding 0
   real*8, intent(in)  :: phi
@@ -293,6 +296,9 @@ pure subroutine sincosperiod_moivre(phi,HZ,dHZ)
 
 end subroutine sincosperiod_moivre
 
+#ifdef CUDA_KERNELS
+  attributes(host,device) &
+#endif
 pure subroutine moivre(ar,ai,br,bi,or,oi)
   real*8, intent(in)  :: ar, ai !< real and imag part of e^(i x)
   real*8, intent(in)  :: br, bi !< real and imag part of e^(i y)
@@ -305,6 +311,9 @@ end subroutine moivre
 ! Assumes that mode is of the form [0 1 1 2 2 3 3 4 4] ([0 4 4 8 8 12 12])
 ! This is roughly 3-4 times faster in my tests than just calculating the sines
 ! and cosines (even when that is vectorized).
+#ifdef CUDA_KERNELS
+  attributes(host,device) &
+#endif
 pure subroutine mode_moivre(phi,HZ)
   integer, parameter  :: n_mode = (n_tor-1)/2 ! number of modes excluding 0
   real*8, intent(in)  :: phi

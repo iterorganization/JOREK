@@ -10,7 +10,9 @@ module mod_particle_kernels
   use mod_particle_types, only: particle_kinetic_leapfrog, copy_particle_kinetic_leapfrog
   use mod_boris,          only: boris_push_cylindrical
   use mod_basisfunctions
+  use mod_interp
   use data_structure
+  use mod_linear
   
   implicit none
 
@@ -380,15 +382,15 @@ contains
           dt = 1.d0/(fields%time_now - fields%time_prev)
           df = (fields%time_now - time)*dt
           !> apply linear interpolation
-          P     = linear_interp_differentials_device(n_v,P,Pd,df)
-          P_s   = linear_interp_differentials_device(n_v,P_s,Pd_s,df)
-          P_t   = linear_interp_differentials_device(n_v,P_t,Pd_t,df)
-          P_phi = linear_interp_differentials_device(n_v,P_phi,Pd_phi,df)
+          P     = linear_interp_differentials(n_v,P,Pd,df)
+          P_s   = linear_interp_differentials(n_v,P_s,Pd_s,df)
+          P_t   = linear_interp_differentials(n_v,P_t,Pd_t,df)
+          P_phi = linear_interp_differentials(n_v,P_phi,Pd_phi,df)
        else
           dt = 1.d0/t_jorek
        endif
        !> compute time derivative
-       P_time = linear_interp_differentials_dt_device(n_v,Pd,dt) 
+       P_time = linear_interp_differentials_dt(n_v,Pd,dt) 
     endif
 
   end subroutine do_interp_PRZ_device
@@ -422,7 +424,7 @@ contains
     P = 0.d0; P_s = 0.d0; P_t = 0.d0; P_phi = 0.d0
 
     ! 7% exec time
-    call sincosperiod_moivre_device(fields%meta, phi, HZ, dHZ)
+    call sincosperiod_moivre(phi, HZ, dHZ)
 
     ! 30% exec time
     ! Preload values and premultiply with sizes(:,kv)
@@ -474,97 +476,6 @@ contains
     enddo
 
   end subroutine interp_PRZ_device
-
-
-
-
-  
-  !> This procedure computes the linear interpolation of first order derivatives
-  !> inputs:
-  !>   n:          (integer) number of derivatives
-  !>   dy_new:     (real8)(n) differentials at the end time
-  !>   inverse_dt: (real8)(n) inverse of the interval duration
-  !> outputs:
-  !>   dydt:       (real8)(n) linear interpolation of derivatives
-  attributes(device) function linear_interp_differentials_dt_device(n,dy_new,inverse_dt) &
-       result(dydt)
-    !> declare input variables
-    integer, intent(in)                    :: n
-    real(kind=8), dimension(n), intent(in) :: dy_new
-    real(kind=8), intent(in)               :: inverse_dt
-    !> declare output variables
-    real(kind=8), dimension(n) :: dydt
-
-    !> compute derivatives
-    dydt = dy_new*inverse_dt
-
-  end function linear_interp_differentials_dt_device
-
-  !> This function performs a linear interpolation given values and
-  !> their differentials
-  !> inputs:
-  !>   n:      (integer) number of values
-  !>   y_new:  (real8)(n) values for interpolation at the end time
-  !>   dy_new: (real8)(n) differentials at the end time
-  !>   df:     (real8) normalised time step (t_new-t)/(t_new-t_old)
-  !> outputs:
-  !>   y: (real8)(n) interpolated values
-  attributes(device) function linear_interp_differentials_device(n,y_new,dy_new,df) result(y)
-    !> declare input variables
-    integer, intent(in)                    :: n
-    real(kind=8), intent(in)               :: df
-    real(kind=8), dimension(n), intent(in) :: y_new, dy_new
-    !> declare output variables
-    real(kind=8), dimension(n) :: y
-
-    !> compute linear interpolation
-    y = y_new - df*dy_new
-
-  end function linear_interp_differentials_device
-
-! Apply De Moivre formula to calculate the series of sines.
-! Assumes that mode is of the form [0 1 1 2 2 3 3 4 4] ([0 4 4 8 8 12 12])
-! This is roughly 3-4 times faster in my tests than just calculating the sines
-! and cosines (even when that is vectorized). Perhaps that changes for n_tor >> 10
-! I tested n_tor = 17.
-attributes(device) subroutine sincosperiod_moivre_device(meta,phi,HZ,dHZ)
-  integer, parameter :: n_mode = (n_tor-1)/2 ! number of modes excluding 0
-  type(fields_meta), intent(in) :: meta
-  real*8, intent(in) :: phi
-  real*8, intent(out) :: HZ(n_tor), dHZ(n_tor)
-
-  integer :: i
-  
-  HZ(1) = 1.d0
-  dHZ(1) = 0.d0
-
-  if (n_mode .gt. 0) then
-     HZ(2) = cos(meta%n_period*phi)
-     HZ(3) = sin(meta%n_period*phi)
-     dHZ(2) = HZ(3)*(-meta%n_period)
-     dHZ(3) = HZ(2)*(meta%n_period)
-
-    do i=2,n_mode
-
-      call moivre_device(HZ(2),HZ(3), HZ(2*i-2),HZ(2*i-1), HZ(2*i),HZ(2*i+1))
-
-      dHZ(2*i)   = HZ(2*i+1)*(-meta%n_period*i)
-      dHZ(2*i+1) = HZ(2*i)*(meta%n_period*i)
-
-    end do
-
- end if
-
-end subroutine sincosperiod_moivre_device
-
-attributes(device) subroutine moivre_device(ar,ai,br,bi,or,oi)
-  real*8, intent(in) :: ar, ai !< real and imag part of e^(i x)
-  real*8, intent(in) :: br, bi !< real and imag part of e^(i y)
-  real*8, intent(out) :: or, oi !< real and imag part of e^(i (x+y))
-  or = ar*br - ai*bi
-  oi = ai*br + ar*bi
-end subroutine moivre_device
-
 
 end module mod_particle_kernels
 #endif

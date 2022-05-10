@@ -16,6 +16,9 @@ contains
   !>   df:     (real8) normalised time step (t_new-t)/(t_new-t_old)
   !> outputs:
   !>   y: (real8)(n) interpolated values
+#ifdef CUDA_KERNELS
+  attributes(host,device) &
+#endif
   pure function linear_interp_differentials(n,y_new,dy_new,df) result(y)
     !> declare input variables
     integer, intent(in)                    :: n
@@ -36,6 +39,9 @@ contains
   !>   inverse_dt: (real8)(n) inverse of the interval duration
   !> outputs:
   !>   dydt:       (real8)(n) linear interpolation of derivatives
+#ifdef CUDA_KERNELS
+  attributes(host,device) &
+#endif
   pure function linear_interp_differentials_dt(n,dy_new,inverse_dt) &
     result(dydt)
     !> declare input variables
