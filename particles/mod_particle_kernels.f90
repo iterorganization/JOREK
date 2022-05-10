@@ -35,12 +35,14 @@ module mod_particle_kernels
 contains
 
 
-  subroutine particle_kinetic_leapfrog_loop( sim )! , n_steps , timestep , particle_start_time )
+  subroutine particle_kinetic_leapfrog_loop( sim  , n_steps )! , timestep , particle_start_time )
     type(particle_sim), intent(inout)                                    :: sim
+    integer, intent(in)                                                  :: n_steps
     
     type(particle_kinetic_leapfrog), managed, dimension(:), allocatable  :: particles
     type(fields_linear_device), managed, allocatable                     :: fields
-    integer      :: n_particles, tBlock_size, istat, n_steps
+    integer      :: n_particles, tBlock_size, istat
+    real*8       :: start_time
     type(dim3)   :: grid, tBlock
 
     ! Print out some info on the GPU
@@ -55,10 +57,16 @@ contains
     istat = cudaSetDevice(sim%my_id)
     if (istat /= cudaSuccess) write(*,*) cudaGetErrorString(istat)
 
+    start_time = MPI_WTime()
     call copy_device_data( sim , particles , fields )
+    write(*,*) "Proc ",sim%my_id," data copy completed in ",MPI_Wtime()-start_time," s"
 
+    start_time = MPI_WTime()
     call particle_kinetic_leapfrog_loop_kernel<<<grid, tBlock>>>(n_particles, particles, fields, n_steps) ! timesteps, particle_start_time )
-    
+    istat = cudaDeviceSynchronize()
+    if (istat /= cudaSuccess) write(*,*) cudaGetErrorString(istat)
+    write(*,*) "Proc ",sim%my_id," kernel completed in ",MPI_Wtime()-start_time," s"
+   
   end subroutine particle_kinetic_leapfrog_loop
 
   attributes(global) subroutine particle_kinetic_leapfrog_loop_kernel(n_particles, particles, fields, n_steps) !timesteps, particle_start_time )
