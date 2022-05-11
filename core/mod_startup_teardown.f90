@@ -10,7 +10,6 @@ subroutine initialise(my_id, n_cpu, skip_help)
   use mod_clock, only: clck_init
   use data_structure, only: init_threads
   use basis_at_gaussian
-  use phys_module, only: gmres
   use mod_openadas, only : read_adf11
   use mod_impurity, only : init_imp_adas
 
@@ -91,11 +90,6 @@ subroutine initialise(my_id, n_cpu, skip_help)
     stop
   end if
 
-  ! --- MURGE with ntor=1 doesn't work up to now because i_tor is not allocated correctly
-  if (n_tor == 1) then
-    gmres     = .false.
-  end if
-
 #if (defined WITH_Neutrals) || (defined WITH_Impurities)
   ! --- Read ADAS data and generate coronal equilibrium if needed
   call init_imp_adas(my_id)
@@ -151,12 +145,6 @@ subroutine sanity_checks(my_id, n_cpu, mpi_required, mpi_provided)
     call MPI_FINALIZE(IERR) 
     stop
   endif
-
-  ! --- GMRES makes no sense with n_tor=1
-  if (n_tor == 1) then
-    write(*,*) 'Remark: Setting gmres=.false. since n_tor=1'
-    gmres     = .false. 
-  end if
 
 #if (!defined(USE_PASTIX))&&(!defined(USE_PASTIX6))
   if (use_pastix.or.use_pastix_eq) then

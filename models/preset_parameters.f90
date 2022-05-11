@@ -542,7 +542,13 @@ subroutine preset_parameters
   
   export_for_nemec   = .false.
   
-  gmres              = .true.               ! Use iterative solver
+  ! Use iterative solver by default if n_tor>1.
+  if ( n_tor == 1) then
+    gmres            = .false.
+  else
+    gmres            = .true.
+  end if
+  
   gmres_max_iter     = 200                  ! Max number of GMRES iterations
   gmres_tol          = 1.d-8                ! converge tolerance GMRES
   gmres_4            = 1.d3                 ! error estimate GMRES (ratio preconditioned versus non-preconditioned error

@@ -204,7 +204,7 @@ module vacuum
   subroutine set_coil_curr_time_trace()
     use profiles, only: readProf
     
-    integer :: i, j, k, l, err
+    integer :: i, j, k, l, i_start_coil, i_end_coil, err
     character(len=60) :: s, filename
     real*8 :: r
     class(t_coil_curr_input), pointer :: coil_curr_input
@@ -214,7 +214,16 @@ module vacuum
       n_coils = sr%ncoil
       if (.not. allocated(I_coils)) then 
         allocate(I_coils(n_coils))
-        I_coils = 0.d0
+        I_coils(:)                =  0.d0
+        i_start_coil = sr%ind_start_pol_coils
+        i_end_coil   = i_start_coil + sr%n_pol_coils - 1
+        I_coils(i_start_coil:i_end_coil) =  pf_coils(1:sr%n_pol_coils)%current
+        
+        i_start_coil = sr%ind_start_rmp_coils
+        i_end_coil   = i_start_coil + sr%n_rmp_coils - 1
+        I_coils(i_start_coil:i_end_coil) =  rmp_coils(1:sr%n_rmp_coils)%current 
+        n_coils                   =  sr%ncoil
+          
       endif
     endif
         

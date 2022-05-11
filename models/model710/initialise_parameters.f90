@@ -123,7 +123,7 @@ namelist /in1/  tstep, nstep, tstep_n, nstep_n,                     &
                 filter_perp_n0, filter_hyper_n0, filter_par_n0,     &
                 use_cx, use_sputtering, use_ionisation,             &
                 use_ncs, use_pcs, use_ccs, use_pcs_full,            &
-                cte_current_FB_fact, Z_xpoint_limit
+                cte_current_FB_fact, Z_xpoint_limit, eta_ohmic
 
 
 if (my_id .eq. 0) then
