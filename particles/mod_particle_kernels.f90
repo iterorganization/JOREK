@@ -7,8 +7,9 @@ module mod_particle_kernels
   use mpi
   use mod_particle_sim,   only: particle_sim
   use mod_particle_types, only: particle_kinetic_leapfrog, copy_particle_kinetic_leapfrog
-  use data_structure
-
+  use data_structure,     only: type_node, type_node_list, type_element, type_element_list
+  use mod_parameters
+  
   implicit none
 
   type fields_meta
@@ -87,8 +88,7 @@ contains
        call copy_particle_kinetic_leapfrog( particles(i) , particle_tmp )
        do j=1,n_steps
           if (particle_tmp%i_elm .le. 0) then
-             !             write(*,*) "Losing particle",j
-             write(*,*) "+"
+             write(*,*) "+" ! simple way to count lost particles
              exit
           endif
 
