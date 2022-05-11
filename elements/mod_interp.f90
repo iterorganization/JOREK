@@ -355,6 +355,9 @@ end subroutine mode_moivre
 
 !> subroutine calculates the interpolation within one element (i_elm) for a given position
 !> (s,t) in the local coordinates
+#ifdef CUDA_KERNELS
+  attributes(host,device) &
+#endif
 pure subroutine interp(node_list, element_list, i_elm, i_var, i_harm, s, t, P, P_s, P_t, P_st, P_ss, P_tt)
 type (type_node_list),    intent(in)  :: node_list
 type (type_element_list), intent(in)  :: element_list
@@ -410,6 +413,9 @@ end subroutine interp
 
 !> subroutine calculates the interpolation within one element (i_elm) for a given position
 !> (s,t) in the local coordinates, of the deltas instead of the values
+#ifdef CUDA_KERNELS
+  attributes(host,device) &
+#endif
 pure subroutine interp_delta(node_list, element_list, i_elm, i_var, i_harm, s, t, P, P_s, P_t, P_st, P_ss, P_tt)
 type (type_node_list),    intent(in)  :: node_list
 type (type_element_list), intent(in)  :: element_list
@@ -443,6 +449,9 @@ end subroutine interp_delta
 
 
 !> This subroutine interpolates some variables at a specific position within one element at a given position (s,t)
+#ifdef CUDA_KERNELS
+  attributes(host,device) &
+#endif
 pure subroutine interp_0(node_list, element_list, i_elm, i_v, n_v, s, t, phi, P)
 type (type_node_list),    intent(in)  :: node_list
 type (type_element_list), intent(in)  :: element_list
@@ -479,6 +488,9 @@ end subroutine interp_0
 
 !> This subroutine interpolates some variables at a specific position within one element at a given position (s,t)
 !> of the deltas, not the values
+#ifdef CUDA_KERNELS
+  attributes(host,device) &
+#endif
 pure subroutine interp_0_delta(node_list, element_list, i_elm, i_v, n_v, s, t, phi, P)
 type (type_node_list),    intent(in)  :: node_list
 type (type_element_list), intent(in)  :: element_list
@@ -515,6 +527,9 @@ end subroutine interp_0_delta
 
 
 !> Calculates the interpolation within one element (i_elm) for a given position (s,t) in local coordinates
+#ifdef CUDA_KERNELS
+  attributes(host,device) &
+#endif
 pure subroutine interp_RZ_0(node_list,element_list,i_elm,s,t,R,Z)
 type (type_node_list),    intent(in)  :: node_list
 type (type_element_list), intent(in)  :: element_list
@@ -526,6 +541,7 @@ real*8,                   intent(out) :: R, Z
 real*8  :: G(4,n_degrees)
 real*8  :: xx1, xx2, ss
 integer :: kv, iv, kf
+
 
 call basisfunctions(s,t,G)
 
@@ -586,6 +602,9 @@ end subroutine interp_RZ_1
 
 
 !> Calculates the interpolation within one element (i_elm) for a given position (s,t) in local coordinates
+#ifdef CUDA_KERNELS
+  attributes(host,device) &
+#endif
 pure subroutine interp_RZ_2(node_list,element_list,i_elm,s,t,R,R_s,R_t,R_st,R_ss,R_tt,Z,Z_s,Z_t,Z_st,Z_ss,Z_tt)
 type (type_node_list),    intent(in)  :: node_list
 type (type_element_list), intent(in)  :: element_list
@@ -627,6 +646,9 @@ end subroutine interp_RZ_2
 
 !> subroutine calculates the interpolation within one element (i_elm) for a given position
 !> (s,t) in the local coordinates, works for any variable, but also for R and Z, (using i_var = -1 or -2 respectively)
+#ifdef CUDA_KERNELS
+  attributes(host,device) &
+#endif
 pure subroutine interp_PRZ_combined(node_list, element_list, i_elm, i_var, i_harm, s, t, P, P_s, P_t, P_st, P_ss, P_tt)
 type (type_node_list),    intent(in)  :: node_list
 type (type_element_list), intent(in)  :: element_list
