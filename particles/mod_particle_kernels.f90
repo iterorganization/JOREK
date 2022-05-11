@@ -7,11 +7,7 @@ module mod_particle_kernels
   use mpi
   use mod_particle_sim,   only: particle_sim
   use mod_particle_types, only: particle_kinetic_leapfrog, copy_particle_kinetic_leapfrog
-  use mod_boris,          only: boris_push_cylindrical
-  use mod_basisfunctions  
-!  use mod_interp,         only: sincosperiod_moivre, mode_moivre
   use data_structure
-!  use mod_linear
 
   implicit none
 
@@ -62,7 +58,6 @@ contains
 
     start_time = MPI_WTime()
     call copy_device_data( sim , particles , fields )
-    !    istat = cudaDeviceSynchronize()
     write(*,*) "Proc ",sim%my_id," data copy completed in ",MPI_Wtime()-start_time," s"
 
     start_time = MPI_WTime()
@@ -74,6 +69,7 @@ contains
   end subroutine particle_kinetic_leapfrog_loop
 
   attributes(global) subroutine particle_kinetic_leapfrog_loop_kernel( n_particles, particles, fields, n_steps, timestep, particle_start_time )
+    use mod_boris,          only: boris_push_cylindrical
     type(particle_kinetic_leapfrog), managed, dimension(:), intent(inout)  :: particles
     type(fields_linear_device), managed , intent(inout)                    :: fields
     integer, value, intent(in)                                             :: n_particles, n_steps
@@ -393,7 +389,8 @@ contains
 
   !> This subroutine interpolates some variables at a specific position within one element at a given position (s,t)
   attributes(device) subroutine interp_PRZ_device( node_list, element_list, i_elm, i_v, n_v, s, t, phi, P, P_s, P_t, P_phi, R, R_s, R_t, Z, Z_s, Z_t, deltas)
-    use mod_interp,         only: sincosperiod_moivre !, mode_moivre
+    use mod_basisfunctions
+    use mod_interp,         only: sincosperiod_moivre
 
     type (type_node_list),    intent(in)  :: node_list
     type (type_element_list), intent(in)  :: element_list    
@@ -649,7 +646,7 @@ contains
     if (ielm_out .eq. 0) ifail = 99
     if (ifail .eq. 999) ielm_out = 0 ! Otherwise testing ielm=0 on output does not
     ! work anymore (and we don't always check ifail)
-    !deallocate(i_elms)
+
   end subroutine find_RZ_device
 
   attributes(device) subroutine find_RZ_single_device(node_list,element_list,i_elm,R_find,Z_find,R_out,Z_out,ielm_out,s_out,t_out,ifail)
@@ -660,8 +657,6 @@ contains
     !< finds the crossing of two coordinate lines given as a series of cubics in element
     !< i_elm
     !-------------------------------------------------------------------------
-    use data_structure
-    !use mod_interp, only: interp_RZ
     implicit none
 
     type (type_node_list), intent(in)    :: node_list
@@ -779,6 +774,7 @@ contains
 
   attributes(device) pure subroutine interp_RZ_1_device(node_list, element_list, i_elm, s, t, R, R_s, R_t, Z, Z_s, Z_t)
 !  attributes(device) subroutine interp_RZ_1_device(node_list, element_list, i_elm, s, t, R, R_s, R_t, Z, Z_s, Z_t)
+    use mod_basisfunctions
     type (type_node_list),    intent(in)  :: node_list
     type (type_element_list), intent(in)  :: element_list
     integer,                  intent(in)  :: i_elm
