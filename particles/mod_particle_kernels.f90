@@ -19,8 +19,8 @@ module mod_particle_kernels
   type fields_meta
      real*8               :: mu_zero, mass_proton
      real*8               :: F0, central_mass, central_density, tstep
-     integer              :: n_tor, n_period, n_vertex_max, n_order
-     real*8               :: time_now, time_prev
+!!$     integer              :: n_tor, n_period, n_vertex_max, n_order
+!!$     real*8               :: time_now, time_prev
   end type fields_meta
   
   type fields_linear_device
@@ -272,10 +272,10 @@ contains
 !!$    fields_meta%n_dof            = sim%fields%node_list%n_dof
 
 ! Jorek parameters
-    meta%n_period         = n_period
-    meta%n_tor            = n_tor
-    meta%n_vertex_max     = n_vertex_max
-    meta%n_order          = n_order
+!!$    meta%n_period         = n_period
+!!$    meta%n_tor            = n_tor
+!!$    meta%n_vertex_max     = n_vertex_max
+!!$    meta%n_order          = n_order
 
     meta%mu_zero          = mu_zero
     meta%mass_proton      = mass_proton     
@@ -352,11 +352,11 @@ contains
     type(fields_linear_device), intent(in)         :: fields
     real*8,                   intent(in)           :: time !< Time at which to calculate this variable
     integer,                  intent(in)           :: i_elm
-!!$  integer,                  intent(in)           :: n_v, i_v(n_v)
-    integer,                  intent(in)           :: n_v, i_v(2)
+  integer,                  intent(in)           :: n_v, i_v(n_v)
+!!$    integer,                  intent(in)           :: n_v, i_v(2)
     real*8,                   intent(in)           :: s, t, phi
-!!$  real*8,                   intent(out)          :: P(n_v), P_s(n_v), P_t(n_v), P_phi(n_v), P_time(n_v)
-    real*8,                   intent(out)          :: P(2), P_s(2), P_t(2), P_phi(2), P_time(2)
+  real*8,                   intent(out)          :: P(n_v), P_s(n_v), P_t(n_v), P_phi(n_v), P_time(n_v)
+!!$    real*8,                   intent(out)          :: P(2), P_s(2), P_t(2), P_phi(2), P_time(2)
     real*8,                   intent(out)          :: R, R_s, R_t, Z, Z_s, Z_t
 
     real*8                 :: df, dt
@@ -370,12 +370,12 @@ contains
     P_time = 0.d0
 
     !> interpolate values
-    call interp_PRZ_device(fields,i_elm ,i_v ,n_v ,s ,t , phi, &
+    call interp_PRZ_device(fields%node_list, fields%element_list,i_elm ,i_v ,n_v ,s ,t , phi, &
          P, P_s, P_t, P_phi, R, R_s, R_t, Z, Z_s, Z_t, .False.)
 
     !> interpolate differentials
     if(t_jorek .gt. 0.d0) then
-       call interp_PRZ_device(fields, i_elm, i_v, n_v, s, t, phi, &
+       call interp_PRZ_device(fields%node_list, fields%element_list, i_elm, i_v, n_v, s, t, phi, &
             Pd, Pd_s, Pd_t, Pd_phi, R, R_s, R_t, Z, Z_s, Z_t, .True.)
        if(abs(fields%time_now-fields%time_prev) .gt. 1d-10 .and. .not. fields%static) then
           !> compute time fraction df
@@ -398,9 +398,10 @@ contains
 
   
   !> This subroutine interpolates some variables at a specific position within one element at a given position (s,t)
-  attributes(device) subroutine interp_PRZ_device( fields, i_elm, i_v, n_v, s, t, phi, P, P_s, P_t, P_phi, R, R_s, R_t, Z, Z_s, Z_t, deltas)
+  attributes(device) subroutine interp_PRZ_device( node_list, element_list, i_elm, i_v, n_v, s, t, phi, P, P_s, P_t, P_phi, R, R_s, R_t, Z, Z_s, Z_t, deltas)
 
-    type (fields_linear_device), intent(in)        :: fields
+    type (type_node_list),    intent(in)  :: node_list
+    type (type_element_list), intent(in)  :: element_list    
     integer, intent(in)                            :: i_elm
     integer, intent(in)                            :: n_v, i_v(2)
 !!$    integer, intent(in)                            :: n_v, i_v(n_v)
@@ -429,28 +430,28 @@ contains
     ! 30% exec time
     ! Preload values and premultiply with sizes(:,kv)
     do kv = 1,n_vertex_max
-       iv = fields%element_list%element(i_elm)%vertex(kv)
-       sizes(:) = fields%element_list%element(i_elm)%size(kv,:)
+       iv = element_list%element(i_elm)%vertex(kv)
+       sizes(:) = element_list%element(i_elm)%size(kv,:)
        if (deltas) then
           do i = 1, n_v
-             do kf=1,fields%meta%n_order+1
-                values(1:fields%meta%n_tor,kf,i,kv) = fields%node_list%node(iv)%deltas(1:fields%meta%n_tor,kf,i_v(i)) * sizes(kf)
+             do kf=1,n_order+1
+                values(1:n_tor,kf,i,kv) = node_list%node(iv)%deltas(1:n_tor,kf,i_v(i)) * sizes(kf)
              end do
           end do
        else
           do i = 1, n_v
-             do kf=1,fields%meta%n_order+1
-                values(1:fields%meta%n_tor,kf,i,kv) = fields%node_list%node(iv)%values(1:fields%meta%n_tor,kf,i_v(i)) * sizes(kf)
+             do kf=1,n_order+1
+                values(1:n_tor,kf,i,kv) = node_list%node(iv)%values(1:n_tor,kf,i_v(i)) * sizes(kf)
              end do
           end do
           do i = 1, n_v
              do kf=1,4
-                values(1,kf,i,kv) = fields%node_list%node(iv)%values(1,kf,i_v(i)) * sizes(kf)
+                values(1,kf,i,kv) = node_list%node(iv)%values(1,kf,i_v(i)) * sizes(kf)
              end do
           end do
        end if
-       xR(:,kv) = fields%node_list%node(iv)%x(1,:,1) * sizes(:)
-       xZ(:,kv) = fields%node_list%node(iv)%x(1,:,2) * sizes(:)
+       xR(:,kv) = node_list%node(iv)%x(1,:,1) * sizes(:)
+       xZ(:,kv) = node_list%node(iv)%x(1,:,2) * sizes(:)
     enddo
 
     ! together 7%
@@ -465,11 +466,11 @@ contains
     do kv = 1, n_vertex_max
        do i = 1, n_v
           do kf = 1, n_order+1
-             v = dot_product(values(1:fields%meta%n_tor,kf,i,kv),HZ(1:fields%meta%n_tor))
+             v = dot_product(values(1:n_tor,kf,i,kv),HZ(1:n_tor))
              P(i)     = P(i)     + v * H(kf, kv)
              P_s(i)   = P_s(i)   + v * H_s(kf, kv)
              P_t(i)   = P_t(i)   + v * H_t(kf, kv)
-             vp = dot_product(values(1:fields%meta%n_tor,kf,i,kv),dHZ(1:fields%meta%n_tor))
+             vp = dot_product(values(1:n_tor,kf,i,kv),dHZ(1:n_tor))
              P_phi(i) = P_phi(i) + vp * H(kf, kv)
           enddo
        enddo
