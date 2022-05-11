@@ -548,6 +548,9 @@ end subroutine interp_RZ_0
 
 
 !> This subroutine interpolates space a specific position within one element at a given position (s,t)
+#ifdef CUDA_KERNELS
+  attributes(host,device) &
+#endif
 pure subroutine interp_RZ_1(node_list, element_list, i_elm, s, t, R, R_s, R_t, Z, Z_s, Z_t)
 type (type_node_list),    intent(in)  :: node_list
 type (type_element_list), intent(in)  :: element_list

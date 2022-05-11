@@ -70,6 +70,9 @@ end function node_same_pos
 !> Find if two elements (elm1, elm2 which is on side1 of elm1) have the same
 !> orientation. Element node numbering must always be consecutive when going
 !> co or counter-clockwise around the element.
+#ifdef CUDA_KERNELS
+  attributes(host,device) &
+#endif
 subroutine neighbours_side_co_counter(element_list,elm1,elm2,side1,side2,neighbours,co)
   type (type_element_list), intent(in) :: element_list
   integer, intent(in)               :: elm1, elm2
@@ -133,6 +136,9 @@ end subroutine neighbours_side_co_counter
 !> On the boundary between elements the following is guaranteed:
 !> * One of the local coordinates (s,t) is either 0 or 1 (1: t=0, 2: s=1, 3: t=1, 4: s=0)
 !> * The other coordinates x_i, x_j (elements i and j) are related: |dx_i/dx_j| = 1
+#ifdef CUDA_KERNELS
+  attributes(host,device) &
+#endif
 subroutine coord_in_neighbour(node_list,element_list,i_from,i_to,st)
   type (type_node_list), intent(in)    :: node_list
   type (type_element_list), intent(in) :: element_list
@@ -164,7 +170,11 @@ subroutine coord_in_neighbour(node_list,element_list,i_from,i_to,st)
   ! Check once more that they are neighbours and determine the orientation
   call neighbours_side_co_counter(element_list,i_from,i_to,q_from,q_to,nb,co)
   if (.not. nb .or. q_to .eq. 0) then
-    write(*,"(A,i5,A,i5)") "ERROR IN element_list%element(", i_from, ")%neighbours to ", i_to
+#ifdef CUDA_KERNELS
+     write(*,*)  "ERROR IN element_list%element(", i_from, ")%neighbours to ", i_to
+#else
+     write(*,"(A,i5,A,i5)") "ERROR IN element_list%element(", i_from, ")%neighbours to ", i_to
+#endif
     i_to = 0
     return
   end if

@@ -3,7 +3,6 @@
 !> At present only the particle_kinetic_leapfrog type is supported
 
 module mod_particle_kernels
-
   use cudafor
   use mpi
   use mod_particle_sim,   only: particle_sim
@@ -106,6 +105,8 @@ contains
 
           if (particle_tmp%i_elm .gt. 0) then
              call boris_push_cylindrical(particle_tmp, mass, E, B, timestep)                 
+             call find_rz_nearby_device(fields%node_list,fields%element_list,rz_old(1),rz_old(2),st_old(1),st_old(2),i_elm_old,particle_tmp%x(1), &
+                  particle_tmp%x(2), particle_tmp%st(1), particle_tmp%st(2), particle_tmp%i_elm, ifail)                
           endif
 
        end do
@@ -477,6 +478,310 @@ contains
     enddo
 
   end subroutine interp_PRZ_device
+
+attributes(device) subroutine find_RZ_nearby_device(node_list, element_list, R_old, Z_old, s_old, t_old, i_elm_old, &
+        R_new, Z_new, s_new, t_new, i_elm_new, ifail)
+use data_structure
+use mod_neighbours
+use, intrinsic :: ieee_arithmetic, only: ieee_is_nan
+implicit none
+!> Input parameters
+type (type_node_list),    intent(in)    :: node_list
+type (type_element_list), intent(in)    :: element_list
+real*8,                   intent(in)    :: R_old, Z_old !< The old R,Z location
+real*8,                   intent(in)    :: R_new, Z_new !< The new R,Z location
+real*8,                   intent(in)    :: s_old, t_old !< The old st location (used to compute a guess)
+integer,                  intent(in)    :: i_elm_old
+real*8,                   intent(out)   :: s_new, t_new !< The found new coordinates
+integer,                  intent(out)   :: i_elm_new
+integer,                  intent(out)   :: ifail !< if ifail = -1 the position could not be found in the grid.
+!< ifail > 0 indicates various other cases
+
+!> Accuracy defaults (tolerances are squared!, units of element size)
+real*8,  parameter :: element_tolerance   = 1.d-24 !< Tolerance for finding a position inside an element
+integer, parameter :: newton_iter_max     = 8 !< Number of iterations to try
+
+!> Internal variables
+integer :: newton_iter_number, i_elm_tmp
+real*8 :: inv_st_jac_det, R_s, R_t, Z_s, Z_t
+real*8 :: st_step(2), x_step(2), x_tmp(2), st_new(2), x_new(2) ! x_step = (R,Z) of trial position
+real*8 :: err2, err2_old, dist(2), fact
+
+! Check if element is valid
+if (i_elm_old .lt. 1 .or. i_elm_old .gt. element_list%n_elements) then
+  call find_RZ_device(node_list,element_list,R_new,Z_new,x_step(1),x_step(2),i_elm_new,s_new,t_new,ifail)
+  return
+end if
+
+! Setup initial values
+x_step = [R_old,Z_old] ! start at the current position
+i_elm_new = i_elm_old ! start in the current element
+st_new = [s_old,t_old] ! start at the old position
+x_new = [R_new,Z_new]
+! Find the jacobian at the current s and t position
+call try_interp_device(node_list,element_list,i_elm_new,st_new,x_step,R_s,R_t,Z_s,Z_t,inv_st_jac_det)
+err2 = dot_product(x_step-x_new,x_step-x_new)
+ifail=0
+
+
+! Newton iteration to find s and t in or out of this element
+do newton_iter_number = 1, newton_iter_max
+  ! Perform newton iteration by calculating the inverse of the jacobian matrix explicitly
+  err2_old = err2
+
+  ! Calculate the trial newton step
+  st_step(1) = ( Z_t * (x_new(1)-x_step(1)) - R_t * (x_new(2)-x_step(2))) * inv_st_jac_det
+  st_step(2) = (-Z_s * (x_new(1)-x_step(1)) + R_s * (x_new(2)-x_step(2))) * inv_st_jac_det
+
+  ! Limit this step if it goes outside of the element
+  dist = merge(1-st_new,st_new,st_step .gt. 0) ! dist = 1-s if step > 0, s if step < 0 (distance to 0 or 1)
+  fact = maxval(abs(st_step)/max(dist,1d-30)) ! if fact>=1 we are on the boundary
+  ! (it is the overshoot: i.e. how many times we overshoot the boundary with one st_step)
+
+  if (fact .ge. 1.d0-1d-12) then
+    st_new = st_new + st_step/fact
+#ifdef DEBUG
+    call try_interp_device(node_list,element_list,i_elm_new,st_new,x_tmp,R_s,R_t,Z_s,Z_t,inv_st_jac_det)
+#endif
+    i_elm_tmp = i_elm_new
+    call coord_in_neighbour(node_list,element_list,i_elm_tmp,i_elm_new,st_new)
+    if (i_elm_new .lt. 0) then
+      call find_RZ_device(node_list,element_list,x_new(1),x_new(2),x_step(1),x_step(2),i_elm_new,s_new,t_new,ifail)
+      if (ifail .ne. 0) i_elm_new = 0
+    end if
+    if (i_elm_new .eq. 0) then ! No element on that side, particle is lost
+      i_elm_new = - i_elm_tmp ! Save position of particle
+      ! Calculate new R and Z in x_new
+      call try_interp_device(node_list,element_list,i_elm_tmp,st_new,x_new,R_s,R_t,Z_s,Z_t,inv_st_jac_det)
+      ! Set new element-local coordinates for the point on the axis
+      s_new = st_new(1)
+      t_new = st_new(2)
+      ifail = -1
+      return
+    end if
+
+    call try_interp_device(node_list,element_list,i_elm_new,st_new,x_step,R_s,R_t,Z_s,Z_t,inv_st_jac_det)
+#ifdef DEBUG 
+    if (norm2(x_step-x_tmp) .gt. 1d-8) then
+      !write(*,*) "ERROR on element edge crossing", x_step, x_tmp, norm2(x_step-x_tmp), &
+      !i_elm_new, i_elm_old, i_elm_tmp, "deleting particle"
+      !call exit(1)
+      i_elm_new = 0
+      return
+    end if
+#endif
+  else
+    st_new = st_new + st_step
+    call try_interp_device(node_list,element_list,i_elm_new,st_new,x_step,R_s,R_t,Z_s,Z_t,inv_st_jac_det)
+  end if
+  err2 = dot_product(x_step-x_new,x_step-x_new)
+  s_new = st_new(1)
+  t_new = st_new(2)
+
+  if (err2 < element_tolerance) exit
+enddo
+
+
+if (ieee_is_nan(err2)) then
+  !write(*,*) "WARNING: NaN encountered after newton iteration, using find_RZ"
+  call find_RZ_device(node_list,element_list,x_new(1),x_new(2),x_step(1),x_step(2),i_elm_new,s_new,t_new,ifail)
+  if (ifail .eq. 0) ifail=2
+  return
+endif
+if (newton_iter_number .gt. newton_iter_max) then
+  !write(*,"(A,i4,A,i5,A,2g14.6,A,3g14.6)") "WARNING: iteration for st did not converge after", newton_iter_max, " tries in element ", i_elm_new, &
+  !" using find_RZ", x_new, "err2(old)/convergence: ", err2, err2_old, err2_old/err2
+    !write(*,"(A,2g16.8)") "Find_RZ at ", x_new
+  call find_RZ_device(node_list,element_list,x_new(1),x_new(2),x_step(1),x_step(2),i_elm_new,s_new,t_new,ifail)
+  if (ifail .eq. 0) ifail=3
+  return
+endif
+end subroutine find_RZ_nearby_device
+
+
+!> Auxiliary subroutine for find_RZ_nearby
+attributes(device) pure subroutine try_interp_device(node_list,element_list,i_elm,st,x,R_s,R_t,Z_s,Z_t,inv_st_jac_det)
+use data_structure
+use mod_interp
+implicit none
+!> Input parameters
+type (type_node_list),    intent(in)    :: node_list
+type (type_element_list), intent(in)    :: element_list
+real*8,                   intent(in)    :: st(2)
+integer,                  intent(in)    :: i_elm
+real*8,                   intent(out)   :: x(2), R_s, R_t, Z_s, Z_t, inv_st_jac_det
+real*8 :: jac
+
+call interp_RZ(node_list,element_list,i_elm,st(1),st(2),x(1),R_s,R_t,x(2),Z_s,Z_t)
+! Guard against the determinant being close to zero
+jac = R_s * Z_t - R_t * Z_s
+if (abs(jac) .lt. 1d-8) then
+  inv_st_jac_det = sign(1d8, jac) 
+else
+  inv_st_jac_det = 1.d0/(jac)
+end if
+end subroutine try_interp_device
+
+attributes(device) subroutine find_RZ_device(node_list,element_list,R_find,Z_find,R_out,Z_out,ielm_out,s_out,t_out,ifail)
+!-------------------------------------------------------------------------
+!< Find all elements for which minmax is correct and run find_RZ_single on those.
+!< Return the first result.
+!-------------------------------------------------------------------------
+use data_structure
+!use mod_element_rtree, only: elements_containing_point
+implicit none
+
+type (type_node_list), intent(in)    :: node_list
+type (type_element_list), intent(in) :: element_list
+real*8, intent(in)     :: R_find, Z_find
+real*8, intent(out)    :: R_out,Z_out,s_out,t_out
+integer, intent(inout) :: ielm_out
+integer, intent(out)   :: ifail
+
+integer :: k
+integer, dimension(:), allocatable :: i_elms
+
+ielm_out = 0
+!call elements_containing_point(R_find, Z_find, i_elms)
+!HJL needs code
+! then loop through all
+do k=1,size(i_elms)
+  call find_RZ_single_device(node_list,element_list,i_elms(k),R_find,Z_find,R_out,Z_out,ielm_out,s_out,t_out,ifail)
+  if (ifail .eq. 0) exit
+enddo
+
+if (ielm_out .eq. 0) ifail = 99
+if (ifail .eq. 999) ielm_out = 0 ! Otherwise testing ielm=0 on output does not
+! work anymore (and we don't always check ifail)
+end subroutine find_RZ_device
+
+attributes(device) subroutine find_RZ_single_device(node_list,element_list,i_elm,R_find,Z_find,R_out,Z_out,ielm_out,s_out,t_out,ifail)
+!-------------------------------------------------------------------------
+!< solves two non-linear equations using Newtons method (from numerical recipes)
+!< LU decomposition replaced by explicit solution of 2x2 matrix.
+!<
+!< finds the crossing of two coordinate lines given as a series of cubics in element
+!< i_elm
+!-------------------------------------------------------------------------
+use data_structure
+!use mod_interp, only: interp_RZ
+implicit none
+
+type (type_node_list), intent(in)    :: node_list
+type (type_element_list), intent(in) :: element_list
+integer, intent(in)    :: i_elm
+real*8, intent(in)     :: R_find, Z_find
+real*8, intent(out)    :: R_out,Z_out,s_out,t_out
+integer, intent(out)   :: ielm_out
+integer, intent(out)   :: ifail
+
+integer :: i, ntrial, istart
+real*8  :: RRg1,dRRg1_dr,dRRg1_ds
+real*8  :: ZZg1,dZZg1_dr,dZZg1_ds
+real*8  :: tolx, tolf, errx, errf, temp, dis
+real*8  :: x(2), FVEC(2), FJAC(2,2), p(2)
+
+ntrial = 20
+tolx = 1.d-8
+tolf = 1.d-15
+
+ielm_out = i_elm ! Since we only test a single element
+
+do istart = 1,5
+
+  if (istart .eq. 1) then
+    x(1) = 0.5d0
+    x(2) = 0.5d0
+  elseif (istart .eq. 2) then
+    x(1) = 0.75d0
+    x(2) = 0.75d0
+  elseif (istart .eq. 3) then
+    x(1) = 0.75d0
+    x(2) = 0.25d0
+  elseif (istart .eq. 4) then
+    x(1) = 0.25d0
+    x(2) = 0.75d0
+  elseif (istart .eq. 5) then
+    x(1) = 0.25d0
+    x(2) = 0.25d0
+  endif
+
+  ifail = 999
+
+  do i=1,ntrial
+
+!    call interp_RZ(node_list,element_list,i_elm,x(1),x(2),RRg1,dRRg1_dr,dRRg1_ds, &
+!                                                    ZZg1,dZZg1_dr,dZZg1_ds)
+!needs code
+    FVEC(1)   = RRg1 - R_find
+    FVEC(2)   = ZZg1 - Z_find
+    FJAC(1,1) = dRRg1_dr
+    FJAC(1,2) = dRRg1_ds
+    FJAC(2,1) = dZZg1_dr
+    FJAC(2,2) = dZZg1_ds
+
+    errf=abs(fvec(1))+abs(fvec(2))
+
+!      write(*,'(A,i3,8e16.8)') ' newton   : ',i,errf,errx,x,RRg1,R_find,ZZg1,Z_find
+!      write(*,'(A,i3,8e16.8)') ' newton   : ',i,dRRg1_dr,dRRg1_ds,dZZg1_dr,dZZg1_ds
+
+    if (errf .le. tolf) then
+
+      s_out     = x(1)
+      t_out     = x(2)
+
+      ielm_out  = i_elm
+      R_out     = RRg1
+      Z_out     = ZZg1
+
+!        write(*,'(A,i3,4e16.8)') ' newton (1) : ',i,errf,errx,x
+
+      ifail = 0
+      return
+    endif
+
+    p = -fvec
+
+    temp = p(1)
+    dis  = fjac(2,2)*fjac(1,1)-fjac(1,2)*fjac(2,1)
+
+    if (dis .ne. 0.d0) then
+      p(1) = (fjac(2,2)*p(1)-fjac(1,2)*p(2))/dis
+      p(2) = (fjac(1,1)*p(2)-fjac(2,1)*temp)/dis
+    else
+      exit
+    endif
+
+    errx=abs(p(1)) + abs(p(2))
+
+    p = min(p,+0.25d0)
+    p = max(p,-0.25d0)
+
+    x = x + p
+
+    x = max(x,+0.d0)
+    x = min(x,+1.d0)
+
+    if (errx .le. tolx) then
+
+      s_out     = x(1)
+      t_out     = x(2)
+
+      ielm_out  = i_elm
+      R_out     = RRg1
+      Z_out     = ZZg1
+
+!        write(*,'(A,i3,4e16.8)') ' newton (2) : ',i,errf,errx,x
+
+      ifail = 0
+      return
+    endif
+
+  enddo
+enddo
+end subroutine find_RZ_single_device
+
+
 
 end module mod_particle_kernels
 #endif
