@@ -85,10 +85,10 @@ do istart = 1,5
   ifail = 999
 
   do i=1,ntrial
-
+!#ifndef CUDA_KERNELS
     call interp_RZ(node_list,element_list,i_elm,x(1),x(2),RRg1,dRRg1_dr,dRRg1_ds, &
                                                     ZZg1,dZZg1_dr,dZZg1_ds)
-
+!#endif
     FVEC(1)   = RRg1 - R_find
     FVEC(2)   = ZZg1 - Z_find
     FJAC(1,1) = dRRg1_dr

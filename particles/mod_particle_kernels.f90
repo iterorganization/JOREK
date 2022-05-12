@@ -27,8 +27,16 @@ module mod_particle_kernels
      type(fields_meta)          :: meta
   end type fields_linear_device
 
+  type particle_group_device
+     integer                         :: Z
+     real*8                          :: mass
+     real*8                          :: dt
+     type(particle_kinetic_leapfrog), allocatable, dimension(:) :: particles
+  end type particle_group_device
+     
+  
   private
-  public fields_linear_device, particle_kinetic_leapfrog_loop, copy_device_data
+  public particle_group_device, fields_linear_device, particle_kinetic_leapfrog_loop, copy_device_data
 
 contains
 
@@ -88,7 +96,7 @@ contains
        call copy_particle_kinetic_leapfrog( particles(i) , particle_tmp )
        do j=1,n_steps
           if (particle_tmp%i_elm .le. 0) then
-             write(*,*) "+" ! simple way to count lost particles
+!             write(*,*) "+" ! simple way to count lost particles
              exit
           endif
 

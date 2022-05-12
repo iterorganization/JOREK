@@ -126,7 +126,7 @@ contains
   subroutine test_copy_device_data
 
     type(particle_kinetic_leapfrog), managed, dimension(:), allocatable  :: particles
-    type(fields_linear_device), managed, allocatable                      :: fields
+    type(fields_linear_device), managed, allocatable                     :: fields
 
     integer    :: n_particles
 
@@ -148,8 +148,66 @@ contains
     call particle_kinetic_leapfrog_loop( sim , n_steps , timestep , particle_start_time )
     write(*,*) "Proc ",sim%my_id," full loop completed in ",MPI_Wtime()-start_time," s"
 
+    call run_particle_kinetic_leapfrog_loop_CPU(64)
+
+!    call run_particle_kinetic_leapfrog_loop_CPU(1)
     
-  end subroutine test_particle_kinetic_leapfrog_loop    
+  end subroutine test_particle_kinetic_leapfrog_loop
+
+  subroutine run_particle_kinetic_leapfrog_loop_CPU(nthreads)
+
+    use mpi
+    use omp_lib
+    use mod_particle_types, only: particle_kinetic_leapfrog
+    use mod_particle_types, only: copy_particle_kinetic_leapfrog
+    use mod_find_rz_nearby, only: find_rz_nearby
+    use mod_boris, only: boris_push_cylindrical
+
+    integer                                  :: nthreads
+    
+    !> variables
+    type(particle_kinetic_leapfrog)          :: particle_tmp
+    integer                                  :: i, j, ifail, i_elm_old, nsteps
+    real*8                                   :: rz_old(2), st_old(2), E(3), B(3), psi, U
+    real*8                                   :: t, timesteps, start_time
+    
+    start_time = MPI_Wtime()
+    
+    t = 0.0
+    timesteps = 1d-10
+    nsteps = 1000
+
+    if( nthreads <= 0 .or. nthreads > omp_get_max_threads()) nthreads = omp_get_max_threads()
+    write(*,*) "Threads:", nthreads
+    select type (particles => sim%groups(1)%particles)
+    type is (particle_kinetic_leapfrog)
+       !$omp parallel do default(shared) &
+       !$omp private(particle_tmp,i,j,E,B,psi,U,rz_old,st_old) &
+       !$omp num_threads(nthreads) &
+       !$omp schedule(dynamic,10)
+       do i=1,size(sim%groups(1)%particles,1)
+          call copy_particle_kinetic_leapfrog(particles(i),particle_tmp)            
+          do j=1,nsteps
+             if (particle_tmp%i_elm .le. 0) exit             
+             call sim%fields%calc_EBpsiU(t, particle_tmp%i_elm, particle_tmp%st, particle_tmp%x(3), E, B, psi, U)            
+             call boris_push_cylindrical(particle_tmp, sim%groups(1)%mass, E, B, timesteps)               
+             if (particle_tmp%i_elm .gt. 0) then
+                rz_old    = particle_tmp%x(1:2)
+                st_old    = particle_tmp%st
+                i_elm_old = particle_tmp%i_elm                  
+                call find_rz_nearby(sim%fields%node_list, sim%fields%element_list, rz_old(1), rz_old(2), &
+                     st_old(1), st_old(2), i_elm_old, particle_tmp%x(1), particle_tmp%x(2), particle_tmp%st(1), &
+                     particle_tmp%st(2), particle_tmp%i_elm, ifail)                  
+             endif
+          end do
+          call copy_particle_kinetic_leapfrog(particle_tmp,particles(i))            
+       enddo
+       !$omp end parallel do
+    end select
+    
+    write(*,*) "CPU particle_kinetic_loop time, threads:", MPI_Wtime() - start_time, nthreads
+    
+  end subroutine run_particle_kinetic_leapfrog_loop_CPU
 
 
   !> required for particle initialisation
