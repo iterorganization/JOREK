@@ -95,6 +95,8 @@ program JOREK2
                                             stdout=>output_unit, &
                                             stderr=>error_unit
   
+  use mod_newton, only: inexact_newton
+
   implicit none
 
 #ifdef USE_FFTW
@@ -848,6 +850,15 @@ mpi_required = 0
 #else
       call gmres_driver(my_id,my_id_n,MPI_COMM_N,MPI_COMM_MASTER,iter_gmres)
 #endif
+      call inexact_newton(a_glob, deltas, rhs_glob, iter_gmres, gmres_tol, MPI_COMM_WORLD, MPI_COMM_N, MPI_COMM_MASTER, &
+                          iter_gmres, &
+                          element_list,node_list, &
+                          my_id, MPI_COMM_N, my_id_n, MPI_COMM_MASTER, my_id_master, local_elms,   &
+                          n_local_ELms, index_min(my_id+1), index_max(my_id+1), xpoint, xcase, ES%R_axis, ES%Z_axis,&
+                          ES%psi_axis, ES%psi_bnd, ES%R_xpoint, ES%Z_xpoint, ES%psi_xpoint, 1, n_tor,   &
+                          n_glob, nz_glob, ndof_glob, n_matrix_block_size, A_glob, rhs_glob, irn_glob, &
+                          jcn_glob, ijA_index, ijA_size, irn_jcn, harmonic_matrix=.false.)
+
 
     endif
     call clck_time_barrier(t1)
@@ -855,6 +866,10 @@ mpi_required = 0
     if (my_id .eq. 0) then
       write(*,FMT_TIMING)  my_id, '# Elapsed time gmres/solve :',tsecond
     end if
+    
+    
+    !call inexact_newton(my_id,element_list,node_list)  ! Call inexact_newton solver.
+    !write(*,*) 'n_nodes = ', node_list%n_nodes
 
     call clck_time(t0)
     if ( (gmres .and. (iter_gmres .lt. iter_big)) .or. (.not.gmres) ) then
