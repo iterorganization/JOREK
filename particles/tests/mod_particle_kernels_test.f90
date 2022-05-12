@@ -125,8 +125,8 @@ contains
 
   subroutine test_copy_device_data
 
-    type(particle_group_device), managed,  allocatable  :: particle_groups
-!    type(particle_group_device), managed, dimension(:), allocatable  :: particle_groups
+!    type(particle_group_device), managed,  allocatable  :: particle_groups
+    type(particle_group_device), managed, dimension(:), allocatable  :: particle_groups
     type(fields_linear_device), managed, allocatable                  :: fields
 
     integer    :: n_particles
