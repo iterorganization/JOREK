@@ -5,18 +5,20 @@
 module mod_particle_kernels
   use cudafor
   use mpi
-  use mod_particle_sim,   only: particle_sim
+  use mod_particle_sim,   only: particle_sim, particle_group
   use mod_particle_types, only: particle_kinetic_leapfrog, copy_particle_kinetic_leapfrog
   use data_structure,     only: type_node, type_node_list, type_element, type_element_list
   use mod_parameters
   
   implicit none
 
+  !> Data from mod_parameters for use in the k - to be removed in future using CUDA definitions in mod_parameters
   type fields_meta
      real*8               :: mu_zero, mass_proton
      real*8               :: F0, central_mass, central_density, tstep
   end type fields_meta
 
+  !> Partial replication of fields type avoiding polymorphism for use in the kernels
   type fields_linear_device
      type(type_node_list)       :: node_list        !< Current node list
      type(type_element_list)    :: element_list     !< Current element list
@@ -27,11 +29,12 @@ module mod_particle_kernels
      type(fields_meta)          :: meta
   end type fields_linear_device
 
+  !> Partial replication of particle group type avoinding polymorphism for use in the kernels
   type particle_group_device
      integer                         :: Z
      real*8                          :: mass
      real*8                          :: dt
-     type(particle_kinetic_leapfrog), allocatable, dimension(:) :: particles
+     type(particle_kinetic_leapfrog), managed, allocatable, dimension(:) :: particles
   end type particle_group_device
      
   
@@ -40,13 +43,14 @@ module mod_particle_kernels
 
 contains
 
-
+  !> Principle loop to push a group of particles using CUDA kernels
   subroutine particle_kinetic_leapfrog_loop( sim  , n_steps , timestep , particle_start_time )
     type(particle_sim), intent(inout)                                    :: sim
     integer, intent(inout)                                               :: n_steps
     real*8, intent(inout)                                                :: particle_start_time, timestep
 
-    type(particle_kinetic_leapfrog), managed, dimension(:), allocatable  :: particles
+    type(particle_group_device), managed, allocatable      :: particle_groups
+!    type(particle_group_device), managed, dimension(:), allocatable      :: particle_groups
     type(fields_linear_device), managed, allocatable                     :: fields
     integer      :: n_particles, tBlock_size, istat
     real*8       :: start_time
@@ -66,34 +70,35 @@ contains
     if (istat /= cudaSuccess) write(*,*) cudaGetErrorString(istat)
 
     start_time = MPI_WTime()
-    call copy_device_data( sim , particles , fields )
+    call copy_device_data( sim , particle_groups , fields )
     write(*,*) "Proc ",sim%my_id," data copy completed in ",MPI_Wtime()-start_time," s"
 
     start_time = MPI_WTime()
-    call particle_kinetic_leapfrog_loop_kernel<<<grid, tBlock>>>(n_particles, particles, fields, n_steps, timestep, particle_start_time )
+    call particle_kinetic_leapfrog_loop_kernel<<<grid, tBlock>>>(n_particles, particle_groups, fields, n_steps, timestep, particle_start_time )
     istat = cudaDeviceSynchronize()
     if (istat /= cudaSuccess) write(*,*) cudaGetErrorString(istat)
     write(*,*) "Proc ",sim%my_id," kernel completed in ",MPI_Wtime()-start_time," s"
 
   end subroutine particle_kinetic_leapfrog_loop
 
-  attributes(global) subroutine particle_kinetic_leapfrog_loop_kernel( n_particles, particles, fields, n_steps, timestep, particle_start_time )
+
+  !> The kernel to be launched to push all particles in a group
+  attributes(global) subroutine particle_kinetic_leapfrog_loop_kernel( n_particles, group_particles, fields, n_steps, timestep, particle_start_time )
     use mod_boris,          only: boris_push_cylindrical
-    type(particle_kinetic_leapfrog), managed, dimension(:), intent(inout)  :: particles
-    type(fields_linear_device), managed , intent(inout)                    :: fields
-    integer, value, intent(in)                                             :: n_particles, n_steps
-    real*8, value, intent(in)                                              :: timestep, particle_start_time
+    type(particle_group_device), managed, intent(inout)         :: group_particles
+    type(fields_linear_device), managed , intent(inout)         :: fields
+    integer, value, intent(in)                                  :: n_particles, n_steps
+    real*8, value, intent(in)                                   :: timestep, particle_start_time
 
     type(particle_kinetic_leapfrog)         :: particle_tmp
     integer                                 :: i,j
-    real*8                                  :: t, E(3), B(3), psi, U, mass
+    real*8                                  :: t, E(3), B(3), psi, U
     real*8                                  :: rz_old(2), st_old(2)
     integer                                 :: i_elm_old, ifail
 
-    mass = 2
     i = threadIdx%x + (blockIdx%x-1) * blockDim%x 
     if ( i <= n_particles ) then
-       call copy_particle_kinetic_leapfrog( particles(i) , particle_tmp )
+       call copy_particle_kinetic_leapfrog( group_particles%particles(i) , particle_tmp )
        do j=1,n_steps
           if (particle_tmp%i_elm .le. 0) then
 !             write(*,*) "+" ! simple way to count lost particles
@@ -108,17 +113,18 @@ contains
           i_elm_old = particle_tmp%i_elm
 
           if (particle_tmp%i_elm .gt. 0) then
-             call boris_push_cylindrical(particle_tmp, mass, E, B, timestep)                 
+             call boris_push_cylindrical(particle_tmp, group_particles%mass, E, B, timestep)                 
              call find_rz_nearby_device(fields%node_list,fields%element_list,rz_old(1),rz_old(2),st_old(1),st_old(2),i_elm_old,particle_tmp%x(1), &
                   particle_tmp%x(2), particle_tmp%st(1), particle_tmp%st(2), particle_tmp%i_elm, ifail)                
           endif
 
        end do
-       call copy_particle_kinetic_leapfrog( particle_tmp , particles(i) )
+       call copy_particle_kinetic_leapfrog( particle_tmp , group_particles%particles(i) )
     end if
 
   end subroutine particle_kinetic_leapfrog_loop_kernel
 
+  !> Obtain information on the devices available, not needed for pushing
   subroutine device_query()
     type(cudaDeviceProp) :: prop    
     integer              :: istat, i, n_devices
@@ -143,38 +149,84 @@ contains
 
   end subroutine device_query
 
-  subroutine copy_device_data( sim , particles , fields )
-    type(particle_sim), intent(inout)                                                  :: sim
-    type(particle_kinetic_leapfrog), managed, dimension(:), allocatable, intent(inout) :: particles
-    type(fields_linear_device), managed , allocatable, intent(inout)                   :: fields
+  !> Takes a particle sim type and copies the field and particle data into non-polymorphic
+  !> types using the managed attribute that can be used in the kernels
+  subroutine copy_device_data( sim , particle_groups , fields )
+    type(particle_sim), intent(inout)                                               :: sim
+!    type(particle_group_device), managed, dimension(:), allocatable, intent(inout)  :: particle_groups
+    type(particle_group_device), managed, allocatable, intent(inout)  :: particle_groups
+    type(fields_linear_device), managed , allocatable, intent(inout)                :: fields
 
     write(*,*) "Copying device data"
 
-    call copy_particles( sim , particles )
+    call copy_particle_groups( sim%groups , particle_groups )
 
     call copy_fields_device( sim , fields )
 
   end subroutine copy_device_data
 
+  !> Copies particle_groups from a particle_sim type to non-polymorphic particle_group_device groups
+  subroutine copy_particle_groups( particle_groups_in, particle_groups_out )
+    type(particle_group), dimension(:), intent(inout)                              :: particle_groups_in
+!    type(particle_group_device), managed, dimension(:), allocatable, intent(inout) :: particle_groups_out
+    type(particle_group_device), managed, allocatable, intent(inout) :: particle_groups_out
 
-  subroutine copy_particles(sim , particles)    
-    type(particle_sim), intent(inout)                                                  :: sim
-    type(particle_kinetic_leapfrog), managed, dimension(:), allocatable, intent(inout) :: particles
+    integer :: n_groups, n_particles, i
+    
+!    n_groups = size(particle_groups_in)
+!    allocate(particle_groups_out(n_groups))
+    allocate(particle_groups_out)
+    n_groups=1
+    do i=1,n_groups
+       n_particles = size(particle_groups_in(i)%particles,1)
+!       allocate(particle_groups_out(i)%particles(n_particles))
+!       call copy_one_particle_group( particle_groups_in(i), particle_groups_out(i) )
+       allocate(particle_groups_out%particles(n_particles))
+       call copy_one_particle_group( particle_groups_in(i), particle_groups_out )
+    end do
+    
+  end subroutine copy_particle_groups
+  
+  !> Copies a number of particle_groups from a particle_group to a particle_group_device type
+  subroutine copy_one_particle_group(group_particles_in, group_particles_out)
+    type(particle_group), intent(inout)          :: group_particles_in
+    type(particle_group_device), managed, intent(inout)   :: group_particles_out
 
-    integer      :: i, n_particles
+    integer :: n_particles, i
+    
+    n_particles = size(group_particles_in%particles,1)
 
-    n_particles = size( sim%groups(1)%particles,1)
+    group_particles_out%Z    = group_particles_in%Z
+    group_particles_out%mass = group_particles_in%mass
+    group_particles_out%dt   = group_particles_in%dt
 
-    allocate(particles(n_particles))
-
-    select type(p => sim%groups(1)%particles)
+    select type(p => group_particles_in%particles)
     type is (particle_kinetic_leapfrog)
        do i=1,n_particles
-          call copy_particle_kinetic_leapfrog( p(i) , particles(i) )
+          call copy_particle_kinetic_leapfrog( p(i), group_particles_out%particles(i) )
        end do
-    end select
+    end select    
+    
+  end subroutine copy_one_particle_group
 
-  end subroutine copy_particles
+!!$  subroutine copy_particles(in , out)    
+!!$    type(particle_sim), intent(inout)                                         :: particles_in
+!!$    type(particle_kinetic_leapfrog), dimension(:), allocatable, intent(inout) :: particles_out
+!!$
+!!$    integer      :: i, n_particles
+!!$
+!!$    n_particles = size(particles_in,1)
+!!$
+!!$    allocate(particles_out(n_particles))
+!!$
+!!$    select type(p => sim%groups(1)%particles)
+!!$    type is (particle_kinetic_leapfrog)
+!!$       do i=1,n_particles
+!!$          call copy_particle_kinetic_leapfrog( p(i) , particles(i) )
+!!$       end do
+!!$    end select
+!!$
+!!$  end subroutine copy_particles
 
   subroutine copy_fields_device( sim , fields )
     type(particle_sim), intent(inout)                       :: sim
@@ -288,7 +340,7 @@ contains
   !> Version of routine from mod_fields for running on a GPU device
   attributes(device) subroutine calc_EBpsiU_device(fields, time, i_elm, st, phi, E, B, psi, U)
 
-    type(fields_linear_device), intent(in)    :: fields
+    type(fields_linear_device), managed, intent(in)    :: fields
     real*8, intent(in)  :: time
     integer, intent(in) :: i_elm !< JOREK element index
     real*8, intent(in)  :: st(2) !< element-local coordinates
@@ -347,7 +399,7 @@ contains
   attributes(device) subroutine do_interp_PRZ_device(fields, time, i_elm, i_v, n_v, s, t, phi, P, P_s, P_t, P_phi, P_time, R, R_s, R_t, Z, Z_s, Z_t)
     use mod_linear 
     
-    type(fields_linear_device), intent(in)         :: fields
+    type(fields_linear_device), managed, intent(in)  :: fields
     real*8,                   intent(in)           :: time !< Time at which to calculate this variable
     integer,                  intent(in)           :: i_elm
     integer,                  intent(in)           :: n_v, i_v(n_v)
