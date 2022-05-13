@@ -559,6 +559,7 @@ contains
        R_new, Z_new, s_new, t_new, i_elm_new, ifail)
     use, intrinsic :: ieee_arithmetic, only: ieee_is_nan
     use mod_neighbours, only : coord_in_neighbour
+    use mod_find_rz_nearby, only : try_interp
     implicit none
     !> Input parameters
     type (type_node_list),    intent(in)    :: node_list
@@ -593,7 +594,7 @@ contains
     st_new = [s_old,t_old] ! start at the old position
     x_new = [R_new,Z_new]
     ! Find the jacobian at the current s and t position
-    call try_interp_device(node_list,element_list,i_elm_new,st_new,x_step,R_s,R_t,Z_s,Z_t,inv_st_jac_det)
+    call try_interp(node_list,element_list,i_elm_new,st_new,x_step,R_s,R_t,Z_s,Z_t,inv_st_jac_det)
     err2 = dot_product(x_step-x_new,x_step-x_new)
     ifail=0
 
@@ -615,7 +616,7 @@ contains
        if (fact .ge. 1.d0-1d-12) then
           st_new = st_new + st_step/fact
 #ifdef DEBUG
-          call try_interp_device(node_list,element_list,i_elm_new,st_new,x_tmp,R_s,R_t,Z_s,Z_t,inv_st_jac_det)
+          call try_interp(node_list,element_list,i_elm_new,st_new,x_tmp,R_s,R_t,Z_s,Z_t,inv_st_jac_det)
 #endif
           i_elm_tmp = i_elm_new
           call coord_in_neighbour(node_list,element_list,i_elm_tmp,i_elm_new,st_new)
@@ -626,7 +627,7 @@ contains
           if (i_elm_new .eq. 0) then ! No element on that side, particle is lost
              i_elm_new = - i_elm_tmp ! Save position of particle
              ! Calculate new R and Z in x_new
-             call try_interp_device(node_list,element_list,i_elm_tmp,st_new,x_new,R_s,R_t,Z_s,Z_t,inv_st_jac_det)
+             call try_interp(node_list,element_list,i_elm_tmp,st_new,x_new,R_s,R_t,Z_s,Z_t,inv_st_jac_det)
              ! Set new element-local coordinates for the point on the axis
              s_new = st_new(1)
              t_new = st_new(2)
@@ -634,7 +635,7 @@ contains
              return
           end if
 
-          call try_interp_device(node_list,element_list,i_elm_new,st_new,x_step,R_s,R_t,Z_s,Z_t,inv_st_jac_det)
+          call try_interp(node_list,element_list,i_elm_new,st_new,x_step,R_s,R_t,Z_s,Z_t,inv_st_jac_det)
 #ifdef DEBUG 
           if (norm2(x_step-x_tmp) .gt. 1d-8) then
              !write(*,*) "ERROR on element edge crossing", x_step, x_tmp, norm2(x_step-x_tmp), &
@@ -646,7 +647,7 @@ contains
 #endif
        else
           st_new = st_new + st_step
-          call try_interp_device(node_list,element_list,i_elm_new,st_new,x_step,R_s,R_t,Z_s,Z_t,inv_st_jac_det)
+          call try_interp(node_list,element_list,i_elm_new,st_new,x_step,R_s,R_t,Z_s,Z_t,inv_st_jac_det)
        end if
        err2 = dot_product(x_step-x_new,x_step-x_new)
        s_new = st_new(1)

@@ -15,10 +15,23 @@ integer, intent(inout) :: ielm_out
 integer, intent(out)   :: ifail
 
 integer :: k
+#ifdef CUDA_KERNELS
+integer, dimension(20) :: i_elms
+integer                :: ielm_in
+ielm_in = ielm_out
+#else
 integer, dimension(:), allocatable :: i_elms
+#endif
 
 ielm_out = 0
+
+#ifdef CUDA_KERNELS
+do k=1, 4
+   i_elms(4*k+1:4*k+4) = element_list%element(i_elms(k))%neighbours
+enddo
+#else
 call elements_containing_point(R_find, Z_find, i_elms)
+#endif
 
 ! then loop through all
 do k=1,size(i_elms)

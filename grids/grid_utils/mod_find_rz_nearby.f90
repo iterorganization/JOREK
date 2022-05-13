@@ -1,7 +1,7 @@
 module mod_find_rz_nearby
   implicit none
   private
-  public :: find_rz_nearby
+  public :: find_rz_nearby, try_interp
 contains
 !> Optimized subroutine to find st coordinates corresponding to x_new=[R_new, Z_new] using
 !! The previous values x_old=[R_old, Z_old], st_old(2), i_elm_old and checking adjacent elements first
@@ -159,6 +159,9 @@ end subroutine find_RZ_nearby
 
 
 !> Auxiliary subroutine for find_RZ_nearby
+#ifdef CUDA_KERNELS
+attributes(host,device) &
+#endif
 pure subroutine try_interp(node_list,element_list,i_elm,st,x,R_s,R_t,Z_s,Z_t,inv_st_jac_det)
 use data_structure
 use mod_interp
