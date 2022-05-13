@@ -54,6 +54,10 @@ if (ifail .eq. 999) ielm_out = 0 ! Otherwise testing ielm=0 on output does not
 ! work anymore (and we don't always check ifail)
 end subroutine find_RZ
 
+
+#ifdef CUDA_KERNELS
+attributes(host,device) &
+#endif
 subroutine find_RZ_single(node_list,element_list,i_elm,R_find,Z_find,R_out,Z_out,ielm_out,s_out,t_out,ifail)
 !-------------------------------------------------------------------------
 !< solves two non-linear equations using Newtons method (from numerical recipes)
