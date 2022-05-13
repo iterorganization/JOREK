@@ -44,8 +44,9 @@ module mod_particle_kernels
 contains
 
   !> Principle loop to push a group of particles using CUDA kernels
-  subroutine particle_kinetic_leapfrog_loop( sim  , n_steps , timestep , particle_start_time )
+  subroutine particle_kinetic_leapfrog_loop( sim  , n_steps , timestep , particle_start_time , return_particle_groups )
     type(particle_sim), intent(inout)                                    :: sim
+    type(particle_group), dimension(:), allocatable                      :: return_particle_groups
     integer, intent(inout)                                               :: n_steps
     real*8, intent(inout)                                                :: particle_start_time, timestep
 
@@ -63,6 +64,7 @@ contains
     tBlock_size = 256
     tBlock = dim3(tBlock_size,1,1)
 
+    ! Set the device to use for this process 
     istat = cudaSetDevice(sim%my_id)
     if (istat /= cudaSuccess) write(*,*) cudaGetErrorString(istat)
 
@@ -82,6 +84,7 @@ contains
        write(*,*) "Group", i," kernel completed in ",MPI_Wtime()-start_time," s"
     end do
 
+    call copy_particle_groups_device( particle_groups, return_particle_groups )
 
   end subroutine particle_kinetic_leapfrog_loop
 
@@ -170,27 +173,41 @@ contains
 
   end subroutine copy_device_data
 
-  !> Copies particle_groups from a particle_sim type to non-polymorphic particle_group_device groups
+  !> Copies particle_groups to managed non-polymorphic particle_group_device groups
   subroutine copy_particle_groups( particle_groups_in, particle_groups_out )
     type(particle_group), dimension(:), intent(inout)                              :: particle_groups_in
     type(particle_group_device), managed, dimension(:), allocatable, intent(inout) :: particle_groups_out
-!    type(particle_group_device), managed, allocatable, intent(inout) :: particle_groups_out
 
     integer :: n_groups, n_particles, i
     
     n_groups = size(particle_groups_in)
     allocate(particle_groups_out(n_groups))
-!    allocate(particle_groups_out)
-!    n_groups=1
+
     do i=1,n_groups
        n_particles = size(particle_groups_in(i)%particles,1)
        allocate(particle_groups_out(i)%particles(n_particles))
        call copy_one_particle_group( particle_groups_in(i), particle_groups_out(i) )
-!       allocate(particle_groups_out%particles(n_particles))
-!       call copy_one_particle_group( particle_groups_in(i), particle_groups_out )
     end do
     
   end subroutine copy_particle_groups
+
+  !> Copies managed particle_group_device groups to  particle_groups
+  subroutine copy_particle_groups_device( particle_groups_in, particle_groups_out )
+    type(particle_group_device), managed, dimension(:), intent(inout) :: particle_groups_in
+    type(particle_group), dimension(:), allocatable, intent(inout)    :: particle_groups_out
+
+    integer :: n_groups, n_particles, i
+    
+    n_groups = size(particle_groups_in)
+    allocate(particle_groups_out(n_groups))
+
+    do i=1,n_groups
+       n_particles = size(particle_groups_in(i)%particles,1)
+       allocate(particle_kinetic_leapfrog::particle_groups_out(i)%particles(n_particles))
+       call copy_one_particle_group_device( particle_groups_in(i), particle_groups_out(i) )
+    end do
+    
+  end subroutine copy_particle_groups_device
   
   !> Copies a number of particle_groups from a particle_group to a particle_group_device type
   subroutine copy_one_particle_group(group_particles_in, group_particles_out)
@@ -213,25 +230,29 @@ contains
     end select    
     
   end subroutine copy_one_particle_group
+  
+  !> Copies a number of particle_groups from a managed particle_group_device to a particle_group type
+  subroutine copy_one_particle_group_device(group_particles_in, group_particles_out)
+    type(particle_group), intent(inout)                   :: group_particles_out
+    type(particle_group_device), managed, intent(inout)   :: group_particles_in
 
-!!$  subroutine copy_particles(in , out)    
-!!$    type(particle_sim), intent(inout)                                         :: particles_in
-!!$    type(particle_kinetic_leapfrog), dimension(:), allocatable, intent(inout) :: particles_out
-!!$
-!!$    integer      :: i, n_particles
-!!$
-!!$    n_particles = size(particles_in,1)
-!!$
-!!$    allocate(particles_out(n_particles))
-!!$
-!!$    select type(p => sim%groups(1)%particles)
-!!$    type is (particle_kinetic_leapfrog)
-!!$       do i=1,n_particlesq
-!!$          call copy_particle_kinetic_leapfrog( p(i) , particles(i) )
-!!$       end do
-!!$    end select
-!!$
-!!$  end subroutine copy_particles
+    integer :: n_particles, i
+    
+    n_particles = size(group_particles_in%particles,1)
+
+    group_particles_out%Z    = group_particles_in%Z
+    group_particles_out%mass = group_particles_in%mass
+    group_particles_out%dt   = group_particles_in%dt
+
+    select type(p => group_particles_out%particles)
+    type is (particle_kinetic_leapfrog)
+       do i=1,n_particles
+          call copy_particle_kinetic_leapfrog( group_particles_in%particles(i) , p(i) )
+       end do
+    end select    
+    
+  end subroutine copy_one_particle_group_device
+
 
   subroutine copy_fields_device( sim , fields )
     type(particle_sim), intent(inout)                       :: sim
@@ -767,8 +788,8 @@ contains
 
        do i=1,ntrial
           !HJL
-          !    call interp_RZ_1_device(node_list,element_list,i_elm,x(1),x(2),RRg1,dRRg1_dr,dRRg1_ds, &
-          !                                                    ZZg1,dZZg1_dr,dZZg1_ds)
+              call interp_RZ_1_device(node_list,element_list,i_elm,x(1),x(2),RRg1,dRRg1_dr,dRRg1_ds, &
+                                                              ZZg1,dZZg1_dr,dZZg1_ds)
           FVEC(1)   = RRg1 - R_find
           FVEC(2)   = ZZg1 - Z_find
           FJAC(1,1) = dRRg1_dr

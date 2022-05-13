@@ -30,12 +30,16 @@ subroutine assert_equal_particle_list(n_particles,particle_list_1,particle_list_
   class(particle_base),dimension(n_particles),intent(in) :: particle_list_2
   integer,intent(in) :: n_particles
   integer :: ii
+#ifndef __NVCOMPILER
   !$omp parallel do default(private) shared(n_particles,&
   !$omp particle_list_1,particle_list_2)
+#endif
   do ii=1,n_particles
     call assert_equal_particle_single(particle_list_1(ii),particle_list_2(ii))
   enddo
+#ifndef __NVCOMPILER
   !$omp end parallel do
+#endif
 end subroutine assert_equal_particle_list
 
 !> compare two particles 

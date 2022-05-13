@@ -5,7 +5,9 @@ module mod_particle_kernels_test
   use mpi
   use mod_particle_kernels
   use mod_particle_types, only: particle_kinetic_leapfrog
-  use mod_particle_sim, only: particle_sim
+  use mod_particle_sim, only: particle_group, particle_sim
+  use mod_particle_assert_equal, only: assert_equal_particle
+  use phys_module,              only: n_particles
   implicit none
   
   private
@@ -83,7 +85,6 @@ contains
     use mod_atomic_elements,      only: atomic_weights
     use mod_initialise_particles, only: initialise_particles_H_mu_psi, adjust_particle_weights
     use mod_boris,                only: boris_all_initial_half_step_backwards_RZPhi
-    use phys_module,              only: n_particles
     use mod_particle_types,       only: particle_kinetic_leapfrog
     use mod_pcg32_rng
 
@@ -125,7 +126,6 @@ contains
 
   subroutine test_copy_device_data
 
-!    type(particle_group_device), managed,  allocatable  :: particle_groups
     type(particle_group_device), managed, dimension(:), allocatable  :: particle_groups
     type(fields_linear_device), managed, allocatable                  :: fields
 
@@ -138,18 +138,23 @@ contains
   
   subroutine test_particle_kinetic_leapfrog_loop
 
+    type(particle_group), dimension(:), allocatable :: group_particles 
     real*8   :: start_time, particle_start_time, timestep
-    integer  :: n_steps
+    integer  :: n_steps, np
 
     start_time = 0
     n_steps = 1000
     timestep = 1e-10
     
     start_time = MPI_Wtime()
-    call particle_kinetic_leapfrog_loop( sim , n_steps , timestep , particle_start_time )
+    call particle_kinetic_leapfrog_loop( sim , n_steps , timestep , particle_start_time , group_particles)
     write(*,*) "Proc ",sim%my_id," full loop completed in ",MPI_Wtime()-start_time," s"
 
     call run_particle_kinetic_leapfrog_loop_CPU(64)
+
+    np = n_particles
+!    call assert_equal_rel_error_particle(np,sim%groups(1)%particles,group_particles(1)%particles)
+!    call assert_equal_particle(np,sim%groups(1)%particles,group_particles(1)%particles)
 
 !    call run_particle_kinetic_leapfrog_loop_CPU(1)
     
