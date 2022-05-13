@@ -75,7 +75,7 @@ contains
     n_groups = size( sim%groups, 1)
     do i = 1, n_groups
        n_particles = size( sim%groups(i)%particles,1)
-       grid = dim3(n_particles/tBlock_size,1,1)
+       grid = dim3(ceiling(real(n_particles)/tBlock_size),1,1)
        start_time = MPI_Wtime()
        write(*,*) "Group", i," launching ",n_particles, "particles"
        call particle_kinetic_leapfrog_loop_kernel<<<grid, tBlock>>>(n_particles, particle_groups(i), fields, n_steps, timestep, particle_start_time )
@@ -105,10 +105,11 @@ contains
 
     i = threadIdx%x + (blockIdx%x-1) * blockDim%x 
     if ( i <= n_particles ) then
+!       write(*,*) "+" ! simple way to count particles
        call copy_particle_kinetic_leapfrog( group_particles%particles(i) , particle_tmp )
        do j=1,n_steps
           if (particle_tmp%i_elm .le. 0) then
-!             write(*,*) "+" ! simple way to count lost particles
+!             write(*,*) "-" ! simple way to count lost particles
              exit
           endif
 

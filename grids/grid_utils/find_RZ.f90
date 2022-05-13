@@ -16,9 +16,9 @@ integer, intent(out)   :: ifail
 
 integer :: k
 #ifdef CUDA_KERNELS
-integer, dimension(20) :: i_elms
-integer                :: ielm_in
-ielm_in = ielm_out
+integer, dimension(n_elements_max) :: i_elms
+!integer                :: ielm_in
+!ielm_in = ielm_out
 #else
 integer, dimension(:), allocatable :: i_elms
 #endif
@@ -26,15 +26,25 @@ integer, dimension(:), allocatable :: i_elms
 ielm_out = 0
 
 #ifdef CUDA_KERNELS
-do k=1, 4
-   i_elms(4*k+1:4*k+4) = element_list%element(i_elms(k))%neighbours
+! This avoids calling the C++ code in elements containing point
+do k=1, element_list%n_elements
+  i_elms(k) = k
 enddo
+!i_elms(1:4) = element_list%element(ielm_in)%neighbours
+!do k=1, 4
+!   i_elms(4*k+1:4*k+4) = element_list%element(i_elms(k))%neighbours
+!enddo
 #else
 call elements_containing_point(R_find, Z_find, i_elms)
 #endif
 
 ! then loop through all
-do k=1,size(i_elms)
+#ifdef CUDA_KERNELS
+do k=1,element_list%n_elements
+!   write(*,*) k, "Finding element for ", R_find, Z_find
+#else
+   do k=1,size(i_elms)
+#endif
   call find_RZ_single(node_list,element_list,i_elms(k),R_find,Z_find,R_out,Z_out,ielm_out,s_out,t_out,ifail)
   if (ifail .eq. 0) exit
 enddo
