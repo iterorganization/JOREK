@@ -162,7 +162,6 @@ contains
   subroutine copy_device_data( sim , particle_groups , fields )
     type(particle_sim), intent(inout)                                               :: sim
     type(particle_group_device), managed, dimension(:), allocatable, intent(inout)  :: particle_groups
-!    type(particle_group_device), managed, allocatable, intent(inout)  :: particle_groups
     type(fields_linear_device), managed , allocatable, intent(inout)                :: fields
 
     write(*,*) "Copying device data"
@@ -676,7 +675,8 @@ contains
 
   !> Auxiliary subroutine for find_RZ_nearby
   attributes(device) pure subroutine try_interp_device(node_list,element_list,i_elm,st,x,R_s,R_t,Z_s,Z_t,inv_st_jac_det)
-    !attributes(device) subroutine try_interp_device(node_list,element_list,i_elm,st,x,R_s,R_t,Z_s,Z_t,inv_st_jac_det)
+    use mod_interp, only : interp_RZ
+
     !> Input parameters
     type (type_node_list),    intent(in)    :: node_list
     type (type_element_list), intent(in)    :: element_list
@@ -685,7 +685,7 @@ contains
     real*8,                   intent(out)   :: x(2), R_s, R_t, Z_s, Z_t, inv_st_jac_det
     real*8 :: jac
 
-    call interp_RZ_1_device(node_list,element_list,i_elm,st(1),st(2),x(1),R_s,R_t,x(2),Z_s,Z_t)
+    call interp_RZ(node_list,element_list,i_elm,st(1),st(2),x(1),R_s,R_t,x(2),Z_s,Z_t)
     ! Guard against the determinant being close to zero
     jac = R_s * Z_t - R_t * Z_s
     if (abs(jac) .lt. 1d-8) then
@@ -743,6 +743,7 @@ contains
     !< finds the crossing of two coordinate lines given as a series of cubics in element
     !< i_elm
     !-------------------------------------------------------------------------
+    use mod_interp, only : interp_RZ
     implicit none
 
     type (type_node_list), intent(in)    :: node_list
@@ -788,7 +789,7 @@ contains
 
        do i=1,ntrial
           !HJL
-              call interp_RZ_1_device(node_list,element_list,i_elm,x(1),x(2),RRg1,dRRg1_dr,dRRg1_ds, &
+              call interp_RZ(node_list,element_list,i_elm,x(1),x(2),RRg1,dRRg1_dr,dRRg1_ds, &
                                                               ZZg1,dZZg1_dr,dZZg1_ds)
           FVEC(1)   = RRg1 - R_find
           FVEC(2)   = ZZg1 - Z_find
@@ -858,40 +859,5 @@ contains
     enddo
   end subroutine find_RZ_single_device
 
-  attributes(device) pure subroutine interp_RZ_1_device(node_list, element_list, i_elm, s, t, R, R_s, R_t, Z, Z_s, Z_t)
-!  attributes(device) subroutine interp_RZ_1_device(node_list, element_list, i_elm, s, t, R, R_s, R_t, Z, Z_s, Z_t)
-    use mod_basisfunctions
-    type (type_node_list),    intent(in)  :: node_list
-    type (type_element_list), intent(in)  :: element_list
-    integer,                  intent(in)  :: i_elm
-    real*8,                   intent(in)  :: s, t
-    real*8,                   intent(out) :: R, R_s, R_t, Z, Z_s, Z_t
-
-    ! --- Local variables
-    real*8  :: H(n_degrees,4), H_s(n_degrees,4), H_t(n_degrees,4)
-    integer :: kv, iv
-    real*8  :: xR(n_degrees,n_vertex_max), xZ(n_degrees,n_vertex_max)
-    real*8  :: sizes(n_degrees)
-    !write(*,*) "interp_rz_1"
-
-    call basisfunctions_T(s,t,H,H_s,H_t)
-
-    ! Preload values and premultiply with sizes(:,kv)
-    do kv = 1,n_vertex_max  ! 4 vertices
-       iv = element_list%element(i_elm)%vertex(kv)
-       sizes(:) = element_list%element(i_elm)%size(kv,:)
-       xR(:,kv) = node_list%node(iv)%x(1,:,1) * sizes(:)
-       xZ(:,kv) = node_list%node(iv)%x(1,:,2) * sizes(:)
-    end do
-
-    R   = sum(xR*H)
-    R_s = sum(xR*H_s)
-    R_t = sum(xR*H_t)
-    Z   = sum(xZ*H)
-    Z_s = sum(xZ*H_s)
-    Z_t = sum(xZ*H_t)
-
-  end subroutine interp_RZ_1_device
-
-end module mod_particle_kernels
+ end module mod_particle_kernels
 #endif
