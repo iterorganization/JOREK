@@ -1249,7 +1249,7 @@ do ms=1, n_gauss
                       + (nu_e_imp + nu_e_bg) * dTi0_corr_dT * (r0_corr + alpha_e*rn0_corr)
     ddTe_i_dTe      = (dnu_e_imp_dTe + dnu_e_bg_dTe) * (Ti0_corr - Te0_corr) * (r0_corr + alpha_e*rn0_corr)&
                       - (nu_e_imp + nu_e_bg) * dTe0_corr_dT * (r0_corr + alpha_e*rn0_corr)                 &
-                      - (nu_e_imp + nu_e_bg) * Te0_corr     * dalpha_e_dT * rn0_corr
+                      + (nu_e_imp + nu_e_bg) * (Ti0_corr - Te0_corr) * dalpha_e_dT * rn0_corr
     ddTe_i_drhon    = (dnu_e_imp_drhon + dnu_e_bg_drhon) * (Ti0_corr - Te0_corr) * (r0_corr + alpha_e*rn0_corr)&
                       +(nu_e_imp + nu_e_bg) * (Ti0_corr - Te0_corr) * alpha_e * drn0_corr_dn
     ddTe_i_drho     = (dnu_e_imp_drho + dnu_e_bg_drho) * (Ti0_corr - Te0_corr) * (r0_corr + alpha_e*rn0_corr)&
