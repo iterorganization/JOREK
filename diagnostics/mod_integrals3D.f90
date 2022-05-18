@@ -72,9 +72,10 @@ real*8  :: eq_ss(n_plane,0:n_var,n_gauss,n_gauss), eq_tt(n_plane,0:n_var,n_gauss
 real*8  :: eq_sp(n_plane,0:n_var,n_gauss,n_gauss), eq_tp(n_plane,0:n_var,n_gauss,n_gauss)
 real*8  :: wgauss_copy(n_gauss)
 real*8  :: psi_axisym(n_gauss,n_gauss)
+real*8  :: s_norm(n_gauss, n_gauss)
 
-real*8  :: x_g_1D(n_gauss),  x_s_1D(n_gauss),   x_t_1D(n_gauss)
-real*8  :: y_g_1D(n_gauss),  y_s_1D(n_gauss),   y_t_1D(n_gauss)
+real*8  :: x_g_1D(n_plane,n_gauss),  x_s_1D(n_plane,n_gauss),   x_t_1D(n_plane,n_gauss)
+real*8  :: y_g_1D(n_plane,n_gauss),  y_s_1D(n_plane,n_gauss),   y_t_1D(n_plane,n_gauss)
 real*8  :: eq_g_1D(n_plane,0:n_var,n_gauss), eq_s_1D(n_plane,0:n_var,n_gauss)
 real*8  :: eq_t_1D(n_plane,0:n_var,n_gauss), eq_p_1D(n_plane,0:n_var,n_gauss)
 
@@ -98,7 +99,7 @@ real*8, allocatable :: qval(:), radav(:)
 real*8  :: R_axis,Z_axis,s_axis,t_axis
 real*8  :: current_tot, beta_p, beta_n, beta_t, aminor, current_MA
 real*8  :: xjac, xjac_R, xjac_Z, BigR, wst, P_int, P_e_int, P_i_int, C_intern, zj0, w0, ps0, r0, T0, T0e, T0i
-real*8  :: Vol, Volume, Area, Bgeo, area1 
+real*8  :: Vol, Volume, Area, Bgeo, area1, surface_area
 real*8  :: psi_as_coord
 real*8  :: AR0, AR0_p, AR0_s, AR0_t, AR0_sp, AR0_tp, AR0_Rp, AZ0, AZ0_p, AZ0_s, AZ0_t, AZ0_sp, AZ0_tp, AZ0_Zp, A30
 real*8  :: A30_p, A30_s, A30_t, A30_ss, A30_tt, A30_st, A30_R, A30_RR, A30_ZZ
@@ -130,7 +131,9 @@ real*8  :: kinpar_flux, qn_par, qn_perp, mag_work_tot, mag_src_tot, mag_source_t
 real*8  :: vpar_part_flux, vperp_part_flux, Dperp_part_flux, Dpar_part_flux, neut_part_flux
 real*8  :: vpar_part_flow, vperp_part_flow, Dperp_part_flow, Dpar_part_flow, neut_part_flow
 real*8  :: poynting_flux, poynting_tmp, dpsi_dt
-real*8  :: s_or_t,sg,tg,R,R_s,R_t,R_st,R_ss,R_tt,Z,Z_s,Z_t,Z_st,Z_ss,Z_tt
+real*8  :: s_or_t,sg,tg
+real*8  :: R,R_s,R_t,R_phi,R_st,R_ss,R_tt,R_sp,R_tp,R_pp
+real*8  :: Z,Z_s,Z_t,Z_phi,Z_st,Z_ss,Z_tt,Z_sp,Z_tp,Z_pp
 real*8  :: RH,RH_s,RH_t,RH_st,RH_ss,RH_tt
 real*8  :: TT,TT_s,TT_t,TT_st,TT_ss,TT_tt 
 real*8  :: UU,UU_s,UU_t,UU_st,UU_ss,UU_tt 
@@ -144,6 +147,7 @@ real*8  :: viscopar_flux, viscopar_f, vpar_s, vpar_t, vpar_x, vpar_y, li3_tot, l
 real*8  :: varmin(n_var), varmax(n_var), V_min(n_var), V_max(n_var)
 real*8  :: R_curr_cent, Z_curr_cent, Zcurr_tmp, R2curr_tmp, R2curr
 
+real*8  :: cross_deriv(3), dA
 
 #if (defined WITH_Neutrals) && (!defined WITH_Impurities)
 real*8  :: source_neutral
@@ -264,6 +268,7 @@ VK_ext   = 0.d0
 VM_ext   = 0.d0
 J2_ext   = 0.d0
 Vol      = 0.d0
+surface_area = 0.d0
 area1    = 0.d0
 P_tot    = 0.d0
 P_e_tot  = 0.d0
@@ -344,7 +349,7 @@ ife_max   = min((my_id +1) * ife_delta, element_list%n_elements)
 !$omp   shared(element_list,node_list, H, H_s, H_t, HZ, HZ_p, ife_min, ife_max, xpoint, xcase, &
 !$omp          H_ss, H_tt, H_st, HZ_coord, HZ_coord_p,                                         &
 !$omp          R_xpoint, Z_xpoint, my_id, use_pellet, delta_phi, R_axis, Z_axis, psi_axis, psi_bnd, &
-!$omp          D_tot, D_int, D_Ext, P_tot, P_int, P_ext, Vol, C_intern, C_ext, VP_ext, VP_int, &
+!$omp          D_tot, D_int, D_Ext, P_tot, P_int, P_ext, Vol, surface_area, C_intern, C_ext, VP_ext, VP_int, &
 !$omp          VK_ext, VK_int, VK_tot, VM_ext, VM_int, VM_tot, J2_tot, J2_ext, J2_int,         &
 !$omp          H_int, H_ext, S_int, S_ext, psi_xpoint, F0, VP_tot, eta, visco, visco_T_dependent, T_0, Te_0, T_min, &
 !$omp          ne_SI_min, Te_eV_min, rn0_min, P_e_tot, P_i_tot, P_e_int, P_i_int, P_e_ext, P_i_ext, &
@@ -373,7 +378,7 @@ ife_max   = min((my_id +1) * ife_delta, element_list%n_elements)
 !$omp   private(ife,iv,inode,element,nodes,i,j, k,in, mp, ms, mt,                              &
 !$omp           x_g, y_g, x_s, y_s, x_t, y_t, x_p, y_p, xjac, xjac_R, xjac_Z, eq_g, eq_s, eq_t, eq_p, &
 !$omp           x_ss, x_tt, x_st, y_ss, y_tt, y_st, eq_ss, eq_tt, eq_st, eq_sp, eq_tp,         &
-!$omp           psi_axisym,                                                                    &
+!$omp           psi_axisym, s_norm,                                                            &
 !$omp           wst, BigR, r0, T0, T0e, zj0, w0, ps0, dTdx, dTdy, drhodx, drhody, dpsidx, dpsidy, dpsidp, dudx, dudy, dudp, &
 !$omp           dpdx, dpdy, phi, T0i, psi_as_coord,                                            &
 !$omp           source_pellet, source_volume, eq_zne, eq_zTe, vpar0, chi, Bv2, BB2,            &
@@ -432,7 +437,7 @@ omp_tid      = 0
 !$omp                D_int, D_ext, P_int, H_int, S_int, H_ext, S_ext, P_ext, C_intern, C_ext, &
 !$omp                P_e_int, P_i_int, P_e_ext, P_i_ext, P_e_tot, P_i_tot,                    &
 !$omp                VP_int, VP_ext, VP_tot, VK_tot, VK_int, VK_ext, VM_ext,                  &
-!$omp                VM_int, VM_tot, Vol, P_tot, D_tot,J2_tot, J2_int, J2_ext,                &
+!$omp                VM_int, VM_tot, Vol, surface_area, P_tot, D_tot,J2_tot, J2_int, J2_ext,                &
 !$omp                heli_tot, mag_wk_tot, vperp_disp_tot, vpar_disp_tot, thm_wk_tot, area1, mag_src_tot, momentum_x, momentum_y, &
 !$omp                fric_disp_tot, R2curr_tmp, Zcurr_tmp)
 
@@ -447,7 +452,7 @@ do ife = ife_min, ife_max
 
   x_g = 0.d0; x_s = 0.d0; x_t = 0.d0; x_p = 0.d0; x_ss = 0.d0; x_tt = 0.d0; x_st = 0.d0;
   y_g = 0.d0; y_s = 0.d0; y_t = 0.d0; y_p = 0.d0; y_ss = 0.d0; y_tt = 0.d0; y_st = 0.d0;
-  psi_axisym(:,:) = 0.d0
+  psi_axisym(:,:) = 0.d0; s_norm(:,:) = 0.d0
 
   do i=1,n_vertex_max
     do j=1,n_order+1
@@ -478,6 +483,10 @@ do ife = ife_min, ife_max
 #ifdef fullmhd
           ! --- Equilibrium psi (n=0 only)
           psi_axisym(ms,mt) = psi_axisym(ms,mt) + nodes(i)%values(1,j,var_A3) * element%size(i,j) * H(i,j,ms,mt)
+#endif
+
+#if (JOREK_MODEL == 83) || (JOREK_MODEL == 183)
+             s_norm(ms, mt) = s_norm(ms,mt) + nodes(i)%s_eq(j)*element%size(i,j)*H(i,j,ms,mt)
 #endif
 
         enddo
@@ -1102,7 +1111,12 @@ do ife = ife_min, ife_max
         ! Total neutrals in particles
         local_n_particles     = local_n_particles + central_density * 1.d20 * rn0 * m_i_over_m_imp * bigR * xjac * wst * delta_phi
 #endif
+
+#if (JOREK_MODEL == 83) || (JOREK_MODEL == 183)
+        if (s_norm(ms,mt) <= 1.d0) then
+#else
         if ( get_psi_n(psi_as_coord, y_g(mp,ms,mt)) <= 1.d0 ) then   !inside LCFS
+#endif
 #ifdef WITH_Impurities
           D_int = D_int + (r0-rn0) * xjac * BigR * wst * delta_phi
 #ifdef WITH_TiTe
@@ -1194,8 +1208,8 @@ do m_bndelem = 1, bnd_elm_list%n_bnd_elements
   m_elm   = bnd_elm_list%bnd_element(m_bndelem)%element
 
   !--- calculate values at gaussian points on the element
-  x_g_1D(:)  = 0.d0; x_s_1D(:)  = 0.d0;  x_t_1D(:)    = 0.d0;
-  y_g_1D(:)  = 0.d0; y_s_1D(:)  = 0.d0;  y_t_1D(:)    = 0.d0;
+  x_g_1D(:,:)  = 0.d0; x_s_1D(:,:)  = 0.d0;  x_t_1D(:,:)    = 0.d0;
+  y_g_1D(:,:)  = 0.d0; y_s_1D(:,:)  = 0.d0;  y_t_1D(:,:)    = 0.d0;
 
   eq_g_1D(:,:,:) = 0.d0; eq_s_1D(:,:,:) = 0.d0;
 
@@ -1205,11 +1219,15 @@ do m_bndelem = 1, bnd_elm_list%n_bnd_elements
       k_dir       = bndelem%direction(k_vertex,k_dof)
       k_size      = bndelem%size(k_vertex,k_dof)
       node_k      = node_list%node(k_node)
-  
-      x_g_1D(:)   = x_g_1D(:)  + node_k%x(1,k_dir,1) * k_size * H1  (k_vertex,k_dof,:)
-      y_g_1D(:)   = y_g_1D(:)  + node_k%x(1,k_dir,2) * k_size * H1  (k_vertex,k_dof,:)
-      x_s_1D(:)   = x_s_1D(:)  + node_k%x(1,k_dir,1) * k_size * H1_s(k_vertex,k_dof,:)
-      y_s_1D(:)   = y_s_1D(:)  + node_k%x(1,k_dir,2) * k_size * H1_s(k_vertex,k_dof,:)
+      
+      do mp=1,n_plane
+        do in=1,n_coord_tor
+          x_g_1D(mp,:)   = x_g_1D(mp,:)  + node_k%x(in,k_dir,1) * k_size * H1  (k_vertex,k_dof,:) *HZ_coord(in,mp)
+          y_g_1D(mp,:)   = y_g_1D(mp,:)  + node_k%x(in,k_dir,2) * k_size * H1  (k_vertex,k_dof,:) *HZ_coord(in,mp)
+          x_s_1D(mp,:)   = x_s_1D(mp,:)  + node_k%x(in,k_dir,1) * k_size * H1_s(k_vertex,k_dof,:) *HZ_coord(in,mp)
+          y_s_1D(mp,:)   = y_s_1D(mp,:)  + node_k%x(in,k_dir,2) * k_size * H1_s(k_vertex,k_dof,:) *HZ_coord(in,mp)
+        enddo
+      enddo
 
       do k=1,n_var
         do mp=1, n_plane 
@@ -1230,15 +1248,18 @@ do m_bndelem = 1, bnd_elm_list%n_bnd_elements
   ! direction of bnd normals
   call basisfunctions(xgauss(2),xgauss(2), G)  
   R_c = 0.d0 ;  Z_c = 0.d0 
+  mp=1
   do i = 1, n_vertex_max
     do j = 1, n_order+1
       node_k = node_list%node(elm_k%vertex(i)) 
-      R_c    = R_c + node_k%x(1,j,1) * elm_k%size(i,j) * G(i,j)
-      Z_c    = Z_c + node_k%x(1,j,2) * elm_k%size(i,j) * G(i,j)
+      do in=1,n_coord_tor
+        R_c    = R_c + node_k%x(1,j,1) * elm_k%size(i,j) * G(i,j) * HZ_coord(in,mp)
+        Z_c    = Z_c + node_k%x(1,j,2) * elm_k%size(i,j) * G(i,j) * HZ_coord(in,mp)
+      enddo
     enddo
   enddo  
-  vec_inside = (/ R_c - x_g_1D(2), Z_c - y_g_1D(2) /)       ! vector pointing towards the domain
-  grad_t     = (/ -y_s_1D(2) , x_s_1D(2) /)     ! gradient of the coordinate t (normal to the boundary here)
+  vec_inside = (/ R_c - x_g_1D(mp,2), Z_c - y_g_1D(mp,2) /)       ! vector pointing towards the domain
+  grad_t     = (/ -y_s_1D(mp,2) , x_s_1D(mp,2) /)     ! gradient of the coordinate t (normal to the boundary here)
   sign_out   = -1.d0 * sign( 1.d0, ( vec_inside(1)*grad_t(1) + vec_inside(2)*grad_t(2) ) )  
   !--------------------------------------------------------------------------------
 
@@ -1260,13 +1281,20 @@ do m_bndelem = 1, bnd_elm_list%n_bnd_elements
       sg = 0.d0;    tg = s_or_t; 
     end select
 
-    call interp_RZ(node_list,element_list,m_elm,sg,tg,R,R_s,R_t,R_st,R_ss,R_tt,Z,Z_s,Z_t,Z_st,Z_ss,Z_tt)
-
-    BigR   = R
-    xjac   = R_s * Z_t - R_t * Z_s
-    grad_t = (/ -y_s_1D(ms) , x_s_1D(ms) /)   ! --- normal vector to the boundary 
-
     do mp=1, n_plane
+      phi       = 2.d0*PI*float(mp-1)/float(n_plane) / float(n_period)
+      call interp_RZP(node_list,element_list,m_elm,sg,tg,phi,R,R_s,R_t,R_phi,R_st,R_ss,R_tt,R_sp,R_tp,R_pp,Z,Z_s,Z_t,Z_phi,Z_st,Z_ss,Z_tt,Z_sp,Z_tp,Z_pp)
+      
+      BigR   = R
+      xjac   = R_s * Z_t - R_t * Z_s
+      
+      ! Calculate surface area contribution from covariant components
+      cross_deriv = (/(R_t*sin(phi)*Z_phi-(R_phi*sin(phi)+R*cos(phi))*Z_t),   &
+                    (-R_t*Z_phi*cos(phi)+(R_phi*cos(phi)-R*sin(phi))*Z_t),  &
+                    (R_t * R)  /)
+      dA = sqrt(cross_deriv(1)*cross_deriv(1) + cross_deriv(2)*cross_deriv(2) + cross_deriv(3)*cross_deriv(3)) 
+      
+      grad_t = (/ -y_s_1D(mp, ms) , x_s_1D(mp, ms) /)   ! --- normal vector to the boundary 
 
       ps0      = eq_g_1D(mp,var_psi ,ms)  !--- here sbnd is the direction along the boundary!!
       ps0_sbnd = eq_s_1D(mp,var_psi ,ms)
@@ -1392,8 +1420,12 @@ do m_bndelem = 1, bnd_elm_list%n_bnd_elements
       BB2    = (F0*F0 + dpsidx*dpsidx + dpsidy*dpsidy) / BigR**2
 
       ! --- get normalized flux 
+#if (JOREK_MODEL == 83) || (JOREK_MODEL == 183)
+      psi_n = s_norm(ms, mt)
+#else
       psi_n = get_psi_n(ps0,Z)
- 
+#endif
+
 #ifdef WITH_TiTe
       T0e_corr      = corr_neg_temp1(T0e)
       eta_T         = resistivity(eta, T0e_corr, T_max_eta, Te_0)  
@@ -1557,6 +1589,7 @@ do m_bndelem = 1, bnd_elm_list%n_bnd_elements
       viscopar_flux = viscopar_flux  +  viscopar_f  * wgauss(ms) * delta_phi
       poynting_flux = poynting_flux  + poynting_tmp * wgauss(ms) * delta_phi
 
+      surface_area      = surface_area       + dA * wgauss(ms) * delta_phi
     enddo
   enddo
 
@@ -1775,6 +1808,7 @@ friction_dissip_tot  = n_period * friction_dissip_tot * fact_flux
 mag_source_tot       = n_period * mag_source_tot      * fact_flux
 volume               = n_period * volume
 area                 = n_period * area / (2.d0 * PI)
+surface_area         = n_period * surface_area
 
 #if (defined WITH_Neutrals) || (defined WITH_Impurities)
 total_radiation     = n_period * total_radiation
@@ -2139,6 +2173,7 @@ if (my_id .eq. 0) then
   endif
 #endif
   write(*,'(A,2es14.6,A)') ' Volume                          : ',xt,volume,' [m^3]'
+  write(*,'(A,2es14.6,A)') ' Surface area                    : ',xt,surface_area, '[m^2]'
   write(*,'(A,4es14.6,A)') ' density  (total/in/out)         : ',xt,density_tot,  density_in,  density_out,'[ 10^20/m^3]'
   write(*,'(A,4es14.6,A)') ' pressure (total/in/out)         : ',xt,pressure/1.d6, pressure_in/1.d6, pressure_out/1.d6,' [MJ]'
   write(*,'(A,4es14.6,A)') ' kinetic parallel (total/in/out) : ',xt,kin_par_tot/1.d6, kin_par_in/1.d6, kin_par_out/1.d6,' [MJ]'

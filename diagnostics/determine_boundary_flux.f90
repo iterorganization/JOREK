@@ -29,7 +29,7 @@ real*8  :: p, t,rr1, rr2, drr1, drr2, ss1, ss2, dss1, dss2, ri, si, dri, dsi, dA
 real*8  :: RRgi, dRRgi_dr, dRRgi_ds, dRRgi_dp, ZZgi, dZZgi_dr, dZZgi_ds, dZZgi_dp, dRRgi_dt, dZZgi_dt
 real*8  :: PSgi, dPSgii_dr, dPSgii_ds, dPSgi_dr, dPSgi_ds, dPSgi_dp, PSI_R, PSI_Z, Psi_p, RZJAC, grad_psi, psi_n
 real*8  :: Fgi,dFgi_dr,dFgi_ds,dFgi_drs,dFgi_drr,dFgi_dss
-real*8  :: sum_dA, sum_dA_abs, B_tot2, delta_phi
+real*8  :: surface_area, sum_dA, sum_dA_abs, B_tot2, delta_phi
 real*8  :: dRRgi_drs,dRRgi_drr,dRRgi_dss, dRRgi_drp,dRRgi_dsp,dRRgi_dpp
 real*8  :: dZZgi_drs,dZZgi_drr,dZZgi_dss, dZZgi_drp,dZZgi_dsp,dZZgi_dpp, dPSgi_drs,dPSgi_drr,dPSgi_dss
 integer :: m, ig1, ig2, i_plane, i_tor
@@ -42,16 +42,20 @@ write(*,*) "*********************************"
 write(*,*) "*    Determine Boundary Flux    *"
 write(*,*) "*********************************"
 
-delta_phi = 2 * PI / float(n_plane+1) / float(n_period)
+delta_phi = 2 * PI / float(n_plane) / float(n_period)
 sum_dA = 0.d0
 sum_dA_abs = 0.d0
-! Loop through pieces in poloidal plane
+surface_area = 0.d0
 do i_elm=(n_flux-2)*n_tht+1, (n_flux-1)*n_tht
-  do i_plane=1,n_plane+1
+  do i_plane=1,n_plane
     do ig1 = 1, 4
       si = 0.5 * (xgs(ig1) + 1.0)
       ri = 1.0
-
+      
+      
+      call interp_RZP(node_list,element_list,i_elm,ri,si,(i_plane-1)*delta_phi,   &
+                      RRgi,dRRgi_dr,dRRgi_ds,dRRgi_dp,dRRgi_drs,dRRgi_drr,dRRgi_dss,dRRgi_drp, dRRgi_dsp, dRRgi_dpp, &
+                      ZZgi,dZZgi_dr,dZZgi_ds,dZZgi_dp,dZZgi_drs,dZZgi_drr,dZZgi_dss,dZZgi_drp, dZZgi_dsp, dZZgi_dpp)
       do ig2 = 1, 4
         p = (i_plane - 1 + 0.5 * (xgs(ig2) + 1.0)) * delta_phi
 
@@ -73,6 +77,7 @@ do i_elm=(n_flux-2)*n_tht+1, (n_flux-1)*n_tht
                         ZZgi,dZZgi_dr,dZZgi_ds,dZZgi_dp,dZZgi_drs,dZZgi_drr,dZZgi_dss,dZZgi_drp, dZZgi_dsp, dZZgi_dpp)
 
         chi = get_chi(RRgi, ZZgi, p)
+        
 
         ! Radial component discarded because grid is already flux surface aligned
         dRRgi_dt = dRRgi_ds  ! + dRRgi_dr * dri
@@ -103,6 +108,7 @@ do i_elm=(n_flux-2)*n_tht+1, (n_flux-1)*n_tht
 
         ! Factors of 0.5 to convert the integration interval from [-1,1] to [0,1] (poloidal direction) 
         !   and 0.5*delta_phi to convert the integration interval from [-1,1] to [phi_i,phi_i+delta_phi] (toroidal direction)
+        surface_area = surface_area +  wgs(ig1) * 0.5 * wgs(ig2) * 0.5 * delta_phi * dA
         sum_dA = sum_dA +  wgs(ig1) * 0.5 * wgs(ig2) * 0.5 * delta_phi * dA * ndotB 
         sum_dA_abs = sum_dA_abs +  wgs(ig1) * 0.5 * wgs(ig2) * 0.5 * delta_phi * dA * abs(ndotB) 
       end do
@@ -111,6 +117,7 @@ do i_elm=(n_flux-2)*n_tht+1, (n_flux-1)*n_tht
 end do
 
 write(*,*) "Max n.B: ", ndotB_max
+write(*,*) "Surface area:        ", surface_area, "m^2"
 write(*,*) "Integrated abs(n.B): ", n_period * sum_dA_abs, "Tm^2"
 write(*,*) "Total Boundary Flux: ", n_period * sum_dA, "Tm^2"
 

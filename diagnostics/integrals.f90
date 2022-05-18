@@ -54,6 +54,7 @@ type (type_element)      :: element
 type (type_node)         :: nodes(n_vertex_max)
 real*8     :: x_g(n_gauss,n_gauss), x_s(n_gauss,n_gauss), x_t(n_gauss,n_gauss)
 real*8     :: y_g(n_gauss,n_gauss), y_s(n_gauss,n_gauss), y_t(n_gauss,n_gauss)
+real*8     :: s_norm(n_gauss, n_gauss)
 real*8     :: eq_g(0:n_var,n_gauss,n_gauss), eq_s(0:n_var,n_gauss,n_gauss), eq_t(0:n_var,n_gauss,n_gauss)
 integer    :: i, j, k, in, ms, mt, iv, inode, ife, n_elements
 real*8     :: xjac, BigR, wst, P_int, C_intern, ZJ_0, PS_0, Volume, Area
@@ -119,20 +120,25 @@ do ife =1, element_list%n_elements
   x_g(:,:)    = 0.d0; x_s(:,:)    = 0.d0; x_t(:,:)    = 0.d0;
   y_g(:,:)    = 0.d0; y_s(:,:)    = 0.d0; y_t(:,:)    = 0.d0;
   eq_g(:,:,:) = 0.d0; eq_s(:,:,:) = 0.d0; eq_t(:,:,:) = 0.d0;
+  s_norm(:,:) = 0.d0
 
   do i=1,n_vertex_max
     do j=1,n_order+1
       do ms=1, n_gauss
         do mt=1, n_gauss
+#if (JOREK_MODEL == 83) || (JOREK_MODEL == 183)
+          s_norm(ms, mt) = s_norm(ms, mt) + nodes(i)%s_eq(j)*element%size(i,j)*H(i,j,ms,mt)
+#endif
 
-          x_g(ms,mt) = x_g(ms,mt) + nodes(i)%x(1,j,1) * element%size(i,j) * H(i,j,ms,mt)
-          y_g(ms,mt) = y_g(ms,mt) + nodes(i)%x(1,j,2) * element%size(i,j) * H(i,j,ms,mt)
-
-          x_s(ms,mt) = x_s(ms,mt) + nodes(i)%x(1,j,1) * element%size(i,j) * H_s(i,j,ms,mt)
-          x_t(ms,mt) = x_t(ms,mt) + nodes(i)%x(1,j,1) * element%size(i,j) * H_t(i,j,ms,mt)
-          y_s(ms,mt) = y_s(ms,mt) + nodes(i)%x(1,j,2) * element%size(i,j) * H_s(i,j,ms,mt)
-          y_t(ms,mt) = y_t(ms,mt) + nodes(i)%x(1,j,2) * element%size(i,j) * H_t(i,j,ms,mt)
-
+          do in=1, n_coord_tor
+            x_g(ms,mt) = x_g(ms,mt) + nodes(i)%x(in,j,1) * element%size(i,j) * H(i,j,ms,mt) * HZ_coord(in,i_plane_rtree)
+            y_g(ms,mt) = y_g(ms,mt) + nodes(i)%x(in,j,2) * element%size(i,j) * H(i,j,ms,mt) * HZ_coord(in,i_plane_rtree)
+            
+            x_s(ms,mt) = x_s(ms,mt) + nodes(i)%x(in,j,1) * element%size(i,j) * H_s(i,j,ms,mt) * HZ_coord(in,i_plane_rtree)
+            x_t(ms,mt) = x_t(ms,mt) + nodes(i)%x(in,j,1) * element%size(i,j) * H_t(i,j,ms,mt) * HZ_coord(in,i_plane_rtree)
+            y_s(ms,mt) = y_s(ms,mt) + nodes(i)%x(in,j,2) * element%size(i,j) * H_s(i,j,ms,mt) * HZ_coord(in,i_plane_rtree)
+            y_t(ms,mt) = y_t(ms,mt) + nodes(i)%x(in,j,2) * element%size(i,j) * H_t(i,j,ms,mt) * HZ_coord(in,i_plane_rtree)
+          enddo
         enddo
       enddo
     enddo
@@ -257,9 +263,13 @@ do ife =1, element_list%n_elements
       pressure = pressure + rho_00 * T_00 * xjac * 2.d0 * PI * BigR * wst
 #endif
 
+#if (JOREK_MODEL == 83) || (JOREK_MODEL == 183)
+      if (s_norm(ms, mt) <= 1.0) then
+#else
       if ( in_plasma(node_list,element_list,x_g(ms,mt),y_g(ms,mt),eq_g(1,ms,mt),xpoint,&
         xcase,R_xpoint,Z_xpoint,psi_xpoint,psi_limit,R_axis,Z_axis,psi_axis) ) then
-        
+#endif
+
 #ifdef WITH_TiTe
         call sources(xpoint, xcase, y_g(ms,mt), Z_xpoint, eq_g(var_psi,ms,mt), psi_axis, &
           psi_limit, part_src, heat_src_i, heat_src_e)

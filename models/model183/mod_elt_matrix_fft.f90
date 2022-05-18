@@ -150,7 +150,7 @@ do i=1,n_vertex_max
         psieq_s(ms,mt) = psieq_s(ms,mt) + nodes(i)%psi_eq(j)*element%size(i,j)*H_s(i,j,ms,mt)
         psieq_t(ms,mt) = psieq_t(ms,mt) + nodes(i)%psi_eq(j)*element%size(i,j)*H_t(i,j,ms,mt)
 #endif
-        s_norm(ms, mt) = s_norm(ms, mt) + nodes(i)%s_eq(1)*element%size(i,j)*H(i,j,ms,mt)
+        s_norm(ms, mt) = s_norm(ms, mt) + nodes(i)%s_eq(j)*element%size(i,j)*H(i,j,ms,mt)
 
         do mp=1,n_plane
           do in=1,n_coord_tor
