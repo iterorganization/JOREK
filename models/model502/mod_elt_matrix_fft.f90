@@ -802,6 +802,12 @@ do ms=1, n_gauss
          D_prof_imp  = D_prof_neg
          D_par_imp   = D_prof_neg
        endif
+       if ((r0 .lt. D_prof_tot_neg_thresh) .and. ((r0-rn0) .ge. D_prof_neg_thresh)) then
+         D_prof  = D_prof_neg
+         D_par   = D_prof_neg
+         D_prof_imp  = D_prof_neg
+         D_par_imp   = D_prof_neg
+       endif
 
        if (Ti0 .lt. ZK_i_prof_neg_thresh) then
          ZK_i_prof = ZK_i_prof_neg
