@@ -776,6 +776,7 @@ do i=1,n_vertex_max
           ! --- Increase diffusivity if very small density/temperature
 !          if (xpoint2) then
             if (r0 .lt. D_prof_neg_thresh)  then
+              D_par   = D_prof_neg
               D_prof  = D_prof_neg
             endif
             if (T0 .lt. ZK_prof_neg_thresh) then
