@@ -13,6 +13,7 @@ module mod_newton
 #else
   use mod_gmres, only: gmres_driver
 #endif
+  use mod_gmres, only: gmres_matrix_vector
   use data_structure, only: type_element_list, type_node_list, thread_struct, new_thread_buffers, del_thread_buffers
   use mod_integer_types
   !----------------------- END OF LOADING -----------------------------------------
@@ -41,12 +42,11 @@ module mod_newton
     !                arguments of construct_matrix)                   
 
 
-
     implicit none
     !--------------------- INPUT VARIABLES -----------------------------------------
     !--- definitions for subroutine bicgstab_driver, gmres_driver
     integer,               intent(inout)              :: my_id, my_id_n, my_id_master
-    integer,               intent(inout)              :: MPI_COMM_N, MPI_COMM_MASTER
+    integer,               intent(in)              :: MPI_COMM_N, MPI_COMM_MASTER
     real(kind=C_DOUBLE)                               :: tol   
     type(type_element_list)                           :: element_list
     type(type_node_list)                              :: node_list
@@ -76,8 +76,11 @@ module mod_newton
     logical,               intent(in)                 :: harmonic_matrix
     real*8,                intent(inout), allocatable :: A_mat(:)
     real*8,                intent(inout), allocatable :: rhs(:)
-    integer(kind=int_all), intent(inout), allocatable :: irn(:)
-    integer(kind=int_all), intent(inout), allocatable :: jcn(:)   
+#ifdef USE_BICGSTAB 
+    integer(kind=C_INT),   target, intent(inout), allocatable        :: irn(:), jcn(:)
+#else 
+    integer(kind=int_all), intent(inout), allocatable :: irn(:), jcn(:)   
+#endif
     integer(kind=int_all), intent(inout), allocatable :: ijA_index(:,:), ijA_size(:), irn_jcn(:,:)
     !--------------------- END OF INPUT VARIABLES ----------------------------------
 
@@ -94,13 +97,16 @@ module mod_newton
     type(type_element_list)                           :: element_list_temp
     type(type_node_list)                              :: node_list_temp
     integer                                           :: newton_iter
+    real*8, allocatable                               :: mat_vec_prod(:)
+    real*8, allocatable                               :: res_vec(:)
     !--------------------- END OF ROUTINE VARIABLES --------------------------------
 
 
     !--------------------- ALLOCATE, ASSIGN VALUES --------------------------------- 
-    allocate(A_n(1:nz),rhs_n(1:ndof),rhs_k(1:ndof),delta_k_n(1:ndof),delta_k(1:ndof),deltas_temp(1:ndof))
+    allocate(A_n(1:nz),rhs_n(1:ndof),rhs_k(1:ndof),delta_k_n(1:ndof),&
+             delta_k(1:ndof),deltas_temp(1:ndof),mat_vec_prod(1:ndof),res_vec(1:ndof))
     delta_k_n            = 0.0d0
-    delta_k(1:ndof)      = x(1:ndof)
+    delta_k(1:ndof)      = x(1:ndof) * 1.0E-1
     A_n(1:nz)            = val(1:nz)
     rhs_n(1:ndof)        = b(1:ndof)
     element_list_temp    = element_list
@@ -109,12 +115,10 @@ module mod_newton
     !--------------------- END OF ALLOCATION ---------------------------------------
 
 
-
-
     !--------------------- START OF NEWTON ITERATION -------------------------------
     write(*,*) '>>>>>>>>>>>>>>>>>>>>>> START NEWTON LOOP <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<'
     call clck_time(t0)    
-    newton_loop: do newton_iter = 1, 1
+    newton_loop: do newton_iter = 1, 10
       write(*,'(a,i2.2,a)') '###################### NEWTON ITERATION STEP ', newton_iter,' ##########################'
       write(*,*)
       !--- iterate commulative delta, i.e. delta_k_n = U(n+1)-U(n) if converged
@@ -135,23 +139,43 @@ module mod_newton
       call del_thread_buffers()
       write(*,*) 'CONSTRUCTED A_GLOB AT U_K'
 
-      rhs_k = rhs_n ! -A_n.dU
-      x = delta_k
-      !write(*,*) 'newton_iter = ', newton_iter
+      !call matv(delta_k_n,mat_vec_prod)
+      call gmres_matrix_vector(ndof,delta_k_n,ndof,mat_vec_prod,my_id)
+      rhs_k(1:ndof) = rhs_n(1:ndof) - mat_vec_prod(1:ndof)
+      write(*,*) 'COMPUTED MATRIX-VECTOR PRODUCT'
+ 
+      x(1:ndof) = delta_k(1:ndof)
+      b(1:ndof) = rhs_k(1:ndof) 
+      !tol = tol*1000
+      !--- call solvers
 #ifdef USE_BICGSTAB
-      call bicgstab_driver(irn, jcn, val, x, rhs_k, max_it, tol, comm_glob, comm_n, comm_master)
+      call bicgstab_driver(irn, jcn, val, x, b, max_it, tol, comm_glob, comm_n, comm_master)
 #else
       ! gmres implicitly assumes A_glob * deltas = RHS_glob
       call gmres_driver(my_id,my_id_n,MPI_COMM_N,MPI_COMM_MASTER,iter_gmres)
 #endif
+
+      delta_k(1:ndof) = x(1:ndof)
+
+      !--- check convergence
+      !--- |Jk.delta_k-rhs_k|/|rhs_k|
+      res_vec = 0.0d0
+      call gmres_matrix_vector(ndof,delta_k,ndof,res_vec,my_id)
+      res_vec(1:ndof) = res_vec(1:ndof) - rhs_k(1:ndof)
+      write(*,*) 'NEWTON RESIDUAL: ', DSQRT(DOT_PRODUCT(res_vec,res_vec)), DSQRT(DOT_PRODUCT(rhs_k,rhs_k))
+
     enddo newton_loop
+ 
     call clck_time_barrier(t1)
     call clck_ldiff(t0,t1,tsecond)
     write(*,*) 'ELAPSED TIME IN NEWTON LOOP: ', tsecond
     write(*,*) '>>>>>>>>>>>>>>>>>>>>>> END NEWTON LOOP <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<'
+    !--------------------- END OF NEWTON ITERATION ---------------------------------
+
 
     element_list    = element_list_temp
     node_list       = node_list_temp
+    x               = delta_k_n+delta_k!deltas_temp
     !x               = delta_k_n+x  
 
     !call update_values(my_id,element_list,node_list,x)  ! add solution to node values
@@ -166,7 +190,7 @@ module mod_newton
     !call clck_time_barrier(t1)
     !call clck_ldiff(t0,t1,tsecond)
     !write(*,*) 'Elapsed time write A_n to file: ', tsecond
-    deallocate(A_n,rhs_n,rhs_k,delta_k_n,delta_k,deltas_temp)
+    deallocate(A_n,rhs_n,rhs_k,delta_k_n,delta_k,deltas_temp,res_vec)
   end subroutine inexact_newton
 
 end module mod_newton

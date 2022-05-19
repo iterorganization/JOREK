@@ -9,7 +9,7 @@ module mod_gmres
                                        local_index_start, local_index_end, column_scaling
 
   private
-  public :: gmres_driver
+  public :: gmres_driver, gmres_matrix_vector
 
 
   contains
