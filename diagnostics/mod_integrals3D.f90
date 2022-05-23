@@ -1588,6 +1588,18 @@ do m_bndelem = 1, bnd_elm_list%n_bnd_elements
         ZK_e_par_T = ZK_e_par 
         ZK_i_par_T = ZK_i_par 
       endif
+      if (Ti0 .lt. ZK_i_prof_neg_thresh) then
+        ZK_i_prof = ZK_i_prof_neg
+      end if
+      if (Ti0 .lt. ZK_i_par_neg_thresh) then
+        ZK_i_par_T = ZK_i_par_neg
+      endif
+      if (Te0 .lt. ZK_e_prof_neg_thresh) then
+        ZK_e_prof = ZK_e_prof_neg
+      end if
+      if (Te0 .lt. ZK_e_par_neg_thresh) then
+        ZK_e_par_T = ZK_e_par_neg
+      endif
 #else
       T0_corr       = corr_neg_temp1(T0)
       eta_T         = resistivity(eta, T0_corr, T_max_eta, T_0)  
@@ -1599,6 +1611,12 @@ do m_bndelem = 1, bnd_elm_list%n_bnd_elements
         ZKpar_T = ZK_par * (max(T0,T_min)/T_0)**( 2.5d0)
       else
         ZKpar_T = ZK_par
+      endif
+      if (T0 .lt. ZK_prof_neg_thresh) then
+        ZK_prof = ZK_prof_neg
+      endif
+      if (T0 .lt. ZK_par_neg_thresh) then
+        ZKpar_T = ZK_par_neg
       endif
 #endif
 
