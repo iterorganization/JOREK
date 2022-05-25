@@ -117,7 +117,7 @@ do i_elm=(n_flux-2)*n_tht+1, (n_flux-1)*n_tht
 end do
 
 write(*,*) "Max n.B: ", ndotB_max
-write(*,*) "Surface area:        ", surface_area, "m^2"
+write(*,*) "Surface area:        ", n_period * surface_area, "m^2"
 write(*,*) "Integrated abs(n.B): ", n_period * sum_dA_abs, "Tm^2"
 write(*,*) "Total Boundary Flux: ", n_period * sum_dA, "Tm^2"
 

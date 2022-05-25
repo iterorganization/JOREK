@@ -280,10 +280,10 @@ if (include_neo) then
   n_scalars = n_scalars + n_neo
 endif
 if (include_gvec_field) then
-  n_gvec_scal = 1
+  n_gvec_scal = 3
   s_gvec_scal = n_scalars
   n_scalars = n_scalars + n_gvec_scal
-  n_gvec_vec  = 2
+  n_gvec_vec  = 3
   s_gvec_vec  = n_vectors
   n_vectors = n_vectors + n_gvec_vec
 endif
@@ -474,9 +474,10 @@ endif
 #endif /*fullmhd*/
 
 if (include_gvec_field) then
-  scalar_names(s_gvec_scal+1:s_gvec_scal+n_gvec_scal) =          (/ 'Pressure    '/)
+  scalar_names(s_gvec_scal+1:s_gvec_scal+n_gvec_scal) =          (/ 'Pressure    ', 'Div_B_gvec  ', 'zj_gvec     '/)
   vector_names(s_gvec_vec+1  :s_gvec_vec+1)      = 'B_gvec' 
-  vector_names(s_gvec_vec+2  :s_gvec_vec+n_gvec_vec) = 'J_gvec' 
+  vector_names(s_gvec_vec+2  :s_gvec_vec+2)      = 'J_gvec' 
+  vector_names(s_gvec_vec+3  :s_gvec_vec+n_gvec_vec) = 'J_gvec_JOR' 
 endif
 if (include_magnetic_field)  vector_names(s_bfield+1:s_bfield+n_bfield)       = 'B_field' 
 if (include_vacuum_field) then
@@ -540,7 +541,11 @@ if (toroidal_angle .ne. 0.d0) then
   HZ_coord(1,i_plane)   = 1.d0
   do i=1,(n_coord_tor-1)/2
     HZ_coord(2*i,i_plane)      = + cos(mode_coord(2*i)   * toroidal_angle )
+    HZ_coord_p(2*i,k)          = - float(mode_coord(2*i))      * sin(mode_coord(2*i)  *toroidal_angle)
+    HZ_coord_pp(2*i,k)         = - float(mode_coord(2*i))**2   * cos(mode_coord(2*i)  *toroidal_angle)
     HZ_coord(2*i+1,i_plane)    = - sin(mode_coord(2*i+1) * toroidal_angle )
+    HZ_coord_p(2*i+1,k)        = - float(mode_coord(2*i+1))    * cos(mode_coord(2*i+1)*toroidal_angle)
+    HZ_coord_pp(2*i+1,k)       = + float(mode_coord(2*i+1))**2 * sin(mode_coord(2*i+1)*toroidal_angle)
   enddo
 endif
 
@@ -1149,7 +1154,24 @@ do i=1,element_list%n_elements
             call interp_gvec(node_list,element_list,i,1,2,i_tor,s,t,BZg,BZg_s,BZg_t,BZg_st,BZg_ss,BZg_tt)
             call interp_gvec(node_list,element_list,i,1,3,i_tor,s,t,Bpg,Bpg_s,Bpg_t,Bpg_st,Bpg_ss,Bpg_tt)
             vectors(inode,:,s_gvec_vec + 1) =  vectors(inode,:,s_gvec_vec + 1) + (/ BRg, BZg, BPg /) * HZ_coord(i_tor, i_plane)          
+            BR_R  = (   Z_t * BRg_s - Z_s * BRg_t )     / xjac * HZ_coord(i_tor,i_plane)
+            BR_Z  = ( - R_t * BRg_s + R_s * BRg_t )     / xjac * HZ_coord(i_tor,i_plane)
+            BR_p  = BRg * HZ_coord_p(i_tor, i_plane) - BR_R * R_p - Z_p * BR_Z
+            BZ_R  = (   Z_t * BZg_s - Z_s * BZg_t )     / xjac * HZ_coord(i_tor,i_plane)
+            BZ_Z  = ( - R_t * BZg_s + R_s * BZg_t )     / xjac * HZ_coord(i_tor,i_plane)
+            BZ_p  = BZg * HZ_coord_p(i_tor, i_plane) - BZ_R * R_p - Z_p * BZ_Z
+            BP_R  = (   Z_t * BPg_s - Z_s * BPg_t )     / xjac * HZ_coord(i_tor,i_plane)
+            BP_Z  = ( - R_t * BPg_s + R_s * BPg_t )     / xjac * HZ_coord(i_tor,i_plane)
+            BP_p  = BPg * HZ_coord_p(i_tor, i_plane) - BP_R * R_p - Z_p * BP_Z
+            scalars(inode,s_gvec_scal+2) = scalars(inode, s_gvec_scal+2) + BRg / BigR + BR_R + BZ_Z + BP_p / BigR  
             
+            JRg = 1 / BigR * BZ_p - BP_Z
+            JZg = 1 / BigR * (BPg + BigR * BP_R - BR_p)
+            JPg = BR_Z - BZ_R
+            scalars(inode, s_gvec_scal+3) = scalars(inode, s_gvec_scal+3) + F0 / (chi(1,0,0)**2 + chi(0,1,0)**2 + chi(0,0,1)**2/BigR**2) * (chi(1,0,0) * JRg + chi(0,1,0) * JZg + chi(0,0,1)/BigR * JPg)
+            !scalars(inode, s_gvec_scal+3) = scalars(inode, s_gvec_scal+3) +  (chi(1,0,0) * JRg + chi(0,1,0) * JZg + chi(0,0,1)/BigR * JPg)
+            vectors(inode,:,s_gvec_vec + 3) =  vectors(inode,:,s_gvec_vec + 3) + (/ JRg, JZg, JPg /)         
+
             call interp_gvec(node_list,element_list,i,2,1,i_tor,s,t,JRg,JRg_s,JRg_t,JRg_st,JRg_ss,JRg_tt)
             call interp_gvec(node_list,element_list,i,2,2,i_tor,s,t,JZg,JZg_s,JZg_t,JZg_st,JZg_ss,JZg_tt)
             call interp_gvec(node_list,element_list,i,2,3,i_tor,s,t,Jpg,Jpg_s,Jpg_t,Jpg_st,Jpg_ss,Jpg_tt)
