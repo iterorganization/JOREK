@@ -39,7 +39,7 @@ module mod_particle_kernels
      
   
   private
-  public particle_group_device, fields_linear_device, particle_kinetic_leapfrog_loop, copy_device_data
+  public particle_group_device, fields_linear_device, particle_kinetic_leapfrog_loop, copy_device_data, calc_ebpsiu_device
 
 contains
 
@@ -57,10 +57,10 @@ contains
     type(dim3)   :: grid, tBlock
 
     ! Print out some info on the GPU
+#ifdef DEBUG
     if(sim%my_id==0) call device_query()
+#endif
 
-    n_steps = 1000
-    timestep = 1e-10
     tBlock_size = 256
     tBlock = dim3(tBlock_size,1,1)
 
@@ -70,18 +70,18 @@ contains
 
     start_time = MPI_WTime()
     call copy_device_data( sim , particle_groups , fields )
-    write(*,*) "Proc ",sim%my_id," data copy completed in ",MPI_Wtime()-start_time," s"
+!    write(*,*) "Proc ",sim%my_id," data copy completed in ",MPI_Wtime()-start_time," s"
 
     n_groups = size( sim%groups, 1)
     do i = 1, n_groups
        n_particles = size( sim%groups(i)%particles,1)
        grid = dim3(ceiling(real(n_particles)/tBlock_size),1,1)
        start_time = MPI_Wtime()
-       write(*,*) "Group", i," launching ",n_particles, "particles"
+!       write(*,*) "Group", i," launching ",n_particles, "particles"
        call particle_kinetic_leapfrog_loop_kernel<<<grid, tBlock>>>(n_particles, particle_groups(i), fields, n_steps, timestep, particle_start_time )
        istat = cudaDeviceSynchronize()
        if (istat /= cudaSuccess) write(*,*) cudaGetErrorString(istat)
-       write(*,*) "Group", i," kernel completed in ",MPI_Wtime()-start_time," s"
+!       write(*,*) "Group", i," kernel completed in ",MPI_Wtime()-start_time," s"
     end do
 
     call copy_particle_groups_device( particle_groups, return_particle_groups )
@@ -165,7 +165,7 @@ contains
     type(particle_group_device), managed, dimension(:), allocatable, intent(inout)  :: particle_groups
     type(fields_linear_device), managed , allocatable, intent(inout)                :: fields
 
-    write(*,*) "Copying device data"
+!    write(*,*) "Copying device data"
 
     call copy_particle_groups( sim%groups , particle_groups )
 
@@ -560,8 +560,7 @@ contains
        R_new, Z_new, s_new, t_new, i_elm_new, ifail)
     use, intrinsic :: ieee_arithmetic, only: ieee_is_nan
     use mod_neighbours, only : coord_in_neighbour
-    use mod_find_rz_nearby, only : try_interp
-    use mod_find_rz, only : find_rz
+    use mod_find_RZ, only : find_rz, try_interp
     implicit none
     !> Input parameters
     type (type_node_list),    intent(in)    :: node_list

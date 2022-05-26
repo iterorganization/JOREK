@@ -4,7 +4,7 @@ module mod_particle_kernels_test
   use cudafor
   use mpi
   use mod_particle_kernels
-  use mod_particle_types, only: particle_kinetic_leapfrog
+  use mod_particle_types, only: particle_kinetic_leapfrog, copy_particle_kinetic_leapfrog
   use mod_particle_sim, only: particle_group, particle_sim
   use mod_particle_assert_equal, only: assert_equal_particle
   use phys_module,              only: n_particles
@@ -22,6 +22,7 @@ contains
       call setup
       write(*,'(/A)') "  ... running: particle kernels tests"
       call test_copy_device_data
+      call test_calc_ebpsiu_device
       call test_particle_kinetic_leapfrog_loop
       write(*,'(/A)') "  ... tearing-down: particle kernels tests"
       call teardown
@@ -134,14 +135,141 @@ contains
     call copy_device_data( sim , particle_groups, fields )
 
   end subroutine test_copy_device_data
+
+  !> Test the interpolation with calc_EBpsiU_device
+  subroutine test_calc_EBpsiU_device()
+    !> variables
+    real*8, dimension(8,n_particles) :: CPU_data, GPU_data
+    real*8,parameter  :: tol_interp=7.5d-12      
+    integer :: np
+    write(*,*) "test_calc_EBpsiU_device"
+
+    np = n_particles
+
+    !> CPU test
+    call run_calc_EBpsiU_CPU(CPU_data)
+
+    !> GPU test
+    call run_calc_EBpsiU_GPU(GPU_data)
+
+    !> Assert
+    call assert_equals(GPU_data(1,:),CPU_data(1,:),np,tol_interp,& 
+         "Error calc_EBpsiU field interpolation: E direction 1 mismatch")
+    call assert_equals(GPU_data(2,:),CPU_data(2,:),np,tol_interp,& 
+         "Error calc_EBpsiU field interpolation: E direction 2 mismatch")
+    call assert_equals(GPU_data(3,:),CPU_data(3,:),np,tol_interp,& 
+         "Error calc_EBpsiU field interpolation: E direction 3 mismatch")
+    call assert_equals(GPU_data(4,:),CPU_data(4,:),np,tol_interp,& 
+         "Error calc_EBpsiU field interpolation: B direction 1 mismatch")
+    call assert_equals(GPU_data(5,:),CPU_data(5,:),np,tol_interp,& 
+         "Error calc_EBpsiU field interpolation: B direction 2 mismatch")
+    call assert_equals(GPU_data(6,:),CPU_data(6,:),np,tol_interp,& 
+         "Error calc_EBpsiU field interpolation: B direction 3 mismatch")
+    call assert_equals(GPU_data(7,:),CPU_data(7,:),np,tol_interp,& 
+         "Error calc_EBpsiU field interpolation: psi mismatch")
+    call assert_equals(GPU_data(8,:),CPU_data(8,:),np,tol_interp,& 
+         "Error calc_EBpsiU field interpolation: U mismatch")
+    write(*,*) "test complete"
+
+  end subroutine test_calc_EBpsiU_device
+
+  subroutine run_calc_EBpsiU_CPU(data)
+    use mod_particle_types, only: particle_kinetic_leapfrog
+    use mod_particle_types, only: copy_particle_kinetic_leapfrog
+
+    !> variables
+    real*8, dimension(:,:),intent(inout)     :: data
+
+    type(particle_kinetic_leapfrog)          :: particle_tmp
+    integer                                  :: i
+    real*8                                   :: t, E(3), B(3), psi, U
+
+    t = 0.0  ! Need to do this properly
+
+    select type (particles => sim%groups(1)%particles)
+    type is (particle_kinetic_leapfrog)
+
+       do i=1,size(sim%groups(1)%particles,1)
+
+          call copy_particle_kinetic_leapfrog(particles(i),particle_tmp)
+
+          call sim%fields%calc_EBpsiU(t, particle_tmp%i_elm, particle_tmp%st, particle_tmp%x(3), E, B, psi, U)
+
+          data(1:3,i) = E
+          data(4:6,i) = B
+          data(7,i)   = psi
+          data(8,i)   = U
+
+       end do
+
+    end select
+  end subroutine run_calc_EBpsiU_CPU
+
+
+  subroutine run_calc_EBpsiU_GPU(data)
+    real*8, dimension(:,:),intent(inout)     :: data
+
+    type(particle_group_device), managed, dimension(:), allocatable      :: particle_groups
+    type(fields_linear_device), managed, allocatable                     :: fields
+    real*8, device, dimension(:,:), allocatable                          :: data_d      
+    integer      :: istat, np
+    type(dim3)   :: grid, tBlock
+    
+    ! Set the device to use for this process 
+    istat = cudaSetDevice(sim%my_id)
+    if (istat /= cudaSuccess) write(*,*) cudaGetErrorString(istat)
+
+    allocate(data_d(8,n_particles))
+    
+    ! Copy the data
+    call copy_device_data( sim , particle_groups , fields )
+
+    ! Launch the kernel
+    np = n_particles
+    tBlock = dim3(256,1,1)
+    grid = dim3(ceiling(real(np)/tBlock%x),1,1)
+    call run_calc_EBpsiU_kernel<<<grid, tBlock>>>(np, particle_groups(1), fields, data_d)
+
+    !> retrieve the data
+    data = data_d
+    deallocate(data_d)
+    
+  end subroutine run_calc_EBpsiU_GPU
+
+  !> kernel for running calc_EBpsiU on GPUs
+  attributes(global) subroutine run_calc_EBPsiU_kernel(np, group_particles, fields, data)
+    integer, value, intent(in)                           :: np
+    type(particle_group_device), managed, intent(inout)  :: group_particles
+    type(fields_linear_device), managed , intent(inout)  :: fields
+    real*8, dimension(:,:),intent(inout)                 :: data
+
+    type(particle_kinetic_leapfrog)                      :: particle_tmp      
+    integer                                              :: i
+    real*8                                               :: t, E(3), B(3), psi, U
+
+    i = threadIdx%x + (blockIdx%x-1) * blockDim%x 
+    if ( i <= np ) then
+       call copy_particle_kinetic_leapfrog( group_particles%particles(i) , particle_tmp )
+       if (particle_tmp%i_elm .gt. 0) then
+          t = 0
+          call calc_EBpsiU_device(fields, t, particle_tmp%i_elm, particle_tmp%st, particle_tmp%x(3), E, B, psi, U)
+          data(1:3,i) = E
+          data(4:6,i) = B
+          data(7,i)   = psi
+          data(8,i)   = U
+       endif
+    endif
+  end subroutine run_calc_EBPsiU_kernel
   
-  
+  !> Test the full particle loop
   subroutine test_particle_kinetic_leapfrog_loop
 
     type(particle_group), dimension(:), allocatable :: group_particles 
     real*8   :: start_time, particle_start_time, timestep
     integer  :: n_steps, np
 
+    write(*,*) "test_particle_kinetic_leapfrog_loop"
+    
     start_time = 0
     n_steps = 1000
     timestep = 1e-10
@@ -150,14 +278,13 @@ contains
     call particle_kinetic_leapfrog_loop( sim , n_steps , timestep , particle_start_time , group_particles)
     write(*,*) "Proc ",sim%my_id," full loop completed in ",MPI_Wtime()-start_time," s"
 
-    call run_particle_kinetic_leapfrog_loop_CPU(64)
+    call run_particle_kinetic_leapfrog_loop_CPU( n_steps, timestep, particle_start_time ))
 
     np = n_particles
 !    call assert_equal_rel_error_particle(np,sim%groups(1)%particles,group_particles(1)%particles)
-!    call assert_equal_particle(np,sim%groups(1)%particles,group_particles(1)%particles)
+    call assert_equal_particle(np,sim%groups(1)%particles,group_particles(1)%particles)
+    write(*,*) "test complete"
 
-!    call run_particle_kinetic_leapfrog_loop_CPU(1)
-    
   end subroutine test_particle_kinetic_leapfrog_loop
 
   subroutine run_particle_kinetic_leapfrog_loop_CPU(nthreads)
@@ -169,22 +296,20 @@ contains
     use mod_find_rz_nearby, only: find_rz_nearby
     use mod_boris, only: boris_push_cylindrical
 
-    integer                                  :: nthreads
+    integer, intent(in)                      :: n_steps
     
     !> variables
     type(particle_kinetic_leapfrog)          :: particle_tmp
-    integer                                  :: i, j, ifail, i_elm_old, nsteps
+    integer                                  :: nthreads, i, j, ifail, i_elm_old
     real*8                                   :: rz_old(2), st_old(2), E(3), B(3), psi, U
     real*8                                   :: t, timesteps, start_time
     
     start_time = MPI_Wtime()
     
     t = 0.0
-    timesteps = 1d-10
-    nsteps = 1000
 
     if( nthreads <= 0 .or. nthreads > omp_get_max_threads()) nthreads = omp_get_max_threads()
-    write(*,*) "Threads:", nthreads
+
     select type (particles => sim%groups(1)%particles)
     type is (particle_kinetic_leapfrog)
        !$omp parallel do default(shared) &
@@ -193,9 +318,10 @@ contains
        !$omp schedule(dynamic,10)
        do i=1,size(sim%groups(1)%particles,1)
           call copy_particle_kinetic_leapfrog(particles(i),particle_tmp)            
-          do j=1,nsteps
+          do j=1,n_steps
              if (particle_tmp%i_elm .le. 0) exit             
-             call sim%fields%calc_EBpsiU(t, particle_tmp%i_elm, particle_tmp%st, particle_tmp%x(3), E, B, psi, U)            
+          t = particle_start_time + (j-1)*timestep
+             call sim%fields%calc_EBpsiU(t, particle_tmp%i_elm, particle_tmp%st, particle_tmp%x(3), E, B, psi, U)
              call boris_push_cylindrical(particle_tmp, sim%groups(1)%mass, E, B, timesteps)               
              if (particle_tmp%i_elm .gt. 0) then
                 rz_old    = particle_tmp%x(1:2)

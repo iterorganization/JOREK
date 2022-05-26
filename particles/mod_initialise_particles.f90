@@ -6,7 +6,6 @@ module mod_initialise_particles
   use mod_particle_types
   use constants
   use mod_interp
-  use mod_find_RZ
   implicit none
   private
   public initialise_particles, no_transform, adjust_particle_weights
@@ -17,15 +16,15 @@ module mod_initialise_particles
   public normalize_with_projection_at_gc
 
   interface
-!!$    subroutine find_RZ(node_list,element_list,R_find,Z_find,R_out,Z_out,ielm_out,s_out,t_out,ifail)
-!!$      use data_structure
-!!$      type (type_node_list), intent(in)    :: node_list
-!!$      type (type_element_list), intent(in) :: element_list
-!!$      real*8, intent(in)     :: R_find, Z_find
-!!$      real*8, intent(out)    :: R_out,Z_out,s_out,t_out
-!!$      integer, intent(inout) :: ielm_out
-!!$      integer, intent(out)   :: ifail
-!!$    end subroutine find_RZ
+    subroutine find_RZ(node_list,element_list,R_find,Z_find,R_out,Z_out,ielm_out,s_out,t_out,ifail)
+      use data_structure
+      type (type_node_list), intent(in)    :: node_list
+      type (type_element_list), intent(in) :: element_list
+      real*8, intent(in)     :: R_find, Z_find
+      real*8, intent(out)    :: R_out,Z_out,s_out,t_out
+      integer, intent(inout) :: ielm_out
+      integer, intent(out)   :: ifail
+    end subroutine find_RZ
     function rej_f(n, P, gradP)
       integer, intent(in) :: n
       real*8, dimension(n), intent(in) :: P

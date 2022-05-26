@@ -15,36 +15,12 @@ integer, intent(inout) :: ielm_out
 integer, intent(out)   :: ifail
 
 integer :: k
-#ifdef CUDA_KERNELS
-integer, dimension(n_elements_max) :: i_elms
-!integer                :: ielm_in
-!ielm_in = ielm_out
-#else
 integer, dimension(:), allocatable :: i_elms
-#endif
 
 ielm_out = 0
 
-#ifdef CUDA_KERNELS
-! This avoids calling the C++ code in elements containing point
-do k=1, element_list%n_elements
-  i_elms(k) = k
-enddo
-!i_elms(1:4) = element_list%element(ielm_in)%neighbours
-!do k=1, 4
-!   i_elms(4*k+1:4*k+4) = element_list%element(i_elms(k))%neighbours
-!enddo
-#else
 call elements_containing_point(R_find, Z_find, i_elms)
-#endif
-
-! then loop through all
-#ifdef CUDA_KERNELS
-do k=1,element_list%n_elements
-!   write(*,*) k, "Finding element for ", R_find, Z_find
-#else
-   do k=1,size(i_elms)
-#endif
+do k=1,size(i_elms)
   call find_RZ_single(node_list,element_list,i_elms(k),R_find,Z_find,R_out,Z_out,ielm_out,s_out,t_out,ifail)
   if (ifail .eq. 0) exit
 enddo
@@ -55,9 +31,6 @@ if (ifail .eq. 999) ielm_out = 0 ! Otherwise testing ielm=0 on output does not
 end subroutine find_RZ
 
 
-#ifdef CUDA_KERNELS
-attributes(host,device) &
-#endif
 subroutine find_RZ_single(node_list,element_list,i_elm,R_find,Z_find,R_out,Z_out,ielm_out,s_out,t_out,ifail)
 !-------------------------------------------------------------------------
 !< solves two non-linear equations using Newtons method (from numerical recipes)
@@ -112,10 +85,8 @@ do istart = 1,5
   ifail = 999
 
   do i=1,ntrial
-!#ifndef CUDA_KERNELS
     call interp_RZ(node_list,element_list,i_elm,x(1),x(2),RRg1,dRRg1_dr,dRRg1_ds, &
                                                     ZZg1,dZZg1_dr,dZZg1_ds)
-!#endif
     FVEC(1)   = RRg1 - R_find
     FVEC(2)   = ZZg1 - Z_find
     FJAC(1,1) = dRRg1_dr
