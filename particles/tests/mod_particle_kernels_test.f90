@@ -278,7 +278,7 @@ contains
     call particle_kinetic_leapfrog_loop( sim , n_steps , timestep , particle_start_time , group_particles)
     write(*,*) "Proc ",sim%my_id," full loop completed in ",MPI_Wtime()-start_time," s"
 
-    call run_particle_kinetic_leapfrog_loop_CPU( n_steps, timestep, particle_start_time ))
+    call run_particle_kinetic_leapfrog_loop_CPU( n_steps, timestep, particle_start_time )
 
     np = n_particles
 !    call assert_equal_rel_error_particle(np,sim%groups(1)%particles,group_particles(1)%particles)
@@ -287,7 +287,7 @@ contains
 
   end subroutine test_particle_kinetic_leapfrog_loop
 
-  subroutine run_particle_kinetic_leapfrog_loop_CPU(nthreads)
+  subroutine run_particle_kinetic_leapfrog_loop_CPU(n_steps, timestep, particle_start_time )
 
     use mpi
     use omp_lib
@@ -297,12 +297,12 @@ contains
     use mod_boris, only: boris_push_cylindrical
 
     integer, intent(in)                      :: n_steps
+    real*8, intent(in)                       :: timestep, particle_start_time
     
     !> variables
     type(particle_kinetic_leapfrog)          :: particle_tmp
     integer                                  :: nthreads, i, j, ifail, i_elm_old
-    real*8                                   :: rz_old(2), st_old(2), E(3), B(3), psi, U
-    real*8                                   :: t, timesteps, start_time
+    real*8                                   :: t, rz_old(2), st_old(2), E(3), B(3), psi, U, start_time
     
     start_time = MPI_Wtime()
     
@@ -320,9 +320,9 @@ contains
           call copy_particle_kinetic_leapfrog(particles(i),particle_tmp)            
           do j=1,n_steps
              if (particle_tmp%i_elm .le. 0) exit             
-          t = particle_start_time + (j-1)*timestep
+             t = particle_start_time + (j-1)*timestep
              call sim%fields%calc_EBpsiU(t, particle_tmp%i_elm, particle_tmp%st, particle_tmp%x(3), E, B, psi, U)
-             call boris_push_cylindrical(particle_tmp, sim%groups(1)%mass, E, B, timesteps)               
+             call boris_push_cylindrical(particle_tmp, sim%groups(1)%mass, E, B, timestep)               
              if (particle_tmp%i_elm .gt. 0) then
                 rz_old    = particle_tmp%x(1:2)
                 st_old    = particle_tmp%st

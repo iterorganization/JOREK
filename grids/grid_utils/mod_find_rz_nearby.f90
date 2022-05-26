@@ -42,7 +42,6 @@ subroutine find_RZ_nearby(node_list, element_list, R_old, Z_old, s_old, t_old, i
         R_new, Z_new, s_new, t_new, i_elm_new, ifail)
 use data_structure
 use mod_neighbours
-use mod_find_RZ
 use, intrinsic :: ieee_arithmetic, only: ieee_is_nan
 implicit none
 !> Input parameters
