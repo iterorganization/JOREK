@@ -428,14 +428,11 @@ contains
     real*8,                   intent(in)           :: time !< Time at which to calculate this variable
     integer,                  intent(in)           :: i_elm
     integer,                  intent(in)           :: n_v, i_v(n_v)
-!!$    integer,                  intent(in)           :: n_v, i_v(2)
     real*8,                   intent(in)           :: s, t, phi
     real*8,                   intent(out)          :: P(n_v), P_s(n_v), P_t(n_v), P_phi(n_v), P_time(n_v)
-!!$    real*8,                   intent(out)          :: P(2), P_s(2), P_t(2), P_phi(2), P_time(2)
     real*8,                   intent(out)          :: R, R_s, R_t, Z, Z_s, Z_t
 
     real*8                 :: df, dt
-!!$  real*8, dimension(n_v) :: Pd, Pd_s, Pd_t, Pd_phi
     real*8, dimension(2) :: Pd, Pd_s, Pd_t, Pd_phi
     real*8                 :: t_jorek
 
@@ -480,19 +477,16 @@ contains
     type (type_node_list),    intent(in)  :: node_list
     type (type_element_list), intent(in)  :: element_list    
     integer, intent(in)                            :: i_elm
-    integer, intent(in)                            :: n_v, i_v(2)
-!!$    integer, intent(in)                            :: n_v, i_v(n_v)
+    integer, intent(in)                            :: n_v, i_v(n_v)
     real*8, intent(in)                             :: s, t, phi
-!!$    real*8, intent(out)                            :: P(n_v), P_s(n_v), P_t(n_v), P_phi(n_v)
-    real*8, intent(out)                            :: P(2), P_s(2), P_t(2), P_phi(2)
+    real*8, intent(out)                            :: P(n_v), P_s(n_v), P_t(n_v), P_phi(n_v)
     real*8, intent(out)                            :: R, R_s, R_t, Z, Z_s, Z_t
     logical, intent(in)                            :: deltas
 
     ! --- Local variables
     real*8  :: H(4,4), H_s(4,4), H_t(4,4), HZ(n_tor), dHZ(n_tor)
     integer :: kv, iv, kf, i
-    real*8  :: values(n_tor,n_order+1,2,n_vertex_max) ! replaced n_v with 2
-!!$    real*8  :: values(n_tor,n_order+1,n_v,n_vertex_max)
+    real*8  :: values(n_tor,n_order+1,n_v,n_vertex_max)
     real*8  :: xR(n_order+1,n_vertex_max), xZ(n_order+1,n_vertex_max)
     real*8  :: sizes(n_order+1), v, vp
 
