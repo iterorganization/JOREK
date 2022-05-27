@@ -28,18 +28,17 @@ module mod_particle_kernels
      real*8                          :: mass
      real*8                          :: dt
      type(particle_kinetic_leapfrog), managed, allocatable, dimension(:) :: particles
-  end type particle_group_device
-     
-  
+  end type particle_group_device   
+
   private
-  public particle_group_device, fields_linear_device, particle_kinetic_leapfrog_loop, copy_device_data, calc_ebpsiu_device
+  public particle_group_device, fields_linear_device, particle_kinetic_leapfrog_loop, copy_device_data, calc_ebpsiu_device, copy_particle_groups_device
 
 contains
 
   !> Principle loop to push a group of particles using CUDA kernels
   subroutine particle_kinetic_leapfrog_loop( sim  , n_steps , timestep , particle_start_time , return_particle_groups )
     type(particle_sim), intent(inout)                                    :: sim
-    type(particle_group), dimension(:), allocatable                      :: return_particle_groups
+    type(particle_group), dimension(:), allocatable, intent(inout)       :: return_particle_groups
     integer, intent(inout)                                               :: n_steps
     real*8, intent(inout)                                                :: particle_start_time, timestep
 
@@ -61,7 +60,7 @@ contains
     istat = cudaSetDevice(sim%my_id)
     if (istat /= cudaSuccess) write(*,*) cudaGetErrorString(istat)
 
-    start_time = MPI_WTime()
+!    start_time = MPI_WTime()
     call copy_device_data( sim , particle_groups , fields )
 !    write(*,*) "Proc ",sim%my_id," data copy completed in ",MPI_Wtime()-start_time," s"
 
@@ -69,7 +68,7 @@ contains
     do i = 1, n_groups
        n_particles = size( sim%groups(i)%particles,1)
        grid = dim3(ceiling(real(n_particles)/tBlock_size),1,1)
-       start_time = MPI_Wtime()
+!       start_time = MPI_Wtime()
 !       write(*,*) "Group", i," launching ",n_particles, "particles"
        call particle_kinetic_leapfrog_loop_kernel<<<grid, tBlock>>>(n_particles, particle_groups(i), fields, n_steps, timestep, particle_start_time )
        istat = cudaDeviceSynchronize()
@@ -80,7 +79,6 @@ contains
     call copy_particle_groups_device( particle_groups, return_particle_groups )
 
   end subroutine particle_kinetic_leapfrog_loop
-
 
   !> The kernel to be launched to push all particles in a group
   attributes(global) subroutine particle_kinetic_leapfrog_loop_kernel( n_particles, group_particles, fields, n_steps, timestep, particle_start_time )
@@ -151,6 +149,9 @@ contains
 
   end subroutine device_query
 
+  !> --------------------------------------------------------------------------------------------------
+  !> Routines to copy data from a sim type into non-polymorphic entities for use in device code
+  
   !> Takes a particle sim type and copies the field and particle data into non-polymorphic
   !> types using the managed attribute that can be used in the kernels
   subroutine copy_device_data( sim , particle_groups , fields )
@@ -344,8 +345,9 @@ contains
 
   end subroutine copy_node
 
+  
+  !> --------------------------------------------------------------------------------------------------
   !> Routines copied from the original location with changes that allow the removal of polymorphism
-
   
   !> Version of routine from mod_fields for running on a GPU device so as to avoid polymorphism
   attributes(device) subroutine calc_EBpsiU_device(fields, time, i_elm, st, phi, E, B, psi, U)

@@ -47,6 +47,7 @@ subroutine assert_equal_particle_single(particle_1,particle_2)
   implicit none
   class(particle_base),intent(in) :: particle_1,particle_2
   logical,dimension(8) :: lfails
+  call assert_equal_particle_base(particle_1,particle_2)
   call assert_equal_particle_fieldline(particle_1,particle_2,lfails(1)) 
   call assert_equal_particle_gc(particle_1,particle_2,lfails(2))
   call assert_equal_particle_gc_vpar(particle_1,particle_2,lfails(3))
@@ -65,7 +66,6 @@ subroutine assert_equal_particle_gc_relativistic(particle_1,particle_2,lfail)
   class(particle_base),intent(in) :: particle_1,particle_2
   logical,intent(out) :: lfail
   lfail = .true.
-  call assert_equal_particle_base(particle_1,particle_2)
   select type(p_1=>particle_1)
     type is (particle_gc_relativistic)
     select type (p_2=>particle_2)
@@ -86,7 +86,6 @@ subroutine assert_equal_particle_kinetic_relativistic(particle_1,particle_2,lfai
   class(particle_base),intent(in) :: particle_1,particle_2
   logical,intent(out) :: lfail
   lfail = .true.
-  call assert_equal_particle_base(particle_1,particle_2)
   select type (p_1=>particle_1)
     type is (particle_kinetic_relativistic)
     select type (p_2=>particle_2)
@@ -107,7 +106,6 @@ subroutine assert_equal_particle_kinetic_leapfrog(particle_1,particle_2,lfail)
   class(particle_base),intent(in) :: particle_1,particle_2
   logical,intent(out) :: lfail
   lfail = .true.
-  call assert_equal_particle_base(particle_1,particle_2)
   select type (p_1=>particle_1)
     type is (particle_kinetic_leapfrog)
     select type (p_2=>particle_2)
@@ -128,7 +126,6 @@ subroutine assert_equal_particle_kinetic(particle_1,particle_2,lfail)
   class(particle_base),intent(in) :: particle_1,particle_2
   logical,intent(out) :: lfail
   lfail = .true.
-  call assert_equal_particle_base(particle_1,particle_2)
   select type (p_1=>particle_1)
     type is (particle_kinetic)
     select type (p_2=>particle_2)
@@ -149,7 +146,6 @@ subroutine assert_equal_particle_gc_Qin(particle_1,particle_2,lfail)
   class(particle_base),intent(in) :: particle_1,particle_2
   logical,intent(out) :: lfail
   lfail = .true.
-  call assert_equal_particle_base(particle_1,particle_2)
   select type (p_1=>particle_1)
     type is (particle_gc_Qin)
       select type (p_2=>particle_2)
@@ -190,7 +186,6 @@ subroutine assert_equal_particle_gc_vpar(particle_1,particle_2,lfail)
   class(particle_base),intent(in) :: particle_1,particle_2
   logical,intent(out) :: lfail
   lfail = .true.
-  call assert_equal_particle_base(particle_1,particle_2)
   select type (p_1=>particle_1)
     type is (particle_gc_vpar)
     select type (p_2=>particle_2)
@@ -215,7 +210,6 @@ subroutine assert_equal_particle_gc(particle_1,particle_2,lfail)
   class(particle_base),intent(in) :: particle_1,particle_2
   logical,intent(out) :: lfail
   lfail = .true.
-  call assert_equal_particle_base(particle_1,particle_2)
   select type (p_1=>particle_1)
     type is (particle_gc)
     select type (p_2=>particle_2)
@@ -238,7 +232,6 @@ subroutine assert_equal_particle_fieldline(particle_1,particle_2,lfail)
   class(particle_base),intent(in) :: particle_1,particle_2
   logical,intent(out) :: lfail
   lfail = .true.
-  call assert_equal_particle_base(particle_1,particle_2)
   select type (p_1=>particle_1)
     type is (particle_fieldline)
     select type (p_2=>particle_2)

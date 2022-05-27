@@ -23,6 +23,7 @@ contains
       write(*,'(/A)') "  ... running: particle kernels tests"
       call test_copy_device_data
       call test_calc_ebpsiu_device
+      call test_boris_push_cylindrical
       call test_particle_kinetic_leapfrog_loop
       write(*,'(/A)') "  ... tearing-down: particle kernels tests"
       call teardown
@@ -86,7 +87,6 @@ contains
     use mod_atomic_elements,      only: atomic_weights
     use mod_initialise_particles, only: initialise_particles_H_mu_psi, adjust_particle_weights
     use mod_boris,                only: boris_all_initial_half_step_backwards_RZPhi
-    use mod_particle_types,       only: particle_kinetic_leapfrog
     use mod_pcg32_rng
 
     type(particle_sim),intent(inout)  :: sim_in
@@ -174,8 +174,6 @@ contains
   end subroutine test_calc_EBpsiU_device
 
   subroutine run_calc_EBpsiU_CPU(data)
-    use mod_particle_types, only: particle_kinetic_leapfrog
-    use mod_particle_types, only: copy_particle_kinetic_leapfrog
 
     !> variables
     real*8, dimension(:,:),intent(inout)     :: data
@@ -203,10 +201,12 @@ contains
        end do
 
     end select
+    
   end subroutine run_calc_EBpsiU_CPU
 
 
   subroutine run_calc_EBpsiU_GPU(data)
+
     real*8, dimension(:,:),intent(inout)     :: data
 
     type(particle_group_device), managed, dimension(:), allocatable      :: particle_groups
@@ -238,6 +238,7 @@ contains
 
   !> kernel for running calc_EBpsiU on GPUs
   attributes(global) subroutine run_calc_EBPsiU_kernel(np, group_particles, fields, data)
+
     integer, value, intent(in)                           :: np
     type(particle_group_device), managed, intent(inout)  :: group_particles
     type(fields_linear_device), managed , intent(inout)  :: fields
@@ -261,6 +262,125 @@ contains
     endif
   end subroutine run_calc_EBPsiU_kernel
   
+  !> Test the boris pushing algorithm
+  subroutine test_boris_push_cylindrical
+
+    type(particle_group), dimension(:), allocatable :: group_particles 
+    real*8   :: start_time, particle_start_time, timestep
+    integer  :: n_steps, np
+
+    write(*,*) "test_boris_push_cylindrical"
+    
+    particle_start_time = 0
+    n_steps = 1
+    timestep = 1e-10
+    
+    start_time = MPI_Wtime()
+    call run_boris_push_cylindrical_GPU( n_steps , timestep , particle_start_time , group_particles )
+
+    call run_boris_push_cylindrical_CPU( n_steps, timestep, particle_start_time )
+
+    np = n_particles
+!    call assert_equal_rel_error_particle(np,sim%groups(1)%particles,group_particles(1)%particles)
+    call assert_equal_particle(np,sim%groups(1)%particles,group_particles(1)%particles)
+    write(*,*) "test complete"
+
+  end subroutine test_boris_push_cylindrical
+
+  subroutine run_boris_push_cylindrical_CPU(n_steps, timestep, particle_start_time )
+
+    use mpi
+    use omp_lib
+    use mod_boris, only: boris_push_cylindrical
+
+    integer, intent(in)                      :: n_steps
+    real*8, intent(in)                       :: timestep, particle_start_time
+    
+    !> variables
+    type(particle_kinetic_leapfrog)          :: particle_tmp
+    integer                                  :: nthreads, i
+    real*8                                   :: t, E(3), B(3), psi, U
+        
+    t = 0.0
+
+    if( nthreads <= 0 .or. nthreads > omp_get_max_threads()) nthreads = omp_get_max_threads()
+
+    select type (particles => sim%groups(1)%particles)
+    type is (particle_kinetic_leapfrog)
+!!$       !$omp parallel do default(shared) &
+!!$       !$omp private(particle_tmp,i,j,E,B,psi,U,rz_old,st_old) &
+!!$       !$omp num_threads(nthreads) &
+!!$       !$omp schedule(dynamic,10)
+       do i=1,size(sim%groups(1)%particles,1)
+          call copy_particle_kinetic_leapfrog(particles(i),particle_tmp)            
+          if (particle_tmp%i_elm .gt. 0) then
+             call sim%fields%calc_EBpsiU(t, particle_tmp%i_elm, particle_tmp%st, particle_tmp%x(3), E, B, psi, U)
+             call boris_push_cylindrical(particle_tmp, sim%groups(1)%mass, E, B, timestep)
+          endif
+          call copy_particle_kinetic_leapfrog(particle_tmp,particles(i))            
+       enddo
+!!$       !$omp end parallel do
+    end select
+    
+  end subroutine run_boris_push_cylindrical_CPU
+
+  subroutine run_boris_push_cylindrical_GPU( n_steps, timestep, particle_start_time , return_particle_groups )
+
+    integer, intent(inout)                                               :: n_steps
+    real*8, intent(inout)                                                :: particle_start_time, timestep
+    type(particle_group), dimension(:), allocatable, intent(inout)       :: return_particle_groups
+
+    type(particle_group_device), managed, dimension(:), allocatable      :: particle_groups
+    type(fields_linear_device), managed, allocatable                     :: fields
+    real*8, device, dimension(:,:), allocatable                          :: data_d      
+    integer      :: istat, np
+    type(dim3)   :: grid, tBlock
+    
+    ! Set the device to use for this process 
+    istat = cudaSetDevice(sim%my_id)
+    if (istat /= cudaSuccess) write(*,*) cudaGetErrorString(istat)
+
+    ! Copy the data
+    call copy_device_data( sim , particle_groups , fields )
+
+    ! Launch the kernel
+    np = n_particles
+    tBlock = dim3(256,1,1)
+    grid = dim3(ceiling(real(np)/tBlock%x),1,1)
+    call run_boris_push_cylindrical_kernel<<<grid, tBlock>>>(np, particle_groups(1), fields, timestep )
+
+    call copy_particle_groups_device( particle_groups, return_particle_groups )
+
+  end subroutine run_boris_push_cylindrical_GPU
+
+  !> kernel for running calc_EBpsiU on GPUs
+  attributes(global) subroutine run_boris_push_cylindrical_kernel(np, group_particles, fields, timestep)
+
+    use mod_boris, only: boris_push_cylindrical
+
+    integer, value, intent(in)                           :: np
+    type(particle_group_device), managed, intent(inout)  :: group_particles
+    type(fields_linear_device), managed , intent(inout)  :: fields
+    real*8, value, intent(in)                            :: timestep
+
+    type(particle_kinetic_leapfrog)                      :: particle_tmp      
+    integer                                              :: i
+    real*8                                               :: t, E(3), B(3), psi, U
+
+    t = 0.0
+    
+    i = threadIdx%x + (blockIdx%x-1) * blockDim%x 
+    if ( i <= np ) then
+       call copy_particle_kinetic_leapfrog( group_particles%particles(i) , particle_tmp )
+       if (particle_tmp%i_elm .gt. 0) then
+          call calc_EBpsiU_device(fields, t, particle_tmp%i_elm, particle_tmp%st, particle_tmp%x(3), E, B, psi, U)
+          call boris_push_cylindrical(particle_tmp, group_particles%mass, E, B, timestep)
+       endif
+    endif
+    
+  end subroutine run_boris_push_cylindrical_kernel
+
+  
   !> Test the full particle loop
   subroutine test_particle_kinetic_leapfrog_loop
 
@@ -270,13 +390,13 @@ contains
 
     write(*,*) "test_particle_kinetic_leapfrog_loop"
     
-    start_time = 0
+    particle_start_time = 0
     n_steps = 1
     timestep = 1e-10
     
     start_time = MPI_Wtime()
     call particle_kinetic_leapfrog_loop( sim , n_steps , timestep , particle_start_time , group_particles)
-    write(*,*) "Proc ",sim%my_id," full loop completed in ",MPI_Wtime()-start_time," s"
+    write(*,*) "GPU full loop completed in ",MPI_Wtime()-start_time," s"
 
     call run_particle_kinetic_leapfrog_loop_CPU( n_steps, timestep, particle_start_time )
 
@@ -291,8 +411,6 @@ contains
 
     use mpi
     use omp_lib
-    use mod_particle_types, only: particle_kinetic_leapfrog
-    use mod_particle_types, only: copy_particle_kinetic_leapfrog
     use mod_find_rz_nearby, only: find_rz_nearby
     use mod_boris, only: boris_push_cylindrical
 
