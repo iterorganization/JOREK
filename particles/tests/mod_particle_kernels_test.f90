@@ -271,7 +271,7 @@ contains
     write(*,*) "test_particle_kinetic_leapfrog_loop"
     
     start_time = 0
-    n_steps = 1000
+    n_steps = 1
     timestep = 1e-10
     
     start_time = MPI_Wtime()
@@ -312,10 +312,10 @@ contains
 
     select type (particles => sim%groups(1)%particles)
     type is (particle_kinetic_leapfrog)
-       !$omp parallel do default(shared) &
-       !$omp private(particle_tmp,i,j,E,B,psi,U,rz_old,st_old) &
-       !$omp num_threads(nthreads) &
-       !$omp schedule(dynamic,10)
+!!$       !$omp parallel do default(shared) &
+!!$       !$omp private(particle_tmp,i,j,E,B,psi,U,rz_old,st_old) &
+!!$       !$omp num_threads(nthreads) &
+!!$       !$omp schedule(dynamic,10)
        do i=1,size(sim%groups(1)%particles,1)
           call copy_particle_kinetic_leapfrog(particles(i),particle_tmp)            
           do j=1,n_steps
@@ -334,7 +334,7 @@ contains
           end do
           call copy_particle_kinetic_leapfrog(particle_tmp,particles(i))            
        enddo
-       !$omp end parallel do
+!!$       !$omp end parallel do
     end select
     
     write(*,*) "CPU particle_kinetic_loop time, threads:", MPI_Wtime() - start_time, nthreads

@@ -14,7 +14,6 @@ module mod_particle_kernels
 
   !> Data from mod_parameters for use in the k - to be removed in future using CUDA definitions in mod_parameters
   type fields_meta
-     real*8               :: mu_zero, mass_proton
      real*8               :: F0, central_mass, central_density, tstep
   end type fields_meta
 
@@ -347,13 +346,10 @@ contains
   !> for use in the interpolation routines
   subroutine copy_fields_meta( meta )
 
-    use constants, only: mu_zero, mass_proton
     use phys_module, only: F0, tstep, central_mass, central_density
 
     type(fields_meta), intent(inout) :: meta
 
-    meta%mu_zero          = mu_zero
-    meta%mass_proton      = mass_proton     
     meta%F0               = F0     
     meta%central_mass     = central_mass     
     meta%central_density  = central_density    
@@ -366,6 +362,8 @@ contains
   !> Version of routine from mod_fields for running on a GPU device
   attributes(device) subroutine calc_EBpsiU_device(fields, time, i_elm, st, phi, E, B, psi, U)
 
+    use constants, only: mu_zero, mass_proton
+    
     type(fields_linear_device), managed, intent(in)    :: fields
     real*8, intent(in)  :: time
     integer, intent(in) :: i_elm !< JOREK element index
@@ -388,7 +386,7 @@ contains
     i_var(1) = 1
     i_var(2) = 2
 
-    t_norm  = sqrt(fields%meta%mu_zero * fields%meta%mass_proton * fields%meta%central_mass * fields%meta%central_density * 1.d20) ! 1 jorek time unit in seconds
+    t_norm  = sqrt(mu_zero * mass_proton * fields%meta%central_mass * fields%meta%central_density * 1.d20) ! 1 jorek time unit in seconds
 
     ! Interpolate the fields to get psi and U at the current position (and the
     ! changes u_n - u(n-1))
@@ -424,6 +422,7 @@ contains
   !> Interpolate a variable at a specific position (with phi), with first derivatives only
   attributes(device) subroutine do_interp_PRZ_device(fields, time, i_elm, i_v, n_v, s, t, phi, P, P_s, P_t, P_phi, P_time, R, R_s, R_t, Z, Z_s, Z_t)
     use mod_linear 
+    use constants, only: mu_zero, mass_proton
     
     type(fields_linear_device), managed, intent(in)  :: fields
     real*8,                   intent(in)           :: time !< Time at which to calculate this variable
@@ -441,7 +440,7 @@ contains
     real*8                 :: t_jorek
 
     ! JOREK time step in seconds
-    t_jorek = fields%meta%tstep*sqrt(fields%meta%mu_zero * fields%meta%mass_proton * &
+    t_jorek = fields%meta%tstep*sqrt(mu_zero * mass_proton * &
          fields%meta%central_mass * fields%meta%central_density * 1.d20)
     P_time = 0.d0
 
