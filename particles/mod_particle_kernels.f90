@@ -12,11 +12,6 @@ module mod_particle_kernels
   
   implicit none
 
-  !> Data from mod_parameters for use in the k - to be removed in future using CUDA definitions in mod_parameters
-  type fields_meta
-     real*8               :: F0, central_mass, central_density, tstep
-  end type fields_meta
-
   !> Partial replication of fields type avoiding polymorphism for use in the kernels
   type fields_linear_device
      type(type_node_list)       :: node_list        !< Current node list
@@ -25,7 +20,6 @@ module mod_particle_kernels
      logical                    :: flag_zero_dpsidt !< if true, P_time(1) = dpsi/dt = 0
      real*8                     :: time_now         !< Time of current restart file (SI units)
      real*8                     :: time_prev        !< Time of previous restart file (SI units)
-!!$     type(fields_meta)          :: meta
   end type fields_linear_device
 
   !> Partial replication of particle group type avoinding polymorphism for use in the kernels
@@ -252,21 +246,29 @@ contains
     
   end subroutine copy_one_particle_group_device
 
-
+  !> Copy the fields data from sim to a new fields_linear_device type to avoid the polymorphism
   subroutine copy_fields_device( sim , fields )
-    type(particle_sim), intent(inout)                       :: sim
-    type(fields_linear_device), managed, allocatable, intent(inout)  :: fields
+    use mod_fields_linear, only: jorek_fields_interp_linear
+    type(particle_sim), intent(inout)                               :: sim
+    type(fields_linear_device), managed, allocatable, intent(inout) :: fields
 
     allocate(fields)
 
+    fields%static           = sim%fields%static
+    fields%flag_zero_dpsidt = sim%fields%flag_zero_dpsidt
+    select type(f => sim%fields)
+    type is(jorek_fields_interp_linear)
+       fields%time_now         = f%time_now
+       fields%time_prev        = f%time_prev
+    end select
+    
     call copy_element_list( sim%fields%element_list, fields%element_list )
 
     call copy_node_list( sim%fields%node_list, fields%node_list)
 
-!!$    call copy_fields_meta( fields%meta )
-
   end subroutine copy_fields_device
 
+  !> Copy an element list
   subroutine copy_element_list( in , out )
     type(type_element_list), intent(in)        :: in
     type(type_element_list), intent(inout)     :: out
@@ -299,6 +301,7 @@ contains
 
   end subroutine copy_element
 
+  !> Copy a node list
   subroutine copy_node_list( in , out )
     type(type_node_list), intent(in)        :: in
     type(type_node_list), intent(inout)     :: out
@@ -341,29 +344,16 @@ contains
 
   end subroutine copy_node
 
+  !> Routines copied from the original location with changes that allow the removal of polymorphism
 
-  !> Copy meta data from the element_list and node_list types into a fields_meta type
-  !> for use in the interpolation routines
-  subroutine copy_fields_meta( meta )
-
-    use phys_module, only: F0, tstep, central_mass, central_density
-
-    type(fields_meta), intent(inout) :: meta
-
-    meta%F0               = F0     
-    meta%central_mass     = central_mass     
-    meta%central_density  = central_density    
-    meta%tstep            = tstep
-
-  end subroutine copy_fields_meta
-
-  !> Version of routine from mod_fields for running on a GPU device
+  
+  !> Version of routine from mod_fields for running on a GPU device so as to avoid polymorphism
   attributes(device) subroutine calc_EBpsiU_device(fields, time, i_elm, st, phi, E, B, psi, U)
 
     use constants, only: mu_zero, mass_proton
     use phys_module, only: F0, tstep, central_mass, central_density
     
-    type(fields_linear_device), managed, intent(in)    :: fields
+    type(fields_linear_device), managed, intent(in)    :: fields    ! polymorphic class fields_base in non-device version
     real*8, intent(in)  :: time
     integer, intent(in) :: i_elm !< JOREK element index
     real*8, intent(in)  :: st(2) !< element-local coordinates
@@ -372,9 +362,9 @@ contains
     real*8, intent(out) :: B(3) !< Magnetic field [T]
     real*8, intent(out) :: psi !< psi in JOREK units
     real*8, intent(out) :: u !< velocity stream function in m/s
+    
     ! Internal parameters
-    !    integer, parameter :: i_var(2) = [1,2]
-    integer             :: i_var(2) 
+    integer            :: i_var(2) ! This is a parameter in the none-device code
     real*8             :: P(2), P_s(2), P_t(2), P_phi(2), P_time(2) ! Placeholder for evaluating variables and derivatives locally
     ! Values
     real*8             :: R, R_s, R_t, Z, Z_s, Z_t
@@ -382,6 +372,7 @@ contains
     real*8             :: inv_st_jac, R_inv
     real*8             :: psi_R, psi_Z, U_R, U_Z, U_phi, t_norm
 
+    ! Now set here instead of as a parameter
     i_var(1) = 1
     i_var(2) = 2
 
@@ -424,9 +415,8 @@ contains
     use mod_interp,  only: interp_PRZ
     use constants,   only: mu_zero, mass_proton
     use phys_module, only: tstep, central_mass, central_density
-
     
-    type(fields_linear_device), managed, intent(in)  :: fields
+    type(fields_linear_device), managed, intent(in)  :: fields  ! This is a class in the non-device version - and not managed
     real*8,                   intent(in)           :: time !< Time at which to calculate this variable
     integer,                  intent(in)           :: i_elm
     integer,                  intent(in)           :: n_v, i_v(n_v)
@@ -435,7 +425,7 @@ contains
     real*8,                   intent(out)          :: R, R_s, R_t, Z, Z_s, Z_t
 
     real*8                 :: df, dt
-    real*8, dimension(2) :: Pd, Pd_s, Pd_t, Pd_phi
+    real*8, dimension(2)   :: Pd, Pd_s, Pd_t, Pd_phi
     real*8                 :: t_jorek
 
     ! JOREK time step in seconds
