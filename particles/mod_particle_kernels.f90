@@ -25,7 +25,7 @@ module mod_particle_kernels
      logical                    :: flag_zero_dpsidt !< if true, P_time(1) = dpsi/dt = 0
      real*8                     :: time_now         !< Time of current restart file (SI units)
      real*8                     :: time_prev        !< Time of previous restart file (SI units)
-     type(fields_meta)          :: meta
+!!$     type(fields_meta)          :: meta
   end type fields_linear_device
 
   !> Partial replication of particle group type avoinding polymorphism for use in the kernels
@@ -263,7 +263,7 @@ contains
 
     call copy_node_list( sim%fields%node_list, fields%node_list)
 
-    call copy_fields_meta( fields%meta )
+!!$    call copy_fields_meta( fields%meta )
 
   end subroutine copy_fields_device
 
@@ -363,7 +363,8 @@ contains
   attributes(device) subroutine calc_EBpsiU_device(fields, time, i_elm, st, phi, E, B, psi, U)
 
     use constants, only: mu_zero, mass_proton
-    
+    use phys_module, only: F0, tstep, central_mass, central_density
+
     type(fields_linear_device), managed, intent(in)    :: fields
     real*8, intent(in)  :: time
     integer, intent(in) :: i_elm !< JOREK element index
@@ -386,7 +387,7 @@ contains
     i_var(1) = 1
     i_var(2) = 2
 
-    t_norm  = sqrt(mu_zero * mass_proton * fields%meta%central_mass * fields%meta%central_density * 1.d20) ! 1 jorek time unit in seconds
+    t_norm  = sqrt(mu_zero * mass_proton * central_mass * central_density * 1.d20) ! 1 jorek time unit in seconds
 
     ! Interpolate the fields to get psi and U at the current position (and the
     ! changes u_n - u(n-1))
@@ -410,11 +411,11 @@ contains
     if(fields%flag_zero_dpsidt) P_time(1) = 0.d0
 
     ! Calculate the magnetic field (see http://jorek.eu/wiki/doku.php?id=reduced_mhd)
-    B     = [+psi_Z, -psi_R, fields%meta%F0] * R_inv
+    B     = [+psi_Z, -psi_R, F0] * R_inv
 
     ! The local electric field, obtained from E=-Grad (u F0)-\partial_t A
     ! See http://jorek.eu/wiki/doku.php?id=u_phi
-    E     = [-fields%meta%F0*U_R, -fields%meta%F0*U_Z, -fields%meta%F0*U_phi*R_inv]/t_norm
+    E     = [-F0*U_R, -F0*U_Z, -F0*U_phi*R_inv]/t_norm
     E(3)  = E(3) - R_inv*P_time(1) ! because this is not normalized with t_norm
 
   end subroutine calc_EBpsiU_device
@@ -423,7 +424,8 @@ contains
   attributes(device) subroutine do_interp_PRZ_device(fields, time, i_elm, i_v, n_v, s, t, phi, P, P_s, P_t, P_phi, P_time, R, R_s, R_t, Z, Z_s, Z_t)
     use mod_linear 
     use constants, only: mu_zero, mass_proton
-    
+    use phys_module, only: tstep, central_mass, central_density
+   
     type(fields_linear_device), managed, intent(in)  :: fields
     real*8,                   intent(in)           :: time !< Time at which to calculate this variable
     integer,                  intent(in)           :: i_elm
@@ -437,8 +439,7 @@ contains
     real*8                 :: t_jorek
 
     ! JOREK time step in seconds
-    t_jorek = fields%meta%tstep*sqrt(mu_zero * mass_proton * &
-         fields%meta%central_mass * fields%meta%central_density * 1.d20)
+    t_jorek = tstep*sqrt(mu_zero * mass_proton * central_mass * central_density * 1.d20)
     P_time = 0.d0
 
     !> interpolate values

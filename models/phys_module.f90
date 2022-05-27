@@ -6,7 +6,11 @@ module phys_module
   use data_structure              !< Added in order to dynamically allocate pellets
   use mod_openadas
   use mod_coronal
+!!$#ifdef CUDA_KERNELS
+!!$  use cudafor
+!!$#endif
 
+  
   implicit none
   
   !> @name Various parameters
@@ -23,9 +27,15 @@ module phys_module
   logical :: visco_T_dependent    !< Viscosity dependent on temperature? Otherwise constant.
   real*8  :: visco_par            !< Parallel viscosity (normalized)
   real*8  :: visco_par_heating    !< Parallel viscosity used in the parallel viscous heating term (normalized)
+#ifdef CUDA_KERNELS
+  real*8, managed  :: F0                   !< Determines fixed toroidal magnetic field: \f$ B_\phi = F_0/R \f$
+  real*8, managed  :: central_density      !< particle density at the magnetic axis (in units of \f$10^{20} m^{-3}\f$)
+  real*8, managed  :: central_mass         !< average ion mass in atomic mass units (constant in time and space)
+#else
   real*8  :: F0                   !< Determines fixed toroidal magnetic field: \f$ B_\phi = F_0/R \f$
   real*8  :: central_density      !< particle density at the magnetic axis (in units of \f$10^{20} m^{-3}\f$)
   real*8  :: central_mass         !< average ion mass in atomic mass units (constant in time and space)
+#endif
   real*8  :: sqrt_mu0_rho0        !< Normalization factor \f$\sqrt(\mu_0 \rho_0)\f$ calculated from input
   real*8  :: sqrt_mu0_over_rho0   !< Normalization factor \f$\sqrt(\mu_0/\rho_0)\f$ calculated from input
   real*8  :: gamma                !< ratio of specific heat (typically 5/3)
@@ -283,7 +293,11 @@ module phys_module
   logical :: add_sources_in_sc    !< Whether to add effect of sources in shock-capturing stabilization or not
 
   !> @name Timestepping parameters
+#ifdef CUDA_KERNELS
+  real*8, managed  :: tstep             		!< Size of the timesteps (\f$ \Delta t \f$)
+#else
   real*8  :: tstep             		!< Size of the timesteps (\f$ \Delta t \f$)
+#endif
   real*8  :: tstep_prev                 !< Previous time-step if using variable dt Gears
   real*8  :: tstep_n(10)       		!< Alternative to tstep: Up to ten values may be given
   integer :: nstep             		!< Number of timesteps to perform
