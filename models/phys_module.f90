@@ -6,10 +6,6 @@ module phys_module
   use data_structure              !< Added in order to dynamically allocate pellets
   use mod_openadas
   use mod_coronal
-!!$#ifdef CUDA_KERNELS
-!!$  use cudafor
-!!$#endif
-
   
   implicit none
   

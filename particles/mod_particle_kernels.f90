@@ -357,14 +357,12 @@ contains
 
   end subroutine copy_fields_meta
 
-
-
   !> Version of routine from mod_fields for running on a GPU device
   attributes(device) subroutine calc_EBpsiU_device(fields, time, i_elm, st, phi, E, B, psi, U)
 
     use constants, only: mu_zero, mass_proton
     use phys_module, only: F0, tstep, central_mass, central_density
-
+    
     type(fields_linear_device), managed, intent(in)    :: fields
     real*8, intent(in)  :: time
     integer, intent(in) :: i_elm !< JOREK element index
@@ -423,9 +421,11 @@ contains
   !> Interpolate a variable at a specific position (with phi), with first derivatives only
   attributes(device) subroutine do_interp_PRZ_device(fields, time, i_elm, i_v, n_v, s, t, phi, P, P_s, P_t, P_phi, P_time, R, R_s, R_t, Z, Z_s, Z_t)
     use mod_linear 
-    use constants, only: mu_zero, mass_proton
+    use mod_interp,  only: interp_PRZ
+    use constants,   only: mu_zero, mass_proton
     use phys_module, only: tstep, central_mass, central_density
-   
+
+    
     type(fields_linear_device), managed, intent(in)  :: fields
     real*8,                   intent(in)           :: time !< Time at which to calculate this variable
     integer,                  intent(in)           :: i_elm
@@ -443,12 +443,12 @@ contains
     P_time = 0.d0
 
     !> interpolate values
-    call interp_PRZ_device(fields%node_list, fields%element_list,i_elm ,i_v ,n_v ,s ,t , phi, &
+    call interp_PRZ(fields%node_list, fields%element_list,i_elm ,i_v ,n_v ,s ,t , phi, &
          P, P_s, P_t, P_phi, R, R_s, R_t, Z, Z_s, Z_t, .False.)
 
     !> interpolate differentials
     if(t_jorek .gt. 0.d0) then
-       call interp_PRZ_device(fields%node_list, fields%element_list, i_elm, i_v, n_v, s, t, phi, &
+       call interp_PRZ(fields%node_list, fields%element_list, i_elm, i_v, n_v, s, t, phi, &
             Pd, Pd_s, Pd_t, Pd_phi, R, R_s, R_t, Z, Z_s, Z_t, .True.)
        if(abs(fields%time_now-fields%time_prev) .gt. 1d-10 .and. .not. fields%static) then
           !> compute time fraction df
@@ -467,88 +467,6 @@ contains
     endif
 
   end subroutine do_interp_PRZ_device
-
-
-
-  !> This subroutine interpolates some variables at a specific position within one element at a given position (s,t)
-  attributes(device) subroutine interp_PRZ_device( node_list, element_list, i_elm, i_v, n_v, s, t, phi, P, P_s, P_t, P_phi, R, R_s, R_t, Z, Z_s, Z_t, deltas)
-    use mod_basisfunctions
-    use mod_interp,         only: sincosperiod_moivre
-
-    type (type_node_list),    intent(in)  :: node_list
-    type (type_element_list), intent(in)  :: element_list    
-    integer, intent(in)                            :: i_elm
-    integer, intent(in)                            :: n_v, i_v(n_v)
-    real*8, intent(in)                             :: s, t, phi
-    real*8, intent(out)                            :: P(n_v), P_s(n_v), P_t(n_v), P_phi(n_v)
-    real*8, intent(out)                            :: R, R_s, R_t, Z, Z_s, Z_t
-    logical, intent(in)                            :: deltas
-
-    ! --- Local variables
-    real*8  :: H(4,4), H_s(4,4), H_t(4,4), HZ(n_tor), dHZ(n_tor)
-    integer :: kv, iv, kf, i
-    real*8  :: values(n_tor,n_order+1,n_v,n_vertex_max)
-    real*8  :: xR(n_order+1,n_vertex_max), xZ(n_order+1,n_vertex_max)
-    real*8  :: sizes(n_order+1), v, vp
-
-    ! 7% exec time
-    call basisfunctions_T(s,t,H,H_s,H_t)
-
-    P = 0.d0; P_s = 0.d0; P_t = 0.d0; P_phi = 0.d0
-
-    ! 7% exec time
-    call sincosperiod_moivre(phi, HZ, dHZ)
-
-    ! 30% exec time
-    ! Preload values and premultiply with sizes(:,kv)
-    do kv = 1,n_vertex_max
-       iv = element_list%element(i_elm)%vertex(kv)
-       sizes(:) = element_list%element(i_elm)%size(kv,:)
-       if (deltas) then
-          do i = 1, n_v
-             do kf=1,n_order+1
-                values(1:n_tor,kf,i,kv) = node_list%node(iv)%deltas(1:n_tor,kf,i_v(i)) * sizes(kf)
-             end do
-          end do
-       else
-          do i = 1, n_v
-             do kf=1,n_order+1
-                values(1:n_tor,kf,i,kv) = node_list%node(iv)%values(1:n_tor,kf,i_v(i)) * sizes(kf)
-             end do
-          end do
-          do i = 1, n_v
-             do kf=1,4
-                values(1,kf,i,kv) = node_list%node(iv)%values(1,kf,i_v(i)) * sizes(kf)
-             end do
-          end do
-       end if
-       xR(:,kv) = node_list%node(iv)%x(1,:,1) * sizes(:)
-       xZ(:,kv) = node_list%node(iv)%x(1,:,2) * sizes(:)
-    enddo
-
-    ! together 7%
-    R   = sum(xR*H)
-    R_s = sum(xR*H_s)
-    R_t = sum(xR*H_t)
-    Z   = sum(xZ*H)
-    Z_s = sum(xZ*H_s)
-    Z_t = sum(xZ*H_t)
-
-    ! 40% exec time
-    do kv = 1, n_vertex_max
-       do i = 1, n_v
-          do kf = 1, n_order+1
-             v = dot_product(values(1:n_tor,kf,i,kv),HZ(1:n_tor))
-             P(i)     = P(i)     + v * H(kf, kv)
-             P_s(i)   = P_s(i)   + v * H_s(kf, kv)
-             P_t(i)   = P_t(i)   + v * H_t(kf, kv)
-             vp = dot_product(values(1:n_tor,kf,i,kv),dHZ(1:n_tor))
-             P_phi(i) = P_phi(i) + vp * H(kf, kv)
-          enddo
-       enddo
-    enddo
-
-  end subroutine interp_PRZ_device
 
   attributes(device) subroutine find_RZ_nearby_device(node_list, element_list, R_old, Z_old, s_old, t_old, i_elm_old, &
        R_new, Z_new, s_new, t_new, i_elm_new, ifail)
