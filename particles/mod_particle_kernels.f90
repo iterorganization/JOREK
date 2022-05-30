@@ -31,7 +31,7 @@ module mod_particle_kernels
   end type particle_group_device   
 
   private
-  public particle_group_device, fields_linear_device, particle_kinetic_leapfrog_loop, copy_device_data, calc_ebpsiu_device, copy_particle_groups_device
+  public particle_group_device, fields_linear_device, particle_kinetic_leapfrog_loop, copy_device_data, calc_ebpsiu_device, copy_managed_groups_host_groups
 
 contains
 
@@ -76,7 +76,7 @@ contains
 !       write(*,*) "Group", i," kernel completed in ",MPI_Wtime()-start_time," s"
     end do
 
-    call copy_particle_groups_device( particle_groups, return_particle_groups )
+    call copy_managed_groups_host_groups( particle_groups, return_particle_groups )
 
   end subroutine particle_kinetic_leapfrog_loop
 
@@ -186,7 +186,7 @@ contains
   end subroutine copy_particle_groups
 
   !> Copies managed particle_group_device groups to  particle_groups
-  subroutine copy_particle_groups_device( particle_groups_in, particle_groups_out )
+  subroutine copy_managed_groups_host_groups( particle_groups_in, particle_groups_out )
     type(particle_group_device), managed, dimension(:), intent(inout) :: particle_groups_in
     type(particle_group), dimension(:), allocatable, intent(inout)    :: particle_groups_out
 
@@ -198,10 +198,10 @@ contains
     do i=1,n_groups
        n_particles = size(particle_groups_in(i)%particles,1)
        allocate(particle_kinetic_leapfrog::particle_groups_out(i)%particles(n_particles))
-       call copy_one_particle_group_device( particle_groups_in(i), particle_groups_out(i) )
+       call copy_one_managed_group_host_group( particle_groups_in(i), particle_groups_out(i) )
     end do
     
-  end subroutine copy_particle_groups_device
+  end subroutine copy_managed_groups_host_groups
   
   !> Copies a number of particle_groups from a particle_group to a particle_group_device type
   subroutine copy_one_particle_group(group_particles_in, group_particles_out)
@@ -226,9 +226,9 @@ contains
   end subroutine copy_one_particle_group
   
   !> Copies a number of particle_groups from a managed particle_group_device to a particle_group type
-  subroutine copy_one_particle_group_device(group_particles_in, group_particles_out)
-    type(particle_group), intent(inout)                   :: group_particles_out
+  subroutine copy_one_managed_group_host_group(group_particles_in, group_particles_out)
     type(particle_group_device), managed, intent(inout)   :: group_particles_in
+    type(particle_group), intent(inout)                   :: group_particles_out
 
     integer :: n_particles, i
     
@@ -245,7 +245,7 @@ contains
        end do
     end select    
     
-  end subroutine copy_one_particle_group_device
+  end subroutine copy_one_managed_group_host_group
 
   !> Copy the fields data from sim to a new fields_linear_device type to avoid the polymorphism
   subroutine copy_fields_device( sim , fields )
@@ -421,9 +421,11 @@ contains
     type(fields_linear_device), managed, intent(in)  :: fields  ! This is a class in the non-device version - and not managed
     real*8,                   intent(in)           :: time !< Time at which to calculate this variable
     integer,                  intent(in)           :: i_elm
-    integer,                  intent(in)           :: n_v, i_v(n_v)
+!    integer,                  intent(in)           :: n_v, i_v(n_v)
+    integer,                  intent(in)           :: n_v, i_v(2)
     real*8,                   intent(in)           :: s, t, phi
-    real*8,                   intent(out)          :: P(n_v), P_s(n_v), P_t(n_v), P_phi(n_v), P_time(n_v)
+!    real*8,                   intent(out)          :: P(n_v), P_s(n_v), P_t(n_v), P_phi(n_v), P_time(n_v)
+    real*8,                   intent(out)          :: P(2), P_s(2), P_t(2), P_phi(2), P_time(2)
     real*8,                   intent(out)          :: R, R_s, R_t, Z, Z_s, Z_t
 
     real*8                 :: df, dt

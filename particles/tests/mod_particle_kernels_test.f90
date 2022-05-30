@@ -6,7 +6,7 @@ module mod_particle_kernels_test
   use mod_particle_kernels
   use mod_particle_types, only: particle_kinetic_leapfrog, copy_particle_kinetic_leapfrog
   use mod_particle_sim, only: particle_group, particle_sim
-  use mod_particle_assert_equal, only: assert_equal_particle
+  use mod_particle_assert_equal, only: assert_equal_particle, assert_equal_rel_error_particle
   use phys_module,              only: n_particles
   implicit none
   
@@ -21,10 +21,10 @@ contains
       write(*,'(/A)') "  ... setting-up: particle kernels tests"
       call setup
       write(*,'(/A)') "  ... running: particle kernels tests"
-      call test_copy_device_data
+      call test_copy_data
       call test_calc_ebpsiu_device
       call test_boris_push_cylindrical
-      call test_particle_kinetic_leapfrog_loop
+!      call test_particle_kinetic_leapfrog_loop
       write(*,'(/A)') "  ... tearing-down: particle kernels tests"
       call teardown
   end subroutine run_fruit_particle_kernels
@@ -125,16 +125,25 @@ contains
 
   end subroutine init_particles
 
-  subroutine test_copy_device_data
+  !> Copy data to a managed group and back and check the particles, at present the fields data is not checked
+  subroutine test_copy_data
 
-    type(particle_group_device), managed, dimension(:), allocatable  :: particle_groups
+    type(particle_group_device), managed, dimension(:), allocatable   :: group_particles
     type(fields_linear_device), managed, allocatable                  :: fields
+    type(particle_group), dimension(:), allocatable                   :: return_particle_groups
+    integer    :: np
 
-    integer    :: n_particles
+    write(*,*) "test copy data"
+    
+    call copy_device_data( sim , group_particles, fields )
 
-    call copy_device_data( sim , particle_groups, fields )
+    call copy_managed_groups_host_groups( group_particles , return_particle_groups )
 
-  end subroutine test_copy_device_data
+    call assert_equal_particle(np,sim%groups(1)%particles,return_particle_groups(1)%particles)
+
+    write(*,*) "test complete"
+    
+  end subroutine test_copy_data
 
   !> Test the interpolation with calc_EBpsiU_device
   subroutine test_calc_EBpsiU_device()
@@ -169,6 +178,7 @@ contains
          "Error calc_EBpsiU field interpolation: psi mismatch")
     call assert_equals(GPU_data(8,:),CPU_data(8,:),np,tol_interp,& 
          "Error calc_EBpsiU field interpolation: U mismatch")
+
     write(*,*) "test complete"
 
   end subroutine test_calc_EBpsiU_device
@@ -229,6 +239,8 @@ contains
     tBlock = dim3(256,1,1)
     grid = dim3(ceiling(real(np)/tBlock%x),1,1)
     call run_calc_EBpsiU_kernel<<<grid, tBlock>>>(np, particle_groups(1), fields, data_d)
+    istat = cudaDeviceSynchronize()
+    if (istat /= cudaSuccess) write(*,*) cudaGetErrorString(istat)
 
     !> retrieve the data
     data = data_d
@@ -278,11 +290,11 @@ contains
     start_time = MPI_Wtime()
     call run_boris_push_cylindrical_GPU( n_steps , timestep , particle_start_time , group_particles )
 
-    call run_boris_push_cylindrical_CPU( n_steps, timestep, particle_start_time )
+    call run_boris_push_cylindrical_CPU( n_steps, timestep , particle_start_time )
 
     np = n_particles
-!    call assert_equal_rel_error_particle(np,sim%groups(1)%particles,group_particles(1)%particles)
-    call assert_equal_particle(np,sim%groups(1)%particles,group_particles(1)%particles)
+    call assert_equal_rel_error_particle(np,sim%groups(1)%particles,group_particles(1)%particles)
+!    call assert_equal_particle(np,sim%groups(1)%particles,group_particles(1)%particles)
     write(*,*) "test complete"
 
   end subroutine test_boris_push_cylindrical
@@ -301,7 +313,7 @@ contains
     integer                                  :: nthreads, i
     real*8                                   :: t, E(3), B(3), psi, U
         
-    t = 0.0
+    t = particle_start_time
 
     if( nthreads <= 0 .or. nthreads > omp_get_max_threads()) nthreads = omp_get_max_threads()
 
@@ -347,35 +359,39 @@ contains
     np = n_particles
     tBlock = dim3(256,1,1)
     grid = dim3(ceiling(real(np)/tBlock%x),1,1)
-    call run_boris_push_cylindrical_kernel<<<grid, tBlock>>>(np, particle_groups(1), fields, timestep )
+    call run_boris_push_cylindrical_kernel<<<grid, tBlock>>>(np, particle_groups(1), fields, n_steps , timestep , particle_start_time)
+    istat = cudaDeviceSynchronize()
+    if (istat /= cudaSuccess) write(*,*) cudaGetErrorString(istat)
 
-    call copy_particle_groups_device( particle_groups, return_particle_groups )
+    call copy_managed_groups_host_groups( particle_groups, return_particle_groups )
 
   end subroutine run_boris_push_cylindrical_GPU
 
   !> kernel for running calc_EBpsiU on GPUs
-  attributes(global) subroutine run_boris_push_cylindrical_kernel(np, group_particles, fields, timestep)
+  attributes(global) subroutine run_boris_push_cylindrical_kernel(np, group_particles, fields, n_steps , timestep, particle_start_time)
 
     use mod_boris, only: boris_push_cylindrical
 
-    integer, value, intent(in)                           :: np
+    integer, value, intent(in)                           :: np, n_steps
     type(particle_group_device), managed, intent(inout)  :: group_particles
     type(fields_linear_device), managed , intent(inout)  :: fields
-    real*8, value, intent(in)                            :: timestep
+    real*8, value, intent(in)                            :: timestep, particle_start_time
 
     type(particle_kinetic_leapfrog)                      :: particle_tmp      
     integer                                              :: i
     real*8                                               :: t, E(3), B(3), psi, U
 
-    t = 0.0
-    
+    t = particle_start_time
     i = threadIdx%x + (blockIdx%x-1) * blockDim%x 
     if ( i <= np ) then
        call copy_particle_kinetic_leapfrog( group_particles%particles(i) , particle_tmp )
+!       write(*,*) "pushing",i,particle_tmp%x(1),particle_tmp%x(2),particle_tmp%x(3)
        if (particle_tmp%i_elm .gt. 0) then
           call calc_EBpsiU_device(fields, t, particle_tmp%i_elm, particle_tmp%st, particle_tmp%x(3), E, B, psi, U)
           call boris_push_cylindrical(particle_tmp, group_particles%mass, E, B, timestep)
        endif
+!       write(*,*) "pushed",i,particle_tmp%x(1),particle_tmp%x(2),particle_tmp%x(3)
+       call copy_particle_kinetic_leapfrog( particle_tmp, group_particles%particles(i) )
     endif
     
   end subroutine run_boris_push_cylindrical_kernel
@@ -402,7 +418,7 @@ contains
 
     np = n_particles
 !    call assert_equal_rel_error_particle(np,sim%groups(1)%particles,group_particles(1)%particles)
-    call assert_equal_particle(np,sim%groups(1)%particles,group_particles(1)%particles)
+    call assert_equal_rel_error_particle(np,sim%groups(1)%particles,group_particles(1)%particles)
     write(*,*) "test complete"
 
   end subroutine test_particle_kinetic_leapfrog_loop
