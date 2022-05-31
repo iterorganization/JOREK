@@ -31,7 +31,7 @@ module mod_particle_kernels
   end type particle_group_device   
 
   private
-  public particle_group_device, fields_linear_device, particle_kinetic_leapfrog_loop, copy_device_data, calc_ebpsiu_device, copy_managed_groups_host_groups
+  public particle_group_device, fields_linear_device, particle_kinetic_leapfrog_loop, copy_device_data, calc_ebpsiu_device, copy_managed_groups_host_groups, delete_device_data
 
 contains
 
@@ -69,7 +69,7 @@ contains
        n_particles = size( sim%groups(i)%particles,1)
        grid = dim3(ceiling(real(n_particles)/tBlock_size),1,1)
 !       start_time = MPI_Wtime()
-!       write(*,*) "Group", i," launching ",n_particles, "particles"
+       write(*,*) "Group", i," launching ",n_particles, "particles"
        call particle_kinetic_leapfrog_loop_kernel<<<grid, tBlock>>>(n_particles, particle_groups(i), fields, n_steps, timestep, particle_start_time )
        istat = cudaDeviceSynchronize()
        if (istat /= cudaSuccess) write(*,*) cudaGetErrorString(istat)
@@ -77,6 +77,7 @@ contains
     end do
 
     call copy_managed_groups_host_groups( particle_groups, return_particle_groups )
+    call delete_device_data( particle_groups, fields )
 
   end subroutine particle_kinetic_leapfrog_loop
 
@@ -96,28 +97,24 @@ contains
 
     i = threadIdx%x + (blockIdx%x-1) * blockDim%x 
     if ( i <= n_particles ) then
-!       write(*,*) "+" ! simple way to count particles
+       write(*,*) "+" ! simple way to count particles
        call copy_particle_kinetic_leapfrog( group_particles%particles(i) , particle_tmp )
        do j=1,n_steps
           if (particle_tmp%i_elm .le. 0) then
-!             write(*,*) "-" ! simple way to count lost particles
+             write(*,*) "-" ! simple way to count lost particles
              exit
           endif
-
           t = particle_start_time + (j-1)*timestep
           call calc_EBpsiU_device(fields, t, particle_tmp%i_elm, particle_tmp%st, particle_tmp%x(3), E, B, psi, U)
-
           rz_old    = particle_tmp%x(1:2)
           st_old    = particle_tmp%st
           i_elm_old = particle_tmp%i_elm
-
           if (particle_tmp%i_elm .gt. 0) then
              call boris_push_cylindrical(particle_tmp, group_particles%mass, E, B, timestep)                 
              call find_rz_nearby_device(fields%node_list,fields%element_list,rz_old(1),rz_old(2), &
                   st_old(1),st_old(2),i_elm_old,particle_tmp%x(1),particle_tmp%x(2), particle_tmp%st(1), &
                   particle_tmp%st(2), particle_tmp%i_elm, ifail)                
           endif
-
        end do
        call copy_particle_kinetic_leapfrog( particle_tmp , group_particles%particles(i) )
     end if
@@ -167,6 +164,26 @@ contains
 
   end subroutine copy_device_data
 
+  !> Free memory on the device
+  subroutine delete_device_data( particle_groups , fields )
+
+    type(particle_group_device), managed, dimension(:), allocatable, intent(inout)  :: particle_groups
+    type(fields_linear_device), managed , allocatable, intent(inout)                :: fields
+
+    integer :: i, n_groups
+
+    !> Deallocate particles
+    n_groups = size(particle_groups,1)
+    do i = 1, n_groups
+       deallocate(particle_groups(i)%particles)
+    end do
+    deallocate(particle_groups)
+
+    !> Deallocate the fields type
+    deallocate(fields)
+    
+  end subroutine delete_device_data
+  
   !> Copies particle_groups to managed non-polymorphic particle_group_device groups
   subroutine copy_particle_groups( particle_groups_in, particle_groups_out )
     type(particle_group), dimension(:), intent(inout)                              :: particle_groups_in
@@ -278,7 +295,7 @@ contains
 
     out%n_elements = in%n_elements
 
-    do i=1,n_elements_max
+    do i=1,in%n_elements
        call copy_element( in%element(i) , out%element(i) )
     end do
 
@@ -312,7 +329,7 @@ contains
     out%n_nodes = in%n_nodes
     out%n_dof = in%n_dof
 
-    do i=1,n_nodes_max
+    do i=1,in%n_nodes
        call copy_node( in%node(i) , out%node(i) )
     end do
 
@@ -424,12 +441,19 @@ contains
 !    integer,                  intent(in)           :: n_v, i_v(n_v)
     integer,                  intent(in)           :: n_v, i_v(2)
     real*8,                   intent(in)           :: s, t, phi
-!    real*8,                   intent(out)          :: P(n_v), P_s(n_v), P_t(n_v), P_phi(n_v), P_time(n_v)
+#ifdef CUDA_KERNELS
     real*8,                   intent(out)          :: P(2), P_s(2), P_t(2), P_phi(2), P_time(2)
+#else
+    real*8,                   intent(out)          :: P(n_v), P_s(n_v), P_t(n_v), P_phi(n_v), P_time(n_v)
+#endif
     real*8,                   intent(out)          :: R, R_s, R_t, Z, Z_s, Z_t
 
     real*8                 :: df, dt
+#ifdef CUDA_KERNELS
     real*8, dimension(2)   :: Pd, Pd_s, Pd_t, Pd_phi
+#else
+    real*8, dimension(n_v) :: Pd, Pd_s, Pd_t, Pd_phi
+#endif
     real*8                 :: t_jorek
 
     ! JOREK time step in seconds

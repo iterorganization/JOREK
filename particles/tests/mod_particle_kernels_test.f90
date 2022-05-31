@@ -21,10 +21,10 @@ contains
       write(*,'(/A)') "  ... setting-up: particle kernels tests"
       call setup
       write(*,'(/A)') "  ... running: particle kernels tests"
-      call test_copy_data
-      call test_calc_ebpsiu_device
-      call test_boris_push_cylindrical
-!      call test_particle_kinetic_leapfrog_loop
+!      call test_copy_data
+!      call test_calc_ebpsiu_device
+!      call test_boris_push_cylindrical
+      call test_particle_kinetic_leapfrog_loop
       write(*,'(/A)') "  ... tearing-down: particle kernels tests"
       call teardown
   end subroutine run_fruit_particle_kernels
@@ -141,6 +141,9 @@ contains
 
     call assert_equal_particle(np,sim%groups(1)%particles,return_particle_groups(1)%particles)
 
+    call delete_device_data( group_particles, fields )
+    deallocate( return_particle_groups(1)%particles ) 
+    
     write(*,*) "test complete"
     
   end subroutine test_copy_data
@@ -245,6 +248,7 @@ contains
     !> retrieve the data
     data = data_d
     deallocate(data_d)
+    call delete_device_data( particle_groups, fields )
     
   end subroutine run_calc_EBpsiU_GPU
 
@@ -295,6 +299,9 @@ contains
     np = n_particles
     call assert_equal_rel_error_particle(np,sim%groups(1)%particles,group_particles(1)%particles)
 !    call assert_equal_particle(np,sim%groups(1)%particles,group_particles(1)%particles)
+    deallocate( group_particles(1)%particles )
+    deallocate( group_particles )
+
     write(*,*) "test complete"
 
   end subroutine test_boris_push_cylindrical
@@ -319,10 +326,10 @@ contains
 
     select type (particles => sim%groups(1)%particles)
     type is (particle_kinetic_leapfrog)
-!!$       !$omp parallel do default(shared) &
-!!$       !$omp private(particle_tmp,i,j,E,B,psi,U,rz_old,st_old) &
-!!$       !$omp num_threads(nthreads) &
-!!$       !$omp schedule(dynamic,10)
+       !$omp parallel do default(shared) &
+       !$omp private(particle_tmp,i,E,B,psi,U) &
+       !$omp num_threads(nthreads) &
+       !$omp schedule(dynamic,10)
        do i=1,size(sim%groups(1)%particles,1)
           call copy_particle_kinetic_leapfrog(particles(i),particle_tmp)            
           if (particle_tmp%i_elm .gt. 0) then
@@ -331,9 +338,9 @@ contains
           endif
           call copy_particle_kinetic_leapfrog(particle_tmp,particles(i))            
        enddo
-!!$       !$omp end parallel do
+       !$omp end parallel do
     end select
-    
+
   end subroutine run_boris_push_cylindrical_CPU
 
   subroutine run_boris_push_cylindrical_GPU( n_steps, timestep, particle_start_time , return_particle_groups )
@@ -365,6 +372,8 @@ contains
 
     call copy_managed_groups_host_groups( particle_groups, return_particle_groups )
 
+    call delete_device_data( particle_groups, fields )
+    
   end subroutine run_boris_push_cylindrical_GPU
 
   !> kernel for running calc_EBpsiU on GPUs
@@ -407,18 +416,21 @@ contains
     write(*,*) "test_particle_kinetic_leapfrog_loop"
     
     particle_start_time = 0
-    n_steps = 1
+    n_steps = 1000
     timestep = 1e-10
+    np = n_particles
     
     start_time = MPI_Wtime()
     call particle_kinetic_leapfrog_loop( sim , n_steps , timestep , particle_start_time , group_particles)
     write(*,*) "GPU full loop completed in ",MPI_Wtime()-start_time," s"
 
+    start_time = MPI_Wtime()
     call run_particle_kinetic_leapfrog_loop_CPU( n_steps, timestep, particle_start_time )
+    write(*,*) "Threaded full loop completed in ",MPI_Wtime()-start_time," s"
 
-    np = n_particles
 !    call assert_equal_rel_error_particle(np,sim%groups(1)%particles,group_particles(1)%particles)
-    call assert_equal_rel_error_particle(np,sim%groups(1)%particles,group_particles(1)%particles)
+!    call assert_equal_rel_error_particle(np,sim%groups(1)%particles,group_particles(1)%particles)
+    deallocate( group_particles(1)%particles ) 
     write(*,*) "test complete"
 
   end subroutine test_particle_kinetic_leapfrog_loop
@@ -435,22 +447,19 @@ contains
     
     !> variables
     type(particle_kinetic_leapfrog)          :: particle_tmp
-    integer                                  :: nthreads, i, j, ifail, i_elm_old
+    integer                                  :: np, i, j, ifail, i_elm_old
     real*8                                   :: t, rz_old(2), st_old(2), E(3), B(3), psi, U, start_time
     
-    start_time = MPI_Wtime()
-    
-    t = 0.0
-
-    if( nthreads <= 0 .or. nthreads > omp_get_max_threads()) nthreads = omp_get_max_threads()
-
+!    nthreads = 128
+    !    if( nthreads <= 0 .or. nthreads > omp_get_max_threads()) nthreads = omp_get_max_threads()
+    np = size(sim%groups(1)%particles,1)
+    write(*,*) "Running threads",np, n_steps
     select type (particles => sim%groups(1)%particles)
     type is (particle_kinetic_leapfrog)
-!!$       !$omp parallel do default(shared) &
-!!$       !$omp private(particle_tmp,i,j,E,B,psi,U,rz_old,st_old) &
-!!$       !$omp num_threads(nthreads) &
-!!$       !$omp schedule(dynamic,10)
-       do i=1,size(sim%groups(1)%particles,1)
+       !$omp parallel do default(shared) &
+       !$omp private(particle_tmp,i,j,E,B,psi,U,rz_old,st_old) &
+       !$omp schedule(dynamic,10)
+       do i=1,np
           call copy_particle_kinetic_leapfrog(particles(i),particle_tmp)            
           do j=1,n_steps
              if (particle_tmp%i_elm .le. 0) exit             
@@ -468,10 +477,10 @@ contains
           end do
           call copy_particle_kinetic_leapfrog(particle_tmp,particles(i))            
        enddo
-!!$       !$omp end parallel do
+       !$omp end parallel do
     end select
     
-    write(*,*) "CPU particle_kinetic_loop time, threads:", MPI_Wtime() - start_time, nthreads
+!    write(*,*) "CPU particle_kinetic_loop time, threads:", MPI_Wtime() - start_time
     
   end subroutine run_particle_kinetic_leapfrog_loop_CPU
 
