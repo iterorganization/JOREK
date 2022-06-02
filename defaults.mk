@@ -278,6 +278,9 @@ ifeq (1, $(USE_BICGSTAB))
   DEFINES  := $(DEFINES) -DUSE_BICGSTAB
 endif
 
+ifeq (1, $(USE_NEWTON))
+  DEFINES  := $(DEFINES) -DUSE_NEWTON
+endif
 
 # Do not check to make these files to speed up and clean -d output
 Makefile: ;

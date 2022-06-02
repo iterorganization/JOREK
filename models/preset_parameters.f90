@@ -550,7 +550,16 @@ subroutine preset_parameters
   iter_precon        = 10                   ! redo preconditioner when gmres iterations > iter_precon
   max_steps_noUpdate = 10000000             ! redo preconditioner when steps without preconditioning matrix update > max_steps_noUpdate
   centralize_harm_mat= .true.              ! centralize harmonic matrices on toroidal master rank 
-  
+
+  ! --- parameters for inexact newton algorithm
+  newton_start       = 5.d-1   !< start value for newton loop, i.e. delta_k = deltas*newton_start
+  newton_gamma       = 1.d-6   !< gamma for eps_k, i.e. eps^k=gamma*(|R(U_k,U^n)|/|R(U_k-1, U^n)|)**alpha
+  newton_alpha       = 1.0d0   !< alpha for eps_k, i.e. eps^k=gamma*(|R(U_k,U^n)|/|R(U_k-1, U^n)|)**alpha
+  newton_eps_a       = 1.d-6   !< abs. conv. criterion, i.e. |R(U_k,U^n)|<newton_eps_a+newton_eps_r*|R(U^n)|
+  newton_eps_r       = 1.d-5   !< rel. conv. criterion, i.e. |R(U_k,U^n)|<newton_eps_a+newton_eps_r*|R(U^n)|
+  newton_max_iter    = 20      !< max. numer of newton iterations
+  newton_eps_gmres   = 1.d-6   !< alternative to eps_k, i.e. gmres_tol = min(eps_k, newton_eps_gmres)
+ 
   ! --- deprecated, code will stop if these parameters are set to .true. ---
   use_murge          = .false.
   use_murge_element  = .false.

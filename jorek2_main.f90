@@ -95,8 +95,9 @@ program JOREK2
                                             stdout=>output_unit, &
                                             stderr=>error_unit
   
+#ifdef USE_NEWTON
   use mod_newton, only: inexact_newton
-
+#endif
   implicit none
 
 #ifdef USE_FFTW
@@ -845,20 +846,20 @@ mpi_required = 0
       iter_prev = iter_gmres
       iter_gmres = gmres_max_iter
 
-#ifdef USE_BICGSTAB
-!      call bicgstab_driver(irn_glob, jcn_glob, a_glob, deltas, rhs_glob, iter_gmres, gmres_tol, MPI_COMM_WORLD, MPI_COMM_N, MPI_COMM_MASTER)
-#else
-!      call gmres_driver(my_id,my_id_n,MPI_COMM_N,MPI_COMM_MASTER,iter_gmres)
-#endif
+#ifdef USE_NEWTON
       call inexact_newton(a_glob, deltas, rhs_glob, iter_gmres, gmres_tol, MPI_COMM_WORLD, MPI_COMM_N, MPI_COMM_MASTER, &
-                          iter_gmres, &
-                          element_list,node_list, &
-                          my_id, MPI_COMM_N, my_id_n, MPI_COMM_MASTER, my_id_master, local_elms,   &
-                          n_local_ELms, index_min(my_id+1), index_max(my_id+1), xpoint, xcase, ES%R_axis, ES%Z_axis,&
-                          ES%psi_axis, ES%psi_bnd, ES%R_xpoint, ES%Z_xpoint, ES%psi_xpoint, 1, n_tor,   &
-                          n_glob, nz_glob, ndof_glob, n_matrix_block_size, A_glob, rhs_glob, irn_glob, &
-                          jcn_glob, ijA_index, ijA_size, irn_jcn, harmonic_matrix=.false.)
-
+                          iter_gmres,                                                                                   &
+                          element_list,node_list, index_now,                                                            &
+                          my_id, MPI_COMM_N, my_id_n, MPI_COMM_MASTER, my_id_master, local_elms,                        &
+                          n_local_ELms, index_min(my_id+1), index_max(my_id+1), xpoint, xcase, ES%R_axis, ES%Z_axis,    &
+                          ES%psi_axis, ES%psi_bnd, ES%R_xpoint, ES%Z_xpoint, ES%psi_xpoint, 1, n_tor,                   &
+                          n_glob, nz_glob, ndof_glob, n_matrix_block_size, A_glob, rhs_glob, irn_glob,                  &
+                          jcn_glob, ijA_index, ijA_size, irn_jcn, harmonic_matrix=.false.                               )
+#elif USE_BICGSTAB
+      call bicgstab_driver(irn_glob, jcn_glob, a_glob, deltas, rhs_glob, iter_gmres, gmres_tol, MPI_COMM_WORLD, MPI_COMM_N, MPI_COMM_MASTER)
+#else
+      call gmres_driver(my_id,my_id_n,MPI_COMM_N,MPI_COMM_MASTER,iter_gmres)
+#endif
 
     endif
     call clck_time_barrier(t1)
@@ -868,8 +869,6 @@ mpi_required = 0
     end if
     
     
-    !call inexact_newton(my_id,element_list,node_list)  ! Call inexact_newton solver.
-    !write(*,*) 'n_nodes = ', node_list%n_nodes
 
     call clck_time(t0)
     if ( (gmres .and. (iter_gmres .lt. iter_big)) .or. (.not.gmres) ) then

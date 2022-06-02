@@ -754,6 +754,16 @@ write(*,'(1x,a)',advance='no') ' USE_BICGSTAB : '
   write(*,LOGI_FMT) 'old_deuterium_atomic  ', old_deuterium_atomic
   write(*,LOGI_FMT) 'no_mach1_bc           ', no_mach1_bc
 
+!#ifdef USE_NEWTON
+  write(*,REAL_FMT) 'newton_start          ', newton_start    
+  write(*,REAL_FMT) 'newton_gamma          ', newton_gamma    
+  write(*,REAL_FMT) 'newton_alpha          ', newton_alpha    
+  write(*,REAL_FMT) 'newton_eps_a          ', newton_eps_a    
+  write(*,REAL_FMT) 'newton_eps_r          ', newton_eps_r    
+  write(*,INTG_FMT) 'newton_max_iter       ', newton_max_iter 
+  write(*,REAL_FMT) 'newton_eps_gmres      ', newton_eps_gmres
+!#endif
+
 #ifdef fullmhd
     write(*,LOGI_FMT) 'Mach1_openBC          ', Mach1_openBC
     write(*,REA3_FMT) 'eta_ARAZ_const        ', eta_ARAZ_const
