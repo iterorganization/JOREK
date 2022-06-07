@@ -25,7 +25,7 @@ module mod_expression
   use mod_poloidal_currents
   use mod_impurity, only: radiation_function, radiation_function_linear
   use mod_atomic_coeff_deuterium, only : atomic_coeff_deuterium
-  
+
   implicit none
   
   
@@ -223,6 +223,7 @@ module mod_expression
 #endif
 #if (defined WITH_Neutrals) && (!defined WITH_Impurities)
     call add(exprs_all, 'brem        ', 'Brem terms for bolometry diagnostic                   ')
+    call add(exprs_all, 'line_rad    ', 'D neutral line radiation                              ')
 #endif
     ! --- List of volume and boundary integrals
     call add(exprs_all_int, 'index_now   ', 'Restart file index (or number of run tsteps)          ')
@@ -1432,8 +1433,7 @@ module mod_expression
           if ( (psi_abs > 1.d-6) .and. (r0 > 1.d-6) .and. (abs(Btheta) > 1.d-6) ) then
             
             Er       = -(u0_R * ps0_R + u0_Z * ps0_Z) / psi_abs   ! radial electric field
-            
-            Vsound   = sqrt(GAMMA*T0) / sqrt(BB2)                 ! sound speed
+            Vsound   = sqrt(GAMMA*corr_neg_temp(T0)) / sqrt(BB2)                 ! sound speed
             Mach_par = Vpar0 / Vsound                             ! parallel Mach number
             Mach_pol = Vtheta / Vsound                            ! poloidal Mach number
             
@@ -1470,7 +1470,7 @@ module mod_expression
           
           ! --- Coulomb logarithms calculated according to Ref. [L. Hesselow et al, J Plasma Phys 84,
           !     p. 905840605 (2018); doi:10.1017/S0022377818001113] Eq. (2.7) and (2.9):
-          Te0_eV     = Te0 / ( EL_CHG * MU_ZERO * central_density * 1.d20 )
+          Te0_eV     = corr_neg_temp(Te0) / ( EL_CHG * MU_ZERO * central_density * 1.d20 )
           ne0_20     = max(1.d-8, r0) * central_density
           ln_Lambda0 = 14.9 - 0.5 * log( ne0_20 ) + log( Te0_eV / 1000.d0 ) ! Eq. (2.7) at thermal speeds
           ln_Lambda  = 14.6 + 0.5 * log( Te0_eV / ne0_20 )                  ! Eq. (2.9) at relativistic energies
@@ -1497,9 +1497,9 @@ module mod_expression
    Te_eV = Te0/(EL_CHG*MU_ZERO*central_density * 1.d20)
 
    if (use_imp_adas) then
-     call atomic_coeff_deuterium(Te0, Sion_T, dSion_dT, Srec_T, dSrec_dT,        &
+     call atomic_coeff_deuterium(corr_neg_temp(Te0), Sion_T, dSion_dT, Srec_T, dSrec_dT,        &
                                 LradDcont_T, dLradDcont_dT, LradDrays_T, dLradDrays_dT, r0, rn0, .true. ) 
-     ! Note the input Te0 for atomic_coeff_deuterium should be in JOREK units!!!
+     ! Note the inputs and outputs of atomic_coeff_deuterium are all in JOREK units!!!
 
     !--------------------------------------------------------
     ! --- Radiation from background impurity
@@ -1595,7 +1595,7 @@ module mod_expression
              fact_vpar     = sqrt(BB2) / fact_time                                 ! factor for Vpar
              fact_resistiv = sqrt ( MU_zero / rho_norm )                           ! factor for eta == 1 / (factor for visco)
              fact_Er       = F0 / fact_time
-             fact_rad      = 1.d0/(2.d0/3.d0*MU_ZERO**1.5d0*(central_mass*MASS_PROTON*central_density*1.d20)**0.5d0)
+             fact_rad      = 1.d0/(2.d0/3.d0*MU_ZERO**1.5d0*(central_mass*MASS_PROTON*central_density*1.d20)**0.5d0) ! factor for Prad (not Lrad)
              fact_flux     = 1.d0/(mu_zero*fact_time)  
           else if ( units == JOREK_UNITS ) then
              rho_norm      = 1.d0
@@ -1962,16 +1962,19 @@ module mod_expression
               case ( 'radiation' )
 
                 if (rn0 .lt. 0.d0) then
-                  res = r0 * fact_ne * r0 * fact_ne * LradDcont_T &
-                       + r0 * fact_ne * frad_bg
+                  res = r0 * r0 * LradDcont_T * fact_rad &
+                       + r0 * fact_ne * frad_bg ! Conversion of units for frad_bg already done above for WITH_Neutrals 
                 else
-                  res = r0 * fact_ne * rn0 * fact_ne * LradDrays_T &
-                       + r0 * fact_ne * r0 * fact_ne * LradDcont_T &
+                  res = r0 * rn0 * LradDrays_T * fact_rad &
+                       + r0 * r0 * LradDcont_T * fact_rad &
                        + r0 * fact_ne * frad_bg
                 endif
 
               case ( 'brem' )
-                res = r0 * fact_ne * r0 * fact_ne * LradDcont_T
+                res = r0 * r0 * LradDcont_T * fact_rad
+
+              case ('line_rad')
+                res = r0 * max(rn0,0.d0) * LradDrays_T * fact_rad
 #endif
 #ifdef WITH_Impurities
               case ( 'radiation' )

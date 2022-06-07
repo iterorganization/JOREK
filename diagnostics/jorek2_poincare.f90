@@ -288,6 +288,7 @@ L_IL: do i_lines=1,n_lines
 
 	      i_elm_prev = i_elm      
               i_elm      = element_neighbours(2,i_elm_prev)
+              if ( i_elm == 0 ) exit L_IT
 	      i_elm_tmp  = element_neighbours(4,i_elm)
 	      
 	      if (i_elm_prev .ne. i_elm_tmp) write(*,*) ' WARNING : CHANGE OF ORIENTATION (1)'
