@@ -533,9 +533,9 @@ contains
     real*8 :: err2, err2_old, dist(2), fact
 
     ! Check if element is valid
-    write(*,*) "find_rz_nearby_device, start",i_elm_old
+!    write(*,*) "find_rz_nearby_device, start",i_elm_old
     if (i_elm_old .lt. 1 .or. i_elm_old .gt. element_list%n_elements) then
-       write(*,*) "find_rz_nearby_device: calling first find_rz",i_elm_old
+!       write(*,*) "find_rz_nearby_device: calling first find_rz",i_elm_old
        call find_RZ(node_list,element_list,R_new,Z_new,x_step(1),x_step(2),i_elm_tmp,s_new,t_new,ifail)
 !       return
     else
@@ -545,9 +545,9 @@ contains
        st_new = [s_old,t_old] ! start at the old position
        x_new = [R_new,Z_new]
        ! Find the jacobian at the current s and t position
-       write(*,*) "find_rz_nearby_device: calling initial try_interp",i_elm_old!,st_new(1),st_new(2)
+!       write(*,*) "find_rz_nearby_device: calling initial try_interp",i_elm_old!,st_new(1),st_new(2)
        call try_interp(node_list,element_list,i_elm_new,st_new,x_step,R_s,R_t,Z_s,Z_t,inv_st_jac_det)
-       write(*,*) "find_rz_nearby_device: initial try_interp",i_elm_old,i_elm_new
+!       write(*,*) "find_rz_nearby_device: initial try_interp",i_elm_old,i_elm_new
        err2 = dot_product(x_step-x_new,x_step-x_new)
        ifail=0
 
@@ -560,21 +560,21 @@ contains
           ! Calculate the trial newton step
           st_step(1) = ( Z_t * (x_new(1)-x_step(1)) - R_t * (x_new(2)-x_step(2))) * inv_st_jac_det
           st_step(2) = (-Z_s * (x_new(1)-x_step(1)) + R_s * (x_new(2)-x_step(2))) * inv_st_jac_det
-          write(*,*) "find_rz_nearby_device: Z_t, R_t ",Z_t, R_t
-          write(*,*) "find_rz_nearby_device: x_new, xstep",x_new(1),x_step(1)
-          write(*,*) "find_rz_nearby_device: x_new1, xstep1",x_new(1),x_step(1)
-          write(*,*) "find_rz_nearby_device: inv_st_jac_det",inv_st_jac_det
+!          write(*,*) "find_rz_nearby_device: Z_t, R_t ",Z_t, R_t
+!          write(*,*) "find_rz_nearby_device: x_new, xstep",x_new(1),x_step(1)
+!          write(*,*) "find_rz_nearby_device: x_new1, xstep1",x_new(1),x_step(1)
+!          write(*,*) "find_rz_nearby_device: inv_st_jac_det",inv_st_jac_det
           
           ! Limit this step if it goes outside of the element
-          write(*,*) "find_rz_nearby_device: st_step ",st_step(1),st_step(2)
-          write(*,*) "find_rz_nearby_device: st_new ",st_new(1), st_new(2)
+!          write(*,*) "find_rz_nearby_device: st_step ",st_step(1),st_step(2)
+!          write(*,*) "find_rz_nearby_device: st_new ",st_new(1), st_new(2)
           dist = merge(1-st_new,st_new,st_step .gt. 0) ! dist = 1-s if step > 0, s if step < 0 (distance to 0 or 1)
-          write(*,*) "find_rz_nearby_device: dist ",max(dist(1),1d-30),max(dist(2),1d-30)
+!          write(*,*) "find_rz_nearby_device: dist ",max(dist(1),1d-30),max(dist(2),1d-30)
 ! this doesn't seem to work on the gpu
           fact = maxval(abs(st_step)/max(dist,1d-30)) ! if fact>=1 we are on the boundary
           ! (it is the overshoot: i.e. how many times we overshoot the boundary with one st_step)
           
-          write(*,*) "find_rz_nearby_device: fact",fact
+!          write(*,*) "find_rz_nearby_device: fact",fact
           if (fact .ge. 1.d0-1d-12) then
              st_new = st_new + st_step/fact
 #ifdef DEBUG
@@ -582,15 +582,15 @@ contains
 #endif
              i_elm_tmp = i_elm_new
              call coord_in_neighbour(node_list,element_list,i_elm_tmp,i_elm_new,st_new)
-             write(*,*) "find_rz_nearby_device: called coord in neighbour",i_elm_new
+!             write(*,*) "find_rz_nearby_device: called coord in neighbour",i_elm_new
              if (i_elm_new .lt. 0) then
-                write(*,*) "find_rz_nearby_device: calling i_elm lt 0 find_rz",i_elm_old
+!                write(*,*) "find_rz_nearby_device: calling i_elm lt 0 find_rz",i_elm_old
                 call find_RZ(node_list,element_list,x_new(1),x_new(2),x_step(1),x_step(2),i_elm_new,s_new,t_new,ifail)
                 if (ifail .ne. 0) i_elm_new = 0
              else if (i_elm_new .eq. 0) then ! No element on that side, particle is lost
                 i_elm_new = - i_elm_tmp ! Save position of particle
                 ! Calculate new R and Z in x_new
-                write(*,*) "find_rz_nearby_device: calling ielm 0 try_interp",i_elm_old
+!                write(*,*) "find_rz_nearby_device: calling ielm 0 try_interp",i_elm_old
                 call try_interp(node_list,element_list,i_elm_tmp,st_new,x_new,R_s,R_t,Z_s,Z_t,inv_st_jac_det)
                 ! Set new element-local coordinates for the point on the axis
                 s_new = st_new(1)
@@ -598,9 +598,9 @@ contains
                 ifail = -1
 !                return
              else
-                write(*,*) "find_rz_nearby_device: calling main try_interp",i_elm_new
+!                write(*,*) "find_rz_nearby_device: calling main try_interp",i_elm_new
                 call try_interp(node_list,element_list,i_elm_new,st_new,x_step,R_s,R_t,Z_s,Z_t,inv_st_jac_det)
-                write(*,*) "find_rz_nearby_device: calling main try_interp",i_elm_old
+!                write(*,*) "find_rz_nearby_device: calling main try_interp",i_elm_old
 #ifdef DEBUG 
                 if (norm2(x_step-x_tmp) .gt. 1d-8) then
                    !write(*,*) "ERROR on element edge crossing", x_step, x_tmp, norm2(x_step-x_tmp), &
@@ -613,9 +613,9 @@ contains
              endif
           else
              st_new = st_new + st_step
-             write(*,*) "find_rz_nearby_device: calling final try_interp",i_elm_new
+!             write(*,*) "find_rz_nearby_device: calling final try_interp",i_elm_new
              call try_interp(node_list,element_list,i_elm_new,st_new,x_step,R_s,R_t,Z_s,Z_t,inv_st_jac_det)
-             write(*,*) "find_rz_nearby_device: called final try_interp",i_elm_new
+!             write(*,*) "find_rz_nearby_device: called final try_interp",i_elm_new
           end if
           err2 = dot_product(x_step-x_new,x_step-x_new)
           s_new = st_new(1)
@@ -627,7 +627,7 @@ contains
        
        if (ieee_is_nan(err2)) then
           !write(*,*) "WARNING: NaN encountered after newton iteration, using find_RZ"
-          write(*,*) "calling isnan find_rz",i_elm_old
+!          write(*,*) "calling isnan find_rz",i_elm_old
           call find_RZ(node_list,element_list,x_new(1),x_new(2),x_step(1),x_step(2),i_elm_new,s_new,t_new,ifail)
           if (ifail .eq. 0) ifail=2
 !          return
@@ -635,7 +635,7 @@ contains
           !write(*,"(A,i4,A,i5,A,2g14.6,A,3g14.6)") "WARNING: iteration for st did not converge after", newton_iter_max, " tries in element ", i_elm_new, &
           !" using find_RZ", x_new, "err2(old)/convergence: ", err2, err2_old, err2_old/err2
           !write(*,"(A,2g16.8)") "Find_RZ at ", x_new
-          write(*,*) "calling newton iter lim find_rz",i_elm_old, newton_iter_number
+!          write(*,*) "calling newton iter lim find_rz",i_elm_old, newton_iter_number
           call find_RZ(node_list,element_list,x_new(1),x_new(2),x_step(1),x_step(2),i_elm_new,s_new,t_new,ifail)
           if (ifail .eq. 0) ifail=3
 !          return

@@ -67,7 +67,7 @@ real*8 :: st_step(2), x_step(2), x_tmp(2), st_new(2), x_new(2) ! x_step = (R,Z) 
 real*8 :: err2, err2_old, dist(2), fact
 
 ! Check if element is valid
-write(*,*) "find_rz_nearby: start",i_elm_old
+!write(*,*) "find_rz_nearby: start",i_elm_old
 if (i_elm_old .lt. 1 .or. i_elm_old .gt. element_list%n_elements) then
   call find_RZ(node_list,element_list,R_new,Z_new,x_step(1),x_step(2),i_elm_new,s_new,t_new,ifail)
   return
@@ -79,9 +79,9 @@ i_elm_new = i_elm_old ! start in the current element
 st_new = [s_old,t_old] ! start at the old position
 x_new = [R_new,Z_new]
 ! Find the jacobian at the current s and t position
-write(*,*) "find_rz_nearby: calling initial try_interp",i_elm_old,st_new(1),st_new(2)
+!write(*,*) "find_rz_nearby: calling initial try_interp",i_elm_old,st_new(1),st_new(2)
 call try_interp(node_list,element_list,i_elm_new,st_new,x_step,R_s,R_t,Z_s,Z_t,inv_st_jac_det)
-write(*,*) "find_rz_nearby: initial try_interp",i_elm_old,i_elm_new
+!write(*,*) "find_rz_nearby: initial try_interp",i_elm_old,i_elm_new
 err2 = dot_product(x_step-x_new,x_step-x_new)
 ifail=0
 
@@ -94,21 +94,21 @@ do newton_iter_number = 1, newton_iter_max
   ! Calculate the trial newton step
   st_step(1) = ( Z_t * (x_new(1)-x_step(1)) - R_t * (x_new(2)-x_step(2))) * inv_st_jac_det
   st_step(2) = (-Z_s * (x_new(1)-x_step(1)) + R_s * (x_new(2)-x_step(2))) * inv_st_jac_det
-  write(*,*) "find_rz_nearby: Z_t, R_t ",Z_t, R_t
-  write(*,*) "find_rz_nearby: x_new, xstep",x_new(1),x_step(1)
-  write(*,*) "find_rz_nearby: x_new1, xstep1",x_new(1),x_step(1)
-  write(*,*) "find_rz_nearby: inv_st_jac_det",inv_st_jac_det
+!  write(*,*) "find_rz_nearby: Z_t, R_t ",Z_t, R_t
+!  write(*,*) "find_rz_nearby: x_new, xstep",x_new(1),x_step(1)
+!  write(*,*) "find_rz_nearby: x_new1, xstep1",x_new(1),x_step(1)
+!  write(*,*) "find_rz_nearby: inv_st_jac_det",inv_st_jac_det
 
   ! Limit this step if it goes outside of the element
-  write(*,*) "find_rz_nearby: st_step ",st_step(1),st_step(2)
-  write(*,*) "find_rz_nearby: st_new ",st_new(1), st_new(2)
+!  write(*,*) "find_rz_nearby: st_step ",st_step(1),st_step(2)
+!  write(*,*) "find_rz_nearby: st_new ",st_new(1), st_new(2)
   dist = merge(1-st_new,st_new,st_step .gt. 0) ! dist = 1-s if step > 0, s if step < 0 (distance to 0 or 1)
-  write(*,*) "find_rz_nearby: dist",max(dist(1),1d-30),max(dist(2),1d-30)
+!  write(*,*) "find_rz_nearby: dist",max(dist(1),1d-30),max(dist(2),1d-30)
 
   fact = maxval(abs(st_step)/max(dist,1d-30)) ! if fact>=1 we are on the boundary
   ! (it is the overshoot: i.e. how many times we overshoot the boundary with one st_step)
 
-  write(*,*) "find_rz_nearby: fact",fact
+!  write(*,*) "find_rz_nearby: fact",fact
   if (fact .ge. 1.d0-1d-12) then
     st_new = st_new + st_step/fact
 #ifdef DEBUG
@@ -116,7 +116,7 @@ do newton_iter_number = 1, newton_iter_max
 #endif
     i_elm_tmp = i_elm_new
     call coord_in_neighbour(node_list,element_list,i_elm_tmp,i_elm_new,st_new)
-    write(*,*) "find_rz_nearby: called coord in neighbour",i_elm_new
+!    write(*,*) "find_rz_nearby: called coord in neighbour",i_elm_new
     if (i_elm_new .lt. 0) then
       call find_RZ(node_list,element_list,x_new(1),x_new(2),x_step(1),x_step(2),i_elm_new,s_new,t_new,ifail)
       if (ifail .ne. 0) i_elm_new = 0
@@ -131,9 +131,9 @@ do newton_iter_number = 1, newton_iter_max
       ifail = -1
       return
     end if
-    write(*,*) "find_rz_nearby: calling main try_interp",i_elm_new
+!    write(*,*) "find_rz_nearby: calling main try_interp",i_elm_new
     call try_interp(node_list,element_list,i_elm_new,st_new,x_step,R_s,R_t,Z_s,Z_t,inv_st_jac_det)
-    write(*,*) "find_rz_nearby: called main try_interp",i_elm_new
+!    write(*,*) "find_rz_nearby: called main try_interp",i_elm_new
 #ifdef DEBUG 
     if (norm2(x_step-x_tmp) .gt. 1d-8) then
       !write(*,*) "ERROR on element edge crossing", x_step, x_tmp, norm2(x_step-x_tmp), &
@@ -145,9 +145,9 @@ do newton_iter_number = 1, newton_iter_max
 #endif
   else
     st_new = st_new + st_step
-    write(*,*) "find_rz_nearby: calling final try_interp",i_elm_new
+!    write(*,*) "find_rz_nearby: calling final try_interp",i_elm_new
     call try_interp(node_list,element_list,i_elm_new,st_new,x_step,R_s,R_t,Z_s,Z_t,inv_st_jac_det)
-    write(*,*) "find_rz_nearby: called final try_interp",i_elm_new
+!    write(*,*) "find_rz_nearby: called final try_interp",i_elm_new
   end if
   err2 = dot_product(x_step-x_new,x_step-x_new)
   s_new = st_new(1)
