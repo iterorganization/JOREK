@@ -1524,7 +1524,7 @@ contains
           call failed_assert_action(&
           & to_s(var1(i)), &
           & to_s(var2(i)), '1d array has difference, ' // message, if_is = .true.)
-          return
+!HJL          return
         endif
     enddo
     call add_success
@@ -1706,7 +1706,7 @@ contains
           call failed_assert_action(&
           & to_s(var1(i)), &
           & to_s(var2(i)), '1d array has difference, ' // message, if_is = .true.)
-          return
+!HJL          return
         endif
     enddo
     call add_success

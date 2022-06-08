@@ -14,8 +14,8 @@ module mod_particle_kernels
 
   !> Partial replication of fields type avoiding polymorphism for use in the kernels
   type fields_linear_device
-     type(type_node_list)       :: node_list        !< Current node list
-     type(type_element_list)    :: element_list     !< Current element list
+     type(type_node_list), managed       :: node_list        !< Current node list
+     type(type_element_list), managed    :: element_list     !< Current element list
      logical                    :: static           !< if true do not time interpolate
      logical                    :: flag_zero_dpsidt !< if true, P_time(1) = dpsi/dt = 0
      real*8                     :: time_now         !< Time of current restart file (SI units)
@@ -31,7 +31,7 @@ module mod_particle_kernels
   end type particle_group_device   
 
   private
-  public particle_group_device, fields_linear_device, particle_kinetic_leapfrog_loop, copy_device_data, calc_ebpsiu_device, copy_managed_groups_host_groups, delete_device_data
+  public particle_group_device, fields_linear_device, particle_kinetic_leapfrog_loop, copy_device_data, calc_ebpsiu_device, copy_managed_groups_host_groups, delete_device_data, find_rz_nearby_device
 
 contains
 
@@ -48,17 +48,8 @@ contains
     real*8       :: start_time
     type(dim3)   :: grid, tBlock
 
-    ! Print out some info on the GPU
-#ifdef DEBUG
-    if(sim%my_id==0) call device_query()
-#endif
-
-    tBlock_size = 256
-    tBlock = dim3(tBlock_size,1,1)
-
-    ! Set the device to use for this process 
-    istat = cudaSetDevice(sim%my_id)
-    if (istat /= cudaSuccess) write(*,*) cudaGetErrorString(istat)
+    ! Initialise the GPU
+    call init_gpu(sim,tBlock)
 
 !    start_time = MPI_WTime()
     call copy_device_data( sim , particle_groups , fields )
@@ -67,9 +58,10 @@ contains
     n_groups = size( sim%groups, 1)
     do i = 1, n_groups
        n_particles = size( sim%groups(i)%particles,1)
-       grid = dim3(ceiling(real(n_particles)/tBlock_size),1,1)
+       grid = dim3(ceiling(real(n_particles)/tBlock%x),1,1)
 !       start_time = MPI_Wtime()
        write(*,*) "Group", i," launching ",n_particles, "particles"
+       write(*,*) "Grid:", grid%x,tBlock%x
        call particle_kinetic_leapfrog_loop_kernel<<<grid, tBlock>>>(n_particles, particle_groups(i), fields, n_steps, timestep, particle_start_time )
        istat = cudaDeviceSynchronize()
        if (istat /= cudaSuccess) write(*,*) cudaGetErrorString(istat)
@@ -92,12 +84,13 @@ contains
     type(particle_kinetic_leapfrog)         :: particle_tmp
     integer                                 :: i,j
     real*8                                  :: t, E(3), B(3), psi, U
-    real*8                                  :: rz_old(2), st_old(2)
+    real*8                                  :: rz_old(2), st_old(2), rz_new(2), st_new(2)
     integer                                 :: i_elm_old, ifail
 
-    i = threadIdx%x + (blockIdx%x-1) * blockDim%x 
+    i = threadIdx%x + (blockIdx%x-1) * blockDim%x
+    write(*,*) "Entered kernel", i
     if ( i <= n_particles ) then
-       write(*,*) "+" ! simple way to count particles
+!!$       write(*,*) "+" ! simple way to count particles
        call copy_particle_kinetic_leapfrog( group_particles%particles(i) , particle_tmp )
        do j=1,n_steps
           if (particle_tmp%i_elm .le. 0) then
@@ -121,6 +114,31 @@ contains
 
   end subroutine particle_kinetic_leapfrog_loop_kernel
 
+  !> Set the device to use and the threadblock size
+  subroutine init_gpu(sim, tBlock)
+    type(particle_sim), intent(inout)    :: sim
+    type(dim3), intent(inout)            :: tBlock
+    integer                              :: istat, n_devices, device_id
+
+!#ifdef DEBUG
+    if(sim%my_id==0) call device_query()
+!#endif
+
+    istat = cudaGetDeviceCount(n_devices)
+    if (istat /= cudaSuccess) write(*,*) cudaGetErrorString(istat)
+
+    tBlock = dim3(256,1,1)
+
+    ! Set the device to use for this process
+    device_id = mod((sim%my_id+1), n_devices)
+        
+    istat = cudaSetDevice(device_id)
+    if (istat /= cudaSuccess) write(*,*) cudaGetErrorString(istat)
+
+    write(*,*) "Proc", sim%my_id, " using device", device_id
+    
+  end subroutine init_gpu
+  
   !> Obtain information on the devices available, not needed for pushing
   subroutine device_query()
     type(cudaDeviceProp) :: prop    
@@ -496,7 +514,7 @@ contains
     type (type_node_list),    intent(in)    :: node_list
     type (type_element_list), intent(in)    :: element_list
     real*8,                   intent(in)    :: R_old, Z_old !< The old R,Z location
-    real*8,                   intent(in)    :: R_new, Z_new !< The new R,Z location
+    real*8,                   intent(inout) :: R_new, Z_new !< The new R,Z location
     real*8,                   intent(in)    :: s_old, t_old !< The old st location (used to compute a guess)
     integer,                  intent(in)    :: i_elm_old
     real*8,                   intent(out)   :: s_new, t_new !< The found new coordinates
@@ -515,95 +533,116 @@ contains
     real*8 :: err2, err2_old, dist(2), fact
 
     ! Check if element is valid
+    write(*,*) "find_rz_nearby_device, start",i_elm_old
     if (i_elm_old .lt. 1 .or. i_elm_old .gt. element_list%n_elements) then
-       call find_RZ(node_list,element_list,R_new,Z_new,x_step(1),x_step(2),i_elm_new,s_new,t_new,ifail)
-       return
-    end if
-    ! Setup initial values
-    x_step = [R_old,Z_old] ! start at the current position
-    i_elm_new = i_elm_old ! start in the current element
-    st_new = [s_old,t_old] ! start at the old position
-    x_new = [R_new,Z_new]
-    ! Find the jacobian at the current s and t position
-    call try_interp(node_list,element_list,i_elm_new,st_new,x_step,R_s,R_t,Z_s,Z_t,inv_st_jac_det)
-    err2 = dot_product(x_step-x_new,x_step-x_new)
-    ifail=0
-
-
-    ! Newton iteration to find s and t in or out of this element
-    do newton_iter_number = 1, newton_iter_max
-       ! Perform newton iteration by calculating the inverse of the jacobian matrix explicitly
-       err2_old = err2
-
-       ! Calculate the trial newton step
-       st_step(1) = ( Z_t * (x_new(1)-x_step(1)) - R_t * (x_new(2)-x_step(2))) * inv_st_jac_det
-       st_step(2) = (-Z_s * (x_new(1)-x_step(1)) + R_s * (x_new(2)-x_step(2))) * inv_st_jac_det
-
-       ! Limit this step if it goes outside of the element
-       dist = merge(1-st_new,st_new,st_step .gt. 0) ! dist = 1-s if step > 0, s if step < 0 (distance to 0 or 1)
-       fact = maxval(abs(st_step)/max(dist,1d-30)) ! if fact>=1 we are on the boundary
-       ! (it is the overshoot: i.e. how many times we overshoot the boundary with one st_step)
-
-       if (fact .ge. 1.d0-1d-12) then
-          st_new = st_new + st_step/fact
-#ifdef DEBUG
-          call try_interp(node_list,element_list,i_elm_new,st_new,x_tmp,R_s,R_t,Z_s,Z_t,inv_st_jac_det)
-#endif
-          i_elm_tmp = i_elm_new
-          call coord_in_neighbour(node_list,element_list,i_elm_tmp,i_elm_new,st_new)
-          if (i_elm_new .lt. 0) then
-             call find_RZ(node_list,element_list,x_new(1),x_new(2),x_step(1),x_step(2),i_elm_new,s_new,t_new,ifail)
-             if (ifail .ne. 0) i_elm_new = 0
-          end if
-          if (i_elm_new .eq. 0) then ! No element on that side, particle is lost
-             i_elm_new = - i_elm_tmp ! Save position of particle
-             ! Calculate new R and Z in x_new
-             call try_interp(node_list,element_list,i_elm_tmp,st_new,x_new,R_s,R_t,Z_s,Z_t,inv_st_jac_det)
-             ! Set new element-local coordinates for the point on the axis
-             s_new = st_new(1)
-             t_new = st_new(2)
-             ifail = -1
-             return
-          end if
-
-          call try_interp(node_list,element_list,i_elm_new,st_new,x_step,R_s,R_t,Z_s,Z_t,inv_st_jac_det)
-#ifdef DEBUG 
-          if (norm2(x_step-x_tmp) .gt. 1d-8) then
-             !write(*,*) "ERROR on element edge crossing", x_step, x_tmp, norm2(x_step-x_tmp), &
-             !i_elm_new, i_elm_old, i_elm_tmp, "deleting particle"
-             !call exit(1)
-             i_elm_new = 0
-             return
-          end if
-#endif
-       else
-          st_new = st_new + st_step
-          call try_interp(node_list,element_list,i_elm_new,st_new,x_step,R_s,R_t,Z_s,Z_t,inv_st_jac_det)
-       end if
+       write(*,*) "find_rz_nearby_device: calling first find_rz",i_elm_old
+       call find_RZ(node_list,element_list,R_new,Z_new,x_step(1),x_step(2),i_elm_tmp,s_new,t_new,ifail)
+!       return
+    else
+       ! Setup initial values
+       x_step = [R_old,Z_old] ! start at the current position
+       i_elm_new = i_elm_old ! start in the current element
+       st_new = [s_old,t_old] ! start at the old position
+       x_new = [R_new,Z_new]
+       ! Find the jacobian at the current s and t position
+       write(*,*) "find_rz_nearby_device: calling initial try_interp",i_elm_old!,st_new(1),st_new(2)
+       call try_interp(node_list,element_list,i_elm_new,st_new,x_step,R_s,R_t,Z_s,Z_t,inv_st_jac_det)
+       write(*,*) "find_rz_nearby_device: initial try_interp",i_elm_old,i_elm_new
        err2 = dot_product(x_step-x_new,x_step-x_new)
-       s_new = st_new(1)
-       t_new = st_new(2)
-
-       if (err2 < element_tolerance) exit
-    enddo
+       ifail=0
 
 
-    if (ieee_is_nan(err2)) then
-       !write(*,*) "WARNING: NaN encountered after newton iteration, using find_RZ"
-       call find_RZ(node_list,element_list,x_new(1),x_new(2),x_step(1),x_step(2),i_elm_new,s_new,t_new,ifail)
-       if (ifail .eq. 0) ifail=2
-       return
-    endif
-    if (newton_iter_number .gt. newton_iter_max) then
-       !write(*,"(A,i4,A,i5,A,2g14.6,A,3g14.6)") "WARNING: iteration for st did not converge after", newton_iter_max, " tries in element ", i_elm_new, &
-       !" using find_RZ", x_new, "err2(old)/convergence: ", err2, err2_old, err2_old/err2
-       !write(*,"(A,2g16.8)") "Find_RZ at ", x_new
-       call find_RZ(node_list,element_list,x_new(1),x_new(2),x_step(1),x_step(2),i_elm_new,s_new,t_new,ifail)
-       if (ifail .eq. 0) ifail=3
-       return
-    endif
+       ! Newton iteration to find s and t in or out of this element
+       do newton_iter_number = 1, newton_iter_max
+          ! Perform newton iteration by calculating the inverse of the jacobian matrix explicitly
+          err2_old = err2
+          
+          ! Calculate the trial newton step
+          st_step(1) = ( Z_t * (x_new(1)-x_step(1)) - R_t * (x_new(2)-x_step(2))) * inv_st_jac_det
+          st_step(2) = (-Z_s * (x_new(1)-x_step(1)) + R_s * (x_new(2)-x_step(2))) * inv_st_jac_det
+          write(*,*) "find_rz_nearby_device: Z_t, R_t ",Z_t, R_t
+          write(*,*) "find_rz_nearby_device: x_new, xstep",x_new(1),x_step(1)
+          write(*,*) "find_rz_nearby_device: x_new1, xstep1",x_new(1),x_step(1)
+          write(*,*) "find_rz_nearby_device: inv_st_jac_det",inv_st_jac_det
+          
+          ! Limit this step if it goes outside of the element
+          write(*,*) "find_rz_nearby_device: st_step ",st_step(1),st_step(2)
+          write(*,*) "find_rz_nearby_device: st_new ",st_new(1), st_new(2)
+          dist = merge(1-st_new,st_new,st_step .gt. 0) ! dist = 1-s if step > 0, s if step < 0 (distance to 0 or 1)
+          write(*,*) "find_rz_nearby_device: dist ",max(dist(1),1d-30),max(dist(2),1d-30)
+! this doesn't seem to work on the gpu
+          fact = maxval(abs(st_step)/max(dist,1d-30)) ! if fact>=1 we are on the boundary
+          ! (it is the overshoot: i.e. how many times we overshoot the boundary with one st_step)
+          
+          write(*,*) "find_rz_nearby_device: fact",fact
+          if (fact .ge. 1.d0-1d-12) then
+             st_new = st_new + st_step/fact
+#ifdef DEBUG
+             call try_interp(node_list,element_list,i_elm_new,st_new,x_tmp,R_s,R_t,Z_s,Z_t,inv_st_jac_det)
+#endif
+             i_elm_tmp = i_elm_new
+             call coord_in_neighbour(node_list,element_list,i_elm_tmp,i_elm_new,st_new)
+             write(*,*) "find_rz_nearby_device: called coord in neighbour",i_elm_new
+             if (i_elm_new .lt. 0) then
+                write(*,*) "find_rz_nearby_device: calling i_elm lt 0 find_rz",i_elm_old
+                call find_RZ(node_list,element_list,x_new(1),x_new(2),x_step(1),x_step(2),i_elm_new,s_new,t_new,ifail)
+                if (ifail .ne. 0) i_elm_new = 0
+             else if (i_elm_new .eq. 0) then ! No element on that side, particle is lost
+                i_elm_new = - i_elm_tmp ! Save position of particle
+                ! Calculate new R and Z in x_new
+                write(*,*) "find_rz_nearby_device: calling ielm 0 try_interp",i_elm_old
+                call try_interp(node_list,element_list,i_elm_tmp,st_new,x_new,R_s,R_t,Z_s,Z_t,inv_st_jac_det)
+                ! Set new element-local coordinates for the point on the axis
+                s_new = st_new(1)
+                t_new = st_new(2)
+                ifail = -1
+!                return
+             else
+                write(*,*) "find_rz_nearby_device: calling main try_interp",i_elm_new
+                call try_interp(node_list,element_list,i_elm_new,st_new,x_step,R_s,R_t,Z_s,Z_t,inv_st_jac_det)
+                write(*,*) "find_rz_nearby_device: calling main try_interp",i_elm_old
+#ifdef DEBUG 
+                if (norm2(x_step-x_tmp) .gt. 1d-8) then
+                   !write(*,*) "ERROR on element edge crossing", x_step, x_tmp, norm2(x_step-x_tmp), &
+                   !i_elm_new, i_elm_old, i_elm_tmp, "deleting particle"
+                   !call exit(1)
+                   i_elm_new = 0
+!                   return
+                end if
+#endif
+             endif
+          else
+             st_new = st_new + st_step
+             write(*,*) "find_rz_nearby_device: calling final try_interp",i_elm_new
+             call try_interp(node_list,element_list,i_elm_new,st_new,x_step,R_s,R_t,Z_s,Z_t,inv_st_jac_det)
+             write(*,*) "find_rz_nearby_device: called final try_interp",i_elm_new
+          end if
+          err2 = dot_product(x_step-x_new,x_step-x_new)
+          s_new = st_new(1)
+          t_new = st_new(2)
+          
+          if (err2 < element_tolerance) exit
+       enddo
+       
+       
+       if (ieee_is_nan(err2)) then
+          !write(*,*) "WARNING: NaN encountered after newton iteration, using find_RZ"
+          write(*,*) "calling isnan find_rz",i_elm_old
+          call find_RZ(node_list,element_list,x_new(1),x_new(2),x_step(1),x_step(2),i_elm_new,s_new,t_new,ifail)
+          if (ifail .eq. 0) ifail=2
+!          return
+       else if (newton_iter_number .gt. newton_iter_max) then
+          !write(*,"(A,i4,A,i5,A,2g14.6,A,3g14.6)") "WARNING: iteration for st did not converge after", newton_iter_max, " tries in element ", i_elm_new, &
+          !" using find_RZ", x_new, "err2(old)/convergence: ", err2, err2_old, err2_old/err2
+          !write(*,"(A,2g16.8)") "Find_RZ at ", x_new
+          write(*,*) "calling newton iter lim find_rz",i_elm_old, newton_iter_number
+          call find_RZ(node_list,element_list,x_new(1),x_new(2),x_step(1),x_step(2),i_elm_new,s_new,t_new,ifail)
+          if (ifail .eq. 0) ifail=3
+!          return
+       endif
+
+    end if
   end subroutine find_RZ_nearby_device
-
 
  end module mod_particle_kernels
 #endif

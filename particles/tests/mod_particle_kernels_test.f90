@@ -24,7 +24,8 @@ contains
 !      call test_copy_data
 !      call test_calc_ebpsiu_device
 !      call test_boris_push_cylindrical
-      call test_particle_kinetic_leapfrog_loop
+      call test_find_rz_nearby
+!      call test_particle_kinetic_leapfrog_loop
       write(*,'(/A)') "  ... tearing-down: particle kernels tests"
       call teardown
   end subroutine run_fruit_particle_kernels
@@ -405,6 +406,130 @@ contains
     
   end subroutine run_boris_push_cylindrical_kernel
 
+  !> Test find of element index
+  subroutine test_find_rz_nearby()
+    !> variables
+    integer, dimension(n_particles) :: CPU_data, GPU_data
+    real*8, parameter  :: tol_interp=7.5d-12      
+    integer :: i, np
+    write(*,*) "test_find_rz_nearby"
+
+    np = n_particles
+
+    do i = 1, np
+       sim%groups(1)%particles(i)%i_elm = sim%groups(1)%particles(i)%i_elm + 1
+    end do
+    
+    !> GPU test - run this first as the original sim type is unaffected
+    call run_find_rz_nearby_GPU(GPU_data)
+
+    !> CPU test
+    call run_find_rz_nearby_CPU(CPU_data)
+
+
+    !> Assert
+!    call assert_equals(GPU_data(:),CPU_data(:),np,tol_interp,& 
+!         "Error find_rz_nearby: element index mismatch")
+    call assert_equals(GPU_data(:),CPU_data(:),np,& 
+         "Error find_rz_nearby: element index mismatch")
+
+    write(*,*) "test complete"
+
+  end subroutine test_find_rz_nearby
+
+  subroutine run_find_rz_nearby_CPU(data)
+    use mod_find_rz_nearby, only: find_rz_nearby
+    !> variables
+    integer, dimension(:),intent(inout)     :: data
+
+    type(particle_kinetic_leapfrog)          :: particle_tmp
+    integer                                  :: i, i_elm_old, ifail, i_elm_new
+    real*8                                   :: rz_old(2), st_old(2)
+
+    select type (particles => sim%groups(1)%particles)
+    type is (particle_kinetic_leapfrog)
+       do i=1,size(sim%groups(1)%particles,1)
+          call copy_particle_kinetic_leapfrog(particles(i),particle_tmp)
+          rz_old    = particle_tmp%x(1:2)
+          st_old    = particle_tmp%st
+          i_elm_old = particle_tmp%i_elm
+          call find_rz_nearby(sim%fields%node_list, sim%fields%element_list, rz_old(1), rz_old(2), &
+               st_old(1), st_old(2), i_elm_old, particle_tmp%x(1), particle_tmp%x(2), particle_tmp%st(1), &
+               particle_tmp%st(2), i_elm_new, ifail)
+          data(i) = i_elm_new
+          write(*,*) i,"find_rz_nearby",data(i)
+       end do
+    end select
+    
+  end subroutine run_find_rz_nearby_CPU
+
+
+  subroutine run_find_rz_nearby_GPU(data)
+
+    integer, dimension(:),intent(inout)     :: data
+
+    type(particle_group_device), managed, dimension(:), allocatable   :: particle_groups
+    type(fields_linear_device), managed, allocatable                  :: fields
+    integer, device, dimension(:), allocatable                        :: data_d      
+    integer      :: istat, np
+    type(dim3)   :: grid, tBlock
+    
+    ! Set the device to use for this process 
+    istat = cudaSetDevice(sim%my_id)
+    if (istat /= cudaSuccess) write(*,*) cudaGetErrorString(istat)
+
+    allocate(data_d(n_particles))
+    
+    ! Copy the data
+    call copy_device_data( sim , particle_groups , fields )
+
+    ! Launch the kernel
+    np = n_particles
+    tBlock = dim3(256,1,1)
+    grid = dim3(ceiling(real(np)/tBlock%x),1,1)
+    call run_find_rz_nearby_kernel<<<grid, tBlock>>>(np, particle_groups(1), fields, data_d)
+    istat = cudaDeviceSynchronize()
+    if (istat /= cudaSuccess) write(*,*) cudaGetErrorString(istat)
+
+    !> retrieve the data
+    data = data_d
+    deallocate(data_d)
+    call delete_device_data( particle_groups, fields )
+    
+  end subroutine run_find_rz_nearby_GPU
+
+  !> kernel for running calc_EBpsiU on GPUs
+  attributes(global) subroutine run_find_rz_nearby_kernel(np, group_particles, fields, data)
+
+    integer, value, intent(in)                           :: np
+    type(particle_group_device), managed, intent(inout)  :: group_particles
+    type(fields_linear_device), managed , intent(inout)  :: fields
+    integer, dimension(:),intent(inout)                  :: data
+
+    type(particle_kinetic_leapfrog)                      :: particle_tmp      
+    integer                                              :: i, i_elm_old, i_elm_new, ifail
+    real*8                                               :: rz_old(2), st_old(2)
+    real*8                                               :: rz_new(2), st_new(2)
+!    real*8                                               :: r_old, s_old, r_new, s_new
+!    real*8                                               :: z_old, t_old, z_new, t_new
+
+    i = threadIdx%x + (blockIdx%x-1) * blockDim%x 
+    if ( i <= np ) then
+       call copy_particle_kinetic_leapfrog( group_particles%particles(i) , particle_tmp )
+       rz_old    = particle_tmp%x(1:2)
+!       z_old    = particle_tmp%x(2)
+       st_old    = particle_tmp%st
+!       t_old    = particle_tmp%st(2)
+       i_elm_old = particle_tmp%i_elm
+       call find_rz_nearby_device(fields%node_list,fields%element_list,rz_old(1),rz_old(2), &
+            st_old(1),st_old(2),i_elm_old,particle_tmp%x(1), particle_tmp%x(2), &
+            particle_tmp%st(1),  particle_tmp%st(2), i_elm_new, ifail)                
+       data(i) = i_elm_new
+       
+       write(*,*) i,"find_rz_nearby_device",data(i)
+    endif
+
+  end subroutine run_find_rz_nearby_kernel
   
   !> Test the full particle loop
   subroutine test_particle_kinetic_leapfrog_loop
@@ -460,6 +585,7 @@ contains
        !$omp private(particle_tmp,i,j,E,B,psi,U,rz_old,st_old) &
        !$omp schedule(dynamic,10)
        do i=1,np
+          write(*,*) "threads", i,omp_get_thread_num()
           call copy_particle_kinetic_leapfrog(particles(i),particle_tmp)            
           do j=1,n_steps
              if (particle_tmp%i_elm .le. 0) exit             

@@ -39,7 +39,9 @@ module mod_parameters
   integer, parameter :: n_degrees      = (n_order+1)**2/4 !< degrees of freedom per variable per node
   integer, parameter :: nref_max       = 10000     !< (refinement)
   integer, parameter :: n_ref_list     = 10000     !< (refinement)
- 
+
+  !@cuf attributes(managed) :: n_order, n_tor, n_period, n_degrees, n_vertex_max, n_nodes_max, n_elements_max
+  
   !> Names of the physical variables
   character(len=11) :: variable_names(n_var) =                       &
     (/ 'Flux       ','Potential  ','Current    ','Vorticity  ',      &
