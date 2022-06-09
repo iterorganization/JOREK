@@ -261,7 +261,7 @@ real*8    :: oldtime, step_rest_time, particle_step_time, particle_start_time, d
 real*8    :: rho_norm, t_norm, v_norm, E_norm, M_norm, N_norm, tstep_si
 real*8    :: E_lost_ion, E_lost_ion_all, E_lost_rad, E_lost_rad_all
 !$ real*8 :: w0, w1, mmm(3)
-integer   :: i, j, k, l, m, n_steps, i_elm_old, Z_tmp
+integer   :: i, j, k, l, m, n_steps, i_elm_old, Z_tmp, index_last
 integer   :: seed, i_rng, n_stream, ierr, nthreads, myid, n_coll
 real*8    :: ion_rate, ion_source, ion_prob, ion_rec_ran(2), cx_ran(7), cx_source, cx_energy 
 real*8    :: cx_prob, CX_rate, q(3), coulomb_log, kTb, n_b
@@ -376,6 +376,8 @@ do while (.not. sim%stop_now)
   E_lost_ion_all = 0.d0
   E_lost_rad = 0.d0
   E_lost_rad_all = 0.d0
+
+  index_last = 0
 
 !  jorek_feedback%rhs_gather_time = jorek_feedback%rhs_gather_time + n_steps * timesteps
   jorek_feedback%rhs_gather_time = n_steps * timesteps
@@ -563,7 +565,11 @@ do while (.not. sim%stop_now)
   if (sim%my_id .eq. 0) then
 
     if (index_now > 0 .and. use_rcs) then
-      xtime_radiation(index_now+1) = xtime_radiation(index_now) + E_lost_rad_all
+      if (index_last .eq. index_now) then     ! no jorek_step_action done
+        xtime_radiation(index_now+1) = xtime_radiation(index_now+1) + E_lost_rad_all
+      else
+        xtime_radiation(index_now+1) = xtime_radiation(index_now) + E_lost_rad_all
+      endif
     else if (index_now == 0 .and. use_rcs) then
       write(*,*) "SOMETHING WRONG in the time-stepping, EXITING!"
       call exit(1)
@@ -571,7 +577,11 @@ do while (.not. sim%stop_now)
     if (use_rcs) xtime_rad_power(index_now+1) = E_lost_rad_all / (real(n_steps,8) * timesteps)
 
     if (index_now > 0 .and. use_rcs) then
-      xtime_E_ion(index_now+1) = xtime_E_ion(index_now) + E_lost_ion_all
+      if (index_last .eq. index_now) then     ! no jorek_step_action done
+        xtime_E_ion(index_now+1) = xtime_E_ion(index_now+1) + E_lost_ion_all
+      else
+        xtime_E_ion(index_now+1) = xtime_E_ion(index_now) + E_lost_ion_all
+      endif
     else if (index_now == 0 .and. use_rcs) then
       write(*,*) "SOMETHING WRONG in the time-stepping, EXITING!"
       call exit(1)
@@ -586,6 +596,8 @@ do while (.not. sim%stop_now)
 
 !===================================================  
   sim%time = target_time 
+
+  index_last = index_now
 
   call with(sim, events, at=sim%time)
 !===================================================
