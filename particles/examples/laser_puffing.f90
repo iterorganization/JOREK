@@ -432,6 +432,7 @@ do while (.not. sim%stop_now)
         i_elm_old = particles(j)%i_elm
 
         call sim%fields%calc_NeTe(t, particles(j)%i_elm, particles(j)%st, particles(j)%x(3), n_e, T_e)
+        n_b = n_e
 
         T_eV = T_e * K_BOLTZ /  EL_CHG ! Change K to eV
 
@@ -442,7 +443,7 @@ do while (.not. sim%stop_now)
         n_imp_tmp  = P(2)
 
         if (ne_imp_tmp < 0.) ne_imp_tmp = 0.
-        n_e  = n_e + ne_imp_tmp * (central_density * 1.d20) ! Electron number density [m^-3]
+        n_e  = n_e + ne_imp_tmp * n_norm ! Electron number density [m^-3]
 
         Z_imp = real(particles(j)%weight,8) * real(particles(j)%q,8) * timesteps
         Z_eff = real(particles(j)%weight,8) * real(particles(j)%q,8)**2. * timesteps
@@ -481,7 +482,7 @@ do while (.not. sim%stop_now)
         if (particles(j)%q .gt. 0 .and. n_coll .gt. 0) then
           ! Calculate collisions
           kTb = T_e*K_BOLTZ/EL_CHG ! assume T_e == T_i
-          n_b = n_e                ! assuming the ion density is the same with the electron density
+          n_b = n_b +  n_imp_tmp * n_norm
           q = q_homma2013(kTb, grad_T_e*EL_CHG/K_BOLTZ, B, n_b, central_mass, q_b)
           coulomb_log = coulomb_logarithm(kTb, n_b, particles(j)%q, q_b, sim%groups(1)%mass, central_mass)
           ! Get parallel flow velocity
