@@ -4,9 +4,9 @@ module mod_particle_kernels_test
   use cudafor
   use mpi
   use mod_particle_kernels
-  use mod_particle_types, only: particle_kinetic_leapfrog, copy_particle_kinetic_leapfrog
-  use mod_particle_sim, only: particle_group, particle_sim
-  use mod_particle_assert_equal, only: assert_equal_particle, assert_equal_rel_error_particle
+  use mod_particle_assert_equal
+  use mod_particle_types,       only: particle_kinetic_leapfrog, copy_particle_kinetic_leapfrog
+  use mod_particle_sim,         only: particle_group, particle_sim
   use phys_module,              only: n_particles
   implicit none
   
@@ -21,11 +21,11 @@ contains
       write(*,'(/A)') "  ... setting-up: particle kernels tests"
       call setup
       write(*,'(/A)') "  ... running: particle kernels tests"
-!      call test_copy_data
-!      call test_calc_ebpsiu_device
-!      call test_boris_push_cylindrical
+      call test_copy_data
+      call test_calc_ebpsiu_device
+      call test_boris_push_cylindrical
       call test_find_rz_nearby
-!      call test_particle_kinetic_leapfrog_loop
+      call test_particle_kinetic_leapfrog_loop
       write(*,'(/A)') "  ... tearing-down: particle kernels tests"
       call teardown
   end subroutine run_fruit_particle_kernels
@@ -530,9 +530,11 @@ contains
   subroutine test_particle_kinetic_leapfrog_loop
 
     type(particle_group), dimension(:), allocatable :: group_particles 
-    real*8   :: start_time, particle_start_time, timestep
+    real*8   :: start_time, particle_start_time, timestep, tol
     integer  :: n_steps, np
 
+    tol = 5e-12
+    
     write(*,*) "test_particle_kinetic_leapfrog_loop"
     
     particle_start_time = 0
@@ -548,9 +550,11 @@ contains
     call run_particle_kinetic_leapfrog_loop_CPU( n_steps, timestep, particle_start_time )
     write(*,*) "Threaded full loop completed in ",MPI_Wtime()-start_time," s"
 
-!    call assert_equal_rel_error_particle(np,sim%groups(1)%particles,group_particles(1)%particles)
-!    call assert_equal_rel_error_particle(np,sim%groups(1)%particles,group_particles(1)%particles)
-    deallocate( group_particles(1)%particles ) 
+    call set_tol(tol)
+    call assert_equal_rel_error_particle(np,sim%groups(1)%particles,group_particles(1)%particles)
+    call reset_tol_real8()
+    deallocate( group_particles(1)%particles )
+    
     write(*,*) "test complete"
 
   end subroutine test_particle_kinetic_leapfrog_loop
@@ -570,17 +574,13 @@ contains
     integer                                  :: np, i, j, ifail, i_elm_old
     real*8                                   :: t, rz_old(2), st_old(2), E(3), B(3), psi, U, start_time
     
-!    nthreads = 128
-    !    if( nthreads <= 0 .or. nthreads > omp_get_max_threads()) nthreads = omp_get_max_threads()
     np = size(sim%groups(1)%particles,1)
-    write(*,*) "Running threads",np, n_steps
     select type (particles => sim%groups(1)%particles)
     type is (particle_kinetic_leapfrog)
        !$omp parallel do default(shared) &
        !$omp private(particle_tmp,i,j,E,B,psi,U,rz_old,st_old) &
        !$omp schedule(dynamic,10)
        do i=1,np
-          write(*,*) "threads", i,omp_get_thread_num()
           call copy_particle_kinetic_leapfrog(particles(i),particle_tmp)            
           do j=1,n_steps
              if (particle_tmp%i_elm .le. 0) exit             
@@ -600,8 +600,6 @@ contains
        enddo
        !$omp end parallel do
     end select
-    
-!    write(*,*) "CPU particle_kinetic_loop time, threads:", MPI_Wtime() - start_time
     
   end subroutine run_particle_kinetic_leapfrog_loop_CPU
 

@@ -86,13 +86,12 @@ contains
     integer                                 :: i_elm_old, ifail
 
     i = threadIdx%x + (blockIdx%x-1) * blockDim%x
-    write(*,*) "Entered kernel", i
     if ( i <= n_particles ) then
 !!$       write(*,*) "+" ! simple way to count particles
        call copy_particle_kinetic_leapfrog( group_particles%particles(i) , particle_tmp )
        do j=1,n_steps
           if (particle_tmp%i_elm .le. 0) then
-             write(*,*) "-" ! simple way to count lost particles
+!             write(*,*) "-" ! simple way to count lost particles
              exit
           endif
           t = particle_start_time + (j-1)*timestep
@@ -118,9 +117,9 @@ contains
     type(dim3), intent(inout)            :: tBlock
     integer                              :: istat, n_devices, device_id
 
-!#ifdef DEBUG
+#ifdef DEBUG
     if(sim%my_id==0) call device_query()
-!#endif
+#endif
 
     istat = cudaGetDeviceCount(n_devices)
     if (istat /= cudaSuccess) write(*,*) cudaGetErrorString(istat)
