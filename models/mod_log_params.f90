@@ -493,6 +493,9 @@ write(*,'(1x,a)',advance='no') ' USE_BICGSTAB : '
   write(*,LOGI_FMT) 'visco_num_T_dependent ', visco_num_T_dependent
   write(*,REAL_FMT) 'visco_par_num         ', visco_par_num
   write(*,REAL_FMT) 'D_perp_num            ', D_perp_num
+  write(*,REAL_FMT) 'D_perp_num_tanh       ', D_perp_num_tanh
+  write(*,REAL_FMT) 'D_perp_num_tanh_psin  ', D_perp_num_tanh_psin
+  write(*,REAL_FMT) 'D_perp_num_tanh_sig   ', D_perp_num_tanh_sig
   write(*,REAL_FMT) 'Dn_perp_num           ', Dn_perp_num
 
   write(*,LOGI_FMT) 'use_sc                ', use_sc
@@ -516,9 +519,18 @@ write(*,'(1x,a)',advance='no') ' USE_BICGSTAB : '
   write(*,LOGI_FMT) 'add_sources_in_sc     ', add_sources_in_sc
   if (with_TiTe) then
     write(*,REAL_FMT) 'ZK_i_perp_num         ', ZK_i_perp_num
+    write(*,REAL_FMT) 'ZK_i_perp_num_tanh     ', ZK_i_perp_num_tanh
+    write(*,REAL_FMT) 'ZK_i_perp_num_tanh_psin', ZK_i_perp_num_tanh_psin
+    write(*,REAL_FMT) 'ZK_i_perp_num_tanh_sig ', ZK_i_perp_num_tanh_sig
     write(*,REAL_FMT) 'ZK_e_perp_num         ', ZK_e_perp_num
+    write(*,REAL_FMT) 'ZK_e_perp_num_tanh     ', ZK_e_perp_num_tanh
+    write(*,REAL_FMT) 'ZK_e_perp_num_tanh_psin', ZK_e_perp_num_tanh_psin
+    write(*,REAL_FMT) 'ZK_e_perp_num_tanh_sig ', ZK_e_perp_num_tanh_sig
   else
     write(*,REAL_FMT) 'ZK_perp_num           ', ZK_perp_num
+    write(*,REAL_FMT) 'ZK_perp_num_tanh      ', ZK_perp_num_tanh
+    write(*,REAL_FMT) 'ZK_perp_num_tanh_psin ', ZK_perp_num_tanh_psin
+    write(*,REAL_FMT) 'ZK_perp_num_tanh_sig  ', ZK_perp_num_tanh_sig
   end if
   write(*,REAL_FMT) 'tgnum                 ', tgnum(:)
   write(*,REAL_FMT) 'tgnum_psi             ', tgnum_psi 

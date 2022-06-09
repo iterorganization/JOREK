@@ -270,7 +270,14 @@ module phys_module
   real*8  :: heatsource_gauss_i_sig    !< Width over which ions Gaussian source extends
   
   !> @name Hyper-resistivity, -viscosity and -diffusivities
-  real*8  :: eta_num, visco_num, visco_par_num, D_perp_num, Zk_perp_num, Dn_perp_num, Zk_i_perp_num, Zk_e_perp_num
+  real*8  :: eta_num, visco_num, visco_par_num,                                      &
+             D_perp_num, D_perp_num_tanh, D_perp_num_tanh_psin, D_perp_num_tanh_sig, &
+             ZK_perp_num, ZK_i_perp_num, ZK_e_perp_num,                              &
+             ZK_perp_num_tanh, ZK_perp_num_tanh_psin, ZK_perp_num_tanh_sig,          &
+             ZK_i_perp_num_tanh, ZK_i_perp_num_tanh_psin, ZK_i_perp_num_tanh_sig,    &
+             ZK_e_perp_num_tanh, ZK_e_perp_num_tanh_psin, ZK_e_perp_num_tanh_sig
+  real*8  :: Dn_perp_num
+
   !> @name Shock-capturing terms
   logical :: use_sc  !< Use shock-capturing stabilization
   real*8  :: D_perp_sc_num, D_par_sc_num, Dn_pol_sc_num, Dn_p_sc_num

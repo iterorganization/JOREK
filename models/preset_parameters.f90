@@ -252,14 +252,18 @@ subroutine preset_parameters
   corr_neg_temp_coef(:) = (/ 0.5, 0.5 /)
   corr_neg_dens_coef(:) = (/ 0.5, 0.5 /)
 
-  eta_num       = 0.d0
-  visco_num     = 0.d0
-  visco_par_num = 0.d0
-  D_perp_num    = 0.d0
-  ZK_perp_num   = 0.d0
-  ZK_i_perp_num = 0.d0
-  ZK_e_perp_num = 0.d0
-  Dn_perp_num   = 0.d0
+  eta_num            = 0.d0
+  visco_num          = 0.d0
+  visco_par_num      = 0.d0
+  D_perp_num         = 0.d0
+  D_perp_num_tanh    = 0.d0; D_perp_num_tanh_psin    = 3.d-1; D_perp_num_tanh_sig    = 1.d-1
+  ZK_perp_num        = 0.d0
+  ZK_perp_num_tanh   = 0.d0; ZK_perp_num_tanh_psin   = 3.d-1; ZK_perp_num_tanh_sig   = 1.d-1
+  ZK_i_perp_num      = 0.d0
+  ZK_i_perp_num_tanh = 0.d0; ZK_i_perp_num_tanh_psin = 3.d-1; ZK_i_perp_num_tanh_sig = 1.d-1
+  ZK_e_perp_num      = 0.d0
+  ZK_e_perp_num_tanh = 0.d0; ZK_e_perp_num_tanh_psin = 3.d-1; ZK_e_perp_num_tanh_sig = 1.d-1
+  Dn_perp_num        = 0.d0
 
   use_sc = .false.
   visco_sc_num     = 0.d0
