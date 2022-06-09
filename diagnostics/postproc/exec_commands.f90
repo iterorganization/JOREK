@@ -22,7 +22,8 @@ module exec_commands
   use mod_bootstrap_functions
   use mod_impurity, only: init_imp_adas 
   use mod_model_settings
- 
+  use mod_atomic_coeff_deuterium, only : ad_deuterium 
+
   implicit none
   
   
@@ -193,6 +194,9 @@ module exec_commands
 #if (defined WITH_Neutrals) || (defined WITH_Impurities)
           ! --- Read ADAS data and generate coronal equilibrium is needed
           call init_imp_adas(0)
+#endif
+#if (!defined WITH_Impurities)
+        if (deuterium_adas)  ad_deuterium =  read_adf11(0,'96_h') ! For radiation terms
 #endif
         case ( 'params' )
           call log_parameters(0, .false.)
@@ -2665,7 +2669,7 @@ module exec_commands
     use omp_lib
     use basis_at_gaussian 
     use mod_openadas, only : read_adf11
-    use mod_atomic_coeff_deuterium, only: ad_deuterium 
+    use mod_atomic_coeff_deuterium, only: ad_deuterium
     use mpi_mod
     use mod_impurity, only: init_imp_adas
  
