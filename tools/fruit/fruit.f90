@@ -1524,10 +1524,11 @@ contains
           call failed_assert_action(&
           & to_s(var1(i)), &
           & to_s(var2(i)), '1d array has difference, ' // message, if_is = .true.)
-!HJL          return
-        endif
+          !HJL          return ! removed this and added succes to each iteration
+       else
+          call add_success
+       endif
     enddo
-    call add_success
   end subroutine assert_eq_1d_int_
 
   !------ 2d_int ------
