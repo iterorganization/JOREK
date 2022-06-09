@@ -227,9 +227,9 @@ real*8,allocatable :: feedback_rhs(:,:,:,:,:)
 real*8    :: oldtime, step_rest_time, particle_step_time, particle_start_time, diag_time
 real*8    :: rho_norm, t_norm, v_norm, E_norm, M_norm, N_norm, tstep_si
 real*8    :: kinetic_energy, ion_energy
-real*8    :: E_lost_ion, E_lost_ion_all, E_lost_rad, E_lost_rad_all, index_last
+real*8    :: E_lost_ion, E_lost_ion_all, E_lost_rad, E_lost_rad_all
 !$ real*8 :: w0, w1, mmm(3)
-integer   :: i, j, k, l, m, n_steps, i_elm_old, iZ, spi_i, i_inj
+integer   :: i, j, k, l, m, n_steps, i_elm_old, iZ, spi_i, i_inj, index_last
 integer   :: seed, i_rng, n_stream, ierr, nthreads, myid
 real*8    :: ion_rate, ion_source, ion_prob, ion_rec_ran(2), cx_ran(7), cx_source, cx_energy
 real*8    :: rec_rate, dEion_dT, Z_imp, Z_eff, N_imp, Lrad, rad_sink, spi_source_imp, spi_source_imp_local
