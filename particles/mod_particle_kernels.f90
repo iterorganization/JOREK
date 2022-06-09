@@ -535,9 +535,11 @@ contains
     ! Check if element is valid
 !    write(*,*) "find_rz_nearby_device, start",i_elm_old
     if (i_elm_old .lt. 1 .or. i_elm_old .gt. element_list%n_elements) then
-!       write(*,*) "find_rz_nearby_device: calling first find_rz",i_elm_old
-       call find_RZ(node_list,element_list,R_new,Z_new,x_step(1),x_step(2),i_elm_tmp,s_new,t_new,ifail)
-!       return
+       write(*,*) "find_rz_nearby_device: calling first find_rz",i_elm_old
+!       i_elm_tmp = element_list%n_elements - 1
+       call find_RZ(node_list,element_list,R_new,Z_new,x_step(1),x_step(2),i_elm_new,s_new,t_new,ifail)
+       !       return
+!       write(*,*) "Element outside range", i_elm_tmp,ifail
     else
        ! Setup initial values
        x_step = [R_old,Z_old] ! start at the current position
@@ -627,7 +629,7 @@ contains
        
        if (ieee_is_nan(err2)) then
           !write(*,*) "WARNING: NaN encountered after newton iteration, using find_RZ"
-!          write(*,*) "calling isnan find_rz",i_elm_old
+          write(*,*) "calling isnan find_rz",i_elm_old
           call find_RZ(node_list,element_list,x_new(1),x_new(2),x_step(1),x_step(2),i_elm_new,s_new,t_new,ifail)
           if (ifail .eq. 0) ifail=2
 !          return
@@ -635,7 +637,7 @@ contains
           !write(*,"(A,i4,A,i5,A,2g14.6,A,3g14.6)") "WARNING: iteration for st did not converge after", newton_iter_max, " tries in element ", i_elm_new, &
           !" using find_RZ", x_new, "err2(old)/convergence: ", err2, err2_old, err2_old/err2
           !write(*,"(A,2g16.8)") "Find_RZ at ", x_new
-!          write(*,*) "calling newton iter lim find_rz",i_elm_old, newton_iter_number
+          write(*,*) "calling newton iter lim find_rz",i_elm_old, newton_iter_number
           call find_RZ(node_list,element_list,x_new(1),x_new(2),x_step(1),x_step(2),i_elm_new,s_new,t_new,ifail)
           if (ifail .eq. 0) ifail=3
 !          return
