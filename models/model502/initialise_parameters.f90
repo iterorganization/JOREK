@@ -34,7 +34,7 @@ namelist /in1/  tstep, nstep, tstep_n, nstep_n,                     &
                 SIG_up_leg_0, SIG_up_leg_1, SIG_up_priv,            &
                 SIG_outer, SIG_inner,                               &
                 dPSI_outer, dPSI_inner, dPSI_up_priv,               &
-                nout, xr1, sig1, xr2, sig2,                         &
+                nout, nout_projection, xr1, sig1, xr2, sig2,        &
                 R_begin, R_end, Z_begin, Z_end,                     &
                 R_geo, Z_geo, amin, mf, fbnd, fpsi, mode,           &
                 R_boundary, Z_boundary, psi_boundary, n_boundary,   &
@@ -106,24 +106,29 @@ namelist /in1/  tstep, nstep, tstep_n, nstep_n,                     &
                 n_limiter, R_limiter, Z_limiter,                    &
                 first_target_point, last_target_point,              &
                 R_Z_psi_bnd_file, wall_file,time_evol_scheme,       &
-                spi_tor_rot, tor_frequency, ZK_par_neg_thresh,      &
+                spi_tor_rot, tor_frequency, spi_num_vol,            &
+                ZK_e_par_neg_thresh, ZK_i_par_neg_thresh,           &
                 corr_neg_temp_coef, corr_neg_dens_coef,             &
-                D_prof_neg, ZK_prof_neg, ZK_par_neg,                &
-                D_prof_neg_thresh, ZK_prof_neg_thresh, T_min,       &
-                ne_SI_min, Te_eV_min, rn0_min,                      &
+                D_prof_neg, ZK_i_prof_neg, ZK_i_par_neg,            &
+                ZK_e_prof_neg, ZK_e_par_neg,                        &
+                D_prof_neg_thresh, ZK_e_prof_neg_thresh, T_min,     &
+				T_min_neg,rho_min_neg,                              &
+                ne_SI_min, Te_eV_min, rn0_min, ZK_i_prof_neg_thresh,&
                 D_imp_extra_R, D_imp_extra_Z, D_imp_extra_p,        &
                 D_imp_extra_neg, D_imp_extra_neg_thresh,            &
                 imp_reflection, neutral_reflection, rho_min,        &
-                ns_deltaphi, ksi_ion, spi_rnd_seed,                 &
+                ns_deltaphi, ns_delta_minor_rad, ksi_ion, spi_rnd_seed, &
                 ns_amplitude, ns_R, ns_Z, ns_phi, ns_radius,        &
                 spi_Vel_Rref,spi_Vel_Zref, using_spi, n_spi, n_inj, &
                 spi_Vel_RxZref, spi_quantity, spi_abl_model,        &
                 spi_quantity_bg, pellet_density_bg,                 &
-                ng_radius_ratio, ng_radius_min, spi_angle,          &
+                ns_radius_ratio, ns_radius_min, spi_angle,          &
                 spi_L_inj, spi_L_inj_diff,                          &
+                drift_distance, energy_teleported,                  &
                 K_Dmv, A_Dmv, L_tube, V_Dmv, P_Dmv,                 &
                 spi_Vel_diff, t_ns, JET_MGI, ASDEX_MGI,             &
                 imp_type, delta_n_convection, nimp_bg,              &
+                index_main_imp,                                     &
                 adas_dir, output_prad_phi, n_adas,                  &
                 RMP_on, RMP_har_cos,RMP_har_sin, spi_shard_file,    &
                 spi_plume_file, spi_plume_hdf5,                     &
@@ -136,7 +141,7 @@ namelist /in1/  tstep, nstep, tstep_n, nstep_n,                     &
                 FB_Ip_integral, Z_axis_ref, FB_Zaxis_position,      &
                 FB_Zaxis_derivative,FB_Zaxis_integral, start_VFB,   &
                 n_feedback_current, n_feedback_vertical,            &
-                n_iter_freeb, n_pf_coils, pf_coils,                 &
+                n_iter_freeb, n_pf_coils, pf_coils, R_axis_ref,     &
                 axis_srch_radius,                                   &
                 starwall_equil_coils, freeb_equil_iterate_area,     &
                 psi_offset_freeb, diag_coils, rmp_coils,            &
@@ -144,11 +149,12 @@ namelist /in1/  tstep, nstep, tstep_n, nstep_n,                     &
                 delta_psi_GS, newton_GS_fixbnd, newton_GS_freebnd,  &
                 pastix_maxthrd, eta_ohmic, centralize_harm_mat,     & 
                 vert_FB_amp_ts, vert_FB_gain, vert_pos_file,        & 
-                vert_FB_tact, start_VFB_ts, I_coils_max,            &
+                vert_FB_tact, start_VFB_ts, I_coils_max, rad_FB_amp,&
                 autodistribute_modes, modes_per_family,             &
                 mode_families_modes, n_mode_families,               &
                 weights_per_family, autodistribute_ranks,           &
-                ranks_per_family
+                ranks_per_family, cte_current_FB_fact, treat_axis,  &
+                Z_xpoint_limit, visco_par_heating
 
 if (my_id .eq. 0) then
   ! --- Preset input parameters to reasonable default values.
@@ -268,6 +274,12 @@ if (my_id .eq. 0) then
     write(*,*) "ERROR: n_adas should be no larger than n_imp_max, EXITING!"
     stop
   end if
+
+ if (index_main_imp < 0 .or. index_main_imp > n_adas) then 
+    write(*,*) "ERROR: Illegal value of index_main_imp, EXITING!"
+    write(*,*) "ERROR: index_main_imp:", index_main_imp
+    stop
+ end if
 
   !if (using_spi) call init_spi()
   if (using_spi) call init_spi_all()

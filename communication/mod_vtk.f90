@@ -94,7 +94,7 @@ contains
     real*4,        intent(in) :: xyz(:,:) !< Point positions
     integer,       intent(in), optional :: ien(:,:) !< Element list ien(number of basis functions, element index)
     integer,       intent(in), optional :: cell_type !< Type of interpolation (vtk param)
-    character*12,  intent(in), optional :: scalar_names(:), vector_names(:)
+    character*36,  intent(in), optional :: scalar_names(:), vector_names(:)
     real*4,        intent(in), optional :: scalars(:,:), vectors(:,:,:) !< scalars(nnos, num_scalars)
 
     !> Parameters

@@ -5,13 +5,14 @@
 module mod_particle_types
   implicit none
   private
-  public particle_base, particle_kinetic, particle_kinetic_leapfrog, particle_gc, particle_fieldline
-  public particle_kinetic_relativistic, particle_gc_relativistic, particle_gc_vpar, particle_gc_Qin
-  public particle_get_q
-  public copy_particle
-  public copy_particle_base
-  public copy_particle_kinetic_leapfrog
-
+  public :: particle_base, particle_kinetic, particle_kinetic_leapfrog
+  public :: particle_gc, particle_fieldline
+  public :: particle_kinetic_relativistic, particle_gc_relativistic
+  public :: particle_gc_vpar, particle_gc_Qin
+  public :: particle_get_q
+  public :: copy_particle
+  public :: copy_particle_base
+  public :: copy_particle_kinetic_leapfrog
 
   !> The base type for all other particles. Includes only the position and weight elements
   !> Integration in a 2D finite element method is included in the form of 2 coordinates
@@ -44,9 +45,10 @@ module mod_particle_types
 
   !> A simple guiding-center particle type.
   type, extends(particle_base) :: particle_gc_vpar
-    real*8    :: vpar = 0.d0 !< Guiding centre parallel velocity [m/s]
-    real*8    :: mu   = 0.d0 !< The magnetic moment [eV/T] 
-    integer*1 :: q    = 0_1  !< Charge [e]
+    real*8    :: vpar   = 0.d0 !< Guiding centre parallel velocity [m/s]
+    real*8    :: mu     = 0.d0 !< The magnetic moment [eV/T] 
+    real*8    :: B_norm = 0.d0 !< norm of total magnetic field [T]
+    integer*1 :: q      = 0_1  !< Charge [e]
   end type particle_gc_vpar
 
   !> A simple guiding-center particle type.
@@ -89,6 +91,7 @@ module mod_particle_types
     real(kind=8), dimension(2) :: p  !< 1: parallel momentum [AMU m/s], 2: magnetic moment [(AMU*m**2)/(T*s**2)]
     integer(kind=1) :: q !< charge [e]
  end type particle_gc_relativistic
+
 contains
   !> Convenience function to obtain q if it exists, or 0 otherwise
   !> Here also because of https://gcc.gnu.org/bugzilla/show_bug.cgi?id=82064
@@ -154,10 +157,12 @@ contains
     class(particle_base), intent(out) :: particle_out !< Particle to copy attributes into
     class(particle_base), intent(in)  :: particle_in  !< Particle to copy attributes from
 
-    particle_out%x      = particle_in%x
-    particle_out%st     = particle_in%st
-    particle_out%weight = particle_in%weight
-    particle_out%i_elm  = particle_in%i_elm
+    particle_out%x        = particle_in%x
+    particle_out%st       = particle_in%st
+    particle_out%weight   = particle_in%weight
+    particle_out%i_elm    = particle_in%i_elm
+    particle_out%i_life   = particle_in%i_life
+    particle_out%t_birth  = particle_in%t_birth
 
     select type (p_out => particle_out)
     type is (particle_fieldline)
@@ -182,6 +187,46 @@ contains
         p_out%mu = 0.d0
         p_out%q  = 0
       end select
+    type is (particle_gc_vpar)
+      select type (p_in => particle_in)
+      type is (particle_gc_vpar)
+        p_out%vpar = p_in%vpar
+        p_out%mu   = p_in%mu
+        p_out%q    = p_in%q
+      class default
+        p_out%vpar = 0.d0
+        p_out%mu   = 0.d0
+        p_out%q    = 0
+      end select
+    type is (particle_gc_Qin)
+    select type (p_in => particle_in)
+    type is (particle_gc_Qin)
+      p_out%vpar     = p_in%vpar
+      p_out%mu       = p_in%mu
+      p_out%q        = p_in%q
+      p_out%x_m      = p_in%x_m
+      p_out%vpar_m   = p_in%vpar_m
+      p_out%Astar_m  = p_in%Astar_m
+      p_out%Astar_k  = p_in%Astar_k
+      p_out%dAstar_k = p_in%dAstar_k
+      p_out%Bn_k     = p_in%Bn_k
+      p_out%dBn_k    = p_in%dBn_k
+      p_out%Bnorm_k  = p_in%Bnorm_k
+      p_out%E_k      = p_in%E_k
+    class default
+      p_out%vpar     = 0.d0
+      p_out%mu       = 0.d0
+      p_out%q        = 0
+      p_out%x_m      = 0.d0
+      p_out%vpar_m   = 0.d0
+      p_out%Astar_m  = 0.d0
+      p_out%Astar_k  = 0.d0
+      p_out%dAstar_k = 0.d0
+      p_out%Bn_k     = 0.d0
+      p_out%dBn_k    = 0.d0
+      p_out%Bnorm_k  = 0.d0
+      p_out%E_k      = 0.d0
+    end select
     type is (particle_kinetic)
       select type (p_in => particle_in)
       type is (particle_kinetic)

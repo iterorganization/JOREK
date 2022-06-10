@@ -30,7 +30,7 @@ subroutine ELM_build_RZ_and_Jacobians(element, nodes, ms, mt)
 
   ! --- Integrate
   do i=1,n_vertex_max
-    do j=1,n_order+1
+    do j=1,n_degrees
 
       x_g  = x_g  + nodes(i)%x(1,j,1) * element%size(i,j) * H   (i,j,ms,mt)
       x_s  = x_s  + nodes(i)%x(1,j,1) * element%size(i,j) * H_s (i,j,ms,mt)
@@ -116,7 +116,7 @@ subroutine ELM_build_variables(element, nodes, ms, mt, i_plane)
 
   ! --- Integrate
   do i =1,n_vertex_max
-    do j=1,n_order+1
+    do j=1,n_degrees
       
       ! --- Axisymmetric variables for localised sources
       r00            = r00        + nodes(i)%values(1    ,j,5) * element%size(i,j) * H   (i,j,ms,mt) * HZ   (1    ,i_plane)

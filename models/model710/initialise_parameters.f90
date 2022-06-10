@@ -26,7 +26,8 @@ namelist /in1/  tstep, nstep, tstep_n, nstep_n,                     &
                 time_evol_zeta, force_horizontal_Xline,             &
                 import_pert,                                        &
                 Mach1_openBC,                                       &
-                eta_ARAZ_on, tauIC_ARAZ_on,                         &
+                eta_ARAZ_const, eta_ARAZ_on, eta_ARAZ_simple,       &
+                tauIC_ARAZ_on,                                      &
                 n_tor_fft_thresh, fix_axis_nodes,                   &
                 n_R, n_Z, n_radial, n_pol, n_tht, n_flux,           &
                 n_open, n_private, n_leg,                           &
@@ -37,7 +38,7 @@ namelist /in1/  tstep, nstep, tstep_n, nstep_n,                     &
                 SIG_up_leg_0, SIG_up_leg_1, SIG_up_priv,            &
                 SIG_outer, SIG_inner,                               &
                 dPSI_outer, dPSI_inner, dPSI_up_priv,               &
-                nout, xr1, sig1, xr2, sig2,                         &
+                nout, nout_projection, xr1, sig1, xr2, sig2,        &
                 R_begin, R_end, Z_begin, Z_end,                     &
                 R_geo, Z_geo, amin, mf, fbnd, fpsi, mode,           &
                 R_Z_psi_bnd_file,                                   &
@@ -53,8 +54,10 @@ namelist /in1/  tstep, nstep, tstep_n, nstep_n,                     &
                 tokamak_device, manipulate_psi_map,                 &
                 F0, gamma, gamma_stangeby,                          &
                 zjz_0, zjz_1, zj_coef,                              &
-                rho_0, rho_1, rho_coef,                             &
+                rho_0, rho_1, rho_coef, rho_min,                    &
                 T_0,   T_1,   T_coef, T_min,                        &
+				T_min_neg,rho_min_neg,                              &
+				corr_neg_temp_coef, corr_neg_dens_coef,             &
                 FF_0,  FF_1,  FF_coef,                              &
                 V_0, V_1, V_coef,                                   &
                 ZK_par, ZK_perp, ZK_par_max, D_par, D_perp,         &
@@ -103,7 +106,7 @@ namelist /in1/  tstep, nstep, tstep_n, nstep_n,                     &
                 FB_Ip_integral, Z_axis_ref, FB_Zaxis_position,      &
                 FB_Zaxis_derivative,FB_Zaxis_integral, start_VFB,   &
                 n_feedback_current, n_feedback_vertical,            &
-                n_iter_freeb, n_pf_coils, pf_coils,                 &
+                n_iter_freeb, n_pf_coils, pf_coils, R_axis_ref,     &
                 axis_srch_radius,                                   &
                 starwall_equil_coils, freeb_equil_iterate_area,     &
                 psi_offset_freeb, diag_coils, rmp_coils,            &
@@ -111,12 +114,18 @@ namelist /in1/  tstep, nstep, tstep_n, nstep_n,                     &
                 delta_psi_GS, newton_GS_fixbnd, newton_GS_freebnd,  &
                 pastix_maxthrd, centralize_harm_mat,                & 
                 vert_FB_amp_ts, vert_FB_gain, vert_pos_file,        & 
-                vert_FB_tact, start_VFB_ts, I_coils_max,            &
+                vert_FB_tact, start_VFB_ts, I_coils_max, rad_FB_amp,&
                 autodistribute_modes, modes_per_family,             &
                 mode_families_modes, n_mode_families,               &
                 weights_per_family, autodistribute_ranks,           &
-                ranks_per_family
-
+                ranks_per_family, treat_axis, force_central_node,   &
+                n_particles, tstep_particles, nstep_particles,      & !Particles extension
+                nsubstep_particles, restart_particles,              &
+                filter_perp,    filter_hyper,    filter_par,        &
+                filter_perp_n0, filter_hyper_n0, filter_par_n0,     &
+                use_cx, use_sputtering, use_ionisation,             &
+                use_ncs, use_pcs, use_ccs, use_pcs_full,            &
+                cte_current_FB_fact, Z_xpoint_limit, eta_ohmic
 
 
 if (my_id .eq. 0) then
@@ -190,6 +199,14 @@ if (my_id .eq. 0) then
     tstep_n(1) = tstep
     nstep_n    = 0
     nstep_n(1) = nstep
+  endif
+
+  ! --- Checking consistency of eta_ARAZ parameters
+  if (eta_ARAZ_on == .true.) then
+     if (eta_ARAZ_const .ne. 0) then
+        write(*,*) 'One should not use both eta_ARAZ_on and eta_ARAZ_const simultaneously, to avoid double-counting. Please use eta_ARAZ_on = .t. with eta_ARAZ_const = 0.d0, or eta_ARAZ_on = .f. with eta_ARAZ_const .ne. 0'
+        stop
+     endif
   endif
   
   call allocate_live_data()

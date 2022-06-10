@@ -25,8 +25,8 @@ integer                               :: i,j,k,l,p,iv,ielm,inode,ov
             !if((node_list%node(i)%constrained==.false.) )  then
                 ! n_active_nodes = n_active_nodes + 1
 	        ! active_node(i) = n_active_nodes	
-           !do k=1,n_order+1
-            !node_list%node(i)%index(k) =  (n_order+1)*(active_node(i)-1)+k 
+           !do k=1,n_degrees
+            !node_list%node(i)%index(k) =  n_degrees*(active_node(i)-1)+k 
            
            !enddo	
         ! else
@@ -46,8 +46,8 @@ integer                               :: i,j,k,l,p,iv,ielm,inode,ov
       inode=element_list%element(ielm)%vertex(1)
       n_active_nodes = n_active_nodes + 1
       !active_node(inode) = n_active_nodes
-          do ov=1,n_order+1
-            node_list%node(inode)%index(ov) =  (n_order+1)*(n_active_nodes-1)+ov
+          do ov=1,n_degrees
+            node_list%node(inode)%index(ov) =  n_degrees*(n_active_nodes-1)+ov
            enddo
     
   if(element_list%element(ielm)%n_sons .ne.0)then
@@ -62,8 +62,8 @@ integer                               :: i,j,k,l,p,iv,ielm,inode,ov
      if ((.not. node_list%node(ap(iv))%constrained) ) then
      n_active_nodes = n_active_nodes + 1
      !active_node(ap(iv)) = n_active_nodes
-           do ov=1,n_order+1
-            node_list%node(ap(iv))%index(ov) =  (n_order+1)*(n_active_nodes-1)+ov 
+           do ov=1,n_degrees
+            node_list%node(ap(iv))%index(ov) =  n_degrees*(n_active_nodes-1)+ov 
            enddo
      endif
     endif
@@ -80,8 +80,8 @@ integer                               :: i,j,k,l,p,iv,ielm,inode,ov
      if ((.not. node_list%node(ap(iv))%constrained) ) then
      n_active_nodes = n_active_nodes + 1
      !active_node(ap(iv)) = n_active_nodes
-           do ov=1,n_order+1
-            node_list%node(ap(iv))%index(ov) =  (n_order+1)*(n_active_nodes-1)+ov 
+           do ov=1,n_degrees
+            node_list%node(ap(iv))%index(ov) =  n_degrees*(n_active_nodes-1)+ov 
            enddo
      endif
     endif
@@ -97,8 +97,8 @@ integer                               :: i,j,k,l,p,iv,ielm,inode,ov
      if ((.not. node_list%node(ap(iv))%constrained) ) then
      n_active_nodes = n_active_nodes + 1
      !active_node(ap(iv)) = n_active_nodes
-           do ov=1,n_order+1
-            node_list%node(ap(iv))%index(ov) =  (n_order+1)*(n_active_nodes-1)+ov 
+           do ov=1,n_degrees
+            node_list%node(ap(iv))%index(ov) =  n_degrees*(n_active_nodes-1)+ov 
            enddo
      endif
     endif
@@ -115,8 +115,8 @@ integer                               :: i,j,k,l,p,iv,ielm,inode,ov
      if ((.not. node_list%node(ap(iv))%constrained) ) then
      n_active_nodes = n_active_nodes + 1
     ! active_node(ap(iv)) = n_active_nodes
-           do ov=1,n_order+1
-            node_list%node(ap(iv))%index(ov) =  (n_order+1)*(n_active_nodes-1)+ov 
+           do ov=1,n_degrees
+            node_list%node(ap(iv))%index(ov) =  n_degrees*(n_active_nodes-1)+ov 
            enddo
      endif
     endif
@@ -132,8 +132,8 @@ integer                               :: i,j,k,l,p,iv,ielm,inode,ov
      if ((.not. node_list%node(ap(iv))%constrained) ) then
      n_active_nodes = n_active_nodes + 1
      !active_node(ap(iv)) = n_active_nodes
-           do ov=1,n_order+1
-            node_list%node(ap(iv))%index(ov) =  (n_order+1)*(n_active_nodes-1)+ov 
+           do ov=1,n_degrees
+            node_list%node(ap(iv))%index(ov) =  n_degrees*(n_active_nodes-1)+ov 
            enddo
      endif
     endif
@@ -152,8 +152,8 @@ integer                               :: i,j,k,l,p,iv,ielm,inode,ov
      if ((.not. node_list%node(ap(iv))%constrained) ) then
      n_active_nodes = n_active_nodes + 1
     ! active_node(ap(iv)) = n_active_nodes
-           do ov=1,n_order+1
-            node_list%node(ap(iv))%index(ov) =  (n_order+1)*(n_active_nodes-1)+ov 
+           do ov=1,n_degrees
+            node_list%node(ap(iv))%index(ov) =  n_degrees*(n_active_nodes-1)+ov 
            enddo
      endif
     endif
@@ -178,8 +178,8 @@ integer                               :: i,j,k,l,p,iv,ielm,inode,ov
       inode=element_list%element(ielm)%vertex(2)
       n_active_nodes = n_active_nodes + 1
       !active_node(inode) = n_active_nodes
-           do ov=1,n_order+1
-            node_list%node(inode)%index(ov) =  (n_order+1)*(n_active_nodes-1)+ov 
+           do ov=1,n_degrees
+            node_list%node(inode)%index(ov) =  n_degrees*(n_active_nodes-1)+ov 
            enddo
     endif
   endif

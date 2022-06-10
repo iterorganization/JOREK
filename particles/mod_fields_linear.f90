@@ -16,6 +16,7 @@ type, extends(action) :: read_jorek_fields_interp_linear
   integer :: i = 0 !< Number of the restart file to read. Set to -1 to not include. Corresponds to the index of NOW
   integer :: rst_format = 0 !< Format of restart file if .rst type
   logical :: stop_at_end = .true. !< Whether to stop the simulation at the end of the file list
+  real*8  :: mode_divisor = 1.d0 !< Dividing the harmonic values by this number, for importing mode structures.
   contains
     procedure :: do => do_read
 end type read_jorek_fields_interp_linear
@@ -185,16 +186,18 @@ pure subroutine do_interp_PRZ_2(this,time,i_elm,i_v,n_v,s,t,phi, &
 end subroutine do_interp_PRZ_2
 
 !> Constructor to allow for optional and default variables
-function new_read_jorek_fields_interp_linear(basename, i, rst_format, stop_at_end) result(new)
+function new_read_jorek_fields_interp_linear(basename, i, rst_format, stop_at_end,mode_divisor) result(new)
   character(len=*), intent(in), optional :: basename
   integer, intent(in), optional :: i
   integer, intent(in), optional :: rst_format
   logical, intent(in), optional :: stop_at_end
+  real*8,  intent(in), optional :: mode_divisor
   type(read_jorek_fields_interp_linear) :: new
   if (present(basename)) new%basename = basename
   if (present(i)) new%i = i
   if (present(rst_format)) new%rst_format = rst_format
   if (present(stop_at_end)) new%stop_at_end = stop_at_end
+  if (present(mode_divisor)) new%mode_divisor = mode_divisor
   new%name = "ReadJorekFieldsInterpLinear"
   new%log = .true.
 end function new_read_jorek_fields_interp_linear
@@ -307,7 +310,7 @@ subroutine do_read(this, sim, ev)
   type(particle_sim), intent(inout) :: sim
   type(event), intent(inout), optional :: ev
   character(len=80) :: restart_file
-  integer :: i, ierr, my_id
+  integer :: i, ierr, my_id,i_nodes,n_nodes
   logical :: file_exists, next_file_found
 
   real*8 :: t_norm
@@ -354,7 +357,21 @@ subroutine do_read(this, sim, ev)
         end if
         f%time_now = t_start * sim%t_norm
         t_now = t_start
+        !Simulation time is now set
+        sim%time=t_now*sim%t_norm
 
+        if(this%mode_divisor .ne. 1.d0) then
+           write(*,"(A,3e14.6)") "mod_fields_linear : Importing mode structure divided by", this%mode_divisor
+           !$omp parallel do default(shared) private(i_nodes)
+           do i_nodes=1,f%node_list%n_nodes
+             f%node_list%node(i_nodes)%values(2:n_tor,:,:)= f%node_list%node(i_nodes)%values(2:n_tor,:,:)/this%mode_divisor
+             f%node_list%node(i_nodes)%deltas= f%node_list%node(i_nodes)%deltas/this%mode_divisor
+           enddo
+           !$omp end parallel do
+        endif !<mode_divisor != 1
+  
+    
+        
         write(*,'(A,3e14.6,L4)') 'mod_fields_linear : (t_start, t_norm, t_now, static) ',t_start,sim%t_norm,t_now,f%static
         
       else ! Linearly interpolating case
@@ -468,7 +485,7 @@ subroutine merge_restart(node_list,element_list, restart_file, format_rst,my_id,
   real*8 :: tstart_old
 
   ! Save the old values to calculate the new deltas
-  allocate(values(n_tor,n_order+1,n_var,node_list%n_nodes))
+  allocate(values(n_tor,n_degrees,n_var,node_list%n_nodes))
   !$omp parallel do default(shared) private(inode)
   do inode=1,node_list%n_nodes
     values(:,:,:,inode) = node_list%node(inode)%values(:,:,:)

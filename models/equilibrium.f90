@@ -47,13 +47,15 @@ real*8     :: zjz, dj_dpsi, dj_dR, dj_dZ, dj_dR_dZ, dj_dR_DR, dj_dZ_dZ, dj_dpsi2
 real*8     :: ps0_s, ps0_t, p_s, p_t, p_ss, p_st, p_tt 
 real*8     :: zj0_s, zj0_t, equil_error, equil_value, ps0_x, ps0_y, Z_s, Z_t, xjac, direction, Btot
 real*8     :: current_tot, current_int, diff, R_xpoint2(2), Z_xpoint2(2)
-real*8     :: sigmas(16), dZ_axis, Z_axis_int, Z_axis_old, area_ref
+real*8     :: sigmas(16), dZ_axis, dR_axis, Z_axis_int, Z_axis_old, R_axis_old, R_axis_int, area_ref
 integer    :: n_grids(12)
 logical    :: freeboundary_equil2
 real*8     :: T_prof, T_0_old, FF_0_old, T_1_old, FF_1_old
 real*8, allocatable     :: T_profile(:)
 real*8     :: density_prof
 real*8, allocatable     :: density_profile(:)
+integer    :: nj
+real*8     :: rr,ww, drr_dR, drr_dZ, drr_dR2, drr_dZ2, drr_dRdZ
 
 if (my_id .eq. 0) then
   write(*,*) '***************************************'
@@ -64,7 +66,6 @@ if (my_id .eq. 0) then
   write(*,*) '   Xcase        : ',xcase2
 
   if ((newton_GS_fixbnd .or. newton_GS_freebnd) .and. (use_pastix_eq)) then
-#ifndef USE_PASTIX6
     write(*,*) ' '
     write(*,*) ' WARNING: PASTIX 5 IS NOT EFFICIENT FOR THE GRAD-SHAFRANOV SOLVER'
     write(*,*) '           WITH THE NEWTON METHOD. PLEASE USE PASTIX 6,          '
@@ -72,7 +73,6 @@ if (my_id .eq. 0) then
     write(*,*) '           (add use_mumps_eq=.t. to namelist and  USE_MUMPS = 1  '
     write(*,*) '           in Makefile.inc)                                      '
     write(*,*) ' '
-#endif
   endif
 
   if ((newton_GS_fixbnd .or. newton_GS_freebnd) .and. (.not. xpoint2)) then
@@ -183,7 +183,7 @@ end if ! my_id == 0
 !--------------------------------------- freeboundary equilibrium
 freeboundary_equil = freeboundary_equil2
 
-current_int = 0.d0; Z_axis_int = 0.d0
+current_int = 0.d0; Z_axis_int = 0.d0; R_axis_int = 0.d0
  
 T_0_old = T_0;  FF_0_old = FF_0;  T_1_old = T_1;  FF_1_old = FF_1
 
@@ -287,6 +287,8 @@ if (freeboundary_equil) then
       if ((mod(iter,n_feedback_current) .eq. 0) .and. (.not. newton_GS_freebnd)) then
         current_FB_fact  = current_FB_fact * (1. - FB_Ip_position * (current_tot-current_ref)/current_ref &
                                                  - FB_Ip_integral *  current_int/current_ref   )
+      else if ( cte_current_FB_fact > -1.d90 ) then
+        current_FB_fact  = cte_current_FB_fact
       endif
       
       !-------------- Multiplying FF' and p' profiles by the same factor to scale total current -------------------------
@@ -301,23 +303,34 @@ if (freeboundary_equil) then
       
       !Vertical feedback - needed for vertically unstable plasmas        
       Z_axis_int = Z_axis_int + (ES%Z_axis - Z_axis_ref)
+      R_axis_int = R_axis_int + (ES%R_axis - R_axis_ref)
       if (iter .eq. 1) then
         dZ_axis = 0.d0
+        dR_axis = 0.d0
       else
         dZ_axis = ES%Z_axis - Z_axis_old
+        dR_axis = ES%R_axis - R_axis_old
       end if
+
     
       if ((mod(iter,n_feedback_vertical) .eq. 0) .and. (iter .ge. start_VFB) .and. (.not. newton_GS_freebnd) ) then
         vertical_FB = FB_Zaxis_position   * (ES%Z_axis-Z_axis_ref) &   ! vertical_FB is used in vacuum_equilibrium.f90 to modify the coils current
                     + FB_Zaxis_integral   * Z_axis_int          &   
                     + FB_Zaxis_derivative * dZ_axis
+        radial_FB = FB_Zaxis_position   * (ES%R_axis-R_axis_ref) &   ! radial_FB is used in vacuum_equilibrium.f90 to modify the coils current
+                    + FB_Zaxis_integral   * R_axis_int          &   
+                    + FB_Zaxis_derivative * dR_axis
+
       endif
         
-        Z_axis_old = ES%Z_axis
+      Z_axis_old = ES%Z_axis
+      R_axis_old = ES%R_axis
        
     end if ! my_id == 0
     
+    if (R_axis_ref<0) radial_FB=0.d0
     call MPI_bcast(vertical_FB, 1, MPI_DOUBLE_PRECISION,  0, MPI_COMM_WORLD,ierr)
+    call MPI_bcast(radial_FB, 1, MPI_DOUBLE_PRECISION,  0, MPI_COMM_WORLD,ierr)
   
     ! --- Iterate equation
     call poisson(my_id,-1,node_list,element_list,bnd_node_list,bnd_elm_list,3,1,1, &
@@ -499,8 +512,81 @@ if (my_id == 0) then
                                                  + node_list%node(i)%x(1,3,1) * node_list%node(i)%values(1,2,1) ) &
                                     + dj_dZ_dpsi*( node_list%node(i)%x(1,2,2) * node_list%node(i)%values(1,3,1)   &
                                                  + node_list%node(i)%x(1,3,2) * node_list%node(i)%values(1,2,1) )
-  
+
+    ! --- Add contribution of current ropes
+    if ((.not. restart) .and. (n_jropes .ne. 0)) then
+      do nj=1,n_jropes
+        rr = sqrt((R-R_jropes(nj))**2 + (Z-Z_jropes(nj))**2)
+        drr_dR   = (R-R_jropes(nj)) / rr
+        drr_dZ   = (Z-Z_jropes(nj)) / rr
+        drr_dR2  = 1./rr - (R-R_jropes(nj)) / rr**2 * drr_dR
+        drr_dZ2  = 1./rr - (Z-Z_jropes(nj)) / rr**2 * drr_dZ
+        drr_dRdZ = - (R-R_jropes(nj)) / rr**2 * drr_dZ
+        ww = w_jropes(nj)
+        zjz        = 0.d0
+        dj_dR      = 0.d0
+        dj_dZ      = 0.d0
+        dj_dR_dR   = 0.d0
+        dj_dZ_dZ   = 0.d0
+        dj_dR_dZ   = 0.d0
+        if (rr .le. ww) then
+          zjz        = current_jropes(nj) * (1.0 - (rr/ww)**2 )**2 * R
+          dj_dR      = -4. * current_jropes(nj) * rr / ww**2 * (1.0 - (rr/ww)**2 ) * drr_dR * R + zjz / R
+          dj_dZ      = -4. * current_jropes(nj) * rr / ww**2 * (1.0 - (rr/ww)**2 ) * drr_dZ * R
+          dj_dR_dR   = - zjz/R**2 + dj_dR/R - 4.  * current_jropes(nj) * rr   /ww**2 * (1.0 - (rr/ww)**2 ) * drr_dR    & 
+                                            - 4.*R* current_jropes(nj)        /ww**2 * (1.0 - (rr/ww)**2 ) * drr_dR**2 & 
+                                            - 4.*R* current_jropes(nj) * rr   /ww**2 * (1.0 - (rr/ww)**2 ) * drr_dR2   & 
+                                            + 8.*R* current_jropes(nj) * rr**2/ww**4                       * drr_dR**2 
+          dj_dZ_dZ   = - 4.*R* current_jropes(nj)        /ww**2 * (1.0 - (rr/ww)**2 ) * drr_dZ**2 & 
+                       - 4.*R* current_jropes(nj) * rr   /ww**2 * (1.0 - (rr/ww)**2 ) * drr_dZ2   & 
+                       + 8.*R* current_jropes(nj) * rr**2/ww**4                       * drr_dZ**2 
+          dj_dR_dZ   = dj_dZ / R                                                                  &
+                       - 4.*R* current_jropes(nj)        /ww**2 * (1.0 - (rr/ww)**2 ) * drr_dR*drr_dZ & 
+                       - 4.*R* current_jropes(nj) * rr   /ww**2 * (1.0 - (rr/ww)**2 ) * drr_dRdZ      & 
+                       + 8.*R* current_jropes(nj) * rr**2/ww**4                       * drr_dR*drr_dZ 
+        endif
+       
+        node_list%node(i)%values(1,1,3) = node_list%node(i)%values(1,1,3) + zjz
+       
+        node_list%node(i)%values(1,2,3) = node_list%node(i)%values(1,2,3)      &
+                                        + dj_dR   * node_list%node(i)%x(1,2,1) &
+                                        + dj_dZ   * node_list%node(i)%x(1,2,2)
+       
+        node_list%node(i)%values(1,3,3) = node_list%node(i)%values(1,3,3)      &
+                                        + dj_dR   * node_list%node(i)%x(1,3,1) &
+                                        + dj_dZ   * node_list%node(i)%x(1,3,2)
+       
+        node_list%node(i)%values(1,4,3) = node_list%node(i)%values(1,4,3)       &
+                                        + dj_dR    * node_list%node(i)%x(1,4,1) &
+                                        + dj_dZ    * node_list%node(i)%x(1,4,2) &
+                                        + dj_dR_dR * node_list%node(i)%x(1,2,1) * node_list%node(i)%x(1,3,1)    &
+                                        + dj_dZ_dZ * node_list%node(i)%x(1,2,2) * node_list%node(i)%x(1,3,2)    &
+                                        + dj_dR_dZ * ( node_list%node(i)%x(1,2,1) * node_list%node(i)%x(1,3,2)  &
+                                                     + node_list%node(i)%x(1,3,1) * node_list%node(i)%x(1,2,2) )
+      enddo
+    endif
+
   enddo
+  
+  ! --- Variable projection is better at higher order...
+  ! --- (by the way, we could use this for n_order=3 and remove all the above as well, 
+  ! --- and remove all derivatives from profiles functions, which are not really needed, 
+  ! --- except dn_dpsi and dT_dpsi for current profile...)
+  if (n_order .ge. 5) then
+    call find_axis(my_id,node_list,element_list,psi_axis,R_axis,Z_axis,i_elm_axis,s_axis,t_axis,ifail)
+    call find_xpoint(my_id,node_list,element_list,psi_xpoint,R_xpoint2,Z_xpoint2,i_elm_xpoint,s_xpoint,t_xpoint,xcase2,ifail)
+    if (xpoint2) then
+      ES%xpoint = xpoint2
+      ES%Z_xpoint = Z_xpoint
+    endif
+    ES%psi_bnd  = psi_bnd
+    ES%psi_axis = psi_axis
+    ES%Z_xpoint = Z_xpoint
+    ES%xpoint   = xpoint
+    ES%xcase    = xcase
+    call Poisson(my_id,0,node_list,element_list,bnd_node_list,bnd_elm_list, &
+                 var_psi,var_zj,1, psi_axis,psi_bnd,xpoint2,xcase2,Z_xpoint,freeboundary_equil,refinement,1)
+  endif
   
   ! --- Find flux surfaces and plot them; determine the q-profile.  
   if (xpoint2 .and. (n_flux .gt. 1)) then

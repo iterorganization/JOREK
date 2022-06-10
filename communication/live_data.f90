@@ -923,7 +923,7 @@ module live_data
         write(LIVE_DATA_HANDLE,'(A,5ES17.9)') '@rmp_coil_curr_y2si: ', 1./mu_zero
         write(LIVE_DATA_HANDLE,'(A)') '@rmp_coil_curr_logy: 0'
         write(LIVE_DATA_HANDLE,*)
-        write(LIVE_DATA_HANDLE,'(A)',advance='no') '@RMP_coil_curr: %"time"           '
+        write(LIVE_DATA_HANDLE,'(A)',advance='no') '@rmp_coil_curr: %"time"           '
         do n = 1,size(rmp_coil_curr,2)
           write(LIVE_DATA_HANDLE,'(A12,1x)',advance='no') trim(rmp_coil_name(n))
         end do

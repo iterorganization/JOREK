@@ -1,3 +1,4 @@
+*.bck
 *.o
 *.mod
 *.dep

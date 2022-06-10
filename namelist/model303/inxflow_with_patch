@@ -1,9 +1,12 @@
 &in1
 
- restart = .f.
+ restart = .t.
  regrid  = .f.
- tstep_n   = 5. 
- nstep_n   = 0 
+ tstep_n   = 1.0
+ nstep_n   = 100 
+
+ treat_axis = .t.
+ !fix_axis_nodes = .t.
  
  freeboundary = .f.
  wall_resistivity_fact = 1.
@@ -53,7 +56,8 @@
  n_private = 9
 
  ! --- wall extension blocks
- extend_existing_grid        = .t.
+ !extend_existing_grid        = .t. ! this doesn't work for X-point grids yet ! it would need quite a few modifications in the code...
+ grid_to_wall                = .t.
  n_wall_blocks               = 1
 
  n_ext_block         ( 1)    = 12
@@ -61,7 +65,7 @@
  n_block_points_left ( 1)    =  2
  R_block_points_left ( 1,1)  = +3.4807
  Z_block_points_left ( 1,1)  = -1.6311
- R_block_points_left ( 1,2)  = +3.9141
+ R_block_points_left ( 1,2)  = +3.7497
  Z_block_points_left ( 1,2)  = -1.4510
  n_block_points_right( 1)    = 2
  R_block_points_right( 1,1)  = +3.5260
@@ -70,12 +74,34 @@
  Z_block_points_right( 1,2)  = -1.0906
 
  ! --- Arbitrary wall data
- n_limiter = 5
- R_limiter(1) = -20.0 , Z_limiter(1) = -20.0
- R_limiter(2) = +20.0 , Z_limiter(2) = -20.0
- R_limiter(3) = +20.0 , Z_limiter(3) = +20.0
- R_limiter(4) = -20.0 , Z_limiter(4) = +20.0
- R_limiter(5) = -20.0 , Z_limiter(5) = -20.0
+ n_limiter = 27
+ R_limiter( 1) = +2.0 , Z_limiter( 1) = -2.0
+ R_limiter( 2) = +2.5 , Z_limiter( 2) = -2.0
+ R_limiter( 3) = +3.0 , Z_limiter( 3) = -2.0
+ R_limiter( 4) = +3.5 , Z_limiter( 4) = -2.0
+ R_limiter( 5) = +4.0 , Z_limiter( 5) = -2.0
+ R_limiter( 6) = +4.5 , Z_limiter( 6) = -2.0
+ R_limiter( 7) = +4.5 , Z_limiter( 7) = -1.5
+ R_limiter( 8) = +4.5 , Z_limiter( 8) = -1.0
+ R_limiter( 9) = +4.5 , Z_limiter( 9) = -0.5
+ R_limiter(10) = +4.5 , Z_limiter(10) = -0.0
+ R_limiter(11) = +4.5 , Z_limiter(11) = +0.5
+ R_limiter(12) = +4.5 , Z_limiter(12) = +1.0
+ R_limiter(13) = +4.5 , Z_limiter(13) = +1.5
+ R_limiter(14) = +4.5 , Z_limiter(14) = +2.0
+ R_limiter(15) = +4.0 , Z_limiter(15) = +2.0
+ R_limiter(16) = +3.5 , Z_limiter(16) = +2.0
+ R_limiter(17) = +3.0 , Z_limiter(17) = +2.0
+ R_limiter(18) = +2.5 , Z_limiter(18) = +2.0
+ R_limiter(19) = +2.0 , Z_limiter(19) = +2.0
+ R_limiter(20) = +2.0 , Z_limiter(20) = +1.5
+ R_limiter(21) = +2.0 , Z_limiter(21) = +1.0
+ R_limiter(22) = +2.0 , Z_limiter(22) = +0.5
+ R_limiter(23) = +2.0 , Z_limiter(23) = +0.0
+ R_limiter(24) = +2.0 , Z_limiter(24) = -0.5
+ R_limiter(25) = +2.0 , Z_limiter(25) = -1.0
+ R_limiter(26) = +2.0 , Z_limiter(26) = -1.5
+ R_limiter(27) = +2.0 , Z_limiter(27) = -2.0
 
  eta   = 2.d-6
  visco = 4.d-6
@@ -127,9 +153,4 @@
  rho_coef(4)  =  0.08
  rho_coef(5)  =  0.94d0
 
- iter_precon = 22
- gmres_m = 20
- gmres_4 = 1.d0
- gmres_max_iter = 200
- gmres_tol = 1.d-8
 /

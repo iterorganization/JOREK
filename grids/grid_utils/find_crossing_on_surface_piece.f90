@@ -8,7 +8,7 @@ subroutine find_crossing_on_surface_piece(node_list,element_list,surface,piece, 
   !-------------------------------------------------------------------------
   use data_structure
   use mod_interp, only: interp_RZ
-  use phys_module, only: R_geo
+  use phys_module, only: R_geo, surface_cross_tol
   
   implicit none
   
@@ -164,7 +164,7 @@ subroutine find_crossing_on_surface_piece(node_list,element_list,surface,piece, 
     endif
   
     ifail = 999
-    max_step = 1.005d0
+    max_step = surface_cross_tol
   
     do i=1,ntrial
   

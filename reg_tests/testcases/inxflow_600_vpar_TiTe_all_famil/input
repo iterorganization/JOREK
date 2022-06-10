@@ -56,16 +56,16 @@
 
  amin     = 1.
 
- n_R      = 0
- n_Z      = 0
- n_radial = 41
- n_pol    = 64
-
- n_flux   = 18
- n_tht    = 26
- n_open   = 6
- n_leg    = 6
- n_private = 4
+ n_R      = 0   !0
+ n_Z      = 0   !0
+ n_radial = 31  !41
+ n_pol    = 61  !64
+                !   
+ n_flux   = 11  !18
+ n_tht    = 31  !26
+ n_open   = 4   !6
+ n_leg    = 6   !6
+ n_private= 3   !4
 
  eta   = 2.d-6
  eta_ohmic = 1.d-7

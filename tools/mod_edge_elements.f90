@@ -85,7 +85,7 @@ type :: edge_elements_patch
   
   integer, allocatable :: ien(:,:) !< connectivity in vtk file (4,nel)
   real*4, dimension(:,:), allocatable :: scalars !< (nnos,n_scalars)
-  character(len=12), dimension(:), allocatable :: scalar_names !< (n_scalars)
+  character(len=36), dimension(:), allocatable :: scalar_names !< (n_scalars)
 end type edge_elements_patch
 
 type :: edge_elements
@@ -273,7 +273,7 @@ subroutine write(this, filename)
   integer :: n_scalars, nnos, nel, n_rows, n_cols
   integer :: n_scalars_i, nnos_i, nel_i
   real*4, allocatable :: vectors(:,:,:)
-  character*12, allocatable :: vector_names(:)
+  character*36, allocatable :: vector_names(:)
   real*4, allocatable :: xyz(:,:)
   integer, allocatable :: ien(:,:)
   real*4, allocatable :: scalars(:,:)
@@ -425,7 +425,7 @@ subroutine sample_edge_elements(this, i_scalar, n_samples, u, integral, xyz, st,
 
   real*8 :: dphi
   integer :: i, j, n, nphi, i_patch, n_patch, i_min, i_max
-  real*8 :: u_tmp(2)
+  real*8 :: u_tmp(2), s0(2), S1(2)
   real*8, allocatable :: dl(:), r(:), p_phi(:)
   real*8 :: i_r, f_min, f_max
 
@@ -484,7 +484,7 @@ subroutine sample_edge_elements(this, i_scalar, n_samples, u, integral, xyz, st,
 
   !$omp parallel do default(none) shared(n_samples, u, cdf_patch, integral, pdf_pol, xyz, st, ielm, nphi, dphi, this, i_scalar, &
   !$omp pdf_patch) &
-  !$omp private(i, u_tmp, i_patch, i_r, i_min, i_max, f_min, f_max, p_phi)
+  !$omp private(i, u_tmp, i_patch, i_r, i_min, i_max, f_min, f_max, p_phi, S0, S1)
   do i=1,n_samples
     u_tmp = u(:,i)
     i_patch = minloc(cdf_patch, mask=(u_tmp(1)*integral .le. cdf_patch),dim=1)-1 ! -1 is due to cdf_patch starting at 0
@@ -513,14 +513,14 @@ subroutine sample_edge_elements(this, i_scalar, n_samples, u, integral, xyz, st,
     ! we don't know if this is the s or t coordinate though...
     if (this%patch(i_patch)%i_elm_jorek_edge(i_min*nphi) .ne. &
         this%patch(i_patch)%i_elm_jorek_edge(i_max*nphi)) then
-      associate(s0 => this%patch(i_patch)%st(:,i_min*nphi), &
-                s1 => this%patch(i_patch)%st(:,i_max*nphi))
+
+      s0 = this%patch(i_patch)%st(:,i_min*nphi)
+      s1 = this%patch(i_patch)%st(:,i_max*nphi)
+
       if (s0(1) .ne. s1(1)) then
-        st(:,i) = s0*f_min + &
-                  [1.0-s1(1), s1(2)]*f_max
+        st(:,i) = s0*f_min + [1.d0-s1(1), s1(2)]*f_max
       elseif (s0(2) .ne. s1(2)) then
-        st(:,i) = s0*f_min + &
-                  [s1(1), 1.0-s1(2)]*f_max
+        st(:,i) = s0*f_min + [s1(1), 1.d0-s1(2)]*f_max
       else
         ! This only happens when nsub=1, i.e. probably both
         ! s0(1) and s1(1) are 0, or both s0(2) and s1(2) are zero.
@@ -531,7 +531,6 @@ subroutine sample_edge_elements(this, i_scalar, n_samples, u, integral, xyz, st,
         ! use nsub > 1 (which is really necessary for convergence anyway)
         write(*,*) "ERROR: cannot determine side of element in sample_edge_elements. Use nsub > 1" ! or save i_elm_jorek_side in this%patch
       end if
-      end associate
     else
       st(:,i) = this%patch(i_patch)%st(:,i_min*nphi)*f_min + &
                 this%patch(i_patch)%st(:,i_max*nphi)*f_max

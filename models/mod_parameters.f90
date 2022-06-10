@@ -62,6 +62,24 @@ else if ( i_var == var_rhon ) then
 else if ( i_var == var_nre ) then
   name  = 'n_RE'
   descr = 'runaway electron particle density'
+else if ( i_var == var_AR ) then
+  name  = "AR"
+  descr = "R component of magnetic vector potential"
+else if ( i_var == var_AZ ) then
+  name  = "AZ"
+  descr = "Z component of magnetic vector potential"
+else if ( i_var == var_uR ) then
+  name  = "UR"
+  descr = "Velocity in R direction"
+else if ( i_var == var_uZ ) then
+  name  = "UZ"
+  descr = "Velocity in Z direction"
+else if ( i_var == var_up ) then
+  name  = "Uphi"
+  descr = "Velocity in phi direction"
+else
+  write(name, "(I4)") i_var
+  descr = "Please check implementation"
 end if
 
 if ( .not. long2 ) then

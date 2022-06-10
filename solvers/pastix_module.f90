@@ -1,19 +1,10 @@
 module pastix_module             ! PastiX specific variables
   use mod_integer_types
-#ifndef USE_PASTIX6
 ! -- For PaStiX solver before version 6.x
 #ifdef USE_PASTIX 
 #include "pastix_fortran.h"
 #else
 #include "no_pastix_fortran.h"
-#endif
-
-#else
-  ! -- For PaStiX solver version 6.x
-  use iso_c_binding
-  use pastixf
-  use pastix_enums
-  use spmf
 #endif
 
   integer(kind=int_all),allocatable   :: sparskit_work(:)
@@ -22,8 +13,6 @@ module pastix_module             ! PastiX specific variables
 
   logical                             :: pastix_initialised, pastix_analysed, pastix_smp_only, no_zeros_pastix
 
-#ifndef USE_PASTIX6
-  ! -- For PaStiX solver before version 6.x
   integer(kind=8)                     :: pastix_data
   integer(kind=int_all)               :: pastix_iparm(IPARM_SIZE)
   real*8                              :: pastix_dparm(DPARM_SIZE)
@@ -33,19 +22,6 @@ module pastix_module             ! PastiX specific variables
   integer(kind=int_all), parameter    :: pastix_verb     = API_VERBOSE_NO
   integer(kind=int_all), parameter    :: pastix_endsolve = API_TASK_SOLVE
   integer(kind=int_all), parameter    :: pastix_rhs      = 0
-#else
-  ! -- For PaStiX solver version 6.x
-  type(pastix_data_t),  pointer       :: pastix_data
-  type(spmatrix_t),     pointer       :: pastix_spm
-  type(spmatrix_t),     pointer       :: pastix_spm_check
-  type(pastix_order_t), pointer       :: pastix_myorder => null()
-  integer(kind=pastix_int_t), target  :: pastix_iparm(iparm_size)
-  real(kind=c_double),        target  :: pastix_dparm(dparm_size)
-  integer(kind=int_all), parameter    :: pastix_facto    = PastixFactLU
-  integer(kind=int_all), parameter    :: pastix_sym      = PastixGeneral
-  integer(kind=int_all), parameter    :: pastix_verb     = PastixVerboseNo 
-
-#endif
 
   integer(kind=int_all)               :: pastix_nthrd    = 1
   integer(kind=int_all), parameter    :: pastix_iter     = 250

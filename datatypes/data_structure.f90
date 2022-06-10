@@ -9,21 +9,22 @@ module data_structure
   implicit none
 
   type type_node                                  !< type definition of a node (i.e. a vertex)
-    real*8     :: x(n_coord_tor,n_order+1,n_dim)        !< x,y,z coordinates of points and additional nodal geometry
-    real*8     :: values(n_tor,n_order+1,n_var)   !< Variable values and derivatives
-    real*8     :: deltas(n_tor,n_order+1,n_var)   !< Change of variable values and derivatives in last timestep
+    real*8     :: x(n_coord_tor,n_degrees,n_dim)        !< x,y,z coordinates of points and additional nodal geometry
+    real*8     :: values(n_tor,n_degrees,n_var)   !< Variable values and derivatives
+    real*8     :: deltas(n_tor,n_degrees,n_var)   !< Change of variable values and derivatives in last timestep
 #ifdef fullmhd
-    real*8     :: psi_eq(n_order+1)               !< equilibrium flux at the nodes
-    real*8     :: Fprof_eq(n_order+1)             !< equilibrium profile R*B_phi at the nodes
+    real*8     :: psi_eq(n_degrees)               !< equilibrium flux at the nodes
+    real*8     :: Fprof_eq(n_degrees)             !< equilibrium profile R*B_phi at the nodes
 #elif altcs
-    real*8     :: psi_eq(n_order+1)               !< equilibrium flux at the nodes
+    real*8     :: psi_eq(n_degrees)               !< equilibrium flux at the nodes
 #endif
-    integer    :: index(n_order+1)                !< index in the main matrix
+    integer    :: index(n_degrees)                !< index in the main matrix
     integer    :: boundary                        !< = 1, 2 or 3 for boundary nodes.
                                                   !< For wall-aligned grids, check routine update_boundary_types_final
                                                   !< in grids/grid_utils/update_boundary_types.f90
     integer    :: boundary_index                  !< index of the boundary node 
     logical    :: axis_node                       !< Flag nodes that are on the axis (and can/need-to-be be stabilised)
+    integer    :: axis_dof                        !< which dof to enforce to zero
     integer    :: parents(2)                      !< Parent nodes (used if node is constrained)"refinement"
     integer    :: parent_elem                     !< which element do parent nodes belong to ? "refinement"
     real*8     :: ref_lambda, ref_mu              !< Local coordinates of node inside the parent element. "refinement"
@@ -39,7 +40,7 @@ module data_structure
   type type_element                               !< type definition for one elements
     integer :: vertex(n_vertex_max)               !< nodes of the corners
     integer :: neighbours(n_vertex_max)           !< neighbouring elements
-    real*8  :: size(n_vertex_max,n_order+1)       !< size of vectors at each vertex of the element
+    real*8  :: size(n_vertex_max,n_degrees)       !< size of vectors at each vertex of the element
     integer :: father                             !< index of father element (0 if no father)"refinement"
     integer :: n_sons                             !< Number of sons elements"refinement"
     integer :: n_gen                              !< Generation rank of the element"refinement"
@@ -100,6 +101,7 @@ module data_structure
      real*8, dimension (:,:,:), allocatable:: ELM_n
      real*8, dimension (:,:,:), allocatable:: ELM_k
      real*8, dimension (:,:,:), allocatable:: ELM_kn
+     real*8, dimension (:,:,:), allocatable:: ELM_pnn
      real*8, dimension (:,:)  , allocatable:: RHS_p
      real*8, dimension (:,:)  , allocatable:: RHS_k
      real*8, dimension (:,:)  , allocatable :: ELM
@@ -129,6 +131,14 @@ module data_structure
     real*8  :: spi_species           !< Fraction of impurity atoms relative to the total number of atoms (model501)
                                      !! 0.: pure background species
                                      !! 1.: pure impurity shard
+    real*8  :: spi_vol               !< Numerically integrated volume of the gas source at the shard position
+    real*8  :: spi_psi               !< Psi value at the shard position
+    real*8  :: spi_grad_psi          !< Value of grad(Psi)=sqrt(PSI_R * PSI_R + PSI_Z * PSI_Z) at the shard position
+
+    real*8  :: spi_vol_drift         !< Numerically integrated volume of the gas source depositing at the post-drift position
+    real*8  :: spi_psi_drift         !< Psi value at the post-drift deposition position
+    real*8  :: spi_grad_psi_drift    !< Value of grad(Psi)=sqrt(PSI_R * PSI_R + PSI_Z * PSI_Z) at the post-drift deposition position
+
   end type type_SPI
  
   integer                                         , public :: nbthreads
@@ -162,6 +172,7 @@ contains
           call tr_allocate(thread_struct(i)%ELM_n, 1,n_plane,1,n_vertex_max*n_var*(n_order+1),1,n_vertex_max*n_var*(n_order+1),"ELM_n",CAT_MATELEM)
           call tr_allocate(thread_struct(i)%ELM_k, 1,n_plane,1,n_vertex_max*n_var*(n_order+1),1,n_vertex_max*n_var*(n_order+1),"ELM_k",CAT_MATELEM)
           call tr_allocate(thread_struct(i)%ELM_kn,1,n_plane,1,n_vertex_max*n_var*(n_order+1),1,n_vertex_max*n_var*(n_order+1),"ELM_kn",CAT_MATELEM)
+          call tr_allocate(thread_struct(i)%ELM_pnn,1,n_plane,1,n_vertex_max*n_var*(n_order+1),1,n_vertex_max*n_var*(n_order+1),"ELM_pnn",CAT_MATELEM)
           call tr_allocate(thread_struct(i)%RHS_p, 1,n_plane,1,n_vertex_max*n_var*(n_order+1),"RHS_p",CAT_MATELEM)                                     
           call tr_allocate(thread_struct(i)%RHS_k, 1,n_plane,1,n_vertex_max*n_var*(n_order+1),"RHS_k",CAT_MATELEM)                                     
           call tr_allocate(thread_struct(i)%ELM,   1,n_tor*n_vertex_max*(n_order+1)*n_var,1,n_tor*n_vertex_max*(n_order+1)*n_var,"ELM",CAT_MATELEM)       
@@ -171,6 +182,7 @@ contains
           thread_struct(i)%ELM_n   = 0.d0
           thread_struct(i)%ELM_k   = 0.d0
           thread_struct(i)%ELM_kn  = 0.d0
+          thread_struct(i)%ELM_pnn = 0.d0
           thread_struct(i)%RHS_p   = 0.d0
           thread_struct(i)%RHS_k   = 0.d0
           thread_struct(i)%ELM     = 0.d0
@@ -199,8 +211,8 @@ contains
           thread_struct(i)%delta_s = 0.d0
           thread_struct(i)%delta_t = 0.d0
 #ifdef COMPARE_ELEMENT_MATRIX
-          call tr_allocate(thread_struct(i)%ELM2,  1,n_tor*n_vertex_max*(n_order+1)*n_var,1,n_tor*n_vertex_max*(n_order+1)*n_var,"ELM2",CAT_MATELEM)
-          call tr_allocate(thread_struct(i)%RHS2,  1,n_tor*n_vertex_max*(n_order+1)*n_var,"RHS2",CAT_MATELEM)
+          call tr_allocate(thread_struct(i)%ELM2,  1,n_tor*n_vertex_max*n_degrees*n_var,1,n_tor*n_vertex_max*n_degrees*n_var,"ELM2",CAT_MATELEM)
+          call tr_allocate(thread_struct(i)%RHS2,  1,n_tor*n_vertex_max*n_degrees*n_var,"RHS2",CAT_MATELEM)
           thread_struct(i)%ELM2    = 0.d0
           thread_struct(i)%RHS2    = 0.d0
 #endif
@@ -215,6 +227,7 @@ contains
        call tr_deallocate(thread_struct(i)%ELM_n,"ELM_n",CAT_MATELEM)
        call tr_deallocate(thread_struct(i)%ELM_k,"ELM_k",CAT_MATELEM)
        call tr_deallocate(thread_struct(i)%ELM_kn,"ELM_kn",CAT_MATELEM)
+       call tr_deallocate(thread_struct(i)%ELM_pnn,"ELM_pnn",CAT_MATELEM)
        call tr_deallocate(thread_struct(i)%RHS_p,"RHS_p",CAT_MATELEM)                                     
        call tr_deallocate(thread_struct(i)%RHS_k,"RHS_k",CAT_MATELEM)                                     
        call tr_deallocate(thread_struct(i)%ELM,"ELM",CAT_MATELEM)

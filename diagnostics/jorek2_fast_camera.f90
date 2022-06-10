@@ -11,6 +11,7 @@ program jorek2_fast_camera
   use constants, only: PI, LOWER_XPOINT, UPPER_XPOINT
   use equil_info
   use mod_element_rtree, only: populate_element_rtree
+  use check_point_is_inside_wall_contour
 
   implicit none
   !include 'mpif.h'
@@ -25,7 +26,6 @@ program jorek2_fast_camera
   integer, parameter    :: ivtk = 22 ! an arbitrary unit number for the VTK output file
   integer               :: i, j, k, m, etype, irst, int, i_var, i_tor, i_tor_old, i_plane, index, index_node
   character             :: buffer*80, lf*1, str1*12, str2*12
-  character*12, allocatable :: scalar_names(:), vector_names(:)
   real*8                :: s, t
   real*8                :: P,P_s,P_t,P_st,P_ss,P_tt
   real*8                :: R,R_s,R_t,R_st,R_ss,R_tt
@@ -1025,7 +1025,7 @@ subroutine wall_intersection(Rl,Zl, i_int, R_int, Z_int, ifail)
   ! --- Routine variables
   real*8, dimension(2), intent(in)  :: Rl,Zl
   integer,              intent(out) :: i_int
-  real*8, dimension(2), intent(out) :: R_int,Z_int
+  real*8,               intent(out) :: R_int,Z_int
   integer,              intent(out) :: ifail
 
   ! --- Internal variables

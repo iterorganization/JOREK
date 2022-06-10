@@ -22,8 +22,8 @@ real*8     :: eq_g(n_plane,n_var,n_gauss), eq_s(n_plane,n_var,n_gauss), eq_p(n_p
 real*8     :: eq_ss(n_plane,n_var,n_gauss)
 real*8     :: delta_g(n_plane,n_var,n_gauss), delta_s(n_plane,n_var,n_gauss)
 
-real*8     :: ELM(n_vertex_max*n_var*(n_order+1)*n_tor,n_vertex_max*n_var*(n_order+1)*n_tor)
-real*8     :: RHS(n_vertex_max*n_var*(n_order+1)*n_tor)
+real*8     :: ELM(n_vertex_max*n_var*n_degrees*n_tor,n_vertex_max*n_var*n_degrees*n_tor)
+real*8     :: RHS(n_vertex_max*n_var*n_degrees*n_tor)
 
 integer    :: vertex(2), i, j, ms, mt, mp, k, l, index_ij, index_kl, index, xcase2
 integer    :: in, im, ij1, ij2, ij3, ij4, ij5, ij6, ij7, kl1, kl2, kl3, kl4, kl5, kl6, kl7
@@ -128,7 +128,7 @@ do ms=1, n_gauss
 
          do im=1,n_tor
 
-           index_ij = n_tor*n_var*(n_order+1)*(vertex(i)-1) + n_tor * n_var * (j-1) + im   ! index in the ELM matrix
+           index_ij = n_tor*n_var*n_degrees*(vertex(i)-1) + n_tor * n_var * (j-1) + im   ! index in the ELM matrix
 
            v   =  H1(i,j,ms) * element%size(vertex(i),j) * HZ(im,mp)
 
@@ -150,7 +150,7 @@ do ms=1, n_gauss
 
                  rho   = psi    ;    T   = psi   ;    vpar   = psi
 
-                 index_kl = n_tor*n_var*(n_order+1)*(vertex(k)-1) + n_tor * n_var * (l-1) + in   ! index in the ELM matrix
+                 index_kl = n_tor*n_var*n_degrees*(vertex(k)-1) + n_tor * n_var * (l-1) + in   ! index in the ELM matrix
 
 
                  amat_61 = - v * gamma_sheath * r0  * T0 * vpar0 * psi_s * theta * tstep 

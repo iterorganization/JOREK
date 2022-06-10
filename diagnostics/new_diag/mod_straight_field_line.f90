@@ -7,7 +7,7 @@ module mod_straight_field_line
   
   use constants
   use tr_module 
-  use mod_parameters, only: n_vertex_max, n_order, n_plane, n_tor, n_var
+  use mod_parameters, only: n_vertex_max, n_degrees, n_plane, n_tor, n_var
   use phys_module,     only: F0, xpoint, xcase
   use equil_info
   use mod_interp
@@ -576,11 +576,12 @@ module mod_straight_field_line
     integer, intent(in)                   :: i_elm, i_var, i_harm
     real*8, intent(in)                    :: s, t
     real*8, intent(out)                   :: P, P_s, P_t
-    real*8 :: G(4,4), G_s(4,4), G_t(4,4), G_st(4,4), G_ss(4,4), G_tt(4,4)
+    real*8 :: G(4,n_degrees), G_s(4,n_degrees), G_t(4,n_degrees) 
+    real*8 :: G_st(4,n_degrees), G_ss(4,n_degrees), G_tt(4,n_degrees)
     integer :: kv, iv, kf
     
-    call basisfunctions(s,t,G(1:4,1:4),G_s(1:4,1:4),G_t(1:4,1:4),G_st(1:4,1:4),G_ss(1:4,1:4),     &
-      G_tt(1:4,1:4))
+    call basisfunctions(s,t,G(1:4,1:n_degrees),G_s(1:4,1:n_degrees),G_t(1:4,1:n_degrees), &
+      G_st(1:4,1:n_degrees),G_ss(1:4,1:n_degrees),G_tt(1:4,1:n_degrees))
   
     P = 0.d0; P_s = 0.d0; P_t = 0.d0
   
@@ -588,7 +589,7 @@ module mod_straight_field_line
     
       iv = element_list%element(i_elm)%vertex(kv)  ! the node number
     
-      do kf = 1, n_order+1       ! 4 basis functions
+      do kf = 1, n_degrees       ! basis functions
     
         P   = P   + node_list%node(iv)%values(i_harm,kf,i_var)                                     &
 	  * element_list%element(i_elm)%size(kv,kf) * G(kv,kf)

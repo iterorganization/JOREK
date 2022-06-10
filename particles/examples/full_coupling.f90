@@ -137,11 +137,11 @@ jorek_feedback = new_projection(sim%fields%node_list, sim%fields%element_list, &
 aux_node_list => jorek_feedback%node_list
 
 if (use_ncs) then
-  allocate(jorek_feedback%rhs(n_order+1, n_vertex_max, sim%fields%element_list%n_elements, n_tor, 3))
+  allocate(jorek_feedback%rhs(n_degrees, n_vertex_max, sim%fields%element_list%n_elements, n_tor, 3))
 elseif (use_pcs) then  ! not implemented yet!
-  allocate(jorek_feedback%rhs(n_order+1, n_vertex_max, sim%fields%element_list%n_elements, n_tor, 1))
+  allocate(jorek_feedback%rhs(n_degrees, n_vertex_max, sim%fields%element_list%n_elements, n_tor, 1))
 elseif (use_ccs) then  ! not implemented yet!
-  allocate(jorek_feedback%rhs(n_order+1, n_vertex_max, sim%fields%element_list%n_elements, n_tor, 4))
+  allocate(jorek_feedback%rhs(n_degrees, n_vertex_max, sim%fields%element_list%n_elements, n_tor, 4))
 else
   stop 'define use_ncs, use_pcs or use_ccs'
 endif
@@ -302,15 +302,20 @@ do while (.not. sim%stop_now)
  
   select type (particles => sim%groups(1)%particles)
   type is (particle_kinetic_leapfrog)
+
 #ifdef __GFORTRAN__
-    !$omp parallel do default(shared) & 
+    !$omp parallel do default(shared) & !This is to avoid GNU compiler failure
 #else
-    !$omp parallel do default(none)   &
+    !$omp parallel do default(none) &
+#endif
+#ifdef __GFORTRAN__
+    !$omp shared(sim, n_particles, n_steps, timesteps, rng, particle_start_time, & ! This is to work around the GNU compiler error: ASSOCIATE name '__tmp_type_particle_kinetic_leapfrog' in SHARED clause
+#else
     !$omp shared(sim, particles, n_particles, n_steps, timesteps, rng, particle_start_time, &
+#endif
     !$omp        rho_norm, t_norm, v_norm, E_norm, M_norm, N_norm,                          &
     !$omp        use_cx, use_ionisation, use_sputtering,                                    &
     !$omp        CENTRAL_DENSITY, CENTRAL_MASS)                                             &
-#endif
     !$omp private(i_rng, i,j,k,l,m, t, E, B, psi, U, rz_old, st_old,                        &
     !$omp         i_elm_old, n_e, T_e, ion_rate, ion_prob, ion_ran, ion_source, ion_energy, kinetic_energy,& 
     !$omp         R_g, R_s, R_t, Z_g, Z_s, Z_t, xjac, HH, HH_s, HH_t, HZ, index_lm,                 &
@@ -421,9 +426,9 @@ do while (.not. sim%stop_now)
         call mode_moivre(particles(j)%x(3), HZ)
               
         do l=1,n_vertex_max
-          do m=1,n_order+1
+          do m=1,n_degrees
 
-            index_lm = (l-1)*(n_order+1) + m
+            index_lm = (l-1)*n_degrees + m
 
             v   = HH(l,m) * sim%fields%element_list%element(i_elm_old)%size(l,m) * particle_source     * t_norm / rho_norm
             v_E = HH(l,m) * sim%fields%element_list%element(i_elm_old)%size(l,m) * energy_source       * t_norm / E_norm
@@ -487,13 +492,14 @@ do while (.not. sim%stop_now)
 
 #ifdef __GFORTRAN__
   !$omp parallel do default(shared) & 
+  !$omp shared(sim)      &
 #else
   !$omp parallel do default(none)   &
   !$omp shared(sim, particles)      &
 #endif
   !$omp private(j, E, B, psi, U, B_norm) &
   !$omp reduction(+:particles_remaining, momentum_remaining, energy_remaining)
-  do j=1,size(particles,1)
+    do j=1,size(particles,1)
 
       if (particles(j)%i_elm .le. 0) cycle
 

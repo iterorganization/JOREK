@@ -67,12 +67,22 @@ endif
 # Default flags for intel
 ifeq ($(COMPILER_FAMILY), intel)
   COMPILER_MAJOR_VERSION=$(shell $(FC) -V 2>&1 | grep -o "Version [0-9]*" | cut -d' ' -f 2)
+  COMPILER_MAJOR_VERSION_ID=$(shell $(FC) -V 2>&1 | grep -o "Version [0-9]*.*" | cut -d'.' -f 2)
   FFLAGS += -align
   ifeq ($(shell test $(COMPILER_MAJOR_VERSION) -ge 15; echo $$?),0)
     FLAGS += -qopenmp
   else
     FLAGS += -openmp
   endif
+
+  ifeq ($(shell test $(COMPILER_MAJOR_VERSION) -gt 19; echo $$?),0)
+    FFLAGS += -warn noexternal
+  else ifeq ($(shell test $(COMPILER_MAJOR_VERSION) -eq 19; echo $$?),0)
+    ifeq ($(shell test $(COMPILER_MAJOR_VERSION_ID) -ge 1; echo $$?),0)
+      FFLAGS += -warn noexternal
+    endif
+  endif
+
   FFLAGS += -warn all
   FFLAGS += -warn nointerfaces
   FFLAGS += -warn nounused
@@ -211,8 +221,9 @@ endif
 
 ifeq (1, $(USE_PASTIX6))
   DEFINES  := $(DEFINES) -DUSE_PASTIX6
-  LIBS     := $(LIBS) $(LIB_PASTIX6)  $(LIB_PASTIX6_BLAS)
-  INCLUDES := $(INCLUDES) $(INC_PASTIX6)
+  LIBS     := $(LIBS) $(LIB_PASTIX)
+  INCLUDES := $(INCLUDES) $(INC_PASTIX)
+  EXTRA_FLAGS := $(EXTRA_FLAGS) -lstdc++ -std=c++14
 endif
 
 ifeq (1, $(USE_WSMP))
@@ -263,6 +274,10 @@ ifeq (1, $(USE_STRUMPACK))
   EXTRA_FLAGS := $(EXTRA_FLAGS) -lstdc++ -std=c++14
 endif
 
+ifeq (1, $(USE_BICGSTAB))
+  DEFINES  := $(DEFINES) -DUSE_BICGSTAB
+endif
+
 
 # Do not check to make these files to speed up and clean -d output
 Makefile: ;
@@ -275,6 +290,7 @@ $(MODDIR)/version.h:
 	@echo "Generate .mod/version.h"
 	@rm -f $@.tmp
 	@echo "#define RCS_VERSION '`git describe --always --dirty --abbrev 2> /dev/null`'" >> $@.tmp
+	@echo "#define JOREK_VERSION '`git describe --tags \`git rev-list --tags --max-count=1\` 2> /dev/null`'" >> $@.tmp
 	@echo "#define RCS_LABEL '`git log -1 --format="%s (%D)" 2> /dev/null | sed -e "s/'/''/g" `'" >> $@.tmp
 	@echo "#define RCS_TIME '`git log -1 --format="%ad" 2> /dev/null`'" >> $@.tmp
 	@echo "#define compile_command '$(FC)'" >> $@.tmp

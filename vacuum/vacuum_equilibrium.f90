@@ -27,7 +27,7 @@ module vacuum_equilibrium
     ! --- Local variables
     integer, parameter   :: filehandle = 60
     integer              :: file_version, n_bnd_elems, n_bnd_nodes, dim(2), err  !n_coils already defined in vacuum module
-    integer              :: i_start_pf, i_end_pf                                 !Indices for SW coils 
+    integer              :: i_start_coil, i_end_coil                                 !Indices for SW coils 
     character(len=512)   :: comment
     
     if ( sr%n_tor == 0 ) return
@@ -151,13 +151,16 @@ module vacuum_equilibrium
         write(*,*) '***************************************'
         write(*,*) ''
        
-        i_start_pf = sr%ind_start_pol_coils
-        i_end_pf   = i_start_pf + sr%n_pol_coils - 1
-      
         if ( .not. allocated(I_coils) ) then
           allocate( I_coils(sr%ncoil) )
-          I_coils(:)                =  0.d0 
-          I_coils(i_start_pf:i_end_pf) =  pf_coils(1:sr%n_pol_coils)%current 
+          I_coils(:)                =  0.d0
+          i_start_coil = sr%ind_start_pol_coils
+          i_end_coil   = i_start_coil + sr%n_pol_coils - 1
+          I_coils(i_start_coil:i_end_coil) =  pf_coils(1:sr%n_pol_coils)%current
+          
+          i_start_coil = sr%ind_start_rmp_coils
+          i_end_coil   = i_start_coil + sr%n_rmp_coils - 1
+          I_coils(i_start_coil:i_end_coil) =  rmp_coils(1:sr%n_rmp_coils)%current 
           n_coils                   =  sr%ncoil
           write(*,*) 'I_coils allocated '            
         endif
@@ -336,20 +339,29 @@ module vacuum_equilibrium
   
   
   subroutine equilibrium_VFB(my_id)
-    
+    use mpi_mod
    implicit none
   
    integer, intent(in) :: my_id
 
-   integer  :: i
+   integer  :: i, ierr
    
-    if (my_id == 0) write(*,*) ' vertical_FB = ', vertical_FB
+   if (my_id == 0) write(*,*) ' vertical_FB = ', vertical_FB
+   if (my_id == 0) write(*,*) ' radial_FB = ', radial_FB
    
    do i=1, n_pf_coils
      if( abs(vert_FB_amp(i)) .gt. 1.d-6 ) then
        I_coils(i) =  pf_coils(i)%current * (1 + vert_FB_amp(i) * vertical_FB ) 
        if (my_id == 0) write(*,'(a,I7,a,1es12.4)') 'FB coil ==> I_coil(', i, ') = ', I_coils(i)
      endif
+     if( abs(rad_FB_amp(i)) .gt. 1.d-6 ) then
+       I_coils(i) =  pf_coils(i)%current * (1 + rad_FB_amp(i) * radial_FB ) 
+       if (my_id == 0) write(*,'(a,I7,a,1es12.4)') 'FB coil ==> I_coil(', i, ') = ', I_coils(i)
+     endif
+     if (( abs(vert_FB_amp(i)) .gt. 1.d-6 ) .and. (abs(rad_FB_amp(i)) .gt. 1.d-6 ))  then
+       write(*,*) 'Error: You cannot use the same coil for radial and vertical feedback'
+       call MPI_ABORT(MPI_COMM_WORLD, 1, ierr)
+     end if
    enddo
     
   end subroutine equilibrium_VFB

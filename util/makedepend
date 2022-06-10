@@ -83,9 +83,6 @@ sub print_dependencies {
     $to_check =~ s/\blplot\b/ppplib/gi;
     $to_check =~ s/\bpplot\b/ppplib/gi;
     $to_check =~ s/\bbegplt\b/ppplib/gi;
-    $to_check =~ s/\bdrive_dgmres\b/dPackgmres/gi;
-    $to_check =~ s/\bdgmres\b/dPackgmres/gi;
-    $to_check =~ s/\binit_dgmres\b/dPackgmres/gi;
     $to_check =~ s/\bpcg32_srandom_r\b/pcg_basic/gi;
     $to_check =~ s/\bpcg32_random_double_r\b/pcg_basic/gi;
 

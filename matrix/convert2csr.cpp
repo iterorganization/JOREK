@@ -15,12 +15,12 @@
 #endif
 
 #if (defined(USEMKL)) && (!defined(INTSIZE64))
-extern "C" void convert2csr(int *indx_, int *n_, int *m_, int *nnz_, int **irn, int **jcn, double **val)
+extern "C" void convert2csr(int *indx, int *n_, int *m_, int *nnz_, int **irn, int **jcn, double **val)
 {
-  int n =*n_, m=*m_, nnz=*nnz_, indx=*indx_;
-  std::cout<<"n = "<<n<<" m = "<<m<<" nnz = "<<nnz<<std::endl;
+  int nr = *n_, mc = *m_, nnz = *nnz_;
+  std::cout<<"nr = "<<nr<<" mc = "<<mc<<" nnz = "<<nnz<<std::endl;
 
-  sparse_index_base_t    indexing;  
+  sparse_index_base_t indexing = sparse_index_base_t(*indx);
   sparse_matrix_t cooA;
   sparse_matrix_t csrA;  
   sparse_status_t stat;
@@ -30,11 +30,7 @@ extern "C" void convert2csr(int *indx_, int *n_, int *m_, int *nnz_, int **irn, 
   t0 = std::chrono::steady_clock::now();
 
 // create mkl coordinate sparse matrix
-  if (indx==1){
-    mkl_sparse_d_create_coo(&cooA, SPARSE_INDEX_BASE_ONE, n, m, nnz, *irn, *jcn, *val);  
-  } else {
-    mkl_sparse_d_create_coo(&cooA, SPARSE_INDEX_BASE_ZERO, n, m, nnz, *irn, *jcn, *val);
-  }
+  mkl_sparse_d_create_coo(&cooA, indexing, nr, mc, nnz, *irn, *jcn, *val);  
 
 // convert to csr format  
   mkl_sparse_convert_csr(cooA, SPARSE_OPERATION_NON_TRANSPOSE, &csrA);
@@ -44,28 +40,29 @@ extern "C" void convert2csr(int *indx_, int *n_, int *m_, int *nnz_, int **irn, 
 // export csr values, rowptr (Begin and End counting) and colind
   MKL_INT *rowptrE, *rowptrB, *colind;
   double *values;
-  mkl_sparse_d_export_csr(csrA, &indexing, &n, &m, &rowptrB, &rowptrE, &colind, &values);
+  mkl_sparse_d_export_csr(csrA, &indexing, &nr, &mc, &rowptrB, &rowptrE, &colind, &values);
   
-  nnz = rowptrE[n-1] - indx; 
-//  std::cout<<"rptrE "<<rowptrE[0:n-1]<<std::endl;
+  nnz = rowptrE[nr-1] - (*indx); 
+
   if (nnz!=(*nnz_)) 
 	  std::cout<<"New nnz: "<<nnz<<" Old nnz "<< *nnz_<<std::endl;    
   *nnz_ = nnz;
 
 #pragma omp for  
-  for (int i=0; i<n; i++){
-	  (*irn)[i] = rowptrB[i] - indx;
+  for (int i=0; i<nr; i++){
+	  (*irn)[i] = rowptrB[i];
   }
   
-  (*irn)[n]=nnz;
+  (*irn)[nr] = nnz + (*indx);
 
 #pragma omp for
   for (int i=0; i<nnz; i++){
-	  (*jcn)[i] = colind[i] -indx;
+	  (*jcn)[i] = colind[i];
 	  (*val)[i] = values[i];
   }
 
   mkl_sparse_destroy(csrA);
+  mkl_finalize();
 
   t1 = std::chrono::steady_clock::now();
   std::cout<<"coo2csr (MKL) (s) = "<< std::chrono::duration_cast<
@@ -90,15 +87,17 @@ extern "C" void convert2csr(int *indx_, int_all *n_, int_all *m_, int_all *nnz_,
   t0 = std::chrono::steady_clock::now();
 
   for (int_all i=0; i<nnz; i++){
-    rptr[(*irn)[i]+1-indx] += 1;
+    rptr[(*irn)[i] + 1 - indx] += 1;
   }
 
-  (*irn)[0]=0;
-  (*irn)[nr]= nnz;
-  for (int_all i=1; i<nr; i++){(*irn)[i]=rptr[i] + (*irn)[i-1];}
+  (*irn)[0] = indx;
+  (*irn)[nr] = nnz + indx;
+  for (int_all i=1; i<nr; i++){(*irn)[i] = rptr[i] + (*irn)[i-1];}
   rptr.clear();
 
-  for (int_all i=0; i<nnz; i++){(*jcn)[i]-=indx;}
+  //for (int_all i=0; i<nnz; i++){(*jcn)[i] -= indx;}
+    
+  //*indx_ = 0;
 
   t1 = std::chrono::steady_clock::now();
   std::cout<<"coo2csr (no-MKL) (s) = "<< std::chrono::duration_cast<

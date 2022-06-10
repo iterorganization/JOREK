@@ -5,7 +5,7 @@ module mod_penning_case_jorek
   use mod_project_particles
   use mod_penning_case, only: charge, mass, omega_e, omega_b, epsilon
   use data_structure, only: type_node_list, type_element_list
-  use mod_parameters, only: n_order
+  use mod_parameters, only: n_degrees
   implicit none
   private
   public jorek_penning_fields
@@ -74,7 +74,7 @@ subroutine jorek_penning_fields(node_list, element_list)
   call DMUMPS(p)
 
   do i=1,node_list%n_nodes
-    do k=1,n_order+1
+    do k=1,n_degrees
       index = 2*(node_list%node(i)%index(k)-1) + 1
       ! Scale JOREK fields correctly and apply F0_CHEAT_FACTOR
       ! p%rhs contains R^2 - 2 Z^2
@@ -88,7 +88,7 @@ subroutine jorek_penning_fields(node_list, element_list)
   call DMUMPS(p)
   
   do i=1,node_list%n_nodes
-    do k=1,n_order+1
+    do k=1,n_degrees
       index = 2*(node_list%node(i)%index(k)-1) + 1
       ! p^rhs contains -R^2/2
       node_list%node(i)%values(1,k,1) = B0*p%rhs(index)

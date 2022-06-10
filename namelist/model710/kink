@@ -77,6 +77,7 @@
  FF_coef(6)  = 1.d0
  FF_coef(7)  = 10.d0
  FF_coef(8)  = 1.d0
+ FF_coef(9)  = 1.d0
 
  heatsource     = 0.d0
  particlesource = 0.d0

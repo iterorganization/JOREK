@@ -85,6 +85,14 @@ module equil_info
     
     ! --- Inner/Outer points on the midplane close to the boundary of the computational domain.
     real*8           :: R_midpl(2)               !< R coordinate of "midplane points".
+
+    ! --- Plasma shape parameters as defined in T. Luce, PPCF 55 (2013) 095009, equations (1-6)
+    real*8           :: LCFS_Rgeo                !< Major radius
+    real*8           :: LCFS_a                   !< Minor radius
+    real*8           :: LCFS_epsilon             !< Inverse aspect ratio 
+    real*8           :: LCFS_kappa               !< Elongation
+    real*8           :: LCFS_deltaU              !< Upper triangularity
+    real*8           :: LCFS_deltaL              !< Lower triangularity 
     
   end type t_equil_state
   
@@ -302,6 +310,9 @@ module equil_info
         ES%Z_xpoint_init(:) = ES%Z_xpoint(:)
       endif
     endif
+
+    ! --- Calculate shape parameters of the LCFS
+    call LCFS_shape_parameters(node_list,element_list)
     
     ES%initialized = .true.
     
@@ -503,6 +514,17 @@ module equil_info
       write(*,102) 'R_midpl1           =', ES%R_midpl(1)
       write(*,102) 'R_midpl2           =', ES%R_midpl(2)
     end if
+
+    ! --- Shaping parameters
+    if ( verbose ) then
+      write(*,*) '--- LCFS shape parameters (as in PPCF 55 (2013) 095009) ------'
+      write(*,102) 'R_geo              =', ES%LCFS_Rgeo    
+      write(*,102) 'a_min              =', ES%LCFS_a       
+      write(*,102) 'epsilon            =', ES%LCFS_epsilon 
+      write(*,102) 'kappa              =', ES%LCFS_kappa   
+      write(*,102) 'delta_U            =', ES%LCFS_deltaU  
+      write(*,102) 'delta_L            =', ES%LCFS_deltaL  
+    end if
     
     write(*,*) '=============================================================='
     write(*,*)
@@ -700,9 +722,119 @@ module equil_info
     
     ! --- Inner/Outer points on the midplane close to the boundary of the computational domain.
     call MPI_BCAST(ES%R_midpl,           2,MPI_DOUBLE_PRECISION,0,MPI_COMM_WORLD,ierr)
+
+    ! --- LCFS shape parameters
+    call MPI_BCAST(ES%LCFS_Rgeo   ,      1,MPI_DOUBLE_PRECISION,0,MPI_COMM_WORLD,ierr)
+    call MPI_BCAST(ES%LCFS_a      ,      1,MPI_DOUBLE_PRECISION,0,MPI_COMM_WORLD,ierr)
+    call MPI_BCAST(ES%LCFS_epsilon,      1,MPI_DOUBLE_PRECISION,0,MPI_COMM_WORLD,ierr)
+    call MPI_BCAST(ES%LCFS_kappa  ,      1,MPI_DOUBLE_PRECISION,0,MPI_COMM_WORLD,ierr)
+    call MPI_BCAST(ES%LCFS_deltaU ,      1,MPI_DOUBLE_PRECISION,0,MPI_COMM_WORLD,ierr)
+    call MPI_BCAST(ES%LCFS_deltaL ,      1,MPI_DOUBLE_PRECISION,0,MPI_COMM_WORLD,ierr)
     
   end subroutine broadcast_equil_state
   
+
+
+
+
+
+  !> Calculates the shape parameters of the LCFS
+  !> as defined in T. Luce, PPCF 55 (2013) 095009, equations (1-6)
+  subroutine LCFS_shape_parameters(node_list,element_list)
+  
+    use data_structure
+    use phys_module, only: xcase, xpoint
+    use mod_interp
+    
+    implicit none
+    
+    ! --- Input parameters.
+    type (type_node_list),    intent(in)    :: node_list
+    type (type_element_list), intent(in)    :: element_list
+    
+    ! --- Local variables
+    integer :: n_int
+    integer :: i_elm, j, k, n1, n2, n3
+    real*8  :: t,rr1, rr2, drr1, drr2, ss1, ss2, dss1, dss2, ri, si, dri, dsi, dl
+    real*8  :: RRgi, dRRgi_dr, dRRgi_ds, ZZgi, dZZgi_dr, dZZgi_ds, dRRgi_dt, dZZgi_dt
+    real*8  :: PSgi, dPSgi_dr, dPSgi_ds, PSI_R, PSI_Z, RZJAC, grad_psi, psi_n
+    real*8  :: dRRgi_drs,dRRgi_drr,dRRgi_dss, dZZgi_drs,dZZgi_drr,dZZgi_dss, dPSgi_drs,dPSgi_drr,dPSgi_dss
+    real*8  :: Rmax, Z_Rmax, Rmin, Z_Rmin, R_Zmax, Zmax, R_Zmin, Zmin
+    integer :: i,m, ig, ip, npoints
+   
+    type (type_surface_list) :: surface_list
+    
+    
+    surface_list%n_psi = 1 
+    allocate( surface_list%psi_values(surface_list%n_psi) )
+    surface_list%psi_values(1) = ES%psi_axis + (ES%psi_bnd - ES%psi_axis) * 0.9999d0 ! Not 1 to avoid legs
+    
+    call find_flux_surfaces(99, xpoint, xcase, node_list, element_list, surface_list)
+    
+    Rmax = -1.d99;   Zmax = -1.d99
+    Rmin =  1.d99;   Zmin =  1.d99
+
+
+    npoints = 40
+    
+    do i=1, surface_list%n_psi
+      do k=1, surface_list%flux_surfaces(i)%n_pieces
+        do ig = 1, npoints
+          t = -1.0 + 2.0*float(ig-1)/float(npoints-1)
+    
+          rr1  = surface_list%flux_surfaces(i)%s(1,k)
+          drr1 = surface_list%flux_surfaces(i)%s(2,k)
+          rr2  = surface_list%flux_surfaces(i)%s(3,k)
+          drr2 = surface_list%flux_surfaces(i)%s(4,k)
+    
+          ss1  = surface_list%flux_surfaces(i)%t(1,k)
+          dss1 = surface_list%flux_surfaces(i)%t(2,k)
+          ss2  = surface_list%flux_surfaces(i)%t(3,k)
+          dss2 = surface_list%flux_surfaces(i)%t(4,k)
+    
+          call CUB1D(rr1, drr1, rr2, drr2, t, ri, dri)
+          call CUB1D(ss1, dss1, ss2, dss2, t, si, dsi)
+    
+          i_elm = surface_list%flux_surfaces(i)%elm(k)
+    
+          call interp(node_list,element_list,i_elm,1,1,ri,si,PSgi,dPSgi_dr,dPSgi_ds,dPSgi_drs,dPSgi_drr,dPSgi_dss)
+    
+          call interp_RZ(node_list,element_list,i_elm,ri,si,RRgi,dRRgi_dr,dRRgi_ds,dRRgi_drs,dRRgi_drr,dRRgi_dss, &
+                                                            ZZgi,dZZgi_dr,dZZgi_ds,dZZgi_drs,dZZgi_drr,dZZgi_dss)
+                                                            
+          ! --- Ignore open and private field line regions
+          if ( get_psi_n(PSgi, ZZgi) > 1.d0 ) cycle
+    
+          if (RRgi > Rmax) then
+            Rmax   = RRgi;    Z_Rmax = ZZgi;
+          endif 
+    
+          if (ZZgi > Zmax) then
+            R_Zmax = RRgi;    Zmax = ZZgi;
+          endif 
+    
+          if (RRgi < Rmin) then
+            Rmin   = RRgi;    Z_Rmin = ZZgi;
+          endif 
+    
+          if (ZZgi < Zmin) then
+            R_Zmin = RRgi;    Zmin = ZZgi;
+          endif 
+    
+        end do
+      end do
+    
+      ! --- As defined in T. Luce, PPCF 55 (2013) 095009, equations (1-6)
+      ES%LCFS_Rgeo    = (Rmax + Rmin) / 2.0 
+      ES%LCFS_a       = (Rmax - Rmin) / 2.0
+      ES%LCFS_epsilon =  ES%LCFS_a / ES%LCFS_Rgeo
+      ES%LCFS_kappa   = (Zmax - Zmin) / (2.0 * ES%LCFS_a ) 
+      ES%LCFS_deltaU  = (ES%LCFS_Rgeo - R_Zmax) / ES%LCFS_a
+      ES%LCFS_deltaL  = (ES%LCFS_Rgeo - R_Zmin) / ES%LCFS_a
+    
+    end do
+  
+  end subroutine LCFS_shape_parameters
   
   
 end module equil_info 

@@ -17,7 +17,7 @@ contains
   subroutine element_matrix_fft(element, nodes, xpoint2, xcase2, R_axis, Z_axis, psi_axis, psi_bnd, R_xpoint, Z_xpoint, &
                                 ELM, RHS, tid, ELM_p, ELM_n, ELM_k, ELM_kn, RHS_p, RHS_k,                               &
                                 eq_g, eq_s, eq_t, eq_p, eq_ss, eq_st, eq_tt, delta_g_arg, delta_s_arg, delta_t_arg,     &
-                                i_tor_min, i_tor_max, aux_nodes)
+                                i_tor_min, i_tor_max, aux_nodes, ELM_pnn)
 
     ! --- Modules
     use equation_variables
@@ -48,14 +48,15 @@ contains
     ! --- Matrix elements and toroidal functions
     integer, intent(in)        :: tid
     integer, intent(in)        :: i_tor_min, i_tor_max
-#define DIM0 n_tor*n_vertex_max*(n_order+1)*n_var
+#define DIM0 n_tor*n_vertex_max*n_degrees*n_var
 #define DIM1 n_plane
-#define DIM2 1:n_vertex_max*n_var*(n_order+1)
+#define DIM2 1:n_vertex_max*n_var*n_degrees
 
     real*8, dimension (DIM0,DIM0)	     	:: ELM
     real*8, dimension (DIM0)	     		:: RHS
     real*8, dimension(DIM1,DIM2,DIM2)    	:: ELM_p, ELM_n, ELM_k, ELM_kn
     real*8, dimension(DIM1,DIM2)  	        :: RHS_p, RHS_k
+    real*8, dimension(DIM1, DIM2, DIM2)         :: ELM_pnn
 
 ! The following buffers are not used by this model:
     real*8, dimension(n_plane,n_var,n_gauss,n_gauss) :: eq_g, eq_s, eq_t
@@ -143,15 +144,15 @@ contains
     	  ! --- Now the equations, first the RHS
     	  do i_vertex =1,n_vertex_max
 
-    	    do i_order =1,n_order+1
+    	    do i_order =1,n_degrees
 
     	      do i_tor =n_tor_start, n_tor_end
 
     		! --- Index in the ELM matrix	    
     		if (use_fft) then
-    		  index_ij =       n_var*(n_order+1)*(i_vertex-1) +       n_var*(i_order-1) + 1
+    		  index_ij =       n_var*n_degrees*(i_vertex-1) +       n_var*(i_order-1) + 1
     		else
-    		  index_ij = (n_tor_end - n_tor_start +1)*n_var*(n_order+1)*(i_vertex-1) + (n_tor_end - n_tor_start +1)*n_var*(i_order-1) + & 
+    		  index_ij = (n_tor_end - n_tor_start +1)*n_var*n_degrees*(i_vertex-1) + (n_tor_end - n_tor_start +1)*n_var*(i_order-1) + & 
                              i_tor - n_tor_start +1
     		endif
 		
@@ -192,15 +193,15 @@ contains
     		! --- And the LHS (linearised part)
     		do j_vertex =1,n_vertex_max
 
-    		  do j_order =1,n_order+1
+    		  do j_order =1,n_degrees
 
     		    do j_tor =n_tor_start, n_tor_end 
 
     		      ! --- Index in the ELM matrix
     		      if (use_fft) then
-    			index_kl =       n_var*(n_order+1)*(j_vertex-1) +       n_var*(j_order-1) + 1
+    			index_kl =       n_var*n_degrees*(j_vertex-1) +       n_var*(j_order-1) + 1
     		      else
-    			index_kl = (n_tor_end - n_tor_start +1)*n_var*(n_order+1)*(j_vertex-1) + & 
+    			index_kl = (n_tor_end - n_tor_start +1)*n_var*n_degrees*(j_vertex-1) + & 
                                    (n_tor_end - n_tor_start +1)*n_var*(j_order-1) + j_tor - n_tor_start +1
     		      endif
 
@@ -273,11 +274,11 @@ contains
 
     		    
     		    enddo ! inner n_tor_loop
-    		  enddo   ! inner n_order+1
+    		  enddo   ! inner n_degrees
     		enddo	  ! inner n_vertex_max
 
     	      enddo	  ! outer n_tor_loop
-    	    enddo	  ! outer n_order+1
+    	    enddo	  ! outer n_degrees
     	  enddo 	  ! outer n_vertex_max
 
     	enddo		  ! n_plane

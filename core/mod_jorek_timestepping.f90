@@ -161,7 +161,7 @@ subroutine setup_solvers(this, sim)
   call log_parameters(sim%my_id)
 
   ! Warn on doing stupid stuff
-  call sanity_checks(sim%my_id, sim%n_cpu)
+  call sanity_checks(sim%my_id, sim%n_cpu, 7, 7) ! #### the 7, 7 is just a dummy that needs to be removed later on; the sanity_checks should anyway not be part of setup_solvers in the end (to be addressed in a separate pull request) @TODO
   if (nstep .gt. 0)   call check_preconditioner_consistency
 
   ! Initialise the boundary element and node list
@@ -359,7 +359,10 @@ subroutine do_jorek_timestep(this, sim, ev)
   use vacuum
   use vacuum_response,         only: update_response
   use mod_fields_linear
-  use mod_gmres_driver
+  use mod_gmres,               only: gmres_driver
+#ifdef USE_BICGSTAB
+  use mod_bicgstab, only: bicgstab_driver, bicgstab_finalize
+#endif
   use mod_expression,          only: exprs_all_int, init_expr
   use mod_integrals3D
 
@@ -401,6 +404,14 @@ subroutine do_jorek_timestep(this, sim, ev)
     return
   end if
   tstep = dt_jorek !< Update the jorek timestep for use in mod_elt_matrix
+  !< Update the jorek previous timestep for use in mod_elt_matrix. 
+  !< If ommited, certain models (e.g. 710+) will divide by zero. Not fully tested.
+  if ( this%istep -1 > 0) then
+    tstep_prev = get_tstep_n(this%istep-1) 
+  else
+    tstep_prev = tstep
+    write(*,*) "INFO: tstep_prev set to tstep at first iteration"
+  endif
   dt = dt_jorek * sim%t_norm
 
   if (.not. this%setup_done) then
@@ -484,9 +495,13 @@ subroutine do_jorek_timestep(this, sim, ev)
 
   if (.not. gmres) then
     if (use_mumps) then
+#ifdef USE_MUMPS    
       call solve_mumps_all(sim%my_id)
+#endif      
     else
+#if defined(USE_PASTIX) || defined(USE_PASTIX6)    
       call solve_pastix_all(sim%n_cpu,sim%my_id,this%index_min(sim%my_id+1),this%index_max(sim%my_id+1))
+#endif      
     endif
   else
     call clck_time(t0)
@@ -511,8 +526,13 @@ subroutine do_jorek_timestep(this, sim, ev)
   if (gmres) then
     this%iter_prev = this%iter_gmres
     this%iter_gmres = gmres_max_iter
-  
+ 
+#ifdef USE_BICGSTAB
+    call bicgstab_driver(irn_glob, jcn_glob, a_glob, deltas, rhs_glob, &
+                     this%iter_gmres, gmres_tol, MPI_COMM_WORLD, this%MPI_COMM_N, this%MPI_COMM_MASTER)
+#else 
     call gmres_driver(sim%my_id,this%my_id_n,this%MPI_COMM_N,this%MPI_COMM_MASTER,this%iter_gmres)
+#endif
 
   endif
   call clck_time_barrier(t1)

@@ -232,7 +232,7 @@ integer, intent(in) :: ien(:,:)
 integer :: nnos, i, j, k, l, m, inode, ivar, ielm, i_elm
 real*4, allocatable :: scalars(:,:), vectors(:,:,:)
 integer :: n_scalars, n_vectors = 0
-character*12, allocatable :: vector_names(:), scalar_names(:)
+character*36, allocatable :: vector_names(:), scalar_names(:)
 type(type_element) :: element
 type(type_node)    :: nodes(4)
 real*8, dimension(n_gauss,n_gauss) :: x_s, x_t, y_s, y_t
@@ -270,7 +270,7 @@ do i_elm=1,element_list%n_elements
   ! Set up gauss points in this element
   x_s = 0.d0; x_t = 0.d0; y_s = 0.d0; y_t = 0.d0
   do i=1,n_vertex_max
-    do j=1,n_order+1
+    do j=1,n_degrees
       do ms=1, n_gauss
         do mt=1, n_gauss
           x_s(ms,mt) = x_s(ms,mt) + nodes(i)%x(1,j,1) * element%size(i,j) * H_s(i,j,ms,mt)
