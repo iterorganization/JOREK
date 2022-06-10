@@ -858,7 +858,7 @@ subroutine import_hdf5_restart(node_list, element_list, filename, format_rst, er
   character(len=*),           intent(in)    :: filename
   integer,                    intent(in)    :: format_rst  ! format of restart file
   integer,                    intent(out)   :: error
-  logical, optional,          intent(in)    :: no_perturbations
+  logical, optional,          intent(in)    :: no_perturbations ! don't initialize new harmonics
   character(len=*), optional, intent(in)    :: filename_pert
   
   ! --- Perturbation-Import variables
@@ -910,6 +910,8 @@ subroutine import_hdf5_restart(node_list, element_list, filename, format_rst, er
   integer,     allocatable :: t_contain_node(:,:)
   integer,     allocatable :: t_nref(:)
 
+! local variables
+
   real*8, allocatable :: spi_R_arr (:)
   real*8, allocatable :: spi_Z_arr (:)
   real*8, allocatable :: spi_phi_arr (:)
@@ -957,7 +959,7 @@ subroutine import_hdf5_restart(node_list, element_list, filename, format_rst, er
     write(*,*) '...failed!'
     return
   end if
-  node_id = file_id ! By default, take n_tor_tmp, n_period_tmp, node_list%n_dof , t_values, t_deltas from restart file
+  node_id = file_id ! By default, take n_tor_tmp, n_period_tmp, n_plane_tmp, mode_tmp, node_list%n_dof, t_values, t_deltas from restart file
 
   ! Restart file version
   rst_hdf5_version_tmp = 0
@@ -977,7 +979,6 @@ subroutine import_hdf5_restart(node_list, element_list, filename, format_rst, er
 
   call HDF5_integer_reading(file_id,jorek_model_tmp,"jorek_model")
   call HDF5_integer_reading(file_id,n_var_tmp,"n_var")
-
   import_3xx_4xx = .false.
   if ( (jorek_model >= 400) .and. (jorek_model <= 499) .and. (jorek_model_tmp >= 300) .and. (jorek_model_tmp <= 399) ) then
     import_3xx_4xx = .true. ! Import a JOREK model 3XX restart file into a 4XX binary
@@ -1002,7 +1003,6 @@ subroutine import_hdf5_restart(node_list, element_list, filename, format_rst, er
   call HDF5_integer_reading(file_id,n_degrees_tmp, "n_degrees")
   call HDF5_integer_reading(file_id,nref_max_tmp, "nref_max")
   call HDF5_integer_reading(file_id,n_ref_list_tmp, "n_ref_list")
-
   call HDF5_integer_reading(file_id,node_list%n_nodes,"n_nodes")
 
 
@@ -1018,7 +1018,7 @@ subroutine import_hdf5_restart(node_list, element_list, filename, format_rst, er
       stop
     end if
 
-    node_id = pert_id ! Set n_tor_tmp, n_period_tmp, n_plane_tmp, node_list%n_dof, t_values, t_deltas from perturbation
+    node_id = pert_id ! Set n_tor_tmp, n_period_tmp, n_plane_tmp, mode_tmp, node_list%n_dof, t_values, t_deltas from perturbation
 
     ! Restart file version
     rst_hdf5_version_pert = 0
@@ -1063,6 +1063,7 @@ subroutine import_hdf5_restart(node_list, element_list, filename, format_rst, er
   call HDF5_integer_reading(node_id,n_tor_tmp, "n_tor")
   call HDF5_integer_reading(node_id,n_period_tmp, "n_period")
   call HDF5_integer_reading(node_id,n_plane_tmp, "n_plane")
+  ! if perturbations are imported, n_tor_prev refers to the jorek_restart and n_tor_tmp to the jorek_perturbation
   if ( .not. import_perturbation ) then
     n_tor_prev = n_tor_tmp
   else
@@ -1087,6 +1088,7 @@ subroutine import_hdf5_restart(node_list, element_list, filename, format_rst, er
        mode_tmp(i) = int(i / 2) * n_period_tmp
     end do
 
+    ! create mode_prev, which is necessary only later, for extracting the energy histories from jorek_restart
     if ( .not. import_perturbation ) then
       mode_prev = mode_tmp
     else
@@ -1259,6 +1261,7 @@ subroutine import_hdf5_restart(node_list, element_list, filename, format_rst, er
       enddo
     end if
 
+
 #ifdef fullmhd
     node_list%node(i)%psi_eq   = t_psi_eq(i,:)
     node_list%node(i)%Fprof_eq = t_Fprof_eq(i,:)
@@ -1320,14 +1323,14 @@ subroutine import_hdf5_restart(node_list, element_list, filename, format_rst, er
     call tr_allocate(xtime,1,index_start+nstep,"xtime",CAT_UNKNOWN)
     call HDF5_array1D_reading(file_id,xtime,'xtime')
 
-    if (allocated(energies))   call tr_deallocate(energies,"energies",CAT_UNKNOWN)
-    call tr_allocate(energies,1,n_tor,1,2,1,index_start+nstep,"energies",CAT_UNKNOWN)
-    energies = 0.d0
-
     if (allocated(t_energies))   call tr_deallocate(t_energies,"t_energies",CAT_UNKNOWN)
     call tr_allocate(t_energies,1,n_tor_prev,1,2,1,index_start+nstep,"t_energies",CAT_UNKNOWN)
     t_energies = 0.d0
     call HDF5_array3D_reading(file_id,t_energies,'energies')
+
+    if (allocated(energies))   call tr_deallocate(energies,"energies",CAT_UNKNOWN)
+    call tr_allocate(energies,1,n_tor,1,2,1,index_start+nstep,"energies",CAT_UNKNOWN)
+    energies = 0.d0
 
     do m=1,n_tor_prev,2
       do k=1, n_tor,2 
@@ -1340,8 +1343,6 @@ subroutine import_hdf5_restart(node_list, element_list, filename, format_rst, er
         end if
       end do
     end do
-
-
 
     if (allocated(R_axis_t)) call tr_deallocate(R_axis_t,"R_axis_t",CAT_UNKNOWN)
     call tr_allocate(R_axis_t,1,index_start+nstep,"R_axis_t",CAT_UNKNOWN)
