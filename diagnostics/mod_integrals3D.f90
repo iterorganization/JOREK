@@ -1588,16 +1588,16 @@ do m_bndelem = 1, bnd_elm_list%n_bnd_elements
         ZK_e_par_T = ZK_e_par 
         ZK_i_par_T = ZK_i_par 
       endif
-      if (Ti0 .lt. ZK_i_prof_neg_thresh) then
+      if (T0i .lt. ZK_i_prof_neg_thresh) then
         ZK_i_prof = ZK_i_prof_neg
       end if
-      if (Ti0 .lt. ZK_i_par_neg_thresh) then
+      if (T0i .lt. ZK_i_par_neg_thresh) then
         ZK_i_par_T = ZK_i_par_neg
       endif
-      if (Te0 .lt. ZK_e_prof_neg_thresh) then
+      if (T0e .lt. ZK_e_prof_neg_thresh) then
         ZK_e_prof = ZK_e_prof_neg
       end if
-      if (Te0 .lt. ZK_e_par_neg_thresh) then
+      if (T0e .lt. ZK_e_par_neg_thresh) then
         ZK_e_par_T = ZK_e_par_neg
       endif
 #else
