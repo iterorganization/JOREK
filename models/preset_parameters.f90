@@ -130,6 +130,7 @@ subroutine preset_parameters
   SIG_private = 0.1d0
   SIG_up_priv = 0.1d0
   SIG_theta   = 0.03d0
+  SIG_theta_up= 999.d0
   SIG_leg_0   = 0.05d0
   SIG_leg_1   = 0.2d0
   SIG_up_leg_0= 0.05d0

@@ -271,6 +271,7 @@ write(*,'(1x,a)',advance='no') ' USE_BICGSTAB : '
     write(*,REAL_FMT) 'SIG_open              ', SIG_open
     write(*,REAL_FMT) 'SIG_private           ', SIG_private
     write(*,REAL_FMT) 'SIG_theta             ', SIG_theta
+    write(*,REAL_FMT) 'SIG_theta_up          ', SIG_theta_up
     write(*,REAL_FMT) 'SIG_leg_0             ', SIG_leg_0
     write(*,REAL_FMT) 'SIG_leg_1             ', SIG_leg_1
     write(*,REAL_FMT) 'SIG_outer             ', SIG_outer
