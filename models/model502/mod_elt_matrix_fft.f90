@@ -1239,7 +1239,7 @@ do ms=1, n_gauss
     !We negelect the coulomb log's dericatives due to their smallness
     dnu_e_imp_dTi   = -1.5*MASS_ELECTRON*nu_e_imp*dTi0_corr_dT / (MASS_ELECTRON*Ti0_corr + MASS_PROTON*m_imp*Te0_corr)
     dnu_e_imp_dTe   = -1.5*MASS_PROTON*m_imp*nu_e_imp*dTe0_corr_dT / (MASS_ELECTRON*Ti0_corr + MASS_PROTON*m_imp*Te0_corr) &
-                      + nu_e_imp * dZ_eff_imp_dT / Z_eff_imp
+                      + nu_e_imp * dZ_eff_imp_dT / max(Z_eff_imp,1d-8)
 
     dnu_e_imp_drhon = nu_e_imp * drn0_corr_dn / rn0_corr
     dnu_e_imp_drho  = 0.
