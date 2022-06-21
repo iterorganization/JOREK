@@ -27,7 +27,7 @@ module vacuum_equilibrium
     ! --- Local variables
     integer, parameter   :: filehandle = 60
     integer              :: file_version, n_bnd_elems, n_bnd_nodes, dim(2), err  !n_coils already defined in vacuum module
-    integer              :: i_start_pf, i_end_pf                                 !Indices for SW coils 
+    integer              :: i_start_coil, i_end_coil                                 !Indices for SW coils 
     character(len=512)   :: comment
     
     if ( sr%n_tor == 0 ) return
@@ -151,13 +151,16 @@ module vacuum_equilibrium
         write(*,*) '***************************************'
         write(*,*) ''
        
-        i_start_pf = sr%ind_start_pol_coils
-        i_end_pf   = i_start_pf + sr%n_pol_coils - 1
-      
         if ( .not. allocated(I_coils) ) then
           allocate( I_coils(sr%ncoil) )
-          I_coils(:)                =  0.d0 
-          I_coils(i_start_pf:i_end_pf) =  pf_coils(1:sr%n_pol_coils)%current 
+          I_coils(:)                =  0.d0
+          i_start_coil = sr%ind_start_pol_coils
+          i_end_coil   = i_start_coil + sr%n_pol_coils - 1
+          I_coils(i_start_coil:i_end_coil) =  pf_coils(1:sr%n_pol_coils)%current
+          
+          i_start_coil = sr%ind_start_rmp_coils
+          i_end_coil   = i_start_coil + sr%n_rmp_coils - 1
+          I_coils(i_start_coil:i_end_coil) =  rmp_coils(1:sr%n_rmp_coils)%current 
           n_coils                   =  sr%ncoil
           write(*,*) 'I_coils allocated '            
         endif

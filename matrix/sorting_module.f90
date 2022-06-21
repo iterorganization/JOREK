@@ -25,8 +25,7 @@ interface
     use iso_c_binding
     use mod_integer_types
     implicit none
-    integer(kind=C_INT_ALL), dimension(:), pointer, intent(in) :: irn, jcn
-    real(kind=C_DOUBLE), dimension(:), pointer, intent(in) :: val
+    type(C_PTR) :: irn, jcn, val
     integer(kind=C_INT_ALL), intent(in) :: n, m, indx
     integer(kind=C_INT_ALL), intent(inout) :: nnz
   end subroutine convert2csr

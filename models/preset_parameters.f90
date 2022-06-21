@@ -130,6 +130,7 @@ subroutine preset_parameters
   SIG_private = 0.1d0
   SIG_up_priv = 0.1d0
   SIG_theta   = 0.03d0
+  SIG_theta_up= 999.d0
   SIG_leg_0   = 0.05d0
   SIG_leg_1   = 0.2d0
   SIG_up_leg_0= 0.05d0
@@ -252,14 +253,18 @@ subroutine preset_parameters
   corr_neg_temp_coef(:) = (/ 0.5, 0.5 /)
   corr_neg_dens_coef(:) = (/ 0.5, 0.5 /)
 
-  eta_num       = 0.d0
-  visco_num     = 0.d0
-  visco_par_num = 0.d0
-  D_perp_num    = 0.d0
-  ZK_perp_num   = 0.d0
-  ZK_i_perp_num = 0.d0
-  ZK_e_perp_num = 0.d0
-  Dn_perp_num   = 0.d0
+  eta_num            = 0.d0
+  visco_num          = 0.d0
+  visco_par_num      = 0.d0
+  D_perp_num         = 0.d0
+  D_perp_num_tanh    = 0.d0; D_perp_num_tanh_psin    = 3.d-1; D_perp_num_tanh_sig    = 1.d-1
+  ZK_perp_num        = 0.d0
+  ZK_perp_num_tanh   = 0.d0; ZK_perp_num_tanh_psin   = 3.d-1; ZK_perp_num_tanh_sig   = 1.d-1
+  ZK_i_perp_num      = 0.d0
+  ZK_i_perp_num_tanh = 0.d0; ZK_i_perp_num_tanh_psin = 3.d-1; ZK_i_perp_num_tanh_sig = 1.d-1
+  ZK_e_perp_num      = 0.d0
+  ZK_e_perp_num_tanh = 0.d0; ZK_e_perp_num_tanh_psin = 3.d-1; ZK_e_perp_num_tanh_sig = 1.d-1
+  Dn_perp_num        = 0.d0
 
   use_sc = .false.
   visco_sc_num     = 0.d0
@@ -542,7 +547,13 @@ subroutine preset_parameters
   
   export_for_nemec   = .false.
   
-  gmres              = .true.               ! Use iterative solver
+  ! Use iterative solver by default if n_tor>1.
+  if ( n_tor == 1) then
+    gmres            = .false.
+  else
+    gmres            = .true.
+  end if
+  
   gmres_max_iter     = 200                  ! Max number of GMRES iterations
   gmres_tol          = 1.d-8                ! converge tolerance GMRES
   gmres_4            = 1.d3                 ! error estimate GMRES (ratio preconditioned versus non-preconditioned error

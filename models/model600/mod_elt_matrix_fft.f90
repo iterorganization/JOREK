@@ -89,7 +89,7 @@ real*8     :: Pi0_x_Ti,  Pi0_xx_Ti,  Pi0_y_Ti,  Pi0_yy_Ti,  Pi0_xy_Ti
 real*8     :: Pe0, Pe0_s, Pe0_t, Pe0_x, Pe0_y, Pe0_p, Pe0_ss, Pe0_st, Pe0_tt, Pe0_xx, Pe0_xy, Pe0_yy
 real*8     :: Vpar0, Vpar0_s, Vpar0_t, Vpar0_p, Vpar0_x, Vpar0_y, Vpar0_ss, Vpar0_st, Vpar0_tt, Vpar0_xx, Vpar0_yy,Vpar0_xy
 real*8     :: BigR_x, vv2, eta_T, visco_T, deta_dT, d2eta_d2T, dvisco_dT, d2visco_dT2, visco_num_T, eta_num_T, W_dia, W_dia_rho, W_dia_Ti
-real*8     :: eta_T_ohm, deta_dT_ohm,  deta_num_dT,  dvisco_num_dT
+real*8     :: eta_T_ohm, deta_dT_ohm,  deta_num_dT,  dvisco_num_dT, D_perp_num_psin, ZK_perp_num_psin, ZK_i_perp_num_psin, ZK_e_perp_num_psin
 real*8     :: Ti0_ps0_x, Ti_ps0_x, Ti0_psi_x, Ti0_ps0_y, Ti_ps0_y, Ti0_psi_y, v_ps0_x, v_psi_x, v_ps0_y, v_psi_y
 real*8     :: Te0_ps0_x, Te_ps0_x, Te0_psi_x, Te0_ps0_y, Te_ps0_y, Te0_psi_y
 
@@ -1048,11 +1048,24 @@ do i=1,n_vertex_max
 
 
           D_prof   = get_dperp (psi_norm)
+          D_perp_num_psin = D_perp_num +                                                  &
+                            D_perp_num_tanh * 0.5d0*(1.d0-                                &
+                            tanh((psi_norm-D_perp_num_tanh_psin)/D_perp_num_tanh_sig))
+
           if ( with_TiTe ) then
             ZKi_prof = get_zk_iperp(psi_norm)
             ZKe_prof = get_zk_eperp(psi_norm)
+            ZK_i_perp_num_psin = ZK_i_perp_num +                                                  &
+                                 ZK_i_perp_num_tanh * 0.5d0*(1.d0-                                &
+                                 tanh((psi_norm-ZK_i_perp_num_tanh_psin)/ZK_i_perp_num_tanh_sig))
+            ZK_e_perp_num_psin = ZK_e_perp_num +                                                  &
+                                 ZK_e_perp_num_tanh * 0.5d0*(1.d0-                                &
+                                 tanh((psi_norm-ZK_e_perp_num_tanh_psin)/ZK_e_perp_num_tanh_sig))
           else
             ZK_prof = get_zkperp(psi_norm)
+            ZK_perp_num_psin = ZK_perp_num +                                                  &
+                               ZK_perp_num_tanh * 0.5d0*(1.d0-                                &
+                               tanh((psi_norm-ZK_perp_num_tanh_psin)/ZK_perp_num_tanh_sig))
           end if
 
           ! --- Increase diffusivity if very small density/temperature
@@ -1395,7 +1408,7 @@ do i=1,n_vertex_max
                        
                        + zeta * v * delta_g(mp,var_rho,ms,mt) * BigR                              * xjac         * factor(var_rho,10)&
 
-                       - D_perp_num * (v_xx + v_x/Bigr + v_yy)*(r0_xx + r0_x/Bigr + r0_yy) * BigR * xjac * tstep * factor(var_rho,11)&
+                       - D_perp_num_psin*(v_xx + v_x/Bigr + v_yy)*(r0_xx + r0_x/Bigr + r0_yy) * BigR * xjac * tstep * factor(var_rho,11)&
 
                        - tgnum_rho * 0.25d0 * BigR**3 * (r0_x * u0_y - r0_y * u0_x)                              &
                                                     * ( v_x * u0_y - v_y * u0_x) * xjac * tstep * tstep          * factor(var_rho,12)&
@@ -1512,7 +1525,7 @@ do i=1,n_vertex_max
                               - (ZKi_par_T-ZKi_prof) * BigR / BB2 * Bgrad_T_star * Bgrad_Ti      * xjac * tstep * factor(var_Ti,5) &
                               - ZKi_prof * BigR * (v_x*Ti0_x + v_y*Ti0_y                   )     * xjac * tstep * factor(var_Ti,6) &
                               
-                              - ZK_i_perp_num  *  (v_xx + v_x/Bigr + v_yy)*(Ti0_xx + Ti0_x/Bigr + Ti0_yy) * BigR * xjac * tstep * factor(var_Ti,7) &
+                              - ZK_i_perp_num_psin*  (v_xx + v_x/Bigr + v_yy)*(Ti0_xx + Ti0_x/Bigr + Ti0_yy) * BigR * xjac * tstep * factor(var_Ti,7) &
   
                          - tgnum_Ti* 0.25d0 * BigR**3 * Ti0 * (r0_x * u0_y - r0_y * u0_x)                         &
                                             * ( v_x * u0_y - v_y * u0_x)                  * xjac * tstep * tstep  * factor(var_Ti,8)&
@@ -1573,7 +1586,7 @@ do i=1,n_vertex_max
                               - (ZKe_par_T-ZKe_prof) * BigR / BB2 * Bgrad_T_star * Bgrad_Te      * xjac * tstep * factor(var_Te,5 ) &
                               - ZKe_prof * BigR * (v_x*Te0_x + v_y*Te0_y                   )     * xjac * tstep * factor(var_Te,6 ) &
                               
-                              - ZK_e_perp_num  *  (v_xx + v_x/Bigr + v_yy)*(Te0_xx + Te0_x/Bigr + Te0_yy) * BigR * xjac * tstep * factor(var_Te,7 ) &
+                              - ZK_e_perp_num_psin*  (v_xx + v_x/Bigr + v_yy)*(Te0_xx + Te0_x/Bigr + Te0_yy) * BigR * xjac * tstep * factor(var_Te,7 ) &
 
                               + v * (gamma-1.d0) * eta_T_ohm * (zj0 / BigR)**2.d0         * BigR * xjac * tstep * factor(var_Te,9 ) &
 
@@ -1637,7 +1650,7 @@ do i=1,n_vertex_max
                              - (ZK_par_T-ZK_prof) * BigR / BB2 * Bgrad_T_star * Bgrad_T         * xjac * tstep * factor(var_T,5 ) &
                              - ZK_prof * BigR * (v_x*T0_x + v_y*T0_y                   )        * xjac * tstep * factor(var_T,6 ) &
                             
-                             - ZK_perp_num  *  (v_xx + v_x/Bigr + v_yy)*(T0_xx + T0_x/Bigr + T0_yy) * BigR * xjac * tstep * factor(var_T,7 ) &
+                             - ZK_perp_num_psin*  (v_xx + v_x/Bigr + v_yy)*(T0_xx + T0_x/Bigr + T0_yy) * BigR * xjac * tstep * factor(var_T,7 ) &
                             
                              + v * (gamma-1.d0) * eta_T_ohm * (zj0 / BigR)**2.d0         * BigR * xjac * tstep * factor(var_T,9 ) &
 
@@ -2220,7 +2233,7 @@ do i=1,n_vertex_max
                           - v * rho * rn0       * BigR * Sion_T                                         * xjac * theta * tstep &
                           + v * rho * 2.d0 * r0 * BigR * Srec_T                                         * xjac * theta * tstep &
 
-                          + D_perp_num * (v_xx + v_x/BigR + v_yy)*(rho_xx + rho_x/BigR + rho_yy)  * BigR * xjac * theta * tstep &
+                          + D_perp_num_psin*(v_xx + v_x/BigR + v_yy)*(rho_xx + rho_x/BigR + rho_yy)  * BigR * xjac * theta * tstep &
 
                           + tgnum_rho * 0.25d0 * BigR**3 * (rho_x * u0_y - rho_y * u0_x)                                &
                                                        * ( v_x  * u0_y - v_y   * u0_x) * xjac * theta * tstep * tstep &
@@ -2726,7 +2739,7 @@ do i=1,n_vertex_max
   
                               + dZKi_par_dT * Ti * BigR / BB2 * Bgrad_T_star * Bgrad_Ti       * xjac * theta * tstep &
     
-                              + ZK_i_perp_num * (v_xx + v_x/BigR + v_yy)*(Ti_xx + Ti_x/BigR + Ti_yy) * BigR * xjac * theta * tstep &
+                              + ZK_i_perp_num_psin*(v_xx + v_x/BigR + v_yy)*(Ti_xx + Ti_x/BigR + Ti_yy) * BigR * xjac * theta * tstep &
   
   !!!!                            -v * Te * (gamma-1.d0) * deta_dT_ohm * (zj0 / BigR)**2.d0 * BigR * xjac * theta * tstep &
   
@@ -2946,7 +2959,7 @@ do i=1,n_vertex_max
   
                               + dZKe_par_dT * Te * BigR / BB2 * Bgrad_T_star * Bgrad_Te       * xjac * theta * tstep &
     
-                              + ZK_e_perp_num * (v_xx + v_x/BigR + v_yy)*(Te_xx + Te_x/BigR + Te_yy) * BigR * xjac * theta * tstep &
+                              + ZK_e_perp_num_psin*(v_xx + v_x/BigR + v_yy)*(Te_xx + Te_x/BigR + Te_yy) * BigR * xjac * theta * tstep &
   
                               - v * Te * (gamma-1.d0) * deta_dT_ohm * (zj0 / BigR)**2.d0 * BigR * xjac * theta * tstep &
 
@@ -3158,7 +3171,7 @@ do i=1,n_vertex_max
                                       
                                       + dZK_par_dT * T * BigR / BB2 * Bgrad_T_star * Bgrad_T       * xjac * theta * tstep &
                                       
-                                      + ZK_perp_num * (v_xx + v_x/BigR + v_yy)*(T_xx + T_x/BigR + T_yy) * BigR * xjac * theta * tstep &
+                                      + ZK_perp_num_psin*(v_xx + v_x/BigR + v_yy)*(T_xx + T_x/BigR + T_yy) * BigR * xjac * theta * tstep &
                                       
                                       - v * T * (gamma-1.d0) * deta_dT_ohm * (zj0 / BigR)**2.d0         * BigR * xjac * theta * tstep &
   
