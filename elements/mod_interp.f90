@@ -102,12 +102,12 @@ pure subroutine interp_PRZ_1(node_list, element_list, i_elm, i_v, n_v, s, t, phi
 type (type_node_list),    intent(in)  :: node_list
 type (type_element_list), intent(in)  :: element_list
 integer,                  intent(in)  :: i_elm
-!integer,                  intent(in)  :: n_v, i_v(n_v)
-integer,                  intent(in)  :: n_v, i_v(2)
 real*8,                   intent(in)  :: s, t, phi
 #ifdef CUDA_KERNELS
+integer,                  intent(in)  :: n_v, i_v(2)
 real*8,                   intent(out) :: P(2), P_s(2), P_t(2), P_phi(2)
 #else
+integer,                  intent(in)  :: n_v, i_v(n_v)
 real*8,                   intent(out) :: P(n_v), P_s(n_v), P_t(n_v), P_phi(n_v)
 #endif
 real*8,                   intent(out) :: R, R_s, R_t, Z, Z_s, Z_t

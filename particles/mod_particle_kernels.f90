@@ -44,7 +44,7 @@ contains
 
     type(particle_group_device), managed, dimension(:), allocatable      :: particle_groups
     type(fields_linear_device), managed, allocatable                     :: fields
-    integer      :: n_groups, n_particles, tBlock_size, istat, i
+    integer      :: n_groups, n_particles, tBlock_size, ierr_sync, ierr_async, i
     real*8       :: start_time
     type(dim3)   :: grid, tBlock
 
@@ -57,12 +57,13 @@ contains
     do i = 1, n_groups
        n_particles = size( sim%groups(i)%particles,1)
        grid = dim3(ceiling(real(n_particles)/tBlock%x),1,1)
-!       start_time = MPI_Wtime()
-!       write(*,*) "Group", i," launching ",n_particles, "particles"
        call particle_kinetic_leapfrog_loop_kernel<<<grid, tBlock>>>(n_particles, particle_groups(i), fields, n_steps, timestep, particle_start_time )
-       istat = cudaDeviceSynchronize()
-       if (istat /= cudaSuccess) write(*,*) cudaGetErrorString(istat)
-!       write(*,*) "Group", i," kernel completed in ",MPI_Wtime()-start_time," s"
+       ierr_sync = cudaGetLastError()
+       ierr_async = cudaDeviceSynchronize()
+       if (ierr_sync /= cudaSuccess) write(*,*) &
+            sim%my_id, "Process. Sync kernel error:", cudaGetErrorString(ierr_sync)
+       if (ierr_async /= cudaSuccess) write(*,*) &
+            sim%my_id, "Process. Async kernel error:", cudaGetErrorString(ierr_async)
     end do
 
     call copy_managed_groups_host_groups( particle_groups, return_particle_groups )
@@ -83,15 +84,15 @@ contains
     integer                                 :: i,j
     real*8                                  :: t, E(3), B(3), psi, U
     real*8                                  :: rz_old(2), st_old(2), rz_new(2), st_new(2)
-    integer                                 :: i_elm_old, ifail
+    integer                                 :: i_elm_old, ifail, device_num, ierr
 
     i = threadIdx%x + (blockIdx%x-1) * blockDim%x
     if ( i <= n_particles ) then
-!!$       write(*,*) "+" ! simple way to count particles
+!!$       write(*,*) "+" ! simple way to count particles for debug
        call copy_particle_kinetic_leapfrog( group_particles%particles(i) , particle_tmp )
        do j=1,n_steps
           if (particle_tmp%i_elm .le. 0) then
-!             write(*,*) "-" ! simple way to count lost particles
+!!$             write(*,*) "-" ! simple way to count lost particles for debug
              exit
           endif
           t = particle_start_time + (j-1)*timestep
@@ -109,6 +110,11 @@ contains
        call copy_particle_kinetic_leapfrog( particle_tmp , group_particles%particles(i) )
     end if
 
+    if(i == 1) then
+       ierr = CudaGetDevice( device_num )
+       write(*,*) "Running on device", device_num
+    endif
+    
   end subroutine particle_kinetic_leapfrog_loop_kernel
 
   !> Set the device to use and the threadblock size
@@ -116,7 +122,7 @@ contains
     type(particle_sim), intent(inout)    :: sim
     type(dim3), intent(inout)            :: tBlock
     integer                              :: istat, n_devices, device_id
-
+    type(cudaDeviceProp) :: prop                                                                                            
 #ifdef DEBUG
     if(sim%my_id==0) call device_query()
 #endif
@@ -127,12 +133,10 @@ contains
     tBlock = dim3(256,1,1)
 
     ! Set the device to use for this process
-    device_id = mod((sim%my_id+1), n_devices)
-        
+    device_id = mod(sim%my_id,n_devices)
     istat = cudaSetDevice(device_id)
     if (istat /= cudaSuccess) write(*,*) cudaGetErrorString(istat)
-
-    write(*,*) "Proc", sim%my_id, " using device", device_id
+    write(*,*) "Proc", sim%my_id, " using device", device_id, "of ", n_devices
     
   end subroutine init_gpu
   

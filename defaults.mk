@@ -115,7 +115,7 @@ ifeq ($(COMPILER_FAMILY), pg)
   FFLAGS += -cpp
   FFLAGS += -r8
   FFLAGS += -gpu=rdc
-  FFLAGS +=-module $(MODDIR)
+  FFLAGS += -module $(MODDIR)
   LIBS += -lgfortran -lcuda -L/$(CUDA_LIB) -lcudart
 endif
 
