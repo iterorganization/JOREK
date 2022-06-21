@@ -33,9 +33,6 @@ end interface basisfunctions_T
 contains
 
 !> Subroutine which defines the basis functions in one dimension with no derivatives
-#ifdef CUDA_KERNELS
-  attributes(host,device) &
-#endif
 pure subroutine basisfunctions_1D_0(s,H)
 real*8, intent(in)  :: s          !< s-coordinate in the element (in [0,1])
 real*8, intent(out) :: H(2,2)     !< Basis functions
@@ -48,9 +45,6 @@ H(2,2)   =-3.d0*(-1.d0 + s)*s**2
 end subroutine basisfunctions_1D_0
 
 !> Subroutine which defines the basis functions in one dimension with first derivatives
-#ifdef CUDA_KERNELS
-  attributes(host,device) &
-#endif
 pure subroutine basisfunctions_1D_1(s,H,H_s)
 real*8, intent(in)  :: s          !< s-coordinate in the element (in [0,1])
 real*8, intent(out) :: H(2,2)     !< Basis functions
@@ -65,9 +59,6 @@ H_s(2,2) =-3.d0*s*(-2.d0 + 3.d0*s)
 end subroutine basisfunctions_1D_1
 
 !> Subroutine which defines the basis functions in one dimension with first and second derivatives
-#ifdef CUDA_KERNELS
-  attributes(host,device) &
-#endif
 pure subroutine basisfunctions_1D_2(s,H,H_s,H_ss)
 real*8, intent(in)  :: s          !< s-coordinate in the element (in [0,1])
 real*8, intent(out) :: H(2,2)     !< Basis functions
@@ -86,9 +77,6 @@ end subroutine basisfunctions_1D_2
 
 
 !> Basisfunctions in 2D, value only.
-#ifdef CUDA_KERNELS
-  attributes(host,device) &
-#endif
 pure subroutine basisfunctions_2D_0(s, t, H)
 implicit none
 real*8, intent(in)  :: s          !< s-coordinate in the element [0,1]
@@ -119,9 +107,6 @@ end subroutine basisfunctions_2D_0
 
 
 
-#ifdef CUDA_KERNELS
-  attributes(host,device) &
-#endif
 pure subroutine basisfunctions_2D_1(s, t, H, H_s, H_t)
 implicit none
 real*8, intent(in)  :: s          !< s-coordinate in the element [0,1]
@@ -273,9 +258,6 @@ end subroutine basisfunctions_2D_1_T
 
 
 !> Basisfunctions in 2D with first and cross-derivative
-#ifdef CUDA_KERNELS
-  attributes(host,device) &
-#endif
 pure subroutine basisfunctions_2D_1p(s,t,H,H_s,H_t,H_st)
 implicit none
 real*8, intent(in)  :: s          !< s-coordinate in the element [0,1]
@@ -423,9 +405,6 @@ end subroutine basisfunctions_2D_1p
 
 
 !> Basisfunctions with second derivatives in 2D
-#ifdef CUDA_KERNELS
-  attributes(host,device) &
-#endif
 pure subroutine basisfunctions_2D_2(s, t, H, H_s, H_t, H_st, H_ss, H_tt)
 implicit none
 real*8, intent(in)  :: s          !< s-coordinate in the element [0,1]
@@ -510,9 +489,6 @@ end subroutine basisfunctions_2D_2
 
 !> Basisfunctions with second derivatives in 2D and transposed matrix for 
 !> better vectorisation
-#ifdef CUDA_KERNELS
-  attributes(host,device) &
-#endif
 pure subroutine basisfunctions_2D_2_T(s, t, H, H_s, H_t, H_st, H_ss, H_tt)
 implicit none
 real*8, intent(in)  :: s          !< s-coordinate in the element [0,1]
@@ -595,9 +571,6 @@ H_ss(4,4)=-18.d0*(-2.d0 + 3.d0*s)*(-1.d0 + t)*t**2
 H_tt(4,4)=18.d0*(-1.d0 + s)**2*s*(1.d0 - 3.d0*t)
 end subroutine basisfunctions_2D_2_T
 
-#ifdef CUDA_KERNELS
-  attributes(host,device) &
-#endif
 pure subroutine basisfunctions3(s, t, H, H_s, H_t)
 implicit none
 

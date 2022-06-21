@@ -175,8 +175,6 @@ contains
     type(particle_group_device), managed, dimension(:), allocatable, intent(inout)  :: particle_groups
     type(fields_linear_device), managed , allocatable, intent(inout)                :: fields
 
-!    write(*,*) "Copying device data"
-
     call copy_particle_groups( sim%groups , particle_groups )
 
     call copy_fields_device( sim , fields )
