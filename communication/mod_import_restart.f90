@@ -1049,8 +1049,7 @@ subroutine import_hdf5_restart(node_list, element_list, filename, format_rst, er
 
     call HDF5_integer_reading(pert_id,jorek_model_pert,"jorek_model")
     if ( jorek_model /= jorek_model_pert .or. jorek_model /= jorek_model_tmp ) then
-      write(*,*) 'ERROR: The JOREK model of the JOREK binary, restart file and perturbation file must be identical.'
-      stop
+      write(*,*) 'WARNING: The JOREK model of the JOREK binary, restart file and perturbation file is not identical.'
     end if
 
     call HDF5_integer_reading(pert_id,n_var_pert,"n_var")
