@@ -219,7 +219,7 @@ contains
   subroutine find_RZ_nearby_device(node_list, element_list, R_old, Z_old, s_old, t_old, i_elm_old, &
        R_new, Z_new, s_new, t_new, i_elm_new, ifail)
     use data_structure
-    use mod_neighbours
+    use mod_neighbours, only: coord_in_neighbour
     use, intrinsic :: ieee_arithmetic, only: ieee_is_nan
     implicit none
     !> Input parameters

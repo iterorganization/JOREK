@@ -23,15 +23,9 @@ module phys_module
   logical :: visco_T_dependent    !< Viscosity dependent on temperature? Otherwise constant.
   real*8  :: visco_par            !< Parallel viscosity (normalized)
   real*8  :: visco_par_heating    !< Parallel viscosity used in the parallel viscous heating term (normalized)
-#ifdef CUDA_KERNELS
-  real*8, managed  :: F0                   !< Determines fixed toroidal magnetic field: \f$ B_\phi = F_0/R \f$
-  real*8, managed  :: central_density      !< particle density at the magnetic axis (in units of \f$10^{20} m^{-3}\f$)
-  real*8, managed  :: central_mass         !< average ion mass in atomic mass units (constant in time and space)
-#else
   real*8  :: F0                   !< Determines fixed toroidal magnetic field: \f$ B_\phi = F_0/R \f$
   real*8  :: central_density      !< particle density at the magnetic axis (in units of \f$10^{20} m^{-3}\f$)
   real*8  :: central_mass         !< average ion mass in atomic mass units (constant in time and space)
-#endif
   real*8  :: sqrt_mu0_rho0        !< Normalization factor \f$\sqrt(\mu_0 \rho_0)\f$ calculated from input
   real*8  :: sqrt_mu0_over_rho0   !< Normalization factor \f$\sqrt(\mu_0/\rho_0)\f$ calculated from input
   real*8  :: gamma                !< ratio of specific heat (typically 5/3)
@@ -88,7 +82,10 @@ module phys_module
   logical :: equil                !< compute equilibrium
   logical :: no_mach1_bc          !< Never apply Mach-1 BCs
   logical :: Mach1_openBC         !< Full-MHD: Apply Mach-1 BCs inside mod_boundary_matrix_open.f90 (or mod_boundary_conditions.f90)
-
+#ifdef CUDA_KERNELS
+  attributes(managed) :: F0, central_density, central_mass
+#endif
+  
   ! --- RESISTIVITY SWITCHES FOR AR AND AZ EQUATIONS
   ! --- 1.
   ! --- Default set-up is eta_ARAZ_on = .true.
@@ -296,11 +293,7 @@ module phys_module
   logical :: add_sources_in_sc    !< Whether to add effect of sources in shock-capturing stabilization or not
 
   !> @name Timestepping parameters
-#ifdef CUDA_KERNELS
-  real*8, managed  :: tstep             		!< Size of the timesteps (\f$ \Delta t \f$)
-#else
   real*8  :: tstep             		!< Size of the timesteps (\f$ \Delta t \f$)
-#endif
   real*8  :: tstep_prev                 !< Previous time-step if using variable dt Gears
   real*8  :: tstep_n(10)       		!< Alternative to tstep: Up to ten values may be given
   integer :: nstep             		!< Number of timesteps to perform
@@ -314,6 +307,10 @@ module phys_module
   real*8  :: time_evol_theta   		!< Time evolution parameter theta (see [[time-integration|time_integration]])
   real*8  :: time_evol_zeta    		!< Time evolution parameter zeta (see [[time-integration|time_integration]])
 
+#ifdef CUDA_KERNELS
+ attributes(managed) :: tstep
+#endif
+  
   integer :: rst_hdf5                   !< Write hdf5 restart files if set to 1
   integer :: rst_hdf5_version           !< Write which version of hdf5 files?
   integer, parameter :: rst_hdf5_version_supported = 2 !< What is the highest version number supported?

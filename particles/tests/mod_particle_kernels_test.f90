@@ -136,6 +136,8 @@ contains
     integer    :: np
 
     write(*,*) "test copy data"
+
+    np = n_particles_local
     
     call copy_device_data( sim , group_particles, fields )
 
@@ -534,7 +536,7 @@ contains
     real*8   :: start_time, particle_start_time, timestep, tol
     integer  :: n_steps, np, ierr
 
-    tol = 2e-11
+    tol = 5e-10
     
     write(*,*) "test_particle_kinetic_leapfrog_loop"
     
@@ -582,8 +584,8 @@ contains
     select type (particles => sim%groups(1)%particles)
     type is (particle_kinetic_leapfrog)
        !$omp parallel do default(shared) &
-       !$omp private(particle_tmp,i,j,E,B,psi,U,rz_old,st_old,i_elm_old) &
-       !$omp schedule(dynamic,10)
+       !$omp private(particle_tmp,i,j,E,B,psi,U,rz_old,st_old,i_elm_old) !&
+!       !$omp schedule(dynamic,10)
        do i=1,np
           call copy_particle_kinetic_leapfrog(particles(i),particle_tmp)            
           do j=1,n_steps

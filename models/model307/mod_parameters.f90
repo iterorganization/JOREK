@@ -40,7 +40,9 @@ module mod_parameters
   integer, parameter :: nref_max       = 10000     !< (refinement)
   integer, parameter :: n_ref_list     = 10000     !< (refinement)
 
-  !@cuf attributes(managed) :: n_order, n_tor, n_period, n_degrees, n_vertex_max, n_nodes_max, n_elements_max
+#ifdef CUDA_KERNELS
+  attributes(managed) :: n_order, n_tor, n_period, n_degrees, n_vertex_max, n_nodes_max, n_elements_max
+#endif
   
   !> Names of the physical variables
   character(len=11) :: variable_names(n_var) =                       &
