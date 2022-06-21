@@ -20,7 +20,7 @@ type (type_strategic_points), intent(inout) :: stpts
 type (type_new_points)      , intent(inout) :: nwpts
 integer,                      intent(inout) :: n_grids(12)
 integer,                      intent(in)    :: xcase
-real*8,                       intent(in)    :: sigmas(16)
+real*8,                       intent(in)    :: sigmas(17)
 type (type_node_list)       , intent(inout) :: newnode_list
 type (type_element_list)    , intent(inout) :: newelement_list
 
@@ -49,7 +49,7 @@ real*8              :: ZZg1,dZZg1_dr,dZZg1_ds,dZZg1_drs,dZZg1_drr,dZZg1_dss
 integer             :: i_elm_find(8), i_find
 real*8              :: s_find(8), t_find(8), st_find(8)
 real*8              :: diff_min
-real*8              :: SIG_theta
+real*8              :: SIG_theta, SIG_theta_up
 real*8              :: SIG_leg_0, SIG_leg_1
 real*8              :: SIG_up_leg_0, SIG_up_leg_1
 real*8              :: SIG_0, SIG_1
@@ -77,7 +77,7 @@ if(xcase .eq. DOUBLE_NULL ) then
   endif
 endif
 
-SIG_theta    = sigmas(2) 
+SIG_theta    = sigmas(2) ; SIG_theta_up = sigmas(17)
 SIG_leg_0    = sigmas(8) ; SIG_leg_1    = sigmas(9) 
 SIG_up_leg_0 = sigmas(10); SIG_up_leg_1 = sigmas(11)
 
@@ -190,16 +190,16 @@ else ! xcase == DOUBLE_NULL
     ! from 1 to n_tht_mid, and then from n_tht_mid+1 to n_tht
     if(mod(n_tht_mid,2) .eq. 0) n_tht_mid = n_tht_mid + 1
     
-    call meshac2(n_tht_mid,s_tmp, 0.d0,1.d0,SIG_theta,SIG_theta,bgf_tht,1.0d0)
-    call meshac2(n_tht_mid,s_tmp2,0.d0,1.d0,999.0,    999.0    ,bgf_tht,1.0d0)
+    call meshac2(n_tht_mid,s_tmp, 0.d0,1.d0,SIG_theta,SIG_theta_up,bgf_tht,1.0d0)
+    call meshac2(n_tht_mid,s_tmp2,0.d0,1.d0,999.0,    999.0,       bgf_tht,1.0d0)
     do j=1,n_tht_mid
       theta_sep(j) = (tht_x1-2.d0*PI) + (tht_x2-(tht_x1-2.d0*PI)) * s_tmp(j)
       theta_beg(j) = (tht_x1-2.d0*PI) + (tht_x2-(tht_x1-2.d0*PI)) * s_tmp2(j)
     enddo
   
     n_tht_mid2 = n_tht-n_tht_mid
-    call meshac2(n_tht_mid2,s_tmp, 0.d0,1.d0,SIG_theta,SIG_theta,bgf_tht,1.0d0)
-    call meshac2(n_tht_mid2,s_tmp2,0.d0,1.d0,999.0,    999.0,    bgf_tht,1.0d0)
+    call meshac2(n_tht_mid2,s_tmp, 0.d0,1.d0,SIG_theta_up,SIG_theta,bgf_tht,1.0d0)
+    call meshac2(n_tht_mid2,s_tmp2,0.d0,1.d0,999.0,    999.0,       bgf_tht,1.0d0)
     do j=n_tht_mid+1,n_tht
       theta_sep(j) = tht_x2 + (tht_x1-tht_x2) * s_tmp(j-n_tht_mid)
       theta_beg(j) = tht_x2 + (tht_x1-tht_x2) * s_tmp2(j-n_tht_mid)
@@ -209,16 +209,16 @@ else ! xcase == DOUBLE_NULL
     ! Make sure n_tht_mid is odd and save it to n_grids for later use
     if(mod(n_tht_mid,2) .eq. 0) n_tht_mid = n_tht_mid + 1
     
-    call meshac2(n_tht_mid,s_tmp, 0.d0,1.d0,SIG_theta,SIG_theta,bgf_tht,1.0d0)
-    call meshac2(n_tht_mid,s_tmp2,0.d0,1.d0,999.0,    999.0,    bgf_tht,1.0d0)
+    call meshac2(n_tht_mid,s_tmp, 0.d0,1.d0,SIG_theta_up,SIG_theta,bgf_tht,1.0d0)
+    call meshac2(n_tht_mid,s_tmp2,0.d0,1.d0,999.0,       999.0,    bgf_tht,1.0d0)
     do j=1,n_tht_mid
       theta_sep(j) = tht_x1 + (tht_x2-tht_x1) * s_tmp(j-n_tht_mid)
       theta_beg(j) = tht_x1 + (tht_x2-tht_x1) * s_tmp2(j-n_tht_mid)
     enddo
 
     n_tht_mid2 = n_tht-n_tht_mid
-    call meshac2(n_tht_mid2,s_tmp, 0.d0,1.d0,SIG_theta,SIG_theta,bgf_tht,1.0d0)
-    call meshac2(n_tht_mid2,s_tmp2,0.d0,1.d0,999.0,    999.0,    bgf_tht,1.0d0)
+    call meshac2(n_tht_mid2,s_tmp, 0.d0,1.d0,SIG_theta,SIG_theta_up,bgf_tht,1.0d0)
+    call meshac2(n_tht_mid2,s_tmp2,0.d0,1.d0,999.0,    999.0,       bgf_tht,1.0d0)
     do j=n_tht_mid+1,n_tht
       theta_sep(j) = (tht_x2-2.d0*PI) + (tht_x1-(tht_x2-2.d0*PI)) * s_tmp(j-n_tht_mid)
       theta_beg(j) = (tht_x2-2.d0*PI) + (tht_x1-(tht_x2-2.d0*PI)) * s_tmp2(j-n_tht_mid)

@@ -19,7 +19,7 @@ subroutine define_flux_values(node_list, element_list, flux_list, sep_list, xcas
   type (type_node_list),    intent(inout) :: node_list
   type (type_element_list), intent(inout) :: element_list
   integer,                  intent(in)    :: n_grids(12), xcase
-  real*8,                   intent(in)    :: sigmas(16)
+  real*8,                   intent(in)    :: sigmas(17)
   real*8,                   intent(inout) :: psi_xpoint(2)
   
   ! --- local variables

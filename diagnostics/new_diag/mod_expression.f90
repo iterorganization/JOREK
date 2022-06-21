@@ -148,7 +148,9 @@ module mod_expression
     call add(exprs_all, 'Te          ', 'Electron temperature (assuming Ti=Te)                 ')
     call add(exprs_all, 'vpar        ', 'Parallel Velocity (along magnetic field lines)        ')
     call add(exprs_all, 'eta_T       ', 'Resistivity                                           ')
+    call add(exprs_all, 'eta_num_T   ', 'Hyper-resistivity                                     ')
     call add(exprs_all, 'visco_T     ', 'Viscosity                                             ')
+    call add(exprs_all, 'visco_num_T ', 'Hyper-viscosity                                       ')
     call add(exprs_all, 'zkpar_T     ', 'Parallel Heat Diffusivity                             ')
     call add(exprs_all, 'zkipar_T    ', 'Parallel Ion Heat Diffusivity                         ')
     call add(exprs_all, 'zkepar_T    ', 'Parallel ElectronHeat Diffusivity                     ')
@@ -573,7 +575,7 @@ module mod_expression
       AR0_RR, AZ0_RR, AZ0_ZZ, A30_Rp, A30_Zp, AR0_RZ, AZ0_RZ, AR0_Zp, AZ0_Rp, A30_RZ, BR_p, BZ_p,  &
       BP_Z, BP_R, BR_R, BZ_Z, B_R, B_Z, Kappa_R, Kappa_Z, Kappa_phi
     real*8  :: eta_T, deta_dT, d2eta_d2T, visco_T, dvisco_dT, D_prof, ZK_prof, ZKi_prof, ZKe_prof, &
-      ZKpar_T, dZKpar_dT, ZKi_par_T, dZKi_par_dT, ZKe_par_T, dZKe_par_dT
+      ZKpar_T, dZKpar_dT, ZKi_par_T, dZKi_par_dT, ZKe_par_T, dZKe_par_dT, eta_num_T, visco_num_T
     real*8 :: Ti0, Ti0_s, Ti0_t, Ti0_st, Ti0_ss, Ti0_tt, Ti0_p, Ti0_pp, Te0, Te0_s, Te0_t, Te0_st, &
       Te0_ss, Te0_tt, Te0_p, Te0_pp, Ti0_R, Ti0_Z, Te0_R, Te0_Z, Er, Vtheta, Mach_par, Mach_pol,   &
       Vsound, Vneo, Vperp_e, Vperp_i, V_ExB, Vstar_e, Vstar_i, mu_neo, ki_neo, J_boot, Te0_eV,     &
@@ -1309,6 +1311,42 @@ module mod_expression
             visco_T   = visco
             dvisco_dT = 0.d0
           end if
+        
+          ! --- Hyper-resistivity
+          if ( eta_num_psin_dependent ) then
+            eta_num_T = eta_num * 0.5d0 * ( 1.d0 - tanh( (psi_norm-eta_num_prof(1))/eta_num_prof(2)) )      
+          else if ( eta_num_T_dependent ) then
+            if ( with_TiTe) then ! (with_TiTe) *****************************************************
+              eta_num_T     = eta_num   * (Te0/Te_0)**(-3.d0)
+              if (Te0 .lt. T_min) then
+                eta_num_T   = eta_num   * (max(Te0,T_min)/Te_0)**(-3.d0)
+              endif
+            else !(with_TiTe), i.e. with single temperature ***************************************
+              eta_num_T     = eta_num   * (T0/T_0)**(-3.d0)
+              if (T0 .lt. T_min) then
+                eta_num_T   = eta_num   * (max(T0,T_min)/T_0)**(-3.d0)
+              endif
+            end if 
+          else
+            eta_num_T     = eta_num
+          end if
+          
+          ! --- Temperature dependent hyper-viscosity
+          if ( visco_num_T_dependent ) then
+            if ( with_TiTe) then ! (with_TiTe) *****************************************************
+              visco_num_T     = visco_num   * (Te0/Te_0)**(-3.d0)
+              if (Te0 .lt. T_min) then
+                visco_num_T   = visco_num   * (max(Te0,T_min)/Te_0)**(-3.d0)
+              endif
+            else !(with_TiTe), i.e. with single temperature ***************************************
+              visco_num_T     = visco_num   * (T0/T_0)**(-3.d0)
+              if (T0 .lt. T_min) then
+                visco_num_T   = visco_num   * (max(T0,T_min)/T_0)**(-3.d0)
+              endif
+            end if
+          else
+            visco_num_T     = visco_num
+          end if
           
           if ( with_TiTe ) then ! (with_TiTe) ******************************************************
             if ( ZKpar_T_dependent ) then
@@ -1705,7 +1743,13 @@ module mod_expression
                 
               case ( 'visco_T' )
                 res = visco_t / fact_resistiv
-                  
+                
+              case ( 'eta_num_T' )
+                res = eta_num_t * fact_resistiv
+                
+              case ( 'visco_num_T' )
+                res = visco_num_t / fact_resistiv
+                
               case ( 'zkpar_T' )
                 res = zkpar_t / fact_time
                 
