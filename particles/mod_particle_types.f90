@@ -20,10 +20,18 @@ module mod_particle_types
   type, abstract :: particle_base
     real*8    :: x(3)             !< particle position in real space
     real*8    :: st(2)            !< particle position in the element
-    real*8    :: weight     !< weight (i.e. number of particles)
-    integer*4 :: i_elm        !< index in element_list. Negative indices indicate lost particles on the edge of - that element.
-    integer*4 :: i_life       !< particle lifetime index (i.e. is this still the same particle?)
-    real*4    :: t_birth    !< birth time of this particle
+! CUDA kernels cannot handle initialisation of variables at declaration
+#ifdef CUDA_KERNELS
+    real*8    :: weight           !< weight (i.e. number of particles)
+    integer*4 :: i_elm            !< index in element_list. Negative indices indicate lost particles on the edge of - that element.
+    integer*4 :: i_life           !< particle lifetime index (i.e. is this still the same particle?)
+    real*4    :: t_birth          !< birth time of this particle
+#else
+    real*8    :: weight = 1.0     !< weight (i.e. number of particles)
+    integer*4 :: i_elm = 0        !< index in element_list. Negative indices indicate lost particles on the edge of - that element.
+    integer*4 :: i_life = 0       !< particle lifetime index (i.e. is this still the same particle?)
+    real*4    :: t_birth = 0.0    !< birth time of this particle
+#endif
     !< zero means lost without location specification.
   contains
     procedure :: copy => copy_particle
@@ -74,8 +82,14 @@ module mod_particle_types
   !> and are therefore incompatible with normal kinetic methods (but a conversion
   !> function should not be too difficult)
   type, extends(particle_base) :: particle_kinetic_leapfrog
+! CUDA kernels cannot handle initialisation of variables at declaration
+#ifdef CUDA_KERNELS
     real*8, dimension(3) :: v !< Velocity [m/s] at t=t^(n-1/2) (where the position is known at t^n)
     integer*1            :: q !< charge [e]
+#else
+    real*8, dimension(3) :: v = 0.d0 !< Velocity [m/s] at t=t^(n-1/2) (where the position is known at t^n)
+    integer*1            :: q = 0_1  !< charge [e]
+#endif
   end type particle_kinetic_leapfrog
 
   !> This particle type is used for computing the full orbit trajectory

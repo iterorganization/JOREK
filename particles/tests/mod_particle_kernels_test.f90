@@ -584,8 +584,8 @@ contains
     select type (particles => sim%groups(1)%particles)
     type is (particle_kinetic_leapfrog)
        !$omp parallel do default(shared) &
-       !$omp private(particle_tmp,i,j,E,B,psi,U,rz_old,st_old,i_elm_old) !&
-!       !$omp schedule(dynamic,10)
+       !$omp private(particle_tmp,i,j,E,B,psi,U,rz_old,st_old,i_elm_old) &
+       !$omp schedule(dynamic,10)
        do i=1,np
           call copy_particle_kinetic_leapfrog(particles(i),particle_tmp)            
           do j=1,n_steps
