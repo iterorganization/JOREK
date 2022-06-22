@@ -109,8 +109,8 @@ endif
 
 # Default flags for nvidia/portland - for kernels
 ifeq ($(COMPILER_FAMILY), pg)
-  FFLAGS += -O2
-  FLAGS += -cuda -fortranlibs -g77libs -mp -mp=gpu
+  FFLAGS += -O2 -fast
+  FLAGS += -cuda -fortranlibs -g77libs -mp=gpu
   FFLAGS += -Minfo=mp
   FFLAGS += -cpp
   FFLAGS += -r8

@@ -110,10 +110,10 @@ contains
        call copy_particle_kinetic_leapfrog( particle_tmp , group_particles%particles(i) )
     end if
 
-    if(i == 1) then
-       ierr = CudaGetDevice( device_num )
-       write(*,*) "Running on device", device_num
-    endif
+!!$    if(i == 1) then
+!!$       ierr = CudaGetDevice( device_num )
+!!$       write(*,*) "Running on device", device_num
+!!$    endif
     
   end subroutine particle_kinetic_leapfrog_loop_kernel
 
