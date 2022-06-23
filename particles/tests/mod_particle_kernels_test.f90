@@ -109,7 +109,9 @@ contains
     timesteps          = 1e-10
 
     n_particles_local = int(n_particles/sim_in%n_cpu) 
+
     write(*,*) "Running tests with ",sim_in%n_cpu,"processes, ", n_particles ,"total particles"
+
     allocate(particle_kinetic_leapfrog::sim_in%groups(1)%particles(n_particles_local))
 
     select type (p => sim_in%groups(1)%particles)
@@ -431,11 +433,14 @@ contains
     !> CPU test
     call run_find_rz_nearby_CPU(CPU_data)
 
-
     !> Assert
     call assert_equals(CPU_data(:),GPU_data(:),np,& 
          "Error find_rz_nearby: element index mismatch")
 
+    do i = 1, np
+       sim%groups(1)%particles(i)%i_elm = sim%groups(1)%particles(i)%i_elm - 1
+    end do
+    
     write(*,*) "test complete"
 
   end subroutine test_find_rz_nearby
@@ -554,15 +559,16 @@ contains
     write(*,*) "Proc ",sim%my_id, "GPU full loop completed in ",MPI_Wtime()-start_time," s"
 
     start_time = MPI_Wtime()
-!    call run_particle_kinetic_leapfrog_loop_CPU( n_steps, timestep, particle_start_time )
+    call run_particle_kinetic_leapfrog_loop_CPU( n_steps, timestep, particle_start_time )
     write(*,*) "Threaded full loop completed in ",MPI_Wtime()-start_time," s"
 
-!!$    call set_tol(tol)
-!!$    call assert_equal_rel_error_particle(np,sim%groups(1)%particles,group_particles(1)%particles)
-!!$    call reset_tol_real8()
-!!$    call MPI_Barrier(MPI_COMM_WORLD, ierr)
+    call set_tol(tol)
+    call assert_equal_rel_error_particle(np,sim%groups(1)%particles,group_particles(1)%particles)
+    call reset_tol_real8()
+    call MPI_Barrier(MPI_COMM_WORLD, ierr)
 
     deallocate( group_particles(1)%particles )
+    deallocate( group_particles )
     
     write(*,*) "test complete"
 
