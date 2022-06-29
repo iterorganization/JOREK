@@ -610,9 +610,10 @@ if (my_id .eq. 0) then
   call MPI_PACK(newton_alpha           ,1,MPI_REAL8  ,buffer,bufsize,position,MPI_COMM_WORLD,ierr)
   call MPI_PACK(newton_eps_a           ,1,MPI_REAL8  ,buffer,bufsize,position,MPI_COMM_WORLD,ierr)
   call MPI_PACK(newton_eps_r           ,1,MPI_REAL8  ,buffer,bufsize,position,MPI_COMM_WORLD,ierr)
+  call MPI_PACK(newton_eps_0           ,1,MPI_REAL8  ,buffer,bufsize,position,MPI_COMM_WORLD,ierr) 
   call MPI_PACK(newton_max_iter        ,1,MPI_INTEGER,buffer,bufsize,position,MPI_COMM_WORLD,ierr)
   call MPI_PACK(newton_eps_gmres       ,1,MPI_REAL8  ,buffer,bufsize,position,MPI_COMM_WORLD,ierr)
-  
+ 
   call MPI_PACK(xcase,                  1,MPI_INTEGER,buffer,bufsize,position,MPI_COMM_WORLD,ierr)
   call MPI_PACK(SDN_threshold,          1,MPI_REAL8,buffer,bufsize,position,MPI_COMM_WORLD,ierr)
   call MPI_PACK(n_limiter,              1,MPI_INTEGER,buffer,bufsize,position,MPI_COMM_WORLD,ierr)
@@ -1371,6 +1372,7 @@ if (my_id .ne. 0) then
   call MPI_UNPACK(buffer,bufsize,position,newton_alpha           ,1,MPI_REAL8  ,MPI_COMM_WORLD,ierr)
   call MPI_UNPACK(buffer,bufsize,position,newton_eps_a           ,1,MPI_REAL8  ,MPI_COMM_WORLD,ierr)
   call MPI_UNPACK(buffer,bufsize,position,newton_eps_r           ,1,MPI_REAL8  ,MPI_COMM_WORLD,ierr)
+  call MPI_UNPACK(buffer,bufsize,position,newton_eps_0           ,1,MPI_REAL8  ,MPI_COMM_WORLD,ierr)
   call MPI_UNPACK(buffer,bufsize,position,newton_max_iter        ,1,MPI_INTEGER,MPI_COMM_WORLD,ierr)
   call MPI_UNPACK(buffer,bufsize,position,newton_eps_gmres       ,1,MPI_REAL8  ,MPI_COMM_WORLD,ierr)
 

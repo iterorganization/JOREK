@@ -172,6 +172,13 @@ write(*,'(1x,a)',advance='no') ' USE_BICGSTAB : '
   write(*,*) 'off'
 #endif
 
+write(*,'(1x,a)',advance='no') ' USE_NEWTON : '
+#ifdef USE_NEWTON
+  write(*,*) 'on'
+#else
+  write(*,*) 'off'
+#endif
+
   write(*,*)
   write(*,200)
   write(*,*) '* Hard-Coded Parameters:                                                      *'
@@ -759,7 +766,8 @@ write(*,'(1x,a)',advance='no') ' USE_BICGSTAB : '
   write(*,REAL_FMT) 'newton_gamma          ', newton_gamma    
   write(*,REAL_FMT) 'newton_alpha          ', newton_alpha    
   write(*,REAL_FMT) 'newton_eps_a          ', newton_eps_a    
-  write(*,REAL_FMT) 'newton_eps_r          ', newton_eps_r    
+  write(*,REAL_FMT) 'newton_eps_r          ', newton_eps_r
+  write(*,REAL_FMT) 'newton_eps_0          ', newton_eps_0    
   write(*,INTG_FMT) 'newton_max_iter       ', newton_max_iter 
   write(*,REAL_FMT) 'newton_eps_gmres      ', newton_eps_gmres
 !#endif

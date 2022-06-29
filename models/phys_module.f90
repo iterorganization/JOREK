@@ -885,6 +885,7 @@ module phys_module
   real*8  :: newton_alpha          !< alpha for eps_k, i.e. eps^k=gamma*(|R(U_k,U^n)|/|R(U_k-1, U^n)|)**alpha
   real*8  :: newton_eps_a          !< abs. conv. criterion, i.e. |R(U_k,U^n)|<newton_eps_a+newton_eps_r*|R(U^n)|
   real*8  :: newton_eps_r          !< rel. conv. criterion, i.e. |R(U_k,U^n)|<newton_eps_a+newton_eps_r*|R(U^n)|
+  real*8  :: newton_eps_0          !< solver tol. for the newton initial step
   integer :: newton_max_iter       !< max. numer of newton iterations
   real*8  :: newton_eps_gmres      !< alternative to eps_k, i.e. gmres_tol = min(eps_k, newton_eps_gmres)
 
