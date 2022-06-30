@@ -213,6 +213,8 @@ contains
   !! extremely slow but works for all positions in the domain.
   !! In that case, ifail=2:5 is returned.
   !! If ifail=-1 the particle is lost
+  !> This is declared as device and not (host,device) as the nvidia compiler reports a conflict between the ieee_isnan
+  !> function for device and host code
 #ifdef CUDA_KERNELS
   attributes(device) &
 #endif

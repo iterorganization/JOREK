@@ -1,3 +1,4 @@
+!> Tests for the CUDA kernel particle algorithms
 #ifdef CUDA_KERNELS
 module mod_particle_kernels_test
   use fruit
@@ -22,10 +23,10 @@ contains
       write(*,'(/A)') "  ... setting-up: particle kernels tests"
       call setup
       write(*,'(/A)') "  ... running: particle kernels tests"
-      call test_copy_data
-      call test_calc_ebpsiu_device
-      call test_boris_push_cylindrical
-      call test_find_rz_nearby
+!      call test_copy_data
+!      call test_calc_ebpsiu_device
+!      call test_boris_push_cylindrical
+!      call test_find_rz_nearby
       call test_particle_kinetic_leapfrog_loop
       write(*,'(/A)') "  ... tearing-down: particle kernels tests"
       call teardown
@@ -34,7 +35,8 @@ contains
   !> Set-up and tear-down -------------------------
   !> set-up particle types test features
   subroutine setup()
-
+    integer :: ierr
+    
     !> Initialise a particle sim, we shouldn't need this but it is an easy way to set
     !> up the fields that we do need. We will ignore the particle group within the sim.
     call sim%initialize(num_groups=1)
@@ -47,6 +49,8 @@ contains
     !> Set up particles using the H_mu_psi initialisation - this is not ideal but sufficient
     call init_particles(sim)
 
+    call MPI_Barrier(MPI_COMM_WORLD,ierr)
+    
   end subroutine setup
 
   subroutine teardown()
@@ -82,7 +86,7 @@ contains
     call broadcast_boundary(sim_in%my_id, bnd_elm_list, bnd_node_list)
     
     call update_equil_state(sim_in%my_id, sim_in%fields%node_list, sim_in%fields%element_list, bnd_elm_list, xpoint, xcase)
-    
+
   end subroutine init_fields
 
 
@@ -162,17 +166,18 @@ contains
     !> variables
     real*8, dimension(8,n_particles_local) :: CPU_data, GPU_data
     real*8,parameter  :: tol_interp=7.5d-12      
-    integer :: np
-    write(*,*) "test_calc_EBpsiU_device"
+    integer :: np, ierr
+    call MPI_Barrier(MPI_COMM_WORLD, ierr)
+    write(*,*) sim%my_id,"test_calc_EBpsiU_device"
 
     np = n_particles_local
 
     !> CPU test
     call run_calc_EBpsiU_CPU(CPU_data)
-
+    call MPI_Barrier(MPI_COMM_WORLD, ierr)
     !> GPU test
     call run_calc_EBpsiU_GPU(GPU_data)
-
+    call MPI_Barrier(MPI_COMM_WORLD, ierr)
     !> Assert
     call assert_equals(GPU_data(1,:),CPU_data(1,:),np,tol_interp,& 
          "Error calc_EBpsiU field interpolation: E direction 1 mismatch")
@@ -191,7 +196,7 @@ contains
     call assert_equals(GPU_data(8,:),CPU_data(8,:),np,tol_interp,& 
          "Error calc_EBpsiU field interpolation: U mismatch")
 
-    write(*,*) "test complete"
+    write(*,*) sim%my_id,"test complete"
 
   end subroutine test_calc_EBpsiU_device
 
@@ -234,31 +239,42 @@ contains
     type(particle_group_device), managed, dimension(:), allocatable      :: particle_groups
     type(fields_linear_device), managed, allocatable                     :: fields
     real*8, device, dimension(:,:), allocatable                          :: data_d      
-    integer      :: istat, np
+    integer      :: istat, ierr_async, ierr_sync, np
     type(dim3)   :: grid, tBlock
-    
-    ! Set the device to use for this process 
-    istat = cudaSetDevice(sim%my_id)
-    if (istat /= cudaSuccess) write(*,*) cudaGetErrorString(istat)
 
-    allocate(data_d(8,n_particles_local))
+!    write(*,*) sim%my_id, "calc_gpu"
+    ! Set the device to use for this process 
+!    istat = cudaSetDevice(sim%my_id)
+!    if (istat /= cudaSuccess) write(*,*) cudaGetErrorString(istat)
+    call init_gpu( sim, tBlock)
     
+    allocate(data_d(8,n_particles_local))
+!    write(*,*) sim%my_id, "allocated data_d"
     ! Copy the data
     call copy_device_data( sim , particle_groups , fields )
-
+!    write(*,*) sim%my_id, "copied data"
     ! Launch the kernel
     np = n_particles_local
-    tBlock = dim3(256,1,1)
+!    tBlock = dim3(256,1,1)
     grid = dim3(ceiling(real(np)/tBlock%x),1,1)
     call run_calc_EBpsiU_kernel<<<grid, tBlock>>>(np, particle_groups(1), fields, data_d)
-    istat = cudaDeviceSynchronize()
-    if (istat /= cudaSuccess) write(*,*) cudaGetErrorString(istat)
+    ierr_sync = cudaGetLastError()  
+    ierr_async = cudaDeviceSynchronize() 
+    if (ierr_sync /= cudaSuccess) write(*,*) &
+         sim%my_id, "Process. Sync kernel error:", cudaGetErrorString(ierr_sync)
+    if (ierr_async /= cudaSuccess) write(*,*) &
+         sim%my_id, "Process. Async kernel error:", cudaGetErrorString(ierr_async)
+!    write(*,*) sim%my_id, "finished kernel"
+!    istat = cudaDeviceSynchronize()
+!    if (istat /= cudaSuccess) write(*,*) cudaGetErrorString(istat)
 
     !> retrieve the data
     data = data_d
+!    write(*,*) sim%my_id, "retrieved data"
     deallocate(data_d)
     call delete_device_data( particle_groups, fields )
     
+
   end subroutine run_calc_EBpsiU_GPU
 
   !> kernel for running calc_EBpsiU on GPUs
@@ -292,7 +308,7 @@ contains
 
     type(particle_group), dimension(:), allocatable :: group_particles 
     real*8   :: start_time, particle_start_time, timestep
-    integer  :: n_steps, np
+    integer  :: n_steps, np, ierr
 
     write(*,*) "test_boris_push_cylindrical"
     
@@ -300,9 +316,9 @@ contains
     n_steps = 1
     timestep = 1e-10
     
-    start_time = MPI_Wtime()
     call run_boris_push_cylindrical_GPU( n_steps , timestep , particle_start_time , group_particles )
-
+    call MPI_BARRIER(MPI_COMM_WORLD,IERR)
+!    write(*,*) "Finished boris cylindrical gpu"
     call run_boris_push_cylindrical_CPU( n_steps, timestep , particle_start_time )
 
     np = n_particles_local
@@ -363,25 +379,31 @@ contains
     real*8, device, dimension(:,:), allocatable                          :: data_d      
     integer      :: istat, np
     type(dim3)   :: grid, tBlock
+
+!    write(*,*) sim%my_id,"Initialising boris_gpu"
     
     ! Set the device to use for this process 
-    istat = cudaSetDevice(sim%my_id)
-    if (istat /= cudaSuccess) write(*,*) cudaGetErrorString(istat)
-
+!    istat = cudaSetDevice(sim%my_id)
+!    if (istat /= cudaSuccess) write(*,*) cudaGetErrorString(istat)
+    call init_gpu( sim, tBlock)
+!    write(*,*) sim%my_id,"Copying data"
     ! Copy the data
     call copy_device_data( sim , particle_groups , fields )
 
     ! Launch the kernel
+!    write(*,*) sim%my_id,"Launching kernel"
     np = n_particles_local
-    tBlock = dim3(256,1,1)
+!    tBlock = dim3(256,1,1)
     grid = dim3(ceiling(real(np)/tBlock%x),1,1)
     call run_boris_push_cylindrical_kernel<<<grid, tBlock>>>(np, particle_groups(1), fields, n_steps , timestep , particle_start_time)
     istat = cudaDeviceSynchronize()
     if (istat /= cudaSuccess) write(*,*) cudaGetErrorString(istat)
-
+!    write(*,*) sim%my_id,"Finished kernel"
     call copy_managed_groups_host_groups( particle_groups, return_particle_groups )
-
+!    write(*,*) sim%my_id,"Copy particles"
+    
     call delete_device_data( particle_groups, fields )
+ !   write(*,*) sim%my_id,"deleted data"
     
   end subroutine run_boris_push_cylindrical_GPU
 
@@ -403,12 +425,11 @@ contains
     i = threadIdx%x + (blockIdx%x-1) * blockDim%x 
     if ( i <= np ) then
        call copy_particle_kinetic_leapfrog( group_particles%particles(i) , particle_tmp )
-!       write(*,*) "pushing",i,particle_tmp%x(1),particle_tmp%x(2),particle_tmp%x(3)
        if (particle_tmp%i_elm .gt. 0) then
           call calc_EBpsiU_device(fields, t, particle_tmp%i_elm, particle_tmp%st, particle_tmp%x(3), E, B, psi, U)
           call boris_push_cylindrical(particle_tmp, group_particles%mass, E, B, timestep)
+!          call boris_push_cylindrical(particle_tmp, mass, E, B, timestep)
        endif
-!       write(*,*) "pushed",i,particle_tmp%x(1),particle_tmp%x(2),particle_tmp%x(3)
        call copy_particle_kinetic_leapfrog( particle_tmp, group_particles%particles(i) )
     endif
     
@@ -482,9 +503,10 @@ contains
     type(dim3)   :: grid, tBlock
     
     ! Set the device to use for this process 
-    istat = cudaSetDevice(sim%my_id)
-    if (istat /= cudaSuccess) write(*,*) cudaGetErrorString(istat)
-
+!    istat = cudaSetDevice(sim%my_id)
+!    if (istat /= cudaSuccess) write(*,*) cudaGetErrorString(istat)
+    call init_gpu( sim, tBlock)
+    
     allocate(data_d(n_particles_local))
     
     ! Copy the data
@@ -492,7 +514,7 @@ contains
 
     ! Launch the kernel
     np = n_particles_local
-    tBlock = dim3(256,1,1)
+!    tBlock = dim3(256,1,1)
     grid = dim3(ceiling(real(np)/tBlock%x),1,1)
     call run_find_rz_nearby_kernel<<<grid, tBlock>>>(np, particle_groups(1), fields, data_d)
     ierrSync = cudaGetLastError()
@@ -546,7 +568,7 @@ contains
 
     tol = 5e-10
     
-    write(*,*) "test_particle_kinetic_leapfrog_loop"
+    write(*,*) "test_particle_kinetic_leapfrog_loop", n_steps
     
     particle_start_time = 0
     n_steps = 1000
@@ -562,11 +584,14 @@ contains
     call run_particle_kinetic_leapfrog_loop_CPU( n_steps, timestep, particle_start_time )
     write(*,*) "Threaded full loop completed in ",MPI_Wtime()-start_time," s"
 
-    call set_tol(tol)
-    call assert_equal_rel_error_particle(np,sim%groups(1)%particles,group_particles(1)%particles)
-    call reset_tol_real8()
-    call MPI_Barrier(MPI_COMM_WORLD, ierr)
+!    if(sim%my_id == 1) then
+       call set_tol(tol)
+       call assert_equal_rel_error_particle(np,sim%groups(1)%particles,group_particles(1)%particles)
+       call reset_tol_real8()
+!    endif
 
+    call MPI_Barrier(MPI_COMM_WORLD, ierr)
+    
     deallocate( group_particles(1)%particles )
     deallocate( group_particles )
     
@@ -575,7 +600,7 @@ contains
   end subroutine test_particle_kinetic_leapfrog_loop
 
   subroutine run_particle_kinetic_leapfrog_loop_CPU(n_steps, timestep, particle_start_time )
-
+    use phys_module, only: F0, tstep
     use mpi
     use omp_lib
     use mod_find_rz_nearby, only: find_rz_nearby
@@ -588,13 +613,15 @@ contains
     type(particle_kinetic_leapfrog)          :: particle_tmp
     integer                                  :: np, i, j, ifail, i_elm_old
     real*8                                   :: t, rz_old(2), st_old(2), E(3), B(3), psi, U, start_time
+
+!    write(*,*) "CPU, F0,tstep=",F0,tstep
     
     np = size(sim%groups(1)%particles,1)
     select type (particles => sim%groups(1)%particles)
     type is (particle_kinetic_leapfrog)
-       !$omp parallel default(shared) &
-       !$omp private(particle_tmp,i,j,E,B,psi,U,rz_old,st_old,i_elm_old,ifail) 
-       !$omp do ! schedule(dynamic,10)
+!!$       !$omp parallel default(shared) &
+!!$       !$omp private(particle_tmp,i,j,E,B,psi,U,rz_old,st_old,i_elm_old,ifail) 
+!!$       !$omp do ! schedule(dynamic,10)
        do i=1,np
           call copy_particle_kinetic_leapfrog(particles(i),particle_tmp)            
           do j=1,n_steps
@@ -611,10 +638,10 @@ contains
                      particle_tmp%st(2), particle_tmp%i_elm, ifail)                  
              endif
           end do
-          call copy_particle_kinetic_leapfrog(particle_tmp,particles(i))            
+          call copy_particle_kinetic_leapfrog(particle_tmp,particles(i))
        enddo
-       !$omp end do
-       !$omp end parallel
+!!$       !$omp end do
+!!$       !$omp end parallel
     end select
     
   end subroutine run_particle_kinetic_leapfrog_loop_CPU
