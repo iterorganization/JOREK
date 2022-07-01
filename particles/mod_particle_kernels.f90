@@ -20,10 +20,10 @@ module mod_particle_kernels
      logical, managed                    :: flag_zero_dpsidt !< if true, P_time(1) = dpsi/dt = 0
      real*8, managed                     :: time_now         !< Time of current restart file (SI units)
      real*8, managed                     :: time_prev        !< Time of previous restart file (SI units)
-     real*8, managed                     :: central_mass
-     real*8, managed                     :: central_density
-     real*8, managed                     :: F0
-     real*8, managed                     :: tstep
+     real*8, managed                     :: central_mass     !> The following are from phys_module
+     real*8, managed                     :: central_density  !> although setting them as managed in phys_module 
+     real*8, managed                     :: F0               !> works for a single GPU it does not for
+     real*8, managed                     :: tstep            !> multiple GPUs. Prefetching does not seem to fix this
   end type fields_linear_device
 
   !> Partial replication of particle group type avoinding polymorphism for use in the kernels

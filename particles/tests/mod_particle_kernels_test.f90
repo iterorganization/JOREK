@@ -23,10 +23,10 @@ contains
       write(*,'(/A)') "  ... setting-up: particle kernels tests"
       call setup
       write(*,'(/A)') "  ... running: particle kernels tests"
-!      call test_copy_data
-!      call test_calc_ebpsiu_device
-!      call test_boris_push_cylindrical
-!      call test_find_rz_nearby
+      call test_copy_data
+      call test_calc_ebpsiu_device
+      call test_boris_push_cylindrical
+      call test_find_rz_nearby
       call test_particle_kinetic_leapfrog_loop
       write(*,'(/A)') "  ... tearing-down: particle kernels tests"
       call teardown
@@ -165,7 +165,7 @@ contains
   subroutine test_calc_EBpsiU_device()
     !> variables
     real*8, dimension(8,n_particles_local) :: CPU_data, GPU_data
-    real*8,parameter  :: tol_interp=7.5d-12      
+    real*8,parameter  :: tol_interp=7.5d-12
     integer :: np, ierr
     call MPI_Barrier(MPI_COMM_WORLD, ierr)
     write(*,*) sim%my_id,"test_calc_EBpsiU_device"
@@ -179,21 +179,21 @@ contains
     call run_calc_EBpsiU_GPU(GPU_data)
     call MPI_Barrier(MPI_COMM_WORLD, ierr)
     !> Assert
-    call assert_equals(GPU_data(1,:),CPU_data(1,:),np,tol_interp,& 
+    call assert_equals(CPU_data(1,:),GPU_data(1,:),np,tol_interp,& 
          "Error calc_EBpsiU field interpolation: E direction 1 mismatch")
-    call assert_equals(GPU_data(2,:),CPU_data(2,:),np,tol_interp,& 
+    call assert_equals(CPU_data(2,:),GPU_data(2,:),np,tol_interp,& 
          "Error calc_EBpsiU field interpolation: E direction 2 mismatch")
-    call assert_equals(GPU_data(3,:),CPU_data(3,:),np,tol_interp,& 
+    call assert_equals(CPU_data(3,:),GPU_data(3,:),np,tol_interp,& 
          "Error calc_EBpsiU field interpolation: E direction 3 mismatch")
-    call assert_equals(GPU_data(4,:),CPU_data(4,:),np,tol_interp,& 
+    call assert_equals(CPU_data(4,:),GPU_data(4,:),np,tol_interp,& 
          "Error calc_EBpsiU field interpolation: B direction 1 mismatch")
-    call assert_equals(GPU_data(5,:),CPU_data(5,:),np,tol_interp,& 
+    call assert_equals(CPU_data(5,:),GPU_data(5,:),np,tol_interp,& 
          "Error calc_EBpsiU field interpolation: B direction 2 mismatch")
-    call assert_equals(GPU_data(6,:),CPU_data(6,:),np,tol_interp,& 
+    call assert_equals(CPU_data(6,:),GPU_data(6,:),np,tol_interp,& 
          "Error calc_EBpsiU field interpolation: B direction 3 mismatch")
-    call assert_equals(GPU_data(7,:),CPU_data(7,:),np,tol_interp,& 
+    call assert_equals(CPU_data(7,:),GPU_data(7,:),np,tol_interp,& 
          "Error calc_EBpsiU field interpolation: psi mismatch")
-    call assert_equals(GPU_data(8,:),CPU_data(8,:),np,tol_interp,& 
+    call assert_equals(CPU_data(8,:),GPU_data(8,:),np,tol_interp,& 
          "Error calc_EBpsiU field interpolation: U mismatch")
 
     write(*,*) sim%my_id,"test complete"
@@ -238,7 +238,7 @@ contains
 
     type(particle_group_device), managed, dimension(:), allocatable      :: particle_groups
     type(fields_linear_device), managed, allocatable                     :: fields
-    real*8, device, dimension(:,:), allocatable                          :: data_d      
+    real*8, managed, dimension(:,:), allocatable                         :: data_d      
     integer      :: istat, ierr_async, ierr_sync, np
     type(dim3)   :: grid, tBlock
 
@@ -248,7 +248,8 @@ contains
 !    if (istat /= cudaSuccess) write(*,*) cudaGetErrorString(istat)
     call init_gpu( sim, tBlock)
     
-    allocate(data_d(8,n_particles_local))
+    allocate(data_d(8,n_particles_local),stat=istat)
+    if(istat /= 0) write(*,*) "Error allocating data"
 !    write(*,*) sim%my_id, "allocated data_d"
     ! Copy the data
     call copy_device_data( sim , particle_groups , fields )
@@ -283,7 +284,7 @@ contains
     integer, value, intent(in)                           :: np
     type(particle_group_device), managed, intent(inout)  :: group_particles
     type(fields_linear_device), managed , intent(inout)  :: fields
-    real*8, dimension(:,:),intent(inout)                 :: data
+    real*8, managed, dimension(:,:),intent(inout)                 :: data
 
     type(particle_kinetic_leapfrog)                      :: particle_tmp      
     integer                                              :: i
@@ -295,10 +296,15 @@ contains
        if (particle_tmp%i_elm .gt. 0) then
           t = 0
           call calc_EBpsiU_device(fields, t, particle_tmp%i_elm, particle_tmp%st, particle_tmp%x(3), E, B, psi, U)
-          data(1:3,i) = E
-          data(4:6,i) = B
-          data(7,i)   = psi
-          data(8,i)   = U
+!          write(*,*) "B = ",B(1),B(2),B(3)
+          data(1,i) = E(1)
+          data(2,i) = E(2)
+          data(3,i) = E(3)
+          data(4,i) = B(1)
+          data(5,i) = B(2)
+          data(6,i) = B(3)
+          data(7,i) = psi
+          data(8,i) = U
        endif
     endif
   end subroutine run_calc_EBPsiU_kernel
@@ -308,22 +314,24 @@ contains
 
     type(particle_group), dimension(:), allocatable :: group_particles 
     real*8   :: start_time, particle_start_time, timestep
-    integer  :: n_steps, np, ierr
+    integer  :: np, ierr
+    real*8,parameter  :: tol_interp=1d-8
 
     write(*,*) "test_boris_push_cylindrical"
     
     particle_start_time = 0
-    n_steps = 1
     timestep = 1e-10
     
-    call run_boris_push_cylindrical_GPU( n_steps , timestep , particle_start_time , group_particles )
+    call run_boris_push_cylindrical_GPU( timestep , particle_start_time , group_particles )
     call MPI_BARRIER(MPI_COMM_WORLD,IERR)
 !    write(*,*) "Finished boris cylindrical gpu"
-    call run_boris_push_cylindrical_CPU( n_steps, timestep , particle_start_time )
+    call run_boris_push_cylindrical_CPU( timestep , particle_start_time )
 
     np = n_particles_local
-    call assert_equal_rel_error_particle(np,sim%groups(1)%particles,group_particles(1)%particles)
-!    call assert_equal_particle(np,sim%groups(1)%particles,group_particles(1)%particles)
+    !    call assert_equal_rel_error_particle(np,sim%groups(1)%particles,group_particles(1)%particles)
+    call set_tol(tol_interp)
+    call assert_equal_particle(np,sim%groups(1)%particles,group_particles(1)%particles)
+    call reset_tol_real8()
     deallocate( group_particles(1)%particles )
     deallocate( group_particles )
 
@@ -331,13 +339,12 @@ contains
 
   end subroutine test_boris_push_cylindrical
 
-  subroutine run_boris_push_cylindrical_CPU(n_steps, timestep, particle_start_time )
+  subroutine run_boris_push_cylindrical_CPU( timestep, particle_start_time )
 
     use mpi
     use omp_lib
     use mod_boris, only: boris_push_cylindrical
 
-    integer, intent(in)                      :: n_steps
     real*8, intent(in)                       :: timestep, particle_start_time
     
     !> variables
@@ -368,15 +375,13 @@ contains
 
   end subroutine run_boris_push_cylindrical_CPU
 
-  subroutine run_boris_push_cylindrical_GPU( n_steps, timestep, particle_start_time , return_particle_groups )
+  subroutine run_boris_push_cylindrical_GPU( timestep, particle_start_time , return_particle_groups )
 
-    integer, intent(inout)                                               :: n_steps
     real*8, intent(inout)                                                :: particle_start_time, timestep
     type(particle_group), dimension(:), allocatable, intent(inout)       :: return_particle_groups
 
     type(particle_group_device), managed, dimension(:), allocatable      :: particle_groups
     type(fields_linear_device), managed, allocatable                     :: fields
-    real*8, device, dimension(:,:), allocatable                          :: data_d      
     integer      :: istat, np
     type(dim3)   :: grid, tBlock
 
@@ -395,7 +400,7 @@ contains
     np = n_particles_local
 !    tBlock = dim3(256,1,1)
     grid = dim3(ceiling(real(np)/tBlock%x),1,1)
-    call run_boris_push_cylindrical_kernel<<<grid, tBlock>>>(np, particle_groups(1), fields, n_steps , timestep , particle_start_time)
+    call run_boris_push_cylindrical_kernel<<<grid, tBlock>>>(np, particle_groups(1), fields, timestep , particle_start_time)
     istat = cudaDeviceSynchronize()
     if (istat /= cudaSuccess) write(*,*) cudaGetErrorString(istat)
 !    write(*,*) sim%my_id,"Finished kernel"
@@ -408,11 +413,11 @@ contains
   end subroutine run_boris_push_cylindrical_GPU
 
   !> kernel for running calc_EBpsiU on GPUs
-  attributes(global) subroutine run_boris_push_cylindrical_kernel(np, group_particles, fields, n_steps , timestep, particle_start_time)
+  attributes(global) subroutine run_boris_push_cylindrical_kernel(np, group_particles, fields, timestep, particle_start_time)
 
     use mod_boris, only: boris_push_cylindrical
 
-    integer, value, intent(in)                           :: np, n_steps
+    integer, value, intent(in)                           :: np
     type(particle_group_device), managed, intent(inout)  :: group_particles
     type(fields_linear_device), managed , intent(inout)  :: fields
     real*8, value, intent(in)                            :: timestep, particle_start_time
@@ -498,7 +503,7 @@ contains
 
     type(particle_group_device), managed, dimension(:), allocatable   :: particle_groups
     type(fields_linear_device), managed, allocatable                  :: fields
-    integer, device, dimension(:), allocatable                        :: data_d      
+    integer, managed, dimension(:), allocatable                       :: data_d      
     integer      :: istat, np, ierrSync, ierrAsync
     type(dim3)   :: grid, tBlock
     
@@ -537,7 +542,7 @@ contains
     integer, value, intent(in)                           :: np
     type(particle_group_device), managed, intent(inout)  :: group_particles
     type(fields_linear_device), managed , intent(inout)  :: fields
-    integer, dimension(:),intent(inout)                  :: data
+    integer, managed, dimension(:),intent(inout)         :: data
 
     type(particle_kinetic_leapfrog)                      :: particle_tmp      
     integer                                              :: i, i_elm_old, i_elm_new, ifail
@@ -585,9 +590,9 @@ contains
     write(*,*) "Threaded full loop completed in ",MPI_Wtime()-start_time," s"
 
 !    if(sim%my_id == 1) then
-       call set_tol(tol)
-       call assert_equal_rel_error_particle(np,sim%groups(1)%particles,group_particles(1)%particles)
-       call reset_tol_real8()
+!!$       call set_tol(tol)
+!!$       call assert_equal_rel_error_particle(np,sim%groups(1)%particles,group_particles(1)%particles)
+!!$       call reset_tol_real8()
 !    endif
 
     call MPI_Barrier(MPI_COMM_WORLD, ierr)
@@ -619,9 +624,9 @@ contains
     np = size(sim%groups(1)%particles,1)
     select type (particles => sim%groups(1)%particles)
     type is (particle_kinetic_leapfrog)
-!!$       !$omp parallel default(shared) &
-!!$       !$omp private(particle_tmp,i,j,E,B,psi,U,rz_old,st_old,i_elm_old,ifail) 
-!!$       !$omp do ! schedule(dynamic,10)
+       !$omp parallel default(shared) &
+       !$omp private(particle_tmp,i,j,E,B,psi,U,rz_old,st_old,i_elm_old,ifail) 
+       !$omp do ! schedule(dynamic,10)
        do i=1,np
           call copy_particle_kinetic_leapfrog(particles(i),particle_tmp)            
           do j=1,n_steps
@@ -640,8 +645,8 @@ contains
           end do
           call copy_particle_kinetic_leapfrog(particle_tmp,particles(i))
        enddo
-!!$       !$omp end do
-!!$       !$omp end parallel
+       !$omp end do
+       !$omp end parallel
     end select
     
   end subroutine run_particle_kinetic_leapfrog_loop_CPU
