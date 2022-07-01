@@ -41,8 +41,7 @@ contains
 
   !> Principle loop to push a group of particles using CUDA kernels
   subroutine particle_kinetic_leapfrog_loop( sim  , n_steps , timestep , particle_start_time , return_particle_groups )
-   use constants, only: mu_zero, mass_proton                                                                                  
-!    use phys_module, only: F0, tstep, central_mass, central_density                                                            
+
     type(particle_sim), intent(inout)                                    :: sim
     type(particle_group), dimension(:), allocatable, intent(inout)       :: return_particle_groups
     integer, intent(inout)                                               :: n_steps
@@ -59,10 +58,6 @@ contains
 
     call copy_device_data( sim , particle_groups , fields )
 
-    write(*,*) sim%my_id, "calling kernel"
-    
-!    write(*,*) sim%my_id,"loop GPU on CPU", central_mass, central_density 
-    
     n_groups = size( sim%groups, 1)
     do i = 1, n_groups
        n_particles = size( sim%groups(i)%particles,1)
@@ -85,8 +80,6 @@ contains
   attributes(global) subroutine particle_kinetic_leapfrog_loop_kernel( n_particles, group_particles, fields, n_steps, timestep, particle_start_time )
     use mod_boris,          only: boris_push_cylindrical
     use mod_find_RZ,        only: find_RZ_nearby_device
-    use constants, only: mu_zero, mass_proton                                                                                 
-!    use phys_module, only: F0, tstep, central_mass, central_density
     
     type(particle_group_device), managed, intent(inout)         :: group_particles
     type(fields_linear_device), managed , intent(inout)         :: fields
@@ -101,11 +94,10 @@ contains
 
     
     i = threadIdx%x + (blockIdx%x-1) * blockDim%x
- !   if(i==1) write(*,*) "GPU kernel, F0, tstep", F0, tstep
+
     if ( i <= n_particles ) then
 !!$       write(*,*) "+" ! simple way to count particles for debug
        call copy_particle_kinetic_leapfrog( group_particles%particles(i) , particle_tmp )
-!       write(*,*) i,"GPU: part x",particle_tmp%x(1)
        do j=1,n_steps
           if (particle_tmp%i_elm .le. 0) then
 !!$             write(*,*) "-" ! simple way to count lost particles for debug
@@ -116,14 +108,12 @@ contains
           rz_old    = particle_tmp%x(1:2)
           st_old    = particle_tmp%st
           i_elm_old = particle_tmp%i_elm
-!          write(*,*) i,"GPU: U",U
           call boris_push_cylindrical(particle_tmp, group_particles%mass, E, B, timestep)                 
           call find_RZ_nearby_device(fields%node_list,fields%element_list,rz_old(1),rz_old(2), &
                st_old(1),st_old(2),i_elm_old,particle_tmp%x(1),particle_tmp%x(2), particle_tmp%st(1), &
                particle_tmp%st(2), particle_tmp%i_elm, ifail)                
         end do
        call copy_particle_kinetic_leapfrog( particle_tmp , group_particles%particles(i) )
-!       write(*,*) "GPU: i_elm:",particle_tmp%i_elm
     end if
 
 !!$    if(i == 1) then
@@ -135,6 +125,7 @@ contains
 
   !> Set the device to use and the threadblock size
   subroutine init_gpu(sim, tBlock)
+
     type(particle_sim), intent(inout)    :: sim
     type(dim3), intent(inout)            :: tBlock
     integer                              :: istat, n_devices, device_id, ierr
@@ -150,11 +141,10 @@ contains
 
     ! Set the device to use for this process
     device_id = mod(sim%my_id,n_devices)
-!    device_id = 1
     istat = cudaSetDevice(device_id)
     if (istat /= cudaSuccess) write(*,*) cudaGetErrorString(istat)
     write(*,*) "Proc", sim%my_id, " using device", device_id, "of ", n_devices
-    call MPI_Barrier(MPI_COMM_WORLD,ierr)
+
   end subroutine init_gpu
   
   !> Obtain information on the devices available, not needed for pushing
@@ -193,16 +183,7 @@ contains
     type(particle_group_device), managed, dimension(:), allocatable, intent(inout)  :: particle_groups
     type(fields_linear_device), managed , allocatable, intent(inout)                :: fields
     integer :: device_id, stream_id, istat, count 
-!    real*8, managed :: central_mass_tmp
-!    central_mass_tmp = central_mass
-!!$    stream_id = 0
-!!$    count = 1
-!!$
-!!$    write(*,*) "Process",sim%my_id," Prefetching-----------------------------------"
-!!$    istat = cudaGetDevice(device_id)
-!!$    if (istat /= cudaSuccess) write(*,*) "cudaGetDevice: ",cudaGetErrorString(istat)
-!!$    istat = cudaMemPrefetchAsync(central_mass,count,device_id,stream_id)
-!!$    if (istat /= cudaSuccess) write(*,*) "cudaMemPrefetchAsync: ",cudaGetErrorString(istat)                                                             
+
     call copy_particle_groups( sim%groups , particle_groups )
 
     call copy_fields_device( sim , fields )
@@ -421,7 +402,6 @@ contains
   attributes(device) subroutine calc_EBpsiU_device(fields, time, i_elm, st, phi, E, B, psi, U)
 
     use constants, only: mu_zero, mass_proton
-!    use phys_module, only: F0, tstep, central_mass, central_density
     
     type(fields_linear_device), managed, intent(in)    :: fields    ! polymorphic class fields_base in non-device version
     real*8, intent(in)  :: time
@@ -446,14 +426,10 @@ contains
     i_var(1) = 1
     i_var(2) = 2
 
-!    t_norm  = sqrt(mu_zero * mass_proton * central_mass * central_density * 1.d20) ! 1 jorek time unit in seconds
     t_norm  = sqrt(mu_zero * mass_proton * fields%central_mass * fields%central_density * 1.d20) ! 1 jorek time unit in seconds
-!    write(*,*) "t_norm GPU",t_norm
     ! Interpolate the fields to get psi and U at the current position (and the
     ! changes u_n - u(n-1))
     call do_interp_PRZ_device(fields, time, i_elm, i_var, 2, st(1), st(2), phi, P, P_s, P_t, P_phi, P_time, R, R_s, R_t, Z, Z_s, Z_t)
-!    write(*,*) "GPU P", p(1),p(2)
-!    write(*,*) "GPU R",R
     R_inv = 1.d0/R
     inv_st_jac = 1.d0/(R_s * Z_t - R_t * Z_s)
 
@@ -473,9 +449,6 @@ contains
 
     ! Calculate the magnetic field (see http://jorek.eu/wiki/doku.php?id=reduced_mhd)
     B     = [+psi_Z, -psi_R, fields%F0] * R_inv
-!    write(*,*) "GPU F0 =",fields%F0
-!    write(*,*) "GPU R_inv =",R_inv
-!    write(*,*) "GPU B3 =",B(3), fields%F0*R_inv
     ! The local electric field, obtained from E=-Grad (u F0)-\partial_t A
     ! See http://jorek.eu/wiki/doku.php?id=u_phi
     E     = [-fields%F0*U_R, -fields%F0*U_Z, -fields%F0*U_phi*R_inv]/t_norm
@@ -488,7 +461,6 @@ contains
     use mod_linear 
     use mod_interp,  only: interp_PRZ
     use constants,   only: mu_zero, mass_proton
-!    use phys_module, only: tstep, central_mass, central_density
     
     type(fields_linear_device), managed, intent(in)  :: fields  ! This is a class in the non-device version - and not managed
     real*8,                   intent(in)           :: time !< Time at which to calculate this variable
