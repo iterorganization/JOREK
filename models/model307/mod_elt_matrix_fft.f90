@@ -136,6 +136,7 @@ real*8, dimension(n_plane,n_var,n_gauss,n_gauss) :: eq_p
 real*8, dimension(n_plane,n_var,n_gauss,n_gauss) :: eq_ss, eq_st, eq_tt
 real*8, dimension(n_plane,n_var,n_gauss,n_gauss) :: delta_g, delta_s, delta_t
 real*8, dimension(n_plane,n_var,n_gauss,n_gauss) :: eq_aux_g, eq_aux_s, eq_aux_t, eq_aux_p ! make allocatable?
+real*8, dimension(n_plane,n_var,n_gauss,n_gauss) :: delta_aux_g, delta_aux_s, delta_aux_t, delta_aux_p
 
 real*8, dimension(n_tor,n_plane) :: HHZ, HHZ_p, HHZ_pp
 
@@ -212,6 +213,7 @@ eq_g = 0.d0; eq_s = 0.d0; eq_t = 0.d0; eq_st = 0.d0; eq_ss = 0.d0; eq_tt = 0.d0;
 eq_aux_g = 0.d0; eq_aux_s = 0.d0; eq_aux_t = 0.d0; eq_aux_p = 0.d0;
 
 delta_g = 0.d0; delta_s = 0.d0; delta_t = 0.d0
+delta_aux_g = 0.d0; delta_aux_s = 0.d0; delta_aux_t = 0.d0
 
 current_source  = 0.d0
 particle_source = 0.d0
@@ -275,6 +277,9 @@ do i=1,n_vertex_max
                 eq_aux_s(mp,k,ms,mt) =  eq_aux_s(mp,k,ms,mt) + aux_nodes(i)%values(in,j,k) * element%size(i,j) * H_s(i,j,ms,mt) * HZ(in,mp)
                 eq_aux_t(mp,k,ms,mt) =  eq_aux_t(mp,k,ms,mt) + aux_nodes(i)%values(in,j,k) * element%size(i,j) * H_t(i,j,ms,mt) * HZ(in,mp)
                 eq_aux_p(mp,k,ms,mt) =  eq_aux_p(mp,k,ms,mt) + aux_nodes(i)%values(in,j,k) * element%size(i,j) * H(i,j,ms,mt)   * HZ_p(in,mp)
+               delta_aux_g(mp,k,ms,mt) = delta_aux_g(mp,k,ms,mt) + aux_nodes(i)%deltas(in,j,k) * element%size(i,j) * H(i,j,ms,mt)   * HZ(in,mp)
+               delta_aux_s(mp,k,ms,mt) = delta_aux_s(mp,k,ms,mt) + aux_nodes(i)%deltas(in,j,k) * element%size(i,j) * H_s(i,j,ms,mt) * HZ(in,mp)
+               delta_aux_t(mp,k,ms,mt) = delta_aux_t(mp,k,ms,mt) + aux_nodes(i)%deltas(in,j,k) * element%size(i,j) * H_t(i,j,ms,mt) * HZ(in,mp)
               endif
 
               delta_g(mp,k,ms,mt) = delta_g(mp,k,ms,mt) + nodes(i)%deltas(in,j,k) * element%size(i,j) * H(i,j,ms,mt)   * HZ(in,mp)
