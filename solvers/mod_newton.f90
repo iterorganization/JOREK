@@ -22,12 +22,11 @@ module mod_newton
   !----------------------- END OF LOADING -----------------------------------------
  
   implicit none
-  integer :: MPI_GLOB, n_cpu
   private
   public :: inexact_newton
   contains  
 
-  subroutine inexact_newton(val, x, b, max_it, tol, comm_glob, comm_n, comm_master,                             &
+  subroutine inexact_newton(val, x, b, max_it, tol, MPI_GLOB, comm_n, comm_master,                             &
     ! end of additional arguments of bicgstab_driver 
                             iter_gmres,                                                                         &
     ! end of additional arguments of gmres_driver         
@@ -52,7 +51,7 @@ module mod_newton
     !--------------------- INPUT VARIABLES -----------------------------------------
     !--- definitions for subroutine bicgstab_driver, gmres_driver
     integer,               intent(inout)              :: my_id, my_id_n, my_id_master
-    integer,               intent(in)                 :: MPI_COMM_N, MPI_COMM_MASTER
+    integer,               intent(in)                 :: MPI_GLOB, MPI_COMM_N, MPI_COMM_MASTER
     real(kind=C_DOUBLE)                               :: tol   
     type(type_element_list)                           :: element_list
     type(type_node_list)                              :: node_list
@@ -60,7 +59,7 @@ module mod_newton
     real(kind=C_DOUBLE), pointer, intent(in)          :: val(:)
     real(kind=C_DOUBLE), allocatable                  :: b(:)
     real(kind=C_DOUBLE), allocatable                  :: x(:)
-    integer, intent(in)                               :: comm_glob, comm_n, comm_master
+    integer, intent(in)                               :: comm_n, comm_master
     integer, intent(inout)                            :: max_it, iter_gmres
     !--- definitions for subroutine construct_matrix
     integer,               intent(inout)              :: local_elms(*)
@@ -109,13 +108,6 @@ module mod_newton
     real*8                                            :: sqrt_rhs_n_2, sqrt_rhs_k_2, sqrt_rhs_prev_2
     !--------------------- END OF ROUTINE VARIABLES --------------------------------
 
-
-    !--------------------- MPI STUFF -----------------------------------------------
-    MPI_GLOB = comm_glob
-    !call MPI_COMM_RANK(MPI_GLOB,   my_id, ierr)
-    !call MPI_COMM_SIZE(MPI_GLOB,   n_cpu, ierr)
-    !call MPI_COMM_RANK(MPI_COMM_N, my_id, ierr)
-    !--------------------- END OF MPI STUFF ----------------------------------------
 
     !--------------------- ALLOCATE, ASSIGN VALUES --------------------------------- 
     !call new_thread_buffers() 
@@ -169,17 +161,6 @@ module mod_newton
                             xpoint2, xcase2, R_axis, Z_axis, psi_axis, psi_bnd, R_xpoint, Z_xpoint, psi_xpoint,i_tor_min, i_tor_max,  &
                             n, nz, ndof, n_matrix_block_size, A_mat, rhs, irn, jcn, ijA_index, ijA_size, irn_jcn, harmonic_matrix)
       if (my_id.eq.0) write(*,*) 'CONSTRUCTED A_GLOB AT U_K'
-
-      !--- check if initial guess already satisfies convergence criterion
-      !if (sqrt_rhs_k_2<1.d-7+1.d-7*sqrt_rhs_n_2) then 
-      !  if (my_id.eq.0) write(*,*) 'EXITING NEWTON LOOP AT ', newton_i
-      !  if (my_id.eq.0) write(*,'(A8,i3,A13,i2,A18,1E14.4,A13,1E14.4)')           &
-      !                          ' t_step=',index_now,' newton_i=', newton_i,      &
-      !                          ' R(U_k,U^n) ', sqrt_rhs_k_2, &
-      !                          ' R(U^n) '    , sqrt_rhs_n_2
-      !  exit newton_loop
-      !endif
-
 
       !--- compute J_k.delta_k_n to compute rhs_k
       call gmres_matrix_vector(ndof,delta_k_n,ndof,mat_vec_prod,my_id)
