@@ -250,7 +250,9 @@ do ms=1, n_gauss
            
           rhs_ij_6 = - v * (gamma_sheath -1.d0) * r0_corr * T0_corr * vpar0 * ps0_s * normal_sign3 * tstep  & ! right hand side equation 6
                      - v * (gamma_sheath -1.d0) * r0_corr * T0_corr * cs0   * BigR  * dl * c_angle * tstep  &
-                     - v *                        r0_corr * T0_corr * BigR**2.d0    * u0_s  * normal_sign3 * tstep  
+                     - v *                        r0_corr * T0_corr * BigR**2.d0    * u0_s  * normal_sign3 * tstep &
+                       ! Test heat source to remove the negative temperature region
+                     + (gamma-1.d0) * v * r0 * (0.5d0* T_min + 0.5d0*T_min *exp( (min(T0,T_min)-T_min)/(0.5d0*T_min) ) -min(T0,T_min))  * tstep 
 
           rhs_ij_7 = - v * (vpar0 * Btot * normal_sign - cs0 * factor) * dl * Zbig                ! right hand side equation 7
 
@@ -309,11 +311,15 @@ do ms=1, n_gauss
                 amat_62 = + v * r0_corr * BigR**2.d0 * u_s * normal_sign3                               * theta * tstep
 
                 amat_65 = + v * (gamma_sheath-1.d0) * rho      * T0_corr * vpar0 * ps0_s * normal_sign3 * theta * tstep &
-                          + v * (gamma_sheath-1.d0) * rho      * T0_corr * cs0   * BigR  * dl * c_angle * theta * tstep 
+                          + v * (gamma_sheath-1.d0) * rho      * T0_corr * cs0   * BigR  * dl * c_angle * theta * tstep &
+                       ! Test heat source to remove the negative temperature region
+                          - (gamma-1.d0) * v * rho * (0.5d0* T_min + 0.5d0*T_min *exp( (min(T0,T_min)-T_min)/(0.5d0*T_min) ) -min(T0,T_min))   *theta* tstep 
 
                 amat_66 = + v * (gamma_sheath-1.d0) * r0_corr  * T       * vpar0 * ps0_s * normal_sign3 * theta * tstep &
                           + v * (gamma_sheath-1.d0) * r0_corr  * T       * cs0   * BigR  * dl * c_angle * theta * tstep &
-                          + v * (gamma_sheath-1.d0) * r0_corr  * T0_corr * cs_T  * BigR  * dl * c_angle * theta * tstep
+                          + v * (gamma_sheath-1.d0) * r0_corr  * T0_corr * cs_T  * BigR  * dl * c_angle * theta * tstep &
+                       ! Test heat source to remove the negative temperature region
+                          - (gamma-1.d0) * v * r0 * (exp( (min(T0,T_min)-T_min)/(0.5d0*T_min) ) -1.d0)*T   *theta* tstep
 
                 amat_67 = + v * (gamma_sheath-1.d0) * r0_corr  * T0_corr * vpar  * ps0_s * normal_sign3 * theta * tstep 
 

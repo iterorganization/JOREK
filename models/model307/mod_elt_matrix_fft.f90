@@ -980,6 +980,8 @@ do i=1,n_vertex_max
 
             rhs_ij(6) =  v * BigR * (heat_source(ms,mt) + aux_T0)                         * xjac * tstep &
                        - v * BigR * (aux_dEion_dt + aux_rad)                              * xjac * tstep &
+                       ! Test heat source to remove the negative temperature region
+                       + (gamma-1.d0) * r0 * v * (0.5d0* T_min + 0.5d0*T_min *exp( (min(T0,T_min)-T_min)/(0.5d0*T_min) ) -min(T0,T_min))  * xjac * tstep *BigR    &
                        + v * BigR * (GAMMA - 1.) * eta_T_ohm * (zj0/BigR)**2              * xjac * tstep  &
 
 !!!! terms not in 303 but 500!
@@ -1546,6 +1548,8 @@ do i=1,n_vertex_max
 
                             + v * rho * GAMMA * T0 * (vpar0_s * ps0_t - vpar0_t * ps0_s)        * theta * tstep &
                             + v * rho * GAMMA * T0 * F0 / BigR * vpar0_p                 * xjac * theta * tstep &
+                       ! Test heat source to remove the negative temperature region
+                            - (gamma-1.d0) * v * rho * (0.5d0* T_min + 0.5d0*T_min *exp( (min(T0,T_min)-T_min)/(0.5d0*T_min) ) -min(T0,T_min))   *theta* tstep 
 
                          + TG_num6 * 0.25d0 * BigR**2 * T0* (rho_x * u0_y - rho_y * u0_x)      &
                                    * ( v_x * u0_y - v_y * u0_x) * xjac * theta*tstep*tstep     &
@@ -1598,6 +1602,8 @@ do i=1,n_vertex_max
                             + ZK_perp_num * (v_xx + v_x/BigR + v_yy)*(T_xx + T_x/BigR + T_yy) * BigR * xjac * theta * tstep &
 
                             -v * T * (gamma-1.d0) * deta_dT_ohm * (zj0 / BigR)**2.d0 * BigR * xjac * theta * tstep &
+                       ! Test heat source to remove the negative temperature region
+                            - (gamma-1.d0) * v * r0 * (exp( (min(T0,T_min)-T_min)/(0.5d0*T_min) ) -1.d0)*T   *theta* tstep
 
                             + TG_num6 * 0.25d0 * BigR**2 * T* (r0_x * u0_y - r0_y * u0_x)         &
                                       * ( v_x * u0_y - v_y * u0_x) * xjac * theta * tstep * tstep &
