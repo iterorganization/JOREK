@@ -60,7 +60,9 @@ integer    :: n_tor_local
 type (type_node)         :: tmp_node
 
 theta = time_evol_theta
-zeta  = time_evol_zeta
+!zeta  = time_evol_zeta
+! change zeta for variable dt
+zeta  = time_evol_zeta * 2.0d0 * tstep / (tstep + tstep_prev)
 
 Zbig = 1.d12
 
