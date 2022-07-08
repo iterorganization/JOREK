@@ -7,6 +7,7 @@ subroutine grid_inside_wall(n_R,n_Z,R_begin,R_end,Z_begin,Z_end,boundary,node_li
   use phys_module, only: xshift, n_limiter, R_limiter, Z_limiter, tokamak_device, manipulate_psi_map
   use grid_xpoint_data, only: n_wall, R_wall, Z_wall
   use mod_eqdsk_tools
+  use mod_grid_conversions
 
   implicit none
   
@@ -255,8 +256,8 @@ subroutine grid_inside_wall(n_R,n_Z,R_begin,R_end,Z_begin,Z_end,boundary,node_li
       uv_p    = node_list%node(inode_p)%x(1,iuv+1,:)
 
       element_list%element(k)%size(iv,1)     = 1.
-      element_list%element(k)%size(iv,iuv+1) = sign(dlength(xx_p,xx_0),ddot(n_dim,xx_p - xx_0,1,uv_0,1)) /3.d0
-      element_list%element(k)%size(ip,iuv+1) = sign(dlength(xx_p,xx_0),ddot(n_dim,xx_0 - xx_p,1,uv_p,1)) /3.d0
+      element_list%element(k)%size(iv,iuv+1) = sign(dlength(xx_p,xx_0),ddot(n_dim,xx_p - xx_0,1,uv_0,1)) / float(n_order) 
+      element_list%element(k)%size(ip,iuv+1) = sign(dlength(xx_p,xx_0),ddot(n_dim,xx_0 - xx_p,1,uv_p,1)) / float(n_order) 
 
     enddo
 
@@ -265,6 +266,14 @@ subroutine grid_inside_wall(n_R,n_Z,R_begin,R_end,Z_begin,Z_end,boundary,node_li
     enddo
   enddo
   
+  if (n_order .ge. 5) then
+    call set_high_order_sizes(element_list)
+    ! this grid is better without 2nd derivatives...
+    call approximate_2nd_derivatives(node_list,element_list)
+    do i=1,node_list%n_nodes
+      node_list%node(i)%x(1,7:n_degrees,:) = 0.d0
+    enddo
+  endif
   
   ! --- Update neighbours and boundary
   call update_neighbours_basic(element_list,node_list)
