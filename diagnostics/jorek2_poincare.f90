@@ -26,7 +26,7 @@ real*8  :: R, Z, P, P_s, P_t, P_st, P_ss, P_tt
 real*8  :: tol, delta_phi, Zjac, psi_s, psi_t, R_in, Z_in, R_out, Z_out, Rmin, Rmax, Zmin, Zmax, delta_s, delta_t, R_keep, Z_keep
 real*8  :: small_delta, small_delta_s, small_delta_t, delta_phi_local, delta_phi_step
 real*8  :: atmp, cur_pert
-real*8  :: psi_out
+real*8  :: psi_out, dummy
 integer :: ierr
 
 
@@ -199,10 +199,10 @@ else
 endif
 
 !$omp parallel default(none) &
-!$omp shared(node_list, element_list, n_lines, R_start, Z_start, P_start, n_turn, n_phi, delta_phi, element_neighbours, ES, iplot_type) &
+!$omp shared(node_list, element_list, n_lines, R_start, Z_start, P_start, n_turn, n_phi, delta_phi, element_neighbours, ES, R_domm, iplot_type) &
 !$omp private(i_lines, ip, R_out, Z_out, i_elm, s_out, t_out, ifail, R_line, Z_line, p_line, s_line, t_line, i_turn, i_phi, &
 !$omp         delta_phi_local, i_steps, delta_phi_step, delta_s, delta_t, s_mid, t_mid, p_mid, small_delta_s, small_delta_t, &
-!$omp         small_delta, R_in, Z_in, i_elm_prev, i_elm_tmp, R, Z, psi_out, Rp, Zp, Tp, Pp, i)
+!$omp         small_delta, R_in, Z_in, i_elm_prev, i_elm_tmp, R, Z, psi_out, Rp, Zp, Tp, Pp, i, dummy)
 
 ! --- Trace the fieldlines
 !$omp do
@@ -424,10 +424,11 @@ L_IL: do i_lines=1,n_lines
 
     Rp(ip) = R_line
     Zp(ip) = Z_line
-    Tp(ip)  = atan2( Z_line - ES%Z_axis, R_line - ES%R_axis)
 #if (JOREK_MODEL == 83) || (JOREK_MODEL == 183)
+    Tp(ip)  = atan2( Z_line, R_line - R_domm)
     call interp_gvec(node_list,element_list,i_elm,4,1,1,s_line,t_line,Pp(ip),dummy,dummy,dummy,dummy,dummy)
 #else
+    Tp(ip)  = atan2( Z_line - ES%Z_axis, R_line - ES%R_axis)
     Pp(ip)  = get_psi_n(psi_out, Z_line)
 #endif
 

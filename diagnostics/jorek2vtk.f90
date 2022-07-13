@@ -33,7 +33,7 @@ integer               :: nnoel, nnos, nel, nsub, inode, ielm, n_scalars, n_vecto
 real*4,allocatable    :: currdens(:), xyz (:,:), scalars(:,:), vectors(:,:,:)
 integer,allocatable   :: ien (:,:)
 integer, parameter    :: ivtk = 22 ! an arbitrary unit number for the VTK output file
-integer               :: i, j, k, m, etype, irst, int, i_var, i_tor, i_tor_old, i_plane, index, index_node, my_id
+integer               :: i, j, k, m, etype, irst, int, i_var, i_tor, i_tor_old, i_tor_coord, i_plane, index, index_node, my_id
 character             :: buffer*80, lf*1, str1*12, str2*12
 character*12, allocatable :: scalar_names(:), vector_names(:)
 real*8                :: s, t
@@ -550,9 +550,7 @@ if (toroidal_angle .ne. 0.d0) then
 endif
 
 do i=1,element_list%n_elements
-
    ! if(element_list%element(i)%n_sons.eq.0) then
-
   do j=1,nsub
 
     s = float(j-1)/float(nsub-1)
@@ -717,7 +715,6 @@ do i=1,element_list%n_elements
       !====================== --- specific for NON-axisymmetric quantities
       ! 2 cases, depending on the value of i_tor chosen
       if ((i_tor .ge. 1) .and. (i_tor .le. n_tor)) then
-
         do m=1,n_var
           call interp(node_list,element_list,i,m,i_tor,s,t,P,P_s,P_t,P_st,P_ss,P_tt)
           scalars(inode,m) = P * HZ(i_tor,i_plane)
@@ -1027,7 +1024,7 @@ do i=1,element_list%n_elements
         dU_x    = 0.d0; dU_y = 0.d0
 
         do i_tor = 1, n_tor
-
+        
           if ( ( i_tor == 1 ) .and. ( without_n0_mode ) ) cycle ! Do not include the n=0 mode
           if (n_coord_period .ne. 1 .and. without_n0_mode .and. mod(mode(i_tor),n_coord_period) .eq. 0) cycle
 
@@ -1149,33 +1146,32 @@ do i=1,element_list%n_elements
         if (include_gvec_field) then
           call interp_gvec(node_list,element_list,i,3,1,i_tor,s,t,BRg,BRg_s,BRg_t,BRg_st,BRg_ss,BRg_tt)
           scalars(inode,s_gvec_scal+1) = BRg
-          do i_tor=1, n_coord_tor
-            call interp_gvec(node_list,element_list,i,1,1,i_tor,s,t,BRg,BRg_s,BRg_t,BRg_st,BRg_ss,BRg_tt)
-            call interp_gvec(node_list,element_list,i,1,2,i_tor,s,t,BZg,BZg_s,BZg_t,BZg_st,BZg_ss,BZg_tt)
-            call interp_gvec(node_list,element_list,i,1,3,i_tor,s,t,Bpg,Bpg_s,Bpg_t,Bpg_st,Bpg_ss,Bpg_tt)
-            vectors(inode,:,s_gvec_vec + 1) =  vectors(inode,:,s_gvec_vec + 1) + (/ BRg, BZg, BPg /) * HZ_coord(i_tor, i_plane)          
-            BR_R  = (   Z_t * BRg_s - Z_s * BRg_t )     / xjac * HZ_coord(i_tor,i_plane)
-            BR_Z  = ( - R_t * BRg_s + R_s * BRg_t )     / xjac * HZ_coord(i_tor,i_plane)
-            BR_p  = BRg * HZ_coord_p(i_tor, i_plane) - BR_R * R_p - Z_p * BR_Z
-            BZ_R  = (   Z_t * BZg_s - Z_s * BZg_t )     / xjac * HZ_coord(i_tor,i_plane)
-            BZ_Z  = ( - R_t * BZg_s + R_s * BZg_t )     / xjac * HZ_coord(i_tor,i_plane)
-            BZ_p  = BZg * HZ_coord_p(i_tor, i_plane) - BZ_R * R_p - Z_p * BZ_Z
-            BP_R  = (   Z_t * BPg_s - Z_s * BPg_t )     / xjac * HZ_coord(i_tor,i_plane)
-            BP_Z  = ( - R_t * BPg_s + R_s * BPg_t )     / xjac * HZ_coord(i_tor,i_plane)
-            BP_p  = BPg * HZ_coord_p(i_tor, i_plane) - BP_R * R_p - Z_p * BP_Z
+          do i_tor_coord=1, n_coord_tor
+            call interp_gvec(node_list,element_list,i,1,1,i_tor_coord,s,t,BRg,BRg_s,BRg_t,BRg_st,BRg_ss,BRg_tt)
+            call interp_gvec(node_list,element_list,i,1,2,i_tor_coord,s,t,BZg,BZg_s,BZg_t,BZg_st,BZg_ss,BZg_tt)
+            call interp_gvec(node_list,element_list,i,1,3,i_tor_coord,s,t,Bpg,Bpg_s,Bpg_t,Bpg_st,Bpg_ss,Bpg_tt)
+            vectors(inode,:,s_gvec_vec + 1) =  vectors(inode,:,s_gvec_vec + 1) + (/ BRg, BZg, BPg /) * HZ_coord(i_tor_coord, i_plane)          
+            BR_R  = (   Z_t * BRg_s - Z_s * BRg_t )     / xjac * HZ_coord(i_tor_coord,i_plane)
+            BR_Z  = ( - R_t * BRg_s + R_s * BRg_t )     / xjac * HZ_coord(i_tor_coord,i_plane)
+            BR_p  = BRg * HZ_coord_p(i_tor_coord, i_plane) - BR_R * R_phi - Z_p * BR_Z
+            BZ_R  = (   Z_t * BZg_s - Z_s * BZg_t )     / xjac * HZ_coord(i_tor_coord,i_plane)
+            BZ_Z  = ( - R_t * BZg_s + R_s * BZg_t )     / xjac * HZ_coord(i_tor_coord,i_plane)
+            BZ_p  = BZg * HZ_coord_p(i_tor_coord, i_plane) - BZ_R * R_phi - Z_p * BZ_Z
+            BP_R  = (   Z_t * BPg_s - Z_s * BPg_t )     / xjac * HZ_coord(i_tor_coord,i_plane)
+            BP_Z  = ( - R_t * BPg_s + R_s * BPg_t )     / xjac * HZ_coord(i_tor_coord,i_plane)
+            BP_p  = BPg * HZ_coord_p(i_tor_coord, i_plane) - BP_R * R_phi - Z_p * BP_Z
             scalars(inode,s_gvec_scal+2) = scalars(inode, s_gvec_scal+2) + BRg / BigR + BR_R + BZ_Z + BP_p / BigR  
             
             JRg = 1 / BigR * BZ_p - BP_Z
             JZg = 1 / BigR * (BPg + BigR * BP_R - BR_p)
             JPg = BR_Z - BZ_R
             scalars(inode, s_gvec_scal+3) = scalars(inode, s_gvec_scal+3) + F0 / (chi(1,0,0)**2 + chi(0,1,0)**2 + chi(0,0,1)**2/BigR**2) * (chi(1,0,0) * JRg + chi(0,1,0) * JZg + chi(0,0,1)/BigR * JPg)
-            !scalars(inode, s_gvec_scal+3) = scalars(inode, s_gvec_scal+3) +  (chi(1,0,0) * JRg + chi(0,1,0) * JZg + chi(0,0,1)/BigR * JPg)
             vectors(inode,:,s_gvec_vec + 3) =  vectors(inode,:,s_gvec_vec + 3) + (/ JRg, JZg, JPg /)         
 
-            call interp_gvec(node_list,element_list,i,2,1,i_tor,s,t,JRg,JRg_s,JRg_t,JRg_st,JRg_ss,JRg_tt)
-            call interp_gvec(node_list,element_list,i,2,2,i_tor,s,t,JZg,JZg_s,JZg_t,JZg_st,JZg_ss,JZg_tt)
-            call interp_gvec(node_list,element_list,i,2,3,i_tor,s,t,Jpg,Jpg_s,Jpg_t,Jpg_st,Jpg_ss,Jpg_tt)
-            vectors(inode,:,s_gvec_vec + 2) =  vectors(inode,:,s_gvec_vec + 2) + (/ JRg, JZg, JPg /) * HZ_coord(i_tor, i_plane)         
+            call interp_gvec(node_list,element_list,i,2,1,i_tor_coord,s,t,JRg,JRg_s,JRg_t,JRg_st,JRg_ss,JRg_tt)
+            call interp_gvec(node_list,element_list,i,2,2,i_tor_coord,s,t,JZg,JZg_s,JZg_t,JZg_st,JZg_ss,JZg_tt)
+            call interp_gvec(node_list,element_list,i,2,3,i_tor_coord,s,t,Jpg,Jpg_s,Jpg_t,Jpg_st,Jpg_ss,Jpg_tt)
+            vectors(inode,:,s_gvec_vec + 2) =  vectors(inode,:,s_gvec_vec + 2) + (/ JRg, JZg, JPg /) * HZ_coord(i_tor_coord, i_plane)         
           enddo
         end if
    
@@ -1286,7 +1282,6 @@ do i=1,element_list%n_elements
 #endif /* end of non-full-MHD part */
 
         currdens(inode) = -scalars(inode,3)/BigR
-
       endif ! i_tor from 1 to n_tor
 
     enddo  ! nsub
