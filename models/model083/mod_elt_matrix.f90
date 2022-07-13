@@ -37,7 +37,7 @@ real*8     :: R_axis, Z_axis, psi_axis, psi_bnd, R_xpoint(2), Z_xpoint(2)
 real*8     :: psi_norm, reta, zeta, theta
 real*8     :: v_px, v_py, u_px, u_py
 
-real*8, dimension(4) :: rhs_ij_1, rhs_ij_3, rhs_ij_6
+real*8, dimension(4) :: rhs_ij_1, rhs_ij_3
 real*8, dimension(4) :: amat_11, amat_13, amat_22, amat_33, amat_44, amat_55, amat_66
 
 logical    :: xpoint2
@@ -284,13 +284,11 @@ do ms=1, n_gauss
 #ifdef DEBUG
            rhs_ij_1 = eval(thread_eq(tid)%rhs1seq)*BigR*xjac
            rhs_ij_3 = eval(thread_eq(tid)%rhs3seq)*BigR*xjac
-           rhs_ij_6 = eval(thread_eq(tid)%rhs6seq)*BigR*xjac
 #else
 #include "rhs_unreadable.h"
 
            rhs_ij_1 = rhs_ij_1*BigR*xjac
            rhs_ij_3 = rhs_ij_3*BigR*xjac
-           rhs_ij_6 = rhs_ij_6*BigR*xjac
 #endif
 
            ij1 = index_ij
@@ -302,7 +300,6 @@ do ms=1, n_gauss
 
            RHS(ij1) = RHS(ij1) + rhs_ij_1(1)*wst
            RHS(ij3) = RHS(ij3) + rhs_ij_3(1)*wst
-           RHS(ij6) = RHS(ij6) + rhs_ij_6(1)*wst
 
            do k=1,n_vertex_max
 
