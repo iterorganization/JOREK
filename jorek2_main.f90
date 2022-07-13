@@ -501,7 +501,8 @@ required = 0
     
 #if (JOREK_MODEL == 83)
     call solve_Psi_boundary_eqn(node_list, bnd_elm_list)
-    call setup_boundary_condition(node_list, bnd_node_list)
+    call solve_J_boundary_eqn(node_list, element_list, bnd_elm_list)
+    call setup_boundary_condition(node_list, bnd_node_list, bnd_elm_list)
 #endif
   end if ! gvec_grid_import
 
