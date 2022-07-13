@@ -335,11 +335,10 @@ module vacuum_response
       disp = disp + sizeof(float2d)
 
     else if (present(char1d)) then
-      if (.not. allocated(char1d)) then
-        str_len = dim(1) * sizeof(char1d)
-      else
-        str_len = dim(1) * sizeof(char1d(1))
-      endif
+      
+      if (allocated(char1d)) deallocate(char1d)
+      allocate(char1d(1))
+      str_len = dim(1) * sizeof(char1d(1))
       if ( allocated(tmp_char1d) ) deallocate( tmp_char1d ); allocate( tmp_char1d(str_len))
       if ( allocated(char1d) ) deallocate( char1d ); allocate( char1d(dim(1)))
       call MPI_FILE_READ(filehandle, tmp_char1d, str_len, MPI_CHARACTER  ,status,ierr)
