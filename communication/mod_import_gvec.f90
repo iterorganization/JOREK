@@ -60,7 +60,6 @@ subroutine read_gvec_import(node_list, element_list, file_name, is_test, ierr)
   real*8           :: JR_average, JZ_average, Jphi_average
 
   integer          :: in_gvec=11                          ! Input stream from gvec
-  integer          :: gvec_preamble_lines=124             ! Number of lines in gvec preamble
   integer          :: iostatus=0                          ! Error flag for reading vacuum field
   integer          :: n_max_jorek = (n_coord_tor-1)/2     ! Maximum toroidal mode number in JOREK
 
@@ -70,10 +69,15 @@ subroutine read_gvec_import(node_list, element_list, file_name, is_test, ierr)
     write(*, *) "Cannot open GVEC file..."
     stop
   end if
-  do idx=1, gvec_preamble_lines
-    read(in_gvec, *)
+  ! Skip header lines
+  do idx=1, 1000
+    read(in_gvec, *, iostat=ierr) n_rad, n_theta, n_phi
+    if (ierr .eq. 0) exit
   enddo
-  read(in_gvec, *) n_rad, n_theta, n_phi
+  if (idx .gt. 1000) then 
+    write(*,*) "Number of header lines in GVEC import is > 1000 - something must be wrong."
+    stop
+  endif
   write(*, *)  "n_rad    n_theta    n_phi: ", n_rad, n_theta, n_phi
   if ((.not. is_test) .and. ((n_theta .ne. n_tht) .or. (n_rad .ne. n_flux))) then
     write(*, *) "Number of radial and poloidal points does not match values in input file: ", n_rad, n_flux, n_theta, n_tht

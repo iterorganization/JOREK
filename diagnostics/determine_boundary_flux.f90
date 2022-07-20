@@ -51,8 +51,7 @@ do i_elm=(n_flux-2)*n_tht+1, (n_flux-1)*n_tht
     do ig1 = 1, 4
       si = 0.5 * (xgs(ig1) + 1.0)
       ri = 1.0
-      
-      
+
       call interp_RZP(node_list,element_list,i_elm,ri,si,(i_plane-1)*delta_phi,   &
                       RRgi,dRRgi_dr,dRRgi_ds,dRRgi_dp,dRRgi_drs,dRRgi_drr,dRRgi_dss,dRRgi_drp, dRRgi_dsp, dRRgi_dpp, &
                       ZZgi,dZZgi_dr,dZZgi_ds,dZZgi_dp,dZZgi_drs,dZZgi_drr,dZZgi_dss,dZZgi_drp, dZZgi_dsp, dZZgi_dpp)

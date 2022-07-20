@@ -550,7 +550,9 @@ if (toroidal_angle .ne. 0.d0) then
 endif
 
 do i=1,element_list%n_elements
+
    ! if(element_list%element(i)%n_sons.eq.0) then
+
   do j=1,nsub
 
     s = float(j-1)/float(nsub-1)
@@ -1282,6 +1284,7 @@ do i=1,element_list%n_elements
 #endif /* end of non-full-MHD part */
 
         currdens(inode) = -scalars(inode,3)/BigR
+
       endif ! i_tor from 1 to n_tor
 
     enddo  ! nsub
