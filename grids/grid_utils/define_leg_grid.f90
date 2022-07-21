@@ -181,8 +181,14 @@ if (which_leg .le. 2) then
         i_flux(n_private+n_open+1+i) = n_flux + n_open + n_outer + i
       enddo
     endif
-    n_xpoint_1 = 2 ! please see "create_x_node.f90" if confused
-    n_xpoint_2 = 1
+    ! --- please see "create_x_node.f90" if confused
+    if ( (ES%active_xpoint .eq. LOWER_XPOINT) .or. (ES%active_xpoint .eq. SYMMETRIC_XPOINT) ) then
+      n_xpoint_1 = 2 ! please see "create_x_node.f90" if confused
+      n_xpoint_2 = 1
+    else
+      n_xpoint_1 = 6 ! please see "create_x_node.f90" if confused
+      n_xpoint_2 = 5
+    endif
   else
     R_end(1) = stpts%RLeftCorn_LowerOuterLeg;  Z_end(1) = stpts%ZLeftCorn_LowerOuterLeg
     R_end(2) = stpts%RStrike_LowerOuterLeg;    Z_end(2) = stpts%ZStrike_LowerOuterLeg
@@ -217,8 +223,14 @@ if (which_leg .le. 2) then
         i_flux(n_private+n_open+1+i) = n_flux + n_open + i
       enddo
     endif
-    n_xpoint_1 = 3 ! please see "create_x_node.f90" if confused
-    n_xpoint_2 = 4
+    ! --- please see "create_x_node.f90" if confused
+    if ( (ES%active_xpoint .eq. LOWER_XPOINT) .or. (ES%active_xpoint .eq. SYMMETRIC_XPOINT) ) then
+      n_xpoint_1 = 3 ! please see "create_x_node.f90" if confused
+      n_xpoint_2 = 4
+    else
+      n_xpoint_1 = 7 ! please see "create_x_node.f90" if confused
+      n_xpoint_2 = 8
+    endif
   endif
   SIG_0 = SIG_leg_0
   SIG_1 = SIG_leg_1
@@ -265,7 +277,7 @@ else
       enddo
     endif
     ! --- please see "create_x_node.f90" if confused
-    if (xcase .eq. UPPER_XPOINT) then
+    if ( ES%active_xpoint .eq. UPPER_XPOINT ) then
       n_xpoint_1 = 3
       n_xpoint_2 = 4
     else
@@ -308,7 +320,7 @@ else
       enddo
     endif
     ! --- please see "create_x_node.f90" if confused
-    if (xcase .eq. UPPER_XPOINT) then
+    if ( ES%active_xpoint .eq. UPPER_XPOINT ) then
       n_xpoint_1 = 2
       n_xpoint_2 = 1
     else

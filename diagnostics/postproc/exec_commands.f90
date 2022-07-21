@@ -2326,7 +2326,7 @@ module exec_commands
     call determine_q_profile(node_list, element_list, surface_list, ES%psi_axis, ES%psi_xpoint,    &
       ES%Z_xpoint, q_psin, rad)
     
-    write(i_file,'(2es20.13)') time_now, q_psin(2) 
+    write(i_file,'(es20.13,es20.12)') time_now, q_psin(2) 
     
     close(i_file)
 
