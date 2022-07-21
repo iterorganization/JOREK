@@ -9,7 +9,7 @@ contains
 subroutine element_matrix_fft(element, nodes, xpoint2, xcase2, R_axis, Z_axis, psi_axis, psi_bnd, R_xpoint, Z_xpoint, &
                               ELM, RHS, tid, ELM_p, ELM_n, ELM_k, ELM_kn, RHS_p, RHS_k,                               &
                               eq_g, eq_s, eq_t, eq_p, eq_ss, eq_st, eq_tt, delta_g, delta_s, delta_t,                 &
-                              i_tor_min, i_tor_max, aux_nodes, ELM_pnn)
+                              i_tor_min, i_tor_max, aux_nodes,ELM_pnn)
 !---------------------------------------------------------------
 ! calculates the matrix contribution of one element
 !---------------------------------------------------------------
@@ -32,7 +32,7 @@ type (type_node)           :: nodes(n_vertex_max)     ! fluid variables
 type (type_node), optional :: aux_nodes(n_vertex_max) ! moments of particles
 
 
-#define DIM0 n_tor*n_vertex_max*n_degrees*n_var
+#define DIM0 n_tor*n_vertex_max*(n_order+1)*n_var
 
 real*8, dimension (DIM0,DIM0)  :: ELM
 real*8, dimension (DIM0)       :: RHS
@@ -69,6 +69,8 @@ real*8     :: T, T_x, T_y, T_s, T_t, T_p, T_ss, T_st, T_tt, T_xx, T_xy, T_yy
 real*8     :: Ti0, Ti0_x, Ti0_y, Te0, Te0_x, Te0_y
 real*8     :: zTi, zTi_x, zTi_y, zTe, zTe_x, zTe_y, zn_x, zn_y
 real*8	   :: Jb_0 , Jb
+real*8     :: Tneg_source, dTneg_source_dT, Tmin_neg, psin_halo_max
+real*8     :: RHOneg_source, dRhoneg_source_dRHO, Rhomin_neg
 real*8     :: Vpar, Vpar_x, Vpar_y, Vpar_p, Vpar_s, Vpar_t, Vpar_ss, Vpar_st, Vpar_tt, Vpar_xx, Vpar_yy, Vpar_xy
 real*8     :: P0, P0_s, P0_t, P0_x, P0_y, P0_p, P0_ss, P0_st, P0_tt, P0_xx, P0_xy, P0_yy
 real*8     :: P0_x_rho, P0_xx_rho, P0_y_rho, P0_yy_rho, P0_xy_rho
@@ -129,7 +131,7 @@ integer*8  :: plan
 
 integer    :: i_v, i_loc, j_loc
 #define DIM1 n_plane
-#define DIM2 1:n_vertex_max*n_var*n_degrees
+#define DIM2 1:n_vertex_max*n_var*(n_order+1)
 
 real*8, dimension(DIM1, DIM2, DIM2) :: ELM_p
 real*8, dimension(DIM1, DIM2, DIM2) :: ELM_n
@@ -267,7 +269,7 @@ endif
 !======================================= NEO
 
 do i=1,n_vertex_max
-  do j=1,n_degrees
+  do j=1,n_order+1
     do ms=1, n_gauss
       do mt=1, n_gauss
 
@@ -361,7 +363,7 @@ eq_zTe = eq_zTe / 2.d0  ! electron temperature
 
 !--------------------------------------------------- sum over the Gaussian integration points
 do i=1,n_vertex_max
-  do j=1,n_degrees
+  do j=1,n_order+1
     ELM_p(:,:,1:n_var)  = 0
     ELM_n(:,:,1:n_var)  = 0
     ELM_k(:,:,1:n_var)  = 0
@@ -633,6 +635,15 @@ do i=1,n_vertex_max
             deta_dT_ohm   = 0.d0
           end if
 
+          ! --- Add heating source when temperature goes below T_min
+          Tmin_neg         = max(1.d-6, T_min) * 0.1d0
+          Tneg_source      = 1.d-3 * exp( - ( 10.d0 * T0 / Tmin_neg )  )      
+          dTneg_source_dT  = 1.d-3 * exp( - ( 10.d0 * T0 / Tmin_neg )  ) * (-10.d0/Tmin_neg)    
+
+          RHOmin_neg           = 0.001d0
+          RHOneg_source        = 1.d-3 * exp( - ( 10.d0 * r0 / RHOmin_neg )  )      
+          dRHOneg_source_dRHO  = 1.d-3 * exp( - ( 10.d0 * r0 / RHOmin_neg )  ) * (-10.d0/RHOmin_neg)    
+ 
           ! --- Temperature dependent viscosity
           if ( visco_T_dependent ) then
             visco_T     =   visco * (T0_corr/T_0)**(-1.5d0)
@@ -701,6 +712,9 @@ do i=1,n_vertex_max
           end if
 
           psi_norm = get_psi_n( ps0, y_g(ms,mt))
+
+          psi_norm = min( psi_norm, 40.d0 )
+          psi_norm = max( psi_norm,  0.d0 )
 
           ! --- Bootstrap current 
           if (bootstrap) then
@@ -888,6 +902,7 @@ do i=1,n_vertex_max
 
             rhs_ij_5   = v * BigR * (particle_source(ms,mt) + source_pellet)                      * xjac * tstep &
                        + v * BigR**2 * ( r0_s * u0_t - r0_t * u0_s)                                      * tstep &
+                       + v * BigR * RHOneg_source                                                 * xjac * tstep &
                        + v * 2.d0 * BigR * r0 * u0_y                                              * xjac * tstep &
                        - (D_par-D_prof) * BigR / BB2 * Bgrad_rho_star * Bgrad_rho                 * xjac * tstep &
                        - D_prof * BigR  * (v_x*r0_x + v_y*r0_y                                  ) * xjac * tstep &
@@ -922,6 +937,7 @@ do i=1,n_vertex_max
 
             rhs_ij_6 =   v * BigR * heat_source(ms,mt)                                    * xjac * tstep &
             
+                       + v * BigR * Tneg_source                                           * xjac * tstep &
                        + v * r0 * BigR**2 * ( T0_s * u0_t - T0_t * u0_s)                         * tstep &
                        + v * T0 * BigR**2 * ( r0_s * u0_t - r0_t * u0_s)                         * tstep &
 
@@ -1025,9 +1041,9 @@ do i=1,n_vertex_max
 
             if (use_fft) then
 
-              index_ij =       n_var*n_degrees*(i-1) +       n_var*(j-1) + 1
+              index_ij =       n_var*(n_order+1)*(i-1) +       n_var*(j-1) + 1
             else
-              index_ij = n_tor_local*n_var*n_degrees*(i-1) + n_tor_local * n_var * (j-1) + im - n_tor_start +1 
+              index_ij = n_tor_local*n_var*(n_order+1)*(i-1) + n_tor_local * n_var * (j-1) + im - n_tor_start +1 
             endif
 
 
@@ -1071,7 +1087,7 @@ do i=1,n_vertex_max
 
             do k=1,n_vertex_max
 
-              do l=1,n_degrees
+              do l=1,n_order+1
 
                 do in = n_tor_start, n_tor_end
 
@@ -1382,6 +1398,7 @@ do i=1,n_vertex_max
                                                           * ( v_x * u_y  - v_y  * u_x)  * xjac * theta * tstep * tstep 
 
                   amat_55 = v * rho * BigR * (1.d0 + zeta)                                              * xjac   &
+                           - v * BigR * T * dRHOneg_source_dRHO                                         * xjac * theta * tstep &
                           - v * BigR**2 * ( rho_s * u0_t - rho_t * u0_s)                                       * theta * tstep &
                           - v * 2.d0 * BigR * rho * u0_y                                                * xjac * theta * tstep &
                           + (D_par-D_prof) * BigR / BB2 * Bgrad_rho_star * Bgrad_rho_rho                * xjac * theta * tstep &
@@ -1551,6 +1568,7 @@ do i=1,n_vertex_max
                             - v * r0 * BigR**2 * ( T_s  * u0_t - T_t  * u0_s)                        * theta * tstep &
                             - v * T  * BigR**2 * ( r0_s * u0_t - r0_t * u0_s)                        * theta * tstep &
 
+                            - v * BigR * T * dTneg_source_dT                     * xjac * theta * tstep &
                             - v * r0 * 2.d0* GAMMA * BigR * T * u0_y                 * xjac * theta * tstep &
 
                             + v * r0 * Vpar0 * (T_s  * ps0_t - T_t  * ps0_s)                         * theta * tstep &
@@ -1808,9 +1826,9 @@ do i=1,n_vertex_max
 
                   if (use_fft) then
 
-                    index_kl =       n_var*n_degrees*(k-1) +       n_var*(l-1) + 1
+                    index_kl =       n_var*(n_order+1)*(k-1) +       n_var*(l-1) + 1
                   else
-                    index_kl = n_tor_local*n_var*n_degrees*(k-1) + n_tor_local*n_var*(l-1) + in - n_tor_start +1
+                    index_kl = n_tor_local*n_var*(n_order+1)*(k-1) + n_tor_local*n_var*(l-1) + in - n_tor_start +1
                   endif
 
                   ! --- Fill up the matrix
@@ -1989,7 +2007,7 @@ do i=1,n_vertex_max
 
                 enddo ! in loop (n_tor, or not...)
 
-              enddo ! l loop n_degrees
+              enddo ! l loop (n_order+1)
             enddo ! k loop (n_vertex)
 
           enddo ! im loop (n_tor, or not...)
@@ -2003,10 +2021,10 @@ do i=1,n_vertex_max
     if (use_fft) then
 
       do i_v = 1, n_var
-        do j_loc=1, n_vertex_max*n_var*n_degrees
-          !index_ij = n_var*n_degrees*(i-1) + n_var * (j-1) + 1
+        do j_loc=1, n_vertex_max*n_var*(n_order+1)
+          !index_ij = n_var*(n_order+1)*(i-1) + n_var * (j-1) + 1
           !i_loc = index_ij + i_v-1
-          i_loc = n_var*n_degrees*(i-1) + n_var * (j-1) + i_v 
+          i_loc = n_var*(n_order+1)*(i-1) + n_var * (j-1) + i_v 
           in_fft =  ELM_p(1:n_plane,j_loc,i_v)
 #ifdef USE_FFTW
           call dfftw_execute_dft_r2c(fftw_plan, in_fft, out_fft)
@@ -2216,14 +2234,14 @@ do i=1,n_vertex_max
 
     endif ! apply fft (or not)
 
-  enddo ! j loop n_degrees
+  enddo ! j loop (n_order+1)
 enddo ! i loop (n_vertex)
 
 if (.NOT. use_fft) return
 
 ELM = 0.5d0 * ELM
 
-do j=1, n_vertex_max*n_var*n_degrees
+do j=1, n_vertex_max*n_var*(n_order+1)
 
   in_fft = RHS_p(1:n_plane,j)
 #ifdef USE_FFTW
@@ -2243,7 +2261,7 @@ do j=1, n_vertex_max*n_var*n_degrees
 
 enddo
 
-do j=1, n_vertex_max*n_var*n_degrees
+do j=1, n_vertex_max*n_var*(n_order+1)
 
   in_fft = RHS_k(1:n_plane,j)
 #ifdef USE_FFTW

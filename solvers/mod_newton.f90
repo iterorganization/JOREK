@@ -92,28 +92,31 @@ module mod_newton
 
 
     !--------------------- ROUTINE VARIABLES ---------------------------------------
-    real(kind=C_DOUBLE), allocatable                  :: rhs_n(:)        ! to copy rhs_glob at step n
-    real(kind=C_DOUBLE), allocatable                  :: delta_k_n(:)    ! U(k)-U(n)
-    real(kind=C_DOUBLE), allocatable                  :: delta_k(:)      ! initial guess and sol
-    real(kind=C_DOUBLE), allocatable                  :: rhs_k(:)
-    real(kind=C_DOUBLE), allocatable                  :: deltas_temp(:)
+    real(kind=C_DOUBLE),     allocatable              :: rhs_n(:)        ! to copy rhs_glob at step n
+    real(kind=C_DOUBLE),     allocatable              :: delta_k_n(:)    ! U(k)-U(n)
+    real(kind=C_DOUBLE),     allocatable              :: delta_k(:)      ! initial guess and sol
+    real(kind=C_DOUBLE),     allocatable              :: rhs_k(:)
+    real(kind=C_DOUBLE),     allocatable              :: deltas_temp(:)
     type(clcktype)                                    :: t0,t1
     real*8                                            :: tsecond
-    type(type_element_list)                           :: element_list_temp
-    type(type_node_list)                              :: node_list_temp
+    type(type_element_list), allocatable              :: element_list_temp
+    type(type_node_list),    allocatable              :: node_list_temp
     integer                                           :: newton_i, iter_prev
-    real(kind=C_DOUBLE), allocatable                  :: mat_vec_prod(:)
-    real(kind=C_DOUBLE), allocatable                  :: resi(:)
+    real(kind=C_DOUBLE),     allocatable              :: mat_vec_prod(:)
+    real(kind=C_DOUBLE),     allocatable              :: resi(:)
     real*8                                            :: sqrt_resi_2, eps_k
-    real*8                                            :: sqrt_rhs_n_2, sqrt_rhs_k_2, sqrt_rhs_prev_2
+    real*8                                            :: sqrt_rhs_n_2, sqrt_rhs_k_2, sqrt_rhs_prev_2, rhs_ratio
+    real*8                                            :: FT, FT_0  ! forcing term [1]
     !--------------------- END OF ROUTINE VARIABLES --------------------------------
 
 
     !--------------------- ALLOCATE, ASSIGN VALUES --------------------------------- 
     !call new_thread_buffers() 
-    allocate(rhs_n(1:ndof),rhs_k(1:ndof),delta_k_n(1:ndof),            &
-             delta_k(1:ndof),deltas_temp(1:ndof),mat_vec_prod(1:ndof), &
+    allocate(rhs_n(1:ndof)  , rhs_k(1:ndof)      , delta_k_n(1:ndof),    &
+             delta_k(1:ndof), deltas_temp(1:ndof), mat_vec_prod(1:ndof), &
              resi(1:ndof) )
+    allocate(element_list_temp, source=element_list)
+    allocate(node_list_temp   , source=node_list)
       
     delta_k_n            = 0.0d0
     delta_k(1:ndof)      = x(1:ndof) * newton_start  ! 1.0E-10
@@ -170,11 +173,29 @@ module mod_newton
 
       !--- compute residues and compute eps_k
       sqrt_rhs_k_2    = DSQRT(DOT_PRODUCT(rhs_k,rhs_k))
-      eps_k           = sqrt_rhs_k_2 * newton_gamma * (sqrt_rhs_k_2/sqrt_rhs_prev_2)**newton_alpha
+      rhs_ratio       = sqrt_rhs_k_2/sqrt_rhs_prev_2
+      eps_k           = sqrt_rhs_k_2 * newton_gamma * rhs_ratio**newton_alpha
       !--- set initial tolerance, i.e. usually computed eps_0>1.d-4 -> bad behaviour!
       if (newton_i.eq.1) then
         eps_k = newton_eps_0
       endif
+
+      !--- compute eps analogously to [1]
+      FT_0    = newton_eps_0
+      if (newton_i.eq.1) then
+        FT    = FT_0
+        eps_k = FT
+      else
+        FT    = eps_k
+        if (0.5*FT**2.d0.gt.1.d-1) then
+          FT  = MIN(MAX(0.5*rhs_ratio**2.d0,0.5*FT**2.d0),FT_0)
+        else
+          FT  = MIN(0.5*rhs_ratio**2.d0,FT_0)
+        endif
+        eps_k = MIN(0.5*eps_k,FT)
+      endif
+      
+
       if(my_id.eq.0) write(*,'(A24,E9.2,E9.2,A19,E9.2,A8,E9.2)') 'eps_k, newton_eps_gmres', eps_k, newton_eps_gmres,&
                                                                  '|rhs_k|/|rhs_prev|', sqrt_rhs_k_2/sqrt_rhs_prev_2,&
                                                                  '|rhs_k|', sqrt_rhs_k_2 
@@ -185,7 +206,7 @@ module mod_newton
       !--- set variables for the solvers, tol is eps_k from [1]
       x(1:ndof) = delta_k(1:ndof)
       b(1:ndof) = rhs_k(1:ndof) 
-      tol       = MAX(eps_k, newton_eps_gmres)  ! set tol>=newton_eps_gmres=1.0d-8, just as in standard gmres
+      tol       = MAX(eps_k, newton_eps_gmres)  ! set tol>=newton_eps_gmres, just as in standard gmres
 
       !--- call solvers
 #ifdef USE_BICGSTAB
@@ -232,12 +253,21 @@ module mod_newton
     if (my_id.eq.0) write(*,*) '>>>>>>>>>>>>>>>>>>>>>> END NEWTON LOOP <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<'
     !--------------------- END OF NEWTON ITERATION ---------------------------------
 
+    !-- killswitch
+    !if (my_id.eq.0) write(*,*) 'Killing'
+    !call MPI_BARRIER(MPI_COMM_WORLD,ierr)
+    !write(*,*) 'Process ', my_id 
+    !call MPI_ABORT(MPI_GLOB,3,ierr)
+    !call MPI_FINALIZE(ierr)
+    !stop
+
     !--- reset element_list and node_list, result is stored in deltas, i.e. x and propagated in jorek2_main.f90
     element_list    = element_list_temp
     node_list       = node_list_temp
-    x               = delta_k_n+delta_k!deltas_temp
+    x(1:ndof)       = delta_k_n(1:ndof)+delta_k(1:ndof)  ! deltas_temp
     if (my_id.eq.0) write(*,*) 'RESET ELEMENT_LIST and NODE_LIST, SAVED DELTA'
     deallocate(rhs_n,rhs_k,delta_k_n,delta_k,deltas_temp,mat_vec_prod,resi)
+    deallocate(element_list_temp, node_list_temp)
   end subroutine inexact_newton
 
 end module mod_newton

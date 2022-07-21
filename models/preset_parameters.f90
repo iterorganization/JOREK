@@ -557,6 +557,7 @@ subroutine preset_parameters
   newton_alpha       = 1.0d0   !< alpha for eps_k, i.e. eps^k=gamma*(|R(U_k,U^n)|/|R(U_k-1, U^n)|)**alpha
   newton_eps_a       = 1.d-6   !< abs. conv. criterion, i.e. |R(U_k,U^n)|<newton_eps_a+newton_eps_r*|R(U^n)|
   newton_eps_r       = 1.d-5   !< rel. conv. criterion, i.e. |R(U_k,U^n)|<newton_eps_a+newton_eps_r*|R(U^n)|
+  newton_eps_0       = 1.d-4   !< solver tol for the initial newton step
   newton_max_iter    = 20      !< max. numer of newton iterations
   newton_eps_gmres   = 1.d-6   !< alternative to eps_k, i.e. gmres_tol = min(eps_k, newton_eps_gmres)
  
