@@ -6,7 +6,7 @@ module phys_module
   use data_structure              !< Added in order to dynamically allocate pellets
   use mod_openadas
   use mod_coronal
-  
+
   implicit none
   
   !> @name Various parameters
@@ -82,10 +82,7 @@ module phys_module
   logical :: equil                !< compute equilibrium
   logical :: no_mach1_bc          !< Never apply Mach-1 BCs
   logical :: Mach1_openBC         !< Full-MHD: Apply Mach-1 BCs inside mod_boundary_matrix_open.f90 (or mod_boundary_conditions.f90)
-#ifdef CUDA_KERNELS
-  attributes(managed) :: F0, central_density, central_mass
-#endif
-  
+
   ! --- RESISTIVITY SWITCHES FOR AR AND AZ EQUATIONS
   ! --- 1.
   ! --- Default set-up is eta_ARAZ_on = .true.
@@ -307,10 +304,6 @@ module phys_module
   real*8  :: time_evol_theta   		!< Time evolution parameter theta (see [[time-integration|time_integration]])
   real*8  :: time_evol_zeta    		!< Time evolution parameter zeta (see [[time-integration|time_integration]])
 
-#ifdef CUDA_KERNELS
- attributes(managed) :: tstep
-#endif
-  
   integer :: rst_hdf5                   !< Write hdf5 restart files if set to 1
   integer :: rst_hdf5_version           !< Write which version of hdf5 files?
   integer, parameter :: rst_hdf5_version_supported = 2 !< What is the highest version number supported?

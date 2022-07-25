@@ -116,11 +116,6 @@ contains
        call copy_particle_kinetic_leapfrog( particle_tmp , group_particles%particles(i) )
     end if
 
-!!$    if(i == 1) then
-!!$       ierr = CudaGetDevice( device_num )
-!!$       write(*,*) "Running on device", device_num
-!!$    endif
-    
   end subroutine particle_kinetic_leapfrog_loop_kernel
 
   !> Set the device to use and the threadblock size
@@ -149,6 +144,7 @@ contains
   
   !> Obtain information on the devices available, not needed for pushing
   subroutine device_query()
+
     type(cudaDeviceProp) :: prop    
     integer              :: istat, i, n_devices
 
@@ -178,7 +174,7 @@ contains
   !> Takes a particle sim type and copies the field and particle data into non-polymorphic
   !> types using the managed attribute that can be used in the kernels
   subroutine copy_device_data( sim , particle_groups , fields )
-!    use phys_module, only: F0, tstep, central_mass, central_density
+
     type(particle_sim), intent(inout)                                               :: sim
     type(particle_group_device), managed, dimension(:), allocatable, intent(inout)  :: particle_groups
     type(fields_linear_device), managed , allocatable, intent(inout)                :: fields
@@ -212,6 +208,7 @@ contains
   
   !> Copies particle_groups to managed non-polymorphic particle_group_device groups
   subroutine copy_particle_groups( particle_groups_in, particle_groups_out )
+
     type(particle_group), dimension(:), intent(inout)                              :: particle_groups_in
     type(particle_group_device), managed, dimension(:), allocatable, intent(inout) :: particle_groups_out
 
@@ -230,6 +227,7 @@ contains
 
   !> Copies managed particle_group_device groups to  particle_groups
   subroutine copy_managed_groups_host_groups( particle_groups_in, particle_groups_out )
+
     type(particle_group_device), managed, dimension(:), intent(inout) :: particle_groups_in
     type(particle_group), dimension(:), allocatable, intent(inout)    :: particle_groups_out
 
@@ -248,6 +246,7 @@ contains
   
   !> Copies a number of particle_groups from a particle_group to a particle_group_device type
   subroutine copy_one_particle_group(group_particles_in, group_particles_out)
+
     type(particle_group), intent(inout)                   :: group_particles_in
     type(particle_group_device), managed, intent(inout)   :: group_particles_out
 
@@ -270,6 +269,7 @@ contains
   
   !> Copies a number of particle_groups from a managed particle_group_device to a particle_group type
   subroutine copy_one_managed_group_host_group(group_particles_in, group_particles_out)
+
     type(particle_group_device), managed, intent(inout)   :: group_particles_in
     type(particle_group), intent(inout)                   :: group_particles_out
 
@@ -292,8 +292,10 @@ contains
 
   !> Copy the fields data from sim to a new fields_linear_device type to avoid the polymorphism
   subroutine copy_fields_device( sim , fields )
+
     use phys_module, only: F0, tstep, central_mass, central_density
     use mod_fields_linear, only: jorek_fields_interp_linear
+
     type(particle_sim), intent(inout)                               :: sim
     type(fields_linear_device), managed, allocatable, intent(inout) :: fields
 
@@ -320,6 +322,7 @@ contains
 
   !> Copy an element list
   subroutine copy_element_list( in , out )
+
     type(type_element_list), intent(in)        :: in
     type(type_element_list), intent(inout)     :: out
 
@@ -353,6 +356,7 @@ contains
 
   !> Copy a node list
   subroutine copy_node_list( in , out )
+
     type(type_node_list), intent(in)        :: in
     type(type_node_list), intent(inout)     :: out
 
