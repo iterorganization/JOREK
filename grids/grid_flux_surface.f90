@@ -9,6 +9,7 @@ use mod_neighbours, only: update_neighbours
 use mod_interp
 use phys_module, only: force_central_node, fix_axis_nodes, treat_axis
 use equil_info
+use mod_grid_conversions
 
 implicit none
 
@@ -29,7 +30,7 @@ real*8,allocatable :: RRnew(:,:),ZZnew(:,:),PSInew(:,:)
 real*8             :: abltg(3), xtmp
 real*8,allocatable :: s_values(:),radius(:),psi_values(:),tht_start(:),tht_end(:)
 real*8,allocatable :: sp1(:),sp2(:),sp3(:),sp4(:)
-real*8             :: dpsi_ds, tht_min, tht_max, rr1, rr2, ss1, ss2
+real*8             :: dpsi_ds, dpsi_dss, tht_min, tht_max, rr1, rr2, ss1, ss2
 real*8             :: RRg1,dRRg1_dr,dRRg1_ds,dRRg1_drs,dRRg1_drr,dRRg1_dss
 real*8             :: ZZg1,dZZg1_dr,dZZg1_ds,dZZg1_drs,dZZg1_drr,dZZg1_dss
 real*8             :: RRg2,dRRg2_dr,dRRg2_ds,dRRg2_drs,dRRg2_drr,dRRg2_dss
@@ -40,9 +41,9 @@ real*8             :: dRRg1_dt, dZZg1_dt, dRRg2_dt, dZZg2_dt, rz0, rz1, rz2, drz
 real*8             :: a0, a1, a2, a3
 real*8             :: theta, drr1, dss1, drr2, dss2, t, t2, t3, ri, si, dri, dsi, check
 real*8             :: rad2, th_z, th_r, th_rr, th_zz, th_rz, dth_ds, dth_dr, dth_drs, dth_drr, dth_dss
-real*8             :: rzjac, ps_z, ps_r, ejac, ptjac, rt, st, dptjac_dr, dptjac_ds, rpt, spt
+real*8             :: rzjac, ps_z, ps_r, ejac, ptjac, rt, st, dptjac_dr, dptjac_ds, rpt, spt, rtt, stt
 real*8             :: dr_dr, dr_dz, ds_dr, ds_dz, dps_drr, dps_dzz, crr_axis, czz_axis, cx, cy
-real*8             :: dr_dpt, dz_dpt, r_ax, s_ax, tn, tn2, cn
+real*8             :: dr_dpt, dz_dpt, dr_dtt, dz_dtt, r_ax, s_ax, tn, tn2, cn
 real*8             :: delta_rp, delta_zp, delta_rm, delta_zm, dir_2, dir_3, B_axis, q_axis
 real*8             :: psi_bnd
 real*8, external   :: spwert
@@ -69,6 +70,7 @@ nrnew              = n_flux
 npnew              = n_tht
 
 n_max = n_degrees
+if (n_order .gt. 5) n_max = (5+1)**2 / 4 ! we don't care about derivatives >= 3...
 
 call tr_allocate(surface_list%psi_values,1,surface_list%n_psi,"surface_list%psi_values",CAT_GRID)
 call tr_allocate(psi_values,1,surface_list%n_psi+1,"psi_values",CAT_GRID)
@@ -122,6 +124,7 @@ do i=1,surface_list%n_psi
 
     xtmp     = spwert(surface_list%n_psi+1,radius(i+1),sp1,sp2,sp3,sp4,radius,abltg)
     dpsi_ds  = abltg(1) * (psi_bnd - ES%psi_axis) * 2.d0 * s_values(i+1)
+    dpsi_dss = abltg(2) * (psi_bnd - ES%psi_axis) * 2.d0 * s_values(i+1)
 
     tht_min =  1d20
     tht_max = -1d20
@@ -245,25 +248,37 @@ do i=1,surface_list%n_psi
             PS_R    = (  dZZg1_ds * dPSg1_dr - dZZg1_dr * dPSg1_ds) / RZjac
             PS_Z    = (- dRRg1_ds * dPSg1_dr + dRRg1_dr * dPSg1_ds) / RZjac
 
-            Ejac   =  (PS_R * TH_Z - PS_Z * TH_R)
+            Ejac    =  (PS_R * TH_Z - PS_Z * TH_R)
             PTjac   = (dPSg1_dr * dTH_ds - dPSg1_ds * dTH_dr)
+
+            dPTjac_dr = dPSg1_drr * dTH_ds + dPSg1_dr * dTH_drs - dPSg1_drs * dTH_dr - dPSg1_ds * dTH_drr
+            dPTjac_ds = dPSg1_drs * dTH_ds + dPSg1_dr * dTH_dss - dPSg1_dss * dTH_dr - dPSg1_ds * dTH_drs
 
             RT      = - dPSg1_ds / PTjac
             ST      =   dPSg1_dr / PTjac
 
-            dPTjac_dr = dPSg1_drr * dTH_ds + dPSg1_dr * dTH_drs - dPSg1_drs * dTH_dr - dPSg1_ds * dTH_drr
-
-            dPTjac_ds = dPSg1_drs * dTH_ds + dPSg1_dr * dTH_dss - dPSg1_dss * dTH_dr - dPSg1_ds * dTH_drs
-
             RPT = (-dPTjac_dr * dTH_ds / PTjac**2 + dTH_drs/PTjac) * RT + (- dPTjac_ds * dTH_ds / PTjac**2 + dTH_dss/PTjac)*ST
+            SPT = ( dPTjac_dr * dTH_dr / PTjac**2 - dTH_drr/PTjac) * RT + (  dPTjac_ds * dTH_dr / PTjac**2 - dTH_drs/PTjac)*ST
 
-            SPT = ( dPTjac_dr * dTH_dr / PTjac**2 - dTH_drr/ PTjac) * RT + (  dPTjac_ds * dTH_dr / PTjac**2 - dTH_drs/PTjac)*ST
+            RTT = ( dPTjac_dr * dPSg1_ds / PTjac**2 - dPSg1_drs/PTjac) * RT + (  dPTjac_ds * dPSg1_ds / PTjac**2 - dPSg1_dss/PTjac)*ST
+            STT = (-dPTjac_dr * dPSg1_dr / PTjac**2 + dPSg1_drr/PTjac) * RT + (- dPTjac_ds * dPSg1_dr / PTjac**2 + dPSg1_drs/PTjac)*ST
 
+            ! 2nd order psi-tht derivative
             DR_dpt = - dRRg1_drr * dTH_ds * dPSg1_ds / PTjac**2 + dRRg1_drs * (dTH_ds * dPSg1_dr + dTH_dr * dPSg1_ds)/PTjac**2 &
                      + dRRg1_dr  * RPT    + dRRg1_ds * SPT - dRRg1_dss * dTH_dr * dPSg1_dr / PTjac**2
 
             DZ_dpt = - dZZg1_drr * dTH_ds * dPSg1_ds / PTjac**2 + dZZg1_drs * (dTH_ds * dPSg1_dr + dTH_dr * dPSg1_ds)/PTjac**2 &
-                     + dZZg1_dr  * RPT    + dZZg1_ds * SPT - dZZg1_dss * dTH_dr * dPSg1_dr /PTjac**2
+                     + dZZg1_dr  * RPT    + dZZg1_ds * SPT - dZZg1_dss * dTH_dr * dPSg1_dr / PTjac**2
+
+            ! 2nd order tht-tht derivative
+            DR_dtt = + dRRg1_drr * dPSg1_ds**2 / PTjac**2 - dRRg1_drs * 2.d0 * dPSg1_ds * dPSg1_dr /PTjac**2 &
+                     - dRRg1_dr  * RTT    - dRRg1_ds * STT + dRRg1_dss * dPSg1_dr**2 / PTjac**2
+
+            DZ_dtt = + dZZg1_drr * dPSg1_ds**2 / PTjac**2 - dZZg1_drs * 2.d0 * dPSg1_ds * dPSg1_dr /PTjac**2 &
+                     - dZZg1_dr  * RTT    - dZZg1_ds * STT + dZZg1_dss * dPSg1_dr**2 / PTjac**2
+
+            RRnew(1,npnew*(i) + j)  = RRg1
+            ZZnew(1,npnew*(i) + j)  = ZZg1
 
             RRnew(2,npnew*(i) + j) = (  TH_Z / Ejac) /  (2.d0*(nrnew-1)) * dpsi_ds
             ZZnew(2,npnew*(i) + j) = (- TH_R / Ejac) /  (2.d0*(nrnew-1)) * dpsi_ds
@@ -278,6 +293,17 @@ do i=1,surface_list%n_psi
             PSInew(2,npnew*(i) + j) = dpsi_ds / (2.d0*(nrnew-1))
             PSInew(3,npnew*(i) + j) = 0.d0
             PSInew(4,npnew*(i) + j) = 0.d0
+            
+            if (n_order .ge. 5) then
+              RRnew (5,npnew*(i) + j) = 0.d0
+              ZZnew (5,npnew*(i) + j) = 0.d0
+              RRnew (6,npnew*(i) + j) = dR_dtt / (npnew/PI)**2
+              ZZnew (6,npnew*(i) + j) = dZ_dtt / (npnew/PI)**2
+              RRnew (7:n_max,npnew*(i) + j) = 0.d0
+              ZZnew (7:n_max,npnew*(i) + j) = 0.d0
+              PSInew(5,npnew*(i) + j) = dpsi_dss / (2.d0*(nrnew-1))**2
+              PSInew(6:n_max,npnew*(i) + j) = 0.d0
+            endif
 
           else
 
@@ -366,6 +392,12 @@ do j=1,npnew
   PSInew(2,inode) = PSInew(2,inode) * sp2(1)
   PSInew(4,inode) = PSInew(4,inode) * sp2(1)
 
+  if (n_order .ge. 5) then
+    RRnew (5:n_max,inode) = 0.d0
+    ZZnew (5:n_max,inode) = 0.d0
+    PSInew(5:n_max,inode) = 0.d0
+  endif
+
 enddo
 
 
@@ -429,22 +461,45 @@ do i=1,nrnew
     index0 =                npnew*(i-1) + j
     index  = n_node_start + npnew*(i-1) + j
 
-    node_list%node(index)%X(1,1,1) = RRnew(1,index0)
-    node_list%node(index)%X(1,1,2) = ZZnew(1,index0)
+    node_list%node(index)%X(1,:,1)      = 0.d0
+    node_list%node(index)%X(1,:,2)      = 0.d0
+    node_list%node(index)%values(1,:,1) = 0.d0
 
+    node_list%node(index)%X(1,1,1)      = RRnew (1,index0)
+    node_list%node(index)%X(1,1,2)      = ZZnew (1,index0)
     node_list%node(index)%values(1,1,1) = PSInew(1,index0)
 
-    node_list%node(index)%X(1,2,1) = RRnew(2,index0)       * 2.d0/3.d0
-    node_list%node(index)%X(1,2,2) = ZZnew(2,index0)       * 2.d0/3.d0
-    node_list%node(index)%values(1,2,1) = PSInew(2,index0) * 2.d0/3.d0
+    node_list%node(index)%X(1,2,1)      = RRnew (2,index0) * 2.d0/float(n_order)
+    node_list%node(index)%X(1,2,2)      = ZZnew (2,index0) * 2.d0/float(n_order)
+    node_list%node(index)%values(1,2,1) = PSInew(2,index0) * 2.d0/float(n_order)
 
-    node_list%node(index)%X(1,3,1) = RRnew(3,index0)       * 2.d0/3.d0
-    node_list%node(index)%X(1,3,2) = ZZnew(3,index0)       * 2.d0/3.d0
-    node_list%node(index)%values(1,3,1) = PSInew(3,index0) * 2.d0/3.d0
+    node_list%node(index)%X(1,3,1)      = RRnew (3,index0) * 2.d0/float(n_order)
+    node_list%node(index)%X(1,3,2)      = ZZnew (3,index0) * 2.d0/float(n_order)
+    node_list%node(index)%values(1,3,1) = PSInew(3,index0) * 2.d0/float(n_order)
 
-    node_list%node(index)%X(1,4,1) = RRnew(4,index0)       * 4.d0/9.d0
-    node_list%node(index)%X(1,4,2) = ZZnew(4,index0)       * 4.d0/9.d0
-    node_list%node(index)%values(1,4,1) = PSInew(4,index0) * 4.d0/9.d0
+    node_list%node(index)%X(1,4,1)      = RRnew (4,index0) * 4.d0/float(n_order)**2
+    node_list%node(index)%X(1,4,2)      = ZZnew (4,index0) * 4.d0/float(n_order)**2
+    node_list%node(index)%values(1,4,1) = PSInew(4,index0) * 4.d0/float(n_order)**2
+
+    if (n_order .ge. 5) then
+      node_list%node(index)%X(1,5,1)      = RRnew (5,index0)  * 4.d0/float(n_order)**2
+      node_list%node(index)%X(1,6,1)      = RRnew (6,index0)  * 4.d0/float(n_order)**2
+      node_list%node(index)%X(1,7,1)      = RRnew (7,index0)  * 8.d0/float(n_order)**3
+      node_list%node(index)%X(1,8,1)      = RRnew (8,index0)  * 8.d0/float(n_order)**3
+      node_list%node(index)%X(1,9,1)      = RRnew (9,index0)  *16.d0/float(n_order)**4
+      
+      node_list%node(index)%X(1,5,2)      = ZZnew (5,index0)  * 4.d0/float(n_order)**2
+      node_list%node(index)%X(1,6,2)      = ZZnew (6,index0)  * 4.d0/float(n_order)**2
+      node_list%node(index)%X(1,7,2)      = ZZnew (7,index0)  * 8.d0/float(n_order)**3
+      node_list%node(index)%X(1,8,2)      = ZZnew (8,index0)  * 8.d0/float(n_order)**3
+      node_list%node(index)%X(1,9,2)      = ZZnew (9,index0)  *16.d0/float(n_order)**4
+      
+      node_list%node(index)%values(1,5,1) = PSInew(5,index0)  * 4.d0/float(n_order)**2
+      node_list%node(index)%values(1,6,1) = PSInew(6,index0)  * 4.d0/float(n_order)**2
+      node_list%node(index)%values(1,7,1) = PSInew(7,index0)  * 8.d0/float(n_order)**3
+      node_list%node(index)%values(1,8,1) = PSInew(8,index0)  * 8.d0/float(n_order)**3
+      node_list%node(index)%values(1,9,1) = PSInew(9,index0)  *16.d0/float(n_order)**4
+    endif
 
     if (i .eq. nrnew) node_list%node(index)%boundary = 2
 
@@ -481,10 +536,10 @@ do i=1,nrnew
 
         if (j.eq.1) n_index_start = n_index_start + 1
 
-        node_list%node(index)%index(2) = n_index_start + 1
-        node_list%node(index)%index(3) = n_index_start + 2
-        node_list%node(index)%index(4) = n_index_start + 3
-        n_index_start = n_index_start + n_degrees-1
+        do k=2,n_degrees
+          node_list%node(index)%index(k) = n_index_start + k-1
+        enddo
+        n_index_start = n_index_start +n_degrees-1
 
       else
         do k=1,n_degrees
@@ -603,6 +658,10 @@ do k=n_element_start+1 , element_list%n_elements   ! fill in the size of the ele
  enddo
 
 enddo
+
+if (n_order .ge. 5) call set_high_order_sizes(element_list)
+if ( (n_order .ge. 5) .and. fix_axis_nodes) call set_high_order_sizes_on_axis(node_list,element_list)
+
 call update_neighbours(node_list,element_list, force_rtree_initialize=.true.)
 return
 end subroutine grid_flux_surface

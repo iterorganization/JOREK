@@ -113,6 +113,7 @@ subroutine sanity_checks(my_id, n_cpu, mpi_required, mpi_provided)
   use wsmp_module
   use mod_parameters, only: n_tor, n_plane
   use phys_module
+  use gauss
 
   integer :: ierr, i
   integer, intent(in) :: my_id, n_cpu
@@ -142,6 +143,27 @@ subroutine sanity_checks(my_id, n_cpu, mpi_required, mpi_provided)
     write(*,*) 'WARNING :'
     write(*,*) 'freeboundary = .true. is not possible'
     write(*,*) 'at the moment with n_order>3, aborting.'
+    call MPI_FINALIZE(IERR) 
+    stop
+  endif
+
+  ! WARNING for invalid values of n_order (needs to be odd)
+  if( mod(n_order+1,2) .ne. 0 )then
+    write(*,*) 'WARNING :'
+    write(*,*) 'n_order needs to be an odd integer'
+    call MPI_FINALIZE(IERR) 
+    stop
+  endif
+
+  ! WARNING for n_order>=7 if auto-generated mod_basisfunctions.f90 and gauss.f90 have not been created
+  if( (n_order .ge. 7) .and. (n_gauss .le. 8) )then
+    write(*,*) 'WARNING :'
+    write(*,*) 'if you are using n_order>=7 (ie. G3-Bezier or higher)'
+    write(*,*) 'you need to generate the routines mod_basisfunctions.f90 and gauss.f90'
+    write(*,*) 'using the code ./util/generate_codes_for_norder_gt_7.py'
+    write(*,*) 'please see'
+    write(*,*) 'https://www.jorek.eu/wiki/doku.php?id=gn_grid_tutorial#gn-continuous_grid_tutorial'
+    write(*,*) 'for instructions.'
     call MPI_FINALIZE(IERR) 
     stop
   endif

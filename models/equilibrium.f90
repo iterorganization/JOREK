@@ -147,7 +147,7 @@ if (my_id == 0) then
       if ( (ES%Z_lim .gt. ES%Z_xpoint(1)) .and. (ES%Z_lim .lt. ES%Z_xpoint(2)) ) then
         if (n_limiter /= 0) then   ! else n_limiter = 0 and psi_bnd is set to 0
           ES%psi_bnd = ES%psi_lim
-          write(*,'(A,3f8.3)') ' LIMITER PLASMA ',psi_lim,R_lim,Z_lim
+          write(*,'(A,3f8.3)') ' LIMITER PLASMA ',ES%psi_lim,ES%R_lim,ES%Z_lim
         endif
       endif
     endif
@@ -243,7 +243,7 @@ if (freeboundary_equil) then
         ES%ifail_axis = ifail   
       endif
       
-      write(10,'(i6,9e20.12)') iter, current_tot, R_axis, Z_axis, ES%psi_bnd-ES%psi_axis
+      write(10,'(i6,9e20.12)') iter, current_tot, ES%R_axis, ES%Z_axis, ES%psi_bnd-ES%psi_axis
       
       ES%psi_bnd = 0.d0
    
