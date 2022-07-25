@@ -303,10 +303,14 @@ contains
     call run_boris_push_cylindrical_GPU( timestep , particle_start_time , group_particles )
     call run_boris_push_cylindrical_CPU( timestep , particle_start_time )
 
-    !    call assert_equal_rel_error_particle(n_particles_local,sim%groups(1)%particles,group_particles(1)%particles)
-    call set_tol(tol_interp)
+    ! These commented lines refer to routines added to mod_particle_assert_equal that also caused gcc to crash
+    ! They allow testing of relative instead of absolute values. This code was removed for this commit so as to simplify a pull request
+    ! This also means that the tests as they stand fail
+    
+!$$    call assert_equal_rel_error_particle(n_particles_local,sim%groups(1)%particles,group_particles(1)%particles)
+!$$    call set_tol(tol_interp)
     call assert_equal_particle(n_particles_local,sim%groups(1)%particles,group_particles(1)%particles)
-    call reset_tol_real8()
+!$$    call reset_tol_real8()
 
     deallocate( group_particles(1)%particles )
     deallocate( group_particles )
@@ -534,7 +538,7 @@ contains
 
     tol = 5e-10
     
-    write(*,*) "test_particle_kinetic_leapfrog_loop", n_steps
+    write(*,*) "test_particle_kinetic_leapfrog_loop"
     
     particle_start_time = 0
     n_steps = 1000
@@ -548,6 +552,9 @@ contains
     call run_particle_kinetic_leapfrog_loop_CPU( n_steps, timestep, particle_start_time )
     write(*,*) "Proc",sim%my_id, "Threaded full loop completed in ",MPI_Wtime()-start_time," s"
 
+    ! These commented lines refer to routines added to mod_particle_assert_equal that also caused gcc to crash
+    ! They allow testing of relative instead of absolute values. This code was removed for this commit so as to simplify a pull request
+    ! This also means that the tests as they stand fail
 !!$       call set_tol(tol)
 !!$       call assert_equal_rel_error_particle(n_particles_local,sim%groups(1)%particles,group_particles(1)%particles)
 !!$       call reset_tol_real8()
