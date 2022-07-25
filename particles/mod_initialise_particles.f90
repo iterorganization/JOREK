@@ -277,7 +277,10 @@ subroutine initialise_particles_H_mu_psi(particles, fields, rng_base, mass, T_ma
   real*8, dimension(1)                :: P, P_s, P_t, P_phi
 #endif
   
-  real*8, dimension(:), allocatable   :: P2, grad_P2_1, grad_P2_2, grad_P2_3
+  real*8, dimension(:), allocatable   :: P2
+#ifdef CUDA_KERNELS
+  real*8, dimension(:), allocatable   :: grad_P2_1, grad_P2_2, grad_P2_3
+#endif
   real*8, dimension(:,:), allocatable :: grad_P2
   real*8  :: R_s, R_t, Z_s, Z_t, R_i, Z_i, xjac
   real*8  :: s, t, u_init_max, temp, u
@@ -322,10 +325,12 @@ subroutine initialise_particles_H_mu_psi(particles, fields, rng_base, mass, T_ma
     n_geom = size(uniform_space_rej_vars, 1) - n_mhd
 
     allocate(grad_P2(3,size(uniform_space_rej_vars,1)))
+#ifdef CUDA_KERNELS
     allocate(grad_P2_1(size(uniform_space_rej_vars,1)))
     allocate(grad_P2_2(size(uniform_space_rej_vars,1)))
     allocate(grad_P2_3(size(uniform_space_rej_vars,1)))
-
+#endif
+    
   else
     n_mhd = 0
     n_geom = 0
@@ -435,8 +440,11 @@ subroutine initialise_particles_H_mu_psi(particles, fields, rng_base, mass, T_ma
     !$omp          fields, psi_minmax_list, rans, R_axis, Z_axis, blocksize, &
     !$omp          my_include_vpar, central_density, init_uniform_space, Rbox, Zbox, uniform_space_rej_vars, n_geom, n_mhd) &
 #endif
-    !$omp   private(i, psi, theta, phi, i_elm, s, t, R, Z, R_s, R_t, Z_s, Z_t, P2,P2_1,P2_2,P2_3 &
-    !$omp           R_i, Z_i, xjac, grad_P2, grad_P2_1, grad_P2_2, grad_P2_3, u, particle_kinetic_tmp, v2, v_par,   &
+    !$omp   private(i, psi, theta, phi, i_elm, s, t, R, Z, R_s, R_t, Z_s, Z_t, P2, &
+#ifdef CUDA_KERNELS
+    !$omp           grad_P2_1, grad_P2_2, grad_P2_3, &
+#endif
+    !$omp           R_i, Z_i, xjac, grad_P2, u, particle_kinetic_tmp, v2, v_par,   &
 #ifdef fullmhd
     !$omp           A3, AR, AZ, A3_R, A3_Z, AR_Z, AR_p, AZ_R, AZ_P, Fprof,          &
 #endif
@@ -471,24 +479,33 @@ subroutine initialise_particles_H_mu_psi(particles, fields, rng_base, mass, T_ma
          end do
          
           ! nvfortran cannot handle passing array sections in this case so they are replaced by 3 separate arrays
-          grad_P2_1 = grad_P2(1,:)
-          grad_P2_2 = grad_P2(2,:)
-          grad_P2_3 = grad_P2(3,:)            
           
           if (n_mhd .ge. 1) then
+#ifdef CUDA_KERNELS
+             grad_P2_1 = grad_P2(1,:)
+             grad_P2_2 = grad_P2(2,:)
+             grad_P2_3 = grad_P2(3,:)            
 
-            call interp_PRZ(fields%node_list, fields%element_list,i_elm,                        &
-              uniform_space_rej_vars(n_geom+1:n_geom+n_mhd),n_mhd,s,t,phi,        &
-              P2(n_geom+1:n_geom+n_mhd), grad_P2_1(n_geom+1:n_geom+n_mhd),        &
-              grad_P2_2(n_geom+1:n_geom+n_mhd), grad_P2_3(n_geom+1:n_geom+n_mhd), &
-              R_i, R_s, R_t, Z_i, Z_s, Z_t)
+             call interp_PRZ(fields%node_list, fields%element_list,i_elm,                        &
+                  uniform_space_rej_vars(n_geom+1:n_geom+n_mhd),n_mhd,s,t,phi,        &
+                  P2(n_geom+1:n_geom+n_mhd), grad_P2_1(n_geom+1:n_geom+n_mhd),        &
+                  grad_P2_2(n_geom+1:n_geom+n_mhd), grad_P2_3(n_geom+1:n_geom+n_mhd), &
+                  R_i, R_s, R_t, Z_i, Z_s, Z_t)
 
-            grad_P2(1,n_geom+1:n_geom+n_mhd) = grad_P2_1(n_geom+1:n_geom+n_mhd)
-            grad_P2(2,n_geom+1:n_geom+n_mhd) = grad_P2_2(n_geom+1:n_geom+n_mhd)
-            grad_P2(3,n_geom+1:n_geom+n_mhd) = grad_P2_3(n_geom+1:n_geom+n_mhd)
-            
-            xjac = R_s*Z_t - R_t*Z_s
+             grad_P2(1,n_geom+1:n_geom+n_mhd) = grad_P2_1(n_geom+1:n_geom+n_mhd)
+             grad_P2(2,n_geom+1:n_geom+n_mhd) = grad_P2_2(n_geom+1:n_geom+n_mhd)
+             grad_P2(3,n_geom+1:n_geom+n_mhd) = grad_P2_3(n_geom+1:n_geom+n_mhd)
+#else
+             call interp_PRZ(fields%node_list, fields%element_list,i_elm,                        &
+                  uniform_space_rej_vars(n_geom+1:n_geom+n_mhd),n_mhd,s,t,phi,        &
+                  P2(n_geom+1:n_geom+n_mhd), grad_P2(1,n_geom+1:n_geom+n_mhd),        &
+                  grad_P2(2,n_geom+1:n_geom+n_mhd), grad_P2(3,n_geom+1:n_geom+n_mhd), &
+                  R_i, R_s, R_t, Z_i, Z_s, Z_t)
+#endif
+             
+             xjac = R_s*Z_t - R_t*Z_s
 
+             
             do k=1,n_mhd
               grad_P2(1:2,n_geom+k) = [Z_t * grad_P2(1,n_geom+k) - Z_s * grad_P2(2,n_geom+k), &
                 -R_t * grad_P2(1,n_geom+k) + R_s * grad_P2(2,n_geom+k)]/xjac
@@ -722,7 +739,10 @@ subroutine initialise_particles_H_mu_psi_phiplanes(particles, fields, rng_base, 
 #else 
   real*8, dimension(1)                :: P, P_s, P_t, P_phi
 #endif
-  real*8, dimension(:), allocatable   :: P2, grad_P2_1, grad_P2_2, grad_P2_3
+  real*8, dimension(:), allocatable   :: P2
+#ifdef CUDA_KERNELS
+  real*8, dimension(:), allocatable   :: grad_P2_1, grad_P2_2, grad_P2_3
+#endif
   real*8, dimension(:,:), allocatable :: grad_P2
   real*8  :: R_s, R_t, Z_s, Z_t, R_i, Z_i, xjac
   real*8  :: s, t, u_init_max, temp, u, v2, v_par
@@ -787,10 +807,12 @@ subroutine initialise_particles_H_mu_psi_phiplanes(particles, fields, rng_base, 
     n_geom = size(uniform_space_rej_vars, 1) - n_mhd
 
     allocate(grad_P2(3,size(uniform_space_rej_vars,1)))
+#ifdef CUDA_KERNELS
     allocate(grad_P2_1(size(uniform_space_rej_vars,1)))
     allocate(grad_P2_2(size(uniform_space_rej_vars,1)))
     allocate(grad_P2_3(size(uniform_space_rej_vars,1)))
-
+#endif
+    
   else
     n_mhd = 0
     n_geom = 0
@@ -909,8 +931,11 @@ subroutine initialise_particles_H_mu_psi_phiplanes(particles, fields, rng_base, 
     !$omp          fields, psi_minmax_list, rans, R_axis, Z_axis, blocksize, init_phiplanes,init_gyro_orbit, n_gyro_orbit,blocksize_tmp,&
     !$omp          my_include_vpar, central_density, init_uniform_space, Rbox, Zbox, uniform_space_rej_vars, n_geom, n_mhd,n_phi_planes,my_id) &
 #endif
-    !$omp   private(i, psi, theta, phi, i_elm, s, t, R, Z, R_s, R_t, Z_s, Z_t, P2, P2_1, P2_2, P2_3, &
-    !$omp           R_i, Z_i, xjac, grad_P2, grad_P2_1, grad_P2_2, grad_P2_3, u, particle_kinetic_tmp, v2, v_par,   &
+    !$omp   private(i, psi, theta, phi, i_elm, s, t, R, Z, R_s, R_t, Z_s, Z_t, P2, &
+    !$omp           R_i, Z_i, xjac, grad_P2, u, particle_kinetic_tmp, v2, v_par,   &
+#ifdef CUDA_KERNELS
+    !$omp           grad_P2_1, grad_P2_2, grad_P2_3, &
+#endif
 #ifdef fullmhd
     !$omp          A3, AR, AZ, A3_R, A3_Z, AR_Z, AR_p, AZ_R, AZ_P, Fprof, &
 #endif
@@ -952,25 +977,31 @@ subroutine initialise_particles_H_mu_psi_phiplanes(particles, fields, rng_base, 
             end select
           end do
 
-          ! nvfortran cannot handle passing array sections in this case so they are replaced by 3 separate arrays
-          grad_P2_1 = grad_P2(1,:)
-          grad_P2_2 = grad_P2(2,:)
-          grad_P2_3 = grad_P2(3,:)            
-
           if (n_mhd .ge. 1) then
+#ifdef CUDA_KERNELS
+             ! nvfortran cannot handle passing array sections in this case so they are replaced by 3 separate arrays
+             grad_P2_1 = grad_P2(1,:)
+             grad_P2_2 = grad_P2(2,:)
+             grad_P2_3 = grad_P2(3,:)            
 
-            call interp_PRZ(fields%node_list, fields%element_list,i_elm,                        &
-              uniform_space_rej_vars(n_geom+1:n_geom+n_mhd),n_mhd,s,t,phi,        &
-              P2(n_geom+1:n_geom+n_mhd), grad_P2_1(n_geom+1:n_geom+n_mhd),        &
-              grad_P2_2(n_geom+1:n_geom+n_mhd), grad_P2_3(n_geom+1:n_geom+n_mhd), &
-              R_i, R_s, R_t, Z_i, Z_s, Z_t)
+             call interp_PRZ(fields%node_list, fields%element_list,i_elm,                        &
+                  uniform_space_rej_vars(n_geom+1:n_geom+n_mhd),n_mhd,s,t,phi,        &
+                  P2(n_geom+1:n_geom+n_mhd), grad_P2_1(n_geom+1:n_geom+n_mhd),        &
+                  grad_P2_2(n_geom+1:n_geom+n_mhd), grad_P2_3(n_geom+1:n_geom+n_mhd), &
+                  R_i, R_s, R_t, Z_i, Z_s, Z_t)
 
-            grad_P2(1,n_geom+1:n_geom+n_mhd) = grad_P2_1(n_geom+1:n_geom+n_mhd)
-            grad_P2(2,n_geom+1:n_geom+n_mhd) = grad_P2_2(n_geom+1:n_geom+n_mhd)
-            grad_P2(3,n_geom+1:n_geom+n_mhd) = grad_P2_3(n_geom+1:n_geom+n_mhd)
-
-            xjac = R_s*Z_t - R_t*Z_s
-
+             grad_P2(1,n_geom+1:n_geom+n_mhd) = grad_P2_1(n_geom+1:n_geom+n_mhd)
+             grad_P2(2,n_geom+1:n_geom+n_mhd) = grad_P2_2(n_geom+1:n_geom+n_mhd)
+             grad_P2(3,n_geom+1:n_geom+n_mhd) = grad_P2_3(n_geom+1:n_geom+n_mhd)
+#else
+             call interp_PRZ(fields%node_list, fields%element_list,i_elm,                        &
+                  uniform_space_rej_vars(n_geom+1:n_geom+n_mhd),n_mhd,s,t,phi,        &
+                  P2(n_geom+1:n_geom+n_mhd), grad_P2(1,n_geom+1:n_geom+n_mhd),        &
+                  grad_P2(2,n_geom+1:n_geom+n_mhd), grad_P2(3,n_geom+1:n_geom+n_mhd), &
+                  R_i, R_s, R_t, Z_i, Z_s, Z_t)
+#endif
+             xjac = R_s*Z_t - R_t*Z_s
+            
             do k=1,n_mhd
               grad_P2(1:2,n_geom+k) = [Z_t * grad_P2(1,n_geom+k) - Z_s * grad_P2(2,n_geom+k), &
                 -R_t * grad_P2(1,n_geom+k) + R_s * grad_P2(2,n_geom+k)]/xjac

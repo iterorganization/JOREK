@@ -99,7 +99,6 @@ pure subroutine calc_EBpsiU(fields, time, i_elm, st, phi, E, B, psi, U)
   real*8             :: psi_R, psi_Z, U_R, U_Z, U_phi, t_norm
 
   t_norm  = sqrt(mu_zero * mass_proton * central_mass * central_density * 1.d20) ! 1 jorek time unit in seconds
-!  write(*,*) "t_norm CPU",t_norm
 
   ! Interpolate the fields to get psi and U at the current position (and the
   ! changes u_n - u(n-1))
@@ -137,9 +136,6 @@ pure subroutine calc_EBpsiU(fields, time, i_elm, st, phi, E, B, psi, U)
 #else
   call fields%interp_PRZ(time, i_elm, i_var, 2, st(1), st(2), phi, P, P_s, P_t, P_phi, P_time, R, R_s, R_t, Z, Z_s, Z_t)
   ! Calculate the derivatives to R and Z
-!  write(*,*) "CPU P",P(1),P(2)
-!  write(*,*) "CPU R",R
-  
 
   R_inv = 1.d0/R
   inv_st_jac = 1.d0/(R_s * Z_t - R_t * Z_s)
@@ -157,14 +153,15 @@ pure subroutine calc_EBpsiU(fields, time, i_elm, st, phi, E, B, psi, U)
   if(fields%flag_zero_dpsidt) P_time(1) = 0.d0
 
   ! Calculate the magnetic field (see http://jorek.eu/wiki/doku.php?id=reduced_mhd)
-!  B     = [+psi_Z, -psi_R, F0] * R_inv
+#ifdef CUDA_KERNELS
+  ! The kernels do not seem to correctly calculate whole array statements
   B(1)     = psi_Z * R_inv
   B(2)     = -psi_R * R_inv
   B(3)     = F0 * R_inv
-!  write(*,*) "CPU F0 =",F0                                                                                 
-!  write(*,*) "CPU R_inv =",R_inv  
-!  write(*,*) "CPU B3 =",B(3),F0*R_inv                                                                                 
-
+#else
+  B     = [+psi_Z, -psi_R, F0] * R_inv
+#endif
+  
   ! The local electric field, obtained from E=-Grad (u F0)-\partial_t A
   ! See http://jorek.eu/wiki/doku.php?id=u_phi
   E     = [-F0*U_R, -F0*U_Z, -F0*U_phi*R_inv]/t_norm

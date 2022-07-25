@@ -18,8 +18,9 @@ integer :: k
 integer, dimension(:), allocatable :: i_elms
 
 ielm_out = 0
-
 call elements_containing_point(R_find, Z_find, i_elms)
+
+! then loop through all
 do k=1,size(i_elms)
   call find_RZ_single(node_list,element_list,i_elms(k),R_find,Z_find,R_out,Z_out,ielm_out,s_out,t_out,ifail)
   if (ifail .eq. 0) exit
@@ -29,7 +30,6 @@ if (ielm_out .eq. 0) ifail = 99
 if (ifail .eq. 999) ielm_out = 0 ! Otherwise testing ielm=0 on output does not
 ! work anymore (and we don't always check ifail)
 end subroutine find_RZ
-
 
 subroutine find_RZ_single(node_list,element_list,i_elm,R_find,Z_find,R_out,Z_out,ielm_out,s_out,t_out,ifail)
 !-------------------------------------------------------------------------
@@ -85,8 +85,10 @@ do istart = 1,5
   ifail = 999
 
   do i=1,ntrial
+
     call interp_RZ(node_list,element_list,i_elm,x(1),x(2),RRg1,dRRg1_dr,dRRg1_ds, &
                                                     ZZg1,dZZg1_dr,dZZg1_ds)
+
     FVEC(1)   = RRg1 - R_find
     FVEC(2)   = ZZg1 - Z_find
     FJAC(1,1) = dRRg1_dr

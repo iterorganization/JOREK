@@ -101,6 +101,7 @@ type (type_element_list), intent(in)  :: element_list
 integer,                  intent(in)  :: i_elm
 real*8,                   intent(in)  :: s, t, phi
 #ifdef CUDA_KERNELS
+! CUDA does not deal well with automatic allocation of dummy variables so this is hardcoded
 integer,                  intent(in)  :: n_v, i_v(2)
 real*8,                   intent(out) :: P(2), P_s(2), P_t(2), P_phi(2)
 #else
