@@ -174,7 +174,7 @@ contains
   !> Obtain information on the devices available, not needed for pushing
   subroutine device_query()
 
-    type(cudaDeviceProp) :: prop    
+    type(cudaDeviceProp) :: prop 
     integer              :: istat, i, n_devices
 
     istat = cudaGetDeviceCount(n_devices)
@@ -192,7 +192,7 @@ contains
           prop%memoryBusWidth
       write(*,"('   Peak Memory Bandwidth (GB/s): ', f6.2)") &
           2.0*prop%memoryClockRate*(prop%memoryBusWidth/8)/10.0**6
-      write(*,*)        
+      write(*,*)
     enddo
 
   end subroutine device_query

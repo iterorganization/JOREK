@@ -1,4 +1,13 @@
 !> Tests for the CUDA kernel particle algorithms
+!> These are really high level tests, there are several routines in the kernels that are not covered
+!> Just the main high level routines are tested, interpolation, pushing and location
+!> The tests run a threaded version of each routine and also a GPU kernel. The output of these is then
+!> compared. Fields are read from an input file and particles are then initialised on this grid. The input file is
+!> the same as that used for the tae_loop example.
+
+!> The tests do not complete. This is in part due to the lack of tests of relative error in the particle_assert_equals
+!> routines. Relative tests were added but have been removed as they caused the gcc compiler to crash. These tests are therefore
+!> still in development. Relative checking could be done within the test routines themselves but this has not been done.
 #ifdef CUDA_KERNELS
 module mod_particle_kernels_test
   use fruit
