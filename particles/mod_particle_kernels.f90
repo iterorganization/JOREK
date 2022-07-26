@@ -5,7 +5,15 @@
 !> declared here for fields and particles. At the start of execution data is copied from the
 !> polymorphic particle and field types into these simple types.
 
-!> As it stands the particle copy is done 
+!> The particle and fields copy is done in the full_loop routine while the pushing in the
+!> particle_kinetic_leapfrog_loop routine which can be called repeatedly once the data has been copied
+!> A previous version that copied data into device variables was very slow, taking 1000s to copy 10^7 particles
+!> This version uses managed data, and it appears that the data overhead is very small although detailed profiling
+!> has not been completed.
+
+!> The routines calc_EBpsiU and do_interp have been copied from mod_fields and renamed with a suffix _device.
+!> This is so that polymorphism can be avoided in the kernel calls
+
 module mod_particle_kernels
   use cudafor
   use mpi
