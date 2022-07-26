@@ -15,17 +15,19 @@
  n_open   = 17
  n_leg    = 13
  n_private= 9
+
+ use_mumps_eq = .t.
  
  !--------- freeboundary equilibrium parameters --------------
  amix                 = 0.30d0
- amix_freeb           = 0.78d0
- equil_accuracy       = 1.d-6
+ amix_freeb           = 0.31d0
+ equil_accuracy       = 1.d-5
  equil_accuracy_freeb = 1.d-6
- FB_Ip_position       = 0.1d0
- FB_Ip_integral       = 0.01d0
+ FB_Ip_position       = 0.2d0
+ FB_Ip_integral       = 0.00d0
  FB_Zaxis_position    = 8.d0
  FB_Zaxis_integral    = 0.d0
- FB_Zaxis_derivative  = 0.d0
+ FB_Zaxis_derivative  = 0.0d0
  start_VFB            = 20
  n_feedback_current   = 1
  n_feedback_vertical  = 1
