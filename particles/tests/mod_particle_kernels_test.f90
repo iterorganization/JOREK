@@ -231,7 +231,7 @@ contains
     integer      :: istat, ierr_async, ierr_sync
     type(dim3)   :: grid, tBlock
 
-    call init_gpu( sim, tBlock)
+    call init_gpu( sim )
 
     allocate(data_d(8,n_particles_local),stat=istat)
     if(istat /= 0) write(*,*) "Error allocating data"
@@ -239,6 +239,7 @@ contains
     call copy_device_data( sim , particle_groups , fields )
 
     ! Launch the kernel
+    tBlock = dim3(256,1,1)
     grid = dim3(ceiling(real(n_particles_local)/tBlock%x),1,1)
     call run_calc_EBpsiU_kernel<<<grid, tBlock>>>(n_particles_local, particle_groups(1), fields, data_d)
     ierr_sync = cudaGetLastError()  
@@ -365,12 +366,13 @@ contains
     integer      :: istat
     type(dim3)   :: grid, tBlock
 
-    call init_gpu( sim, tBlock)
+    call init_gpu( sim )
 
     ! Copy the data
     call copy_device_data( sim , particle_groups , fields )
 
     ! Launch the kernel
+    tBlock = dim3(256,1,1)
     grid = dim3(ceiling(real(n_particles_local)/tBlock%x),1,1)
     call run_boris_push_cylindrical_kernel<<<grid, tBlock>>>(n_particles_local, particle_groups(1), fields, timestep , particle_start_time)
     istat = cudaDeviceSynchronize()
@@ -476,7 +478,7 @@ contains
     type(dim3)   :: grid, tBlock
 
     ! Set the device to use for this process 
-    call init_gpu( sim, tBlock)
+    call init_gpu( sim )
 
     allocate(data_d(n_particles_local))
 
@@ -484,6 +486,7 @@ contains
     call copy_device_data( sim , particle_groups , fields )
 
     ! Launch the kernel
+    tBlock = dim3(256,1,1)
     grid = dim3(ceiling(real(n_particles_local)/tBlock%x),1,1)
     call run_find_rz_nearby_kernel<<<grid, tBlock>>>(n_particles_local, particle_groups(1), fields, data_d)
     ierrSync = cudaGetLastError()
@@ -545,7 +548,7 @@ contains
     timestep = 1e-10
 
     start_time = MPI_Wtime()
-    call particle_kinetic_leapfrog_loop( sim , n_steps , timestep , particle_start_time , group_particles)
+    call particle_kinetic_leapfrog_full_loop( sim , n_steps , timestep , particle_start_time , group_particles)
     write(*,*) "Proc",sim%my_id, "GPU full loop completed in ",MPI_Wtime()-start_time," s"
 
     start_time = MPI_Wtime()

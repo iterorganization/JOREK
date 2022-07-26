@@ -30,7 +30,7 @@ module mod_particle_kernels
     real*8, managed                     :: tstep            !> multiple GPUs. Prefetching does not seem to fix this
   end type fields_linear_device
 
-  !> Partial replication of particle group type avoinding polymorphism for use in the kernels
+  !> Partial replication of particle group type avoiding polymorphism for use in the kernels
   type particle_group_device
     integer, managed                :: Z
     real*8, managed                 :: mass
@@ -39,12 +39,14 @@ module mod_particle_kernels
   end type particle_group_device
 
   private
-  public particle_group_device, fields_linear_device, particle_kinetic_leapfrog_loop, copy_device_data, calc_ebpsiu_device, copy_managed_groups_host_groups, delete_device_data, init_gpu
+  public particle_group_device, fields_linear_device, particle_kinetic_leapfrog_full_loop, particle_kinetic_leapfrog_loop, &
+      copy_device_data, calc_ebpsiu_device, copy_managed_groups_host_groups, delete_device_data, init_gpu
 
 contains
 
-  !> Principle loop to push a group of particles using CUDA kernels
-  subroutine particle_kinetic_leapfrog_loop( sim  , n_steps , timestep , particle_start_time , return_particle_groups )
+  !> Principle loop to initialise and push a group of particles using CUDA kernels
+  !> Particle data is returned in the return_particle_groups type and the sim itself is not affected
+  subroutine particle_kinetic_leapfrog_full_loop( sim  , n_steps , timestep , particle_start_time , return_particle_groups )
 
     type(particle_sim), intent(inout)                                    :: sim                    !> An initilised particle sim type
     type(particle_group), dimension(:), allocatable, intent(inout)       :: return_particle_groups !> a particle group containing the pushed particles
@@ -54,15 +56,35 @@ contains
 
     type(particle_group_device), managed, dimension(:), allocatable      :: particle_groups        !> Particles on the GPU
     type(fields_linear_device), managed, allocatable                     :: fields                 !> fields on the GPU
-    integer      :: n_groups, n_particles, tBlock_size, ierr_sync, ierr_async, i
-    real*8       :: start_time
-    type(dim3)   :: grid, tBlock
+    type(dim3)   :: tBlock
 
     ! Initialise the GPU
-    call init_gpu(sim,tBlock)
+    call init_gpu(sim)
 
     call copy_device_data( sim , particle_groups , fields )
 
+    call particle_kinetic_leapfrog_loop( sim, particle_groups, fields, n_steps, timestep, particle_start_time )
+
+    call copy_managed_groups_host_groups( particle_groups, return_particle_groups )
+
+    call delete_device_data( particle_groups, fields )
+
+  end subroutine particle_kinetic_leapfrog_full_loop
+
+  !> Launches the kernel for particle pushing for each group
+  subroutine particle_kinetic_leapfrog_loop( sim  , particle_groups , fields, n_steps , timestep , particle_start_time )
+
+    type(particle_sim), intent(inout)                                    :: sim                    !> An initilised particle sim type
+    type(particle_group_device), managed, dimension(:), intent(inout)    :: particle_groups        !> Particles on the GPU
+    type(fields_linear_device), managed, intent(in)                      :: fields                 !> fields on the GPU
+    integer, intent(in)                                                  :: n_steps                !> The number of steps for the boris pusher
+    real*8, intent(in)                                                   :: timestep               !> The timestep for the boris pusher
+    real*8, intent(in)                                                   :: particle_start_time    !> The start time for interpolation
+
+    integer      :: n_groups, n_particles, tBlock_size, ierr_sync, ierr_async, i
+    type(dim3)   :: grid, tBlock
+
+    tBlock = dim3(256,1,1)
     n_groups = size( sim%groups, 1)
     do i = 1, n_groups
       n_particles = size( sim%groups(i)%particles,1)
@@ -75,9 +97,6 @@ contains
       if (ierr_async /= cudaSuccess) write(*,*) &
           sim%my_id, "Async loop kernel error:", cudaGetErrorString(ierr_async)
     end do
-
-    call copy_managed_groups_host_groups( particle_groups, return_particle_groups )
-    call delete_device_data( particle_groups, fields )
 
   end subroutine particle_kinetic_leapfrog_loop
 
@@ -124,20 +143,17 @@ contains
   end subroutine particle_kinetic_leapfrog_loop_kernel
 
   !> Set the device to use and the threadblock size
-  subroutine init_gpu(sim, tBlock)
+  subroutine init_gpu(sim)
 
     type(particle_sim), intent(inout)    :: sim
-    type(dim3), intent(inout)            :: tBlock
     integer                              :: istat, n_devices, device_id, ierr
-    type(cudaDeviceProp) :: prop                                                                                            
+    type(cudaDeviceProp)                 :: prop 
 #ifdef DEBUG
     if(sim%my_id==0) call device_query()
 #endif
 
     istat = cudaGetDeviceCount(n_devices)
     if (istat /= cudaSuccess) write(*,*) cudaGetErrorString(istat)
-
-    tBlock = dim3(256,1,1)
 
     ! Set the device to use for this process
     device_id = mod(sim%my_id,n_devices)
