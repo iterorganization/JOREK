@@ -235,7 +235,7 @@ module mod_inexact_newton
 
       !--- check convergence, residual <= newton_eps_gmres
       !--- TODO: check convergence via rinfo(1).le.newton_eps_gmres from solvers/mod_dpackgmres.f90
-      if (tol.eq.newton_eps_gmres) then  ! (sqrt_rhs_k_2<newton_eps_a+newton_eps_r*normRHSn) then 
+      if (tol.eq.newton_eps_gmres) then  ! (normRHSk<newton_eps_a+newton_eps_r*normRHSn) then 
         if (my_id.eq.0) write(*,*) 'EXITING NEWTON LOOP AT ', newton_i
         exit newton_loop
       endif
@@ -257,4 +257,4 @@ module mod_inexact_newton
     deallocate(element_list_temp, node_list_temp)
   end subroutine inexact_newton
 
-end module mod_newton
+end module mod_inexact_newton
