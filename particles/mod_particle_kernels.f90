@@ -1,7 +1,11 @@
 #ifdef CUDA_KERNELS
 !> Contains routines for offloading particle computation to GPU devices using CUDA kernels
 !> At present only the particle_kinetic_leapfrog type is supported
+!> As polymorphism is not properly supported in CUDA Fortran 2 duplicate defined types are
+!> declared here for fields and particles. At the start of execution data is copied from the
+!> polymorphic particle and field types into these simple types.
 
+!> As it stands the particle copy is done 
 module mod_particle_kernels
   use cudafor
   use mpi
@@ -9,46 +13,47 @@ module mod_particle_kernels
   use mod_particle_types, only: particle_kinetic_leapfrog, copy_particle_kinetic_leapfrog
   use data_structure,     only: type_node, type_node_list, type_element, type_element_list
   use mod_parameters
-  
+
   implicit none
 
   !> Partial replication of fields type avoiding polymorphism for use in the kernels
   type fields_linear_device
-     type(type_node_list), managed       :: node_list        !< Current node list
-     type(type_element_list), managed    :: element_list     !< Current element list
-     logical, managed                    :: static           !< if true do not time interpolate
-     logical, managed                    :: flag_zero_dpsidt !< if true, P_time(1) = dpsi/dt = 0
-     real*8, managed                     :: time_now         !< Time of current restart file (SI units)
-     real*8, managed                     :: time_prev        !< Time of previous restart file (SI units)
-     real*8, managed                     :: central_mass     !> The following are from phys_module
-     real*8, managed                     :: central_density  !> although setting them as managed in phys_module 
-     real*8, managed                     :: F0               !> works for a single GPU it does not for
-     real*8, managed                     :: tstep            !> multiple GPUs. Prefetching does not seem to fix this
+    type(type_node_list), managed       :: node_list        !< Current node list
+    type(type_element_list), managed    :: element_list     !< Current element list
+    logical, managed                    :: static           !< if true do not time interpolate
+    logical, managed                    :: flag_zero_dpsidt !< if true, P_time(1) = dpsi/dt = 0
+    real*8, managed                     :: time_now         !< Time of current restart file (SI units)
+    real*8, managed                     :: time_prev        !< Time of previous restart file (SI units)
+    real*8, managed                     :: central_mass     !> The following are from phys_module
+    real*8, managed                     :: central_density  !> although setting them as managed in phys_module 
+    real*8, managed                     :: F0               !> works for a single GPU it does not for
+    real*8, managed                     :: tstep            !> multiple GPUs. Prefetching does not seem to fix this
   end type fields_linear_device
 
   !> Partial replication of particle group type avoinding polymorphism for use in the kernels
   type particle_group_device
-     integer, managed                :: Z
-     real*8, managed                 :: mass
-     real*8, managed                 :: dt
-     type(particle_kinetic_leapfrog), managed, allocatable, dimension(:) :: particles
-  end type particle_group_device   
+    integer, managed                :: Z
+    real*8, managed                 :: mass
+    real*8, managed                 :: dt
+    type(particle_kinetic_leapfrog), managed, allocatable, dimension(:) :: particles
+  end type particle_group_device
 
   private
   public particle_group_device, fields_linear_device, particle_kinetic_leapfrog_loop, copy_device_data, calc_ebpsiu_device, copy_managed_groups_host_groups, delete_device_data, init_gpu
-  
+
 contains
 
   !> Principle loop to push a group of particles using CUDA kernels
   subroutine particle_kinetic_leapfrog_loop( sim  , n_steps , timestep , particle_start_time , return_particle_groups )
 
-    type(particle_sim), intent(inout)                                    :: sim
-    type(particle_group), dimension(:), allocatable, intent(inout)       :: return_particle_groups
-    integer, intent(inout)                                               :: n_steps
-    real*8, intent(inout)                                                :: particle_start_time, timestep
+    type(particle_sim), intent(inout)                                    :: sim                    !> An initilised particle sim type
+    type(particle_group), dimension(:), allocatable, intent(inout)       :: return_particle_groups !> a particle group containing the pushed particles
+    integer, intent(in)                                                  :: n_steps                !> The number of steps for the boris pusher
+    real*8, intent(in)                                                   :: timestep               !> The timestep for the boris pusher
+    real*8, intent(in)                                                   :: particle_start_time    !> The start time for interpolation
 
-    type(particle_group_device), managed, dimension(:), allocatable      :: particle_groups
-    type(fields_linear_device), managed, allocatable                     :: fields
+    type(particle_group_device), managed, dimension(:), allocatable      :: particle_groups        !> Particles on the GPU
+    type(fields_linear_device), managed, allocatable                     :: fields                 !> fields on the GPU
     integer      :: n_groups, n_particles, tBlock_size, ierr_sync, ierr_async, i
     real*8       :: start_time
     type(dim3)   :: grid, tBlock
@@ -60,15 +65,15 @@ contains
 
     n_groups = size( sim%groups, 1)
     do i = 1, n_groups
-       n_particles = size( sim%groups(i)%particles,1)
-       grid = dim3(ceiling(real(n_particles)/tBlock%x),1,1)
-       call particle_kinetic_leapfrog_loop_kernel<<<grid, tBlock>>>(n_particles, particle_groups(i), fields, n_steps, timestep, particle_start_time )
-       ierr_sync = cudaGetLastError()
-       ierr_async = cudaDeviceSynchronize()
-       if (ierr_sync /= cudaSuccess) write(*,*) &
-            sim%my_id, "Sync loop kernel error:", cudaGetErrorString(ierr_sync)
-       if (ierr_async /= cudaSuccess) write(*,*) &
-            sim%my_id, "Async loop kernel error:", cudaGetErrorString(ierr_async)
+      n_particles = size( sim%groups(i)%particles,1)
+      grid = dim3(ceiling(real(n_particles)/tBlock%x),1,1)
+      call particle_kinetic_leapfrog_loop_kernel<<<grid, tBlock>>>(n_particles, particle_groups(i), fields, n_steps, timestep, particle_start_time )
+      ierr_sync = cudaGetLastError()
+      ierr_async = cudaDeviceSynchronize()
+      if (ierr_sync /= cudaSuccess) write(*,*) &
+          sim%my_id, "Sync loop kernel error:", cudaGetErrorString(ierr_sync)
+      if (ierr_async /= cudaSuccess) write(*,*) &
+          sim%my_id, "Async loop kernel error:", cudaGetErrorString(ierr_async)
     end do
 
     call copy_managed_groups_host_groups( particle_groups, return_particle_groups )
@@ -80,7 +85,7 @@ contains
   attributes(global) subroutine particle_kinetic_leapfrog_loop_kernel( n_particles, group_particles, fields, n_steps, timestep, particle_start_time )
     use mod_boris,          only: boris_push_cylindrical
     use mod_find_RZ,        only: find_RZ_nearby_device
-    
+
     type(particle_group_device), managed, intent(inout)         :: group_particles
     type(fields_linear_device), managed , intent(inout)         :: fields
     integer, value, intent(in)                                  :: n_particles, n_steps
@@ -92,28 +97,28 @@ contains
     real*8                                  :: rz_old(2), st_old(2), rz_new(2), st_new(2)
     integer                                 :: i_elm_old, ifail, device_num, ierr
 
-    
+
     i = threadIdx%x + (blockIdx%x-1) * blockDim%x
 
     if ( i <= n_particles ) then
 !!$       write(*,*) "+" ! simple way to count particles for debug
-       call copy_particle_kinetic_leapfrog( group_particles%particles(i) , particle_tmp )
-       do j=1,n_steps
-          if (particle_tmp%i_elm .le. 0) then
+      call copy_particle_kinetic_leapfrog( group_particles%particles(i) , particle_tmp )
+      do j=1,n_steps
+        if (particle_tmp%i_elm .le. 0) then
 !!$             write(*,*) "-" ! simple way to count lost particles for debug
-             exit
-          endif
-          t = particle_start_time + (j-1)*timestep
-          call calc_EBpsiU_device(fields, t, particle_tmp%i_elm, particle_tmp%st, particle_tmp%x(3), E, B, psi, U)
-          rz_old    = particle_tmp%x(1:2)
-          st_old    = particle_tmp%st
-          i_elm_old = particle_tmp%i_elm
-          call boris_push_cylindrical(particle_tmp, group_particles%mass, E, B, timestep)                 
-          call find_RZ_nearby_device(fields%node_list,fields%element_list,rz_old(1),rz_old(2), &
-               st_old(1),st_old(2),i_elm_old,particle_tmp%x(1),particle_tmp%x(2), particle_tmp%st(1), &
-               particle_tmp%st(2), particle_tmp%i_elm, ifail)                
-        end do
-       call copy_particle_kinetic_leapfrog( particle_tmp , group_particles%particles(i) )
+          exit
+        endif
+        t = particle_start_time + (j-1)*timestep
+        call calc_EBpsiU_device(fields, t, particle_tmp%i_elm, particle_tmp%st, particle_tmp%x(3), E, B, psi, U)
+        rz_old    = particle_tmp%x(1:2)
+        st_old    = particle_tmp%st
+        i_elm_old = particle_tmp%i_elm
+        call boris_push_cylindrical(particle_tmp, group_particles%mass, E, B, timestep)
+        call find_RZ_nearby_device(fields%node_list,fields%element_list,rz_old(1),rz_old(2), &
+            st_old(1),st_old(2),i_elm_old,particle_tmp%x(1),particle_tmp%x(2), particle_tmp%st(1), &
+            particle_tmp%st(2), particle_tmp%i_elm, ifail)
+      end do
+      call copy_particle_kinetic_leapfrog( particle_tmp , group_particles%particles(i) )
     end if
 
   end subroutine particle_kinetic_leapfrog_loop_kernel
@@ -131,7 +136,7 @@ contains
 
     istat = cudaGetDeviceCount(n_devices)
     if (istat /= cudaSuccess) write(*,*) cudaGetErrorString(istat)
-        
+
     tBlock = dim3(256,1,1)
 
     ! Set the device to use for this process
@@ -141,7 +146,7 @@ contains
     write(*,*) "Proc", sim%my_id, " using device", device_id, "of ", n_devices
 
   end subroutine init_gpu
-  
+
   !> Obtain information on the devices available, not needed for pushing
   subroutine device_query()
 
@@ -150,27 +155,27 @@ contains
 
     istat = cudaGetDeviceCount(n_devices)
     do i = 0, n_devices-1
-       istat = cudaGetDeviceProperties(prop, i)
-       write(*,"(' Device Number: ',i0)") i
-       write(*,"('   Device name: ',a)") trim(prop%name)
-       write(*,"('   Compute capability: ', i0,'.', i0)") prop%major,prop%minor
-       write(*,"('   Max threads per block: ', i0)") prop%maxThreadsPerBlock
-       write(*,"('   Number of multiprocessors: ', i0)") prop%multiProcessorCount
-       write(*,"('   Number threads per multiprocessor: ', i0)") prop%maxThreadsPerMultiProcessor
-       write(*,"('   Memory Clock Rate (KHz): ', i0)") &
-            prop%memoryClockRate
-       write(*,"('   Memory Bus Width (bits): ', i0)") &
-            prop%memoryBusWidth
-       write(*,"('   Peak Memory Bandwidth (GB/s): ', f6.2)") &
-            2.0*prop%memoryClockRate*(prop%memoryBusWidth/8)/10.0**6
-       write(*,*)        
+      istat = cudaGetDeviceProperties(prop, i)
+      write(*,"(' Device Number: ',i0)") i
+      write(*,"('   Device name: ',a)") trim(prop%name)
+      write(*,"('   Compute capability: ', i0,'.', i0)") prop%major,prop%minor
+      write(*,"('   Max threads per block: ', i0)") prop%maxThreadsPerBlock
+      write(*,"('   Number of multiprocessors: ', i0)") prop%multiProcessorCount
+      write(*,"('   Number threads per multiprocessor: ', i0)") prop%maxThreadsPerMultiProcessor
+      write(*,"('   Memory Clock Rate (KHz): ', i0)") &
+          prop%memoryClockRate
+      write(*,"('   Memory Bus Width (bits): ', i0)") &
+          prop%memoryBusWidth
+      write(*,"('   Peak Memory Bandwidth (GB/s): ', f6.2)") &
+          2.0*prop%memoryClockRate*(prop%memoryBusWidth/8)/10.0**6
+      write(*,*)        
     enddo
 
   end subroutine device_query
 
   !> --------------------------------------------------------------------------------------------------
   !> Routines to copy data from a sim type into non-polymorphic entities for use in device code
-  
+
   !> Takes a particle sim type and copies the field and particle data into non-polymorphic
   !> types using the managed attribute that can be used in the kernels
   subroutine copy_device_data( sim , particle_groups , fields )
@@ -197,15 +202,15 @@ contains
     !> Deallocate particles
     n_groups = size(particle_groups,1)
     do i = 1, n_groups
-       deallocate(particle_groups(i)%particles)
+      deallocate(particle_groups(i)%particles)
     end do
     deallocate(particle_groups)
 
     !> Deallocate the fields type
     deallocate(fields)
-    
+
   end subroutine delete_device_data
-  
+
   !> Copies particle_groups to managed non-polymorphic particle_group_device groups
   subroutine copy_particle_groups( particle_groups_in, particle_groups_out )
 
@@ -213,16 +218,16 @@ contains
     type(particle_group_device), managed, dimension(:), allocatable, intent(inout) :: particle_groups_out
 
     integer :: n_groups, n_particles, i
-    
+
     n_groups = size(particle_groups_in)
     allocate(particle_groups_out(n_groups))
 
     do i=1,n_groups
-       n_particles = size(particle_groups_in(i)%particles,1)
-       allocate(particle_groups_out(i)%particles(n_particles))
-       call copy_one_particle_group( particle_groups_in(i), particle_groups_out(i) )
+      n_particles = size(particle_groups_in(i)%particles,1)
+      allocate(particle_groups_out(i)%particles(n_particles))
+      call copy_one_particle_group( particle_groups_in(i), particle_groups_out(i) )
     end do
-    
+
   end subroutine copy_particle_groups
 
   !> Copies managed particle_group_device groups to  particle_groups
@@ -232,18 +237,18 @@ contains
     type(particle_group), dimension(:), allocatable, intent(inout)    :: particle_groups_out
 
     integer :: n_groups, n_particles, i
-    
+
     n_groups = size(particle_groups_in)
     allocate(particle_groups_out(n_groups))
 
     do i=1,n_groups
-       n_particles = size(particle_groups_in(i)%particles,1)
-       allocate(particle_kinetic_leapfrog::particle_groups_out(i)%particles(n_particles))
-       call copy_one_managed_group_host_group( particle_groups_in(i), particle_groups_out(i) )
+      n_particles = size(particle_groups_in(i)%particles,1)
+      allocate(particle_kinetic_leapfrog::particle_groups_out(i)%particles(n_particles))
+      call copy_one_managed_group_host_group( particle_groups_in(i), particle_groups_out(i) )
     end do
-    
+
   end subroutine copy_managed_groups_host_groups
-  
+
   !> Copies a number of particle_groups from a particle_group to a particle_group_device type
   subroutine copy_one_particle_group(group_particles_in, group_particles_out)
 
@@ -251,7 +256,7 @@ contains
     type(particle_group_device), managed, intent(inout)   :: group_particles_out
 
     integer :: n_particles, i
-    
+
     n_particles = size(group_particles_in%particles,1)
 
     group_particles_out%Z    = group_particles_in%Z
@@ -260,13 +265,13 @@ contains
 
     select type(p => group_particles_in%particles)
     type is (particle_kinetic_leapfrog)
-       do i=1,n_particles
-          call copy_particle_kinetic_leapfrog( p(i), group_particles_out%particles(i) )
-       end do
-    end select    
-    
+      do i=1,n_particles
+        call copy_particle_kinetic_leapfrog( p(i), group_particles_out%particles(i) )
+      end do
+    end select
+
   end subroutine copy_one_particle_group
-  
+
   !> Copies a number of particle_groups from a managed particle_group_device to a particle_group type
   subroutine copy_one_managed_group_host_group(group_particles_in, group_particles_out)
 
@@ -274,7 +279,7 @@ contains
     type(particle_group), intent(inout)                   :: group_particles_out
 
     integer :: n_particles, i
-    
+
     n_particles = size(group_particles_in%particles,1)
 
     group_particles_out%Z    = group_particles_in%Z
@@ -283,11 +288,11 @@ contains
 
     select type(p => group_particles_out%particles)
     type is (particle_kinetic_leapfrog)
-       do i=1,n_particles
-          call copy_particle_kinetic_leapfrog( group_particles_in%particles(i) , p(i) )
-       end do
-    end select    
-    
+      do i=1,n_particles
+        call copy_particle_kinetic_leapfrog( group_particles_in%particles(i) , p(i) )
+      end do
+    end select
+
   end subroutine copy_one_managed_group_host_group
 
   !> Copy the fields data from sim to a new fields_linear_device type to avoid the polymorphism
@@ -307,13 +312,13 @@ contains
     fields%central_density  = central_density 
     fields%F0               = F0
     fields%tstep            = tstep
-   
+
     select type(f => sim%fields)
     type is(jorek_fields_interp_linear)
-       fields%time_now         = f%time_now
-       fields%time_prev        = f%time_prev
+      fields%time_now         = f%time_now
+      fields%time_prev        = f%time_prev
     end select
-    
+
     call copy_element_list( sim%fields%element_list, fields%element_list )
 
     call copy_node_list( sim%fields%node_list, fields%node_list)
@@ -331,7 +336,7 @@ contains
     out%n_elements = in%n_elements
 
     do i=1,in%n_elements
-       call copy_element( in%element(i) , out%element(i) )
+      call copy_element( in%element(i) , out%element(i) )
     end do
 
   end subroutine copy_element_list
@@ -366,7 +371,7 @@ contains
     out%n_dof = in%n_dof
 
     do i=1,in%n_nodes
-       call copy_node( in%node(i) , out%node(i) )
+      call copy_node( in%node(i) , out%node(i) )
     end do
 
   end subroutine copy_node_list
@@ -398,15 +403,15 @@ contains
 
   end subroutine copy_node
 
-  
+
   !> --------------------------------------------------------------------------------------------------
   !> Routines copied from the original location with changes that allow the removal of polymorphism
-  
+
   !> Version of routine from mod_fields for running on a GPU device so as to avoid polymorphism
   attributes(device) subroutine calc_EBpsiU_device(fields, time, i_elm, st, phi, E, B, psi, U)
 
     use constants, only: mu_zero, mass_proton
-    
+
     type(fields_linear_device), managed, intent(in)    :: fields    ! polymorphic class fields_base in non-device version
     real*8, intent(in)  :: time
     integer, intent(in) :: i_elm !< JOREK element index
@@ -416,7 +421,7 @@ contains
     real*8, intent(out) :: B(3) !< Magnetic field [T]
     real*8, intent(out) :: psi !< psi in JOREK units
     real*8, intent(out) :: u !< velocity stream function in m/s
-    
+
     ! Internal parameters
     integer            :: i_var(2) ! This is a parameter in the none-device code
     real*8             :: P(2), P_s(2), P_t(2), P_phi(2), P_time(2) ! Placeholder for evaluating variables and derivatives locally
@@ -465,7 +470,7 @@ contains
     use mod_linear 
     use mod_interp,  only: interp_PRZ
     use constants,   only: mu_zero, mass_proton
-    
+
     type(fields_linear_device), managed, intent(in)  :: fields  ! This is a class in the non-device version - and not managed
     real*8,                   intent(in)           :: time !< Time at which to calculate this variable
     integer,                  intent(in)           :: i_elm
@@ -484,29 +489,29 @@ contains
 
     !> interpolate values
     call interp_PRZ(fields%node_list, fields%element_list,i_elm ,i_v ,n_v ,s ,t , phi, &
-         P, P_s, P_t, P_phi, R, R_s, R_t, Z, Z_s, Z_t, .False.)
+        P, P_s, P_t, P_phi, R, R_s, R_t, Z, Z_s, Z_t, .False.)
 
     !> interpolate differentials
     if(t_jorek .gt. 0.d0) then
-       call interp_PRZ(fields%node_list, fields%element_list, i_elm, i_v, n_v, s, t, phi, &
-            Pd, Pd_s, Pd_t, Pd_phi, R, R_s, R_t, Z, Z_s, Z_t, .True.)
-       if(abs(fields%time_now-fields%time_prev) .gt. 1d-10 .and. .not. fields%static) then
-          !> compute time fraction df
-          dt = 1.d0/(fields%time_now - fields%time_prev)
-          df = (fields%time_now - time)*dt
-          !> apply linear interpolation
-          P     = linear_interp_differentials(n_v,P,Pd,df)
-          P_s   = linear_interp_differentials(n_v,P_s,Pd_s,df)
-          P_t   = linear_interp_differentials(n_v,P_t,Pd_t,df)
-          P_phi = linear_interp_differentials(n_v,P_phi,Pd_phi,df)
-       else
-          dt = 1.d0/t_jorek
-       endif
-       !> compute time derivative
-       P_time = linear_interp_differentials_dt(n_v,Pd,dt) 
+      call interp_PRZ(fields%node_list, fields%element_list, i_elm, i_v, n_v, s, t, phi, &
+          Pd, Pd_s, Pd_t, Pd_phi, R, R_s, R_t, Z, Z_s, Z_t, .True.)
+      if(abs(fields%time_now-fields%time_prev) .gt. 1d-10 .and. .not. fields%static) then
+        !> compute time fraction df
+        dt = 1.d0/(fields%time_now - fields%time_prev)
+        df = (fields%time_now - time)*dt
+        !> apply linear interpolation
+        P     = linear_interp_differentials(n_v,P,Pd,df)
+        P_s   = linear_interp_differentials(n_v,P_s,Pd_s,df)
+        P_t   = linear_interp_differentials(n_v,P_t,Pd_t,df)
+        P_phi = linear_interp_differentials(n_v,P_phi,Pd_phi,df)
+      else
+        dt = 1.d0/t_jorek
+      endif
+      !> compute time derivative
+      P_time = linear_interp_differentials_dt(n_v,Pd,dt) 
     endif
 
   end subroutine do_interp_PRZ_device
 
- end module mod_particle_kernels
+end module mod_particle_kernels
 #endif

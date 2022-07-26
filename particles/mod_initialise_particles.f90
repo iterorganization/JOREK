@@ -477,41 +477,41 @@ subroutine initialise_particles_H_mu_psi(particles, fields, rng_base, mass, T_ma
               case (-3); grad_P2(:,k) = [0.d0,0.d0,1.d0]; ! phi
             end select
          end do
-         
+
           ! nvfortran cannot handle passing array sections in this case so they are replaced by 3 separate arrays
-          
-          if (n_mhd .ge. 1) then
+         
+         if (n_mhd .ge. 1) then
 #ifdef CUDA_KERNELS
-             grad_P2_1 = grad_P2(1,:)
-             grad_P2_2 = grad_P2(2,:)
-             grad_P2_3 = grad_P2(3,:)            
+           grad_P2_1 = grad_P2(1,:)
+           grad_P2_2 = grad_P2(2,:)
+           grad_P2_3 = grad_P2(3,:)
 
-             call interp_PRZ(fields%node_list, fields%element_list,i_elm,                        &
-                  uniform_space_rej_vars(n_geom+1:n_geom+n_mhd),n_mhd,s,t,phi,        &
-                  P2(n_geom+1:n_geom+n_mhd), grad_P2_1(n_geom+1:n_geom+n_mhd),        &
-                  grad_P2_2(n_geom+1:n_geom+n_mhd), grad_P2_3(n_geom+1:n_geom+n_mhd), &
-                  R_i, R_s, R_t, Z_i, Z_s, Z_t)
+           call interp_PRZ(fields%node_list, fields%element_list,i_elm,                        &
+               uniform_space_rej_vars(n_geom+1:n_geom+n_mhd),n_mhd,s,t,phi,        &
+               P2(n_geom+1:n_geom+n_mhd), grad_P2_1(n_geom+1:n_geom+n_mhd),        &
+               grad_P2_2(n_geom+1:n_geom+n_mhd), grad_P2_3(n_geom+1:n_geom+n_mhd), &
+               R_i, R_s, R_t, Z_i, Z_s, Z_t)
 
-             grad_P2(1,n_geom+1:n_geom+n_mhd) = grad_P2_1(n_geom+1:n_geom+n_mhd)
-             grad_P2(2,n_geom+1:n_geom+n_mhd) = grad_P2_2(n_geom+1:n_geom+n_mhd)
-             grad_P2(3,n_geom+1:n_geom+n_mhd) = grad_P2_3(n_geom+1:n_geom+n_mhd)
+           grad_P2(1,n_geom+1:n_geom+n_mhd) = grad_P2_1(n_geom+1:n_geom+n_mhd)
+           grad_P2(2,n_geom+1:n_geom+n_mhd) = grad_P2_2(n_geom+1:n_geom+n_mhd)
+           grad_P2(3,n_geom+1:n_geom+n_mhd) = grad_P2_3(n_geom+1:n_geom+n_mhd)
 #else
-             call interp_PRZ(fields%node_list, fields%element_list,i_elm,                        &
-                  uniform_space_rej_vars(n_geom+1:n_geom+n_mhd),n_mhd,s,t,phi,        &
-                  P2(n_geom+1:n_geom+n_mhd), grad_P2(1,n_geom+1:n_geom+n_mhd),        &
-                  grad_P2(2,n_geom+1:n_geom+n_mhd), grad_P2(3,n_geom+1:n_geom+n_mhd), &
-                  R_i, R_s, R_t, Z_i, Z_s, Z_t)
+           call interp_PRZ(fields%node_list, fields%element_list,i_elm,                        &
+               uniform_space_rej_vars(n_geom+1:n_geom+n_mhd),n_mhd,s,t,phi,        &
+               P2(n_geom+1:n_geom+n_mhd), grad_P2(1,n_geom+1:n_geom+n_mhd),        &
+               grad_P2(2,n_geom+1:n_geom+n_mhd), grad_P2(3,n_geom+1:n_geom+n_mhd), &
+               R_i, R_s, R_t, Z_i, Z_s, Z_t)
 #endif
-             
-             xjac = R_s*Z_t - R_t*Z_s
 
-             
-            do k=1,n_mhd
-              grad_P2(1:2,n_geom+k) = [Z_t * grad_P2(1,n_geom+k) - Z_s * grad_P2(2,n_geom+k), &
-                -R_t * grad_P2(1,n_geom+k) + R_s * grad_P2(2,n_geom+k)]/xjac
-            end do
+           xjac = R_s*Z_t - R_t*Z_s
 
-          end if
+
+           do k=1,n_mhd
+             grad_P2(1:2,n_geom+k) = [Z_t * grad_P2(1,n_geom+k) - Z_s * grad_P2(2,n_geom+k), &
+                 -R_t * grad_P2(1,n_geom+k) + R_s * grad_P2(2,n_geom+k)]/xjac
+           end do
+
+         end if
 
           if (uniform_space_rej_f(size(uniform_space_rej_vars), P2, grad_P2) .lt. ran(7)) i_elm = 0
         end if
@@ -979,32 +979,32 @@ subroutine initialise_particles_H_mu_psi_phiplanes(particles, fields, rng_base, 
 
           if (n_mhd .ge. 1) then
 #ifdef CUDA_KERNELS
-             ! nvfortran cannot handle passing array sections in this case so they are replaced by 3 separate arrays
-             grad_P2_1 = grad_P2(1,:)
-             grad_P2_2 = grad_P2(2,:)
-             grad_P2_3 = grad_P2(3,:)            
+            ! nvfortran cannot handle passing array sections in this case so they are replaced by 3 separate arrays
+            grad_P2_1 = grad_P2(1,:)
+            grad_P2_2 = grad_P2(2,:)
+            grad_P2_3 = grad_P2(3,:)            
 
-             call interp_PRZ(fields%node_list, fields%element_list,i_elm,                        &
-                  uniform_space_rej_vars(n_geom+1:n_geom+n_mhd),n_mhd,s,t,phi,        &
-                  P2(n_geom+1:n_geom+n_mhd), grad_P2_1(n_geom+1:n_geom+n_mhd),        &
-                  grad_P2_2(n_geom+1:n_geom+n_mhd), grad_P2_3(n_geom+1:n_geom+n_mhd), &
-                  R_i, R_s, R_t, Z_i, Z_s, Z_t)
+            call interp_PRZ(fields%node_list, fields%element_list,i_elm,                        &
+                uniform_space_rej_vars(n_geom+1:n_geom+n_mhd),n_mhd,s,t,phi,        &
+                P2(n_geom+1:n_geom+n_mhd), grad_P2_1(n_geom+1:n_geom+n_mhd),        &
+                grad_P2_2(n_geom+1:n_geom+n_mhd), grad_P2_3(n_geom+1:n_geom+n_mhd), &
+                R_i, R_s, R_t, Z_i, Z_s, Z_t)
 
-             grad_P2(1,n_geom+1:n_geom+n_mhd) = grad_P2_1(n_geom+1:n_geom+n_mhd)
-             grad_P2(2,n_geom+1:n_geom+n_mhd) = grad_P2_2(n_geom+1:n_geom+n_mhd)
-             grad_P2(3,n_geom+1:n_geom+n_mhd) = grad_P2_3(n_geom+1:n_geom+n_mhd)
+            grad_P2(1,n_geom+1:n_geom+n_mhd) = grad_P2_1(n_geom+1:n_geom+n_mhd)
+            grad_P2(2,n_geom+1:n_geom+n_mhd) = grad_P2_2(n_geom+1:n_geom+n_mhd)
+            grad_P2(3,n_geom+1:n_geom+n_mhd) = grad_P2_3(n_geom+1:n_geom+n_mhd)
 #else
-             call interp_PRZ(fields%node_list, fields%element_list,i_elm,                        &
-                  uniform_space_rej_vars(n_geom+1:n_geom+n_mhd),n_mhd,s,t,phi,        &
-                  P2(n_geom+1:n_geom+n_mhd), grad_P2(1,n_geom+1:n_geom+n_mhd),        &
-                  grad_P2(2,n_geom+1:n_geom+n_mhd), grad_P2(3,n_geom+1:n_geom+n_mhd), &
-                  R_i, R_s, R_t, Z_i, Z_s, Z_t)
+            call interp_PRZ(fields%node_list, fields%element_list,i_elm,                        &
+                uniform_space_rej_vars(n_geom+1:n_geom+n_mhd),n_mhd,s,t,phi,        &
+                P2(n_geom+1:n_geom+n_mhd), grad_P2(1,n_geom+1:n_geom+n_mhd),        &
+                grad_P2(2,n_geom+1:n_geom+n_mhd), grad_P2(3,n_geom+1:n_geom+n_mhd), &
+                R_i, R_s, R_t, Z_i, Z_s, Z_t)
 #endif
-             xjac = R_s*Z_t - R_t*Z_s
-            
+            xjac = R_s*Z_t - R_t*Z_s
+
             do k=1,n_mhd
               grad_P2(1:2,n_geom+k) = [Z_t * grad_P2(1,n_geom+k) - Z_s * grad_P2(2,n_geom+k), &
-                -R_t * grad_P2(1,n_geom+k) + R_s * grad_P2(2,n_geom+k)]/xjac
+                  -R_t * grad_P2(1,n_geom+k) + R_s * grad_P2(2,n_geom+k)]/xjac
             end do
 
           end if
