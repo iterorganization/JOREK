@@ -748,7 +748,7 @@ subroutine construct_matrix(my_id, MPI_COMM_N, my_id_n, MPI_COMM_MASTER, my_id_m
       call tr_vdump(fname,RHS,ndof)
     end if
 #endif
-    call MPI_Reduce(RHS_local,RHS,ndof,MPI_DOUBLE_PRECISION,MPI_SUM,0,MPI_COMM_WORLD,ierr)
+    call MPI_AllReduce(RHS_local,RHS,ndof,MPI_DOUBLE_PRECISION,MPI_SUM,MPI_COMM_WORLD,ierr)
 
   else ! ( if harmonic_matrix)
   

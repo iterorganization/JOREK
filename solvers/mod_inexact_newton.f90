@@ -1,4 +1,4 @@
-module mod_newton
+module mod_inexact_newton
 !##################################################################################    
 !#    Inexact newton method, details may be found on p. 24 in:                    #
 !# [1]Franck et al., Energy conservation and numerical stability for the          # 
@@ -104,28 +104,25 @@ module mod_newton
     integer                                           :: newton_i, iter_prev
     real(kind=C_DOUBLE),     allocatable              :: mat_vec_prod(:)
     real(kind=C_DOUBLE),     allocatable              :: resi(:)
-    real*8                                            :: sqrt_resi_2, eps_k
-    real*8                                            :: sqrt_rhs_n_2, sqrt_rhs_k_2, sqrt_rhs_prev_2, rhs_ratio
+    real*8                                            :: normRESk, eps_k
+    real*8                                            :: normRHSn, normRHSk, normRHSprev, rhs_ratio
     real*8                                            :: FT, FT_0  ! forcing term [1]
     !--------------------- END OF ROUTINE VARIABLES --------------------------------
 
 
     !--------------------- ALLOCATE, ASSIGN VALUES --------------------------------- 
     !call new_thread_buffers() 
-    allocate(rhs_n(1:ndof)  , rhs_k(1:ndof)      , delta_k_n(1:ndof),    &
-             delta_k(1:ndof), deltas_temp(1:ndof), mat_vec_prod(1:ndof), &
-             resi(1:ndof) )
+    allocate(rhs_n(1:ndof),rhs_k(1:ndof),delta_k_n(1:ndof),delta_k(1:ndof),deltas_temp(1:ndof),mat_vec_prod(1:ndof),resi(1:ndof))
     allocate(element_list_temp, source=element_list)
-    allocate(node_list_temp   , source=node_list)
-      
+    allocate(node_list_temp   , source=node_list   )
     delta_k_n            = 0.0d0
-    delta_k(1:ndof)      = x(1:ndof) * newton_start  ! 1.0E-10
+    delta_k(1:ndof)      = x(1:ndof) * newton_start
     rhs_n(1:ndof)        = b(1:ndof)
     element_list_temp    = element_list
     node_list_temp       = node_list
     deltas_temp(1:ndof)  = x(1:ndof)
-    sqrt_rhs_n_2         = DSQRT(DOT_PRODUCT(rhs_n,rhs_n)) 
-    sqrt_rhs_prev_2      = sqrt_rhs_n_2
+    normRHSn             = DSQRT(DOT_PRODUCT(rhs_n,rhs_n)) 
+    normRHSprev          = normRHSn
     !--------------------- END OF ALLOCATION ---------------------------------------
 
      
@@ -144,6 +141,7 @@ module mod_newton
       !--- abort if maximum number of newton iterations is reached
       if (newton_i.eq.newton_max_iter) then
         if (my_id.eq.0) write(*,*) 'MAXIMUM NUMBER OF NEWTON ITERATIONS. ABORTING.'
+        call MPI_Finalize(ierr)
         stop
       endif 
       if (my_id.eq.0) write(*,'(a,i2.2,a)') '###################### NEWTON ITERATION STEP ', newton_i,' ##########################'
@@ -156,6 +154,7 @@ module mod_newton
       !--- element_list, node_list now local iterates, global values in element_list_temp, node_list_temp
       call update_values(my_id,element_list,node_list,delta_k)
       call update_deltas(my_id,node_list)
+
       if (my_id.eq.0)  write(*,*) 'UPDATING GLOBAL ELEMENT_LIST, NODE_LIST'
 
       !--- call construct_matrix, need 'call new_thread_buffers()' for global 'thread_struct', otherwise:
@@ -164,17 +163,16 @@ module mod_newton
                             xpoint2, xcase2, R_axis, Z_axis, psi_axis, psi_bnd, R_xpoint, Z_xpoint, psi_xpoint,i_tor_min, i_tor_max,  &
                             n, nz, ndof, n_matrix_block_size, A_mat, rhs, irn, jcn, ijA_index, ijA_size, irn_jcn, harmonic_matrix)
       if (my_id.eq.0) write(*,*) 'CONSTRUCTED A_GLOB AT U_K'
-
       !--- compute J_k.delta_k_n to compute rhs_k
       call gmres_matrix_vector(ndof,delta_k_n,ndof,mat_vec_prod,my_id)
       call MPI_Bcast(mat_vec_prod,ndof,MPI_DOUBLE_PRECISION,0,MPI_GLOB,ierr)
       rhs_k(1:ndof) = rhs_n(1:ndof) - mat_vec_prod(1:ndof)
       if (my_id.eq.0) write(*,*) 'COMPUTED MATRIX-VECTOR PRODUCT'
 
-      !--- compute residues and compute eps_k
-      sqrt_rhs_k_2    = DSQRT(DOT_PRODUCT(rhs_k,rhs_k))
-      rhs_ratio       = sqrt_rhs_k_2/sqrt_rhs_prev_2
-      eps_k           = sqrt_rhs_k_2 * newton_gamma * rhs_ratio**newton_alpha
+      !--- compute norms and eps_k
+      normRHSk        = DSQRT(DOT_PRODUCT(rhs_k,rhs_k))
+      rhs_ratio       = normRHSk/normRHSprev
+      eps_k           = normRHSk * newton_gamma * rhs_ratio**newton_alpha
       !--- set initial tolerance, i.e. usually computed eps_0>1.d-4 -> bad behaviour!
       if (newton_i.eq.1) then
         eps_k = newton_eps_0
@@ -196,17 +194,16 @@ module mod_newton
       endif
       
 
-      if(my_id.eq.0) write(*,'(A24,E9.2,E9.2,A19,E9.2,A8,E9.2)') 'eps_k, newton_eps_gmres', eps_k, newton_eps_gmres,&
-                                                                 '|rhs_k|/|rhs_prev|', sqrt_rhs_k_2/sqrt_rhs_prev_2,&
-                                                                 '|rhs_k|', sqrt_rhs_k_2 
+      if(my_id.eq.0) write(*,'(A24,E9.2,E9.2,A19,E9.2,A8,E9.2)') &
+        'eps_k, newton_eps_gmres', eps_k, newton_eps_gmres, '|rhs_k|/|rhs_prev|', rhs_ratio, '|rhs_k|', normRHSk 
 
       !--- store current |rhs_k| for next iteration, needed for eps_k (and convergence criterion)
-      sqrt_rhs_prev_2 = sqrt_rhs_k_2
+      normRHSprev = normRHSk
  
       !--- set variables for the solvers, tol is eps_k from [1]
-      x(1:ndof) = delta_k(1:ndof)
-      b(1:ndof) = rhs_k(1:ndof) 
-      tol       = MAX(eps_k, newton_eps_gmres)  ! set tol>=newton_eps_gmres, just as in standard gmres
+      x(1:ndof)   = delta_k(1:ndof)
+      b(1:ndof)   = rhs_k(1:ndof) 
+      tol         = MAX(eps_k, newton_eps_gmres)  ! set tol>=newton_eps_gmres, just as in standard gmres
 
       !--- call solvers
 #ifdef USE_BICGSTAB
@@ -231,16 +228,14 @@ module mod_newton
       call MPI_Bcast(resi,ndof,MPI_DOUBLE_PRECISION,0,MPI_GLOB,ierr)
       resi(1:ndof) = resi(1:ndof) - rhs_k(1:ndof) 
       
-      sqrt_resi_2 = DSQRT(DOT_PRODUCT(resi,resi))  ! B.E. on unpreconditioned system, i.e. rinfo(2)
+      normRESk = DSQRT(DOT_PRODUCT(resi,resi))  ! B.E. on unpreconditioned system, i.e. rinfo(2)
          
       if (my_id.eq.0) write(*,'(A8,i6,A13,i2,A18,2E14.4,A13,1E14.4,A12,i4)')    &
-                              ' t_step=',index_now,' newton_i=', newton_i,      &
-                              ' r_k, R(U_k,U^n) ', sqrt_resi_2  , sqrt_rhs_k_2, &
-                              ' R(U^n) ', sqrt_rhs_n_2,                         & 
-                              ' iter_gmres '     , iter_gmres
+        ' t_step=',index_now,' newton_i=', newton_i, ' r_k, R(U_k,U^n) ', normRESk  , normRHSk, ' R(U^n) ', normRHSn, ' iter_gmres ', iter_gmres
+
       !--- check convergence, residual <= newton_eps_gmres
       !--- TODO: check convergence via rinfo(1).le.newton_eps_gmres from solvers/mod_dpackgmres.f90
-      if (tol.eq.newton_eps_gmres) then  ! (sqrt_rhs_k_2<newton_eps_a+newton_eps_r*sqrt_rhs_n_2) then 
+      if (tol.eq.newton_eps_gmres) then  ! (sqrt_rhs_k_2<newton_eps_a+newton_eps_r*normRHSn) then 
         if (my_id.eq.0) write(*,*) 'EXITING NEWTON LOOP AT ', newton_i
         exit newton_loop
       endif
@@ -252,14 +247,6 @@ module mod_newton
     if (my_id.eq.0) write(*,*) 'ELAPSED TIME IN NEWTON LOOP: ', tsecond
     if (my_id.eq.0) write(*,*) '>>>>>>>>>>>>>>>>>>>>>> END NEWTON LOOP <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<'
     !--------------------- END OF NEWTON ITERATION ---------------------------------
-
-    !-- killswitch
-    !if (my_id.eq.0) write(*,*) 'Killing'
-    !call MPI_BARRIER(MPI_COMM_WORLD,ierr)
-    !write(*,*) 'Process ', my_id 
-    !call MPI_ABORT(MPI_GLOB,3,ierr)
-    !call MPI_FINALIZE(ierr)
-    !stop
 
     !--- reset element_list and node_list, result is stored in deltas, i.e. x and propagated in jorek2_main.f90
     element_list    = element_list_temp

@@ -96,7 +96,7 @@ program JOREK2
                                             stderr=>error_unit
   
 #ifdef USE_NEWTON
-  use mod_newton, only: inexact_newton
+  use mod_inexact_newton, only: inexact_newton
 #endif
   implicit none
 
