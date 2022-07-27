@@ -102,7 +102,7 @@ real*8  :: psi_as_coord
 real*8  :: AR0, AR0_p, AR0_s, AR0_t, AR0_sp, AR0_tp, AR0_Rp, AZ0, AZ0_p, AZ0_s, AZ0_t, AZ0_sp, AZ0_tp, AZ0_Zp, A30
 real*8  :: A30_p, A30_s, A30_t, A30_ss, A30_tt, A30_st, A30_R, A30_RR, A30_ZZ
 real*8  :: BR_Z, BZ_R
-real*8  :: r0_corr, T0_corr, T0e_corr, T0i_corr
+real*8  :: r0_corr, T0_corr, T0e_corr, T0i_corr, dT0e_corr_dT 
 real*8  :: density_tot, density_in, density_out,  pressure, pressure_in, pressure_out
 real*8  :: pressure_e, pressure_e_in, pressure_e_out, pressure_i, pressure_i_in, pressure_i_out
 real*8  :: current_in, current_out, D_int, D_ext, P_ext, C_ext, delta_phi, phi, P_tot, D_tot
@@ -181,7 +181,7 @@ real*8  :: m_i_over_m_imp, m_imp
 real*8  :: Z_imp, dZ_imp_dT, Z_eff, eta_coef, ne_JOREK, dne_JOREK_dx, dne_JOREK_dy
 real*8  :: Z_eff_imp
 !   -Corrected plasma temperature and density for radiation calculation
-real*8  :: dT0e_corr_dT, Ti_corr_eV
+real*8  :: Ti_corr_eV
 !   -Temporary variable for charge state distribution
 real*8, allocatable :: P_imp(:)
 real*8     :: E_ion, Lrad, E_ion_bg
@@ -557,19 +557,19 @@ do ife = ife_min, ife_max
         BigR = x_g(ms,mt)
 
         r0     = eq_g(mp,var_rho,ms,mt)
-        r0_corr = corr_neg_dens1(r0)
+        r0_corr = corr_neg_dens(r0)
 #ifdef WITH_TiTe
         T0i    = eq_g(mp,var_Ti,ms,mt)
         T0e    = eq_g(mp,var_Te,ms,mt)
-        T0e_corr = corr_neg_temp1(T0e)
-        T0i_corr = corr_neg_temp1(T0i)
+        T0e_corr = corr_neg_temp(T0e*2.d0) / 2.d0
+        T0i_corr = corr_neg_temp(T0i*2.d0) / 2.d0
 #else
-        T0     = eq_g(mp,var_T,ms,mt)
-        T0i    = eq_g(mp,var_T,ms,mt) /2.d0
-        T0e    = eq_g(mp,var_T,ms,mt) /2.d0
-        T0_corr = corr_neg_temp1(T0)
-        T0e_corr = corr_neg_temp1(T0e)
-        T0i_corr = corr_neg_temp1(T0i)
+        T0       = eq_g(mp,var_T,ms,mt)
+        T0i      = eq_g(mp,var_T,ms,mt) /2.d0
+        T0e      = eq_g(mp,var_T,ms,mt) /2.d0
+        T0_corr  = corr_neg_temp(T0)
+        T0e_corr = T0_corr / 2.d0
+        T0i_corr = T0_corr / 2.d0
 #endif
         zj0    = eq_g(mp,var_zj,ms,mt)
         ps0    = eq_g(mp,var_psi,ms,mt)
@@ -1248,15 +1248,18 @@ do m_bndelem = 1, bnd_elm_list%n_bnd_elements
       u0_sbnd  = eq_s_1D(mp,var_u   ,ms)
       zj0      = eq_g_1D(mp,var_Zj  ,ms) 
       r0       = eq_g_1D(mp,var_rho ,ms) 
-      r0_corr  = corr_neg_dens1(r0)
+      r0_corr  = corr_neg_dens(r0)
       T0       = eq_g_1D(mp,var_T   ,ms) 
 #ifdef WITH_TiTe
-      T0i    = eq_g_1D(mp,var_Ti,ms)
-      T0e    = eq_g_1D(mp,var_Te,ms)
+      T0i      = eq_g_1D(mp,var_Ti,ms)
+      T0e      = eq_g_1D(mp,var_Te,ms)
 #else
-      T0i    = eq_g_1D(mp,var_T,ms) /2.d0
-      T0e    = eq_g_1D(mp,var_T,ms) /2.d0
+      T0i      = eq_g_1D(mp,var_T,ms) /2.d0
+      T0e      = eq_g_1D(mp,var_T,ms) /2.d0
+      T0_corr  = corr_neg_temp(T0) 
 #endif
+      T0e_corr     =     corr_neg_temp(T0e * 2.d0) / 2.d0
+      dT0e_corr_dT = dcorr_neg_temp_dT(T0e * 2.d0) / 2.d0
 
 #ifdef WITH_Vpar
       vpar0    = eq_g_1D(mp,var_vpar,ms)
@@ -1266,7 +1269,7 @@ do m_bndelem = 1, bnd_elm_list%n_bnd_elements
 
 #if (defined WITH_Neutrals) || (defined WITH_Impurities)
       rn0      = eq_g_1D(mp,var_rhon,ms)
-      rn0_corr = corr_neg_dens1(rn0) ! Correction for negative rn0
+      rn0_corr = corr_neg_dens(rn0) ! Correction for negative rn0
 #else
       rn0      = 0.d0
       rn0_corr = 0.d0 
@@ -1371,7 +1374,6 @@ do m_bndelem = 1, bnd_elm_list%n_bnd_elements
       psi_n = get_psi_n(ps0,Z)
  
 #ifdef WITH_TiTe
-      T0e_corr      = corr_neg_temp1(T0e)
       eta_T         = resistivity(eta, T0e_corr, T_max_eta, Te_0)  
       eta_T_ohm     = resistivity(eta_ohmic, T0e_corr, T_max_eta_ohm, Te_0)
 
@@ -1386,7 +1388,6 @@ do m_bndelem = 1, bnd_elm_list%n_bnd_elements
         ZK_i_par_T = ZK_i_par 
       endif
 #else
-      T0_corr       = corr_neg_temp1(T0)
       eta_T         = resistivity(eta, T0_corr, T_max_eta, T_0)  
       eta_T_ohm     = resistivity(eta_ohmic, T0_corr, T_max_eta_ohm, T_0)
 
@@ -1417,8 +1418,6 @@ do m_bndelem = 1, bnd_elm_list%n_bnd_elements
           m_i_over_m_imp = central_mass/2.
       end select
 
-      T0e_corr = corr_neg_temp1(T0e)
-      dT0e_corr_dT = dcorr_neg_temp_dT(T0e,(/5.d-1,5.d-1/),T_min)
       Te_corr_eV = T0e_corr/(EL_CHG*MU_ZERO*central_density*1.d20)
       Te_eV = T0e/(EL_CHG*MU_ZERO*central_density*1.d20)
    

@@ -31,7 +31,7 @@ function printusage() {
     echo "                 NOTE: IF '-i' IS PRESENT, IT MUST BE THE FIRST OPTION"
     echo "   -h            Print this help information"
     echo "   -k            Keep temporary run directory"
-    echo "   -j nthreads   Set the number of compile threads (default 1)"
+    echo "   -j nthreads   Set the number of threads (default 1)"
     echo "   -d            Compilation with debugging options (DEBUG=1)"
     echo "   -l            List available test cases using long format."
     echo "   -L            List available test cases without any description (short format)"
@@ -280,8 +280,8 @@ if [ "$runit" == "yes" ]; then
   if [ -n "$PRERUN" ]; then
     eval $PRERUN                                          || exit 1
   fi
-  if [ -n "$ompthreads" ]; then
-    export OMP_NUM_THREADS=$ompthreads
+  if [ -n "$compilethreads" ]; then
+    export OMP_NUM_THREADS=$compilethreads
   fi
 
   # --- Run the test case
