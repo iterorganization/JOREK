@@ -16,7 +16,7 @@ use phys_module
 implicit none
 
 type (type_element)   :: element
-type (type_node)      :: nodes(2)        ! the two nodes containing the boundary nodes
+type (type_node)      :: nodes(n_vertex_max)        ! the two nodes containing the boundary nodes
 
 real*8, dimension (:,:), allocatable  :: ELM
 real*8, dimension (:)  , allocatable  :: RHS

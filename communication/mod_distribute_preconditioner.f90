@@ -4,8 +4,8 @@ module mod_distribute_preconditioner
   implicit none
 
   logical                            :: analyzed = .false.
-  integer, allocatable               :: send_counts(:,:), recv_counts(:,:), indx0(:)
-  integer(kind=int_all), allocatable :: istart(:), ifinish(:), i_recv(:)
+  integer, allocatable :: send_counts(:,:), recv_counts(:,:), send_disp(:,:), recv_disp(:,:), rank_of(:)
+  integer(kind=int_all), allocatable :: istart(:), ifinish(:)
   integer                            :: nsplit
 
   private
@@ -42,7 +42,6 @@ contains
     integer                            :: my_id, my_id_n, n_cpu, j, k, l, n, ierr
     integer                            :: nm, ji, nr, lmode, kmode, n_i, n_j, isplit
     integer(kind=int_all)              :: i, i0, i1, n_tor_int, nz_split, ibufsize, block_size
-    integer, allocatable               :: send_disp(:), recv_disp(:)
 
     real*8,  allocatable               :: Asnd_buffer(:), Rsnd_buffer(:)
     integer(kind=int_all), allocatable :: isnd_buffer(:), jsnd_buffer(:)
@@ -65,10 +64,9 @@ contains
 #ifdef INTSIZE64
   ! --- Not sure why, but it seems MPI fails even with counters below the long-int limit
   ! --- Maybe MPI has some internal working arrays that need to be larger than the counters? half seems to work well...
-  INT_MAX = 1000000000 !1000000000
+  INT_MAX = 1000000000
 #else
   ! --- If we're not using long-ints, then there is nothing to split anyway
-  !INT_MAX = 50000000
   INT_MAX = 2147000000
 #endif
 
@@ -78,7 +76,6 @@ contains
     n_tor_int = n_tor
     distribute = .not.centralize_harm_mat
 
-    allocate(send_disp(n_cpu),recv_disp(n_cpu))
     allocate(indx(n_cpu))
 
     allocate(n_per_rank(n_mode_families))
@@ -91,57 +88,66 @@ contains
 ! --- Calculate send-recv counts for each communication split and store it for the future
     if (.not.analyzed) then
 
-      allocate(indx0(n_mode_families))
-      indx0 = rank_range(1:n_mode_families) ! starting rank index for each family
+      allocate(rank_of(n_mode_families))
+      rank_of = rank_range(1:n_mode_families) ! starting rank index for each family
 
       allocate(long_send_counts(n_cpu),long_recv_counts(n_cpu))
 
       i0 = Int1; i1 = nz_glob
       call get_send_recv(my_id,n_cpu,i0,i1,long_send_counts,long_recv_counts)
 
-      mumps_par%nz = sum(long_recv_counts(1:n_cpu)) ! this uses global nnz
+      mumps_par%nz = sum(long_recv_counts(1:n_cpu)) ! summing up all recieves
 
-      nsplit = maxval(long_send_counts)/INT_MAX + 1
+      nsplit = maxval((/maxval(long_recv_counts),maxval(long_send_counts)/))/INT_MAX + 1
+      if ((my_id.eq.0).and.(nsplit>1)) write(*,*) "Using split communication for preconditioner construction", nsplit
+
       allocate(istart(nsplit),ifinish(nsplit))
-      allocate(i_recv(nsplit+1))
 
-      ! split global nz keeping it integer of n_tor**2
-      nz_split = ((nz_glob/n_tor_int**2)/nsplit)*n_tor_int**2
+      ! split global nz keeping it integer of (n_var*n_tor)**2
+      block_size = (4*n_var*n_tor_int)**2
+      nz_split = ((nz_glob/block_size)/nsplit)*block_size
 
+      ! distribute indices for split communication
       istart(1) = 1
-      ifinish(1) = istart(1) + nz_split - 1
-      if (nsplit.gt.1) then
-        do i = 2,nsplit
-          istart(i) = ifinish(i-1) + 1
-        enddo
-        ifinish(nsplit) = nz_glob
-      endif
+      ifinish(1) = nz_split
+      do isplit = 2, nsplit
+        istart(isplit) = ifinish(isplit-1) + 1
+        ifinish(isplit) = istart(isplit) + nz_split - 1
+      enddo
+      ifinish(nsplit) = nz_glob
 
       allocate(send_counts(nsplit,n_cpu),recv_counts(nsplit,n_cpu))
+      allocate(send_disp(nsplit,n_cpu),recv_disp(nsplit,n_cpu))
 
       if (nsplit.eq.1) then
         send_counts(1,1:n_cpu) = long_send_counts(1:n_cpu)
         recv_counts(1,1:n_cpu) = long_recv_counts(1:n_cpu)
       else
-        do i = 1, nsplit
-          call get_send_recv(my_id,n_cpu,istart(i),ifinish(i),long_send_counts,long_recv_counts)
-          send_counts(i,1:n_cpu) = long_send_counts(1:n_cpu)
-          recv_counts(i,1:n_cpu) = long_recv_counts(1:n_cpu)
-          if ((maxval(send_counts(i,1:n_cpu)).gt.INT_MAX).or.(maxval(recv_counts(i,1:n_cpu)).gt.INT_MAX)) then
-            write(*,*) "Warning (comm split): ", maxval(send_counts(i,1:n_cpu)), maxval(recv_counts(i,1:n_cpu)), INT_MAX
-          endif
+        do isplit = 1, nsplit
+          i0 = istart(isplit); i1 = ifinish(isplit)
+          call get_send_recv(my_id,n_cpu,i0,i1,long_send_counts,long_recv_counts)
+          send_counts(isplit,1:n_cpu) = long_send_counts(1:n_cpu)
+          recv_counts(isplit,1:n_cpu) = long_recv_counts(1:n_cpu)
         enddo
       endif
 
-      i_recv(1) = 0
-      do i = 1, nsplit
-        i_recv(i+1) = i_recv(i) + sum(recv_counts(i,1:n_cpu))
+      do isplit = 1, nsplit
+        send_disp(isplit,1) = 0
+        do j = 2, n_cpu
+            send_disp(isplit,j) = send_disp(isplit,j-1) + send_counts(isplit,j-1)
+        enddo
       enddo
 
-      if (i_recv(nsplit+1).ne.mumps_par%nz) then
-        write(*,*) "Error in PC matrix distribution"
-        call exit(0)
-      endif
+      recv_disp(1,1) = 0
+      do j = 2, n_cpu
+          recv_disp(1,j) = recv_disp(1,j-1) + recv_counts(1,j-1)
+      enddo
+      do isplit = 2, nsplit
+        recv_disp(isplit,1) = recv_disp(isplit-1,n_cpu) + recv_counts(isplit-1,n_cpu)
+        do j = 2, n_cpu
+            recv_disp(isplit,j) = recv_disp(isplit,j-1) + recv_counts(isplit,j-1)
+        enddo
+      enddo
 
       analyzed = .true.
       deallocate(long_send_counts,long_recv_counts)
@@ -153,7 +159,7 @@ contains
     if (associated(mumps_par%irn)) call tr_deallocatep(mumps_par%irn,"dh_mumps_par%irn",CAT_DMATRIX)
     if (associated(mumps_par%jcn)) call tr_deallocatep(mumps_par%jcn,"dh_mumps_par%jcn",CAT_DMATRIX)
 
-    call tr_allocatep(mumps_par%A,Int1,mumps_par%nz,"dh_mumps_par%A",CAT_DMATRIX)
+    call tr_allocatep(mumps_par%A,  Int1,mumps_par%nz,"dh_mumps_par%A",CAT_DMATRIX)
     call tr_allocatep(mumps_par%irn,Int1,mumps_par%nz,"dh_mumps_par%irn",CAT_DMATRIX)
     call tr_allocatep(mumps_par%jcn,Int1,mumps_par%nz,"dh_mumps_par%jcn",CAT_DMATRIX)
 
@@ -174,21 +180,21 @@ contains
 
     ! prepare data to be distributed from the current rank
       indx(1) = 0 ! starting index for a particular destination rank
-      do i=2, n_cpu
+      do i = 2, n_cpu
         indx(i) = indx(i-1) + send_counts(isplit,i-1)
       enddo
 
       if (autodistribute_modes) then
 
-        do i=istart(isplit),ifinish(isplit)
+        do i = istart(isplit), ifinish(isplit)
           n_i = (mod(irn_glob(i)-Int1,n_tor_int) + 1) / 2
           n_j = (mod(jcn_glob(i)-Int1,n_tor_int) + 1) / 2
           if (n_i .eq. n_j) then
             j = n_i + 1
-            ji = indx0(j)
+            ji = rank_of(j)
             if (distribute) then
               nr = ranks_per_family(j)
-#ifdef USE_STRUMPACK              
+#ifdef USE_STRUMPACK
               ji =  ji + min((irn_glob(i)-Int1)/n_per_rank(j), nr-1) ! row bin index for j-th family
 #elif USE_PASTIX6
               ji =  ji + min((jcn_glob(i)-Int1)/n_per_rank(j), nr-1) ! column bin index for j-th family
@@ -204,7 +210,7 @@ contains
       else
 
   !$omp do private(i, j, ji, nm, nr, k, kmode, l, lmode, n_i, n_j)
-        do i=istart(isplit),ifinish(isplit)
+        do i = istart(isplit), ifinish(isplit)
           n_i = mod(irn_glob(i)-Int1,n_tor_int) + 1
           n_j = mod(jcn_glob(i)-Int1,n_tor_int) + 1
 
@@ -215,14 +221,14 @@ contains
               do l = 1, nm
                 lmode = mode_families_modes(j,l)
                 if ((n_i.eq.kmode).and.(n_j.eq.lmode)) then
-                  ji = indx0(j)
+                  ji = rank_of(j)
                   if (distribute) then
                     nr = ranks_per_family(j)
 #ifdef USE_STRUMPACK
                     ji =  ji + min((irn_glob(i)-1)/n_per_rank(j), nr-1) ! row bin index for j-th family
 #elif USE_PASTIX6
                     ji =  ji + min((jcn_glob(i)-1)/n_per_rank(j), nr-1) ! row bin index for j-th family
-#endif                          
+#endif
                   endif
                   indx(ji) = indx(ji) + 1
                   Asnd_buffer(indx(ji)) = A_glob(i)
@@ -236,50 +242,42 @@ contains
 
       endif
 
-      send_disp(1) = 0
-      recv_disp(1) = 0
-      do j=2,n_cpu
-        send_disp(j) = send_disp(j-1) + send_counts(isplit,j-1)
-        recv_disp(j) = recv_disp(j-1) + recv_counts(isplit,j-1)
-      enddo
-
-      call mpi_alltoallv(Asnd_buffer,send_counts(isplit,1:n_cpu),send_disp,MPI_DOUBLE_PRECISION, &
-        mumps_par%A(i_recv(isplit)+1:i_recv(isplit+1)),recv_counts(isplit,1:n_cpu),recv_disp,MPI_DOUBLE_PRECISION,MPI_COMM_WORLD,ierr)
-      call mpi_alltoallv(isnd_buffer,send_counts(isplit,1:n_cpu),send_disp,MPI_INTEGER_ALL, &
-        mumps_par%irn(i_recv(isplit)+1:i_recv(isplit+1)),recv_counts(isplit,1:n_cpu),recv_disp,MPI_INTEGER_ALL,MPI_COMM_WORLD,ierr)
-      call mpi_alltoallv(jsnd_buffer,send_counts(isplit,1:n_cpu),send_disp,MPI_INTEGER_ALL, &
-        mumps_par%jcn(i_recv(isplit)+1:i_recv(isplit+1)),recv_counts(isplit,1:n_cpu),recv_disp,MPI_INTEGER_ALL,MPI_COMM_WORLD,ierr)
+      call mpi_alltoallv(Asnd_buffer,send_counts(isplit,1:n_cpu),send_disp(isplit,1:n_cpu),MPI_DOUBLE_PRECISION, &
+                       mumps_par%A,  recv_counts(isplit,1:n_cpu),recv_disp(isplit,1:n_cpu),MPI_DOUBLE_PRECISION,MPI_COMM_WORLD,ierr)
+      call mpi_alltoallv(isnd_buffer,send_counts(isplit,1:n_cpu),send_disp(isplit,1:n_cpu),MPI_INTEGER_ALL, &
+                       mumps_par%irn,recv_counts(isplit,1:n_cpu),recv_disp(isplit,1:n_cpu),MPI_INTEGER_ALL,MPI_COMM_WORLD,ierr)
+      call mpi_alltoallv(jsnd_buffer,send_counts(isplit,1:n_cpu),send_disp(isplit,1:n_cpu),MPI_INTEGER_ALL, &
+                       mumps_par%jcn,recv_counts(isplit,1:n_cpu),recv_disp(isplit,1:n_cpu),MPI_INTEGER_ALL,MPI_COMM_WORLD,ierr)
 
       call tr_deallocate(Asnd_buffer,"dh_Asnd_buffer",CAT_DMATRIX)
       call tr_deallocate(isnd_buffer,"dh_isnd_buffer",CAT_DMATRIX)
       call tr_deallocate(jsnd_buffer,"dh_jsnd_buffer",CAT_DMATRIX)
 
     enddo
-    ! end isplit loop
 
 ! --- Change indices of the local matrices to local indices
 !$omp do private(i,j,n_i,n_j)
-      do i=1,mumps_par%nz
-        n_i = mod(mumps_par%irn(i)-Int1,n_tor_int) + 1
-        do j=1, my_mode_set_n
-          if (n_i.eq.my_mode_set(j)) then
-            mumps_par%irn(i) = int((mumps_par%irn(i)-Int1)/n_tor_int)*my_mode_set_n + j
-            exit
-          endif
-        enddo
-
-        n_j = mod(mumps_par%jcn(i)-Int1,n_tor_int) + 1
-        do j=1, my_mode_set_n
-          if (n_j.eq.my_mode_set(j)) then
-            mumps_par%jcn(i) = int((mumps_par%jcn(i)-Int1)/n_tor_int)*my_mode_set_n + j
-            exit
-          endif
-        enddo
-
+    do i=1,mumps_par%nz
+      n_i = mod(mumps_par%irn(i)-Int1,n_tor_int) + 1
+      do j=1, my_mode_set_n
+        if (n_i.eq.my_mode_set(j)) then
+          mumps_par%irn(i) = int((mumps_par%irn(i)-Int1)/n_tor_int)*my_mode_set_n + j
+          exit
+        endif
       enddo
+
+      n_j = mod(mumps_par%jcn(i)-Int1,n_tor_int) + 1
+      do j=1, my_mode_set_n
+        if (n_j.eq.my_mode_set(j)) then
+          mumps_par%jcn(i) = int((mumps_par%jcn(i)-Int1)/n_tor_int)*my_mode_set_n + j
+          exit
+        endif
+      enddo
+    enddo
 
     !call system_clock(count=cc, count_rate=cr); t1 =  real(cc)/cr
     !if (my_id.eq.0) write(*,*) "Elapsed time distributing (total):",t1-t0
+
 
     mumps_par%n =  my_mode_set_n*ndof_glob/n_tor
 
@@ -346,33 +344,57 @@ contains
     long_send_counts = 0 ! number of elements to be sent from current rank to others
 
    ! calculate number of entries to be distributed from the current rank
-!$omp do private(i, j, ji, nm, nr, k, kmode, l, lmode, n_i, n_j)
-    do i=i0, i1
-      n_i = mod(irn_glob(i)-Int1,n_tor_int) + 1
-      n_j = mod(jcn_glob(i)-Int1,n_tor_int) + 1
+    if (autodistribute_modes) then
 
-      do j = 1, n_mode_families
-        nm = modes_per_family(j) ! number of modes per j-th family
-        do k = 1, nm
-          kmode = mode_families_modes(j,k)
-          do l = 1, nm
-            lmode = mode_families_modes(j,l)
-            if ((n_i.eq.kmode).and.(n_j.eq.lmode)) then
-              ji = indx0(j)
-              if (distribute) then
-                nr = ranks_per_family(j)
+      do i = i0, i1
+        n_i = (mod(irn_glob(i)-Int1,n_tor_int) + 1) / 2
+        n_j = (mod(jcn_glob(i)-Int1,n_tor_int) + 1) / 2
+        if (n_i .eq. n_j) then
+          j = n_i + 1
+          ji = rank_of(j)
+          if (distribute) then
+            nr = ranks_per_family(j)
 #ifdef USE_STRUMPACK
-                ji =  ji + min((irn_glob(i)-Int1)/n_per_rank(j), nr-1) ! row bin index for j-th family
+            ji =  ji + min((irn_glob(i)-Int1)/n_per_rank(j), nr-1) ! row bin index for j-th family
 #elif USE_PASTIX6
-                ji =  ji + min((jcn_glob(i)-Int1)/n_per_rank(j), nr-1) ! column bin index for j-th family
-#endif                
+            ji =  ji + min((jcn_glob(i)-Int1)/n_per_rank(j), nr-1) ! column bin index for j-th family
+#endif
+          endif
+          long_send_counts(ji) = long_send_counts(ji) + 1
+        endif
+      enddo
+
+    else
+
+!$omp do private(i, j, ji, nm, nr, k, kmode, l, lmode, n_i, n_j)
+      do i=i0, i1
+        n_i = mod(irn_glob(i)-Int1,n_tor_int) + 1
+        n_j = mod(jcn_glob(i)-Int1,n_tor_int) + 1
+
+        do j = 1, n_mode_families
+          nm = modes_per_family(j) ! number of modes per j-th family
+          do k = 1, nm
+            kmode = mode_families_modes(j,k)
+            do l = 1, nm
+              lmode = mode_families_modes(j,l)
+              if ((n_i.eq.kmode).and.(n_j.eq.lmode)) then
+                ji = rank_of(j)
+                if (distribute) then
+                  nr = ranks_per_family(j)
+#ifdef USE_STRUMPACK
+                  ji =  ji + min((irn_glob(i)-Int1)/n_per_rank(j), nr-1) ! row bin index for j-th family
+#elif USE_PASTIX6
+                  ji =  ji + min((jcn_glob(i)-Int1)/n_per_rank(j), nr-1) ! column bin index for j-th family
+#endif
+                endif
+                long_send_counts(ji) = long_send_counts(ji) + 1
               endif
-              long_send_counts(ji) = long_send_counts(ji) + 1
-            endif
+            enddo
           enddo
         enddo
       enddo
-    enddo
+
+    endif
 
     allocate(sendrecv(n_cpu*n_cpu))
     sendrecv = 0
@@ -390,6 +412,5 @@ contains
     return
 
   end subroutine get_send_recv
-
 
 end module mod_distribute_preconditioner

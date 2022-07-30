@@ -935,7 +935,8 @@ do ms=1, n_gauss
        Z_eff_imp  = Z_eff_imp + P_imp(ion_i) * real(ion_i,8)**2 ! The summation of normalized nZ**2 for impurity
        dZ_eff_imp_dT = dZ_eff_imp_dT + dP_imp_dT(ion_i) * real(ion_i,8)**2 ! Its temperature gradient
      end do
-     Z_eff        = Z_eff / ne_JOREK
+     dZ_eff_imp_dT = dZ_eff_imp_dT * dTe_corr_eV_dT * EL_CHG / K_BOLTZ ! convert from K to JOREK unit
+     Z_eff         = Z_eff / ne_JOREK
     
      if (Z_eff < 1.) Z_eff = 1.
      if (Z_eff > (imp_adas(index_main_imp)%n_Z)**2) Z_eff = (imp_adas(index_main_imp)%n_Z)**2
@@ -946,6 +947,7 @@ do ms=1, n_gauss
          dZ_eff_dT  = dZ_eff_dT + m_i_over_m_imp * rn0_corr * dP_imp_dT(ion_i) * real(ion_i,8)**2
        end do
        dZ_eff_dT    = dZ_eff_dT / ne_JOREK
+       dZ_eff_dT    = dZ_eff_dT * dTe_corr_eV_dT * EL_CHG / K_BOLTZ ! convert from K to JOREK unit
        dZ_eff_dT    = dZ_eff_dT - Z_eff * dalpha_e_dT * rn0_corr / ne_JOREK
     
        dZ_eff_dr0   = (1. - Z_eff)/ne_JOREK
@@ -977,12 +979,12 @@ do ms=1, n_gauss
      if ( eta_T_dependent ) then
        deta_dr0  = eta_T * deta_coef_dZeff * dZ_eff_dr0 * dr0_corr_dn
        deta_drn0 = eta_T * deta_coef_dZeff * dZ_eff_drn0 * drn0_corr_dn
-       deta_dT   = deta_dT * eta_coef + eta_T * deta_coef_dZeff * dZ_eff_dT * dTe0_corr_dT
+       deta_dT   = deta_dT * eta_coef + eta_T * deta_coef_dZeff * dZ_eff_dT
        eta_T     = eta_T * eta_coef
 
        deta_dr0_ohm  = eta_T_ohm * deta_coef_dZeff * dZ_eff_dr0 * dr0_corr_dn
        deta_drn0_ohm = eta_T_ohm * deta_coef_dZeff * dZ_eff_drn0 * drn0_corr_dn
-       deta_dT_ohm   = deta_dT_ohm * eta_coef + eta_T_ohm * deta_coef_dZeff * dZ_eff_dT * dTe0_corr_dT
+       deta_dT_ohm   = deta_dT_ohm * eta_coef + eta_T_ohm * deta_coef_dZeff * dZ_eff_dT
        eta_T_ohm = eta_T_ohm * eta_coef
      end if
 
@@ -1096,16 +1098,12 @@ do ms=1, n_gauss
     !dTe_i    = (nu_e_imp + nu_e_bg) * (Ti0_corr - Te0_corr)
     !dTi_e    = -dTe_i * (r0_corr + alpha_e*rn0_corr) / (r0_corr + alpha_i*rn0_corr)
     dTe_i    = (nu_e_imp + nu_e_bg) * (Ti0_corr - Te0_corr) * (r0_corr + alpha_e*rn0_corr)
-    dTi_e    = -dTe_i
 
     !Calculating the density and temperature derivative for amats
     !We negelect the coulomb log's dericatives due to their smallness
     dnu_e_imp_dTi   = -1.5*MASS_ELECTRON*nu_e_imp*dTi0_corr_dT / (MASS_ELECTRON*Ti0_corr + MASS_PROTON*m_imp*Te0_corr)
     dnu_e_imp_dTe   = -1.5*MASS_PROTON*m_imp*nu_e_imp*dTe0_corr_dT / (MASS_ELECTRON*Ti0_corr + MASS_PROTON*m_imp*Te0_corr) &
-                      + 1.8d-19*(1.d6*MASS_ELECTRON*MASS_PROTON*m_imp) ** 0.5&
-                        * dZ_eff_imp_dT * (1.d14*central_density*rn0_corr*m_i_over_m_imp) * lambda_e_imp &
-                        / (1.d3*(MASS_ELECTRON*Ti0_corr+Te0_corr*MASS_PROTON*m_imp)&
-                        / (EL_CHG * MU_ZERO * central_density * 1.d20)) ** 1.5
+                      + nu_e_imp * dZ_eff_imp_dT / Z_eff_imp
 
     dnu_e_imp_drhon = nu_e_imp * drn0_corr_dn / rn0_corr 
     dnu_e_imp_drho  = 0.
@@ -1129,7 +1127,7 @@ do ms=1, n_gauss
                       + (nu_e_imp + nu_e_bg) * dTi0_corr_dT * (r0_corr + alpha_e*rn0_corr)
     ddTe_i_dTe      = (dnu_e_imp_dTe + dnu_e_bg_dTe) * (Ti0_corr - Te0_corr) * (r0_corr + alpha_e*rn0_corr)&
                       - (nu_e_imp + nu_e_bg) * dTe0_corr_dT * (r0_corr + alpha_e*rn0_corr)                 &
-                      - (nu_e_imp + nu_e_bg) * Te0_corr     * dalpha_e_dT * rn0_corr
+                      + (nu_e_imp + nu_e_bg) * (Ti0_corr - Te0_corr) * dalpha_e_dT * rn0_corr
     ddTe_i_drhon    = (dnu_e_imp_drhon + dnu_e_bg_drhon) * (Ti0_corr - Te0_corr) * (r0_corr + alpha_e*rn0_corr)&
                       +(nu_e_imp + nu_e_bg) * (Ti0_corr - Te0_corr) * alpha_e * drn0_corr_dn
     ddTe_i_drho     = (dnu_e_imp_drho + dnu_e_bg_drho) * (Ti0_corr - Te0_corr) * (r0_corr + alpha_e*rn0_corr)&
@@ -1142,18 +1140,20 @@ do ms=1, n_gauss
     !                  -dTe_i * (alpha_e-alpha_i) * r0_corr * drn0_corr_dn / (r0_corr+alpha_i*rn0_corr)**2
     !ddTi_e_drho     = -(r0_corr+alpha_e*rn0_corr) * ddTe_i_drho  / (r0_corr+alpha_i*rn0_corr) &
     !                  -dTe_i * (alpha_i-alpha_e) * rn0_corr * dr0_corr_dn / (r0_corr+alpha_i*rn0_corr)**2
+
+    if (r0_corr+alpha_e*rn0_corr < 0.) then
+      dTe_i         = 0.
+      ddTe_i_dTi    = 0.
+      ddTe_i_dTe    = 0.
+      ddTe_i_drhon  = 0.
+      ddTe_i_drho   = 0.
+    end if
+
+    dTi_e           = -dTe_i
     ddTi_e_dTi      = -ddTe_i_dTi
     ddTi_e_dTe      = -ddTe_i_dTe
     ddTi_e_drhon    = -ddTe_i_drhon
     ddTi_e_drho     = -ddTe_i_drho
-
-    if (r0_corr+alpha_e*rn0_corr < 0.) then
-      dTi_e         = 0.
-      ddTi_e_dTi    = 0.
-      ddTe_i_dTe    = 0.
-      ddTi_e_drhon  = 0.
-      ddTi_e_drho   = 0.
-    end if
 !--------------------------------------------------------
      Pi0    = (r0+rn0*alpha_i) * Ti0
      Pi0_x  = (r0_x+rn0_x*alpha_i) * Ti0 + (r0+rn0*alpha_i) * Ti0_x 
@@ -1406,7 +1406,8 @@ do ms=1, n_gauss
                     + zeta * v * Ti0 * delta_g(mp,5,ms,mt) * BigR                                      * xjac &
                     + zeta * v * alpha_i * Ti0 * delta_g(mp,8,ms,mt) * BigR                            * xjac &   
 !============================Behold, the parallel viscous heating terms!=============
-                    + (GAMMA - 1.) * v * BigR * visco_par * (vpar0_x * vpar0_x + vpar0_y * vpar0_y)      * xjac * tstep &
+                    + (GAMMA - 1.) * v * BigR * visco_par_heating * (vpar0_x * vpar0_x + vpar0_y * vpar0_y)      * xjac * tstep &
+                    + (GAMMA - 1.) * vpar0 * BigR * visco_par_heating * (v_x * vpar0_x     + v_y * vpar0_y)      * xjac * tstep &
 !==========================End of viscous heating terms==============================
 !===================== Additional terms from friction terms============
                     + v * BigR * ((GAMMA - 1.)/2.) * vpar0**2 * BB2 * (source_bg + source_imp) * xjac * tstep &
@@ -2133,8 +2134,9 @@ do ms=1, n_gauss
                            - v * BigR *(GAMMA - 1.) * vpar0 * Vpar * BB2 * (source_bg + source_imp) * xjac * theta * tstep &
 !==============================End of friction terms=================
 !============================Behold, the parallel viscous heating terms!=============
-                           - (GAMMA - 1.) * v * BigR * visco_par * 2.d0 * (vpar_x*vpar0_x + vpar_y*vpar0_y)              &
-                                                                                                 * xjac * theta * tstep  &
+                           - (GAMMA - 1.) * v * BigR * visco_par_heating * 2.d0 * (vpar_x*vpar0_x + vpar_y*vpar0_y) * xjac * theta * tstep  &
+                           - (GAMMA - 1.) * vpar0 * BigR * visco_par_heating    * (vpar_x*v_x     + vpar_y*v_y)     * xjac * theta * tstep  &
+                           - (GAMMA - 1.) * vpar * BigR * visco_par_heating    * (vpar0_x*v_x     + vpar0_y*v_y)    * xjac * theta * tstep  &
 !==========================End of viscous heating terms==============================
                            + TG_num6 * 0.25d0 / BigR * 2.d0 * vpar0*vpar &
                               * Ti0 * ((r0_x+alpha_i*rn0_x)*ps0_y - (r0_y+alpha_i*rn0_y)*ps0_x                 &

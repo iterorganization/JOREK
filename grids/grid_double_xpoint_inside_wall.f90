@@ -10,12 +10,13 @@ use data_structure
 use grid_xpoint_data
 use mod_export_restart
 use mod_eqdsk_tools
+use reorder_and_clean_flux_surfaces
 
 ! --- Input parameters
 use phys_module, only:     n_flux, n_open, n_tht, n_outer, n_inner, n_private, n_leg, n_up_priv, n_up_leg,      &
                            n_leg_out, n_up_leg_out, n_wall_blocks,     &
                            SIG_closed, SIG_theta, SIG_open, SIG_outer, SIG_inner, SIG_private, SIG_up_priv,     &
-                           SIG_leg_0, SIG_leg_1, SIG_up_leg_0, SIG_up_leg_1,                                    &
+                           SIG_theta_up, SIG_leg_0, SIG_leg_1, SIG_up_leg_0, SIG_up_leg_1,                      &
                            dPSI_open, dPSI_outer, dPSI_inner, dPSI_private, dPSI_up_priv,                       &
                            xcase, force_horizontal_Xline
 use equil_info
@@ -43,7 +44,7 @@ integer             :: n_psi
 integer             :: i_elm_find(8), ifail
 integer             :: i_ext
 real*8              :: psi_bnd, psi_bnd2
-real*8              :: sigmas(16)
+real*8              :: sigmas(17)
 integer             :: n_grids(12)
 integer             :: n_seg_prev
 real*8              :: seg_prev(n_seg_max)
@@ -124,6 +125,11 @@ sigmas(8)  = SIG_leg_0   ; sigmas(9)  = SIG_leg_1
 sigmas(10) = SIG_up_leg_0; sigmas(11) = SIG_up_leg_1
 sigmas(12) = dPSI_open   ; sigmas(13) = dPSI_outer  ; sigmas(14) = dPSI_inner
 sigmas(15) = dPSI_private; sigmas(16) = dPSI_up_priv
+if ( SIG_theta_up .eq. 999.d0 ) then
+  sigmas(17) = SIG_theta
+else
+  sigmas(17) = SIG_theta_up
+endif
 
 n_grids(1) = n_flux   ; n_grids(2) = n_tht
 n_grids(3) = n_open   ; n_grids(4) = n_outer  ; n_grids(5) = n_inner
@@ -192,7 +198,7 @@ if (allocated(sep_list%flux_surfaces))     deallocate(sep_list%flux_surfaces)
 !-------------------------------------------------------------------------------------------!
 
 !-------------------------------- Call the routine
-call reorder_flux_surfaces(node_list, element_list, flux_list, ifail)
+call reorder_flux_surfaces(node_list, element_list, flux_list, .true., ifail)
 call clean_surfaces(node_list,element_list,flux_list,n_grids)
 call find_strategic_points_advanced(node_list, element_list, flux_list, xcase, force_horizontal_Xline, n_grids, stpts)
 

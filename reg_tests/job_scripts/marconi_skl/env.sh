@@ -27,4 +27,4 @@ if [ ${USE_OPENMPI} -gt 0 ]; then
   MPIRUN="mpirun -x KMP_AFFINITY=verbose -x OMP_PROC_BIND=1 -n"
 fi
 export MPIRUN
-export BATCHCOMMAND="qsub"
+export BATCHCOMMAND="sbatch"

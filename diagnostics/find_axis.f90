@@ -98,7 +98,7 @@ do i=1,element_list%n_elements   ! --- loop over elements
       R    = 0.d0
       Z    = 0.d0
 
-      do kf = 1, n_degrees ! 4 basis functions
+      do kf = 1, n_degrees ! basis functions
         do kv = 1, 4       ! 4 vertices
 
           iv = element_list%element(i)%vertex(kv)

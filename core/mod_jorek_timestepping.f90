@@ -161,7 +161,7 @@ subroutine setup_solvers(this, sim)
   call log_parameters(sim%my_id)
 
   ! Warn on doing stupid stuff
-  call sanity_checks(sim%my_id, sim%n_cpu)
+  call sanity_checks(sim%my_id, sim%n_cpu, 7, 7) ! #### the 7, 7 is just a dummy that needs to be removed later on; the sanity_checks should anyway not be part of setup_solvers in the end (to be addressed in a separate pull request) @TODO
   if (nstep .gt. 0)   call check_preconditioner_consistency
 
   ! Initialise the boundary element and node list

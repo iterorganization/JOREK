@@ -25,6 +25,8 @@ ls $EBROOTSCOTCH/lib
 ls $EBROOTMUMPS/lib
 ls $EBROOTPARMETIS/lib
 
+cat /proc/cpuinfo
+
 
 export PASTIX_HOME=$EBROOTPASTIX
 export MUMPS_HOME=$EBROOTMUMPS
@@ -34,7 +36,7 @@ export LANG=C
 export JOREK_HOST=iter-hpc
 export compilethreads=4
 export MAKEFLAGS="-j$compilethreads"
-export PRERUN="export OMP_NUM_THREADS=4"
+export PRERUN="export OMP_NUM_THREADS=8"
 export MPIRUN="mpirun -np "
 export BATCHCOMMAND="qsub"
 export CXXFLAGS=-O0 # problem with stdio library on ITER http://gcc.1065356.n8.nabble.com/g-4-8-fails-with-Ox-option-td953876.html

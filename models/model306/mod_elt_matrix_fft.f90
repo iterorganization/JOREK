@@ -5,7 +5,7 @@ module mod_elt_matrix_fft
 contains
 
 subroutine element_matrix_fft(element,nodes, xpoint2, xcase2, R_axis, Z_axis, psi_axis, psi_bnd, R_xpoint, Z_xpoint, ELM, RHS, tid, &
-  ELM_p, ELM_n, ELM_k, ELM_kn, RHS_p, RHS_k,  eq_g, eq_s, eq_t, eq_p, eq_ss, eq_st, eq_tt, delta_g, delta_s, delta_t, i_tor_min, i_tor_max)
+  ELM_p, ELM_n, ELM_k, ELM_kn, RHS_p, RHS_k,  eq_g, eq_s, eq_t, eq_p, eq_ss, eq_st, eq_tt, delta_g, delta_s, delta_t, i_tor_min, i_tor_max, ELM_pnn)
 !---------------------------------------------------------------
 ! calculates the matrix contribution of one element
 !---------------------------------------------------------------
@@ -93,6 +93,7 @@ real*8, dimension(DIM1, DIM2, DIM2) :: ELM_k
 real*8, dimension(DIM1, DIM2, DIM2) :: ELM_kn
 real*8, dimension(DIM1, DIM2)       :: RHS_p
 real*8, dimension(DIM1, DIM2)       :: RHS_k
+real*8, dimension(DIM1, DIM2, DIM2)  :: ELM_pnn
 
 real*8, dimension(n_gauss,n_gauss)    :: x_g, x_s, x_t
 real*8, dimension(n_gauss,n_gauss)    :: x_ss, x_st, x_tt

@@ -2,6 +2,8 @@
 module constants
   implicit none
   public
+  
+#include "version.h"
 
   ! @name Mathematical and physical constants
   real*8,  parameter :: PI            = 3.1415926535897932385d0  !< PI

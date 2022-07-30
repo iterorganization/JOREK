@@ -22,6 +22,7 @@ module phys_module
   real*8  :: eta_rst              !< eta value from restart file
   logical :: visco_T_dependent    !< Viscosity dependent on temperature? Otherwise constant.
   real*8  :: visco_par            !< Parallel viscosity (normalized)
+  real*8  :: visco_par_heating    !< Parallel viscosity used in the parallel viscous heating term (normalized)
   real*8  :: F0                   !< Determines fixed toroidal magnetic field: \f$ B_\phi = F_0/R \f$
   real*8  :: central_density      !< particle density at the magnetic axis (in units of \f$10^{20} m^{-3}\f$)
   real*8  :: central_mass         !< average ion mass in atomic mass units (constant in time and space)
@@ -54,6 +55,8 @@ module phys_module
   real*8  :: min_sheath_angle     !< For sheath boundary conditions: Minimum incident angle for heat and particle fluxes (in degrees)
   integer :: mode(n_tor)          !< Toroidal mode number corresponding to the JOREK modes, e.g., for n_period=8 and n_tor=3, mode(:)=0,8,8
   integer :: nout                 !< Output a restart file every nout timesteps
+  integer :: nout_projection      !< Output particle projection every nout_projection timesteps (only for diagnostics)
+                                  !< Note that the 'to_h5' or 'to_vtk' flag should be .true. in the 'new_projection' function for this parameter to be in play
   integer :: xcase                !< 1->LowerXpoint. 2->UpperXpoint. 3->doubleNull
   real*8  :: SDN_threshold        !< threshold, in absolute psi, for a symmetric-double-null grid construction
   integer :: rst_format           !< 0 == old format, 1 == new format for restart file
@@ -189,6 +192,7 @@ module phys_module
   integer :: last_target_point		   !< index of the last  target point on the limiter (does NOT need to be > first_target_point)
   
   !> Points used as blocks to extend grid into complex wall structures, see https://www.jorek.eu/wiki/doku.php?id=wallgrid_tutorial
+  real*8  :: surface_cross_tol                                                  !< Tolerance when looking for crossing of polar lines and surfaces, needs to be > 1.0
   real*8  :: eqdsk_psi_fact                                                     !< multiply eqdsk psi by factor for grid_inside_wall
   logical :: extend_existing_grid                                               !< Add patches to existing grid from restart file
   integer, parameter :: n_wall_blocks_max = 30                                  !< Maximum number of blocks (30 should be enough)
@@ -267,7 +271,14 @@ module phys_module
   real*8  :: heatsource_gauss_i_sig    !< Width over which ions Gaussian source extends
   
   !> @name Hyper-resistivity, -viscosity and -diffusivities
-  real*8  :: eta_num, visco_num, visco_par_num, D_perp_num, Zk_perp_num, Dn_perp_num, Zk_i_perp_num, Zk_e_perp_num
+  real*8  :: eta_num, visco_num, visco_par_num,                                      &
+             D_perp_num, D_perp_num_tanh, D_perp_num_tanh_psin, D_perp_num_tanh_sig, &
+             ZK_perp_num, ZK_i_perp_num, ZK_e_perp_num,                              &
+             ZK_perp_num_tanh, ZK_perp_num_tanh_psin, ZK_perp_num_tanh_sig,          &
+             ZK_i_perp_num_tanh, ZK_i_perp_num_tanh_psin, ZK_i_perp_num_tanh_sig,    &
+             ZK_e_perp_num_tanh, ZK_e_perp_num_tanh_psin, ZK_e_perp_num_tanh_sig
+  real*8  :: Dn_perp_num
+
   !> @name Shock-capturing terms
   logical :: use_sc  !< Use shock-capturing stabilization
   real*8  :: D_perp_sc_num, D_par_sc_num, Dn_pol_sc_num, Dn_p_sc_num
@@ -541,6 +552,7 @@ module phys_module
   real*8  :: SIG_private       !< Width with grid accumulation (for flux-aligned grid)
   real*8  :: SIG_up_priv       !< Width with grid accumulation (for flux-aligned grid)
   real*8  :: SIG_theta         !< Width with grid accumulation (for flux-aligned grid)
+  real*8  :: SIG_theta_up      !< Width with grid accumulation (for flux-aligned grid; only valid for double-null)
   real*8  :: SIG_leg_0         !< Width with grid accumulation (for flux-aligned grid)
   real*8  :: SIG_leg_1         !< Width with grid accumulation (for flux-aligned grid)
   real*8  :: SIG_up_leg_0      !< Width with grid accumulation (for flux-aligned grid)
@@ -852,6 +864,7 @@ module phys_module
   logical :: use_pcs          ! use pressure coupling scheme for fast particles
   logical :: use_pcs_full     ! use full tensor pressure coupling scheme for fast particles
   logical :: use_cx           ! switch on sputtering         (in particle module)
+  logical :: use_marker       ! This flag determines whether to use marker particles to treat impurity (Placeholder)
   logical :: use_sputtering   ! switch on charge-exchange    (in particle module)
   logical :: use_ionisation   ! switch on ionisation         (in particle module)
   real*8  :: n_particles      ! the number of particles (real on purpose)

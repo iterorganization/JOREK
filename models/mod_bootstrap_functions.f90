@@ -396,7 +396,7 @@ subroutine bootstrap_get_averaged_j_spline(node_list, element_list, psi_axis, ps
   type (type_surface_list) :: flux_list, sep_list
   integer                  :: i, k, ig, i_surf, i_piece, n_psi, i_elm
   real*8                   :: psi_bnd, psi_bnd2
-  real*8                   :: sigmas(16)
+  real*8                   :: sigmas(17)
   integer                  :: n_grids(12)
   real*8                   :: rr, s, t, ds, dt, xjac, dl, sum_dl
   real*8                   :: R, dR_ds, dR_dt, dR_dl
@@ -430,17 +430,20 @@ subroutine bootstrap_get_averaged_j_spline(node_list, element_list, psi_axis, ps
   n_leg     = 0
   
   ! --- Build up some arrays to send as routine parameters (avoid long lists...)
-  sigmas     = 0.d0
-  sigmas(1)  = SIG_closed
-  sigmas(3)  = SIG_open
-  sigmas(4)  = SIG_outer
-  sigmas(12) = dPSI_open*0.7 ! take 70% to make sure we stay inside domain...
-  sigmas(13) = dPSI_outer*0.7
-  
-  n_grids    = 0
-  n_grids(1) = n_flux
-  n_grids(3) = n_open
-  n_grids(4) = n_outer
+  ! --- Take 70% of dPSI_open and dPSI_outer to make sure we stay inside domain...
+  sigmas(1)  = SIG_closed   ; sigmas(2)  = SIG_theta
+  sigmas(3)  = SIG_open     ; sigmas(4)  = SIG_outer     ; sigmas(5)  = SIG_inner
+  sigmas(6)  = SIG_private  ; sigmas(7)  = SIG_up_priv
+  sigmas(8)  = SIG_leg_0    ; sigmas(9)  = SIG_leg_1
+  sigmas(10) = SIG_up_leg_0 ; sigmas(11) = SIG_up_leg_1
+  sigmas(12) = dPSI_open*0.7; sigmas(13) = dPSI_outer*0.7; sigmas(14) = dPSI_inner
+  sigmas(15) = dPSI_private ; sigmas(16) = dPSI_up_priv
+  sigmas(17) = SIG_theta_up
+
+  n_grids(1) = n_flux   ; n_grids(2) = n_tht
+  n_grids(3) = n_open   ; n_grids(4) = n_outer  ; n_grids(5) = n_inner
+  n_grids(6) = n_private; n_grids(7) = n_up_priv
+  n_grids(8) = n_leg    ; n_grids(9) = n_up_leg
   
   ! --- Get psi_bnd
   psi_bnd  = 0.d0
@@ -585,7 +588,7 @@ subroutine bootstrap_get_q_and_ft_splines(node_list, element_list, psi_axis, psi
   real*8                   :: rad(n_spline), Bmax(n_spline)
   integer                  :: i, k, ig, i_surf, i_piece, n_psi, i_elm, i_ft
   real*8                   :: psi_bnd, psi_bnd2
-  real*8                   :: sigmas(16)
+  real*8                   :: sigmas(17)
   integer                  :: n_grids(12)
   real*8                   :: rr, s, t, ds, dt, xjac, dl, sum_dl
   real*8                   :: R,  dR_ds,  dR_dt, dR_dl
@@ -631,6 +634,7 @@ subroutine bootstrap_get_q_and_ft_splines(node_list, element_list, psi_axis, psi
   sigmas(10) = SIG_up_leg_0 ; sigmas(11) = SIG_up_leg_1
   sigmas(12) = dPSI_open*0.7; sigmas(13) = dPSI_outer*0.7; sigmas(14) = dPSI_inner
   sigmas(15) = dPSI_private ; sigmas(16) = dPSI_up_priv
+  sigmas(17) = SIG_theta_up
 
   n_grids(1) = n_flux   ; n_grids(2) = n_tht
   n_grids(3) = n_open   ; n_grids(4) = n_outer  ; n_grids(5) = n_inner

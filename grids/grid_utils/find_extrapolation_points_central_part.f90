@@ -20,7 +20,7 @@ type (type_strategic_points), intent(inout) :: stpts
 type (type_new_points)      , intent(inout) :: nwpts
 integer,                      intent(inout) :: n_grids(12)
 integer,                      intent(in)    :: xcase
-real*8,                       intent(in)    :: sigmas(16)
+real*8,                       intent(in)    :: sigmas(17)
 
 ! --- local variables
 real*8, allocatable :: s_tmp(:), theta_sep(:)
@@ -40,7 +40,7 @@ real*8              :: PSg1,dPSg1_dr,dPSg1_ds,dPSg1_drs,dPSg1_drr,dPSg1_dss
 real*8              :: s_find(8), t_find(8), st_find(8)
 real*8              :: R_beg, R_end
 real*8              :: Z_beg, Z_end
-real*8              :: SIG_theta
+real*8              :: SIG_theta, SIG_theta_up
 real*8              :: SIG_leg_0, SIG_leg_1
 real*8              :: SIG_up_leg_0, SIG_up_leg_1
 real*8              :: SIG_0, SIG_1
@@ -52,7 +52,7 @@ write(*,*) '* X-point grid : Define new grid points *'
 write(*,*) '*****************************************'
 write(*,*) '                 Define extrapolation points'
 
-SIG_theta    = sigmas(2) 
+SIG_theta    = sigmas(2) ; SIG_theta_up = sigmas(17)
 SIG_leg_0    = sigmas(8) ; SIG_leg_1    = sigmas(9) 
 SIG_up_leg_0 = sigmas(10); SIG_up_leg_1 = sigmas(11)
 

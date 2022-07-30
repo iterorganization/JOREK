@@ -42,13 +42,15 @@ integer    :: kl1, kl2, kl3, kl4, kl5, kl6, kl7, kl8, kl9
 real*8     :: ws, xjac,  dl, BigR, phi, eps_cyl, Btot
 real*8     :: R_axis, Z_axis, psi_axis, psi_bnd, R_xpoint(2), Z_xpoint(2)
 real*8     :: rhs_ij_5, rhs_ij_6, rhs_ij_7, rhs_ij_8, rhs_ij_9
-real*8     :: theta, zeta, Zbig, BB2, bdotn, factor, psi_ss, vpar_ss
+real*8     :: theta, zeta, Zbig, BB2, bdotn, gradvpar0dotn, gradvpardotn, factor, psi_ss, vpar_ss
 real*8     :: R_inside, Z_inside, R_mid, Z_mid, R_cnt, Z_cnt, normal(2), normal_direction(2)
 real*8     :: normal_sign, normal_sign3
 
 real*8     :: v, v_x, v_y, v_s, v_p, v_ss, v_xx, v_yy, v_xs, v_ys
 real*8     :: ps0, ps0_s, ps0_t, ps0_x, ps0_y, Vpar0, r0_corr, rn0_corr, cs0  
 real*8     :: psi, psi_s, psi_t, vpar, Te, Ti, u0_s, u_s, cs_T
+real*8     :: vpar0_s, vpar0_t, vpar0_x, vpar0_y 
+real*8     :: vpar_s, vpar_t, vpar_x, vpar_y 
 real*8     :: Te0, Te0_s, Te0_t, Te0_x, Te0_y, Te0_p, Te0_corr
 real*8     :: Ti0, Ti0_s, Ti0_t, Ti0_x, Ti0_y, Ti0_p, Ti0_corr
 real*8     :: r0, r0_s, r0_t, r0_p, r0_x, r0_y, rho, rho_s, rho_t, rho_x, rho_y
@@ -241,6 +243,10 @@ do ms=1, n_gauss
 
     u0_s  = eq_s(mp,2,ms)
     Vpar0 = eq_g(mp,7,ms)
+    vpar0_s = eq_s(mp,var_vpar,ms) 
+    vpar0_t = eq_t(mp,var_vpar,ms)   
+    vpar0_x = (   y_t(ms) * vpar0_s - y_s(ms) * vpar0_t ) / xjac
+    vpar0_y = ( - x_t(ms) * vpar0_s + x_s(ms) * vpar0_t ) / xjac
 
     Te0_corr = corr_neg_temp1(Te0)
     Ti0_corr = corr_neg_temp1(Ti0)
@@ -254,6 +260,7 @@ do ms=1, n_gauss
     BB2 = Btot**2
 
     bdotn = (+ ps0_y * normal(1) - ps0_x * normal(2)) / x_g(ms) / Btot
+    gradvpar0dotn = (+ vpar0_x * normal(1) + vpar0_y * normal(2)) 
 
     normal_sign  = sign(1.d0,bdotn)
     normal_sign3 = sign(1.d0,ps0_s) * normal_sign
@@ -284,7 +291,8 @@ do ms=1, n_gauss
            
           rhs_ij_6 = - v * (gamma_sheath_i -1.d0) * r0_corr * Ti0_corr * vpar0 * ps0_s * normal_sign3 * tstep  & ! right hand side equation 6
                      - v * (gamma_sheath_i -1.d0) * r0_corr * Ti0_corr * cs0   * BigR  * dl * c_angle * tstep  &
-                     - v *                          r0_corr * Ti0_corr * BigR**2.d0    * u0_s  * normal_sign3 * tstep  
+                     - v *                          r0_corr * Ti0_corr * BigR**2.d0    * u0_s  * normal_sign3 * tstep  &
+                     - v * (GAMMA - 1.d0) * vpar0 * visco_par_heating * gradvpar0dotn  * BigR  * dl * tstep  
 
           rhs_ij_7 = - v * (vpar0 * Btot * normal_sign - cs0 * factor) * dl * Zbig                ! right hand side equation 7
 
@@ -342,6 +350,13 @@ do ms=1, n_gauss
                 Te  = psi;    vpar = psi;  vpar_ss = psi_ss;  u_s = psi_s
 		Ti  = psi;
 
+                vpar_s = psi_s
+                vpar_t = psi_t
+                vpar_x = (   y_t(ms) * vpar_s - y_s(ms) * vpar_t ) / xjac
+                vpar_y = ( - x_t(ms) * vpar_s + x_s(ms) * vpar_t ) / xjac
+
+                gradvpardotn  = (+ vpar_x * normal(1) + vpar_y * normal(2)) 
+
                 cs_T  = gamma * Ti / (2.d0 * cs0)
 
                 amat_51 = - v * density_reflection * r0_corr  * vpar0 * psi_s * normal_sign3 * theta * tstep 
@@ -367,7 +382,9 @@ do ms=1, n_gauss
                           + v * (gamma_sheath_i-1.d0) * r0_corr * Ti       * cs0   * BigR  * dl * c_angle * theta * tstep &
                           + v * (gamma_sheath_i-1.d0) * r0_corr * Ti0_corr * cs_T  * BigR  * dl * c_angle * theta * tstep
 
-                amat_67 = + v * (gamma_sheath_i-1.d0) * r0_corr  * Ti0_corr * vpar  * ps0_s * normal_sign3 * theta * tstep 
+                amat_67 = + v * (gamma_sheath_i-1.d0) * r0_corr  * Ti0_corr * vpar  * ps0_s * normal_sign3 * theta * tstep & 
+                          + v * (GAMMA - 1.d0) * vpar * visco_par_heating * gradvpar0dotn  * BigR  * dl           * theta * tstep &
+                          + v * (GAMMA - 1.d0) * vpar0 * visco_par_heating * gradvpardotn  * BigR  * dl           * theta * tstep
 
            
                 amat_76 =   v * ( - cs_T) * factor          * dl * Zbig

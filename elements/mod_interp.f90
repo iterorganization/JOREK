@@ -12,6 +12,7 @@ public :: interp_0_delta !< interp variable only, no derivatives at a specific p
 public :: interp_RZ !< Interpolate space only
 public :: interp_PRZ !< interp variable + pos at values or deltas
 public :: sincosperiod_moivre, mode_moivre !< public for regtesting, used by interp_PRZ
+public :: interp_PRZ_combined !< same as interp, but for any variable, including R and Z
 
 interface interp_RZ
   module procedure interp_RZ_0, interp_RZ_1, interp_RZ_2
@@ -601,4 +602,58 @@ Z_ss = sum(xZ*H_ss)
 Z_tt = sum(xZ*H_tt)
 
 end subroutine interp_RZ_2
+
+
+!> subroutine calculates the interpolation within one element (i_elm) for a given position
+!> (s,t) in the local coordinates, works for any variable, but also for R and Z, (using i_var = -1 or -2 respectively)
+pure subroutine interp_PRZ_combined(node_list, element_list, i_elm, i_var, i_harm, s, t, P, P_s, P_t, P_st, P_ss, P_tt)
+type (type_node_list),    intent(in)  :: node_list
+type (type_element_list), intent(in)  :: element_list
+integer,                  intent(in)  :: i_elm
+integer,                  intent(in)  :: i_var
+integer,                  intent(in)  :: i_harm
+real*8,                   intent(in)  :: s
+real*8,                   intent(in)  :: t
+real*8,                   intent(out) :: P, P_s, P_t, P_st, P_ss, P_tt
+
+! --- Local variables
+real*8 :: G(4,n_degrees), G_s(4,n_degrees), G_t(4,n_degrees), G_st(4,n_degrees), G_ss(4,n_degrees), G_tt(4,n_degrees)
+integer :: kv, iv, kf 
+
+call basisfunctions(s,t,G, G_s, G_t, G_st, G_ss, G_tt)
+
+P = 0.d0; P_s = 0.d0; P_t = 0.d0; P_st = 0.d0; P_ss = 0.d0; P_tt = 0.d0
+
+! for R (i_var=-1) and Z (i_var=-2)
+if (i_var .lt. 0) then
+  do kv = 1,n_vertex_max  ! 4 vertices
+    iv = element_list%element(i_elm)%vertex(kv)  ! the node number
+    do kf = 1, n_degrees       ! basis functions
+      P    = P    + node_list%node(iv)%x(1,kf,-i_var) * element_list%element(i_elm)%size(kv,kf) * G(kv,kf)
+      P_s  = P_s  + node_list%node(iv)%x(1,kf,-i_var) * element_list%element(i_elm)%size(kv,kf) * G_s(kv,kf)
+      P_t  = P_t  + node_list%node(iv)%x(1,kf,-i_var) * element_list%element(i_elm)%size(kv,kf) * G_t(kv,kf)
+      P_st = P_st + node_list%node(iv)%x(1,kf,-i_var) * element_list%element(i_elm)%size(kv,kf) * G_st(kv,kf)
+      P_ss = P_ss + node_list%node(iv)%x(1,kf,-i_var) * element_list%element(i_elm)%size(kv,kf) * G_ss(kv,kf)
+      P_tt = P_tt + node_list%node(iv)%x(1,kf,-i_var) * element_list%element(i_elm)%size(kv,kf) * G_tt(kv,kf)
+    end do
+  end do
+! any other variable
+else
+  do kv = 1,n_vertex_max  ! 4 vertices
+    iv = element_list%element(i_elm)%vertex(kv)  ! the node number
+    do kf = 1, n_degrees       ! basis functions
+      P    = P    + node_list%node(iv)%values(i_harm,kf,i_var) * element_list%element(i_elm)%size(kv,kf) * G(kv,kf)
+      P_s  = P_s  + node_list%node(iv)%values(i_harm,kf,i_var) * element_list%element(i_elm)%size(kv,kf) * G_s(kv,kf)
+      P_t  = P_t  + node_list%node(iv)%values(i_harm,kf,i_var) * element_list%element(i_elm)%size(kv,kf) * G_t(kv,kf)
+      P_st = P_st + node_list%node(iv)%values(i_harm,kf,i_var) * element_list%element(i_elm)%size(kv,kf) * G_st(kv,kf)
+      P_ss = P_ss + node_list%node(iv)%values(i_harm,kf,i_var) * element_list%element(i_elm)%size(kv,kf) * G_ss(kv,kf)
+      P_tt = P_tt + node_list%node(iv)%values(i_harm,kf,i_var) * element_list%element(i_elm)%size(kv,kf) * G_tt(kv,kf)
+    end do
+  end do
+endif
+end subroutine interp_PRZ_combined
+
+
+
+
 end module mod_interp

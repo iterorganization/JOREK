@@ -220,7 +220,7 @@ module mod_injection_source
         N_barlitre = (6.02d23*1.d5*1.d-3)/(8.3144d0*293d0)
 
         R_Asdex = 8314.4d0
-        mnum = 20.2d0
+        mnum = A_gas
         kst = 1.666d0 
         ! kst= 5/3 for noble gas as Ne;
         ! A_Dmv = PI*0.7*0.7*1d-4
@@ -230,7 +230,7 @@ module mod_injection_source
     
         gam = A_Dmv/V_Dmv*yy
     
-        dt_open = 1.5d-3
+        dt_open = 1.0d-3
 
         if (t_loc .lt. dt_open) then
 

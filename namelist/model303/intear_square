@@ -1,0 +1,96 @@
+&in1
+
+ restart = .f.
+ tstep   = 300.0
+ nstep   = 000
+ nout    = 1
+
+ linear_run = .t.
+
+ psi_axis_init = 0.1
+ no_mach1_bc = .t.
+ axis_srch_radius = 0.5
+
+ fbnd(1)   = 2.
+ fbnd(2:4) = 0.
+ mf        = 0
+
+ ellip  = 1.
+ tria_u = 0.
+ tria_l = 0.
+ quad_u = -0.
+ quad_l = -0.
+
+ xampl  = +0.
+ xsig   = 0.6
+ xwidth = 1.5
+ xtheta = 4.7
+ xshift = 0.0
+ xpoint = .f.
+
+ R_begin = 9.0
+ R_end   = 11.0
+ Z_begin = -1.0
+ Z_end   = 1.0
+
+ R_geo   = 10.0
+ Z_geo   = 0.
+
+ F0    = 10.0
+
+ amin     = 1.
+
+ n_R      = 30
+ n_Z      = 30
+ n_radial = 0
+ n_pol    = 0
+
+ n_flux   = 0
+ n_tht    = 0
+ n_open   = 0
+ n_leg    = 0
+ n_private= 0
+
+ eta   = 1.d-6
+ visco = 1.d-6
+
+ eta_num   = 1.d-10
+ visco_num = 1.d-10
+
+ D_par  = 0.d0
+ D_perp = 1.d-6
+
+ ZK_par  = 1.d0
+ ZK_perp = 1.d-6
+
+ FF_0        = 1.173
+ FF_1        = 0.
+ FF_coef(1)  = -1.0
+ FF_coef(2)  = 0.d0
+ FF_coef(3)  = 0.d0
+ FF_coef(4)  = 0.03d0
+ FF_coef(5)  = 5.0d0
+ FF_coef(6)  = 1.d0
+ FF_coef(7)  = 10.d0
+ FF_coef(8)  = 1.d0
+
+ heatsource     = 0.d0
+ particlesource = 0.d0
+
+ T_0       = 1.d-6
+ T_1       = 1.d-8
+ T_coef(1) = -0.8d0
+ T_coef(2) = +0.0d0
+ T_coef(3) = 0.d0
+ T_coef(4) = 1.d0
+ T_coef(5) = 5.d0
+
+ rho_0        = 1.
+ rho_1        = 1.
+ rho_coef(1)  =  0.0
+ rho_coef(2)  =  0.0
+ rho_coef(3)  =  0.0
+ rho_coef(4)  =  1.d0
+ rho_coef(5)  =  5.d0
+
+/

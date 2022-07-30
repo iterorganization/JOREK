@@ -88,7 +88,7 @@ module fourier
     
                 iv = element_list%element(i_elm_out)%vertex(kv)  ! the node number
     
-                do kf = 1, n_degrees       ! 4 basis functions
+                do kf = 1, n_degrees       ! basis functions
     
                   v = v + node_list%node(iv)%values(iharm,kf,l)                                    &
                     * element_list%element(i_elm_out)%size(kv,kf) * G(kv,kf)

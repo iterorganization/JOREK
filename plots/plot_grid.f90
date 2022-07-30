@@ -132,6 +132,7 @@ do k=1, element_list%n_elements
 
    do j=1,np
      s = (float(j-1)/float(np-1))
+     xb      = 0.d0
      xb(1,:) = xx_0
      xb(2,:) = xx_0+uv_0*huv_0
      xb(3,:) = xx_p+uv_p*huv_p
@@ -177,6 +178,7 @@ if ( write_ps ) then
 
     do j=1,np
       s = (float(j-1)/float(np-1))
+      xb      = 0.d0
       xb(1,:) = xx_0
       xb(2,:) = xx_0+uv_0*huv_0
       xb(3,:) = xx_p+uv_p*huv_p

@@ -72,7 +72,7 @@ contains
         thread_struct(omp_tid)%eq_p, thread_struct(omp_tid)%eq_ss, thread_struct(omp_tid)%eq_st,   &
         thread_struct(omp_tid)%eq_tt, thread_struct(omp_tid)%delta_g,                              &
         thread_struct(omp_tid)%delta_s, thread_struct(omp_tid)%delta_t, i_tor_min, i_tor_max,      &
-        aux_nodes)
+        aux_nodes, thread_struct(omp_tid)%ELM_pnn)
     else
       ! (use the element matrix by toroidal integration in case of very few harmonics or in case
       ! of direct construction of the harmonic matrices used in preconditioning)
@@ -192,7 +192,7 @@ contains
         thread_struct(omp_tid)%RHS_p, thread_struct(omp_tid)%RHS_k,  thread_struct(omp_tid)%eq_g, thread_struct(omp_tid)%eq_s, &
         thread_struct(omp_tid)%eq_t, thread_struct(omp_tid)%eq_p, thread_struct(omp_tid)%eq_ss, thread_struct(omp_tid)%eq_st, &
         thread_struct(omp_tid)%eq_tt, thread_struct(omp_tid)%delta_g, thread_struct(omp_tid)%delta_s, &
-        thread_struct(omp_tid)%delta_t, i_tor_min, i_tor_max)
+        thread_struct(omp_tid)%delta_t, i_tor_min, i_tor_max, aux_nodes, thread_struct(omp_tid)%ELM_pnn)
       if (     (jorek_model .eq. 303) &
           .or. (jorek_model .eq. 333) &
           .or. (jorek_model .eq. 500) &
@@ -201,7 +201,7 @@ contains
           .or. (jorek_model .eq. 712) &
          ) n_tor_fft_thresh = 300
       call element_matrix    (element,nodes, xpoint2, xcase2, R_axis, Z_axis, psi_axis, psi_bnd, R_xpoint, Z_xpoint, &
-        thread_struct(omp_tid)%ELM,  thread_struct(omp_tid)%RHS,  omp_tid, i_tor_min, i_tor_max)
+        thread_struct(omp_tid)%ELM,  thread_struct(omp_tid)%RHS,  omp_tid, i_tor_min, i_tor_max, aux_nodes)
       
       ! --- Compare right hand side
       write(*,*)
@@ -233,7 +233,9 @@ contains
     	do j = 1, n_tor_local*n_vertex_max*n_degrees*n_var
     	  
     	  if (abs(thread_struct(omp_tid)%ELM(i,j)-thread_struct(omp_tid)%ELM2(i,j))/  &
-    	      (abs(thread_struct(omp_tid)%ELM(i,j))+abs(thread_struct(omp_tid)%ELM2(i,j))+1.d0) .gt. 1.d-10) then
+    	      !(abs(thread_struct(omp_tid)%ELM(i,j))+abs(thread_struct(omp_tid)%ELM2(i,j))+1.d0) .gt. 1.d-10) then
+              (abs(thread_struct(omp_tid)%ELM(i,j))+abs(thread_struct(omp_tid)%ELM2(i,j))+1.d0) .gt. 1.d-9) then
+
     	    call decrypt_index(i, ivertex, iorder, ivar, itor)
     	    call decrypt_index(j, jvertex, jorder, jvar, jtor)
     	    write(*,'(4x,3i8,4x,3i4,4x,1i8,7x,3i4,4x,1i8,7x,3es16.8)') my_id, i, j, ivertex, iorder, itor, ivar, &

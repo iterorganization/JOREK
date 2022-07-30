@@ -22,7 +22,8 @@ module exec_commands
   use mod_bootstrap_functions
   use mod_impurity, only: init_imp_adas 
   use mod_model_settings
- 
+  use mod_atomic_coeff_deuterium, only : ad_deuterium 
+
   implicit none
   
   
@@ -193,6 +194,9 @@ module exec_commands
 #if (defined WITH_Neutrals) || (defined WITH_Impurities)
           ! --- Read ADAS data and generate coronal equilibrium is needed
           call init_imp_adas(0)
+#endif
+#if (!defined WITH_Impurities)
+        if (deuterium_adas)  ad_deuterium =  read_adf11(0,'96_h') ! For radiation terms
 #endif
         case ( 'params' )
           call log_parameters(0, .false.)
@@ -2233,16 +2237,16 @@ module exec_commands
     call determine_q_profile(node_list, element_list, surface_list, ES%psi_axis, ES%psi_xpoint,    &
       ES%Z_xpoint, q, rad)
     
-    ! --- Clean up q-profile from "jumps" -- TODO: a better solution is needed
-    do k = 5, 1, -1
-      do i = k+1, npts-k
-        if ( abs(q(i+k)-q(i-k)) < abs(q(i)-0.5d0*(q(i+k)+q(i-k))) ) then
-          q(i) = q(i-k) + (q(i+k)-q(i-k)) * &
-            (surface_list%psi_values(i)  -surface_list%psi_values(i-k)) / &
-            (surface_list%psi_values(i+k)-surface_list%psi_values(i-k))
-        end if
-      end do
-    end do
+!    ! --- Clean up q-profile from "jumps" -- TODO: a better solution is needed
+!    do k = 5, 1, -1
+!      do i = k+1, npts-k
+!        if ( abs(q(i+k)-q(i-k)) < abs(q(i)-0.5d0*(q(i+k)+q(i-k))) ) then
+!          q(i) = q(i-k) + (q(i+k)-q(i-k)) * &
+!            (surface_list%psi_values(i)  -surface_list%psi_values(i-k)) / &
+!            (surface_list%psi_values(i+k)-surface_list%psi_values(i-k))
+!        end if
+!      end do
+!    end do
     
     
     ! --- Write out q-profile versus Psi_n
@@ -2322,7 +2326,7 @@ module exec_commands
     call determine_q_profile(node_list, element_list, surface_list, ES%psi_axis, ES%psi_xpoint,    &
       ES%Z_xpoint, q_psin, rad)
     
-    write(i_file,'(2es20.13)') time_now, q_psin(2) 
+    write(i_file,'(es20.13,es20.12)') time_now, q_psin(2) 
     
     close(i_file)
 
@@ -2665,7 +2669,7 @@ module exec_commands
     use omp_lib
     use basis_at_gaussian 
     use mod_openadas, only : read_adf11
-    use mod_atomic_coeff_deuterium, only: ad_deuterium 
+    use mod_atomic_coeff_deuterium, only: ad_deuterium
     use mpi_mod
     use mod_impurity, only: init_imp_adas
  
@@ -2810,6 +2814,7 @@ module exec_commands
       allocate(test_struct(i)%RHS_k( dim1, dim2      ) )
       allocate(test_struct(i)%ELM(   dim0, dim0      ) )
       allocate(test_struct(i)%RHS(   dim0            ) )
+      allocate(test_struct(i)%ELM_pnn(dim1, dim2, dim2) )
   
       test_struct(i)%ELM_p   = 0.d0
       test_struct(i)%ELM_n   = 0.d0
@@ -2819,6 +2824,7 @@ module exec_commands
       test_struct(i)%RHS_k   = 0.d0
       test_struct(i)%ELM     = 0.d0
       test_struct(i)%RHS     = 0.d0
+      test_struct(i)%ELM_pnn = 0.d0
   
       allocate(test_struct(i)%eq_g    (n_plane,n_var,n_gauss,n_gauss) )
       allocate(test_struct(i)%eq_s    (n_plane,n_var,n_gauss,n_gauss) )
@@ -2957,7 +2963,8 @@ module exec_commands
        test_struct(omp_tid)%eq_g, test_struct(omp_tid)%eq_s, test_struct(omp_tid)%eq_t,     &
        test_struct(omp_tid)%eq_p, test_struct(omp_tid)%eq_ss, test_struct(omp_tid)%eq_st,   &
        test_struct(omp_tid)%eq_tt, test_struct(omp_tid)%delta_g,                              &
-       test_struct(omp_tid)%delta_s, test_struct(omp_tid)%delta_t, 1, n_tor, get_terms=get_terms)
+       test_struct(omp_tid)%delta_s, test_struct(omp_tid)%delta_t, 1, n_tor, nodes,         &
+       test_struct(omp_tid)%ELM_pnn, get_terms=get_terms)
 
       do i_term=1, max_terms
   

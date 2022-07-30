@@ -1,14 +1,15 @@
-module reorder_surfaces_parameters
-  real*8, parameter     :: accuracy = 1.d-8
-  integer, parameter    :: n_parts_max = 10
-end module reorder_surfaces_parameters
+module reorder_and_clean_flux_surfaces
 
+  real*8, parameter     :: psi_accuracy = 1.d-8
+  integer, parameter    :: n_parts_max = 10
+
+
+contains
 
 !> This routine reorders fluxsurfaces so that pieces are one after the other
-subroutine reorder_flux_surfaces(node_list, element_list, surface_list, ier)
+subroutine reorder_flux_surfaces(node_list, element_list, surface_list, plot_surfaces, ier)
 
   use data_structure
-  use reorder_surfaces_parameters
   use py_plots_grids
   use grid_xpoint_data
   use mod_interp, only: interp_RZ
@@ -19,6 +20,7 @@ subroutine reorder_flux_surfaces(node_list, element_list, surface_list, ier)
   type (type_node_list),    intent(in)          :: node_list
   type (type_element_list), intent(in)          :: element_list
   type (type_surface_list), intent(inout)       :: surface_list
+  logical,                  intent(in)          :: plot_surfaces
   integer,                  intent(inout)       :: ier
   
   ! --- Local variables
@@ -54,7 +56,7 @@ subroutine reorder_flux_surfaces(node_list, element_list, surface_list, ier)
   ier      = 0
   
   ! --- Get a plot?
-  if (debug) then
+  if ( debug .and. plot_surfaces)  then
     filename = 'plot_unordered_flux_surfaces.py'
     call py_plot_surface(filename,node_list,element_list,respline, .false., surface_list, -1)
   endif
@@ -120,8 +122,7 @@ subroutine reorder_flux_surfaces(node_list, element_list, surface_list, ier)
             call interp_RZ(node_list,element_list,i_elm2,rr2,ss2,R2,Z2)
             
             distance = sqrt( (R-R2)**2.d0 + (Z-Z2)**2.d0 )
-            if (distance .lt. accuracy) then
-              found = j
+            if (distance .lt. psi_accuracy) then
               nStart = i_piece + 1
               n_parts = n_parts + 1
               parts_index(n_parts) = nStart
@@ -222,8 +223,7 @@ subroutine reorder_flux_surfaces(node_list, element_list, surface_list, ier)
                 call interp_RZ(node_list,element_list,i_elm2,rr2,ss2,R2,Z2)
                 
                 distance = sqrt( (R-R2)**2.d0 + (Z-Z2)**2.d0 )
-                if (distance .lt. accuracy) then
-                  found = j
+                if (distance .lt. psi_accuracy) then
                   nStart = i_piece + 1
                   n_parts = n_parts + 1
                   parts_index(n_parts) = nStart
@@ -313,7 +313,7 @@ subroutine reorder_flux_surfaces(node_list, element_list, surface_list, ier)
   
   write(*,*) 'Processing  ... 100'
   write(*,*) 'finished reordering'
-  if (debug) then
+  if (debug .and. plot_surfaces) then
     filename = 'plot_ordered_flux_surfaces.py'
     call py_plot_surface(filename,node_list,element_list,.false., .true., surface_list, -1)
   endif
@@ -335,7 +335,6 @@ subroutine get_next_surface_piece(node_list, element_list, surface, i_piece, &
                                   n_edge_pieces, index_edge_pieces, n_isolated_pieces, index_isolated_pieces, found)
   
   use data_structure
-  use reorder_surfaces_parameters
   use mod_interp, only: interp_RZ
   implicit none
   
@@ -379,7 +378,7 @@ subroutine get_next_surface_piece(node_list, element_list, surface, i_piece, &
       call interp_RZ(node_list,element_list,i_elm2,rr2,ss2,R2,Z2)
       
       distance = sqrt( (R-R2)**2.d0 + (Z-Z2)**2.d0 )
-      if (distance .lt. accuracy) then
+      if (distance .lt. psi_accuracy) then
         found = j
         exit
       endif
@@ -428,7 +427,6 @@ end subroutine get_next_surface_piece
 subroutine swap_surface_pieces(surface, index1, index2, invert, n_edge_pieces, index_edge_pieces, n_isolated_pieces, index_isolated_pieces)
 
   use data_structure
-  use reorder_surfaces_parameters
   implicit none
   
   ! --- Routine parameters
@@ -536,7 +534,6 @@ subroutine find_all_edge_pieces(node_list, element_list, surface, n_edge_pieces,
 
 
   use data_structure
-  use reorder_surfaces_parameters
   use mod_interp, only: interp_RZ
   implicit none
   
@@ -586,7 +583,7 @@ subroutine find_all_edge_pieces(node_list, element_list, surface, n_edge_pieces,
             call interp_RZ(node_list,element_list,i_elm2,rr2,ss2,R2,Z2)
             
             distance = sqrt( (R-R2)**2.d0 + (Z-Z2)**2.d0 )
-            if (distance .lt. accuracy) then
+            if (distance .lt. psi_accuracy) then
               if (k1 .eq. 1) found(1) = .true.
               if (k1 .eq. 3) found(2) = .true.
               exit
@@ -645,12 +642,12 @@ subroutine clean_surfaces(node_list,element_list,flux_list,n_grids)
 
   use constants
   use data_structure
-  use reorder_surfaces_parameters
   use phys_module, only : xcase
   use grid_xpoint_data
   use py_plots_grids
   use mod_interp, only: interp_RZ
   use equil_info
+  use check_point_is_inside_wall_contour
   
   implicit none
   
@@ -697,18 +694,12 @@ subroutine clean_surfaces(node_list,element_list,flux_list,n_grids)
   sep_list%psi_values(1) = flux_list%psi_values(n_flux)
   if ((xcase .eq. DOUBLE_NULL ) .and. (ES%active_xpoint .ne. SYMMETRIC_XPOINT)) sep_list%psi_values(2) = flux_list%psi_values(n_flux+n_open)
   call find_flux_surfaces(0,.true.,xcase,node_list,element_list,sep_list)  
-  call reorder_flux_surfaces(node_list, element_list, sep_list, ifail)
+  call reorder_flux_surfaces(node_list, element_list, sep_list, .false., ifail)
   if (debug .eq. 2) write(*,*) 'cleaning all surfaces'
   if ((xcase .eq. DOUBLE_NULL ) .and. (ES%active_xpoint .eq. SYMMETRIC_XPOINT)) then
     call get_symmetric_separatrix_contours(node_list, element_list, sep_list)
   else
     call get_separatrix_contours(node_list, element_list, sep_list)
-  endif
-  
-  ! --- Because this will have been overwritten with the separatrix!
-  if (debug .ge. 1) then
-    filename = 'plot_ordered_flux_surfaces.py'
-    call py_plot_surface(filename,node_list,element_list,.false., .true., flux_list, -1)
   endif
   
   ! --- Loop over each core surface
@@ -1106,7 +1097,6 @@ subroutine clean_single_surface(node_list,element_list,surface,location)
 
   use constants
   use data_structure
-  use reorder_surfaces_parameters
   use phys_module, only: xcase
   use grid_xpoint_data
   use mod_interp, only: interp_RZ
@@ -1259,7 +1249,6 @@ subroutine get_symmetric_separatrix_contours(node_list, element_list, sep_list)
 
   use constants
   use data_structure
-  use reorder_surfaces_parameters
   use phys_module, only : xcase
   use grid_xpoint_data
   use py_plots_grids
@@ -2034,7 +2023,6 @@ subroutine get_separatrix_contours(node_list, element_list, sep_list)
 
   use constants
   use data_structure
-  use reorder_surfaces_parameters
   use phys_module, only : xcase
   use grid_xpoint_data
   use py_plots_grids
@@ -2063,6 +2051,8 @@ subroutine get_separatrix_contours(node_list, element_list, sep_list)
   real*8                :: rr2 , ss2, drr2, dss2
   real*8                :: distance, distance_Xpoint
   logical               :: start_stop, debug, dashed, reversed
+  integer               :: n_contour_tmp
+  real*8                :: R_contour_tmp(n_contour_max), Z_contour_tmp(n_contour_max)
   character*256         :: filename
   character*1           :: colour
   
@@ -2599,6 +2589,19 @@ subroutine get_separatrix_contours(node_list, element_list, sep_list)
   endif
   
   
+  ! --- Reverse the two private contours if upper-Xpoint is the main one
+  if (ES%active_xpoint .eq. UPPER_XPOINT) then
+    n_contour_tmp = n_up_priv_contour
+    R_contour_tmp(1:n_up_priv_contour) = R_up_priv_contour(1:n_up_priv_contour)
+    Z_contour_tmp(1:n_up_priv_contour) = Z_up_priv_contour(1:n_up_priv_contour)
+    n_up_priv_contour = n_private_contour 
+    R_up_priv_contour(1:n_private_contour) = R_private_contour(1:n_private_contour)
+    Z_up_priv_contour(1:n_private_contour) = Z_private_contour(1:n_private_contour)
+    n_private_contour = n_contour_tmp
+    R_private_contour(1:n_contour_tmp) = R_contour_tmp(1:n_contour_tmp)
+    Z_private_contour(1:n_contour_tmp) = Z_contour_tmp(1:n_contour_tmp)
+  endif
+
   
   
   ! --- Finally the outer contour
@@ -2998,3 +3001,4 @@ end subroutine close_contour_with_wall
 
 
 
+end module reorder_and_clean_flux_surfaces

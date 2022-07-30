@@ -224,6 +224,7 @@ write(*,'(1x,a)',advance='no') ' USE_BICGSTAB : '
   write(*,LOGI_FMT) 'visco_T_dependent     ', visco_T_dependent
   write(*,REAL_FMT) 'visco                 ', visco
   write(*,REAL_FMT) 'visco_par             ', visco_par
+  write(*,REAL_FMT) 'visco_par_heating     ', visco_par_heating
   write(*,LOGI_FMT) 'restart               ', restart
   write(*,INTG_FMT) 'rst_format            ', rst_format
   write(*,INTG_FMT) 'rst_hdf5              ', rst_hdf5
@@ -270,6 +271,7 @@ write(*,'(1x,a)',advance='no') ' USE_BICGSTAB : '
     write(*,REAL_FMT) 'SIG_open              ', SIG_open
     write(*,REAL_FMT) 'SIG_private           ', SIG_private
     write(*,REAL_FMT) 'SIG_theta             ', SIG_theta
+    write(*,REAL_FMT) 'SIG_theta_up          ', SIG_theta_up
     write(*,REAL_FMT) 'SIG_leg_0             ', SIG_leg_0
     write(*,REAL_FMT) 'SIG_leg_1             ', SIG_leg_1
     write(*,REAL_FMT) 'SIG_outer             ', SIG_outer
@@ -287,6 +289,7 @@ write(*,'(1x,a)',advance='no') ' USE_BICGSTAB : '
     write(*,REAL_FMT) 'SDN_threshold         ', SDN_threshold
   end if
 
+  write(*,REAL_FMT) 'surface_cross_tol     ',surface_cross_tol
   if ( ( (grid_to_wall) .or. (extend_existing_grid) ) .and. (n_wall_blocks .gt. 0) ) then
     write(*,REAL_FMT) 'eqdsk_psi_fact        ', eqdsk_psi_fact
     write(*,LOGI_FMT) 'RZ_grid_inside_wall   ', RZ_grid_inside_wall
@@ -314,6 +317,7 @@ write(*,'(1x,a)',advance='no') ' USE_BICGSTAB : '
   endif
 
   write(*,INTG_FMT) 'nout                  ', nout
+  write(*,INTG_FMT) 'nout_projection       ', nout_projection
   write(*,REAL_FMT) 'xr1                   ', xr1
   write(*,REAL_FMT) 'sig1                  ', sig1
   write(*,REAL_FMT) 'xr2                   ', xr2
@@ -490,6 +494,9 @@ write(*,'(1x,a)',advance='no') ' USE_BICGSTAB : '
   write(*,LOGI_FMT) 'visco_num_T_dependent ', visco_num_T_dependent
   write(*,REAL_FMT) 'visco_par_num         ', visco_par_num
   write(*,REAL_FMT) 'D_perp_num            ', D_perp_num
+  write(*,REAL_FMT) 'D_perp_num_tanh       ', D_perp_num_tanh
+  write(*,REAL_FMT) 'D_perp_num_tanh_psin  ', D_perp_num_tanh_psin
+  write(*,REAL_FMT) 'D_perp_num_tanh_sig   ', D_perp_num_tanh_sig
   write(*,REAL_FMT) 'Dn_perp_num           ', Dn_perp_num
 
   write(*,LOGI_FMT) 'use_sc                ', use_sc
@@ -513,9 +520,18 @@ write(*,'(1x,a)',advance='no') ' USE_BICGSTAB : '
   write(*,LOGI_FMT) 'add_sources_in_sc     ', add_sources_in_sc
   if (with_TiTe) then
     write(*,REAL_FMT) 'ZK_i_perp_num         ', ZK_i_perp_num
+    write(*,REAL_FMT) 'ZK_i_perp_num_tanh     ', ZK_i_perp_num_tanh
+    write(*,REAL_FMT) 'ZK_i_perp_num_tanh_psin', ZK_i_perp_num_tanh_psin
+    write(*,REAL_FMT) 'ZK_i_perp_num_tanh_sig ', ZK_i_perp_num_tanh_sig
     write(*,REAL_FMT) 'ZK_e_perp_num         ', ZK_e_perp_num
+    write(*,REAL_FMT) 'ZK_e_perp_num_tanh     ', ZK_e_perp_num_tanh
+    write(*,REAL_FMT) 'ZK_e_perp_num_tanh_psin', ZK_e_perp_num_tanh_psin
+    write(*,REAL_FMT) 'ZK_e_perp_num_tanh_sig ', ZK_e_perp_num_tanh_sig
   else
     write(*,REAL_FMT) 'ZK_perp_num           ', ZK_perp_num
+    write(*,REAL_FMT) 'ZK_perp_num_tanh      ', ZK_perp_num_tanh
+    write(*,REAL_FMT) 'ZK_perp_num_tanh_psin ', ZK_perp_num_tanh_psin
+    write(*,REAL_FMT) 'ZK_perp_num_tanh_sig  ', ZK_perp_num_tanh_sig
   end if
   write(*,REAL_FMT) 'tgnum                 ', tgnum(:)
   write(*,REAL_FMT) 'tgnum_psi             ', tgnum_psi 

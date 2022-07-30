@@ -32,7 +32,7 @@ do kv = 1,n_vertex_max  ! 4 vertices
 
   iv = element_list%element(i_elm)%vertex(kv)  ! the node number
 
-  do kf = 1, n_degrees       ! 4 basis functions
+  do kf = 1, n_degrees       ! basis functions
 
     xx1 = node_list%node(iv)%x(1,kf,1)
     xx2 = node_list%node(iv)%x(1,kf,2)
