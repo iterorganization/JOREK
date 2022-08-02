@@ -124,6 +124,8 @@ if (my_id == 0) then
       if(treat_axis)then
         ! --- Only one fixed for fixed-axis (only valid for G1-cases at the moment!!!)
         if (node_list%node(i)%axis_node    ) n_border = n_border+1
+      else
+        ! --- t-derivatives and cross derivatives are switched off on axis, so (n_order+1)/2 are not fixed
         if (node_list%node(i)%axis_node    ) n_border = n_border + n_degrees - (n_order+1)/2
       endif    
       ! --- on non-corner boundaries, only tangent derivatives are fixed, ie. (n_order+1)/2
