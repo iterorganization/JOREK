@@ -7,9 +7,10 @@ module mod_gmres
   use mod_parameters, only : n_tor, n_var
   use global_distributed_matrix, only: A_glob, IRN_glob, JCN_glob, RHS_glob, deltas, ndof_glob, nz_glob, &
                                        local_index_start, local_index_end, column_scaling
-
-  private
-  public :: gmres_driver, gmres_matrix_vector
+  implicit none
+  !private
+  public! :: gmres_driver, gmres_matrix_vector
+  real*8 :: rinfo(2)
 
 
   contains
@@ -31,7 +32,7 @@ module mod_gmres
     integer(kind=int_all), parameter   :: Int1=1
 
     integer :: matvec, precondLeft, precondRight, dotProd, ierr
-    real*8  :: cntl(5), rinfo(2), sum, err, Bnorm, Xnorm
+    real*8  :: cntl(5), sum, err, Bnorm, Xnorm
     real*8, allocatable :: work(:), work_ndof(:), work_ndof2(:)
     type(clcktype)           :: t0, t1
     real*8                   :: tsecond
@@ -111,7 +112,8 @@ module mod_gmres
            if (my_id .eq. 0) then
              call drive_dgmres(n_dof,n_dof,m,lwork,work,irc,icntl,cntl,info,rinfo)
            endif
-
+           call MPI_Bcast(rinfo,2,MPI_DOUBLE_PRECISION,0,MPI_COMM_WORLD,ierr)
+           ! call MPI_AllReduce(MPI_IN_PLACE,rinfo,2,MPI_DOUBLE_PRECISION,MPI_SUM,MPI_COMM_MASTER,ierr)
            call MPI_BCAST(irc,5,MPI_INTEGER_ALL,0,MPI_COMM_WORLD,ierr)
            revcom = irc(1)
            colx   = irc(2)

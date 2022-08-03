@@ -12,7 +12,7 @@ module mod_inexact_newton
 #ifdef USE_BICGSTAB
   use mod_bicgstab, only: bicgstab_driver, bicgstab_finalize
 #else
-  use mod_gmres, only: gmres_driver
+  use mod_gmres, only: gmres_driver, rinfo
 #endif
   use mod_gmres, only: gmres_matrix_vector
   use data_structure, only: type_element_list, type_node_list, thread_struct, new_thread_buffers, del_thread_buffers
@@ -28,7 +28,7 @@ module mod_inexact_newton
 
   subroutine inexact_newton(val, x, b, max_it, tol, MPI_GLOB, comm_n, comm_master,                             &
     ! end of additional arguments of bicgstab_driver 
-                            iter_gmres,                                                                         &
+                            iter_gmres,                                                                        &
     ! end of additional arguments of gmres_driver         
                             element_list, node_list, index_now,                                                 &
     ! end of additional arguments
@@ -46,7 +46,7 @@ module mod_inexact_newton
 
     use phys_module, only:  newton_start, newton_gamma,    newton_alpha, newton_eps_a, &
                             newton_eps_r, newton_max_iter, newton_eps_gmres,           &
-                            newton_eps_0, gmres_max_iter, gmres     
+                            newton_eps_0, gmres_max_iter, gmres, tstep     
     implicit none
     !--------------------- INPUT VARIABLES -----------------------------------------
     !--- definitions for subroutine bicgstab_driver, gmres_driver
@@ -107,6 +107,11 @@ module mod_inexact_newton
     real*8                                            :: normRESk, eps_k
     real*8                                            :: normRHSn, normRHSk, normRHSprev, rhs_ratio
     real*8                                            :: FT, FT_0  ! forcing term [1]
+    real(kind=C_DOUBLE),     allocatable              :: tol_array(:), normRHSk_array(:), rhs_ratio_array(:), normRESk_array(:)
+    real(kind=C_DOUBLE),     allocatable              :: rinfo1(:), rinfo2(:)
+    integer                                           :: i
+    integer,                 allocatable              :: iter_array(:)
+    integer                                           :: exit_status  ! 0: convergence achieved, 1: max newton iter, 2: max gmres iter
     !--------------------- END OF ROUTINE VARIABLES --------------------------------
 
 
@@ -115,6 +120,9 @@ module mod_inexact_newton
     allocate(rhs_n(1:ndof),rhs_k(1:ndof),delta_k_n(1:ndof),delta_k(1:ndof),deltas_temp(1:ndof),mat_vec_prod(1:ndof),resi(1:ndof))
     allocate(element_list_temp, source=element_list)
     allocate(node_list_temp   , source=node_list   )
+    allocate(tol_array(1:newton_max_iter),       normRHSk_array(1:newton_max_iter), &
+             rhs_ratio_array(1:newton_max_iter), normRESk_array(1:newton_max_iter), iter_array(1:newton_max_iter))
+    allocate(rinfo1(1:newton_max_iter), rinfo2(1:newton_max_iter))
     delta_k_n            = 0.0d0
     delta_k(1:ndof)      = x(1:ndof) * newton_start
     rhs_n(1:ndof)        = b(1:ndof)
@@ -123,11 +131,12 @@ module mod_inexact_newton
     deltas_temp(1:ndof)  = x(1:ndof)
     normRHSn             = DSQRT(DOT_PRODUCT(rhs_n,rhs_n)) 
     normRHSprev          = normRHSn
+    iter_array           = 0.0d0
     !--------------------- END OF ALLOCATION ---------------------------------------
 
      
     !--------------------- START OF NEWTON ITERATION -------------------------------
-    if (my_id.eq.0) write(*,*) '>>>>>>>>>>>>>>>>>>>>>> START NEWTON LOOP <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<'
+    if (my_id.eq.0) write(*,'(A27,A22,A27)') REPEAT('-',27), ' START OF NEWTON LOOP ', REPEAT('-',27)
     call clck_time(t0)    
     call new_thread_buffers()
 
@@ -140,11 +149,11 @@ module mod_inexact_newton
       
       !--- abort if maximum number of newton iterations is reached
       if (newton_i.eq.newton_max_iter) then
-        if (my_id.eq.0) write(*,*) 'MAXIMUM NUMBER OF NEWTON ITERATIONS. ABORTING.'
-        call MPI_Finalize(ierr)
-        stop
+        exit_status = 1
+        !if (my_id.eq.0) write(*,*) 'MAXIMUM NUMBER OF NEWTON ITERATIONS. ABORTING.'
+        exit newton_loop
       endif 
-      if (my_id.eq.0) write(*,'(a,i2.2,a)') '###################### NEWTON ITERATION STEP ', newton_i,' ##########################'
+      if (my_id.eq.0) write(*,'(A24,A23,i3,A2,A24)') REPEAT('-',24),' NEWTON ITERATION STEP ', newton_i, '  ',REPEAT('-',24)
       if (my_id.eq.0) write(*,*)
 
       !--- iterate commulative delta, i.e. delta_k_n = U(n+1)-U(n) if converged
@@ -172,11 +181,11 @@ module mod_inexact_newton
       !--- compute norms and eps_k
       normRHSk        = DSQRT(DOT_PRODUCT(rhs_k,rhs_k))
       rhs_ratio       = normRHSk/normRHSprev
-      eps_k           = normRHSk * newton_gamma * rhs_ratio**newton_alpha
+      ! eps_k           = normRHSk * newton_gamma * rhs_ratio**newton_alpha
       !--- set initial tolerance, i.e. usually computed eps_0>1.d-4 -> bad behaviour!
-      if (newton_i.eq.1) then
-        eps_k = newton_eps_0
-      endif
+      !if (newton_i.eq.1) then
+      !  eps_k = newton_eps_0
+      !endif
 
       !--- compute eps analogously to [1]
       FT_0    = newton_eps_0
@@ -185,18 +194,14 @@ module mod_inexact_newton
         eps_k = FT
       else
         FT    = eps_k
-        if (0.5*FT**2.d0.gt.1.d-1) then
-          FT  = MIN(MAX(0.5*rhs_ratio**2.d0,0.5*FT**2.d0),FT_0)
+        if (newton_gamma*FT**newton_alpha.gt.1.d-1) then
+          FT  = MIN(MAX(newton_gamma*rhs_ratio**newton_alpha,newton_gamma*FT**newton_alpha),FT_0)
         else
-          FT  = MIN(0.5*rhs_ratio**2.d0,FT_0)
+          FT  = MIN(newton_gamma*rhs_ratio**newton_alpha,FT_0)
         endif
-        eps_k = MIN(0.5*eps_k,FT)
+        eps_k = MAX(MIN(0.5*eps_k,FT), newton_eps_gmres)
       endif
       
-
-      if(my_id.eq.0) write(*,'(A24,E9.2,E9.2,A19,E9.2,A8,E9.2)') &
-        'eps_k, newton_eps_gmres', eps_k, newton_eps_gmres, '|rhs_k|/|rhs_prev|', rhs_ratio, '|rhs_k|', normRHSk 
-
       !--- store current |rhs_k| for next iteration, needed for eps_k (and convergence criterion)
       normRHSprev = normRHSk
  
@@ -213,12 +218,7 @@ module mod_inexact_newton
       call gmres_driver(my_id,my_id_n,MPI_COMM_N,MPI_COMM_MASTER,iter_gmres)
 #endif
 
-      ! check number of iterations
-      if (iter_gmres.eq.gmres_max_iter) then
-        if (my_id.eq.0) write(*,'(a,i6.6,a)') 'NO CONVERGENCE AFTER ',  iter_gmres,' ITERATIONS. ABORTING.'
-        stop
-      endif
-      ! solution of solvers is stored in x
+      !--- solution of solvers is stored in x
       delta_k(1:ndof)  = x(1:ndof)
 
       !--- check convergence
@@ -226,17 +226,30 @@ module mod_inexact_newton
       resi   = 0.0d0
       call gmres_matrix_vector(ndof,delta_k,ndof,resi,my_id)
       call MPI_Bcast(resi,ndof,MPI_DOUBLE_PRECISION,0,MPI_GLOB,ierr)
-      resi(1:ndof) = resi(1:ndof) - rhs_k(1:ndof) 
-      
+      resi(1:ndof) = resi(1:ndof) - rhs_k(1:ndof)       
       normRESk = DSQRT(DOT_PRODUCT(resi,resi))  ! B.E. on unpreconditioned system, i.e. rinfo(2)
          
-      if (my_id.eq.0) write(*,'(A8,i6,A13,i2,A18,2E14.4,A13,1E14.4,A12,i4)')    &
-        ' t_step=',index_now,' newton_i=', newton_i, ' r_k, R(U_k,U^n) ', normRESk  , normRHSk, ' R(U^n) ', normRHSn, ' iter_gmres ', iter_gmres
+      !--- save to array for printing
+      tol_array(newton_i)       = tol 
+      normRHSk_array(newton_i)  = normRHSk  
+      rhs_ratio_array(newton_i) = rhs_ratio  
+      normRESk_array(newton_i)  = normRESk
+      iter_array(newton_i)      = iter_gmres
+      rinfo1(newton_i)          = rinfo(1)
+      rinfo2(newton_i)          = rinfo(2)
+  
+      !--- check number of GMRES iterations
+      if (iter_gmres.eq.gmres_max_iter) then
+        exit_status = 2
+        !if (my_id.eq.0) write(*,'(a,i6.6,a)') 'NO CONVERGENCE AFTER ',  iter_gmres,' ITERATIONS. ABORTING.'
+        exit newton_loop
+      endif
 
       !--- check convergence, residual <= newton_eps_gmres
       !--- TODO: check convergence via rinfo(1).le.newton_eps_gmres from solvers/mod_dpackgmres.f90
-      if (tol.eq.newton_eps_gmres) then  ! (normRHSk<newton_eps_a+newton_eps_r*normRHSn) then 
-        if (my_id.eq.0) write(*,*) 'EXITING NEWTON LOOP AT ', newton_i
+      if (rinfo(1).le.newton_eps_gmres) then  ! (normRHSk<newton_eps_a+newton_eps_r*normRHSn) then 
+        exit_status = 0
+        !if (my_id.eq.0) write(*,*) 'Newton convergence achieved after ', newton_i, ' iterations.'
         exit newton_loop
       endif
     end do newton_loop
@@ -244,17 +257,45 @@ module mod_inexact_newton
     call del_thread_buffers() 
     call clck_time_barrier(t1)
     call clck_ldiff(t0,t1,tsecond)
-    if (my_id.eq.0) write(*,*) 'ELAPSED TIME IN NEWTON LOOP: ', tsecond
-    if (my_id.eq.0) write(*,*) '>>>>>>>>>>>>>>>>>>>>>> END NEWTON LOOP <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<'
     !--------------------- END OF NEWTON ITERATION ---------------------------------
+
+    !--- print information about newton loop
+    if(my_id.eq.0) then
+      write(*,'(A76)') REPEAT('=',76)
+      write(*,'(A3,A23,A50)') REPEAT('-',3), ' Inexact Newton Method ', REPEAT('-',50)
+      if (exit_status.eq.0) write(*,'(A4,A30)') '','Convergence has been achieved.'
+      if (exit_status.eq.2) write(*,'(A4,A27,i4,A12)') '','No GMRES convergence after ', iter_gmres, ' iterations.'
+      if (exit_status.eq.1) write(*,'(A4,A44)') '','Maximum number of Newton iterations reached.'
+      write(*,'(A40,i4,A2,i4,A1)')'Number of Newton (GMRES) iterations:', newton_i,' (',SUM(iter_array),')'
+      write(*,'(A40,1f10.2,A1)')  'Elapsed time in inexact Newton loop:', tsecond, 's' 
+      write(*,'(A3,A18,A55)') REPEAT('-',3), ' Input Parameters ', REPEAT('-',55)
+      write(*,'(A11,i9,A17,i4,A7,1f5.2,A7,1E9.2)')'n_step:', index_now, 'newton_iter_max:',newton_max_iter, 'alpha:', newton_alpha,'tol_0:', newton_eps_0
+      write(*,'(A11,1f9.3,A17,i4,A7,1f5.2,A7,1E9.2)')'t_step:', tstep, 'gmres_iter_max:', gmres_max_iter, 'gamma:', newton_gamma, 'tol_f:', newton_eps_gmres
+      write(*,'(A3,A19,A54)') REPEAT('-',3), ' Iteration history ', REPEAT('-',50)
+      write(*,'(A5,A5,6A11)') 'step', 'iter', 'gmres_tol', '|RHS_k|', 'R_k/R_prev', '|RES_k|', 'prec_res', 'unprec_res'
+      if ((exit_status.eq.1).and.(newton_i>1)) newton_i=newton_i-1
+      do i=1,newton_i
+        write(*,'(i5,i5,6E11.4)') i,iter_array(i),tol_array(i),normRHSk_array(i),rhs_ratio_array(i),normRESk_array(i),rinfo1(i),rinfo2(i)
+      end do
+      write(*,'(A76)') REPEAT('=',76)  
+    end if
+    
+    !--- no convergence for exit_status=1,2
+    if (exit_status /= 0) then
+      if (my_id.eq.0) write(*,*) 'No convergence in Newton loop. Aborting.'
+      call MPI_Finalize(ierr)
+      stop
+    endif
 
     !--- reset element_list and node_list, result is stored in deltas, i.e. x and propagated in jorek2_main.f90
     element_list    = element_list_temp
     node_list       = node_list_temp
     x(1:ndof)       = delta_k_n(1:ndof)+delta_k(1:ndof)  ! deltas_temp
     if (my_id.eq.0) write(*,*) 'RESET ELEMENT_LIST and NODE_LIST, SAVED DELTA'
+    if (my_id.eq.0) write(*,'(A28,A20,A28)') REPEAT('-',28), ' END OF NEWTON LOOP ', REPEAT('-',28)
     deallocate(rhs_n,rhs_k,delta_k_n,delta_k,deltas_temp,mat_vec_prod,resi)
-    deallocate(element_list_temp, node_list_temp)
+    deallocate(element_list_temp, node_list_temp, rinfo1, rinfo2)
+    deallocate(tol_array, normRHSk_array, rhs_ratio_array, normRESk_array, iter_array)
   end subroutine inexact_newton
 
 end module mod_inexact_newton

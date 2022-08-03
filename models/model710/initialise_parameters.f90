@@ -123,7 +123,11 @@ namelist /in1/  tstep, nstep, tstep_n, nstep_n,                     &
                 filter_perp_n0, filter_hyper_n0, filter_par_n0,     &
                 use_cx, use_sputtering, use_ionisation,             &
                 use_ncs, use_pcs, use_ccs, use_pcs_full,            &
-                cte_current_FB_fact, Z_xpoint_limit, eta_ohmic
+                cte_current_FB_fact, Z_xpoint_limit, eta_ohmic,     &
+                newton_start, newton_gamma, newton_alpha,           &
+                newton_eps_a, newton_eps_r, newton_max_iter,        &
+                newton_eps_gmres, newton_eps_0
+
 
 
 if (my_id .eq. 0) then
