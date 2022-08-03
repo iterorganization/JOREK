@@ -1,7 +1,8 @@
 &in1
  restart        = .t.
- nstep_n        = 0
- tstep_n        = 1e-3
+  nstep_n        = 0
+  tstep_n        = 1.e-3
+
  nout           = 20
  xpoint         = .t.
  
@@ -14,32 +15,32 @@
  newton_GS_freebnd    = .f. 
 
  amix                 = 0.25
- amix_freeb           = 0.65
+ amix_freeb           = 0.7
  FB_Ip_position       = 0.35
  FB_Ip_integral       = 0.00
  FB_Zaxis_position    = 10.
  FB_Zaxis_integral    = 0.0
  FB_Zaxis_derivative  = 2.0
  axis_srch_radius     = 1.5d0
- start_VFB            = 20
+ start_VFB            = 1
  n_feedback_current   = 1
  n_feedback_vertical  = 1
- n_iter_freeb         = 300 
+ n_iter_freeb         = 300
  
  n_pf_coils          = 12
 
- pf_coils( 1)%current    =  0.600000d+7     ! pf1 
- pf_coils( 2)%current    = -0.080000d+7     ! pf2 
- pf_coils( 3)%current    = -0.620000d+7     ! pf3 
- pf_coils( 4)%current    = -0.370000d+7     ! pf4 
- pf_coils( 5)%current    = -0.680000d+7     ! pf5 
- pf_coils( 6)%current    =  2.190000d+7     ! pf6               
- pf_coils( 7)%current    =  0.984528d+7     ! cs3u
- pf_coils( 8)%current    = -0.284091d+7     ! cs2u
- pf_coils( 9)%current    = -0.630050d+7     ! cs1u
- pf_coils(10)%current    = -0.630050d+7     ! cs1l
- pf_coils(11)%current    = -0.407839d+7     ! cs2l
- pf_coils(12)%current    = -0.043469d+7     ! cs3l
+ pf_coils( 1)%current    = -0.600000d+7     ! pf1 
+ pf_coils( 2)%current    =  0.080000d+7     ! pf2 
+ pf_coils( 3)%current    =  0.620000d+7     ! pf3 
+ pf_coils( 4)%current    =  0.370000d+7     ! pf4 
+ pf_coils( 5)%current    =  0.680000d+7     ! pf5 
+ pf_coils( 6)%current    = -2.190000d+7     ! pf6               
+ pf_coils( 7)%current    = -0.984528d+7     ! cs3u
+ pf_coils( 8)%current    =  0.284091d+7     ! cs2u
+ pf_coils( 9)%current    =  0.630050d+7     ! cs1u
+ pf_coils(10)%current    =  0.630050d+7     ! cs1l
+ pf_coils(11)%current    =  0.407839d+7     ! cs2l
+ pf_coils(12)%current    =  0.043469d+7     ! cs3l
  
  vert_FB_amp(1)          = -1.d0            ! pf1
  vert_FB_amp(6)          =  1.d0            ! pf6
@@ -48,7 +49,7 @@
  pf_coils(1)%pert        = -3.d+4
  pf_coils(6)%pert        = 3.d+4
  pf_coils(1)%pert_start_time        = 1.d-8
- pf_coils(6)%pert_start_time       = 1.d-8
+ pf_coils(6)%pert_start_time        = 1.d-8
 
  !------------------------------------------------------------
 

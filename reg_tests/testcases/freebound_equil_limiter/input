@@ -42,10 +42,10 @@
  
  n_pf_coils          = 4
 
- pf_coils(1)%current    = 0.0100d+6  ! pf1
- pf_coils(2)%current    = 0.0100d+6  ! pf2
- pf_coils(3)%current    = -0.0900d+6 ! pf3
- pf_coils(4)%current    = -0.0900d+6 ! pf4
+ pf_coils(1)%current    = -0.0100d+6  ! pf1
+ pf_coils(2)%current    = -0.0100d+6  ! pf2
+ pf_coils(3)%current    = 0.0900d+6 ! pf3
+ pf_coils(4)%current    = 0.0900d+6 ! pf4
  
  vert_FB_amp(1)         = -1.d0      ! pf1
  vert_FB_amp(2)         =  1.d0      ! pf2
