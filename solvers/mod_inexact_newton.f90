@@ -150,7 +150,6 @@ module mod_inexact_newton
       !--- abort if maximum number of newton iterations is reached
       if (newton_i.eq.newton_max_iter) then
         exit_status = 1
-        !if (my_id.eq.0) write(*,*) 'MAXIMUM NUMBER OF NEWTON ITERATIONS. ABORTING.'
         exit newton_loop
       endif 
       if (my_id.eq.0) write(*,'(A24,A23,i3,A2,A24)') REPEAT('-',24),' NEWTON ITERATION STEP ', newton_i, '  ',REPEAT('-',24)
@@ -163,7 +162,6 @@ module mod_inexact_newton
       !--- element_list, node_list now local iterates, global values in element_list_temp, node_list_temp
       call update_values(my_id,element_list,node_list,delta_k)
       call update_deltas(my_id,node_list)
-
       if (my_id.eq.0)  write(*,*) 'UPDATING GLOBAL ELEMENT_LIST, NODE_LIST'
 
       !--- call construct_matrix, need 'call new_thread_buffers()' for global 'thread_struct', otherwise:
@@ -172,6 +170,7 @@ module mod_inexact_newton
                             xpoint2, xcase2, R_axis, Z_axis, psi_axis, psi_bnd, R_xpoint, Z_xpoint, psi_xpoint,i_tor_min, i_tor_max,  &
                             n, nz, ndof, n_matrix_block_size, A_mat, rhs, irn, jcn, ijA_index, ijA_size, irn_jcn, harmonic_matrix)
       if (my_id.eq.0) write(*,*) 'CONSTRUCTED A_GLOB AT U_K'
+
       !--- compute J_k.delta_k_n to compute rhs_k
       call gmres_matrix_vector(ndof,delta_k_n,ndof,mat_vec_prod,my_id)
       call MPI_Bcast(mat_vec_prod,ndof,MPI_DOUBLE_PRECISION,0,MPI_GLOB,ierr)
@@ -181,11 +180,7 @@ module mod_inexact_newton
       !--- compute norms and eps_k
       normRHSk        = DSQRT(DOT_PRODUCT(rhs_k,rhs_k))
       rhs_ratio       = normRHSk/normRHSprev
-      ! eps_k           = normRHSk * newton_gamma * rhs_ratio**newton_alpha
-      !--- set initial tolerance, i.e. usually computed eps_0>1.d-4 -> bad behaviour!
-      !if (newton_i.eq.1) then
-      !  eps_k = newton_eps_0
-      !endif
+      normRHSprev     = normRHSk 
 
       !--- compute eps analogously to [1]
       FT_0    = newton_eps_0
@@ -201,9 +196,6 @@ module mod_inexact_newton
         endif
         eps_k = MAX(MIN(0.5*eps_k,FT), newton_eps_gmres)
       endif
-      
-      !--- store current |rhs_k| for next iteration, needed for eps_k (and convergence criterion)
-      normRHSprev = normRHSk
  
       !--- set variables for the solvers, tol is eps_k from [1]
       x(1:ndof)   = delta_k(1:ndof)
@@ -241,15 +233,12 @@ module mod_inexact_newton
       !--- check number of GMRES iterations
       if (iter_gmres.eq.gmres_max_iter) then
         exit_status = 2
-        !if (my_id.eq.0) write(*,'(a,i6.6,a)') 'NO CONVERGENCE AFTER ',  iter_gmres,' ITERATIONS. ABORTING.'
         exit newton_loop
       endif
 
       !--- check convergence, residual <= newton_eps_gmres
-      !--- TODO: check convergence via rinfo(1).le.newton_eps_gmres from solvers/mod_dpackgmres.f90
       if (rinfo(1).le.newton_eps_gmres) then  ! (normRHSk<newton_eps_a+newton_eps_r*normRHSn) then 
         exit_status = 0
-        !if (my_id.eq.0) write(*,*) 'Newton convergence achieved after ', newton_i, ' iterations.'
         exit newton_loop
       endif
     end do newton_loop
@@ -268,14 +257,16 @@ module mod_inexact_newton
       if (exit_status.eq.1) write(*,'(A4,A44)') '','Maximum number of Newton iterations reached.'
       write(*,'(A40,i4,A2,i4,A1)')'Number of Newton (GMRES) iterations:', newton_i,' (',SUM(iter_array),')'
       write(*,'(A40,1f10.2,A1)')  'Elapsed time in inexact Newton loop:', tsecond, 's' 
+      write(*,*)
       write(*,'(A3,A18,A55)') REPEAT('-',3), ' Input Parameters ', REPEAT('-',55)
       write(*,'(A11,i9,A17,i4,A7,1f5.2,A7,1E9.2)')'n_step:', index_now, 'newton_iter_max:',newton_max_iter, 'alpha:', newton_alpha,'tol_0:', newton_eps_0
       write(*,'(A11,1f9.3,A17,i4,A7,1f5.2,A7,1E9.2)')'t_step:', tstep, 'gmres_iter_max:', gmres_max_iter, 'gamma:', newton_gamma, 'tol_f:', newton_eps_gmres
-      write(*,'(A3,A19,A54)') REPEAT('-',3), ' Iteration history ', REPEAT('-',50)
-      write(*,'(A5,A5,6A11)') 'step', 'iter', 'gmres_tol', '|RHS_k|', 'R_k/R_prev', '|RES_k|', 'prec_res', 'unprec_res'
+      write(*,*)
+      write(*,'(A3,A19,A54)') REPEAT('-',3), ' Iteration history ', REPEAT('-',54)
+      write(*,'(A5,A5,6A11)') 'i_n', 'i_g', 'gmres_tol', '|R_k|', 'R_k/R_prev', '|Ax-b|', 'prec_res', 'unprec_res'
       if ((exit_status.eq.1).and.(newton_i>1)) newton_i=newton_i-1
       do i=1,newton_i
-        write(*,'(i5,i5,6E11.4)') i,iter_array(i),tol_array(i),normRHSk_array(i),rhs_ratio_array(i),normRESk_array(i),rinfo1(i),rinfo2(i)
+        write(*,'(i5,i5,6E11.2)') i,iter_array(i),tol_array(i),normRHSk_array(i),rhs_ratio_array(i),normRESk_array(i),rinfo1(i),rinfo2(i)
       end do
       write(*,'(A76)') REPEAT('=',76)  
     end if
