@@ -43,7 +43,7 @@ subroutine initialise_and_broadcast_parameters(my_id, filename)
     ZK_par_SpitzerHaerm   = 4.83d+0 * central_mass*mass_proton/(mass_electron*lnA) * Te0_keV**(2.5d+0) * (gamma-1.d0) * sqrt_mu0_over_rho0
   end if
   tauIC_nominal      = central_mass * mass_proton / ( EL_CHG * F0 * sqrt_mu0_rho0 * 2.d0 )
-  eta_Spitzer        = ( 1.65d-9 * lnA * Te0_keV**(-1.5d+0) ) / sqrt_mu0_over_rho0
+  eta_Spitzer        = ( 2.d0 * 1.65d-9 * lnA * Te0_keV**(-1.5d+0) ) / sqrt_mu0_over_rho0
   
   ! --- Deprecated input parameters ---
   if ( use_murge ) then
