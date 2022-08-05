@@ -8,6 +8,15 @@
 !> The tests do not complete. This is in part due to the lack of tests of relative error in the particle_assert_equals
 !> routines. Relative tests were added but have been removed as they caused the gcc compiler to crash. These tests are therefore
 !> still in development. Relative checking could be done within the test routines themselves but this has not been done.
+
+!> Running the tests ---
+!> Compile Jorek with model 307
+!> Run jorek with the input file namelist/model307/itpa_eq to obtain jorek_restart.h5
+!> Compile the driver particle_kernels_test_driver
+!> Using input file namelist/model307/itpa, change the value of n_particles to something appropriate
+!> usually a multiple of 5120 as this is the number of threads on Marconi100 V100 GPUs. 40960 works well
+!> run particle_kernels_test_driver < itpa
+
 #ifdef CUDA_KERNELS
 module mod_particle_kernels_test
   use fruit

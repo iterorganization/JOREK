@@ -1,0 +1,27 @@
+#!/bin/bash
+#SBATCH -A                                 # account name - add yours here
+#SBATCH -p m100_fua_prod                   # production queue
+###SBATCH --qos m100_qos_fuadbg            # uncomment to use debug queue
+#SBATCH --time 00:10:00                    # walltime
+#SBATCH --exclusive                        # use all the node
+#SBATCH -N 1                               # use a single node
+#SBATCH --ntasks-per-node=4                # MPI tasks   
+#SBATCH --ntasks-per-socket=2              # 2 tasks on each socket
+#SBATCH --cpus-per-task=32                 # 32 threads for each task
+#SBATCH --gres=gpu:4                       # use all 4 GPUs
+#SBATCH --gpus-per-task=1                  # 1 per task
+#SBATCH --gpus-per-node=4                  # 4 per node
+#SBATCH --gpu-bind=verbose,closest         # GPU binding
+#SBATCH --mem=160000                       # memory per node out of 246000MB
+#SBATCH --job-name=kernels_test            # job name
+#SBATCH --output=%x.%j                     # output file name
+
+module list
+
+mpirun --version
+
+export OMP_PROC_BIND=true
+export OMP_PLACES=threads 
+export OMP_NUM_THREADS=32
+
+mpirun -gpu --rank-by core --map-by socket:PE=8 ./particle_kernels_test_driver < itpa
