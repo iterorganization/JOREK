@@ -219,6 +219,7 @@ write(*,'(1x,a)',advance='no') ' USE_BICGSTAB : '
   write(*,REAL_FMT) 'eta                   ', eta
   write(*,REAL_FMT) 'eta_ohmic             ', eta_ohmic
   write(*,REAL_FMT) 'eta_Spitzer (not input parameter; printed for reference in JOREK units)', eta_Spitzer
+  write(*,REAL_FMT) 'eta_Spitzer x2 (to take into account for trapped electrons, works for a low collisionaly plasma with conventional aspect ratio)', 2.d0*eta_Spitzer
   write(*,REAL_FMT) 'Warning: eta_Spitzer now includes 2x factor to take into account that trapped electrons do not carry net current'
   write(*,REAL_FMT) 'T_max_eta             ', T_max_eta
   write(*,REAL_FMT) 'T_max_eta_ohm         ', T_max_eta_ohm  
