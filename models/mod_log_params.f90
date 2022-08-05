@@ -218,9 +218,10 @@ write(*,'(1x,a)',advance='no') ' USE_BICGSTAB : '
   write(*,LOGI_FMT) 'eta_T_dependent       ', eta_T_dependent
   write(*,REAL_FMT) 'eta                   ', eta
   write(*,REAL_FMT) 'eta_ohmic             ', eta_ohmic
-  write(*,REAL_FMT) 'eta_Spitzer (not input parameter; printed for reference in JOREK units)', eta_Spitzer
-  write(*,REAL_FMT) 'eta_Spitzer x2 (to take into account for trapped electrons, works for a low collisionaly plasma with conventional aspect ratio)', 2.d0*eta_Spitzer
-  write(*,REAL_FMT) 'Warning: eta_Spitzer now includes 2x factor to take into account that trapped electrons do not carry net current'
+  write(*,REAL_FMT) 'eta_Spitzer    (not input parameter; printed for reference in JOREK units)',      eta_Spitzer
+  write(*,REAL_FMT) 'eta_Spitzer x2 (not input parameter; printed for reference in JOREK units)', 2.d0*eta_Spitzer
+  write(*,REAL_FMT) 'Warning: the 2x factor can be used to take into account that trapped electrons do not carry net current'
+  write(*,REAL_FMT) '         and works for a standard low collisionaly plasma with conventional aspect ratio'
   write(*,REAL_FMT) 'T_max_eta             ', T_max_eta
   write(*,REAL_FMT) 'T_max_eta_ohm         ', T_max_eta_ohm  
   write(*,LOGI_FMT) 'visco_T_dependent     ', visco_T_dependent
