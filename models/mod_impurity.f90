@@ -201,9 +201,11 @@ module mod_impurity
       write(*,*) "WARNING: Lrad ", Lrad
       stop
     end if
-    if (present(dLrad_dT) .and. dLrad_dT/=dLrad_dT) then
-      write(*,*) "WARNING: dLrad_dT ", dLrad_dT
-      stop
+    if (present(dLrad_dT)) then
+      if (dLrad_dT/=dLrad_dT) then
+        write(*,*) "WARNING: dLrad_dT ", dLrad_dT
+        stop
+      endif
     end if
   end subroutine radiation_function_linear
 
