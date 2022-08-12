@@ -1241,8 +1241,13 @@ do ms=1, n_gauss
     dnu_e_imp_dTe   = -1.5*MASS_PROTON*m_imp*nu_e_imp*dTe0_corr_dT / (MASS_ELECTRON*Ti0_corr + MASS_PROTON*m_imp*Te0_corr) &
                       + nu_e_imp * dZ_eff_imp_dT / max(Z_eff_imp,1d-8)
 
-    dnu_e_imp_drhon = nu_e_imp * drn0_corr_dn / rn0_corr
+    dnu_e_imp_drhon = 1.8d-19*(1.d6*MASS_ELECTRON*MASS_PROTON*m_imp) ** 0.5&
+                        * Z_eff_imp * (1.d14*central_density*drn0_corr_dn*m_i_over_m_imp) * lambda_e_imp &
+                        / (1.d3*(MASS_ELECTRON*Ti0_corr+Te0_corr*MASS_PROTON*m_imp)&
+                        / (EL_CHG * MU_ZERO * central_density * 1.d20)) ** 1.5
     dnu_e_imp_drho  = 0.
+    dnu_e_imp_drhon = dnu_e_imp_drhon * t_norm
+    dnu_e_imp_drho  = dnu_e_imp_drho * t_norm
 
     dnu_e_bg_dTi    = -1.5*MASS_ELECTRON*nu_e_bg*dTi0_corr_dT / (MASS_ELECTRON*Ti0_corr + MASS_PROTON*central_mass*Te0_corr)
     dnu_e_bg_dTe    = -1.5*MASS_PROTON*central_mass*nu_e_bg*dTe0_corr_dT &
@@ -1251,8 +1256,16 @@ do ms=1, n_gauss
       dnu_e_bg_drhon = 0.
       dnu_e_bg_drho  = 0.
     else
-      dnu_e_bg_drhon = -nu_e_bg * drn0_corr_dn / (r0_corr-rn0_corr)
-      dnu_e_bg_drho  = nu_e_bg * dr0_corr_dn / (r0_corr-rn0_corr)
+      dnu_e_bg_drhon = 1.8d-19*(1.d6*MASS_ELECTRON*MASS_PROTON*central_mass) ** 0.5&
+                         * (1.d14*central_density*(-drn0_corr_dn)) * lambda_e_bg &
+                         / (1.d3*(MASS_ELECTRON*Ti0_corr+Te0_corr*MASS_PROTON*central_mass)&
+                         / (EL_CHG * MU_ZERO * central_density * 1.d20)) ** 1.5 ! Assuming bg_charge is 1!
+      dnu_e_bg_drho  = 1.8d-19*(1.d6*MASS_ELECTRON*MASS_PROTON*central_mass) ** 0.5&
+                         * (1.d14*central_density*(dr0_corr_dn)) * lambda_e_bg &
+                         / (1.d3*(MASS_ELECTRON*Ti0_corr+Te0_corr*MASS_PROTON*central_mass)&
+                         / (EL_CHG * MU_ZERO * central_density * 1.d20)) ** 1.5 ! Assuming bg_charge is 1!
+      dnu_e_bg_drhon = dnu_e_bg_drhon * t_norm
+      dnu_e_bg_drho  = dnu_e_bg_drho * t_norm
     end if
 
     ddTe_i_dTi      = (dnu_e_imp_dTi + dnu_e_bg_dTi) * (Ti0_corr - Te0_corr) * (r0_corr + alpha_e*rn0_corr)&
