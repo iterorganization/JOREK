@@ -1,11 +1,11 @@
+!> Contains an Inexact Newton implementation as a solver option to be called from jorek2i_main.f90
+!!    
+!! Details may be found on p. 24 in:
+!! [1] Franck et al., Energy conservation and numerical stability for the 
+!!     reduced MHD models of the non-linear JOREK code, 2014, arXiv:1408.2099v3
 module mod_inexact_newton
-!##################################################################################    
-!#    Inexact newton method, details may be found on p. 24 in:                    #
-!# [1]Franck et al., Energy conservation and numerical stability for the          # 
-!#    reduced MHD models of the non-linear JOREK code, 2014, arXiv:1408.2099v3    #
-!##################################################################################
 
-  !----------------------- LOADING MODULES, SUBROUTINES, TYPES --------------------
+  ! --- loading modules, subroutines, variables and types
   use construct_matrix_mod, only: construct_matrix
   use mod_clock
   use mpi
@@ -19,37 +19,40 @@ module mod_inexact_newton
   use mod_integer_types
   use mod_parameters, only : n_tor, n_var
   use global_distributed_matrix, only: local_index_start, local_index_end
-  !----------------------- END OF LOADING -----------------------------------------
  
   implicit none
   private
   public :: inexact_newton
-  contains  
+  contains
 
-  subroutine inexact_newton(val, x, b, max_it, tol, MPI_GLOB, comm_n, comm_master,                             &
-    ! end of additional arguments of bicgstab_driver 
-                            iter_gmres,                                                                        &
-    ! end of additional arguments of gmres_driver         
+
+  
+  !> Inexact Newton Algorithm. Compute and solve the locally linearised equation for each iterative step.
+  !!
+  !! Construct the local jacobian using construct_matrix and compute the local equation. At each step, a new
+  !! tolerance is computed and the system is solved using gmres/bicgstab. The solution vector is iterated using this solution.
+  !! Convergence is achieved once the  b.e. on the preconditioned residue is below a preset threshold.
+  subroutine inexact_newton(val, x, b, max_it, tol, MPI_GLOB, comm_n, comm_master,                              &
+    ! --- end of additional arguments of bicgstab_driver 
+                            iter_gmres,                                                                         &
+    ! --- end of additional arguments of gmres_driver         
                             element_list, node_list, index_now,                                                 &
-    ! end of additional arguments
+    ! --- end of additional arguments
                             my_id, MPI_COMM_N, my_id_n, MPI_COMM_MASTER, my_id_master, local_elms, n_local_elms,& 
                             index_min, index_max, xpoint2, xcase2, R_axis, Z_axis, psi_axis, psi_bnd, R_xpoint, &
                             Z_xpoint, psi_xpoint,i_tor_min, i_tor_max, n, nz, ndof, n_matrix_block_size, A_mat, &
                             rhs, irn, jcn, ijA_index, ijA_size, irn_jcn, harmonic_matrix                        )
-    ! end of arguments of construct_matrix
+    ! --- end of arguments of construct_matrix
 
-
-    ! inexact_newton(arguments of bicgstab_driver,  &
-    !                arguments of gmres_driver,     &
-    !                additional arguments,          & 
-    !                arguments of construct_matrix)                   
-
+    ! --- import variables for the newton loop from models/preset_parameters.f90 or input file
     use phys_module, only:  newton_start, newton_gamma,    newton_alpha, newton_eps_a, &
                             newton_eps_r, newton_max_iter, newton_eps_gmres,           &
                             newton_eps_0, gmres_max_iter, gmres, tstep     
+
     implicit none
-    !--------------------- INPUT VARIABLES -----------------------------------------
-    !--- definitions for subroutine bicgstab_driver, gmres_driver
+    
+    ! --- Routine parameters
+    ! definitions for subroutine bicgstab_driver, gmres_driver
     integer,               intent(inout)              :: my_id, my_id_n, my_id_master
     integer,               intent(in)                 :: MPI_GLOB, MPI_COMM_N, MPI_COMM_MASTER
     real(kind=C_DOUBLE)                               :: tol   
@@ -61,7 +64,7 @@ module mod_inexact_newton
     real(kind=C_DOUBLE), allocatable                  :: x(:)
     integer, intent(in)                               :: comm_n, comm_master
     integer, intent(inout)                            :: max_it, iter_gmres
-    !--- definitions for subroutine construct_matrix
+    ! definitions for subroutine construct_matrix
     integer,               intent(inout)              :: local_elms(*)
     integer,               intent(inout)              :: n_local_elms
     integer,               intent(inout)              :: index_min
@@ -88,13 +91,11 @@ module mod_inexact_newton
     integer(kind=int_all), intent(inout), allocatable :: irn(:), jcn(:)   
 #endif
     integer(kind=int_all), intent(inout), allocatable :: ijA_index(:,:), ijA_size(:), irn_jcn(:,:)
-    !--------------------- END OF INPUT VARIABLES ----------------------------------
 
-
-    !--------------------- ROUTINE VARIABLES ---------------------------------------
-    real(kind=C_DOUBLE),     allocatable              :: rhs_n(:)        ! to copy rhs_glob at step n
-    real(kind=C_DOUBLE),     allocatable              :: delta_k_n(:)    ! U(k)-U(n)
-    real(kind=C_DOUBLE),     allocatable              :: delta_k(:)      ! initial guess and sol
+    ! --- Local variables
+    real(kind=C_DOUBLE),     allocatable              :: rhs_n(:)                              ! copy rhs_glob at step n
+    real(kind=C_DOUBLE),     allocatable              :: delta_k_n(:)                          ! U(k)-U(n)
+    real(kind=C_DOUBLE),     allocatable              :: delta_k(:)                            ! initial guess and sol
     real(kind=C_DOUBLE),     allocatable              :: rhs_k(:)
     real(kind=C_DOUBLE),     allocatable              :: deltas_temp(:)
     type(clcktype)                                    :: t0,t1
@@ -103,25 +104,23 @@ module mod_inexact_newton
     type(type_node_list),    allocatable              :: node_list_temp
     integer                                           :: newton_i, iter_prev
     real(kind=C_DOUBLE),     allocatable              :: mat_vec_prod(:)
-    real(kind=C_DOUBLE),     allocatable              :: resi(:)
-    real*8                                            :: normRESk, eps_k
+    real*8                                            :: eps_k
     real*8                                            :: normRHSn, normRHSk, normRHSprev, rhs_ratio
-    real*8                                            :: FT, FT_0  ! forcing term [1]
-    real(kind=C_DOUBLE),     allocatable              :: tol_array(:), normRHSk_array(:), rhs_ratio_array(:), normRESk_array(:)
-    real(kind=C_DOUBLE),     allocatable              :: rinfo1(:), rinfo2(:)
+    real*8                                            :: FT, FT_0                              ! forcing term [1]
+    real(kind=C_DOUBLE),     allocatable              :: tol_array(:), normRHSk_array(:)       ! store values
+    real(kind=C_DOUBLE),     allocatable              :: rhs_ratio_array(:)                    ! for printing
+    real(kind=C_DOUBLE),     allocatable              :: rinfo1(:), rinfo2(:)                  ! into logfile
     integer                                           :: i
-    integer,                 allocatable              :: iter_array(:)
-    integer                                           :: exit_status  ! 0: convergence achieved, 1: max newton iter, 2: max gmres iter
-    !--------------------- END OF ROUTINE VARIABLES --------------------------------
+    integer,                 allocatable              :: gmres_iter_array(:)                   ! stores no. of gmres iterations
+    integer                                           :: exit_status  ! 0: conv. achieved, 1: max newton iter, 2: max gmres iter
 
 
-    !--------------------- ALLOCATE, ASSIGN VALUES --------------------------------- 
-    !call new_thread_buffers() 
-    allocate(rhs_n(1:ndof),rhs_k(1:ndof),delta_k_n(1:ndof),delta_k(1:ndof),deltas_temp(1:ndof),mat_vec_prod(1:ndof),resi(1:ndof))
+    ! --- allocate local variables and assign values 
+    allocate(rhs_n(1:ndof),rhs_k(1:ndof),delta_k_n(1:ndof),delta_k(1:ndof),deltas_temp(1:ndof),mat_vec_prod(1:ndof))
     allocate(element_list_temp, source=element_list)
     allocate(node_list_temp   , source=node_list   )
     allocate(tol_array(1:newton_max_iter),       normRHSk_array(1:newton_max_iter), &
-             rhs_ratio_array(1:newton_max_iter), normRESk_array(1:newton_max_iter), iter_array(1:newton_max_iter))
+             rhs_ratio_array(1:newton_max_iter), gmres_iter_array(1:newton_max_iter))
     allocate(rinfo1(1:newton_max_iter), rinfo2(1:newton_max_iter))
     delta_k_n            = 0.0d0
     delta_k(1:ndof)      = x(1:ndof) * newton_start
@@ -131,14 +130,14 @@ module mod_inexact_newton
     deltas_temp(1:ndof)  = x(1:ndof)
     normRHSn             = DSQRT(DOT_PRODUCT(rhs_n,rhs_n)) 
     normRHSprev          = normRHSn
-    iter_array           = 0.0d0
-    !--------------------- END OF ALLOCATION ---------------------------------------
-
+    gmres_iter_array     = 0.0d0
      
-    !--------------------- START OF NEWTON ITERATION -------------------------------
+    ! --- Start of newton loop
     if (my_id.eq.0) write(*,'(A27,A22,A27)') REPEAT('-',27), ' START OF NEWTON LOOP ', REPEAT('-',27)
-    call clck_time(t0)    
-    call new_thread_buffers()
+    
+    ! -- Timing
+    call clck_time(t0)         
+    call new_thread_buffers()  ! for call construct_matrix()
 
     newton_loop: do newton_i = 1, newton_max_iter
 
@@ -147,7 +146,7 @@ module mod_inexact_newton
         iter_gmres = gmres_max_iter
       endif
       
-      !--- abort if maximum number of newton iterations is reached
+      ! --- abort if maximum number of newton iterations is reached
       if (newton_i.eq.newton_max_iter) then
         exit_status = 1
         exit newton_loop
@@ -155,34 +154,33 @@ module mod_inexact_newton
       if (my_id.eq.0) write(*,'(A24,A23,i3,A2,A24)') REPEAT('-',24),' NEWTON ITERATION STEP ', newton_i, '  ',REPEAT('-',24)
       if (my_id.eq.0) write(*,*)
 
-      !--- iterate commulative delta, i.e. delta_k_n = U(n+1)-U(n) if converged
+      ! --- iterate commulative delta, i.e. delta_k_n = U(n+1)-U(n) if converged
       delta_k_n(1:ndof) = delta_k_n(1:ndof) + delta_k(1:ndof)
       if (my_id.eq.0) write(*,*) 'ITERATING DELTA_K_N'
 
-      !--- element_list, node_list now local iterates, global values in element_list_temp, node_list_temp
+      ! --- element_list, node_list now local iterates, global values in element_list_temp, node_list_temp
       call update_values(my_id,element_list,node_list,delta_k)
       call update_deltas(my_id,node_list)
       if (my_id.eq.0)  write(*,*) 'UPDATING GLOBAL ELEMENT_LIST, NODE_LIST'
 
-      !--- call construct_matrix, need 'call new_thread_buffers()' for global 'thread_struct', otherwise:
-      ! forrtl: severe (408): fort: (7): Attempt to use pointer THREAD_STRUCT when it is not associated with a target
+      ! --- compute jacobian J_k at u_k
       call construct_matrix(my_id, MPI_COMM_N, my_id_n, MPI_COMM_MASTER, my_id_master, local_elms, n_local_elms, index_min, index_max,& 
                             xpoint2, xcase2, R_axis, Z_axis, psi_axis, psi_bnd, R_xpoint, Z_xpoint, psi_xpoint,i_tor_min, i_tor_max,  &
                             n, nz, ndof, n_matrix_block_size, A_mat, rhs, irn, jcn, ijA_index, ijA_size, irn_jcn, harmonic_matrix)
       if (my_id.eq.0) write(*,*) 'CONSTRUCTED A_GLOB AT U_K'
 
-      !--- compute J_k.delta_k_n to compute rhs_k
+      ! --- compute J_k.delta_k_n to compute rhs_k
       call gmres_matrix_vector(ndof,delta_k_n,ndof,mat_vec_prod,my_id)
       call MPI_Bcast(mat_vec_prod,ndof,MPI_DOUBLE_PRECISION,0,MPI_GLOB,ierr)
       rhs_k(1:ndof) = rhs_n(1:ndof) - mat_vec_prod(1:ndof)
       if (my_id.eq.0) write(*,*) 'COMPUTED MATRIX-VECTOR PRODUCT'
 
-      !--- compute norms and eps_k
+      ! --- compute norms for ratio
       normRHSk        = DSQRT(DOT_PRODUCT(rhs_k,rhs_k))
       rhs_ratio       = normRHSk/normRHSprev
       normRHSprev     = normRHSk 
 
-      !--- compute eps analogously to [1]
+      ! --- compute eps analogously to [1]
       FT_0    = newton_eps_0
       if (newton_i.eq.1) then
         FT    = FT_0
@@ -197,12 +195,12 @@ module mod_inexact_newton
         eps_k = MAX(MIN(0.5*eps_k,FT), newton_eps_gmres)
       endif
  
-      !--- set variables for the solvers, tol is eps_k from [1]
+      ! --- set variables for the solvers, tol is eps_k from [1]
       x(1:ndof)   = delta_k(1:ndof)
       b(1:ndof)   = rhs_k(1:ndof) 
       tol         = MAX(eps_k, newton_eps_gmres)  ! set tol>=newton_eps_gmres, just as in standard gmres
 
-      !--- call solvers
+      ! --- call solvers
 #ifdef USE_BICGSTAB
       call bicgstab_driver(irn, jcn, val, x, b, max_it, tol, comm_glob, comm_n, comm_master)
 #else
@@ -210,52 +208,44 @@ module mod_inexact_newton
       call gmres_driver(my_id,my_id_n,MPI_COMM_N,MPI_COMM_MASTER,iter_gmres)
 #endif
 
-      !--- solution of solvers is stored in x
+      ! --- solution of solvers is stored in x
       delta_k(1:ndof)  = x(1:ndof)
-
-      !--- check convergence
-      !--- |Jk.delta_k-rhs_k|/|rhs_k|
-      resi   = 0.0d0
-      call gmres_matrix_vector(ndof,delta_k,ndof,resi,my_id)
-      call MPI_Bcast(resi,ndof,MPI_DOUBLE_PRECISION,0,MPI_GLOB,ierr)
-      resi(1:ndof) = resi(1:ndof) - rhs_k(1:ndof)       
-      normRESk = DSQRT(DOT_PRODUCT(resi,resi))  ! B.E. on unpreconditioned system, i.e. rinfo(2)
          
-      !--- save to array for printing
-      tol_array(newton_i)       = tol 
-      normRHSk_array(newton_i)  = normRHSk  
-      rhs_ratio_array(newton_i) = rhs_ratio  
-      normRESk_array(newton_i)  = normRESk
-      iter_array(newton_i)      = iter_gmres
-      rinfo1(newton_i)          = rinfo(1)
-      rinfo2(newton_i)          = rinfo(2)
+      ! --- save to array for printing
+      tol_array(newton_i)        = tol 
+      normRHSk_array(newton_i)   = normRHSk  
+      rhs_ratio_array(newton_i)  = rhs_ratio  
+      gmres_iter_array(newton_i) = iter_gmres
+      rinfo1(newton_i)           = rinfo(1)
+      rinfo2(newton_i)           = rinfo(2)
   
-      !--- check number of GMRES iterations
+      ! --- check number of GMRES iterations
       if (iter_gmres.eq.gmres_max_iter) then
         exit_status = 2
         exit newton_loop
       endif
 
-      !--- check convergence, residual <= newton_eps_gmres
-      if (rinfo(1).le.newton_eps_gmres) then  ! (normRHSk<newton_eps_a+newton_eps_r*normRHSn) then 
+      ! --- check convergence, B.E. on preconditioned residual <= newton_eps_gmres
+      if (rinfo(1).le.newton_eps_gmres) then 
         exit_status = 0
         exit newton_loop
       endif
     end do newton_loop
 
-    call del_thread_buffers() 
+    call del_thread_buffers()
+
+    ! --- Timing 
     call clck_time_barrier(t1)
     call clck_ldiff(t0,t1,tsecond)
-    !--------------------- END OF NEWTON ITERATION ---------------------------------
 
-    !--- print information about newton loop
+    ! --- print information about newton loop
     if(my_id.eq.0) then
       write(*,'(A76)') REPEAT('=',76)
       write(*,'(A3,A23,A50)') REPEAT('-',3), ' Inexact Newton Method ', REPEAT('-',50)
       if (exit_status.eq.0) write(*,'(A4,A30)') '','Convergence has been achieved.'
       if (exit_status.eq.2) write(*,'(A4,A27,i4,A12)') '','No GMRES convergence after ', iter_gmres, ' iterations.'
       if (exit_status.eq.1) write(*,'(A4,A44)') '','Maximum number of Newton iterations reached.'
-      write(*,'(A40,i4,A2,i4,A1)')'Number of Newton (GMRES) iterations:', newton_i,' (',SUM(iter_array),')'
+      write(*,'(A40,i4,A2,i4,A1)')'Number of Newton (GMRES) iterations:', newton_i,' (',SUM(gmres_iter_array),')'
       write(*,'(A40,1f10.2,A1)')  'Elapsed time in inexact Newton loop:', tsecond, 's' 
       write(*,*)
       write(*,'(A3,A18,A55)') REPEAT('-',3), ' Input Parameters ', REPEAT('-',55)
@@ -263,30 +253,30 @@ module mod_inexact_newton
       write(*,'(A11,1f9.3,A17,i4,A7,1f5.2,A7,1E9.2)')'t_step:', tstep, 'gmres_iter_max:', gmres_max_iter, 'gamma:', newton_gamma, 'tol_f:', newton_eps_gmres
       write(*,*)
       write(*,'(A3,A19,A54)') REPEAT('-',3), ' Iteration history ', REPEAT('-',54)
-      write(*,'(A5,A5,6A11)') 'i_n', 'i_g', 'gmres_tol', '|R_k|', 'R_k/R_prev', '|Ax-b|', 'prec_res', 'unprec_res'
-      if ((exit_status.eq.1).and.(newton_i>1)) newton_i=newton_i-1
+      write(*,'(A7,A9,5A12)') 'i_n', 'i_g', 'gmres_tol', '|R_k|', 'R_k/R_prev', 'prec_res', 'unprec_res'
+      if ((exit_status.eq.1).and.(newton_i>1)) newton_i=newton_i-1  ! in this case nothing was stored at i=newton_i
       do i=1,newton_i
-        write(*,'(i5,i5,6E11.2)') i,iter_array(i),tol_array(i),normRHSk_array(i),rhs_ratio_array(i),normRESk_array(i),rinfo1(i),rinfo2(i)
+        write(*,'(i7,i9,5E12.4)') i,gmres_iter_array(i),tol_array(i),normRHSk_array(i),rhs_ratio_array(i),rinfo1(i),rinfo2(i)
       end do
       write(*,'(A76)') REPEAT('=',76)  
     end if
     
-    !--- no convergence for exit_status=1,2
+    ! --- no convergence for exit_status=1,2
     if (exit_status /= 0) then
       if (my_id.eq.0) write(*,*) 'No convergence in Newton loop. Aborting.'
       call MPI_Finalize(ierr)
       stop
     endif
 
-    !--- reset element_list and node_list, result is stored in deltas, i.e. x and propagated in jorek2_main.f90
+    ! --- reset element_list and node_list, result is stored in deltas, i.e. x and propagated in jorek2_main.f90
     element_list    = element_list_temp
     node_list       = node_list_temp
     x(1:ndof)       = delta_k_n(1:ndof)+delta_k(1:ndof)  ! deltas_temp
     if (my_id.eq.0) write(*,*) 'RESET ELEMENT_LIST and NODE_LIST, SAVED DELTA'
     if (my_id.eq.0) write(*,'(A28,A20,A28)') REPEAT('-',28), ' END OF NEWTON LOOP ', REPEAT('-',28)
-    deallocate(rhs_n,rhs_k,delta_k_n,delta_k,deltas_temp,mat_vec_prod,resi)
+    deallocate(rhs_n,rhs_k,delta_k_n,delta_k,deltas_temp,mat_vec_prod)
     deallocate(element_list_temp, node_list_temp, rinfo1, rinfo2)
-    deallocate(tol_array, normRHSk_array, rhs_ratio_array, normRESk_array, iter_array)
+    deallocate(tol_array, normRHSk_array, rhs_ratio_array, gmres_iter_array)
   end subroutine inexact_newton
 
 end module mod_inexact_newton
