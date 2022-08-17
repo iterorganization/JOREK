@@ -888,7 +888,12 @@ module phys_module
   real*8  :: newton_eps_0          !< solver tol. for the newton initial step
   integer :: newton_max_iter       !< max. numer of newton iterations
   real*8  :: newton_eps_gmres      !< alternative to eps_k, i.e. gmres_tol = min(eps_k, newton_eps_gmres)
-
+  !> @name Parameters for adaptive time-stepping with inexact newton solver
+  logical :: newton_adapt_time     !< switch for adaptive time-stepping
+  real*8  :: newton_alpha_dt       !< fast convergence, increase tstep
+  real*8  :: newton_beta_dt        !< slow convergence, decrease tstep
+  real*8  :: newton_gamma_dt       !< non-convergence, recompute for decreased tstep
+ 
 
   contains
   

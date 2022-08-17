@@ -22,8 +22,10 @@ module mod_inexact_newton
   !----------------------- END OF LOADING -----------------------------------------
  
   implicit none
+  integer :: newton_adapt_time_code = 0 ! report exit status of newton loop for tstep 
+  !logical :: newton_adapt_time = .true. ! use adaptive time stepping or not
   private
-  public :: inexact_newton
+  public :: inexact_newton, adaptive_tstep, newton_adapt_time_code
   contains  
 
   subroutine inexact_newton(val, x, b, max_it, tol, MPI_GLOB, comm_n, comm_master,                             &
@@ -46,7 +48,7 @@ module mod_inexact_newton
 
     use phys_module, only:  newton_start, newton_gamma,    newton_alpha, newton_eps_a, &
                             newton_eps_r, newton_max_iter, newton_eps_gmres,           &
-                            newton_eps_0, gmres_max_iter, gmres, tstep     
+                            newton_eps_0, gmres_max_iter, gmres, tstep, newton_adapt_time     
     implicit none
     !--------------------- INPUT VARIABLES -----------------------------------------
     !--- definitions for subroutine bicgstab_driver, gmres_driver
@@ -112,6 +114,7 @@ module mod_inexact_newton
     integer                                           :: i
     integer,                 allocatable              :: iter_array(:)
     integer                                           :: exit_status  ! 0: convergence achieved, 1: max newton iter, 2: max gmres iter
+    integer                                           :: n_RHSk_increase = 0
     !--------------------- END OF ROUTINE VARIABLES --------------------------------
 
 
@@ -141,17 +144,19 @@ module mod_inexact_newton
     call new_thread_buffers()
 
     newton_loop: do newton_i = 1, newton_max_iter
-
-      if (gmres) then
-        iter_prev = iter_gmres
-        iter_gmres = gmres_max_iter
-      endif
-      
+ 
       !--- abort if maximum number of newton iterations is reached
       if (newton_i.eq.newton_max_iter) then
         exit_status = 1
         exit newton_loop
       endif 
+      
+      !--- reset iter_gmres
+      if (gmres) then
+        iter_prev = iter_gmres
+        iter_gmres = gmres_max_iter
+      endif
+      
       if (my_id.eq.0) write(*,'(A24,A23,i3,A2,A24)') REPEAT('-',24),' NEWTON ITERATION STEP ', newton_i, '  ',REPEAT('-',24)
       if (my_id.eq.0) write(*,*)
 
@@ -180,7 +185,19 @@ module mod_inexact_newton
       !--- compute norms and eps_k
       normRHSk        = DSQRT(DOT_PRODUCT(rhs_k,rhs_k))
       rhs_ratio       = normRHSk/normRHSprev
-      normRHSprev     = normRHSk 
+      normRHSprev     = normRHSk
+
+      !--- abort if rhs_ratio >= 1 for more than 2 iterations
+      if ((rhs_ratio.ge.1).or.(isnan(rhs_ratio))) then
+        n_RHSk_increase = n_RHSk_increase + 1
+        if ((n_RHSk_increase.gt.2).or.(isnan(rhs_ratio))) then
+          iter_gmres  = iter_prev
+          exit_status = 3
+          exit newton_loop
+        endif
+      else
+        n_RHSk_increase = 0
+      endif 
 
       !--- compute eps analogously to [1]
       FT_0    = newton_eps_0
@@ -233,6 +250,7 @@ module mod_inexact_newton
       !--- check number of GMRES iterations
       if (iter_gmres.eq.gmres_max_iter) then
         exit_status = 2
+        iter_gmres = iter_gmres - 1  ! prevent stop in jorek2main.f90
         exit newton_loop
       endif
 
@@ -255,6 +273,7 @@ module mod_inexact_newton
       if (exit_status.eq.0) write(*,'(A4,A30)') '','Convergence has been achieved.'
       if (exit_status.eq.2) write(*,'(A4,A27,i4,A12)') '','No GMRES convergence after ', iter_gmres, ' iterations.'
       if (exit_status.eq.1) write(*,'(A4,A44)') '','Maximum number of Newton iterations reached.'
+      if (exit_status.eq.3) write(*,'(A4,A48)') '','Bad behaviour: |R_k|>|R_k-1|, need to recompute.'
       write(*,'(A40,i4,A2,i4,A1)')'Number of Newton (GMRES) iterations:', newton_i,' (',SUM(iter_array),')'
       write(*,'(A40,1f10.2,A1)')  'Elapsed time in inexact Newton loop:', tsecond, 's' 
       write(*,*)
@@ -263,30 +282,59 @@ module mod_inexact_newton
       write(*,'(A11,1f9.3,A17,i4,A7,1f5.2,A7,1E9.2)')'t_step:', tstep, 'gmres_iter_max:', gmres_max_iter, 'gamma:', newton_gamma, 'tol_f:', newton_eps_gmres
       write(*,*)
       write(*,'(A3,A19,A54)') REPEAT('-',3), ' Iteration history ', REPEAT('-',54)
-      write(*,'(A5,A5,6A11)') 'i_n', 'i_g', 'gmres_tol', '|R_k|', 'R_k/R_prev', '|Ax-b|', 'prec_res', 'unprec_res'
-      if ((exit_status.eq.1).and.(newton_i>1)) newton_i=newton_i-1
+      write(*,'(A5,A5,6A11)') 'i_n', 'i_g', 'gmres_tol', '|R_k|', 'R_k/R_k-1', '|Ax-b|', 'rinfo(1)', 'rinfo(2)'
+      if ( ( (exit_status.eq.1).and.(newton_i>1) ) .or. ( (exit_status.eq.3).and.(newton_i>1) )  ) newton_i=newton_i-1
       do i=1,newton_i
         write(*,'(i5,i5,6E11.2)') i,iter_array(i),tol_array(i),normRHSk_array(i),rhs_ratio_array(i),normRESk_array(i),rinfo1(i),rinfo2(i)
       end do
       write(*,'(A76)') REPEAT('=',76)  
     end if
     
-    !--- no convergence for exit_status=1,2
-    if (exit_status /= 0) then
-      if (my_id.eq.0) write(*,*) 'No convergence in Newton loop. Aborting.'
-      call MPI_Finalize(ierr)
-      stop
+    !--- if newton_adapt_time,  define newton_adapt_time_code
+    if (newton_adapt_time) then
+      if ( exit_status.eq.0                                             ) newton_adapt_time_code = +1  ! fast convergence, increase next tstep
+      if ((exit_status.eq.0).and.( SUM(iter_array).ge.gmres_max_iter/2) ) newton_adapt_time_code = -1  ! slow convergence, reduce next tstep
+      if ((exit_status.eq.3).or.(exit_status.eq.1).or.(exit_status.eq.2)) newton_adapt_time_code = -2  ! no gmres/newton convergence or bad residue behaviour
+    else
+    !--- if NOT newton_adapt_time, no convergence for exit_status=1,2,3
+      if (exit_status /= 0) then
+        if (my_id.eq.0) write(*,*) 'No convergence in Newton loop. Aborting.'
+        call MPI_Finalize(ierr)
+        stop
+      endif
     endif
 
     !--- reset element_list and node_list, result is stored in deltas, i.e. x and propagated in jorek2_main.f90
     element_list    = element_list_temp
     node_list       = node_list_temp
-    x(1:ndof)       = delta_k_n(1:ndof)+delta_k(1:ndof)  ! deltas_temp
+    !--- reset deltas in case of non-convergence
+    if (exit_status.eq.0) then
+      x(1:ndof)     = delta_k_n(1:ndof)+delta_k(1:ndof)
+    else
+      x(1:ndof)     = deltas_temp(1:ndof)
+    endif
+  
     if (my_id.eq.0) write(*,*) 'RESET ELEMENT_LIST and NODE_LIST, SAVED DELTA'
     if (my_id.eq.0) write(*,'(A28,A20,A28)') REPEAT('-',28), ' END OF NEWTON LOOP ', REPEAT('-',28)
     deallocate(rhs_n,rhs_k,delta_k_n,delta_k,deltas_temp,mat_vec_prod,resi)
     deallocate(element_list_temp, node_list_temp, rinfo1, rinfo2)
     deallocate(tol_array, normRHSk_array, rhs_ratio_array, normRESk_array, iter_array)
   end subroutine inexact_newton
+
+
+  subroutine adaptive_tstep(newton_adapt_time_code, tstep)
+    use phys_module, only: newton_alpha_dt, newton_beta_dt, newton_gamma_dt 
+    implicit none
+    real*8 ::  t_min, tstep
+    integer :: newton_adapt_time_code
+    !newton_alpha_dt= 1.05
+    !newton_beta_dt = 0.95
+    !newton_gamma_dt= 0.75
+    t_min          = 0.001   
+    if (newton_adapt_time_code.eq.+1) tstep = tstep*newton_alpha_dt              ! fast convergence, increase next tstep
+    if (newton_adapt_time_code.eq.-1) tstep = MAX(tstep*newton_beta_dt , t_min)  ! slow convergence, reduce next tstep
+    if (newton_adapt_time_code.eq.-2) tstep = MAX(tstep*newton_gamma_dt, t_min)  ! no gmres/newton convergence or bad residue behaviour
+  end subroutine adaptive_tstep
+
 
 end module mod_inexact_newton

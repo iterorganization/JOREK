@@ -96,7 +96,7 @@ program JOREK2
                                             stderr=>error_unit
   
 #ifdef USE_NEWTON
-  use mod_inexact_newton, only: inexact_newton
+  use mod_inexact_newton, only: inexact_newton, adaptive_tstep, newton_adapt_time_code
 #endif
   implicit none
 
@@ -897,7 +897,35 @@ mpi_required = 0
        end if
 #endif
 
-
+#ifdef USE_NEWTON
+      ! NON-convergence WITHOUT adaptive time-stepping
+      if ( (newton_adapt_time_code.eq.-2) .and. (.not.newton_adapt_time)) then
+        if (my_id.eq.0) write(*,*) 'No convergence in inexact Newton loop. Abort.'
+        index_now = index_now - 1
+        exit jstep_loop
+      ! convergence WITHOUT adaptive time-stepping
+      elseif ((newton_adapt_time_code.ne.-2) .and. (.not.newton_adapt_time))then
+        call update_values(my_id,element_list,node_list,deltas)         ! add solution to node values
+        call update_deltas(my_id,node_list)
+        t_now = t_now + tstep
+        tstep_prev = tstep
+      ! NON-convergence with adaptive time-stepping
+      elseif (newton_adapt_time_code.eq.-2) then
+        call adaptive_tstep(newton_adapt_time_code, tstep)
+        tstep_n(1) = tstep
+        index_now = index_now - 1
+        if (my_id.eq.0) write(*,130) 'After step ', istep, ' (t_now=', t_now, '):'
+        cycle istep_loop  ! redo with new tstep from adaptive_tstep
+      ! convergence with adaptive time-stepping
+      else
+        call update_values(my_id,element_list,node_list,deltas)         ! add solution to node values
+        call update_deltas(my_id,node_list)
+        t_now = t_now + tstep 
+        tstep_prev = tstep
+        call adaptive_tstep(newton_adapt_time_code, tstep)
+        tstep_n(1) = tstep
+      endif  
+#else
       call update_values(my_id,element_list,node_list,deltas)         ! add solution to node values
       call update_deltas(my_id,node_list)
 
@@ -905,7 +933,7 @@ mpi_required = 0
 
       ! save previous time step
       tstep_prev = tstep
-
+#endif
 
     else
       if ( my_id == 0 ) then

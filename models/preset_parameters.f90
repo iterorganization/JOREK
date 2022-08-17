@@ -560,6 +560,11 @@ subroutine preset_parameters
   newton_eps_0       = 1.d-4   !< solver tol for the initial newton step
   newton_max_iter    = 20      !< max. numer of newton iterations
   newton_eps_gmres   = 1.d-6   !< lower bound on eps_k, i.e. gmres_tol = max(eps_k, newton_eps_gmres)
+  ! --- parameters for adaptive time-stepping
+  newton_adapt_time  = .false. !< switch for adaptive time-stepping
+  newton_alpha_dt    = 1.05    !< fast convergence, increase tstep
+  newton_beta_dt     = 0.95    !< slow convergence, decrease tstep
+  newton_gamma_dt    = 0.75    !< non-convergence, recompute for decreased tstep
  
   ! --- deprecated, code will stop if these parameters are set to .true. ---
   use_murge          = .false.
