@@ -3,6 +3,7 @@
 !! Details may be found on p. 24 in:
 !! [1] Franck et al., Energy conservation and numerical stability for the 
 !!     reduced MHD models of the non-linear JOREK code, 2014, arXiv:1408.2099v3
+!! ***WARNING*** Currently only support for jorek_model=199,303,501,502,600,710,711,712
 module mod_inexact_newton
 
   ! --- loading modules, subroutines, variables and types
@@ -17,7 +18,7 @@ module mod_inexact_newton
   use mod_gmres, only: gmres_matrix_vector
   use data_structure, only: type_element_list, type_node_list, thread_struct, new_thread_buffers, del_thread_buffers
   use mod_integer_types
-  use mod_parameters, only : n_tor, n_var
+  use mod_parameters, only : n_tor, n_var, jorek_model
   use global_distributed_matrix, only: local_index_start, local_index_end
  
   implicit none
@@ -113,7 +114,7 @@ module mod_inexact_newton
     integer                                           :: i
     integer,                 allocatable              :: gmres_iter_array(:)                   ! stores no. of gmres iterations
     integer                                           :: exit_status  ! 0: conv. achieved, 1: max newton iter, 2: max gmres iter
-
+    integer, dimension(8)                             :: supported_models=[199,303,501,502,600,710,711,712]
 
     ! --- allocate local variables and assign values 
     allocate(rhs_n(1:ndof),rhs_k(1:ndof),delta_k_n(1:ndof),delta_k(1:ndof),deltas_temp(1:ndof),mat_vec_prod(1:ndof))
@@ -131,7 +132,15 @@ module mod_inexact_newton
     normRHSn             = DSQRT(DOT_PRODUCT(rhs_n,rhs_n)) 
     normRHSprev          = normRHSn
     gmres_iter_array     = 0.0d0
-     
+
+    ! --- Check if jorek_model is supported
+    if (.not.ANY(supported_models.eq.jorek_model)) then
+      if (my_id.eq.0) write(*,'(A5,i4,A18)') "Model",jorek_model, " is not supported."
+      if (my_id.eq.0) write(*,'(A11,8i4,A25)') "Only models",supported_models," are supported. Aborting."
+      call MPI_Finalize(ierr)
+      stop
+    endif
+    
     ! --- Start of newton loop
     if (my_id.eq.0) write(*,'(A27,A22,A27)') REPEAT('-',27), ' START OF NEWTON LOOP ', REPEAT('-',27)
     
