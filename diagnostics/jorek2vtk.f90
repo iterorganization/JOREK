@@ -860,7 +860,7 @@ do i=1,element_list%n_elements
         BZ = ( AR_p - A3_R )/ R 
         BP = ( AZ_R - AR_Z )    + F_prof/ R
 
-        ZKpar_T = ZK_par * ((max(TT, T_min ))/T_0)**2.5
+        ZKpar_T = ZK_par * ((max(TT, T_min_ZKpar ))/T_0)**2.5
 
         BR_R = -1/R**2 * ( A3_Z - AZ_p ) + ( A3_RZ - AZ_Rp )/R
         BR_Z = ( A3_ZZ - AZ_Zp )/R

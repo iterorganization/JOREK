@@ -361,7 +361,7 @@ do m=1, n_plane
           ZK_prof  = get_zkperp(psi_norm)
 
           if (ZKpar_T_dependent) then
-            ZKpar_T  = ZK_par * abs(max(T,T_min)/T_0)**2.5
+            ZKpar_T  = ZK_par * abs(max(T,T_min_ZKpar)/T_0)**2.5
           else
             ZKpar_T  = ZK_par
           endif

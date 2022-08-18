@@ -822,8 +822,8 @@ do i=1,n_vertex_max
                 ZKi_par_T   = Zk_par_max
                 dZKi_par_dT = 0.d0
               endif
-              if (Ti0 .lt. T_min) then
-                ZKi_par_T   = ZK_i_par * (max(Ti0,T_min)/Ti_0)**(+2.5d0)
+              if (Ti0 .lt. Ti_min_ZKpar) then
+                ZKi_par_T   = ZK_i_par * (max(Ti0,Ti_min_ZKpar)/Ti_0)**(+2.5d0)
                 dZKi_par_dT = 0.d0
               endif
               
@@ -833,8 +833,8 @@ do i=1,n_vertex_max
                 ZKe_par_T   = Zk_par_max
                 dZKe_par_dT = 0.d0
               endif
-              if (Te0 .lt. T_min) then
-                ZKe_par_T   = ZK_e_par * (max(Te0,T_min)/Te_0)**(+2.5d0)
+              if (Te0 .lt. Te_min_ZKpar) then
+                ZKe_par_T   = ZK_e_par * (max(Te0,Te_min_ZKpar)/Te_0)**(+2.5d0)
                 dZKe_par_dT = 0.d0
               endif
             else
@@ -911,8 +911,8 @@ do i=1,n_vertex_max
                 ZK_par_T   = Zk_par_max
                 dZK_par_dT = 0.d0
               endif
-              if (T0 .lt. T_min) then
-                ZK_par_T   = ZK_par * (max(T0,T_min)/T_0)**(+2.5d0)
+              if (T0 .lt. T_min_ZKpar) then
+                ZK_par_T   = ZK_par * (max(T0,T_min_ZKpar)/T_0)**(+2.5d0)
                 dZK_par_dT = 0.d0
               endif
             else

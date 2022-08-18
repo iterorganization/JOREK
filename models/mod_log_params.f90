@@ -580,6 +580,9 @@ write(*,'(1x,a)',advance='no') ' USE_BICGSTAB : '
   write(*,REAL_FMT) 'D_imp_extra_neg_thresh', D_imp_extra_neg_thresh
   write(*,REAL_FMT) 'T_min                 ', T_min
   write(*,REAL_FMT) 'T_min_neg             ', T_min_neg
+  write(*,REAL_FMT) 'T_min_ZKpar           ', T_min_ZKpar
+  write(*,REAL_FMT) 'Ti_min_ZKpar          ', Ti_min_ZKpar
+  write(*,REAL_FMT) 'Te_min_ZKpar          ', Te_min_ZKpar
   write(*,REAL_FMT) 'ne_SI_min             ', ne_SI_min
   write(*,REAL_FMT) 'Te_eV_min             ', Te_eV_min
   write(*,REAL_FMT) 'rn0_min               ', rn0_min

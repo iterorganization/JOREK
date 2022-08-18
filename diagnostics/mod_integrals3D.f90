@@ -1584,8 +1584,10 @@ do m_bndelem = 1, bnd_elm_list%n_bnd_elements
       ZK_i_prof     = get_zk_iperp(psi_n)
  
       if (ZKpar_T_dependent) then
-        ZK_e_par_T = ZK_e_par * (max(T0e,T_min)/Te_0)**( 2.5d0)
-        ZK_i_par_T = ZK_i_par * (max(T0i,T_min)/Ti_0)**( 2.5d0)
+        ZK_e_par_T = ZK_e_par * (max(T0e,Te_min_ZKpar)/Te_0)**( 2.5d0)
+        ZK_i_par_T = ZK_i_par * (max(T0i,Ti_min_ZKpar)/Ti_0)**( 2.5d0)
+        if (ZK_e_par_T .gt. ZK_par_max)  ZK_e_par_T   = ZK_par_max
+        if (ZK_i_par_T .gt. ZK_par_max)  ZK_i_par_T   = ZK_par_max
       else
         ZK_e_par_T = ZK_e_par 
         ZK_i_par_T = ZK_i_par 
@@ -1607,9 +1609,10 @@ do m_bndelem = 1, bnd_elm_list%n_bnd_elements
       eta_T_ohm     = resistivity(eta_ohmic, T0_corr, T_max_eta_ohm, T_0)
 
       ZK_prof = get_zkperp(psi_n)
- 
+
       if (ZKpar_T_dependent) then
-        ZKpar_T = ZK_par * (max(T0,T_min)/T_0)**( 2.5d0)
+        ZKpar_T = ZK_par * (max(T0,T_min_ZKpar)/T_0)**( 2.5d0)
+        if (ZKpar_T .gt. ZK_par_max)  ZKpar_T   = ZK_par_max
       else
         ZKpar_T = ZK_par
       endif

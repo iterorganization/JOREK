@@ -595,6 +595,9 @@ module phys_module
   real*8  :: ZK_perp(10)   = 0.d0 !< Coefficients for perpendicular heat diffusion profile
   real*8  :: ZK_par               !< Parallel heat diffusion value in the plasma center
   real*8  :: ZK_par_max           !< Do not use larger parallel heat diffusion values for numerical reasons
+  real*8  :: T_min_ZKpar          !< Do not use smaller parallel heat diffusion values below this MHD temperature (Ti+Te); JOREK units
+  real*8  :: Ti_min_ZKpar         !< Do not use smaller parallel heat diffusion values below Ti; JOREK units
+  real*8  :: Te_min_ZKpar         !< Do not use smaller parallel heat diffusion values below Te; JOREK units
   real*8  :: ZK_par_SpitzerHaerm  !< Spitzer-Haerm parallel heat diffusion value in the plasma center (assuming a Z=1 plasma with Te=Ti)
   real*8  :: ZK_i_perp(10) = 0.d0 !< Coefficients for perpendicular ion heat diffusion profile
   real*8  :: ZK_e_perp(10) = 0.d0 !< Coefficients for perpendicular electron heat diffusion profile
