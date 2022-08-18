@@ -20,7 +20,7 @@ type (type_strategic_points), intent(inout) :: stpts
 type (type_new_points)      , intent(inout) :: nwpts
 integer,                      intent(inout) :: n_grids(12)
 integer,                      intent(in)    :: xcase
-real*8,                       intent(in)    :: sigmas(16)
+real*8,                       intent(in)    :: sigmas(17)
 type (type_node_list)       , intent(inout) :: newnode_list
 type (type_element_list)    , intent(inout) :: newelement_list
 
@@ -49,7 +49,7 @@ real*8              :: ZZg1,dZZg1_dr,dZZg1_ds,dZZg1_drs,dZZg1_drr,dZZg1_dss
 integer             :: i_elm_find(8), i_find
 real*8              :: s_find(8), t_find(8), st_find(8)
 real*8              :: diff_min
-real*8              :: SIG_theta
+real*8              :: SIG_theta, SIG_theta_up
 real*8              :: SIG_leg_0, SIG_leg_1
 real*8              :: SIG_up_leg_0, SIG_up_leg_1
 real*8              :: SIG_0, SIG_1
@@ -77,7 +77,7 @@ if(xcase .eq. DOUBLE_NULL ) then
   endif
 endif
 
-SIG_theta    = sigmas(2) 
+SIG_theta    = sigmas(2) ; SIG_theta_up = sigmas(17)
 SIG_leg_0    = sigmas(8) ; SIG_leg_1    = sigmas(9) 
 SIG_up_leg_0 = sigmas(10); SIG_up_leg_1 = sigmas(11)
 
@@ -190,16 +190,16 @@ else ! xcase == DOUBLE_NULL
     ! from 1 to n_tht_mid, and then from n_tht_mid+1 to n_tht
     if(mod(n_tht_mid,2) .eq. 0) n_tht_mid = n_tht_mid + 1
     
-    call meshac2(n_tht_mid,s_tmp, 0.d0,1.d0,SIG_theta,SIG_theta,bgf_tht,1.0d0)
-    call meshac2(n_tht_mid,s_tmp2,0.d0,1.d0,999.0,    999.0    ,bgf_tht,1.0d0)
+    call meshac2(n_tht_mid,s_tmp, 0.d0,1.d0,SIG_theta,SIG_theta_up,bgf_tht,1.0d0)
+    call meshac2(n_tht_mid,s_tmp2,0.d0,1.d0,999.0,    999.0,       bgf_tht,1.0d0)
     do j=1,n_tht_mid
       theta_sep(j) = (tht_x1-2.d0*PI) + (tht_x2-(tht_x1-2.d0*PI)) * s_tmp(j)
       theta_beg(j) = (tht_x1-2.d0*PI) + (tht_x2-(tht_x1-2.d0*PI)) * s_tmp2(j)
     enddo
   
     n_tht_mid2 = n_tht-n_tht_mid
-    call meshac2(n_tht_mid2,s_tmp, 0.d0,1.d0,SIG_theta,SIG_theta,bgf_tht,1.0d0)
-    call meshac2(n_tht_mid2,s_tmp2,0.d0,1.d0,999.0,    999.0,    bgf_tht,1.0d0)
+    call meshac2(n_tht_mid2,s_tmp, 0.d0,1.d0,SIG_theta_up,SIG_theta,bgf_tht,1.0d0)
+    call meshac2(n_tht_mid2,s_tmp2,0.d0,1.d0,999.0,    999.0,       bgf_tht,1.0d0)
     do j=n_tht_mid+1,n_tht
       theta_sep(j) = tht_x2 + (tht_x1-tht_x2) * s_tmp(j-n_tht_mid)
       theta_beg(j) = tht_x2 + (tht_x1-tht_x2) * s_tmp2(j-n_tht_mid)
@@ -209,16 +209,16 @@ else ! xcase == DOUBLE_NULL
     ! Make sure n_tht_mid is odd and save it to n_grids for later use
     if(mod(n_tht_mid,2) .eq. 0) n_tht_mid = n_tht_mid + 1
     
-    call meshac2(n_tht_mid,s_tmp, 0.d0,1.d0,SIG_theta,SIG_theta,bgf_tht,1.0d0)
-    call meshac2(n_tht_mid,s_tmp2,0.d0,1.d0,999.0,    999.0,    bgf_tht,1.0d0)
+    call meshac2(n_tht_mid,s_tmp, 0.d0,1.d0,SIG_theta_up,SIG_theta,bgf_tht,1.0d0)
+    call meshac2(n_tht_mid,s_tmp2,0.d0,1.d0,999.0,       999.0,    bgf_tht,1.0d0)
     do j=1,n_tht_mid
-      theta_sep(j) = tht_x1 + (tht_x2-tht_x1) * s_tmp(j-n_tht_mid)
-      theta_beg(j) = tht_x1 + (tht_x2-tht_x1) * s_tmp2(j-n_tht_mid)
+      theta_sep(j) = tht_x1 + (tht_x2-tht_x1) * s_tmp(j)
+      theta_beg(j) = tht_x1 + (tht_x2-tht_x1) * s_tmp2(j)
     enddo
 
     n_tht_mid2 = n_tht-n_tht_mid
-    call meshac2(n_tht_mid2,s_tmp, 0.d0,1.d0,SIG_theta,SIG_theta,bgf_tht,1.0d0)
-    call meshac2(n_tht_mid2,s_tmp2,0.d0,1.d0,999.0,    999.0,    bgf_tht,1.0d0)
+    call meshac2(n_tht_mid2,s_tmp, 0.d0,1.d0,SIG_theta,SIG_theta_up,bgf_tht,1.0d0)
+    call meshac2(n_tht_mid2,s_tmp2,0.d0,1.d0,999.0,    999.0,       bgf_tht,1.0d0)
     do j=n_tht_mid+1,n_tht
       theta_sep(j) = (tht_x2-2.d0*PI) + (tht_x1-(tht_x2-2.d0*PI)) * s_tmp(j-n_tht_mid)
       theta_beg(j) = (tht_x2-2.d0*PI) + (tht_x1-(tht_x2-2.d0*PI)) * s_tmp2(j-n_tht_mid)
@@ -436,7 +436,7 @@ do j=1,n_tht
       nwpts%ZZ_new(i_max+1,n_tht) = stpts%ZLimit_LowerInnerLeg ! this one is known - safer...
     endif
     if (     ( (xcase .eq. DOUBLE_NULL) .and. (ES%active_xpoint .eq. UPPER_XPOINT) )  &
-       .and. ((j .eq. 1) .or. (j .eq. n_tht))                            ) then
+       .and. ((j .eq. n_tht_mid) .or. (j .eq. n_tht_mid+1))                            ) then
       nwpts%R_max(n_tht_mid)            = stpts%RLimit_LowerInnerLeg ! this one is known - safer...
       nwpts%Z_max(n_tht_mid)            = stpts%ZLimit_LowerInnerLeg ! this one is known - safer...
       nwpts%RR_new(i_max+1,n_tht_mid)   = stpts%RLimit_LowerInnerLeg ! this one is known - safer...
@@ -502,7 +502,7 @@ do j=1,n_tht
     enddo
     
     if (     ( ES%active_xpoint .eq. UPPER_XPOINT ) & 
-       .and. ( (j .eq. 1) .or. (j .eq. n_tht_2) )                         ) then
+       .and. ( (j .eq. 1) .or. (j .eq. n_tht) )                         ) then
       nwpts%R_max(n_tht)            = stpts%RLimit_UpperOuterLeg ! this one is known - safer...
       nwpts%Z_max(n_tht)            = stpts%ZLimit_UpperOuterLeg ! this one is known - safer...
       nwpts%RR_new(i_max+1,n_tht)   = stpts%RLimit_UpperOuterLeg ! this one is known - safer...
@@ -612,10 +612,19 @@ nwpts%k_cross(1,:) = 1
 do i=1,n_flux+n_open+n_outer+n_inner
   n_start = 1
   n_loop  = n_tht
-  if ( (i .gt. n_flux+n_open) .and. (i .le. n_flux+n_open+n_outer) ) n_start = 1
-  if ( (i .gt. n_flux+n_open) .and. (i .le. n_flux+n_open+n_outer) ) n_loop  = n_tht_mid
-  if ( (i .gt. n_flux+n_open+n_outer) ) n_start = n_tht_mid+1
-  if ( (i .gt. n_flux+n_open+n_outer) ) n_loop  = n_tht
+  if (xcase .eq. DOUBLE_NULL) then
+    if (ES%active_xpoint .eq. UPPER_XPOINT) then 
+      if ( (i .gt. n_flux+n_open) .and. (i .le. n_flux+n_open+n_outer) ) n_start = n_tht_mid+1
+      if ( (i .gt. n_flux+n_open) .and. (i .le. n_flux+n_open+n_outer) ) n_loop  = n_tht
+      if ( (i .gt. n_flux+n_open+n_outer) ) n_start = 1
+      if ( (i .gt. n_flux+n_open+n_outer) ) n_loop  = n_tht_mid
+    else
+      if ( (i .gt. n_flux+n_open) .and. (i .le. n_flux+n_open+n_outer) ) n_start = 1
+      if ( (i .gt. n_flux+n_open) .and. (i .le. n_flux+n_open+n_outer) ) n_loop  = n_tht_mid
+      if ( (i .gt. n_flux+n_open+n_outer) ) n_start = n_tht_mid+1
+      if ( (i .gt. n_flux+n_open+n_outer) ) n_loop  = n_tht
+    endif
+  endif
   do j=n_start, n_loop
     
     do k=1,5     ! 5 line pieces per coordinate line
@@ -745,7 +754,7 @@ n_start_open = newnode_list%n_nodes + 1
 if (xcase .eq. LOWER_XPOINT) n_loop = n_tht 
 if (xcase .eq. UPPER_XPOINT) n_loop = n_tht
 if ( (xcase .eq. DOUBLE_NULL) .and. ( (ES%active_xpoint .eq. LOWER_XPOINT) .or. (ES%active_xpoint .eq. SYMMETRIC_XPOINT) ) ) n_loop = n_tht - 1 
-if ( (xcase .eq. DOUBLE_NULL) .and. (  ES%active_xpoint .eq. UPPER_XPOINT )                                         ) n_loop = n_tht - 1
+if ( (xcase .eq. DOUBLE_NULL) .and. (  ES%active_xpoint .eq. UPPER_XPOINT )                                                ) n_loop = n_tht - 1
 n_loop2 = n_flux+n_open+1
 if (xcase .eq. DOUBLE_NULL) n_loop2 = n_flux+n_open
 n_tmp = n_tht
@@ -757,14 +766,11 @@ if (ES%active_xpoint .ne. SYMMETRIC_XPOINT ) then ! ignore if symmetric double-n
     do l=1,n_loop
     
       j = l
-      !-------------------------------- CASE 1 : Lower Xpoint is the main one
-      if ( (xcase .eq. LOWER_XPOINT) .or. (xcase .eq. UPPER_XPOINT) .or. ( (xcase .eq. DOUBLE_NULL) .and. ( (ES%active_xpoint .eq. LOWER_XPOINT) .or. (ES%active_xpoint .eq. SYMMETRIC_XPOINT) ) ) ) then
-        if ( ((j .gt. 1) .and. (j .lt. n_tmp)) .or. (i .ne. n_flux+1) ) then ! Don't put the Xpoint twice
-          if ( (xcase .eq. DOUBLE_NULL) .and. (j .gt. n_tht_mid) ) j = j+1  ! n_tht_mid and n_tht_mid+1 are the same for double null
-          index = index + 1
-          call create_new_node(node_list, element_list, newnode_list, index, i, j, nwpts)    
-        endif    
-      endif
+      if ( ((j .gt. 1) .and. (j .lt. n_tmp)) .or. (i .ne. n_flux+1) ) then ! Don't put the Xpoint twice
+        if ( (xcase .eq. DOUBLE_NULL) .and. (j .gt. n_tht_mid) ) j = j+1  ! n_tht_mid and n_tht_mid+1 are the same for double null
+        index = index + 1
+        call create_new_node(node_list, element_list, newnode_list, index, i, j, nwpts)    
+      endif    
       
     enddo
   enddo
@@ -782,7 +788,7 @@ newnode_list%n_nodes = index
 n_start_outer = newnode_list%n_nodes + 1
 if (xcase .eq. DOUBLE_NULL) then
   if ( (ES%active_xpoint .eq. LOWER_XPOINT) .or. (ES%active_xpoint .eq. SYMMETRIC_XPOINT) ) n_loop = n_tht_mid 
-  if (  ES%active_xpoint .eq. UPPER_XPOINT                                         ) n_loop = n_tht_mid2
+  if (  ES%active_xpoint .eq. UPPER_XPOINT                                                ) n_loop = n_tht_mid2
   do i=n_flux+n_open+1,n_flux+n_open+n_outer+1
     do l=1,n_loop
     
@@ -816,7 +822,7 @@ endif
 n_start_inner = newnode_list%n_nodes + 1
 if (xcase .eq. DOUBLE_NULL) then
   if ( (ES%active_xpoint .eq. LOWER_XPOINT) .or. (ES%active_xpoint .eq. SYMMETRIC_XPOINT) ) n_loop = n_tht_mid2
-  if (  ES%active_xpoint .eq. UPPER_XPOINT                                         ) n_loop = n_tht_mid
+  if (  ES%active_xpoint .eq. UPPER_XPOINT                                                ) n_loop = n_tht_mid
   do k=n_flux+n_open+n_outer+1,n_flux+n_open+n_outer+n_inner+1                
     do l=1,n_loop
     
@@ -1031,17 +1037,31 @@ if (xcase .eq. DOUBLE_NULL) then
       index = index + 1
       newelement_list%element(index)%size = 1.d0
 
-      newelement_list%element(index)%vertex(1) = n_start_outer + (i-1)*(n_loop+1)-1 + j
-      newelement_list%element(index)%vertex(4) = n_start_outer + (i-1)*(n_loop+1)-1 + j + 1
-      newelement_list%element(index)%vertex(2) = n_start_outer + (i  )*(n_loop+1)-1 + j
-      newelement_list%element(index)%vertex(3) = n_start_outer + (i  )*(n_loop+1)-1 + j + 1
+      if ( (xcase .eq. DOUBLE_NULL) .and. (ES%active_xpoint .eq. UPPER_XPOINT) ) then
+        newelement_list%element(index)%vertex(1) = n_start_outer + (i-1)*(n_loop+1)-2 + j
+        newelement_list%element(index)%vertex(4) = n_start_outer + (i-1)*(n_loop+1)-2 + j + 1
+        newelement_list%element(index)%vertex(2) = n_start_outer + (i  )*(n_loop+1)-2 + j
+        newelement_list%element(index)%vertex(3) = n_start_outer + (i  )*(n_loop+1)-2 + j + 1
+      else
+        newelement_list%element(index)%vertex(1) = n_start_outer + (i-1)*(n_loop+1)-1 + j
+        newelement_list%element(index)%vertex(4) = n_start_outer + (i-1)*(n_loop+1)-1 + j + 1
+        newelement_list%element(index)%vertex(2) = n_start_outer + (i  )*(n_loop+1)-1 + j
+        newelement_list%element(index)%vertex(3) = n_start_outer + (i  )*(n_loop+1)-1 + j + 1
+      endif
       
       ! Connect with open region (or closed and private for symmetric double-null)
       if (i .eq. 1) then
+        if (j .gt. n_xpoint_1) j = j-1
         newelement_list%element(index)%vertex(1) = n_start_outer + j - 1
         newelement_list%element(index)%vertex(4) = n_start_outer + j
         if (l .eq. n_xpoint_1)   then ! Special case for element arriving at second Xpoint
           newelement_list%element(index)%vertex(4) = 8 ! We need to arrive at NODE8=NODE4 of the second Xpoint
+        endif
+        if (l .eq. n_xpoint_1+1) then! Special case for element leaving second Xpoint
+          newelement_list%element(index)%vertex(1) = 5 ! We need to leave at NODE5=NODE1 of the second Xpoint
+        endif
+        if ( (l .eq. n_xpoint_2)   .and. (ES%active_xpoint .eq. SYMMETRIC_XPOINT) ) then ! Special case for element arriving at first Xpoint of symmetric double-null
+          newelement_list%element(index)%vertex(4) = 4 ! We need to arrive at NODE4 of the first Xpoint
         endif
         if ( (l .eq. n_xpoint_2+1) .and. (ES%active_xpoint .eq. SYMMETRIC_XPOINT) ) then ! Special case for element leaving first Xpoint of symmetric double-null
           newelement_list%element(index)%vertex(1) = 1 ! We need to leave at NODE1 of the first Xpoint
@@ -1075,10 +1095,17 @@ if (xcase .eq. DOUBLE_NULL) then
       index = index + 1
       newelement_list%element(index)%size = 1.d0
 
-      newelement_list%element(index)%vertex(1) = n_start_inner + (i-1)*(n_loop+1)-1 + j - 1
-      newelement_list%element(index)%vertex(4) = n_start_inner + (i-1)*(n_loop+1)-1 + j
-      newelement_list%element(index)%vertex(2) = n_start_inner + (i  )*(n_loop+1)-1 + j - 1
-      newelement_list%element(index)%vertex(3) = n_start_inner + (i  )*(n_loop+1)-1 + j
+      if ( (xcase .eq. DOUBLE_NULL) .and. (ES%active_xpoint .eq. UPPER_XPOINT) ) then
+        newelement_list%element(index)%vertex(1) = n_start_inner + (i-1)*(n_loop+1)-1 + j
+        newelement_list%element(index)%vertex(4) = n_start_inner + (i-1)*(n_loop+1)-1 + j + 1
+        newelement_list%element(index)%vertex(2) = n_start_inner + (i  )*(n_loop+1)-1 + j
+        newelement_list%element(index)%vertex(3) = n_start_inner + (i  )*(n_loop+1)-1 + j + 1
+      else
+        newelement_list%element(index)%vertex(1) = n_start_inner + (i-1)*(n_loop+1)-2 + j
+        newelement_list%element(index)%vertex(4) = n_start_inner + (i-1)*(n_loop+1)-2 + j + 1
+        newelement_list%element(index)%vertex(2) = n_start_inner + (i  )*(n_loop+1)-2 + j
+        newelement_list%element(index)%vertex(3) = n_start_inner + (i  )*(n_loop+1)-2 + j + 1
+      endif
       
       ! Connect with open region
       if (i .eq. 1) then

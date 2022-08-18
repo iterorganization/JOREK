@@ -3,8 +3,11 @@
 # --- Compiler
 #FCOMP = pgf90
 #FCOMP = f95
-FCOMP = mpiifort -fpp
 #FCOMP = mpif90
+FCOMP = mpiifort -fpp
+
+# --- With DEBUG?
+#FCOMP = $(FCOMP) -O0 -g -traceback -ftrapuv -debug all -debug-parameters -fstack-security-check -fpe0 -check all,noarg_temp_created -check bounds -check uninit -init=snan -gen-interfaces -warn-interfaces
 
 # --- HDF5 libs
 HDF5_INC  = $(HDF5_HOME)/include

@@ -4,7 +4,8 @@ subroutine grid_bezier_square(nR,nZ,R_begin,R_end,Z_begin,Z_end,boundary,node_li
 use mod_parameters
 use data_structure
 use mod_neighbours, only: update_neighbours
-use phys_module, only: n_radial, n_flux, XR_r, XR_z, SIG_r, SIG_z, bgf_r, bgf_z, rect_grid_vac_psi
+use phys_module, only: psi_axis_init, R_geo, Z_geo, n_radial, n_flux, XR_r, XR_z, SIG_r, SIG_z, bgf_r, bgf_z, rect_grid_vac_psi
+use mod_grid_conversions
 
 implicit none
 
@@ -76,6 +77,8 @@ do j=1,nZ
 
     inode = inode + 1
 
+    node_list%node(inode)%x(1,:,1) = 0.d0 ! initialise to zero
+    node_list%node(inode)%x(1,:,2) = 0.d0 ! initialise to zero
     ! --- For backward compatibility
     if (grid_accumulation) then
       node_list%node(inode)%x(1,1,1) = R_begin + (R_end - R_begin) * s_tmp(i+1)   ! the position of the node
@@ -103,6 +106,12 @@ do j=1,nZ
     endif
     ! --- Psi vacuum initial conditions
     node_list%node(inode)%values(1,1,1) = rect_grid_vac_psi * (node_list%node(inode)%x(1,1,1))**2
+
+    ! --- Add a small psi-profile otherwise GS-equilibrium returns NaNs because psi_axis = psi_bnd = 0
+    if ( (psi_axis_init .ne. 0.d0) .and. (n_radial .eq. 0) .and. (node_list%node(inode)%boundary .eq. 0) ) then
+      node_list%node(inode)%values(1,1,1) = psi_axis_init &
+           + sqrt( (node_list%node(inode)%x(1,1,1)-R_geo)**2 +(node_list%node(inode)%x(1,1,2)-Z_geo)**2 )
+    endif
 
     do k=1, n_degrees
       node_list%node(inode)%index(k) = n_degrees*(inode-1) + k
@@ -164,8 +173,8 @@ do k=1, element_list%n_elements   ! fill in the size of the elements
    uv_p    = node_list%node(inode_p)%x(1,iuv+1,:)
 
    element_list%element(k)%size(iv,1)     = 1.
-   element_list%element(k)%size(iv,iuv+1) = sign(dlength(xx_p,xx_0),ddot(n_dim,xx_p - xx_0,1,uv_0,1)) /3.d0
-   element_list%element(k)%size(ip,iuv+1) = sign(dlength(xx_p,xx_0),ddot(n_dim,xx_0 - xx_p,1,uv_p,1)) /3.d0
+   element_list%element(k)%size(iv,iuv+1) = sign(dlength(xx_p,xx_0),ddot(n_dim,xx_p - xx_0,1,uv_0,1)) / float(n_order)
+   element_list%element(k)%size(ip,iuv+1) = sign(dlength(xx_p,xx_0),ddot(n_dim,xx_0 - xx_p,1,uv_p,1)) / float(n_order)
 
 !    write(*,*) element_list%element(k)%size(iv,iuv+1),element_list%element(k)%size(ip,iuv+1)
 
@@ -176,6 +185,8 @@ do k=1, element_list%n_elements   ! fill in the size of the elements
  enddo
 
 enddo
+
+if (n_order .ge. 5) call set_high_order_sizes(element_list)
 
 call update_neighbours(node_list,element_list, force_rtree_initialize=.true.)
 return

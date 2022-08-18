@@ -8,12 +8,12 @@ program process_hdf5_jorek
 
   ! --- Executable arguments variables
   integer :: n_arg
-  character*50 :: str_input, str_input2
+  character*250 :: str_input, str_input2
 
   ! --- HDF5 variables including filename
-  character*250  :: filename, filename_data, filename_path
+  character*250  :: filename, filename_data, filename_path, hdf5_dataname
   integer        :: filename_min, filename_max, filename_step, filename_index
-  logical        :: filename_list
+  logical        :: filename_list, hdf5_compact
   character*250  :: filename_data_multiple
   integer(HID_T) :: file_id, data_id
   integer        :: error
@@ -36,12 +36,15 @@ program process_hdf5_jorek
   real*8  :: normalise_min, normalise_max, normalise_data
   real*8  :: central_density, F0, delta_t, time_now
   integer :: i_var(100) ! use a large buffer
+  integer :: i_times, n_times
   integer, allocatable :: elm_vertex(:,:)
-  real*8,  allocatable :: psi_axis_t(:), psi_bnd_t(:), Z_xpoint_t(:,:)
+  real*8,  allocatable :: R_axis_t(:), Z_axis_t(:), psi_axis_t(:), psi_bnd_t(:), Z_xpoint_t(:,:)
   real*8,  allocatable :: modes(:), elm_size(:,:,:), RZ_nodes(:,:,:), values(:,:,:,:), deltas(:,:,:,:), time(:)
   real*8,  allocatable :: HZ(:), HZ_p(:), HZ_pp(:)
-  real*8,  allocatable :: my_var(:,:,:,:), my_var3D(:,:,:)
+  real*8,  allocatable :: my_var(:,:,:,:), my_var3D(:,:,:), my_var3D_time(:,:,:,:,:), my_var_time(:,:,:,:,:)
+  real*8,  allocatable :: time_record(:)
   real*8,  allocatable :: Rgrid(:,:), Zgrid(:,:)
+  real*8,  allocatable :: radius_grid(:,:), theta_grid(:,:), normalised_radius_grid(:,:)
   real*8,  allocatable :: Xgrid3D(:), Ygrid3D(:), Zgrid3D(:)
   character*50 :: variable_names(100) ! use a large buffer
   
@@ -54,7 +57,9 @@ program process_hdf5_jorek
   real*8  :: Xpix_min, Xpix_max
   real*8  :: Ypix_min, Ypix_max
   real*8  :: Zpix_min, Zpix_max
-  logical :: save_pixels, use_pixel_file, use_3D_grid
+  logical :: save_pixels, use_pixel_file, use_3D_grid, use_r_theta
+  real*8  :: radius_max, radius_find, radius, theta
+  real*8, parameter    :: PI=3.141592653589793
   integer :: pix_start, pix_end, pix_delta
   integer :: local_pix_start, local_pix_end
   integer, allocatable :: i_elm_save(:,:)
@@ -91,7 +96,7 @@ program process_hdf5_jorek
   real*8  :: pp,  pp_s,  pp_t,  pp_ss,  pp_tt,  pp_st,  pp_p,  delta_pp
   real*8  :: rho, rho_n, Te, Ti
   real*8  :: BR, BZ, Bp, ER, EZ, Ep, Epar
-  real*8  :: psi_axis, psi_bnd, Z_xpoint(2), psi_max
+  real*8  :: R_axis, Z_axis, psi_axis, psi_bnd, Z_xpoint(2), psi_max
   integer :: ifail
   real*8  :: progress
   logical :: txt_data, bin_data, hdf5_data, fourier
@@ -136,10 +141,12 @@ program process_hdf5_jorek
   resolution     = 0.01                  ! Poloidal resolution (in meters)
   limit_buffer   = 0.03                  ! The grid will by default be a little larger than the exact JOREK domain
   use_3D_grid    = .false.               ! Save data on a 3D-grid boxed around plasma domain
+  use_r_theta    = .false.               ! Save data on (r,theta) coords instead of (R,Z) coords
   i_var(1)       = 5                     ! Variable to extract (default is density rho, ie. JOREK variable 5)
   n_data         = 0                     ! Number of physics quantities to be saved
   i_tor          = -1                    ! Toroidal mode number (-1 for all spectrum)
   hdf5_data      = .true.                ! Data format is HDF5 (by default)
+  hdf5_compact   = .false.               ! If extracting multiple time sclices, write a single file (not one file/timestep)
   txt_data       = .false.               ! Data format is txt (default is hdf5)
   bin_data       = .false.               ! Data format is binary ASCII (default is hdf5)
   fourier        = .false.               ! Output data as separated n=0 and n!=0 modes
@@ -292,7 +299,7 @@ program process_hdf5_jorek
             write(*,*) ''
             write(*,*) 'Available variables are:'
             write(*,*) '  "psi":      poloidal flux (magnetic potential)'
-            write(*,*) '  "phi":      electric potential'
+            write(*,*) '  "Phi":      electric potential'
             write(*,*) '  "j":        toroidal current'
             write(*,*) '  "w":        toroidal vorticity'
             write(*,*) '  "rho":      density'
@@ -318,11 +325,13 @@ program process_hdf5_jorek
           else
             write(*,*) ''
             write(*,*) 'Unknown -h flag ',trim(str_input)
+            write(*,*) 'Try "-h variables"'
           endif
         else
           write(*,*) ''
           write(*,*) 'Here are the available options:'
           write(*,*) '  -h                     : print this...'
+          write(*,*) '  -h variables           : print help about available variables'
           write(*,*) '  -jorek_file <filename> : use the JOREK hdf5 file named <filename> to generate'
           write(*,*) '                           the data (default is "jorek_restart.h5").'
           write(*,*) '                           Instead of using a single file, you can also loop'
@@ -349,6 +358,8 @@ program process_hdf5_jorek
           write(*,*) '  -txt_data              : Data format is txt (default is hdf5)'
           write(*,*) '  -bin_data              : Data format is binary ASCII (default is hdf5)'
           write(*,*) '                           (only valid for 3D-grids, uses Mitsuba2 format)'
+          write(*,*) '  -hdf5_compact          : If extracting multiple time-steps, write only'
+          write(*,*) '                           one hdf5 file for all timesteps (default is false)'
           write(*,*) '  -no_data               : Do not extract data to file'
           write(*,*) '  -save_pixels           : save the location of pixels in the JOREK domain to'
           write(*,*) '                           the file "saved_pixels.dat" (default is "false")'
@@ -377,6 +388,7 @@ program process_hdf5_jorek
           write(*,*) '                           use a 3D grid (x,y,z) boxed around simulation domain'
           write(*,*) '                           with individual dimensions (nx,ny,nz) each determined'
           write(*,*) '                           by the "resolution" parameter'
+          write(*,*) '  -r_theta               : Instead of a 2D (R,Z)-grid, use (r,theta) coords'
           write(*,*) '  -variable <var>        : select the variable you want to extract'
           write(*,*) '                           (note, you can extract many variables at once).'
           write(*,*) '                           To view available variables, run with:'
@@ -415,6 +427,10 @@ program process_hdf5_jorek
       hdf5_data = .false.
       bin_data  = .true.
       if (my_id .eq. 0) write(*,*) 'Data format will be .ascii.bin'
+    endif
+    if (trim(str_input) .eq. '-hdf5_compact') then
+      hdf5_compact = .true.
+      if (my_id .eq. 0) write(*,*) 'Using compact HDF5 format'
     endif
     if (trim(str_input) .eq. '-no_data') then
       hdf5_data = .false.
@@ -461,6 +477,9 @@ program process_hdf5_jorek
     endif
     if (trim(str_input) .eq. '-3D_grid') then
       use_3D_grid = .true.
+    endif
+    if (trim(str_input) .eq. '-r_theta') then
+      use_r_theta = .true.
     endif
     if (trim(str_input) .eq. '-variable') then
       n_data = n_data + 1
@@ -533,6 +552,13 @@ program process_hdf5_jorek
     fourier = .false.
   endif
 
+  ! --- (r,theta)-coords doesn't make sense on a 3D_grid
+  if (use_3D_grid .and. use_r_theta) then
+    if (my_id .eq. 0) write(*,*)'Warning, you cannot use (r,theta)-coords with a 3D-grid...'
+    if (my_id .eq. 0) write(*,*)'Defaulting to use_r_theta=False...'
+    use_r_theta = .false.
+  endif
+
 
   !***********************************************************************
   !***********************************************************************
@@ -556,6 +582,8 @@ program process_hdf5_jorek
 
     ! --- Open the JOREK data file.
     call MPI_Barrier(MPI_COMM_WORLD,ierr)
+    if (my_id .eq. 0) write(*,*)''
+    if (my_id .eq. 0) write(*,*)'-------------------------------------------'
     if (my_id .eq. 0) write(*,*)'Opening JOREK data file ',trim(filename)
     call MPI_Barrier(MPI_COMM_WORLD,ierr)
 
@@ -628,17 +656,25 @@ program process_hdf5_jorek
     ! --- Get axis, bnd, density and field
     call HDF5_integer_reading(file_id,index_now,'index_now')
     if (index_now .gt. 0) then
+      if (allocated(R_axis_t)) deallocate(R_axis_t)
+      if (allocated(Z_axis_t)) deallocate(Z_axis_t)
       if (allocated(psi_axis_t)) deallocate(psi_axis_t)
       if (allocated(psi_bnd_t )) deallocate(psi_bnd_t)
       if (allocated(Z_xpoint_t)) deallocate(Z_xpoint_t)
-      allocate(psi_axis_t(index_now), psi_bnd_t(index_now), Z_xpoint_t(index_now,2))
+      allocate(R_axis_t(index_now), Z_axis_t(index_now), psi_axis_t(index_now), psi_bnd_t(index_now), Z_xpoint_t(index_now,2))
+      call HDF5_array1D_reading(file_id,R_axis_t, 'R_axis_t')
+      call HDF5_array1D_reading(file_id,Z_axis_t, 'Z_axis_t')
       call HDF5_array1D_reading(file_id,psi_axis_t, 'psi_axis_t')
       call HDF5_array1D_reading(file_id,psi_bnd_t, 'psi_bnd_t')
       call HDF5_array2D_reading(file_id,Z_xpoint_t, 'Z_xpoint_t')
+      R_axis   = R_axis_t(index_now)
+      Z_axis   = Z_axis_t(index_now)
       psi_axis = psi_axis_t(index_now)
       psi_bnd  = psi_bnd_t(index_now)
       Z_xpoint(1:2) = Z_xpoint_t(index_now,1:2)
     else
+      R_axis   = 10.0
+      Z_axis   = 0.0
       psi_axis = 0.d0
       psi_bnd  = 1.d0
       Z_xpoint(1:2) = (/-99.0,+99.0/)
@@ -825,6 +861,7 @@ program process_hdf5_jorek
         if (my_id .eq. 0) write(*,*)'   nR:',nx_pix
         if (my_id .eq. 0) write(*,*)'   nZ:',ny_pix
         allocate(Rgrid(nx_pix,ny_pix),Zgrid(nx_pix,ny_pix))
+        if (use_r_theta) allocate(radius_grid(nx_pix,ny_pix),theta_grid(nx_pix,ny_pix),normalised_radius_grid(nx_pix,ny_pix))
         if (fourier) then
           allocate(my_var(nx_pix,ny_pix,n_tor,n_data))
         else
@@ -870,7 +907,11 @@ program process_hdf5_jorek
         ! --- Read pixel file
         do i = 1,nx_pix
           do j = 1,ny_pix
-            read(21,'(3i8,4e21.11)') i_check, j_check, i_elm_save(i,j), s_save(i,j), t_save(i,j), Rgrid(i,j), Zgrid(i,j)
+            if (use_r_theta) then
+              read(21,'(3i8,7e21.11)') i_check, j_check, i_elm_save(i,j), s_save(i,j), t_save(i,j), Rgrid(i,j), Zgrid(i,j), radius_grid(i,j), theta_grid(i,j), normalised_radius_grid(i,j)
+            else
+              read(21,'(3i8,4e21.11)') i_check, j_check, i_elm_save(i,j), s_save(i,j), t_save(i,j), Rgrid(i,j), Zgrid(i,j)
+            endif
             if ( (i_check .ne. i) .or. (j_check .ne. j) ) then
               if (my_id .eq. 0) write(*,*)'WARNING! Cannot make sense out of file saved_pixels.dat'
               if (my_id .eq. 0) write(*,*)'         You should rerun with save_pixel option'
@@ -979,8 +1020,28 @@ program process_hdf5_jorek
             ifail = 0
             if (i_elm .eq. 0) ifail = 99
           else
-            R_tmp = Rpix_min + float(i-1)/float(nx_pix-1) * (Rpix_max-Rpix_min)
-            Z_tmp = Zpix_min + float(j-1)/float(ny_pix-1) * (Zpix_max-Zpix_min)
+            ! --- With (r,theta)-coords, it's a bit more complicated
+            if (use_r_theta) then
+              ! --- Estimation of maximum radius based on domain size
+              radius_max = 2.0 * max(Rpix_max-Rpix_min,Zpix_max-Zpix_min)
+              ! --- Define theta
+              theta = 2.0 * PI * float(j-1)/float(ny_pix)
+              ! --- Only do the search once for each theta
+              if (i .eq. 1) then
+                call find_radius_with_angle(n_elements, n_nodes, elm_vertex, elm_size, RZ_nodes, R_axis, Z_axis, theta, radius_max, radius_find)
+              endif
+              ! --- Define radius
+              radius = radius_find * float(i-1)/float(nx_pix-1)
+              ! --- Get RZ-coords
+              R_tmp = R_axis + radius * cos(theta)
+              Z_tmp = Z_axis + radius * sin(theta)
+              radius_grid(i,j)            = radius
+              theta_grid(i,j)             = theta
+              normalised_radius_grid(i,j) = radius / radius_find
+            else
+              R_tmp = Rpix_min + float(i-1)/float(nx_pix-1) * (Rpix_max-Rpix_min)
+              Z_tmp = Zpix_min + float(j-1)/float(ny_pix-1) * (Zpix_max-Zpix_min)
+            endif
             Rgrid(i,j) = R_tmp
             Zgrid(i,j) = Z_tmp
             call find_RZ(n_elements, n_nodes, elm_vertex, elm_size, RZ_nodes, &
@@ -1170,6 +1231,11 @@ program process_hdf5_jorek
           else
             call mpi_recv(Rgrid(:,local_pix_start:local_pix_end),nrecv, MPI_DOUBLE_PRECISION, j, j, MPI_COMM_WORLD, status, ierr)
             call mpi_recv(Zgrid(:,local_pix_start:local_pix_end),nrecv, MPI_DOUBLE_PRECISION, j, j, MPI_COMM_WORLD, status, ierr)
+            if (use_r_theta) then
+              call mpi_recv(radius_grid           (:,local_pix_start:local_pix_end),nrecv, MPI_DOUBLE_PRECISION, j, j, MPI_COMM_WORLD, status, ierr)
+              call mpi_recv(theta_grid            (:,local_pix_start:local_pix_end),nrecv, MPI_DOUBLE_PRECISION, j, j, MPI_COMM_WORLD, status, ierr)
+              call mpi_recv(normalised_radius_grid(:,local_pix_start:local_pix_end),nrecv, MPI_DOUBLE_PRECISION, j, j, MPI_COMM_WORLD, status, ierr)
+            endif
           endif
           do i=1,n_data
             do k_tor = n_tor_min,n_tor_max
@@ -1196,6 +1262,11 @@ program process_hdf5_jorek
         else
           call mpi_send(Rgrid(:,local_pix_start:local_pix_end), nsend, MPI_DOUBLE_PRECISION, 0, my_id, MPI_COMM_WORLD, ierr)
           call mpi_send(Zgrid(:,local_pix_start:local_pix_end), nsend, MPI_DOUBLE_PRECISION, 0, my_id, MPI_COMM_WORLD, ierr)
+          if (use_r_theta) then
+            call mpi_send(radius_grid           (:,local_pix_start:local_pix_end), nsend, MPI_DOUBLE_PRECISION, 0, my_id, MPI_COMM_WORLD, ierr)
+            call mpi_send(theta_grid            (:,local_pix_start:local_pix_end), nsend, MPI_DOUBLE_PRECISION, 0, my_id, MPI_COMM_WORLD, ierr)
+            call mpi_send(normalised_radius_grid(:,local_pix_start:local_pix_end), nsend, MPI_DOUBLE_PRECISION, 0, my_id, MPI_COMM_WORLD, ierr)
+          endif
         endif
         do i=1,n_data
           do k_tor = n_tor_min,n_tor_max
@@ -1240,11 +1311,19 @@ program process_hdf5_jorek
           write(2,'(2i8)')  nx_pix, ny_pix
           write(2,'(4e21.11)')   Rpix_min, Rpix_max, Zpix_min, Zpix_max
           ! --- Write to image file
-          do i = 1,nx_pix
-            do j = 1,ny_pix
-              write(2,'(3i8,4e21.11)') i, j, i_elm_save(i,j), s_save(i,j), t_save(i,j), Rgrid(i,j), Zgrid(i,j)
+          if (use_r_theta) then
+            do i = 1,nx_pix
+              do j = 1,ny_pix
+                write(2,'(3i8,7e21.11)') i, j, i_elm_save(i,j), s_save(i,j), t_save(i,j), Rgrid(i,j), Zgrid(i,j), radius_grid(i,j), theta_grid(i,j), normalised_radius_grid(i,j)
+              enddo
             enddo
-          enddo
+          else
+            do i = 1,nx_pix
+              do j = 1,ny_pix
+                write(2,'(3i8,4e21.11)') i, j, i_elm_save(i,j), s_save(i,j), t_save(i,j), Rgrid(i,j), Zgrid(i,j)
+              enddo
+            enddo
+          endif
         endif
         close(2)
       endif
@@ -1260,71 +1339,210 @@ program process_hdf5_jorek
     ! --- Write data-file
     if ( (my_id .eq. 0) .and. (hdf5_data) ) then
       
-      ! --- Determine filename in case of list
-      if (filename_list) then
-        write(char_min,'(i0.5)')filename_index
-        write(filename_data,'(A10,A,A3)')'data_jorek',trim(char_min),'.h5'
-      endif
-
-      ! --- Open jorek h5 file.
-      call HDF5_create(trim(filename_data),data_id,error)
-      if (error .ne. 0) then
-        if (my_id .eq. 0) write(*,*)'Failed to open file ',trim(filename_data)
-        if (my_id .eq. 0) write(*,*)'aborting...'
-        stop
-      endif
-      write(*,*) 'Now writing data file : ', trim(filename_data)
-      call HDF5_real_saving   (data_id,time_now,'time_now')
-      if (use_3D_grid) then
-        call HDF5_integer_saving(data_id,nx_3D,'nX')
-        call HDF5_integer_saving(data_id,ny_3D,'nY')
-        call HDF5_integer_saving(data_id,nz_3D,'nZ')
-        call HDF5_real_saving   (data_id,Xpix_min,'Xmin')
-        call HDF5_real_saving   (data_id,Xpix_max,'Xmax')
-        call HDF5_real_saving   (data_id,Ypix_min,'Ymin')
-        call HDF5_real_saving   (data_id,Ypix_max,'Ymax')
-        call HDF5_real_saving   (data_id,Zpix_min,'Zmin')
-        call HDF5_real_saving   (data_id,Zpix_max,'Zmax')
-        allocate(my_var3D(nx_3D,ny_3D,nz_3D))
-        do i=1,ny_pix
-          my_var3D(Xindex3D(i),Yindex3D(j),Zindex3D(i)) = Xgrid3D(i)
-        enddo
-        call HDF5_array3D_saving(data_id,my_var3D,nx_3D,ny_3D,nz_3D,'Xgrid(nX,nY,nZ)')
-        do i=1,ny_pix
-          my_var3D(Xindex3D(i),Yindex3D(j),Zindex3D(i)) = Ygrid3D(i)
-        enddo
-        call HDF5_array3D_saving(data_id,my_var3D,nx_3D,ny_3D,nz_3D,'Ygrid(nX,nY,nZ)')
-        do i=1,ny_pix
-          my_var3D(Xindex3D(i),Yindex3D(j),Zindex3D(i)) = Zgrid3D(i)
-        enddo
-        call HDF5_array3D_saving(data_id,my_var3D,nx_3D,ny_3D,nz_3D,'Zgrid(nX,nY,nZ)')
-        do k = 1,n_data
-          do i=1,ny_pix
-            my_var3D(Xindex3D(i),Yindex3D(j),Zindex3D(i)) = my_var(1,i,1,k)
-          enddo
-          call HDF5_array3D_saving(data_id,my_var3D,nx_3D,ny_3D,nz_3D,trim(variable_names(i_var(k))))
-        enddo
-        deallocate(my_var3D)
-      else
-        call HDF5_integer_saving(data_id,nx_pix,'nR')
-        call HDF5_integer_saving(data_id,ny_pix,'nZ')
-        call HDF5_real_saving   (data_id,Rpix_min,'Rmin')
-        call HDF5_real_saving   (data_id,Rpix_max,'Rmax')
-        call HDF5_real_saving   (data_id,Zpix_min,'Zmin')
-        call HDF5_real_saving   (data_id,Zpix_max,'Zmax')
-        call HDF5_array2D_saving(data_id,Rgrid,nx_pix,ny_pix,'Rgrid(nR,nZ)')
-        call HDF5_array2D_saving(data_id,Zgrid,nx_pix,ny_pix,'Zgrid(nR,nZ)')
-        if (fourier) then
+      ! --- Write a compact HDF5 file with all the timesteps
+      if (hdf5_compact .and. (filename_min .ne. filename_max) ) then
+        ! --- Actions at the first step
+        if (filename_index .eq. filename_min) then
+          ! --- Allocate data
+          n_times = (filename_max-filename_min)/filename_step + 1
+          allocate(time_record(n_times))
+          if (use_3D_grid) then
+            allocate(my_var3D_time(nx_3D,ny_3D,nz_3D,n_data,n_times))
+          else
+            allocate(my_var_time(nx_pix,ny_pix,n_tor_max-n_tor_min+1,n_data,n_times))
+          endif
+        endif
+        ! --- Record time-dependent data
+        i_times = (filename_index - filename_min) / filename_step + 1
+        time_record(i_times) = time_now
+        if (use_3D_grid) then
           do k = 1,n_data
-            call HDF5_array3D_saving(data_id,my_var(:,:,:,k), nx_pix,ny_pix,n_tor_max-n_tor_min,trim(variable_names(i_var(k))))
+            do i=1,ny_pix
+              my_var3D_time(Xindex3D(i),Yindex3D(j),Zindex3D(i),k,i_times) = my_var(1,i,1,k)
+            enddo
           enddo
         else
-          do k = 1,n_data
-            call HDF5_array2D_saving(data_id,my_var(:,:,1,k), nx_pix,ny_pix,trim(variable_names(i_var(k))))
-          enddo
+          if (fourier) then
+            do k = 1,n_data
+              do i=1,nx_pix
+                do j=1,ny_pix
+                  do k_tor = n_tor_min, n_tor_max
+                    my_var_time(i,j,k_tor,k,i_times) = my_var(i,j,k_tor,k)
+                  enddo
+                enddo
+              enddo
+            enddo
+          else
+            do k = 1,n_data
+              do i=1,nx_pix
+                do j=1,ny_pix
+                  my_var_time(i,j,1,k,i_times) = my_var(i,j,1,k)
+                enddo
+              enddo
+            enddo
+          endif
         endif
-      endif
-      call HDF5_close(data_id)
+
+        ! --- Actions at the last step
+        if (filename_index .eq. filename_max) then
+          ! --- Open jorek h5 file.
+          call HDF5_create(trim(filename_data),data_id,error)
+          if (error .ne. 0) then
+            if (my_id .eq. 0) write(*,*)'Failed to open file ',trim(filename_data)
+            if (my_id .eq. 0) write(*,*)'aborting...'
+            stop
+          endif
+          write(*,*) 'Now writing data file : ', trim(filename_data)
+          ! --- Save grid
+          if (use_3D_grid) then
+            call HDF5_integer_saving(data_id,nx_3D,'nX')
+            call HDF5_integer_saving(data_id,ny_3D,'nY')
+            call HDF5_integer_saving(data_id,nz_3D,'nZ')
+            call HDF5_real_saving   (data_id,Xpix_min,'Xmin')
+            call HDF5_real_saving   (data_id,Xpix_max,'Xmax')
+            call HDF5_real_saving   (data_id,Ypix_min,'Ymin')
+            call HDF5_real_saving   (data_id,Ypix_max,'Ymax')
+            call HDF5_real_saving   (data_id,Zpix_min,'Zmin')
+            call HDF5_real_saving   (data_id,Zpix_max,'Zmax')
+            allocate(my_var3D(nx_3D,ny_3D,nz_3D))
+            do i=1,ny_pix
+              my_var3D(Xindex3D(i),Yindex3D(j),Zindex3D(i)) = Xgrid3D(i)
+            enddo
+            call HDF5_array3D_saving(data_id,my_var3D,nx_3D,ny_3D,nz_3D,'Xgrid(nX,nY,nZ)')
+            do i=1,ny_pix
+              my_var3D(Xindex3D(i),Yindex3D(j),Zindex3D(i)) = Ygrid3D(i)
+            enddo
+            call HDF5_array3D_saving(data_id,my_var3D,nx_3D,ny_3D,nz_3D,'Ygrid(nX,nY,nZ)')
+            do i=1,ny_pix
+              my_var3D(Xindex3D(i),Yindex3D(j),Zindex3D(i)) = Zgrid3D(i)
+            enddo
+            call hdf5_array3d_saving(data_id,my_var3d,nx_3d,ny_3d,nz_3d,'zgrid(nx,ny,nz)')
+            deallocate(my_var3d)
+          else
+            call HDF5_integer_saving(data_id,nx_pix,'nR')
+            call HDF5_integer_saving(data_id,ny_pix,'nZ')
+            call HDF5_real_saving   (data_id,Rpix_min,'Rmin')
+            call HDF5_real_saving   (data_id,Rpix_max,'Rmax')
+            call HDF5_real_saving   (data_id,Zpix_min,'Zmin')
+            call HDF5_real_saving   (data_id,Zpix_max,'Zmax')
+            call HDF5_array2D_saving(data_id,Rgrid,nx_pix,ny_pix,'Rgrid(nR,nZ)')
+            call HDF5_array2D_saving(data_id,Zgrid,nx_pix,ny_pix,'Zgrid(nR,nZ)')
+            if (use_r_theta) then
+              call HDF5_array2D_saving(data_id,radius_grid,           nx_pix,ny_pix,'radius_grid(nR,nZ)')
+              call HDF5_array2D_saving(data_id,theta_grid,            nx_pix,ny_pix,'theta_grid(nR,nZ)')
+              call HDF5_array2D_saving(data_id,normalised_radius_grid,nx_pix,ny_pix,'normalised_radius_grid(nR,nZ)')
+            endif
+          endif
+
+          ! --- save recorded time-dependent data
+          call HDF5_integer_saving(data_id,n_times,'n_times')
+          call HDF5_array1D_saving(data_id,time_record(:), n_times,'time(n_times)')
+          if (use_3D_grid) then
+            do k = 1,n_data
+              write(hdf5_dataname,'(A,A)')trim(variable_names(i_var(k))),'(nx,ny,nz,n_times)'
+              call hdf5_array4d_saving(data_id,my_var3D_time(:,:,:,k,:),nx_3d,ny_3d,nz_3d,n_times,hdf5_dataname)
+            enddo
+          else
+            if (fourier) then
+              do k = 1,n_data
+                write(hdf5_dataname,'(A,A)')trim(variable_names(i_var(k))),'(nR,nZ,n_tor,n_times)'
+                call HDF5_array4D_saving(data_id,my_var_time(:,:,:,k,:), nx_pix,ny_pix,n_tor_max-n_tor_min+1,n_times,hdf5_dataname)
+              enddo
+            else
+              do k = 1,n_data
+                write(hdf5_dataname,'(A,A)')trim(variable_names(i_var(k))),'(nR,nZ,n_times)'
+                call HDF5_array3D_saving(data_id,my_var_time(:,:,1,k,:), nx_pix,ny_pix,n_times,hdf5_dataname)
+              enddo
+            endif
+          endif
+
+          ! --- Deallocate data
+          deallocate(time_record)
+          if (use_3D_grid) then
+            deallocate(my_var3D_time)
+          else
+            deallocate(my_var_time)
+          endif
+          ! --- Close HDF5 file
+          call HDF5_close(data_id)
+        endif
+
+      ! --- Write one HDF5 file per timesteps
+      else
+
+        ! --- Determine filename in case of list
+        if (filename_list) then
+          write(char_min,'(i0.5)')filename_index
+          write(filename_data,'(A10,A,A3)')'data_jorek',trim(char_min),'.h5'
+        endif
+        
+        ! --- Open jorek h5 file.
+        call HDF5_create(trim(filename_data),data_id,error)
+        if (error .ne. 0) then
+          if (my_id .eq. 0) write(*,*)'Failed to open file ',trim(filename_data)
+          if (my_id .eq. 0) write(*,*)'aborting...'
+          stop
+        endif
+        write(*,*) 'Now writing data file : ', trim(filename_data)
+        call HDF5_real_saving   (data_id,time_now,'time_now')
+        if (use_3D_grid) then
+          call HDF5_integer_saving(data_id,nx_3D,'nX')
+          call HDF5_integer_saving(data_id,ny_3D,'nY')
+          call HDF5_integer_saving(data_id,nz_3D,'nZ')
+          call HDF5_real_saving   (data_id,Xpix_min,'Xmin')
+          call HDF5_real_saving   (data_id,Xpix_max,'Xmax')
+          call HDF5_real_saving   (data_id,Ypix_min,'Ymin')
+          call HDF5_real_saving   (data_id,Ypix_max,'Ymax')
+          call HDF5_real_saving   (data_id,Zpix_min,'Zmin')
+          call HDF5_real_saving   (data_id,Zpix_max,'Zmax')
+          allocate(my_var3D(nx_3D,ny_3D,nz_3D))
+          do i=1,ny_pix
+            my_var3D(Xindex3D(i),Yindex3D(j),Zindex3D(i)) = Xgrid3D(i)
+          enddo
+          call HDF5_array3D_saving(data_id,my_var3D,nx_3D,ny_3D,nz_3D,'Xgrid(nX,nY,nZ)')
+          do i=1,ny_pix
+            my_var3D(Xindex3D(i),Yindex3D(j),Zindex3D(i)) = Ygrid3D(i)
+          enddo
+          call HDF5_array3D_saving(data_id,my_var3D,nx_3D,ny_3D,nz_3D,'Ygrid(nX,nY,nZ)')
+          do i=1,ny_pix
+            my_var3D(Xindex3D(i),Yindex3D(j),Zindex3D(i)) = Zgrid3D(i)
+          enddo
+          call HDF5_array3D_saving(data_id,my_var3D,nx_3D,ny_3D,nz_3D,'Zgrid(nX,nY,nZ)')
+          do k = 1,n_data
+            do i=1,ny_pix
+              my_var3D(Xindex3D(i),Yindex3D(j),Zindex3D(i)) = my_var(1,i,1,k)
+            enddo
+            call HDF5_array3D_saving(data_id,my_var3D,nx_3D,ny_3D,nz_3D,trim(variable_names(i_var(k))))
+          enddo
+          deallocate(my_var3D)
+        else
+          call HDF5_integer_saving(data_id,nx_pix,'nR')
+          call HDF5_integer_saving(data_id,ny_pix,'nZ')
+          call HDF5_real_saving   (data_id,Rpix_min,'Rmin')
+          call HDF5_real_saving   (data_id,Rpix_max,'Rmax')
+          call HDF5_real_saving   (data_id,Zpix_min,'Zmin')
+          call HDF5_real_saving   (data_id,Zpix_max,'Zmax')
+          call HDF5_array2D_saving(data_id,Rgrid,nx_pix,ny_pix,'Rgrid(nR,nZ)')
+          call HDF5_array2D_saving(data_id,Zgrid,nx_pix,ny_pix,'Zgrid(nR,nZ)')
+          if (use_r_theta) then
+            call HDF5_array2D_saving(data_id,radius_grid,           nx_pix,ny_pix,'radius_grid(nR,nZ)')
+            call HDF5_array2D_saving(data_id,theta_grid,            nx_pix,ny_pix,'theta_grid(nR,nZ)')
+            call HDF5_array2D_saving(data_id,normalised_radius_grid,nx_pix,ny_pix,'normalised_radius_grid(nR,nZ)')
+          endif
+          if (fourier) then
+            do k = 1,n_data
+              call HDF5_array3D_saving(data_id,my_var(:,:,:,k), nx_pix,ny_pix,n_tor_max-n_tor_min,trim(variable_names(i_var(k))))
+            enddo
+          else
+            do k = 1,n_data
+              call HDF5_array2D_saving(data_id,my_var(:,:,1,k), nx_pix,ny_pix,trim(variable_names(i_var(k))))
+            enddo
+          endif
+        endif
+        call HDF5_close(data_id)
+
+      endif ! hdf5_compact
+
     endif ! my_id=0
       
     !***********************************************************************
@@ -1396,6 +1614,11 @@ program process_hdf5_jorek
         write(2,'(4e21.11)')   Rpix_min, Rpix_max, Zpix_min, Zpix_max
         write(2,'(A21)',advance='no')  'R'
         write(2,'(A21)',advance='no')  'Z'
+        if (use_r_theta) then
+          write(2,'(A21)',advance='no')  'radius'
+          write(2,'(A21)',advance='no')  'theta'
+          write(2,'(A21)',advance='no')  'normalised_radius'
+        endif
         do k = 1,n_data
           do k_tor = n_tor_min, n_tor_max
             if (fourier) then
@@ -1421,6 +1644,7 @@ program process_hdf5_jorek
           write(*,"(' Processing  ... ',I0,'%',A,$)") int(progress),CHAR(13)
           do j = 1,ny_pix
             write(2,'(2e21.11)',advance='no') Rgrid(i,j),Zgrid(i,j)
+            if (use_r_theta) write(2,'(3e21.11)',advance='no') radius_grid(i,j),theta_grid(i,j),normalised_radius_grid(i,j)
             do k = 1,n_data
               do k_tor = n_tor_min, n_tor_max
                 write(2,'(e21.11)',advance='no') my_var(i,j,k_tor,k)
@@ -1673,6 +1897,7 @@ program process_hdf5_jorek
     deallocate(Xgrid3D,Ygrid3D,Zgrid3D)
   else
     deallocate(Rgrid,Zgrid)
+    if (use_r_theta) deallocate(radius_grid,theta_grid,normalised_radius_grid) 
   endif
   if ( save_pixels .or. use_pixel_file .or. filename_list ) deallocate(i_elm_save, s_save, t_save)
   
@@ -2309,6 +2534,77 @@ END subroutine RZ_minmax
 
 
 
+
+
+
+
+
+
+subroutine find_radius_with_angle(n_elm, n_nodes, elm_vertex, elm_size, RZ_nodes, R_axis, Z_axis, theta, radius_max, radius_find)
+
+  implicit none
+  
+  ! --- Routine parameters
+  integer, intent(in)    :: n_elm
+  integer, intent(in)    :: n_nodes
+  integer, intent(in)    :: elm_vertex(n_elm,4)
+  real*8,  intent(in)    :: elm_size(n_elm,4,4)
+  real*8,  intent(in)    :: RZ_nodes(n_nodes,4,2)
+  real*8,  intent(in)    :: R_axis, Z_axis
+  real*8,  intent(in)    :: theta, radius_max
+  real*8,  intent(inout) :: radius_find 
+  
+  ! --- Internal parameters
+  integer :: iter, n_iter
+  real*8  :: distance
+  real*8  :: R_prev,  Z_prev
+  real*8  :: R_left,  Z_left
+  real*8  :: R_right, Z_right
+  real*8  :: R_find,  Z_find
+  real*8  :: R_out,   Z_out
+  real*8  :: s_out,   t_out
+  integer :: ielm_out, ifail
+  real*8  :: accuracy
+
+  ! --- Brute force search of domain edge
+  R_left  = R_axis  
+  Z_left  = Z_axis  
+  R_right = R_axis + radius_max * cos(theta)
+  Z_right = Z_axis + radius_max * sin(theta)
+  R_find  = 0.5 * (R_left+R_right)
+  Z_find  = 0.5 * (Z_left+Z_right)
+  R_prev = R_find
+  Z_prev = Z_find
+
+  radius_find = 0.d0
+  accuracy = 1.d-6
+  n_iter   = 50
+  do iter=1,n_iter
+    call find_RZ(n_elm, n_nodes, elm_vertex, elm_size, RZ_nodes, R_find, Z_find, R_out, Z_out, ielm_out, s_out, t_out, ifail)
+    if (ifail .eq. 0) then
+      R_left  = R_out
+      Z_left  = Z_out
+    else
+      R_right = R_find
+      Z_right = Z_find
+    endif
+    R_find  = 0.5 * (R_left+R_right)
+    Z_find  = 0.5 * (Z_left+Z_right)
+    distance = sqrt( (R_prev-R_find)**2 + (Z_prev-Z_find)**2 )
+    if (distance .lt. accuracy) then
+      !radius_find = sqrt( (R_find-R_axis)**2 + (Z_find-Z_axis)**2 )
+      radius_find = sqrt( (R_left-R_axis)**2 + (Z_left-Z_axis)**2 )
+      exit
+    endif
+    R_prev = R_find
+    Z_prev = Z_find
+    if ( (iter .eq. n_iter) .and. (radius_find .eq. 0.d0) ) then
+      write(*,*)'WARNING: Failed to find radius of domain given theta'
+    endif
+  enddo
+
+  return 
+end subroutine
 
 
 

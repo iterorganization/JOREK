@@ -10,7 +10,6 @@ subroutine initialise(my_id, n_cpu, skip_help)
   use mod_clock, only: clck_init
   use data_structure, only: init_threads
   use basis_at_gaussian
-  use phys_module, only: gmres
   use mod_openadas, only : read_adf11
   use mod_impurity, only : init_imp_adas
 
@@ -91,11 +90,6 @@ subroutine initialise(my_id, n_cpu, skip_help)
     stop
   end if
 
-  ! --- MURGE with ntor=1 doesn't work up to now because i_tor is not allocated correctly
-  if (n_tor == 1) then
-    gmres     = .false.
-  end if
-
 #if (defined WITH_Neutrals) || (defined WITH_Impurities)
   ! --- Read ADAS data and generate coronal equilibrium if needed
   call init_imp_adas(my_id)
@@ -119,6 +113,7 @@ subroutine sanity_checks(my_id, n_cpu, mpi_required, mpi_provided)
   use wsmp_module
   use mod_parameters, only: n_tor, n_plane
   use phys_module
+  use gauss
 
   integer :: ierr, i
   integer, intent(in) :: my_id, n_cpu
@@ -152,11 +147,26 @@ subroutine sanity_checks(my_id, n_cpu, mpi_required, mpi_provided)
     stop
   endif
 
-  ! --- GMRES makes no sense with n_tor=1
-  if (n_tor == 1) then
-    write(*,*) 'Remark: Setting gmres=.false. since n_tor=1'
-    gmres     = .false. 
-  end if
+  ! WARNING for invalid values of n_order (needs to be odd)
+  if( mod(n_order+1,2) .ne. 0 )then
+    write(*,*) 'WARNING :'
+    write(*,*) 'n_order needs to be an odd integer'
+    call MPI_FINALIZE(IERR) 
+    stop
+  endif
+
+  ! WARNING for n_order>=7 if auto-generated mod_basisfunctions.f90 and gauss.f90 have not been created
+  if( (n_order .ge. 7) .and. (n_gauss .le. 8) )then
+    write(*,*) 'WARNING :'
+    write(*,*) 'if you are using n_order>=7 (ie. G3-Bezier or higher)'
+    write(*,*) 'you need to generate the routines mod_basisfunctions.f90 and gauss.f90'
+    write(*,*) 'using the code ./util/generate_codes_for_norder_gt_7.py'
+    write(*,*) 'please see'
+    write(*,*) 'https://www.jorek.eu/wiki/doku.php?id=gn_grid_tutorial#gn-continuous_grid_tutorial'
+    write(*,*) 'for instructions.'
+    call MPI_FINALIZE(IERR) 
+    stop
+  endif
 
 #if (!defined(USE_PASTIX))&&(!defined(USE_PASTIX6))
   if (use_pastix.or.use_pastix_eq) then
