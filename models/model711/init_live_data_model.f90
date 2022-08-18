@@ -32,11 +32,11 @@ subroutine init_live_data_model(file_handle)
     
     psin = real(i) / real(200) * 1.2d0
     
-    call density      (xpoint,xcase,0.d0,(/-99.d0,-99.d0/),psin,0.d0,1.d0,dens,dn_dpsi,d,d1,d2,d3,d4,d5,d6)
-    call temperature_i(xpoint,xcase,0.d0,(/-99.d0,-99.d0/),psin,0.d0,1.d0,temp_i,dTi_dpsi,d,d1,d2,d3,d4,d5,d6)
-    call temperature_e(xpoint,xcase,0.d0,(/-99.d0,-99.d0/),psin,0.d0,1.d0,temp_e,dTe_dpsi,d,d1,d2,d3,d4,d5,d6)
-    call sources      (xpoint,xcase,0.d0,(/-99.d0,-99.d0/),psin,0.d0,1.d0,S_rho,S_Ti,S_Te)
-    call FFprime      (xpoint,xcase,0.d0,(/-99.d0,-99.d0/),psin,0.d0,1.d0,FFp,dFFp_dpsi,d,d1,d2,d3, .true.)
+    call density      (xpoint,xcase,0.d0,(/-99.d0,+99.d0/),psin,0.d0,1.d0,dens,dn_dpsi,d,d1,d2,d3,d4,d5,d6)
+    call temperature_i(xpoint,xcase,0.d0,(/-99.d0,+99.d0/),psin,0.d0,1.d0,temp_i,dTi_dpsi,d,d1,d2,d3,d4,d5,d6)
+    call temperature_e(xpoint,xcase,0.d0,(/-99.d0,+99.d0/),psin,0.d0,1.d0,temp_e,dTe_dpsi,d,d1,d2,d3,d4,d5,d6)
+    call sources      (xpoint,xcase,0.d0,(/-99.d0,+99.d0/),psin,0.d0,1.d0,S_rho,S_Ti,S_Te)
+    call FFprime      (xpoint,xcase,0.d0,(/-99.d0,+99.d0/),psin,0.d0,1.d0,FFp,dFFp_dpsi,d,d1,d2,d3, .true.)
     d_perp  = get_dperp (psin)
     zki_perp = get_zk_iperp(psin)
     zke_perp = get_zk_eperp(psin)

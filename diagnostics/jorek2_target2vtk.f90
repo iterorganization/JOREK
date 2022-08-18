@@ -360,7 +360,7 @@ do m=1, n_plane
           D_prof   = get_dperp (psi_norm)
           ZK_prof  = get_zkperp(psi_norm)
 
-          ZKpar_T  = ZK_par * abs(max(T,T_min)/T_0)**2.5
+          ZKpar_T  = ZK_par * abs(max(T,T_min_ZKpar)/T_0)**2.5
 
           scalars(inode,1) = psi
           scalars(inode,2) = rho

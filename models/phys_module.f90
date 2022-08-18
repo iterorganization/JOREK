@@ -270,7 +270,14 @@ module phys_module
   real*8  :: heatsource_gauss_i_sig    !< Width over which ions Gaussian source extends
   
   !> @name Hyper-resistivity, -viscosity and -diffusivities
-  real*8  :: eta_num, visco_num, visco_par_num, D_perp_num, Zk_perp_num, Dn_perp_num, Zk_i_perp_num, Zk_e_perp_num
+  real*8  :: eta_num, visco_num, visco_par_num,                                      &
+             D_perp_num, D_perp_num_tanh, D_perp_num_tanh_psin, D_perp_num_tanh_sig, &
+             ZK_perp_num, ZK_i_perp_num, ZK_e_perp_num,                              &
+             ZK_perp_num_tanh, ZK_perp_num_tanh_psin, ZK_perp_num_tanh_sig,          &
+             ZK_i_perp_num_tanh, ZK_i_perp_num_tanh_psin, ZK_i_perp_num_tanh_sig,    &
+             ZK_e_perp_num_tanh, ZK_e_perp_num_tanh_psin, ZK_e_perp_num_tanh_sig
+  real*8  :: Dn_perp_num
+
   !> @name Shock-capturing terms
   logical :: use_sc  !< Use shock-capturing stabilization
   real*8  :: D_perp_sc_num, D_par_sc_num, Dn_pol_sc_num, Dn_p_sc_num
@@ -544,6 +551,7 @@ module phys_module
   real*8  :: SIG_private       !< Width with grid accumulation (for flux-aligned grid)
   real*8  :: SIG_up_priv       !< Width with grid accumulation (for flux-aligned grid)
   real*8  :: SIG_theta         !< Width with grid accumulation (for flux-aligned grid)
+  real*8  :: SIG_theta_up      !< Width with grid accumulation (for flux-aligned grid; only valid for double-null)
   real*8  :: SIG_leg_0         !< Width with grid accumulation (for flux-aligned grid)
   real*8  :: SIG_leg_1         !< Width with grid accumulation (for flux-aligned grid)
   real*8  :: SIG_up_leg_0      !< Width with grid accumulation (for flux-aligned grid)
@@ -562,6 +570,9 @@ module phys_module
   real*8  :: ZK_perp(10)   = 0.d0 !< Coefficients for perpendicular heat diffusion profile
   real*8  :: ZK_par               !< Parallel heat diffusion value in the plasma center
   real*8  :: ZK_par_max           !< Do not use larger parallel heat diffusion values for numerical reasons
+  real*8  :: T_min_ZKpar          !< Do not use smaller parallel heat diffusion values below this MHD temperature (Ti+Te); JOREK units
+  real*8  :: Ti_min_ZKpar         !< Do not use smaller parallel heat diffusion values below Ti; JOREK units
+  real*8  :: Te_min_ZKpar         !< Do not use smaller parallel heat diffusion values below Te; JOREK units
   real*8  :: ZK_par_SpitzerHaerm  !< Spitzer-Haerm parallel heat diffusion value in the plasma center (assuming a Z=1 plasma with Te=Ti)
   real*8  :: ZK_i_perp(10) = 0.d0 !< Coefficients for perpendicular ion heat diffusion profile
   real*8  :: ZK_e_perp(10) = 0.d0 !< Coefficients for perpendicular electron heat diffusion profile
@@ -880,14 +891,14 @@ module phys_module
   integer :: ranks_per_family(n_fam_max)              !< Number of MPI ranks per mode families
 
   !> @name Parameters for inexact newton solver
-  real*8  :: newton_start          !< start value for newton loop, i.e. delta_k = deltas*newton_start
-  real*8  :: newton_gamma          !< gamma for eps_k, i.e. eps^k=gamma*(|R(U_k,U^n)|/|R(U_k-1, U^n)|)**alpha
-  real*8  :: newton_alpha          !< alpha for eps_k, i.e. eps^k=gamma*(|R(U_k,U^n)|/|R(U_k-1, U^n)|)**alpha
-  real*8  :: newton_eps_a          !< abs. conv. criterion, i.e. |R(U_k,U^n)|<newton_eps_a+newton_eps_r*|R(U^n)|
-  real*8  :: newton_eps_r          !< rel. conv. criterion, i.e. |R(U_k,U^n)|<newton_eps_a+newton_eps_r*|R(U^n)|
-  real*8  :: newton_eps_0          !< solver tol. for the newton initial step
-  integer :: newton_max_iter       !< max. numer of newton iterations
-  real*8  :: newton_eps_gmres      !< alternative to eps_k, i.e. gmres_tol = min(eps_k, newton_eps_gmres)
+  !!
+  !! For more information see wiki:  https://www.jorek.eu/wiki/doku.php?id=inexact_newton_solver
+  real*8  :: newton_start          !< start value for newton loop
+  real*8  :: newton_gamma          !< gamma for computation of eps_k
+  real*8  :: newton_alpha          !< alpha for computation of eps_k
+  real*8  :: newton_eps_0          !< solver tol. for initial newton step
+  real*8  :: newton_eps_f          !< solver tol. for final newton step
+  integer :: newton_max_iter       !< max. number of newton iterations
   !> @name Parameters for adaptive time-stepping with inexact newton solver
   logical :: newton_adapt_time     !< switch for adaptive time-stepping
   real*8  :: newton_alpha_dt       !< fast convergence, increase tstep

@@ -127,11 +127,13 @@ do ms=1, n_gauss
       call FFprime        (xpoint, xcase, y_g(ms,mt), ES%Z_xpoint, eq_g(ms,mt), ES%psi_axis, ES%psi_bnd, &
                            zFFprime,dFFprime_dpsi,dFFprime_dz,dFFprime_dpsi2,dFFprime_dz2, dFFprime_dpsi_dz, .true.)
     endif
+#ifdef WITH_Vpar
     if (ivar_out .eq. var_Vpar) then
       call velocity       (xpoint, xcase, y_g(ms,mt), ES%Z_xpoint, eq_g(ms,mt), ES%psi_axis, ES%psi_bnd, &
                            zV,dV_dpsi,dV_dz,dV_dpsi2,dV_dz2,dV_dpsi_dz,dV_dpsi3,dV_dpsi_dz2, dV_dpsi2_dz)
       var_RHS = zV
     endif
+#endif
     if (ivar_out .eq. var_rhon) then
       call neutral_density(xpoint, xcase, y_g(ms,mt), ES%Z_xpoint, eq_g(ms,mt), ES%psi_axis, ES%psi_bnd, &
                            zrn,drn_dpsi,drn_dz,drn_dpsi2,drn_dz2,drn_dpsi_dz,drn_dpsi3,drn_dpsi_dz2, drn_dpsi2_dz)

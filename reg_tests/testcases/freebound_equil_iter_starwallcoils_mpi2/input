@@ -29,18 +29,18 @@
  
  n_pf_coils          = 12
 
- pf_coils( 1)%current    =  24135.15687851971    ! pf1 
- pf_coils( 2)%current    = -6944.444444444445    ! pf2 
- pf_coils( 3)%current    = -33351.26412049489    ! pf3 
- pf_coils( 4)%current    = -21777.516185991757   ! pf4 
- pf_coils( 5)%current    = -31365.31365313653    ! pf5 
- pf_coils( 6)%current    =  47670.87505441881    ! pf6               
- pf_coils( 7)%current    = 17771.2635379061367   ! cs3u
- pf_coils( 8)%current    = -5127.996389891697    ! cs2u
- pf_coils( 9)%current    = -11372.743682310469   ! cs1u
- pf_coils(10)%current    = -11372.743682310469   ! cs1l
- pf_coils(11)%current    = -7361.714801444044    ! cs2l
- pf_coils(12)%current    = -784.6389891696751    ! cs3l
+ pf_coils( 1)%current    = -24135.15687851971    ! pf1 
+ pf_coils( 2)%current    =  6944.444444444445    ! pf2 
+ pf_coils( 3)%current    =  33351.26412049489    ! pf3 
+ pf_coils( 4)%current    =  21777.516185991757   ! pf4 
+ pf_coils( 5)%current    =  31365.31365313653    ! pf5 
+ pf_coils( 6)%current    = -47670.87505441881    ! pf6               
+ pf_coils( 7)%current    = -17771.2635379061367   ! cs3u
+ pf_coils( 8)%current    = 5127.996389891697    ! cs2u
+ pf_coils( 9)%current    = 11372.743682310469   ! cs1u
+ pf_coils(10)%current    = 11372.743682310469   ! cs1l
+ pf_coils(11)%current    = 7361.714801444044    ! cs2l
+ pf_coils(12)%current    = 784.6389891696751    ! cs3l
  
  vert_FB_amp(1)          = -1.d0            ! pf1
  vert_FB_amp(6)          =  1.d0            ! pf6

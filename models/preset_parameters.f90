@@ -130,6 +130,7 @@ subroutine preset_parameters
   SIG_private = 0.1d0
   SIG_up_priv = 0.1d0
   SIG_theta   = 0.03d0
+  SIG_theta_up= 999.d0
   SIG_leg_0   = 0.05d0
   SIG_leg_1   = 0.2d0
   SIG_up_leg_0= 0.05d0
@@ -247,19 +248,26 @@ subroutine preset_parameters
   T_min              = 1.0d-20
   rho_min            = 1.0d-20
   T_min_neg          = -1.d12 !< only used if T_min_neg>0 , 2.01d-5*central_density*Tmin_ev (cd = 1, 20 eV)
+  T_min_ZKpar        = -1.d12 
+  Ti_min_ZKpar       = -1.d12 
+  Te_min_ZKpar       = -1.d12 
   rho_min_neg        = -1.d12
   
   corr_neg_temp_coef(:) = (/ 0.5, 0.5 /)
   corr_neg_dens_coef(:) = (/ 0.5, 0.5 /)
 
-  eta_num       = 0.d0
-  visco_num     = 0.d0
-  visco_par_num = 0.d0
-  D_perp_num    = 0.d0
-  ZK_perp_num   = 0.d0
-  ZK_i_perp_num = 0.d0
-  ZK_e_perp_num = 0.d0
-  Dn_perp_num   = 0.d0
+  eta_num            = 0.d0
+  visco_num          = 0.d0
+  visco_par_num      = 0.d0
+  D_perp_num         = 0.d0
+  D_perp_num_tanh    = 0.d0; D_perp_num_tanh_psin    = 3.d-1; D_perp_num_tanh_sig    = 1.d-1
+  ZK_perp_num        = 0.d0
+  ZK_perp_num_tanh   = 0.d0; ZK_perp_num_tanh_psin   = 3.d-1; ZK_perp_num_tanh_sig   = 1.d-1
+  ZK_i_perp_num      = 0.d0
+  ZK_i_perp_num_tanh = 0.d0; ZK_i_perp_num_tanh_psin = 3.d-1; ZK_i_perp_num_tanh_sig = 1.d-1
+  ZK_e_perp_num      = 0.d0
+  ZK_e_perp_num_tanh = 0.d0; ZK_e_perp_num_tanh_psin = 3.d-1; ZK_e_perp_num_tanh_sig = 1.d-1
+  Dn_perp_num        = 0.d0
 
   use_sc = .false.
   visco_sc_num     = 0.d0
@@ -542,7 +550,13 @@ subroutine preset_parameters
   
   export_for_nemec   = .false.
   
-  gmres              = .true.               ! Use iterative solver
+  ! Use iterative solver by default if n_tor>1.
+  if ( n_tor == 1) then
+    gmres            = .false.
+  else
+    gmres            = .true.
+  end if
+  
   gmres_max_iter     = 200                  ! Max number of GMRES iterations
   gmres_tol          = 1.d-8                ! converge tolerance GMRES
   gmres_4            = 1.d3                 ! error estimate GMRES (ratio preconditioned versus non-preconditioned error
@@ -551,21 +565,20 @@ subroutine preset_parameters
   max_steps_noUpdate = 10000000             ! redo preconditioner when steps without preconditioning matrix update > max_steps_noUpdate
   centralize_harm_mat= .true.              ! centralize harmonic matrices on toroidal master rank 
 
-  ! --- parameters for inexact newton algorithm in ../solvers/mod_inexact_newton.f90
+  ! --- Parameters for inexact newton algorithm in ../solvers/mod_inexact_newton.f90
+  ! --- For more information see wiki:  https://www.jorek.eu/wiki/doku.php?id=inexact_newton_solver 
   newton_start       = 5.d-1   !< start value for newton loop, i.e. delta_k = deltas*newton_start
-  newton_gamma       = 5.d-1   !< gamma for eps_k, i.e. eps_k=gamma*(|R(U_k,U^n)|/|R(U_k-1, U^n)|)**alpha
-  newton_alpha       = 2.0d0   !< alpha for eps_k, i.e. eps_k=gamma*(|R(U_k,U^n)|/|R(U_k-1, U^n)|)**alpha
-  newton_eps_a       = 1.d-6   !< abs. conv. criterion, i.e. |R(U_k,U^n)|<newton_eps_a+newton_eps_r*|R(U^n)|
-  newton_eps_r       = 1.d-5   !< rel. conv. criterion, i.e. |R(U_k,U^n)|<newton_eps_a+newton_eps_r*|R(U^n)|
-  newton_eps_0       = 1.d-4   !< solver tol for the initial newton step
-  newton_max_iter    = 20      !< max. numer of newton iterations
-  newton_eps_gmres   = 1.d-6   !< lower bound on eps_k, i.e. gmres_tol = max(eps_k, newton_eps_gmres)
+  newton_gamma       = 5.d-1   !< gamma for computation of eps_k
+  newton_alpha       = 2.0d0   !< alpha for computation of eps_k
+  newton_eps_0       = 1.d-4   !< solver tol for initial newton step
+  newton_eps_f       = 1.d-6   !< solver tol for final newton step
+  newton_max_iter    = 20      !< max. number of newton iterations
   ! --- parameters for adaptive time-stepping
   newton_adapt_time  = .false. !< switch for adaptive time-stepping
   newton_alpha_dt    = 1.05    !< fast convergence, increase tstep
   newton_beta_dt     = 0.95    !< slow convergence, decrease tstep
   newton_gamma_dt    = 0.75    !< non-convergence, recompute for decreased tstep
- 
+
   ! --- deprecated, code will stop if these parameters are set to .true. ---
   use_murge          = .false.
   use_murge_element  = .false.

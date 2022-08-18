@@ -32,7 +32,7 @@ namelist /in1/  tstep, nstep, tstep_n, nstep_n,                     &
                 SIG_closed, SIG_open, SIG_private, SIG_theta,       &
                 SIG_leg_0, SIG_leg_1, dPSI_open, dPSI_private,      &
                 SIG_up_leg_0, SIG_up_leg_1, SIG_up_priv,            &
-                SIG_outer, SIG_inner,                               &
+                SIG_outer, SIG_inner, SIG_theta_up,                 &
                 dPSI_outer, dPSI_inner, dPSI_up_priv,               &
                 nout, nout_projection, xr1, sig1, xr2, sig2,        &
                 R_begin, R_end, Z_begin, Z_end,                     &
@@ -155,12 +155,9 @@ namelist /in1/  tstep, nstep, tstep_n, nstep_n,                     &
                 weights_per_family, autodistribute_ranks,           &
                 ranks_per_family, cte_current_FB_fact, treat_axis,  &
                 Z_xpoint_limit, visco_par_heating,                  &
-                newton_start, newton_gamma, newton_alpha,           &
-                newton_eps_a, newton_eps_r, newton_max_iter,        &
-                newton_eps_gmres, newton_eps_0,  newton_adapt_time, &
+                newton_start,newton_gamma,newton_alpha,newton_eps_0,&
+                newton_max_iter,newton_eps_f,newton_adapt_time,     &
                 newton_alpha_dt, newton_beta_dt, newton_gamma_dt
-
-
 
 if (my_id .eq. 0) then
   ! --- Preset input parameters to reasonable default values.
