@@ -155,18 +155,8 @@ module mod_inexact_newton
     call new_thread_buffers()  ! for call construct_matrix()
 
     newton_loop: do newton_i = 1, newton_max_iter
-<<<<<<< HEAD
- 
-      !--- abort if maximum number of newton iterations is reached
-=======
-
-      if (gmres) then
-        iter_prev = iter_gmres
-        iter_gmres = gmres_max_iter
-      endif
       
       ! --- abort if maximum number of newton iterations is reached
->>>>>>> feature/nlin_tstep
       if (newton_i.eq.newton_max_iter) then
         exit_status = 1
         exit newton_loop
@@ -305,9 +295,12 @@ module mod_inexact_newton
     
     !--- if newton_adapt_time,  define newton_adapt_time_code
     if (newton_adapt_time) then
-      if ( exit_status.eq.0                                             ) newton_adapt_time_code = +1  ! fast convergence, increase next tstep
-      if ((exit_status.eq.0).and.( SUM(iter_array).ge.gmres_max_iter/2) ) newton_adapt_time_code = -1  ! slow convergence, reduce next tstep
-      if ((exit_status.eq.3).or.(exit_status.eq.1).or.(exit_status.eq.2)) newton_adapt_time_code = -2  ! no gmres/newton convergence or bad residue behaviour
+      ! fast convergence, increase next tstep
+      if ( exit_status.eq.0                                                   ) newton_adapt_time_code = +1      
+      ! slow convergence, reduce next tstep
+      if ((exit_status.eq.0).and.( SUM(gmres_iter_array).ge.gmres_max_iter/2) ) newton_adapt_time_code = -1
+      ! no gmres/newton convergence or bad residue behaviour
+      if ((exit_status.eq.3).or.(exit_status.eq.1).or.(exit_status.eq.2)      ) newton_adapt_time_code = -2
     else
     !--- if NOT newton_adapt_time, no convergence for exit_status=1,2,3
       if (exit_status /= 0) then
