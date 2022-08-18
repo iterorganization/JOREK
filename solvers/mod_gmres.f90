@@ -8,11 +8,10 @@ module mod_gmres
   use global_distributed_matrix, only: A_glob, IRN_glob, JCN_glob, RHS_glob, deltas, ndof_glob, nz_glob, &
                                        local_index_start, local_index_end, column_scaling
   implicit none
-  !private
-  public! :: gmres_driver, gmres_matrix_vector
-  real*8 :: rinfo(2)
-
-
+  real*8 :: rinfo(2)  ! access residues in inexact_newton
+  private
+  public :: gmres_driver, gmres_matrix_vector, rinfo
+ 
   contains
 
 !> Driver for the reverse communication GMRES routine from dPackgmres (CERFACS)
@@ -112,8 +111,8 @@ module mod_gmres
            if (my_id .eq. 0) then
              call drive_dgmres(n_dof,n_dof,m,lwork,work,irc,icntl,cntl,info,rinfo)
            endif
+
            call MPI_Bcast(rinfo,2,MPI_DOUBLE_PRECISION,0,MPI_COMM_WORLD,ierr)
-           ! call MPI_AllReduce(MPI_IN_PLACE,rinfo,2,MPI_DOUBLE_PRECISION,MPI_SUM,MPI_COMM_MASTER,ierr)
            call MPI_BCAST(irc,5,MPI_INTEGER_ALL,0,MPI_COMM_WORLD,ierr)
            revcom = irc(1)
            colx   = irc(2)

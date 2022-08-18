@@ -3,6 +3,9 @@
 !! Details may be found on p. 24 in:
 !! [1] Franck et al., Energy conservation and numerical stability for the 
 !!     reduced MHD models of the non-linear JOREK code, 2014, arXiv:1408.2099v3
+!!
+!! For more information see wiki:  https://www.jorek.eu/wiki/doku.php?id=inexact_newton_solver
+!! 
 !! ***WARNING*** Currently only support for jorek_model=199,303,501,502,600,710,711,712
 module mod_inexact_newton
 
@@ -46,9 +49,9 @@ module mod_inexact_newton
     ! --- end of arguments of construct_matrix
 
     ! --- import variables for the newton loop from models/preset_parameters.f90 or input file
-    use phys_module, only:  newton_start, newton_gamma,    newton_alpha, newton_eps_a, &
-                            newton_eps_r, newton_max_iter, newton_eps_gmres,           &
-                            newton_eps_0, gmres_max_iter, gmres, tstep     
+    use phys_module, only:  newton_start, newton_gamma, newton_alpha,    &
+                            newton_max_iter, newton_eps_f, newton_eps_0, &
+                            gmres_max_iter, gmres, tstep     
 
     implicit none
     
@@ -201,13 +204,13 @@ module mod_inexact_newton
         else
           FT  = MIN(newton_gamma*rhs_ratio**newton_alpha,FT_0)
         endif
-        eps_k = MAX(MIN(0.5*eps_k,FT), newton_eps_gmres)
+        eps_k = MAX(MIN(0.5*eps_k,FT), newton_eps_f)
       endif
  
       ! --- set variables for the solvers, tol is eps_k from [1]
       x(1:ndof)   = delta_k(1:ndof)
       b(1:ndof)   = rhs_k(1:ndof) 
-      tol         = MAX(eps_k, newton_eps_gmres)  ! set tol>=newton_eps_gmres, just as in standard gmres
+      tol         = MAX(eps_k, newton_eps_f)  ! set tol>=newton_eps_gmres, just as in standard gmres
 
       ! --- call solvers
 #ifdef USE_BICGSTAB
@@ -235,7 +238,7 @@ module mod_inexact_newton
       endif
 
       ! --- check convergence, B.E. on preconditioned residual <= newton_eps_gmres
-      if (rinfo(1).le.newton_eps_gmres) then 
+      if (rinfo(1).le.newton_eps_f) then 
         exit_status = 0
         exit newton_loop
       endif
@@ -258,8 +261,8 @@ module mod_inexact_newton
       write(*,'(A40,1f10.2,A1)')  'Elapsed time in inexact Newton loop:', tsecond, 's' 
       write(*,*)
       write(*,'(A3,A18,A55)') REPEAT('-',3), ' Input Parameters ', REPEAT('-',55)
-      write(*,'(A11,i9,A17,i4,A7,1f5.2,A7,1E9.2)')'n_step:', index_now, 'newton_iter_max:',newton_max_iter, 'alpha:', newton_alpha,'tol_0:', newton_eps_0
-      write(*,'(A11,1f9.3,A17,i4,A7,1f5.2,A7,1E9.2)')'t_step:', tstep, 'gmres_iter_max:', gmres_max_iter, 'gamma:', newton_gamma, 'tol_f:', newton_eps_gmres
+      write(*,'(A11,i9,A17,i4,A7,1f5.2,A7,1E9.2)')'n_step:', index_now, 'newton_iter_max:',newton_max_iter, 'alpha:', newton_alpha,'eps_0:', newton_eps_0
+      write(*,'(A11,1f9.3,A17,i4,A7,1f5.2,A7,1E9.2)')'t_step:', tstep, 'gmres_iter_max:', gmres_max_iter, 'gamma:', newton_gamma, 'eps_f:', newton_eps_f
       write(*,*)
       write(*,'(A3,A19,A54)') REPEAT('-',3), ' Iteration history ', REPEAT('-',54)
       write(*,'(A7,A9,5A12)') 'i_n', 'i_g', 'gmres_tol', '|R_k|', 'R_k/R_prev', 'prec_res', 'unprec_res'

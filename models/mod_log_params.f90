@@ -761,16 +761,14 @@ write(*,'(1x,a)',advance='no') ' USE_NEWTON : '
   write(*,LOGI_FMT) 'old_deuterium_atomic  ', old_deuterium_atomic
   write(*,LOGI_FMT) 'no_mach1_bc           ', no_mach1_bc
 
-!#ifdef USE_NEWTON
+#ifdef USE_NEWTON
   write(*,REAL_FMT) 'newton_start          ', newton_start    
   write(*,REAL_FMT) 'newton_gamma          ', newton_gamma    
   write(*,REAL_FMT) 'newton_alpha          ', newton_alpha    
-  write(*,REAL_FMT) 'newton_eps_a          ', newton_eps_a    
-  write(*,REAL_FMT) 'newton_eps_r          ', newton_eps_r
-  write(*,REAL_FMT) 'newton_eps_0          ', newton_eps_0    
-  write(*,INTG_FMT) 'newton_max_iter       ', newton_max_iter 
-  write(*,REAL_FMT) 'newton_eps_gmres      ', newton_eps_gmres
-!#endif
+  write(*,REAL_FMT) 'newton_eps_0          ', newton_eps_0     
+  write(*,REAL_FMT) 'newton_eps_f          ', newton_eps_f
+  write(*,INTG_FMT) 'newton_max_iter       ', newton_max_iter
+#endif
 
 #ifdef fullmhd
     write(*,LOGI_FMT) 'Mach1_openBC          ', Mach1_openBC

@@ -3,8 +3,8 @@
  restart = .f.
  regrid  = .f.
  refinement=.false.
- tstep   = 4000.
- nstep   = 50
+ tstep   = 1000.
+ nstep   = 0
 
  nout = 1
 
@@ -100,14 +100,4 @@
  gmres_4 = 1.d0
  gmres_max_iter = 200
  gmres_tol = 1.d-8
- use_strumpack = .false.
-
- newton_start       = 5.d-1
- newton_gamma       = 1.d-6
- newton_alpha       = 1.0d0
- newton_eps_a       = 1.d-6
- newton_eps_r       = 1.d-5
- newton_eps_0       = 1.d-4
- newton_max_iter    = 20   
- newton_eps_gmres   = 1.d-6
 /

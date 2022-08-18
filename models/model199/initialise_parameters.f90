@@ -121,8 +121,7 @@ namelist /in1/  tstep, nstep, tstep_n, nstep_n,                     &
                 weights_per_family, autodistribute_ranks,           &
                 ranks_per_family, cte_current_FB_fact, treat_axis,  &
                 newton_start, newton_gamma, newton_alpha,           &
-                newton_eps_a, newton_eps_r, newton_max_iter,        &
-                newton_eps_gmres, newton_eps_0
+                newton_max_iter, newton_eps_f, newton_eps_0
 
 if (my_id .eq. 0) then
 
