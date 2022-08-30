@@ -97,7 +97,8 @@ call tr_allocatep(mumps_par%rhs,Int1,mumps_par%n,"mumps_par%rhs",CAT_DMATRIX)
 
 call split_allgathersolve(n_cpu,my_id,counts,displacements)
 
-call MPI_AllReduce(RHS_glob,mumps_par%RHS,mumps_par%N,MPI_DOUBLE_PRECISION,MPI_SUM,MPI_COMM_WORLD,ierr)
+mumps_par%rhs => rhs_glob
+
 
 call clck_time(t1)
 call clck_ldiff(t0,t1,tsecond)
@@ -359,8 +360,8 @@ subroutine solve_pastix_all(n_cpu,my_id,index_min,index_max)
 
   call split_allgathersolve(n_cpu,my_id,counts,displacements)
 
-  call MPI_AllReduce(rhs_glob,mumps_par%rhs,mumps_par%n,MPI_DOUBLE_PRECISION,MPI_SUM,MPI_COMM_WORLD,ierr)
-  
+  mumps_par%rhs => rhs_glob
+
   call clck_time(t1)
   call clck_ldiff(t0,t1,tsecond)
   if (my_id .eq. 0)  write(*,FMT_TIMING) my_id, '## Elapsed time mpi_gather :', tsecond

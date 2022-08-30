@@ -26,7 +26,6 @@ module mod_inexact_newton
  
   implicit none
   integer :: newton_adapt_time_code = 0 ! report exit status of newton loop for tstep 
-  !logical :: newton_adapt_time = .true. ! use adaptive time stepping or not
   private
   public :: inexact_newton, adaptive_tstep, newton_adapt_time_code
   contains  
@@ -118,7 +117,7 @@ module mod_inexact_newton
     real(kind=C_DOUBLE),     allocatable              :: rinfo1(:), rinfo2(:)                  ! into logfile
     integer                                           :: i
     integer,                 allocatable              :: gmres_iter_array(:)                   ! stores no. of gmres iterations
-    integer                                           :: exit_status  ! 0: conv. achieved, 1: max newton iter, 2: max gmres iter
+    integer                                           :: exit_status  ! 0: conv., 1: max newton iter, 2: max gmres iter, 3: rhs_ratio>=1 for 2 n_i
     integer                                           :: n_RHSk_increase = 0 
     integer, dimension(8)                             :: supported_models=[199,303,501,502,600,710,711,712]
 
