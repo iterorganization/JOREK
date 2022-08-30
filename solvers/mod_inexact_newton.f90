@@ -116,7 +116,8 @@ module mod_inexact_newton
     real(kind=C_DOUBLE),     allocatable              :: rinfo1(:), rinfo2(:)                  ! into logfile
     integer                                           :: i
     integer,                 allocatable              :: gmres_iter_array(:)                   ! stores no. of gmres iterations
-    integer                                           :: exit_status  ! 0: conv. achieved, 1: max newton iter, 2: max gmres iter
+    integer                                           :: exit_status  ! 0: conv., 1: max newton iter, 2: max gmres iter, 3: rhs_ratio>=1 for 2 n_i
+    integer                                           :: n_RHSk_increase = 0 
     integer, dimension(8)                             :: supported_models=[199,303,501,502,600,710,711,712]
 
     ! --- allocate local variables and assign values 
@@ -190,7 +191,19 @@ module mod_inexact_newton
       ! --- compute norms for ratio
       normRHSk        = DSQRT(DOT_PRODUCT(rhs_k,rhs_k))
       rhs_ratio       = normRHSk/normRHSprev
-      normRHSprev     = normRHSk 
+      normRHSprev     = normRHSk
+
+      !--- abort if rhs_ratio >= 1 for more than 2 iterations
+      if ((rhs_ratio.ge.1).or.(isnan(rhs_ratio))) then
+        n_RHSk_increase = n_RHSk_increase + 1
+        if ((n_RHSk_increase.gt.2).or.(isnan(rhs_ratio))) then
+          iter_gmres  = iter_prev
+          exit_status = 3
+          exit newton_loop
+        endif
+      else
+        n_RHSk_increase = 0
+      endif 
 
       ! --- compute eps analogously to [1]
       FT_0    = newton_eps_0
@@ -257,6 +270,7 @@ module mod_inexact_newton
       if (exit_status.eq.0) write(*,'(A4,A30)') '','Convergence has been achieved.'
       if (exit_status.eq.2) write(*,'(A4,A27,i4,A12)') '','No GMRES convergence after ', iter_gmres, ' iterations.'
       if (exit_status.eq.1) write(*,'(A4,A44)') '','Maximum number of Newton iterations reached.'
+      if (exit_status.eq.3) write(*,'(A4,A48)') '','Bad behaviour: |R_k|>|R_k-1|, need to recompute.'
       write(*,'(A40,i4,A2,i4,A1)')'Number of Newton (GMRES) iterations:', newton_i,' (',SUM(gmres_iter_array),')'
       write(*,'(A40,1f10.2,A1)')  'Elapsed time in inexact Newton loop:', tsecond, 's' 
       write(*,*)
@@ -266,7 +280,8 @@ module mod_inexact_newton
       write(*,*)
       write(*,'(A3,A19,A54)') REPEAT('-',3), ' Iteration history ', REPEAT('-',54)
       write(*,'(A7,A9,5A12)') 'i_n', 'i_g', 'gmres_tol', '|R_k|', 'R_k/R_prev', 'prec_res', 'unprec_res'
-      if ((exit_status.eq.1).and.(newton_i>1)) newton_i=newton_i-1  ! in this case nothing was stored at i=newton_i
+      ! in this case nothing was stored at i=newton_i
+      if ( ( (exit_status.eq.1).and.(newton_i>1) ) .or. ( (exit_status.eq.3).and.(newton_i>1) )  ) newton_i=newton_i-1
       do i=1,newton_i
         write(*,'(i7,i9,5E12.4)') i,gmres_iter_array(i),tol_array(i),normRHSk_array(i),rhs_ratio_array(i),rinfo1(i),rinfo2(i)
       end do
