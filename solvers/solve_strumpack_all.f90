@@ -71,8 +71,8 @@ subroutine solve_strumpack_all(n_cpu,my_id,index_min,index_max)
 
   call split_allgathersolve(n_cpu,my_id,counts,displacements)
 
-  call MPI_AllReduce(rhs_glob,mumps_par%rhs,mumps_par%n,MPI_DOUBLE_PRECISION,MPI_SUM,MPI_COMM_WORLD,ierr)
-  
+  mumps_par%RHS => RHS_glob
+
   call clck_time(t1)
   call clck_ldiff(t0,t1,tsecond)
   if (my_id .eq. 0)  write(*,FMT_TIMING) my_id, '## Elapsed time mpi_gather :', tsecond
