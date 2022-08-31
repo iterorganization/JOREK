@@ -331,8 +331,16 @@ module mod_inexact_newton
     use phys_module, only: newton_alpha_dt, newton_beta_dt, newton_gamma_dt 
     implicit none
     real*8 ::  t_min, tstep
-    integer :: newton_adapt_time_code
+    integer :: newton_adapt_time_code, ierr
     t_min          = 0.001   
+
+    !--- abort if no convergence is reached for tstep=t_min    
+    if ((newton_adapt_time_code.eq.-2).and.(tstep.eq.t_min)) then
+        write(*,*) 'No convergence for tstep=t_min. Aborting.'
+        call MPI_Finalize(ierr)
+        stop
+    endif
+
     if (newton_adapt_time_code.eq.+1) tstep = tstep*newton_alpha_dt              ! fast convergence, increase next tstep
     if (newton_adapt_time_code.eq.-1) tstep = MAX(tstep*newton_beta_dt , t_min)  ! slow convergence, reduce next tstep
     if (newton_adapt_time_code.eq.-2) tstep = MAX(tstep*newton_gamma_dt, t_min)  ! no gmres/newton convergence or bad residue behaviour
