@@ -18,7 +18,7 @@ integer               :: n_scalars_base, n_vectors_base
 integer               :: n_forces_vectors, n_gvec_scalars, n_gvec_vectors
 integer               :: s_vectors_forces, s_scalars_gvec, s_vectors_gvec
 real*4,allocatable    :: xyz (:,:), scalars(:,:), vectors(:,:,:)
-real*8,allocatable    :: HZ(:,:), HZ_p(:,:), HZ_coord(:,:), HZ_coord_p(:,:)
+real*8,allocatable    :: HZ(:,:), HZ_p(:,:), HZ_pp(:,:), HZ_coord(:,:), HZ_coord_p(:,:)
 integer,allocatable   :: ien (:,:)
 integer, parameter    :: ivtk = 22 ! an arbitrary unit number for the VTK output file
 integer               :: i, j, k, m, etype, irst, int, i_var, i_tor, index, index_node, n_points, k_tor
@@ -31,13 +31,14 @@ real*8                :: P,P_s,P_t,P_st,P_ss,P_tt
 real*8                :: R,R_s,R_t,R_phi,R_st,R_ss,R_tt,R_sp,R_tp,R_pp
 real*8                :: Z,Z_s,Z_t,Z_p,Z_st,Z_ss,Z_tt,Z_sp,Z_tp,Z_pp
 real*8                :: Psi,Ps_s,Ps_t,Ps_st,Ps_ss,Ps_tt, ZJ,ZJ_s,ZJ_t,ZJ_st,ZJ_ss,ZJ_tt, W,W_s,W_t,W_st,W_ss,W_tt
-real*8                :: ps_p, ps_xp, ps_yp,ps_x_itor, ps_y_itor
+real*8                :: ps_p, ps_phi, ps_sx, ps_sy, ps_tx, ps_ty, ps_xx, ps_yy, ps_xy, ps_xp, ps_yp,ps_pp, ps_yphi, ps_xphi, ps_phiphi, ps_x_itor, ps_y_itor
+real*8                :: Lap_ps
 real*8                :: U,U_s,U_t,U_st,U_ss,U_tt, RHO,RH_s,RH_t,RH_st,RH_ss,RH_tt, TT,TT_s,TT_t,TT_st,TT_ss,TT_tt
 real*8                :: u_x, u_y, u_p
 real*8                :: rho_x, rho_y, rho_p
 real*8                :: TT_x, TT_y, TT_p
-real*8                :: u0_x, u0_y, xjac, v_perp, Psi_J, R_p, error, zj_x, zj_y, ps_x, ps_y
-real*8                :: Bx, By, Bz
+real*8                :: u0_x, u0_y, xjac, xjac_s, xjac_t, xjac_x, xjac_y, v_perp, Psi_J, R_p, error, zj_x, zj_y, ps_x, ps_y
+real*8                :: BR, BZ, BP
 real*8                :: BR_gvec, BRg,BRg_s,BRg_t,BRg_st,BRg_ss,BRg_tt, BR_R, BR_Z, BR_P
 real*8                :: BZ_gvec, BZg,BZg_s,BZg_t,BZg_st,BZg_ss,BZg_tt, BZ_R, BZ_Z, BZ_P
 real*8                :: BP_gvec, Bpg,Bpg_s,Bpg_t,Bpg_st,Bpg_ss,Bpg_tt, BP_R, BP_Z, BP_P
@@ -62,9 +63,9 @@ nsub            = 3        		! Number of subdivisions of the cubic finite elemen
 without_n0_mode = .false.  		! If true, do not include the n=0 mode (i_tor=1)
 periodic        = .false.		! Are we doing the whole tor?
 density_only    = .false.		! Write density only (for smaller vtk file)
-n_toroidal      = 24 !n_plane 		! Number of toroidal snapshots
+n_toroidal      = 6 !n_plane 		! Number of toroidal snapshots
 RphiZ_coords    = .false.               ! use xyz transformation from JOREK wiki 
-include_forces  = .false.               ! calculate the force balance of the JOREK fields
+include_forces  = .true.               ! calculate the force balance of the JOREK fields
 include_gvec_fields    = .true.               ! include the imported fields from GVEC (only makes sense for stellarator simulations) 
 
 ! --- Read parameters from namelist file 'vtk.nml' if it exists
@@ -168,6 +169,7 @@ n_points = nsub*nsub*element_list%n_elements        ! number of points in one po
 
 allocate(HZ(n_tor,n_toroidal))
 allocate(HZ_p(n_tor,n_toroidal))
+allocate(HZ_pp(n_tor,n_toroidal))
 allocate(HZ_coord(n_coord_tor,n_toroidal))
 allocate(HZ_coord_p(n_coord_tor,n_toroidal))
 
@@ -179,8 +181,12 @@ do m=1,n_toroidal
   endif
   HZ(1,m)   = 1.d0
   do i=1,(n_tor-1)/2
-    HZ(2*i,m)     = cos(mode(2*i)  *phi)
-    HZ(2*i+1,m)   = sin(mode(2*i+1)*phi)
+    HZ(2*i,m)     =                        cos(mode(2*i)  *phi)
+    HZ_p(2*i,m)   = -float(mode(2*i))    * sin(mode(2*i)  *phi)
+    HZ_pp(2*i,m)  = -float(mode(2*i))**2 * cos(mode(2*i)  *phi)
+    HZ(2*i+1,m)   =                        sin(mode(2*i+1)*phi)
+    HZ_p(2*i+1,m) =  float(mode(2*i))    * cos(mode(2*i+1)*phi)
+    HZ_pp(2*i+1,m)= -float(mode(2*i))**2 * sin(mode(2*i+1)*phi)
   enddo
 
   HZ_coord(1,m) = 1.0
@@ -218,8 +224,11 @@ do m=1, n_toroidal
         inode = inode+1
          
         xjac  = R_s * Z_t - R_t * Z_s
+        xjac_s = R_ss*Z_t + R_s*Z_st - R_st*Z_s - R_t*Z_ss
+        xjac_t = R_st*Z_t + R_s*Z_tt - R_tt*Z_s - R_t*Z_st
+        xjac_x = (xjac_s*Z_t - xjac_t*Z_s) / xjac
+        xjac_y = (R_s*xjac_t - R_t*xjac_s) / xjac
         if ( xjac == 0.d0 ) xjac = 1.d-8 ! (workaround to avoid floating invalid)
-
 
         if (RphiZ_coords) then
           xyz(1:3,inode) = (/ R * cos(angle), -R*sin(angle), Z /)   !from the JOREK wiki
@@ -227,7 +236,8 @@ do m=1, n_toroidal
           xyz(1:3,inode) = (/ R * cos(angle), Z, R*sin(angle) /)
         endif
 
-        ps_x = 0.d0; ps_y = 0.d0; ps_p = 0.d0
+        ps_x  = 0.d0; ps_y  = 0.d0; ps_p  = 0.d0
+        ps_xx = 0.d0; ps_yy = 0.d0; ps_xy = 0.d0; ps_yp = 0.d0; ps_xp = 0.d0; ps_pp = 0.d0
         do i_tor = 1,n_tor
 
           if ( ( i_tor == 1 ) .and. ( without_n0_mode ) ) cycle ! Do not include the n=0 mode
@@ -241,10 +251,25 @@ do m=1, n_toroidal
             scalars(inode,1) = scalars(inode,1) + P * HZ(i_tor,m)
 
             ps_x  = ps_x + (  Z_t * P_s - Z_s * P_t  ) / xjac * HZ(i_tor,m)
-            ps_y  = ps_y + ( - R_t * P_s + R_s * P_t ) / xjac * HZ(i_tor,m)
+            ps_y  = ps_y + ( -R_t * P_s + R_s * P_t ) / xjac * HZ(i_tor,m)
             if ((jorek_model .eq. 083) .or. (jorek_model .eq. 183)) then
+                ! Get psi_p for B_JOREK field representation
                 ps_p = ps_p + P*HZ_p(i_tor,m) - (   Z_t * P_s - Z_s * P_t ) / xjac * HZ(i_tor,m)*R_phi &
                                               - ( - R_t * P_s + R_s * P_t ) / xjac * HZ(i_tor,m)*Z_p
+
+                ! Get higher derivatives for J_JOREK representation
+                ps_sx = ((Z_st * P_s + Z_t * P_ss - Z_ss * P_t - Z_s * P_st) * xjac - xjac_s * (  Z_t * P_s - Z_s * P_t  )) / xjac ** 2
+                ps_tx = ((Z_tt * P_s + Z_t * P_st - Z_st * P_t - Z_s * P_tt) * xjac - xjac_t * (  Z_t * P_s - Z_s * P_t  )) / xjac ** 2 
+                ps_xx = ps_xx + ( Z_t * ps_sx - Z_s * ps_tx) / xjac * HZ(i_tor, m)
+                
+                ps_sy = (( -R_st * P_s - R_t * P_ss + R_ss * P_t + R_s * P_st) * xjac - xjac_s * ( -R_t * P_s + R_s * P_t  )) / xjac ** 2
+                ps_ty = (( -R_tt * P_s - R_t * P_st + R_st * P_t + R_s * P_tt) * xjac - xjac_t * ( -R_t * P_s + R_s * P_t  )) / xjac ** 2 
+                ps_yy = ps_yy + ( -R_t * ps_sy + R_s * ps_ty) / xjac * HZ(i_tor, m)
+                ps_xy = ps_xy + ( -R_t * ps_sx + R_s * ps_tx ) / xjac * HZ(i_tor,m)
+                
+                ps_xp = ps_xp + (  Z_t * P_s - Z_s * P_t  ) / xjac * HZ_p(i_tor,m)
+                ps_yp = ps_yp + ( -R_t * P_s + R_s * P_t  ) / xjac * HZ_p(i_tor,m)
+                ps_pp = ps_pp +  P * HZ_pp(i_tor,m)
             endif
 
             call interp(node_list,element_list,i,var_u,i_tor,s,t,U,U_s,U_t,U_st,U_ss,U_tt)
@@ -279,12 +304,12 @@ do m=1, n_toroidal
         enddo
         
         if (     (jorek_model .eq. 083).or. (jorek_model .eq. 183) )then
-            Bx = chi(1,0,0)      + (ps_y*chi(0,0,1) - ps_p*chi(0,1,0))/(F0*R)
-            By = chi(0,1,0)      - (ps_x*chi(0,0,1) - ps_p*chi(1,0,0))/(F0*R)
-            Bz = chi(0,0,1)/R    + (ps_x*chi(0,1,0) - ps_y*chi(1,0,0))/F0       
-            vectors(inode,1:3, 1) = (/ Bx * cos(angle) - Bz * sin(angle), &
-                                       By, &
-                                       Bx * sin(angle) + Bz * cos(angle) /)
+            BR = chi(1,0,0)      + (ps_y*chi(0,0,1) - ps_p*chi(0,1,0))/(F0*R)
+            BZ = chi(0,1,0)      - (ps_x*chi(0,0,1) - ps_p*chi(1,0,0))/(F0*R)
+            BP = chi(0,0,1)/R    + (ps_x*chi(0,1,0) - ps_y*chi(1,0,0))/F0       
+            vectors(inode,1:3, 1) = (/ BR * cos(angle) - BP * sin(angle), &
+                                       BZ, &
+                                       BR * sin(angle) + BP * cos(angle) /)
 
             vectors(inode,1:3, 2) = (/ -R * u_y * cos(angle) - u_p * sin(angle), &
                                         R * u_x, &
@@ -343,9 +368,9 @@ do m=1, n_toroidal
                                    PZ_gvec, &
                                    PR_gvec * sin(angle) + PP_gvec * cos(angle) /)        
 
-          FR_gvec = (JP_gvec * BZ_gvec - JZ_gvec * BP_gvec) - PR_gvec
-          FZ_gvec = (JR_gvec * BP_gvec - JP_gvec * BR_gvec) - PZ_gvec
-          FP_gvec = (JZ_gvec * BR_gvec - JR_gvec * BZ_gvec) - PP_gvec
+          FR_gvec = (JP_gvec * BZ_gvec - JZ_gvec * BP_gvec) / MU_ZERO  - PR_gvec 
+          FZ_gvec = (-JR_gvec * BP_gvec + JP_gvec * BR_gvec) / MU_ZERO - PZ_gvec
+          FP_gvec = (JZ_gvec * BR_gvec - JR_gvec * BZ_gvec) / MU_ZERO  - PP_gvec 
           vectors(inode,:, s_vectors_gvec+4) = (/ FR_gvec * cos(angle) - FP_gvec * sin(angle), &
                                    FZ_gvec, &
                                    FR_gvec * sin(angle) + FP_gvec * cos(angle) /)
@@ -353,8 +378,57 @@ do m=1, n_toroidal
 
         if (include_forces) then
 #if ((JOREK_MODEL == 183) || (JOREK_MODEL == 083))
-          write(*,*) 'Inclusion of the JOREK forces is not implemented yet for stellarators!'
-          stop
+          ! Get Jorek magnetic field
+          BR = chi(1,0,0)      + (ps_y*chi(0,0,1) - ps_p*chi(0,1,0))/(F0*R)
+          BZ = chi(0,1,0)      - (ps_x*chi(0,0,1) - ps_p*chi(1,0,0))/(F0*R)
+          BP = chi(0,0,1)/R    + (ps_x*chi(0,1,0) - ps_y*chi(1,0,0))/F0
+          
+          ! Get Jorek current
+          ps_xphi   = ps_xp - R_phi*ps_xx - Z_p*ps_xy
+          ps_yphi   = ps_yp - R_phi*ps_xy - Z_p*ps_yy
+          ps_phiphi = ps_pp - R_phi * ps_xp - Z_p * ps_yp 
+          
+          Lap_ps    = ps_xx + ps_x/R + ps_yy + ps_phiphi/R**2
+
+          ! j = (grad(chi).grad)grad(psi)    - Lap(psi)     -     (grad(psi).grad)grad(chi)
+          JR = (chi(1,0,0)*ps_xx + chi(0,0,1)/R**2*ps_xphi + chi(0,1,0)*ps_xy                            - chi(1,0,0) * Lap_ps   &
+               - (chi(2,0,0)*ps_x + chi(1,0,1)/R**2*ps_phi + chi(1,1,0)*ps_y)) / F0         
+          JZ = (chi(1,0,0)*ps_xy + chi(0,0,1)/R**2*ps_yphi + chi(0,1,0)*ps_yy                            - chi(0,1,0) * Lap_ps   &
+               - (chi(1,1,0)*ps_x + chi(0,1,1)/R**2*ps_phi + chi(0,2,0)*ps_y)) / F0
+          JP = (chi(1,0,0)*(ps_xphi/R - ps_phi/R**2) + chi(0,0,1)*ps_phiphi/R**3 + chi(0,1,0)*ps_yphi/R  - chi(0,0,1) * Lap_ps/R &
+               - (ps_x*(chi(1,0,1)/R - chi(0,0,1)/R**2) + chi(0,0,2)*ps_phi/R**3 + ps_y*chi(0,2,0))) / F0
+          vectors(inode,:,s_vectors_forces+1) = (/  JR * cos(angle) - JP * sin(angle), &
+                                                    JZ, &
+                                                    JR * sin(angle) + JP * cos(angle) /)
+
+          rho    = 0.0; rho_x   = 0.0;  rho_y  = 0.0; rho_p   = 0.0
+          TT     = 0.0;   TT_x  = 0.0;    TT_y = 0.0;   TT_p  = 0.0
+          do i_tor = 1,n_tor
+            call interp(node_list,element_list,i,var_rho,i_tor,s,t,P,P_s,P_t,P_st,P_ss,P_tt)
+            rho    = rho     + P * HZ(i_tor,m) 
+            rho_x  = rho_x   + (   Z_t * P_s - Z_s * P_t )     / xjac * HZ(i_tor,m)
+            rho_y  = rho_y   + ( - R_t * P_s + R_s * P_t )     / xjac * HZ(i_tor,m)
+            rho_p  = rho_p   + P * HZ_p(i_tor,m)
+
+            call interp(node_list,element_list,i,var_T,i_tor,s,t,P,P_s,P_t,P_st,P_ss,P_tt)
+            TT    = TT     + P * HZ(i_tor,m) 
+            TT_x  = TT_x   + (   Z_t * P_s - Z_s * P_t )     / xjac * HZ(i_tor,m)
+            TT_y  = TT_y   + ( - R_t * P_s + R_s * P_t )     / xjac * HZ(i_tor,m)
+            TT_p  = TT_p   + P * HZ_p(i_tor,m)
+          enddo
+          PR = rho_x * TT + rho * TT_x
+          PZ = rho_y * TT + rho * TT_y
+          PP = 1.0 / R * (rho_p * TT + rho * TT_p)
+          vectors(inode,:,s_vectors_forces+2) = (/  PR * cos(angle) - PP * sin(angle), &
+                                                    PZ, &
+                                                    PR * sin(angle) + PP * cos(angle) /) 
+
+          FR = ( JP*BZ - JZ*BP - PR) / MU_ZERO
+          FZ = (-JR*BP + JP*BR - PZ) / MU_ZERO
+          FP = ( JZ*BR - JR*BZ - PP) / MU_ZERO
+          vectors(inode,:,s_vectors_forces+3) = (/ FR * cos(angle) - FP * sin(angle), &
+                                                   FZ, &
+                                                   FR * sin(angle) + FP * cos(angle) /)
 #else       
 #if fullmhd
           write(*,*) 'Inclusion of the JOREK forces is not implemented yet for full MHD!'
