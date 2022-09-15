@@ -1,0 +1,68 @@
+# Configuration file for jorek
+# Version for ITER regression testing platform using intel compilers
+
+# model directory
+MODEL = model600
+
+# Fortran compiler 
+FC               = mpiifort
+FFLAGS          := $(FFLAGS) -mcmodel=medium -DUSE_BLOCK
+CC = mpiicc
+CXX = mpiicpc
+
+# Solvers dependencies
+USE_HIPS         = 0
+USE_PASTIX       = 1
+USE_BLOCK        = 1
+USE_PASTIX_MURGE = 0
+USE_MUMPS        = 1
+USE_FFTW         = 1
+USE_HDF5         = 1
+USE_IMAS         = 1
+
+# Directory containing the user-compiled libraries (e.g., MUMPS, PASTIX, ...)
+LIBDIR = $(HOME)
+
+#Scotch library
+SCOTCH_HOME ?=  $(LIBDIR)/scotch/scotch_5.1
+LIB_SCOTCH   = -L$(SCOTCH_HOME)/lib -lptscotch -lptscotcherr -lscotch
+INC_SCOTCH   = -I$(SCOTCH_HOME)/include
+
+# MUMPS
+MUMPS_HOME ?=  $(LIBDIR)/MUMPS_4.8.3
+ORDLIB      = -L$(METIS_HOME)/lib -lpord -lmetis -lparmetis
+LIB_MUMPS   = $(LIB_SCOTCH) -L$(MUMPS_HOME)/lib/ -ldmumps -lmumps_common -lesmumps $(LIB_SCOTCH) $(ORDLIB)
+LIB_ZMUMPS  = -lzmumps
+INC_MUMPS   =  $(MUMPS_HOME)/include/
+
+# PASTIX
+PASTIX_HOME     ?=  $(LIBDIR)/pastix/install/
+LIB_PASTIX       = `pastix-conf --libs` #-L$(PASTIX_HOME)/lib/ -lpastix_murge -lpastix $(LIB_SCOTCH)
+LIB_PASTIX_MURGE = `pastix-conf --libs_murge` #-L$(PASTIX_HOME)/lib/ -lpastix_murge -lpastix $(LIB_SCOTCH)
+LIB_PASTIX_BLAS  = `pastix-conf --blas`
+INC_PASTIX       = `pastix-conf --incs` #-I$(PASTIX_HOME) $(INC_SCOTCH)
+
+#HIPS
+LIBHIPS   = -L$(HOME)/hips_trunk/trunk/LIB -lhips -lio $(LIBSCOTCH)
+INCHIPS   = -I$(HOME)/hips_trunk/trunk/LIB
+
+#FFTW
+LIBFFTW   = -L$(FFTWDIR)/lib -lfftw3
+INC_FFTW  = -I$(FFTWDIR)/include
+
+#LAPACK
+MKL       = $(MKLROOT)/lib/intel64
+LIBLAPACK = -L$(MKL) -lmkl_lapack95_lp64 -lmkl_intel_lp64 -lmkl_sequential -lmkl_core -liomp5 -limf
+SCALAP    = -L$(MKL) -lmkl_scalapack_lp64 -lmkl_blacs_intelmpi_lp64 
+
+#Dierckx
+LIBDIERCKX = $(LIBDIR)/Dierckx/dierckx.a
+
+#HDF5
+HDF5_HOME ?= $(H5DIR)
+HDF5INCLUDE=$(HDF5_HOME)/include
+HDF5LIB=-lhdf5hl_fortran -lhdf5_hl -lhdf5_fortran -lhdf5 -lz
+
+IMASINCLUDE=`pkg-config --cflags-only-I imas-ifort`
+IMASLIB=`pkg-config --libs-only-L --libs-only-l imas-ifort`
+

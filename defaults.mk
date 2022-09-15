@@ -76,13 +76,12 @@ ifeq ($(COMPILER_FAMILY), intel)
   endif
 
   ifeq ($(shell test $(COMPILER_MAJOR_VERSION) -gt 19; echo $$?),0)
-    FFLAGS += -warn noexternal
+    FFLAGS +: -warn noexternal
   else ifeq ($(shell test $(COMPILER_MAJOR_VERSION) -eq 19; echo $$?),0)
     ifeq ($(shell test $(COMPILER_MAJOR_VERSION_ID) -ge 1; echo $$?),0)
       FFLAGS += -warn noexternal
     endif
   endif
-
   FFLAGS += -warn all
   FFLAGS += -warn nointerfaces
   FFLAGS += -warn nounused
@@ -283,6 +282,12 @@ endif
 
 ifeq (1, $(USE_BICGSTAB))
   DEFINES  := $(DEFINES) -DUSE_BICGSTAB
+endif
+
+ifeq (1, $(USE_IMAS))
+  LIBS     := $(LIBS) $(IMASLIB)
+  INCLUDES := $(INCLUDES) $(IMASINCLUDE)
+  DEFINES  := $(DEFINES) -DUSE_IMAS
 endif
 
 

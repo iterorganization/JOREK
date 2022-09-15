@@ -1,0 +1,5 @@
+*.vtk
+*.vtu
+*.h5
+mypy
+local

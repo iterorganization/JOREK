@@ -50,6 +50,7 @@ doc docs:
 DIRS := diagnostics			\
 	models				\
 	communication			\
+	communication/IMAS              \
 	grids/grid_utils		\
 	solvers				\
 	models/$(MODEL)			\
@@ -130,6 +131,7 @@ most: jorek2_connection2 \
       jorek2_diagno_spi \
       jorek2_fieldlines_vtk \
       jorek2_four \
+      jorek2_IDS \
       jorek2_poincare \
       jorek2_powers \
       jorek2_target2vtk \
