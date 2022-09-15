@@ -1483,6 +1483,8 @@ do m_bndelem = 1, bnd_elm_list%n_bnd_elements
       Ti_s   = 0.d0; Ti_t   = 0.d0;
       Te_s   = 0.d0; Te_t   = 0.d0;
       vpar_s = 0.d0; vpar_t = 0.d0; 
+      Z_imp_s= 0.d0; Z_imp_t= 0.d0;
+      n_imp_s= 0.d0; n_imp_s= 0.d0;
 
       do in = 1,n_tor
         call interp(node_list,element_list,m_elm,var_psi,in,sg,tg,PS,PS_s,PS_t,PS_st,PS_ss,PS_tt)
