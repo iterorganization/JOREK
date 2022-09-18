@@ -290,7 +290,7 @@ do ms=1, n_gauss
       eq(n_var+1:2*n_var,0,0,1,1) = delta_p(mp,:,ms,mt) - eq(n_var+1:2*n_var,1,0,0,1)*x_p(mp,ms,mt) - eq(n_var+1:2*n_var,0,1,0,1)*y_p(mp,ms,mt)
 
       ! Vacuum scalar magnetic potential (chi) and field (grad chi)
-      eq(2*n_var+3,:,:,:,1) = get_chi(x_g(mp,ms,mt),y_g(mp,ms,mt),phi)
+      eq(2*n_var+3,:,:,:,1) = element%chi(mp,ms,mt,:,:,:)
       
       do m=2,4
         eq(1:n_var,:,:,:,m) = eq(1:n_var,:,:,:,1)

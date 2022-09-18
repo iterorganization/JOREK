@@ -43,6 +43,7 @@ module data_structure
 
   type type_element                               !< type definition for one elements
     integer :: vertex(n_vertex_max)               !< nodes of the corners
+    real*8  :: chi(n_plane, n_gauss, n_gauss, 0:n_order-1, 0:n_order-1, 0:n_order-1)   !< chi on gaussian points
     integer :: neighbours(n_vertex_max)           !< neighbouring elements
     real*8  :: size(n_vertex_max,n_order+1)       !< size of vectors at each vertex of the element
     integer :: father                             !< index of father element (0 if no father)"refinement"

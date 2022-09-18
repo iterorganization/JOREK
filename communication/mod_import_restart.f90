@@ -835,6 +835,8 @@ subroutine import_hdf5_restart(node_list, element_list, filename, format_rst, er
   use data_structure
   use phys_module
   use pellet_module
+  use mod_chi
+  use basis_at_gaussian
   use vacuum, only: import_HDF5_restart_vacuum, current_FB_fact
   use mod_element_rtree, only: populate_element_rtree
 #ifdef USE_HDF5
@@ -871,6 +873,12 @@ subroutine import_hdf5_restart(node_list, element_list, filename, format_rst, er
   character*50         :: version_control, version_control_tmp
   logical              :: kept, modes_changed, import_3xx_4xx
   
+  ! --- Variables for chi calculation
+  integer                                    :: ife, iv, inode, mp, ms, mt, in
+  real*8, dimension(n_plane,n_gauss,n_gauss) :: x_g, y_g
+  real*8                                     :: phi
+  type (type_element)                        :: element
+  type (type_node)                           :: nodes(n_vertex_max)
 #ifdef USE_HDF5
   integer(HID_T)     :: file_id, datatype, dataset
   integer            :: ind, n_spi_check, n_inj_check
@@ -2020,6 +2028,56 @@ subroutine import_hdf5_restart(node_list, element_list, filename, format_rst, er
   write (6,*) " ERROR: trying to import with hdf5 but USE_HDF5 was not set at compile-time"
 #endif
   call populate_element_rtree(node_list, element_list)
+
+
+#if ((JOREK_MODEL == 83) || (JOREK_MODEL == 183))
+write (*,*) "Storing mod_chi field"
+! --- Declare shared and private variables for omp
+!$omp parallel default(none) &
+!$omp   shared(element_list,node_list, H, HZ_coord) &
+!$omp   private(ife,iv,inode,element,nodes, ms, mt, mp, x_g, y_g, phi)
+
+!$omp do schedule(runtime)
+do ife = 1, element_list%n_elements
+  element = element_list%element(ife)
+
+  do iv = 1, n_vertex_max
+    inode     = element%vertex(iv)
+    nodes(iv) = node_list%node(inode)
+  enddo
+  
+  x_g = 0.d0; y_g = 0.d0;  
+  do i=1,n_vertex_max
+    do j=1,n_order+1
+      do ms=1, n_gauss
+        do mt=1, n_gauss
+          do mp=1,n_plane
+            do in=1,n_coord_tor
+              x_g(mp,ms,mt) = x_g(mp,ms,mt) + nodes(i)%x(in,j,1) * element%size(i,j) * H(i,j,ms,mt) * HZ_coord(in,mp)
+              y_g(mp,ms,mt) = y_g(mp,ms,mt) + nodes(i)%x(in,j,2) * element%size(i,j) * H(i,j,ms,mt) * HZ_coord(in,mp)
+            enddo
+          enddo
+        enddo
+      enddo
+    enddo
+  enddo
+  do ms=1, n_gauss
+    do mt=1, n_gauss
+      do mp=1,n_plane
+        phi = 2.d0*PI*float(mp-1)/float(n_plane) / float(n_period)
+        element%chi(mp,ms,mt,:,:,:) = get_chi(x_g(mp,ms,mt), y_g(mp,ms,mt), phi)
+      enddo
+    enddo
+  enddo
+
+  !$omp critical
+  element_list%element(ife) = element
+  !$omp end critical
+enddo
+!$omp end do
+!$omp end parallel
+
+#endif
 
   return
 end subroutine import_hdf5_restart

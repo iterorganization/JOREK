@@ -569,7 +569,7 @@ do ife = ife_min, ife_max
         BigR = x_g(mp,ms,mt)
 
 #if (JOREK_MODEL == 183)
-        chi = get_chi(x_g(mp,ms,mt),y_g(mp,ms,mt),phi,1)
+        chi = element%chi(mp,ms,mt,:,:,:) 
         Bv2 = chi(1,0,0)**2 + chi(0,1,0)**2 + chi(0,0,1)**2/BigR**2
 #endif
 
