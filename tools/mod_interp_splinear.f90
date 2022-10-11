@@ -102,19 +102,25 @@ real*8, intent(in), dimension(:)                    :: ty !< Grid points in y
 integer, intent(in)                                 :: nz !< number of scalars
 real*8, intent(in), dimension(size(tx),size(ty),nz) :: f !< Function values at these points
 real*8, intent(in)  :: x, y !< Points at which to interpolate
+real*8              :: xx, yy !< Points at which to interpolate
 real*8, dimension(nz) :: fout
 
 integer :: ix1, iy1 !< Index of closest point
 integer :: ix2, iy2 !< Index of other (usually next closest) point
 real*8  :: fx1(nz), fx2(nz) ! Temporary variables
-ix1 = minloc(abs(tx - x), dim=1)
-if (x .ge. tx(ix1)) ix2 = ix1 + 1 ! find other index
-if (x .lt. tx(ix1)) ix2 = ix1 - 1
+
+!< Make sure the interpolation is within the data range, no extrapolation!
+xx = min(max(x,minval(tx)),maxval(tx))
+yy = min(max(y,minval(ty)),maxval(ty))
+
+ix1 = minloc(abs(tx - xx), dim=1)
+if (xx .ge. tx(ix1)) ix2 = ix1 + 1 ! find other index
+if (xx .lt. tx(ix1)) ix2 = ix1 - 1
 if (ix2 .gt. size(tx)) ix2 = size(tx) - 1 ! if it does not exist, extrapolate
 if (ix2 .lt. 1       ) ix2 = 2
-iy1 = minloc(abs(ty - y), dim=1)
-if (y .ge. ty(iy1)) iy2 = iy1 + 1
-if (y .lt. ty(iy1)) iy2 = iy1 - 1
+iy1 = minloc(abs(ty - yy), dim=1)
+if (yy .ge. ty(iy1)) iy2 = iy1 + 1
+if (yy .lt. ty(iy1)) iy2 = iy1 - 1
 if (iy2 .gt. size(ty)) iy2 = size(ty) - 1
 if (iy2 .lt. 1       ) iy2 = 2
 
@@ -137,6 +143,18 @@ real*8, dimension(nz) :: fout
 integer :: ix1, iy1 !< Index of closest point
 integer :: ix2, iy2 !< Index of other (usually next closest) point
 real*8  :: fx1(nz), fx2(nz) ! Temporary variables
+
+
+!< Make sure the interpolation is within the data range, no extrapolation!
+if ((x < minval(tx) .or. x > maxval(tx)) .and. (dim .eq. 2)) then
+  fout = 0.0
+  return
+endif
+if ((y < minval(ty) .or. y > maxval(ty)) .and. (dim .eq. 1)) then
+  fout = 0.0
+  return
+endif
+
 ix1 = minloc(abs(tx - x), dim=1)
 if (x .ge. tx(ix1)) ix2 = ix1 + 1 ! find other index
 if (x .lt. tx(ix1)) ix2 = ix1 - 1

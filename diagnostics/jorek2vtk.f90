@@ -31,6 +31,7 @@ type (type_bnd_node_list),    pointer :: bnd_node_list
 
 integer               :: nnoel, nnos, nel, nsub, inode, ielm, n_scalars, n_vectors
 real*4,allocatable    :: currdens(:), xyz (:,:), scalars(:,:), vectors(:,:,:)
+real*4                :: time_vtk
 integer,allocatable   :: ien (:,:)
 integer, parameter    :: ivtk = 22 ! an arbitrary unit number for the VTK output file
 integer               :: i, j, k, m, etype, irst, int, i_var, i_tor, i_tor_old, i_plane, index, index_node, my_id
@@ -1714,7 +1715,13 @@ endif ! SI_UNITS
 !--------------------------------------------------- write the binary VTK file
 etype = 9  ! for vtk_quad
 
-call write_vtk('jorek_tmp.vtk',xyz,ien,etype,scalar_names,scalars,vector_names,vectors)
+if (SI_units) then
+  time_vtk = t_start * t_norm
+else
+  time_vtk = t_start
+endif
+
+call write_vtk('jorek_tmp.vtk',xyz,ien,etype,scalar_names,scalars,vector_names,vectors, time_vtk)
 
 write(*,*) 'done.'
 

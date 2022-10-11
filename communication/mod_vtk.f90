@@ -88,7 +88,7 @@ contains
 
 
   !> Write a vtk file containing points, cells and point data (scalars and vectors)
-  subroutine write_vtk(filename,xyz,ien,cell_type,scalar_names,scalars,vector_names,vectors)
+  subroutine write_vtk(filename,xyz,ien,cell_type,scalar_names,scalars,vector_names,vectors,time_vtk)
     !> Input arguments
     character*(*), intent(in) :: filename !< Output file name
     real*4,        intent(in) :: xyz(:,:) !< Point positions
@@ -96,6 +96,7 @@ contains
     integer,       intent(in), optional :: cell_type !< Type of interpolation (vtk param)
     character*36,  intent(in), optional :: scalar_names(:), vector_names(:)
     real*4,        intent(in), optional :: scalars(:,:), vectors(:,:,:) !< scalars(nnos, num_scalars)
+    real*4,        intent(in), optional :: time_vtk
 
     !> Parameters
     integer, parameter    :: ivtk = 22 ! an arbitrary unit number for the VTK output file TODO get automatically
@@ -118,10 +119,19 @@ contains
     buffer = 'BINARY'//lf                        ; write(ivtk) trim(buffer)
     buffer = 'DATASET UNSTRUCTURED_GRID'//lf     ; write(ivtk) trim(buffer)
 
+    if (present(time_vtk)) then
+      buffer = 'FIELD FieldData 1'//lf     ; write(ivtk) trim(buffer)
+      buffer = 'TIME 1 1 float'//lf     ; write(ivtk) trim(buffer)
+      write(ivtk) real(time_vtk,4)
+    endif
     ! POINTS SECTION
     nnos = size(xyz,2)
     write(str1(1:12),'(i12)') nnos
-    buffer = 'POINTS '//str1//'  float'//lf      ; write(ivtk) trim(buffer)
+    if (present(time_vtk)) then
+      buffer = lf//'POINTS '//str1//'  float'//lf      ; write(ivtk) trim(buffer)
+    else
+      buffer = 'POINTS '//str1//'  float'//lf      ; write(ivtk) trim(buffer)
+    endif
     write(ivtk) ((real(xyz(i,j),4),i=1,3),j=1,nnos)
 
     ! CELLS SECTION
