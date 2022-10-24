@@ -1,12 +1,6 @@
 #!/usr/bin/env python3
-""" Search JOREK log file for lines containing specific string and 
-    get average/sum for the values found at the end of such lines
-    https://www.jorek.eu/wiki/doku.php?id=read_jorek_logfile.py
-    iholod@ipp.mpg.de
-"""
-
+"""find variable in JOREK logfile"""
 import numpy as np
-import pylab as plt
 import time
 import os
 import argparse
@@ -22,6 +16,8 @@ parser.add_argument('-fname', type=str, help="input file name");
 parser.add_argument('-text', type=str, help="string to find");
 parser.add_argument('-sum', action='store_true', help="Sum of entries");
 parser.add_argument('-n', type=int, help="max number of entries");
+parser.add_argument('-e0', type=int, help="first entry");
+parser.add_argument('-e1', type=int, help="last entry");
  
 parser.parse_args(namespace=arg)
 
@@ -40,6 +36,17 @@ if arg.n!=None:
 else:
 	nmax = 1
 
+if arg.e0!=None:
+        e0 = max(arg.e0,0)
+else:
+        e0 = 0
+
+if arg.e1!=None:
+        e1 = max(arg.e1,0)
+else:
+        e1 = -1        
+        
+
 print(fid)
 print(sstr)
 
@@ -57,11 +64,15 @@ if (nmax==1) :
 	nmax = len(dat1)
 else:
 	nmax = min(nmax,len(dat1))
+if (e1>0):
+    nmax = e1
 
 print(dat1[:nmax])
 if (arg.sum):
-	print("Sum = {}".format(np.sum(dat1[:nmax])))
+        print("Sum = {}".format(np.sum(dat1[e0:nmax])))
 else:
-	print("Average = {}".format(np.mean(dat1[:nmax])))
+        print("Average = {}".format(np.mean(dat1[e0:nmax])))
+        print("Maximum = {}".format(np.max(dat1[e0:nmax])))
+        print("Minimum = {}".format(np.min(dat1[e0:nmax])))
 
 exit()
