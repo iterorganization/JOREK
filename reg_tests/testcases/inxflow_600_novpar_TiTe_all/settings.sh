@@ -27,7 +27,7 @@ function compile_jorek () {
 function initial_run () {
   ${codedir}/util/setinput.sh input nstep_n=10,10,10,10,10 tstep_n=1.d-3,1.d-2,1.d-1,1.d0,1.d1 || exit 1
   $MPIRUN 1 ./jorek_model${jorekmodel}_1 < input | tee logfile_initial               || exit 1
-  ${codedir}/util/setinput.sh input nstep_n=200 tstep_n=1.d1 restart=.t.             || exit 1
+  ${codedir}/util/setinput.sh input nstep_n=150 tstep_n=1.d1 restart=.t.             || exit 1
   $MPIRUN $mpitasks ./jorek_model${jorekmodel}_3 < input | tee logfile_initial2      || exit 1
 }
 

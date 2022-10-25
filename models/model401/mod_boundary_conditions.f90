@@ -581,18 +581,18 @@ do i=1, n_local_elms !=== do elements
                  solve_only, gmres, index_min, index_max,                     & 
                  ijA_index, ijA_size, irn_jcn, irn, jcn, A_mat, i_tor_min, i_tor_max)
 
-          call boundary_conditions_add_one_entry(                      &
-                 index_node2, kv, in, index_node,  kTi, in,            &
-                 - zbig * factor  / Btot * cs0_TT * T0i_b * direction  &
-                 - zbig * Hfact_b / Btot * cs0_T         * direction,  & 
-                 solve_only, gmres, index_min, index_max,              & 
+          call boundary_conditions_add_one_entry(                              &
+                 index_node2, kv, in, index_node,  kTi, in,                    &
+                 - zbig * factor  / Btot * cs0_TT * (T0i_b+T0e_b) * direction  &
+                 - zbig * Hfact_b / Btot * cs0_T                  * direction, & 
+                 solve_only, gmres, index_min, index_max,                      & 
                  ijA_index, ijA_size, irn_jcn, irn, jcn, A_mat, i_tor_min, i_tor_max)
 
-          call boundary_conditions_add_one_entry(                      &
-                 index_node2, kv, in, index_node,  kTe, in,            &
-                 - zbig * factor  / Btot * cs0_TT * T0e_b * direction  &
-                 - zbig * Hfact_b / Btot * cs0_T          * direction, & 
-                 solve_only, gmres, index_min, index_max,              & 
+          call boundary_conditions_add_one_entry(                              &
+                 index_node2, kv, in, index_node,  kTe, in,                    &
+                 - zbig * factor  / Btot * cs0_TT * (T0i_b+T0e_b) * direction  &
+                 - zbig * Hfact_b / Btot * cs0_T                  * direction, & 
+                 solve_only, gmres, index_min, index_max,                      & 
                  ijA_index, ijA_size, irn_jcn, irn, jcn, A_mat, i_tor_min, i_tor_max)
 
           if (in .eq. 1) then

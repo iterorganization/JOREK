@@ -34,13 +34,13 @@ subroutine initialise_and_broadcast_parameters(my_id, filename)
     Ti0_keV               = Ti_0 / ( EL_CHG * mu_zero * central_density * 1.d+20 ) / 1.d+3
     lnA                   = 14.9 - 0.5*log( central_density ) + log( Te0_keV )
 
-    ZK_e_par_SpitzerHaerm = 4.83d+0 * central_mass*mass_proton/(mass_electron*lnA) * Te0_keV**(2.5d+0) * (gamma-1.d0) * sqrt_mu0_over_rho0
-    ZK_i_par_SpitzerHaerm = 5.11d+2 * sqrt(central_mass/2.d+0)/(lnA)               * Ti0_keV**(2.5d+0) * (gamma-1.d0) * sqrt_mu0_over_rho0
+    ZK_e_par_SpitzerHaerm = 5.5789d+0 * central_mass*mass_proton/(mass_electron*lnA) * Te0_keV**(2.5d+0) * (gamma-1.d0) * sqrt_mu0_over_rho0
+    ZK_i_par_SpitzerHaerm = 5.8410d+2 * sqrt(central_mass/2.d+0)/(lnA)               * Ti0_keV**(2.5d+0) * (gamma-1.d0) * sqrt_mu0_over_rho0
   else
     Te0_keV               = T_0 / 2.d+0 / ( EL_CHG * mu_zero * central_density * 1.d+20 ) / 1.d+3
     lnA                   = 14.9 - 0.5*log( central_density ) + log( Te0_keV )
 
-    ZK_par_SpitzerHaerm   = 4.83d+0 * central_mass*mass_proton/(mass_electron*lnA) * Te0_keV**(2.5d+0) * (gamma-1.d0) * sqrt_mu0_over_rho0
+    ZK_par_SpitzerHaerm   = 5.5789d+0 * central_mass*mass_proton/(mass_electron*lnA) * Te0_keV**(2.5d+0) * (gamma-1.d0) * sqrt_mu0_over_rho0
   end if
   tauIC_nominal      = central_mass * mass_proton / ( EL_CHG * F0 * sqrt_mu0_rho0 * 2.d0 )
   eta_Spitzer        = ( 1.65d-9 * lnA * Te0_keV**(-1.5d+0) ) / sqrt_mu0_over_rho0
