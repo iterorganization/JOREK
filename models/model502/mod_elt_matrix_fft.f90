@@ -1056,7 +1056,7 @@ do ms=1, n_gauss
        end do
        Z_eff        = Z_eff / ne_JOREK
        dZ_eff_imp_dT = dZ_eff_imp_dT * dTe_corr_eV_dT * EL_CHG / K_BOLTZ ! convert from K to JOREK unit
-       if ((Z_eff_imp < 0.d0) .or. (Z_eff_imp > real(imp_adas(1)%n_Z**2),8)) then
+       if ((Z_eff_imp < 0.d0) .or. (Z_eff_imp > real(imp_adas(1)%n_Z**2,8))) then
          Z_eff_imp = min(max(Z_eff_imp,0.d0),real(imp_adas(1)%n_Z**2,8))
          dZ_eff_imp_dT = 0.d0
        endif
