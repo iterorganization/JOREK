@@ -181,6 +181,8 @@ subroutine setup_solvers(this, sim)
     call import_external_fields('coil_field.dat', sim%my_id)
     
     call set_coil_curr_time_trace()
+
+    call read_Z_axis_profile()
     
     call MPI_BCAST(wall_curr_initialized, 1 , MPI_LOGICAL,          0, MPI_COMM_WORLD, ierr)
 
