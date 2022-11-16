@@ -960,7 +960,7 @@ do ms=1, n_gauss
          end do
          dZ_eff_dT    = dZ_eff_dT / ne_JOREK
          dZ_eff_dT    = dZ_eff_dT * dTe_corr_eV_dT * EL_CHG / K_BOLTZ ! convert from K to JOREK unit
-         dZ_eff_dT    = dZ_eff_dT - Z_eff * dalpha_e_dT * rn0_corr / ne_JOREK
+         dZ_eff_dT    = dZ_eff_dT - Z_eff * dbeta_imp_dT * rn0_corr / ne_JOREK
   
          dZ_eff_dr0   = (1. - Z_eff)/ne_JOREK
   
@@ -969,7 +969,7 @@ do ms=1, n_gauss
            dZ_eff_drn0= dZ_eff_drn0 + m_i_over_m_imp * P_imp(ion_i) * real(ion_i,8)**2
          end do
          dZ_eff_drn0  = dZ_eff_drn0 / ne_JOREK
-         dZ_eff_drn0  = dZ_eff_drn0 - Z_eff * alpha_e / ne_JOREK
+         dZ_eff_drn0  = dZ_eff_drn0 - Z_eff * beta_imp / ne_JOREK
        else
          if (Z_eff < 1.) Z_eff = 1.
          if (Z_eff > imp_adas(1)%n_Z)  Z_eff = imp_adas(1)%n_Z
