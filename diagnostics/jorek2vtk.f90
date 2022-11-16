@@ -204,9 +204,10 @@ include_projections    = .false. ! include projections from particles
 proj_basename          = 'projections' ! basename for particle projection output files
 RphiZ_coords           = .false. ! use xyz transformation (R,0,Z) instead of (R,Z,0)
 
-include_radiation = .false. 
+include_radiation    = .false. 
+include_neutral_dens = .false.
 #if (defined WITH_Neutrals) || (defined WITH_Impurities)
-include_radiation = .true.
+include_radiation    = .true.
 include_neutral_dens = .true.
 ! --- Read ADAS data and generate coronal equilibrium if needed
 call init_imp_adas(my_id)
@@ -346,7 +347,7 @@ allocate(iibg(n_adas),iproj(n_var))
 if (include_radiation) then
 
 #if (defined WITH_Neutrals) && (!defined WITH_Impurities)
-  call add_vtk_entry('Neut_Ionis  ', 'NeutIonis_Wm-3',  ineu(1), n_scalars, si_units, scalar_names) 
+  call add_vtk_entry('Nt_Ionis    ', 'NtIonis_Wm-3',  ineu(1), n_scalars, si_units, scalar_names) 
   call add_vtk_entry('Lin_rad     ', 'Lin_radWm-3 ',    ineu(2), n_scalars, si_units, scalar_names) 
   call add_vtk_entry('Brems       ', 'Brems_Wm-3  ',    ineu(3), n_scalars, si_units, scalar_names) 
   call add_vtk_entry('Joule       ', 'Joule_Wm-3  ',    ineu(4), n_scalars, si_units, scalar_names) 
@@ -361,7 +362,7 @@ end if
 
 #ifdef WITH_Impurities
   call add_vtk_entry('Ionis       ', 'Ionis_Jm-3  ',    iimp(1), n_scalars, si_units, scalar_names) 
-  call add_vtk_entry('Coronal_rad ', 'Coronal_radWm-3', iimp(2), n_scalars, si_units, scalar_names) 
+  call add_vtk_entry('Coronal_rad ', 'Cor_radWm-3 ', iimp(2), n_scalars, si_units, scalar_names) 
   call add_vtk_entry('Joule       ', 'Joule_Wm-3  ',    iimp(3), n_scalars, si_units, scalar_names) 
   call add_vtk_entry('Z_imp       ', 'Z_imp       ',    iimp(4), n_scalars, si_units, scalar_names) 
   call add_vtk_entry('Z_eff       ', 'Z_eff       ',    iimp(5), n_scalars, si_units, scalar_names) 

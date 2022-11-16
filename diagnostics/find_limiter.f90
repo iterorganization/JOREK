@@ -73,8 +73,8 @@ do ibnd=1,bnd_elm_list%n_bnd_elements + n_limiter
       
   ! --- In case of limiter points  
   if (ibnd .gt. bnd_elm_list%n_bnd_elements) then
-    Rp = R_limiter(ibnd)
-    Zp = Z_limiter(ibnd)
+    Rp = R_limiter(ibnd-bnd_elm_list%n_bnd_elements)
+    Zp = Z_limiter(ibnd-bnd_elm_list%n_bnd_elements)
     call find_RZ(node_list, element_list, Rp, Zp, R_out, Z_out, m_elm, s_pt, t_pt, ifail)
     if (ifail .ne. 0) cycle
     DET = 1.0
@@ -133,6 +133,8 @@ do ibnd=1,bnd_elm_list%n_bnd_elements + n_limiter
         case (4)
           s_pt = 0.d0;    t_pt = s_or_t;  s_const = .true.
         end select
+      else
+        call interp(node_list, element_list, m_elm, 1, 1, s_pt, t_pt, PSMIMA, P_s, P_t, P_st, P_ss, P_tt)  
       endif
       
       ! --- Determine coordinate values (plus derivatives)
@@ -221,8 +223,8 @@ if (ES%axis_is_psi_minimum) then
   if ((i_min .gt. 0) .and. (r_min .le. 1.d0)) then
 
     if (i_min .gt. bnd_elm_list%n_bnd_elements) then
-      R_lim = R_limiter(i_min)
-      Z_lim = Z_limiter(i_min)
+      R_lim = R_limiter(i_min-bnd_elm_list%n_bnd_elements)
+      Z_lim = Z_limiter(i_min-bnd_elm_list%n_bnd_elements)
     else
       n1 = bnd_elm_list%bnd_element(i_min)%vertex(1)
       n2 = bnd_elm_list%bnd_element(i_min)%vertex(2)
@@ -258,8 +260,8 @@ else
   if ((i_max .gt. 0) .and. (r_max .le. 1.d0)) then
 
     if (i_max .gt. bnd_elm_list%n_bnd_elements) then
-      R_lim = R_limiter(i_max)
-      Z_lim = Z_limiter(i_max)
+      R_lim = R_limiter(i_max-bnd_elm_list%n_bnd_elements)
+      Z_lim = Z_limiter(i_max-bnd_elm_list%n_bnd_elements)
     else
       n1 = bnd_elm_list%bnd_element(i_max)%vertex(1)
       n2 = bnd_elm_list%bnd_element(i_max)%vertex(2)

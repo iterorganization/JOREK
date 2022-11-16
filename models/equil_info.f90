@@ -107,6 +107,8 @@ module equil_info
   !> Re-calculate the equilibrium state.
   subroutine update_equil_state(my_id, node_list, element_list, bnd_elm_list, xpoint, xcase)
     
+    use phys_module,    only: freeboundary
+
     ! --- Routine parameters.
     integer,                     intent(in)    :: my_id
     type(type_node_list),        intent(in)    :: node_list
@@ -195,10 +197,12 @@ module equil_info
       end if
       
       ! --- Has the X-plasma changed to a limiter plasma?
-      if ( abs(ES%psi_axis-ES%psi_lim) < abs(ES%psi_axis-ES%psi_bnd) ) then
-        ES%psi_bnd        = ES%psi_lim
-        ES%limiter_plasma = .true.
-        ES%active_xpoint  = 0
+      if (freeboundary) then
+        if ( abs(ES%psi_axis-ES%psi_lim) < abs(ES%psi_axis-ES%psi_bnd) ) then
+          ES%psi_bnd        = ES%psi_lim
+          ES%limiter_plasma = .true.
+          ES%active_xpoint  = 0
+        endif 
       endif 
       
     else ! (limiter plasma)
