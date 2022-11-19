@@ -223,6 +223,9 @@ module mod_expression
 #if (defined WITH_Neutrals) || (defined WITH_Impurities)
     call add(exprs_all, 'radiation   ', 'Radiation terms for bolometry diagnostic              ')
 #endif
+#if (defined WITH_Neutrals) || (defined WITH_Impurities)
+    call add(exprs_all, 'radiation_bg', 'Radiation terms from background impurities for bolometry diagnostic  ')
+#endif
 #if (defined WITH_Neutrals) && (!defined WITH_Impurities)
     call add(exprs_all, 'brem        ', 'Brem terms for bolometry diagnostic                   ')
     call add(exprs_all, 'line_rad    ', 'D neutral line radiation                              ')
@@ -2043,6 +2046,10 @@ module mod_expression
 #ifdef WITH_Impurities
               case ( 'radiation' )
                 res = (r0_corr + beta_imp*rn0_corr) * (rn0_corr * Lrad + frad_bg) * fact_rad
+#endif
+#if (!defined WITH_Neutrals) && (defined WITH_Impurities)
+              case ( 'radiation_bg' )
+                res = (r0_corr + beta_imp*rn0_corr) * frad_bg * fact_rad
 #endif
 
               case default
