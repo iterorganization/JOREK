@@ -485,7 +485,7 @@ do ife = ife_min, ife_max
   do iv = 1, n_vertex_max
     inode         = element%vertex(iv)
     nodes(iv)     = node_list%node(inode)
-    aux_nodes(iv) = aux_node_list%node(inode)
+    if (use_marker) aux_nodes(iv) = aux_node_list%node(inode)
   enddo
 
   x_g(:,:)    = 0.d0; x_s(:,:)    = 0.d0; x_t(:,:)    = 0.d0; x_ss(:,:)    = 0.d0; x_tt(:,:)    = 0.d0; x_st(:,:)    = 0.d0;
