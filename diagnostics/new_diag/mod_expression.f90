@@ -1777,13 +1777,13 @@ module mod_expression
                 res = d_prof / fact_time
                   
               case ( 'zkprof' )
-                res = zk_prof / fact_time
+                res = zk_prof  / fact_resistiv / (gamma - 1) / r0 / fact_rho  ! \chi in (m^2 s^{-1})
                 
               case ( 'zkiprof' )
-                res = zki_prof / fact_time
+                res = zki_prof / fact_resistiv / (gamma - 1) / r0 / fact_rho
                 
               case ( 'zkeprof' )
-                res = zke_prof / fact_time
+                res = zke_prof / fact_resistiv / (gamma - 1) / r0 / fact_rho
                   
               case ( 'pres' )
                 res = P0 / fact_mu_zero
