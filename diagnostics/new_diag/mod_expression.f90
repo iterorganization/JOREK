@@ -223,8 +223,8 @@ module mod_expression
 #if (defined WITH_Neutrals) || (defined WITH_Impurities)
     call add(exprs_all, 'radiation   ', 'Radiation terms for bolometry diagnostic              ')
 #endif
-#if (defined WITH_Neutrals) || (defined WITH_Impurities)
-    call add(exprs_all, 'radiation_bg', 'Radiation terms from background impurities for bolometry diagnostic  ')
+#if (!defined WITH_Neutrals) || (defined WITH_Impurities)
+    call add(exprs_all, 'radiation_bg', 'Radiation terms from background impurities for bolometry diagnostic ')
 #endif
 #if (defined WITH_Neutrals) && (!defined WITH_Impurities)
     call add(exprs_all, 'brem        ', 'Brem terms for bolometry diagnostic                   ')
@@ -280,6 +280,8 @@ module mod_expression
     call add(exprs_all_int, 'Ohmic_tot   ', 'Total ohmic heating                                   ')
     call add(exprs_all_int, 'Ohmic_in    ', 'Ohmic heating (inside  LCFS)                          ')
     call add(exprs_all_int, 'Ohmic_out   ', 'Ohmic heating (outside LCFS)                          ')
+    call add(exprs_all_int, 'Rad_tot     ', 'Total impurity radiation power                        ')
+    call add(exprs_all_int, 'Rad_bg_tot  ', 'Background impurity radiation power                   ')
     call add(exprs_all_int, 'P_vn        ', 'Boundary flux of outgoing pressure                    ')
     call add(exprs_all_int, 'qn_par      ', 'Boundary flux of the parallel thermal conduction      ')
     call add(exprs_all_int, 'qn_perp     ', 'Boundary flux of the perpendicular thermal conduction ')

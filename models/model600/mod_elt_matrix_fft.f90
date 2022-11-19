@@ -1154,9 +1154,16 @@ do i=1,n_vertex_max
             source_neutral_drift = 0.d0 
       
             call total_neutral_source(x_g(ms,mt),y_g(ms,mt),phi,ps0,source_neutral,source_neutral_drift)
+
+            ! To detect NaNs
+            if (source_neutral /= source_neutral .or. source_neutral_drift /= source_neutral_drift) then
+              write(*,*) 'ERROR in mod_elt_matrix_fft: source_neutral = ', source_neutral
+              write(*,*) 'ERROR in mod_elt_matrix_fft: source_neutral_drift = ', source_neutral_drift
+              stop
+            end if
           
-            source_neutral       = max(source_neutral,0.)
-            source_neutral_drift = max(source_neutral_drift,0.)
+            source_neutral       = max(0.,source_neutral)
+            source_neutral_drift = max(0.,source_neutral_drift)
 
           else ! no neutrals (neutral terms are always multiplied by one of these coefficients)
             
@@ -1205,7 +1212,7 @@ do i=1,n_vertex_max
                 dLrad_imp_dT = 0.
               end if
               if (dLrad_imp_dT/=dLrad_imp_dT) then
-                write(*,*) "WARNING: dLrad_imp_dT ", dLrad_imp_dT
+                write(*,*) "ERROR in mod_elt_matrix_fft: dLrad_imp_dT ", dLrad_imp_dT
                 stop
               end if
 
@@ -1227,7 +1234,7 @@ do i=1,n_vertex_max
               dfrad_bg_dT = -(1./3.)*((MU_ZERO*central_mass*MASS_PROTON*central_density*1.d20)**(0.5d0))*(1./EL_CHG)                               &
                             *2.*(nimp_bg(1)*Arad_bg/Crad_bg**2.)*(log(Te_corr_eV)-log(Brad_bg))*(1./Te_corr_eV)*exp(-((log(Te_corr_eV)-log(Brad_bg))**2.)/Crad_bg**2.)
             else
-              write(*,*) "WARNING: hard-coded fitting doesn't exist for  ", trim(imp_type(1)), ", use open adas instead!"
+              write(*,*) "ERROR in mod_elt_matrix_fft: hard-coded fitting doesn't exist for  ", trim(imp_type(1)), ", use open adas instead!"
               stop
             end if 
 

@@ -43,6 +43,12 @@ module mod_neutral_source
     ns_shape = source_shape(R,Z,phi,ns_R,ns_Z,ns_phi,ns_radius,ns_deltaphi,&
          psi,ns_psi,ns_grad_psi,ns_delta_minor_rad)
 
+    ! To detect NaNs
+    if (ns_shape /= ns_shape) then
+       write(*,*) 'ERROR in mod_neutral_source: ns_shape = ', ns_shape
+       stop
+    end if
+
     ! Volume used for normalization:
     ! if finite, the input value for source_volume will be used as this will correspond to the numerically integrated gas source volume
     ! otherwise, the analytical value corresponding to the integration in space of the product of the above shape function will be used.
@@ -226,11 +232,15 @@ module mod_neutral_source
 
           if (present(source_neutral_drift)) then
             if (drift_distance /= 0.d0) then
-              call neutral_source(pellets(spi_i)%spi_abl,pellets(spi_i)%spi_R+drift_distance,pellets(spi_i)%spi_Z,pellets(spi_i)%spi_phi, &
-                            pellets(spi_i)%spi_psi_drift,pellets(spi_i)%spi_grad_psi_drift, &
-                            ns_radius_loc,ns_deltaphi,ns_delta_minor_rad,ns_tor_norm, &
-                            A_Dmv,K_Dmv,V_Dmv,P_Dmv,t_ns(i_inj),0.,R,Z,phi,psi, &
-                            source_neutral_tmp_drift,t_now,JET_MGI,ASDEX_MGI,central_density,central_mass,spi_vol_tmp_drift)
+              if ( pellets(spi_i)%plasmoid_in_domain == 1 ) then
+                call neutral_source(pellets(spi_i)%spi_abl,pellets(spi_i)%spi_R+drift_distance,pellets(spi_i)%spi_Z,pellets(spi_i)%spi_phi, &
+                              pellets(spi_i)%spi_psi_drift,pellets(spi_i)%spi_grad_psi_drift, &
+                              ns_radius_loc,ns_deltaphi,ns_delta_minor_rad,ns_tor_norm, &
+                              A_Dmv,K_Dmv,V_Dmv,P_Dmv,t_ns(i_inj),0.,R,Z,phi,psi, &
+                              source_neutral_tmp_drift,t_now,JET_MGI,ASDEX_MGI,central_density,central_mass,spi_vol_tmp_drift)
+              else
+                source_neutral_tmp_drift = 0.d0 ! Plasmoid outside of the domain
+              end if
             else 
               source_neutral_tmp_drift = source_neutral_tmp
             end if
@@ -253,6 +263,13 @@ module mod_neutral_source
         source_neutral_tmp_drift = 0.d0
         spi_psi_tmp_drift = 0.d0
         spi_grad_psi_tmp_drift = 0.d0
+        
+        if (ns_delta_minor_rad /= 0.) then
+         ! For non-SPI cases this should be 0. (not in use), otherwise the source_shape would be 0 with zeros spi_grad_psi etc.   
+          write(*,*) 'Error in mod_neutral_source: ns_delta_minor_rad/=0. not implemented for non-SPI cases!!'
+          stop
+        end if
+
 
         call neutral_source(ns_amplitude(i_inj),ns_R(i_inj),ns_Z(i_inj),ns_phi(i_inj),spi_psi_tmp,spi_grad_psi_tmp, &
                       ns_radius,ns_deltaphi,ns_delta_minor_rad,ns_tor_norm, &
