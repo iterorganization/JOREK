@@ -1495,7 +1495,11 @@ module mod_expression
           if ( (psi_abs > 1.d-6) .and. (r0 > 1.d-6) .and. (abs(Btheta) > 1.d-6) ) then
             
             Er       = -(u0_R * ps0_R + u0_Z * ps0_Z) / psi_abs   ! radial electric field
-            Vsound   = sqrt(GAMMA*T0_corr) / sqrt(BB2)                 ! sound speed
+            if (with_TiTe) then
+              Vsound   = sqrt(GAMMA*(Ti0_corr+Te0_corr)) / sqrt(BB2)     ! sound speed
+            else
+              Vsound   = sqrt(GAMMA*T0_corr) / sqrt(BB2)                 ! sound speed
+            endif
             Mach_par = Vpar0 / Vsound                             ! parallel Mach number
             Mach_pol = Vtheta / Vsound                            ! poloidal Mach number
             
