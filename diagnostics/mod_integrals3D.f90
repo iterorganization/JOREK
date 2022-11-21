@@ -2327,11 +2327,13 @@ if (my_id .eq. 0) then
       case ( 'Ohmic_out' )
         res(iexpr+1) = ohm_out 
 
+#if (defined WITH_Neutrals) || (defined WITH_Impurities)
       case ( 'Rad_tot' )
         res(iexpr+1) = total_radiation
 
       case ( 'Rad_bg_tot' )
         res(iexpr+1) = total_radiation_bg
+#endif
 
       case ( 'P_vn' )
         res(iexpr+1) = vn_p0 
