@@ -20,30 +20,64 @@ real*8,allocatable :: df2_ext(:),rho_ext(:),T_ext(:),psi_ext(:),p_ext(:)
 real*8,allocatable :: tx(:),ty(:),c(:,:),wrk(:)
 integer,allocatable :: iwrk(:)
 real*8             :: angle, ellip, tria_u, tria_l, quad_u, quad_l, r0, z0, a0, PI
-real*8             :: dummy(3), xdim,zdim,rzero,rgrid1,zmid,rmaxis,zmaxis,ssimag,ssibry,bcentr
+real*8             :: dummy(3), xdim,zdim,rzero,rgrid1,zmid,rmaxis,zmaxis,ssimag,ssibry,bcentr,a_minor
 real*8             :: xip,xdum1,xdum2,xdum3,xdum4,xdum5
 real*8             :: psi_sep, sig_sep, tanh1, zmu0, zn0, zmd, rho_bnd, T_bnd
 real*8             :: xb ,xe, yb, ye, smth, fp, fout
 real*8             :: B_scale, I_scale, R_scale, F_axis, factor, dfactor
-integer            :: mx,my,kx,ky,nxest,nyest,lwrk,kwrk,ier,iopt,nx,ny, i1, j1
-integer            :: nr, nz, n_psi, nbbs, limitr, i,j, nc, n_tht, n_sol, n_ext, ivtk
-character          :: AA*52, tokamak_name*50
-character          :: buffer*80, lf*1, str1*12, str2*24
+real*8             :: ellip_in,tria_up_in,tria_low_in,quad_up_in,quad_low_in,r0_in,z0_in,a0_in
+integer            :: mx,my,kx,ky,nxest,nyest,lwrk,kwrk,ier,iopt,nx,ny, i1, j1,iostatus, str_id,ierr
+integer            :: nr, nz, n_psi, nbbs, limitr, i,j, nc, n_tht, n_sol, n_ext, ivtk, n_tht_in
+character          :: AA*52, tokamak_name*50,boundary_type*100
+character          :: buffer*80, lf*1, str1*12, str2*24, string_in*250,eqdsk_string_r_min*250
 
 integer          :: err_alloc
 logical          :: ferr
 real*8,allocatable :: ne_spline(:)
 !----------------------------- read eqdsk file -----------
+namelist /eqdsk2jorek_params/ tokamak_name,boundary_type,ellip_in,tria_up_in,&
+                              tria_low_in,quad_up_in,quad_low_in,n_tht_in,r0_in,&
+                              z0_in,a0_in,B_scale,I_scale,R_scale,smth,eqdsk_string_r_min
 
+!----------------------------- read eqdsk file -----------
 B_scale = 1.d0/1.d0  ! scaling factor for the vacuum toroidal field 
 I_scale = 1.d0/1.d0  ! scaling factor for the toroidal current
 R_scale = 1.d0/1.d0  ! scaling factor for the space coordinates 
-
+!> Define the defaults JOREK boundaries for a specific tokamak: 'ITER' (default), 'JET', 
+!> 'DIII-D' or define a boundary via user's inputs: 'USER_DEFINED' 
+tokamak_name  = 'ITER'
+!> Define which default boundary to be used (major radius, vertical position and 
+!> minor radius are rescaled by the R_scale factor):
+!> NOTE: the JOREK boundary is computed using:
+!>   R = R_axis + r_minor*cos(theta+triangularity*sin(theta)+quadrangularity*sin(2*theta))
+!>   Z = Z_axis + r_minor*ellipticity*sin(theta)
+!> ITER: CLOSE_WALL_FIT, OUTSIDE_WALL (default)
+!> JET: OUTSIDE_WALL, OUTSIDE_WALL_SHORT_LEG, CIRCULAR
+!> DIII-D: OUTSIDE_WALL, NIMROD_M3DC1
+!>
+!> eqdsk_string_r_min: string of the EQDSK file identifying the plasma minor radius
+!>   default value: 'MINOR RADIUS -> A [m]'
+boundary_type = 'OUTSIDE_WALL'
+eqdsk_string_r_min = 'MINOR RADIUS -> A [m]'
+ellip_in    = 1.d0; tria_up_in  = 0.d0; tria_low_in = 0.d0;
+quad_up_in  = 0.d0; quad_low_in = 0.d0; n_tht_in    = 259;
+r0_in       = 3.d0; z0_in       = 0.d0; a0_in       = 1.d0;
+smth = 1.d-6 ! Controls the tradeoff between closeness of fit and smoothness of fit. When too small, can lead to noise pick-up. When too large, can lead to inaccurate fit.
+             ! May need hand tuning, based on a visual inspection of the output.
+             ! For more details, see the documentation of regrid.f in libdierckx or the "Tips and Tricks" section of the Wiki page https://www.jorek.eu/wiki/doku.php?id=eqdsk2jorek.f90. 
 write(*,*) ' EQDSK to JOREK2 '
 
-tokamak_name = 'ITER' !'DIII-D' 'JET' 
+! --- Read parameters from namelist file 'eqdsk2jorek.nml' if it exists
+open(42, file='eqdsk2jorek.nml', action='read', status='old', iostat=ierr)
+if ( ierr == 0 ) then
+  write(*,*) 'Reading parameters from eqdsk2jorek.nml namelist.'
+  read(42,eqdsk2jorek_params)
+  close(42)
+end if 
 
 write(*,*) '   Tokamak = ', tokamak_name
+write(*,*) '   Boundary type = ',boundary_type
+write(*,*) '   EQDSK minor radius string = ',eqdsk_string_r_min
 
 read(5,'(A52,2i4)') AA,nr,nz
 
@@ -81,6 +115,18 @@ allocate(rbnd(nbbs),zbnd(nbbs))
 read(5,'(5e16.9)') (rbnd(i),zbnd(i),i=1,nbbs)
 allocate(rlim(limitr),zlim(limitr))
 read(5,'(5e16.9)') (rlim(i),zlim(i),i=1,limitr)
+
+! ------------------- find and read the plasma minor radius
+iostatus = 0; str_id = 0;string_in = ''; 
+do while(.true.)
+  read(5,'(A)',IOSTAT=iostatus) string_in
+  str_id = index(trim(string_in),trim(eqdsk_string_r_min));
+  if(str_id.ne.0 .or. iostatus.ne.0) exit
+enddo
+string_in = trim(string_in(str_id+len(trim(eqdsk_string_r_min))+1:len(string_in)))
+read(string_in,fmt=*) a_minor
+if(iostatus.ne.0) write(*,*) '!!!! WARNING SOMETHING WENT WRONG READING THE PLASMA MINOR RADIUS !!!!' 
+write(*,*),"a_minor:  ",a_minor,' m'
 
 write(*,*) ' done reading'
 
@@ -146,76 +192,116 @@ enddo
 if (tokamak_name == 'ITER') then
 
   !--------------------close fit to ITER wall
-!  ellip  = 2.0
-!  tria_u = 0.55
-!  tria_l = 0.65
-!  quad_u = -0.1
-!  quad_l = 0.15
-!  n_tht  = 257
-!  r0     = 6.2  * R_scale
-!  z0     = 0.1  * R_scale
-!  a0     = 2.25 * R_scale
+  if (boundary_type == 'CLOSE_WALL_FIT') then
+    ellip  = 2.0
+    tria_u = 0.55
+    tria_l = 0.65
+    quad_u = -0.1
+    quad_l = 0.15
+    n_tht  = 257
+    r0     = 6.2  * R_scale
+    z0     = 0.1  * R_scale
+    a0     = 2.25 * R_scale
 
   !-------------------- contour outside ITER wall
-  ellip  = 2.1
-  tria_u = 0.58
-  tria_l = 0.75!0.65
-  quad_u = -0.12
-  quad_l = -0.
-  n_tht  = 257
-  r0     = 6.2   * R_scale
-  z0     = -0.05 * R_scale
-  a0     = 2.34  * R_scale
+  else if(boundary_type == 'OUTSIDE_WALL') then
+    ellip  = 2.1
+    tria_u = 0.58
+    tria_l = 0.65
+    quad_u = -0.12
+    quad_l = -0.
+    n_tht  = 257
+    r0     = 6.2   * R_scale
+    z0     = -0.05 * R_scale
+    a0     = 2.34  * R_scale
+  else
+    write(*,*) 'JOREK boundary not or wrongly specified, stopping' 
+    stop
+  endif
 
 else if (tokamak_name == 'JET') then
   
   !-------------------- contour outside JET wall
   ! blue contour in https://www.jorek.eu/wiki/doku.php?id=eqdsk2jorek.f90
-  ellip  = 1.85
-  tria_u = 0.4
-  tria_l = 0.4
-  quad_u = -0.2
-  quad_l = -0.2
-  n_tht  = 257
-  r0     = 2.9  * R_scale
-  z0     = 0.1  * R_scale
-  a0     = 1.08 * R_scale
+  if(boundary_type == 'OUTSIDE_WALL') then
+    ellip  = 1.85
+    tria_u = 0.4
+    tria_l = 0.4
+    quad_u = -0.2
+    quad_l = -0.2
+    n_tht  = 257
+    r0     = 2.9  * R_scale
+    z0     = 0.1  * R_scale
+    a0     = 1.08 * R_scale
 
   !-------------------- contour to avoid too long divertor legs
-  ! red contour in https://www.jorek.eu/wiki/doku.php?id=eqdsk2jorek.f90
-  ellip  = 1.7
-  tria_u = 0.4
-  tria_l = 0.4
-  quad_u = -0.4
-  quad_l = -0.2
-  n_tht  = 257
-  r0     = 2.85 * R_scale
-  z0     = 0.15 * R_scale
-  a0     = 1.1  * R_scale
+  else if(boundary_type == 'OUTSIDE_WALL_SHORT_LEG') then
+    ellip  = 1.7
+    tria_u = 0.4
+    tria_l = 0.4
+    quad_u = -0.4
+    quad_l = -0.2
+    n_tht  = 257
+    r0     = 2.85 * R_scale
+    z0     = 0.15 * R_scale
+    a0     = 1.1  * R_scale
+
+  !-------------------- try circular plasmas
+  else if(boundary_type == 'CIRCULAR') then
+    ellip  = 1.
+    tria_u = 0.
+    tria_l = 0.
+    quad_u = 0.
+    quad_l = 0.
+    n_tht  = 257
+    r0     = rmaxis * R_scale
+    z0     = zmaxis * R_scale
+    a0     = a_minor * R_scale
+  else
+    write(*,*) 'JOREK boundary not or wrongly specified, stopping' 
+    stop
+  end if
 
 else if (tokamak_name == 'DIII-D') then
 
   !-------------------- contour outside DIII-D wall
-  ellip  = 1.85
-  tria_u = 0.4
-  tria_l = 0.4
-  quad_u = -0.2
-  quad_l = -0.2
-  n_tht  = 257
-  r0     = 1.7 * R_scale
-  z0     = 0.  * R_scale
-  a0     = 0.7 * R_scale
+  if(boundary_type == 'OUTSIDE_WALL') then
+    ellip  = 1.85
+    tria_u = 0.4
+    tria_l = 0.4
+    quad_u = -0.2
+    quad_l = -0.2
+    n_tht  = 257
+    r0     = 1.7 * R_scale
+    z0     = 0.  * R_scale
+    a0     = 0.7 * R_scale
   
   !-------------------- Atomic physics JOREK/NIMROD/M3D-C1 benchmark case (paper by B. Lyons)
-  ellip  = 1.35/0.7
-  tria_u = 0.3
-  tria_l = 0.3
-  quad_u = 0.
-  quad_l = 0.
-  n_tht   = 257
-  r0     = 1.7 * R_scale
-  z0     = 0.  * R_scale
-  a0     = 0.7 * R_scale
+  else if(boundary_type == 'NIMROD_M3DC1') then
+    ellip  = 1.35/0.7
+    tria_u = 0.3
+    tria_l = 0.3
+    quad_u = 0.
+    quad_l = 0.
+    n_tht   = 257
+    r0     = 1.7 * R_scale
+    z0     = 0.  * R_scale
+    a0     = 0.7 * R_scale
+  else
+    write(*,*) 'JOREK boundary not or wrongly specified, stopping' 
+    stop
+  end if
+
+else if(tokamak_name == 'USER_DEFINED') then
+    ellip  = ellip_in
+    tria_u = tria_up_in
+    tria_l = tria_low_in
+    quad_u = quad_up_in
+    quad_l = quad_low_in
+    n_tht  = n_tht_in
+    r0     = r0_in * R_scale
+    z0     = z0_in * R_scale
+    a0     = a0_in * R_scale
 
 else
 
@@ -223,6 +309,14 @@ else
   stop
 
 end if  
+
+write(*,*) 'JOREK boundary parameters'
+write(*,*) 'ellipticity: ',ellip
+write(*,*) 'upper and lower triangularity: ',tria_u,' ',tria_l
+write(*,*) 'upper and lower quadrangularity: ',quad_u,' ',quad_l
+write(*,*) 'axis position, R = ',r0,'[m] Z =',z0,'[m]'
+write(*,*) 'minor radius, a = ',a0,'[m]'
+write(*,*) 'N# poloidal angles: ',n_tht
   
 PI = 2.d0 * asin(1.d0)
 
@@ -238,13 +332,11 @@ yb = yy(1)
 ye = yy(nz)
 kx = 3
 ky = 3
-smth = 1.d-6 ! Controls the tradeoff between closeness of fit and smoothness of fit. When too small, can lead to noise pick-up. When too large, can lead to inaccurate fit.
-             ! May need hand tuning, based on a visual inspection of the output.
-             ! For more details, see the documentation of regrid.f in libdierckx or the "Hard-coded parameters" section of the Wiki page https://www.jorek.eu/wiki/doku.php?id=eqdsk2jorek.f90. 
 nxest = 3*nr/4 ! Upper bound for the number of knots used for the splines. We set it a bit smaller than nr to test the quality of the fit.
 nyest = 3*nz/4
 lwrk  = 4+nxest*(my+2*kx+5)+nyest*(2*ky+5)+mx*(kx+1)+my*(ky+1)+my+nxest
 kwrk  = 3+mx+my+nxest+nyest
+write(*,*) ' Interpolation smoothing parameter = ',smth
 
 allocate(tx(nxest),ty(nyest),c(nxest,nyest),wrk(lwrk),iwrk(kwrk))
 

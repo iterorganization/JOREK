@@ -2515,7 +2515,7 @@ if (my_id .eq. 0) then
 
 #if (defined WITH_Neutrals) || (defined WITH_Impurities)
   write(*,'(A,4es14.6)')   ' Integrals_3D, MGI              : ', total_n_particles_inj, total_n_particles
-  write(*,'(A,1e14.6,A)')  ' Radiation power                : ', total_radiation/1.d6, ' [MW]'
+  write(*,'(A,1e14.6,A)')  ' Radiation power (incl. backgr. imp) : ', total_radiation/1.d6, ' [MW]'
   write(*,'(A,1e14.6,A)')  ' Radiation power BACKGROUND     : ', total_radiation_bg/1.d6, ' [MW]'
   write(*,'(A,1e14.6,A)')  ' Radiation power SANITY         : ', sum(total_radiation_phi)/1.d6, ' [MW]'
   if (with_neutrals) then

@@ -207,17 +207,17 @@ subroutine do_write_particle_diagnostics(this, sim, ev)
     end if
     do j=1,n_real8_var
       call MPI_Gatherv(real8_var(:,j), size(real8_var,1), MPI_REAL8, &
-        real8_var_all(:,j), particles_per_proc, [(sum(particles_per_proc(1:i),1), i=0,n_cpu-1)], &
+        real8_var_all(:,j), particles_per_proc, [(sum(particles_per_proc(0:i-1),1), i=0,n_cpu-1)], &
         MPI_REAL8, 0, MPI_COMM_WORLD, ierr)
     end do
     do j=1,n_real4_var
       call MPI_Gatherv(real4_var(:,j), size(real4_var,1), MPI_REAL4, &
-        real4_var_all(:,j), particles_per_proc, [(sum(particles_per_proc(1:i),1), i=0,n_cpu-1)], &
+        real4_var_all(:,j), particles_per_proc, [(sum(particles_per_proc(0:i-1),1), i=0,n_cpu-1)], &
         MPI_REAL4, 0, MPI_COMM_WORLD, ierr)
     end do
     do j=1,n_int4_var
       call MPI_Gatherv(int4_var(:,j), size(int4_var,1), MPI_INTEGER, &
-        int4_var_all(:,j), particles_per_proc, [(sum(particles_per_proc(1:i),1), i=0,n_cpu-1)], &
+        int4_var_all(:,j), particles_per_proc, [(sum(particles_per_proc(0:i-1),1), i=0,n_cpu-1)], &
         MPI_INTEGER, 0, MPI_COMM_WORLD, ierr)
     end do
 
