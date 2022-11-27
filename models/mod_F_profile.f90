@@ -176,12 +176,12 @@ subroutine F_profile(xpoint2,xcase2,Z,Z_xpoint,psi,psi_axis,psi_bnd,&
       if (F0 .lt. 0.d0) d3Fmid = - d3Fmid
       prof0        = + ( delta_psi * (Fmid**2 - F0**2) + F0**2 )**(+0.5)
       dprof0_dpsi  = + ( delta_psi * (Fmid**2 - F0**2) + F0**2 )**(-0.5) * (Fmid * dFmid)
-      dprof0_dpsi2 = + ( delta_psi * (Fmid**2 - F0**2) + F0**2 )**(-0.5) * (Fmid * dFmid)**2 &
+      dprof0_dpsi2 = - ( delta_psi * (Fmid**2 - F0**2) + F0**2 )**(-1.5) * (Fmid * dFmid)**2 &
                      + ( delta_psi * (Fmid**2 - F0**2) + F0**2 )**(-0.5) * (dFmid**2 + Fmid * d2Fmid) / delta_psi
-      dprof0_dpsi3 = + ( delta_psi * (Fmid**2 - F0**2) + F0**2 )**(-0.5) * (Fmid * dFmid)**3 &
-                     + ( delta_psi * (Fmid**2 - F0**2) + F0**2 )**(-0.5) * (Fmid * dFmid) * 2.0 * (dFmid**2 + Fmid * d2Fmid) / delta_psi &
-                     + ( delta_psi * (Fmid**2 - F0**2) + F0**2 )**(-0.5) * (Fmid * dFmid) * (dFmid**2 + Fmid * d2Fmid) / delta_psi &
-                     + ( delta_psi * (Fmid**2 - F0**2) + F0**2 )**(-0.5) * (2.0*dFmid*d2Fmid + dFmid * d2Fmid + Fmid * d3Fmid) / delta_psi
+      dprof0_dpsi3 = + 3 * ( delta_psi * (Fmid**2 - F0**2) + F0**2 )**(-2.5) * (Fmid * dFmid)**3 &
+                     - ( delta_psi * (Fmid**2 - F0**2) + F0**2 )**(-1.5) * ( (2 * d2Fmid * dFmid * Fmid**2) + 2 * (dFmid**3 * Fmid)) / delta_psi &
+                     - ( delta_psi * (Fmid**2 - F0**2) + F0**2 )**(-1.5) * ((dFmid**3) * Fmid + d2Fmid * dFmid * Fmid**2) / delta_psi &
+                     + ( delta_psi * (Fmid**2 - F0**2) + F0**2 ) ** (-0.5) * ( (3 * dFmid * d2Fmid) + (Fmid * d3Fmid) ) / (delta_psi)**2
       if (F0 .lt. 0.d0) prof0        = - prof0
       if (F0 .lt. 0.d0) dprof0_dpsi  = - dprof0_dpsi 
       if (F0 .lt. 0.d0) dprof0_dpsi2 = - dprof0_dpsi2
