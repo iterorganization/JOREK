@@ -116,7 +116,7 @@ yy = min(max(y,minval(ty)),maxval(ty))
 ix1 = minloc(abs(tx - xx), dim=1)
 if (xx .ge. tx(ix1)) ix2 = ix1 + 1 ! find other index
 if (xx .lt. tx(ix1)) ix2 = ix1 - 1
-if (ix2 .gt. size(tx)) ix2 = size(tx) - 1 ! if it does not exist, extrapolate
+if (ix2 .gt. size(tx)) ix2 = size(tx) - 1
 if (ix2 .lt. 1       ) ix2 = 2
 iy1 = minloc(abs(ty - yy), dim=1)
 if (yy .ge. ty(iy1)) iy2 = iy1 + 1
@@ -124,9 +124,9 @@ if (yy .lt. ty(iy1)) iy2 = iy1 - 1
 if (iy2 .gt. size(ty)) iy2 = size(ty) - 1
 if (iy2 .lt. 1       ) iy2 = 2
 
-fx1  = (f(ix1,iy1,:) - f(ix2,iy1,:))/(tx(ix1) - tx(ix2)) * (x - tx(ix1)) + f(ix1,iy1,:)
-fx2  = (f(ix1,iy2,:) - f(ix2,iy2,:))/(tx(ix1) - tx(ix2)) * (x - tx(ix1)) + f(ix1,iy2,:)
-fout = (fx1 - fx2) / (ty(iy1) - ty(iy2)) * (y - ty(iy1)) + fx1
+fx1  = (f(ix1,iy1,:) - f(ix2,iy1,:))/(tx(ix1) - tx(ix2)) * (xx - tx(ix1)) + f(ix1,iy1,:)
+fx2  = (f(ix1,iy2,:) - f(ix2,iy2,:))/(tx(ix1) - tx(ix2)) * (xx - tx(ix1)) + f(ix1,iy2,:)
+fout = (fx1 - fx2) / (ty(iy1) - ty(iy2)) * (yy - ty(iy1)) + fx1
 end function L2D2interp
 
 !> Like [[L2D2interp]], but calculate the gradient in direction `dim`.
