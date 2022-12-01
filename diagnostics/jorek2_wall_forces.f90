@@ -27,6 +27,7 @@ program jorek2_wall_forces
   use mod_element_rtree, only: populate_element_rtree
   use basis_at_gaussian, only: initialise_basis
   use tr_module
+
 #ifdef USE_HDF5
   use hdf5
   use hdf5_io_module
@@ -39,8 +40,8 @@ program jorek2_wall_forces
                                             stdout=>output_unit, &
                                             stderr=>error_unit
   implicit none
- 
-  integer   :: my_id, my_id_n, my_id_master, ierr
+  character(len=60), parameter ::      FMT = "(1I5.5,'..', 1I5.5,'_' , 1f5.3 )" 
+  integer   :: my_id, my_id_n, my_id_master, ierr, ierr2
   integer   :: i_rank(n_tor), n_cpu, n_cpu_n, n_cpu_master, m_cpu, n_masters, n_cpu_trans, my_id_trans
   integer   :: MPI_COMM_N, MPI_GROUP_MASTER, MPI_GROUP_WORLD, MPI_COMM_MASTER, MPI_COMM_TRANS
   integer   :: required,provided,StatInfo
@@ -48,12 +49,13 @@ program jorek2_wall_forces
   integer*4 :: rank, comm_size 
   logical   :: first_step
 
-  real*8    :: Fx, Fy, Fz
+  real*8    :: Fx, Fy, Fz, scale_fact=1.d5
 
   character*17                          :: file_in
+  character*20                          :: fact
   character(len=MPI_MAX_PROCESSOR_NAME) :: name
   integer :: resultlength
- 
+  namelist /wall_forces/ istart, iend, delta_step, scale_fact 
  
   !***********************************************************************
   !*                  intialisation (copied from jorek2_main)            *
@@ -96,23 +98,22 @@ program jorek2_wall_forces
   call initialise_basis()
 
   first_step = .true.
-
   if (my_id==0) then
-    open(25,file='wall_forces.nml',action='read',iostat=ierr)
-    if (ierr/=0) then
-      write(*,*) 'Could not read wall_forces.nml'
-      stop
-    endif
-    read(25,*) istart, iend, delta_step   
-    close(25)
-
-    open(87,file='total_wall_forces.dat',action='write')
-    write(87,*) '#Step  time(norm)   time(ms)      Fx(N)        Fy(N)          Fz(N)'
-  endif
+     open(25, file='wall_forces.nml', action='read', status='old', iostat=ierr)
+     if (ierr==0) then
+        read(25,wall_forces)
+     end if
+     if (scale_fact > 1.d3 .or. scale_fact < 1.d-3) scale_fact = 1.01d0
+     write(*,*) 'scale factor:', scale_fact
+     write(fact,FMT) istart, iend, scale_fact
+     open(87,file=trim('total_wall_forces_')//trim(fact)//'.dat',action='write')
+     write(87,*) '#Step  time(norm)   time(ms)      Fx(N)        Fy(N)          Fz(N)'
+  end if
 
   call MPI_BCAST(     istart,1,MPI_INTEGER,0,MPI_COMM_WORLD,ierr)
   call MPI_BCAST(       iend,1,MPI_INTEGER,0,MPI_COMM_WORLD,ierr)
   call MPI_BCAST( delta_step,1,MPI_INTEGER,0,MPI_COMM_WORLD,ierr)
+  call MPI_BCAST( scale_fact,1,MPI_DOUBLE,0,MPI_COMM_WORLD,ierr)
 
   ! --- Loop over restart files
   do istep = istart, iend, delta_step 
@@ -120,10 +121,11 @@ program jorek2_wall_forces
     write(file_in,'(A5,i5.5)') 'jorek', istep
 
     if ( my_id == 0 ) then
-      call import_restart(node_list, element_list, file_in, rst_format, ierr)
-      if ( ierr /= 0 ) cycle 
+      call import_restart(node_list, element_list, file_in, rst_format, ierr2)
     endif
-  
+    call MPI_BCAST(ierr2,1,MPI_INTEGER,0,MPI_COMM_WORLD,ierr)
+    if ( ierr2 /= 0 ) cycle
+
     call broadcast_phys(my_id)  
     call broadcast_elements(my_id, element_list)                ! elements
     call broadcast_nodes(my_id, node_list)                      ! nodes
@@ -132,22 +134,22 @@ program jorek2_wall_forces
       write(*,*) ' **** Fatal: jorek2_wall_forces needs freeboundary simulations ****'
       stop
     endif
-  
-    call MPI_Barrier(MPI_COMM_WORLD,ierr)
-    
-    ! --- Determine boundary information from the grid
-    if ( my_id == 0 ) call boundary_from_grid(node_list, element_list, bnd_node_list, bnd_elm_list, output_bnd_elements)
-    call broadcast_boundary(my_id, bnd_elm_list, bnd_node_list)
-   
-    call broadcast_vacuum(my_id, resistive_wall)
 
+    call MPI_Barrier(MPI_COMM_WORLD,ierr)
     ! --- Fill the vacuum response matrices for freeboundary computations
     if (first_step) then
-      call get_vacuum_response(my_id, node_list, bnd_elm_list, bnd_node_list, freeboundary_equil,    &
+    
+       ! --- Determine boundary information from the grid
+       if ( my_id == 0 ) call boundary_from_grid(node_list, element_list, bnd_node_list, bnd_elm_list, output_bnd_elements)
+       call broadcast_boundary(my_id, bnd_elm_list, bnd_node_list)
+   
+       call broadcast_vacuum(my_id, resistive_wall)
+
+       call get_vacuum_response(my_id, node_list, bnd_elm_list, bnd_node_list, freeboundary_equil,    &
         resistive_wall)
-      call import_external_fields('coil_field.dat', my_id)
-      if ( .not. wall_curr_initialized ) call init_wall_currents(my_id, resistive_wall)
-      first_step = .false.
+       call import_external_fields('coil_field.dat', my_id)
+       if ( .not. wall_curr_initialized ) call init_wall_currents(my_id, resistive_wall)
+       first_step = .false.
     endif
 
     call MPI_Barrier(MPI_COMM_WORLD,ierr)
@@ -163,7 +165,7 @@ program jorek2_wall_forces
     endif 
   
     ! --- FORCES ---
-    call total_wall_forces(my_id, node_list, element_list, Fx, Fy, Fz)
+    call total_wall_forces(my_id, node_list, element_list, scale_fact, Fx, Fy, Fz)
  
     if (my_id==0) then
       write(87,'(I5.5,5ES14.6)') istep, t_start, t_start*sqrt_mu0_rho0*1.d3, Fx, Fy, Fz 

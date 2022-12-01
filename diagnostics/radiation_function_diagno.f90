@@ -20,11 +20,16 @@ type(adf11_all) :: ad
 type(coronal) :: cor
 character*120 :: directory
 
+real*8,allocatable    :: P_imp(:), dP_imp_dT(:)
+real*8                :: Z_imp, dZ_imp_dT, d2Z_imp_dT2, Prad, dPrad_dT
+
 !call MPI_Init_thread(MPI_THREAD_MULTIPLE, provided, ierr)
 
-directory = '${JOREK_ADAS_DIR}'                                                                                                                         
+directory = '${JOREK_ADAS_DIR}'
 ad = read_adf11(0, '96_ne', directory)
 cor = coronal(ad)
+
+allocate(P_imp(0:ad%n_Z), dP_imp_dT(0:ad%n_Z))
 
 !allocate(PLT(0:ad%n_Z))
 !allocate(PRB(0:ad%n_Z))
@@ -109,6 +114,26 @@ do i=0,ad%n_Z
   end do
 end do
 close(5)
+
+open(2, file = 'dZ_imp_dT.dat', status = 'replace')
+do i_t=1,n_t
+  temp = T_min * (T_max/T_min)**(real(i_t - 1)/real(n_t - 1))
+  call cor%interp_linear(density=20.,temperature=log10(temp*EL_CHG/K_BOLTZ),&
+                         p_out=P_imp,p_Te_out=dP_imp_dT,z_avg=Z_imp,z_avg_Te=dZ_imp_dT,&
+                         z_avg_TeTe=d2Z_imp_dT2)     !ad%PLT%GRCFspline
+  write(2,*) temp, dZ_imp_dT
+end do
+close(2)
+
+open(2, file = 'Z_imp.dat', status = 'replace')
+do i_t=1,n_t
+  temp = T_min * (T_max/T_min)**(real(i_t - 1)/real(n_t - 1))
+  call cor%interp_linear(density=20.,temperature=log10(temp*EL_CHG/K_BOLTZ),&
+                         p_out=P_imp,p_Te_out=dP_imp_dT,z_avg=Z_imp,z_avg_Te=dZ_imp_dT,&
+                         z_avg_TeTe=d2Z_imp_dT2)     !ad%PLT%GRCFspline
+  write(2,*) temp, Z_imp
+end do
+close(2)
 
 ! logspace in T
 !do i_t=1, n_t

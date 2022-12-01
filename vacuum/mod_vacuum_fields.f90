@@ -23,7 +23,7 @@ module mod_vacuum_fields
 
   !< This routine calculates the total wall forces by integrating the force tensor on a closed surface
   !! outside the wall (doi:10.1088/1741-4326/aa8876)
-  subroutine total_wall_forces(my_id, node_list, element_list, Fx, Fy, Fz)
+  subroutine total_wall_forces(my_id, node_list, element_list, scale_fact, Fx, Fy, Fz)
 
     use constants
     use data_structure
@@ -36,10 +36,11 @@ module mod_vacuum_fields
     integer,                   intent(in)    :: my_id
     type (type_node_list),     intent(in)    :: node_list
     type (type_element_list),  intent(in)    :: element_list   
+    real*8,                    intent(in)    :: scale_fact
     real*8,                    intent(inout) :: Fx, Fy, Fz  ! --- The total force in SI units (cartesian components)
 
     ! --- Local parameters
-    real*8               :: scale_fact, bx, by, bz
+    real*8               :: bx, by, bz
     real*8, allocatable  :: bx_c(:), by_c(:), bz_c(:)
     real*8, allocatable  :: bx_w(:), by_w(:), bz_w(:)
     real*8, allocatable  :: bx_p(:), by_p(:), bz_p(:)
@@ -50,7 +51,6 @@ module mod_vacuum_fields
     integer              :: i
 
     ! --- Create a surface just outside the wall (made of triangles)
-    scale_fact = 1.01d0
     call resize_starwall_wall(scale_fact)
 
     ! --- Obtain xyz points at the center of the triangles
