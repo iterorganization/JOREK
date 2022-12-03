@@ -329,7 +329,11 @@ real*8     :: ne_SI                                          ! Electron density 
 real*8     :: drho0_corr_dn, dTi0_corr_dT, dTe0_corr_dT
 
 ! neutral source
-real*8     :: source_neutral
+integer    :: i_inj
+real*8     :: source_neutral, source_neutral_arr(n_inj_max)
+real*8     :: source_neutral_drift, source_neutral_drift_arr(n_inj_max) !Neutral source deposited at R+drift_distance to impose plasmoid drift
+real*8     :: power_dens_teleport_ju, power_dens_teleport_ju_arr(n_inj_max) !Teleported power density in JOREK unit (sink at R and source at R+drift)
+
 ! time normalisation
 real*8     :: t_norm
 ! Atomic physics coefficients:
@@ -1265,9 +1269,38 @@ do i=1,n_vertex_max
           endif
 
           ! --- Source of neutrals, e.g. from MGI/SPI
-          source_neutral = 0.d0
-          call total_neutral_source(x_g(ms,mt),y_g(ms,mt),phi,A30,source_neutral)
-          source_neutral = max(source_neutral,0.) + source_pellet
+          source_neutral       = 0.d0; source_neutral_arr       = 0.d0
+          source_neutral_drift = 0.d0; source_neutral_drift_arr = 0.d0
+
+          call total_neutral_source(x_g(ms,mt),y_g(ms,mt),phi,A30,source_neutral_arr,source_neutral_drift_arr)
+
+          do i_inj = 1,n_inj
+            source_neutral       = source_neutral + source_neutral_arr(i_inj)
+            source_neutral_drift = source_neutral_drift +source_neutral_drift_arr(i_inj)
+          end do
+
+          ! To detect NaNs
+          if (source_neutral /= source_neutral .or. source_neutral_drift /= source_neutral_drift) then
+            write(*,*) 'ERROR in mod_elt_matrix_fft: source_neutral = ',source_neutral
+            write(*,*) 'ERROR in mod_elt_matrix_fft: source_neutral_drift = ',source_neutral_drift
+            stop
+          end if
+
+          source_neutral       = max(0.,source_neutral)       + source_pellet
+          source_neutral_drift = max(0.,source_neutral_drift) + source_pellet
+
+          !------------------------------------------------------------------------------------------
+          ! ---Calculate energy teleported in JOREK unit (sink at R and source at R + drift_distance)
+          !------------------------------------------------------------------------------------------
+          ! Input energy_teleported is in eV
+          power_dens_teleport_ju = 0.d0; power_dens_teleport_ju_arr = 0.d0
+          do i_inj = 1,n_inj
+            if (with_neutrals .and. energy_teleported(i_inj) /= 0.d0) then
+              power_dens_teleport_ju_arr(i_inj) = (-source_neutral_arr(i_inj) + source_neutral_drift_arr(i_inj))  * energy_teleported(i_inj) * &
+                                                  EL_CHG * (GAMMA-1) * MU_ZERO * 1.d20 * central_density
+              power_dens_teleport_ju = power_dens_teleport_ju + power_dens_teleport_ju_arr(i_inj)
+            end if
+          end do
 
           !--------------------------------------------------------
           !---- Neutrals physics (END)                       ------
@@ -1531,6 +1564,7 @@ do i=1,n_vertex_max
 
             Qvec_p(var_Te) = + v * ( - rho0 * UgradTe - Te0 * UgradRho -  gamma * pe0 * divU ) &
                              + v * heat_source_e(ms,mt)                                        &
+                             + v * power_dens_teleport_ju                                      &
                              + v * (gamma-1.d0) * Qvisc_T                                      &
                              - ZKe_prof * gradTe_gradVstar__p                                  &
                              - (ZKe_par_T-ZKe_prof) * BgradVstar__p * BgradTe / BB2            &
@@ -1555,7 +1589,7 @@ do i=1,n_vertex_max
                                - Dn0Z * rhon0_Z * v_Z                &
                                - v * rho0_corr * rhon0_corr * Sion_T &
                                + v * rho0_corr * rho0_corr  * Srec_T &
-                               + v * source_neutral                  &
+                               + v * source_neutral_drift            &
                               - Dn_perp_num * lap_Vstar * lap_Rhon
             Qvec_k(var_rhon) = - Dn0p * rhon0_p * v_p/R**2
 

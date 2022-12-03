@@ -730,7 +730,7 @@ subroutine preset_parameters
   n_spi(1)        = 1
   n_inj           = 1
   spi_rnd_seed    = 0
-  spi_abl_model   = 0
+  spi_abl_model   = -1
   spi_shard_file(:) = 'none'
   spi_plume_file(:) = 'none'
   spi_plume_hdf5  = .false.

@@ -288,13 +288,14 @@ module mod_injection_source
   return
   end subroutine inj_source
 
-  subroutine total_imp_source(R,Z,phi,psi,source_background,source_impurity,mass_ratio,i_main_imp) 
+  subroutine total_imp_source(R,Z,phi,psi,source_background_arr,source_impurity_arr,mass_ratio,i_main_imp, source_background_drift_arr)
 
     use phys_module, only: using_spi, JET_MGI, ASDEX_MGI, n_spi_tot, pellets, ns_radius_ratio, ns_radius
-    use phys_module, only: ns_radius_min, n_inj, n_spi, n_spi_tot, ns_deltaphi, L_tube
+    use phys_module, only: ns_radius_min, n_inj_max, n_inj, n_spi, n_spi_tot, ns_deltaphi, L_tube
     use phys_module, only: ns_tor_norm, A_Dmv,K_Dmv,V_Dmv,P_Dmv,t_ns, t_now, central_density, central_mass
     use phys_module, only: ns_amplitude, ns_R, ns_Z, ns_phi
     use phys_module, only: spi_num_vol, ns_delta_minor_rad
+    use phys_module, only: drift_distance
 
     implicit none
 
@@ -302,25 +303,26 @@ module mod_injection_source
     real*8, intent(in)   :: Z
     real*8, intent(in)   :: phi
     real*8, intent(in)   :: psi
-    real*8, intent(out)  :: source_background
-    real*8, intent(out)  :: source_impurity
+    real*8, intent(out)  :: source_background_arr(n_inj_max)
+    real*8, intent(out)  :: source_impurity_arr(n_inj_max)
+    real*8, intent(out), optional :: source_background_drift_arr(n_inj_max)
     real*8, intent(in)   :: mass_ratio
     integer, intent(in)  :: i_main_imp
 
     ! Temporary variables serving the SPI module
-    integer    :: spi_i, i_inj,  n_spi_tmp
+    integer    :: spi_i, i_inj, n_spi_tmp, n_spi_begin, i
     real*8     :: ns_radius_loc    
-    real*8     :: spi_R_tmp
-    real*8     :: spi_Z_tmp
-    real*8     :: spi_phi_tmp
-    real*8     :: spi_abl_tmp
     real*8     :: spi_psi_tmp
     real*8     :: spi_grad_psi_tmp
-    real*8     :: source_tmp
+    real*8     :: source_tmp, source_tmp_drift
     real*8     :: spi_vol_tmp !< Numerically integrated gas source volume
+    real*8     :: spi_vol_tmp_drift
 
-    source_background = 0.d0
-    source_impurity   = 0.d0
+    source_background_arr = 0.d0
+    source_impurity_arr   = 0.d0
+    if (present(source_background_drift_arr)) then
+      source_background_drift_arr = 0.d0
+    end if
 
     if (using_spi) then
 
@@ -330,46 +332,68 @@ module mod_injection_source
         ASDEX_MGI = .false.
       end if
 
-      do spi_i=1, n_spi_tot
+      n_spi_begin = 1
+      do i_inj = 1,n_inj
 
-        source_tmp = 0.d0
+        do i = 1,n_spi(i_inj)
+          spi_i = n_spi_begin + i - 1
 
-        if (pellets(spi_i)%spi_radius > 0.0) then
-          spi_R_tmp   = pellets(spi_i)%spi_R
-          spi_Z_tmp   = pellets(spi_i)%spi_Z
-          spi_phi_tmp = pellets(spi_i)%spi_phi
-          spi_abl_tmp = pellets(spi_i)%spi_abl
+          source_tmp = 0.d0
+          source_tmp_drift = 0.d0
 
-          spi_psi_tmp = pellets(spi_i)%spi_psi
-          spi_grad_psi_tmp = pellets(spi_i)%spi_grad_psi
+          if (pellets(spi_i)%spi_radius > 0.0) then
 
-          if (spi_num_vol) then
-             spi_vol_tmp = pellets(spi_i)%spi_vol
-          else
-             spi_vol_tmp = 0.d0
-          endif
+            if (spi_num_vol) then
+               spi_vol_tmp = pellets(spi_i)%spi_vol
+               spi_vol_tmp_drift = pellets(spi_i)%spi_vol_drift
+            else
+               spi_vol_tmp = 0.d0
+               spi_vol_tmp_drift = 0.d0
+            endif
 
-          ns_radius_loc   = pellets(spi_i)%spi_radius * ns_radius_ratio
+            ns_radius_loc   = pellets(spi_i)%spi_radius * ns_radius_ratio
 
-          if (ns_radius_loc < ns_radius_min) then
-            ns_radius_loc = ns_radius_min
+            if (ns_radius_loc < ns_radius_min) then
+              ns_radius_loc = ns_radius_min
+            end if
+
+            call inj_source(pellets(spi_i)%spi_abl,pellets(spi_i)%spi_R,pellets(spi_i)%spi_Z,pellets(spi_i)%spi_phi, &
+                          pellets(spi_i)%spi_psi,pellets(spi_i)%spi_grad_psi, &
+                          ns_radius_loc,ns_deltaphi,ns_delta_minor_rad,ns_tor_norm, &
+                          A_Dmv,K_Dmv,V_Dmv,P_Dmv,t_ns(i_inj),0., R, Z, phi, psi, &
+                          source_tmp,t_now,JET_MGI,ASDEX_MGI,central_density,central_mass,spi_vol_tmp,i_main_imp)
+
+            if (present(source_background_drift_arr)) then
+              if (drift_distance(i_inj) /= 0.d0) then
+                if (pellets(spi_i)%plasmoid_in_domain == 1) then
+                  call inj_source(pellets(spi_i)%spi_abl,pellets(spi_i)%spi_R+drift_distance(i_inj),pellets(spi_i)%spi_Z,pellets(spi_i)%spi_phi, &
+                              pellets(spi_i)%spi_psi_drift,pellets(spi_i)%spi_grad_psi_drift, &
+                              ns_radius_loc,ns_deltaphi,ns_delta_minor_rad,ns_tor_norm, &
+                              A_Dmv,K_Dmv,V_Dmv,P_Dmv,t_ns(i_inj),0., R, Z, phi, psi, &
+                              source_tmp_drift,t_now,JET_MGI,ASDEX_MGI,central_density,central_mass,spi_vol_tmp_drift,i_main_imp)
+
+                  if (pellets(spi_i)%spi_species > 0.) then
+                    write(*,*) 'WARNING: Do you really want to put <plasmoid teleportation> to non-pure D SPI?'
+                  end if 
+
+                else
+                  source_tmp_drift = 0.d0
+                end if
+              else
+                source_tmp_drift = source_tmp
+              end if 
+              source_background_drift_arr(i_inj) = source_background_drift_arr(i_inj) + source_tmp_drift * (1. - pellets(spi_i)%spi_species)
+            end if
+
           end if
-          
-          n_spi_tmp = 0
-          do i_inj = 1, n_inj
-            n_spi_tmp = n_spi_tmp + n_spi(i_inj)
-            if (spi_i <= n_spi_tmp)  exit !< Determine the injection location index of the fragment
-          end do
 
-          call inj_source(spi_abl_tmp,spi_R_tmp,spi_Z_tmp,spi_phi_tmp,spi_psi_tmp,spi_grad_psi_tmp, &
-                        ns_radius_loc,ns_deltaphi,ns_delta_minor_rad,ns_tor_norm, &
-                        A_Dmv,K_Dmv,V_Dmv,P_Dmv,t_ns(i_inj),0., R, Z, phi, psi, &
-                        source_tmp,t_now,JET_MGI,ASDEX_MGI,central_density,central_mass,spi_vol_tmp,i_main_imp)
-        end if
+          ! Converting number density into mass density for each species respectively
+          source_background_arr(i_inj)  = source_background_arr(i_inj) + source_tmp * ( 1. - pellets(spi_i)%spi_species)
+          source_impurity_arr(i_inj)    = source_impurity_arr(i_inj) + source_tmp * pellets(spi_i)%spi_species / mass_ratio
 
-        ! Converting number density into mass density for each species respectively
-        source_background  = source_background + source_tmp * ( 1. - pellets(spi_i)%spi_species)
-        source_impurity    = source_impurity + source_tmp * pellets(spi_i)%spi_species / mass_ratio
+        end do
+
+        n_spi_begin = n_spi_begin + n_spi(i_inj)
 
       end do
 
@@ -386,11 +410,11 @@ module mod_injection_source
                         A_Dmv,K_Dmv,V_Dmv,P_Dmv,t_ns(i_inj),L_tube,R,Z,phi,psi, &
                         source_tmp, t_now, JET_MGI,ASDEX_MGI,central_density,central_mass, spi_vol_tmp,i_main_imp)
 
-        source_impurity = source_impurity + source_tmp
+        source_impurity_arr(i_inj) = source_impurity_arr(i_inj) + source_tmp
       end do
 
       ! Converting number density into mass density for each species respectively
-      source_impurity = source_impurity / mass_ratio
+      source_impurity_arr = source_impurity_arr / mass_ratio
 
     end if
 

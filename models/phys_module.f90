@@ -394,9 +394,9 @@ module phys_module
   real*8  :: ns_radius         !< Poloidal radius of gas source
   real*8  :: ns_deltaphi       !< Toroidal extension of gas source
   real*8  :: ns_delta_minor_rad  !< Extension of gas source in the minor radial direction (if greater than 0.)
-  real*8  :: ns_tor_norm       !< Gas source normalization factor related to its toroidal shape
-  real*8  :: drift_distance    !< Shift the R position of the neutral deposition outward by drift_distance (in meters) for plasmoid drift
-  real*8  :: energy_teleported !< Energy (in eV) teleported per atom to consider plasmoid drift effects
+  real*8  :: ns_tor_norm         !< Gas source normalization factor related to its toroidal shape
+  real*8  :: drift_distance(n_inj_max)    !< Shift the R position of the neutral deposition outward by drift_distance (in meters) for plasmoid drift
+  real*8  :: energy_teleported(n_inj_max) !< Energy (in eV) teleported per atom to consider plasmoid drift effects
 
   character(len=80) :: imp_type(n_imp_max) !< Type of injected material or background impurity species: Argon, neon, ...
   logical :: use_imp_adas       !< Use open adas to calculate ionization, recombination and radiation coeffients for impurities
@@ -456,11 +456,11 @@ module phys_module
   integer :: n_spi(n_inj_max)   !< Number of shattered fragment injected for each injection
   integer :: n_spi_tot          !< Total number of shattered fragments injected
   integer :: n_inj              !< Number of injections
-  integer :: spi_abl_model      !< Determine which type of ablation model is used.
-                                !< 0 for constant release rate, 1 for NGS model,
-                                !< 2 for Sergeev formula, 3 for Parks formula.
-                                !< For details see Nucl. Fusion 61 (2021) 026015 (23pp), 
-                                !< https://iopscience.iop.org/article/10.1088/1741-4326/abcbcb
+  integer :: spi_abl_model(n_inj_max)  !< Determine which type of ablation model is used.
+                                       !< 0 for constant release rate, 1 for NGS model,
+                                       !< 2 for Sergeev formula, 3 for Parks formula.
+                                       !< For details see Nucl. Fusion 61 (2021) 026015 (23pp), 
+                                       !< https://iopscience.iop.org/article/10.1088/1741-4326/abcbcb
   integer :: spi_rnd_seed(40)   !< Random seed array used for the generation of the SPI velocity spread
 
   character(len=256) :: spi_shard_file(n_inj_max)!< The name of the shard size file

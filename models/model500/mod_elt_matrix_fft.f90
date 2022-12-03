@@ -98,8 +98,11 @@ real*8     :: dT_dpsi(n_gauss,n_gauss),dT_dz,dT_dpsi2,dT_dz2,dT_dpsi_dz,dT_dpsi3
 logical    :: xpoint2, use_fft
 real*8     :: Btheta2, epsil, Btheta2_psi
 real*8, dimension(n_gauss,n_gauss)    :: amu_neo_prof, aki_neo_prof
-! neutral source
-real*8     :: source_neutral
+! neutral source                                                                                                                  
+real*8     :: source_neutral, source_neutral_arr(n_inj_max)                                                                       
+real*8     :: source_neutral_drift, source_neutral_drift_arr(n_inj_max) !Neutral source deposited at R+drift_distance to impose plasmoid drift     
+real*8     :: power_dens_teleport_ju, power_dens_teleport_ju_arr(n_inj_max) !Teleported power density in JOREK unit (sink at R and source at R+drift)
+
 ! time normalisation
 real*8     :: t_norm
 ! Atomic physics coefficients:
@@ -762,12 +765,40 @@ do i=1,n_vertex_max
           ! --- Source of neutrals, e.g. from MGI/SPI
           !--------------------------------------------------------
 
-          source_neutral = 0.d0                   
-     
-          call total_neutral_source(x_g(ms,mt),y_g(ms,mt),phi,ps0,source_neutral)
-     
-          source_neutral = max(source_neutral,0.)
-      
+          source_neutral       = 0.d0; source_neutral_arr       = 0.d0
+          source_neutral_drift = 0.d0; source_neutral_drift_arr = 0.d0
+
+          call total_neutral_source(x_g(ms,mt),y_g(ms,mt),phi,ps0,source_neutral_arr,source_neutral_drift_arr)
+
+          do i_inj = 1,n_inj
+            source_neutral       = source_neutral + source_neutral_arr(i_inj)
+            source_neutral_drift = source_neutral_drift + source_neutral_drift_arr(i_inj)
+          end do
+
+          ! To detect NaNs
+          if (source_neutral /= source_neutral .or. source_neutral_drift /= source_neutral_drift) then
+            write(*,*) 'ERROR in mod_elt_matrix_fft: source_neutral = ',source_neutral
+            write(*,*) 'ERROR in mod_elt_matrix_fft: source_neutral_drift = ',source_neutral_drift
+            stop
+          end if
+
+          source_neutral       = max(0.,source_neutral)
+          source_neutral_drift = max(0.,source_neutral_drift)
+
+          !------------------------------------------------------------------------------------------
+          ! ---Calculate energy teleported in JOREK unit (sink at R and source
+          ! at R + drift_distance)
+          !------------------------------------------------------------------------------------------
+          ! Input energy_teleported is in eV
+          power_dens_teleport_ju = 0.d0; power_dens_teleport_ju_arr = 0.d0
+          do i_inj = 1,n_inj
+            if (with_neutrals .and. energy_teleported(i_inj) /= 0.d0) then
+              power_dens_teleport_ju_arr(i_inj) = (-source_neutral_arr(i_inj) + source_neutral_drift_arr(i_inj))  * energy_teleported(i_inj) * &
+                                                  EL_CHG * (GAMMA-1) * MU_ZERO * 1.d20 * central_density
+              power_dens_teleport_ju = power_dens_teleport_ju + power_dens_teleport_ju_arr(i_inj)
+            end if
+          end do
+
          !-----------------------------------------------------------------
          ! --- Radiation from background impurity, using ADAS (by default)
          !-----------------------------------------------------------------
@@ -818,7 +849,6 @@ do i=1,n_vertex_max
             end if 
 
           end if
-
 
          !--------------------------------------------------------
 
@@ -989,6 +1019,8 @@ do i=1,n_vertex_max
             !###################################################################################################
 
             rhs_ij(6) =  v * BigR * heat_source(ms,mt)                                    * xjac * tstep * factor(6, 1)& ! External heat source
+
+                       + v * BigR * power_dens_teleport_ju                                * xjac * tstep * factor(6, 1)& ! Additional energy teleportation term
             
                        + v * r0 * BigR**2 * ( T0_s * u0_t - T0_t * u0_s)                         * tstep * factor(6, 2)& ! vperp*gradP
                        + v * T0 * BigR**2 * ( r0_s * u0_t - r0_t * u0_s)                         * tstep * factor(6, 2)&
@@ -1115,7 +1147,7 @@ do i=1,n_vertex_max
 
                   - BigR * v * r0_corr * rn0_corr * Sion_T                                 * xjac * tstep * factor(8,3) &  ! Ionization sink
                   + BigR * v * r0_corr * r0_corr  * Srec_T                                 * xjac * tstep * factor(8,4) &  ! Recombination source
-                  + BigR * v * source_neutral                                              * xjac * tstep * factor(8,5) &  ! External neutral source
+                  + BigR * v * source_neutral_drift                                        * xjac * tstep * factor(8,5) &  ! External neutral source
                   - Dn_perp_num * (v_xx + v_x/Bigr + v_yy)*(rn0_xx + rn0_x/Bigr + rn0_yy)  * BigR * xjac * tstep * factor(8,6) & ! Hyper diffusitivity
 
                   + v * delta_g(mp,8,ms,mt) * BigR * xjac * zeta* factor(8,7) ! Variation

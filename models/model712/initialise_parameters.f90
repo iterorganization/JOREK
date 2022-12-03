@@ -235,7 +235,7 @@ if (my_id .eq. 0) then
         stop
      endif
   endif
-  
+
   call allocate_live_data()
 
 endif

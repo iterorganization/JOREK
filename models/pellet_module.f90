@@ -320,9 +320,9 @@ module pellet_module
         end if
       end if
   
-      if (spi_abl_model == 0) then
+      if (spi_abl_model(i_inj) == 0) then
         pellets(i_p)%spi_abl   = ns_amplitude(i_inj)
-      else if (spi_abl_model >= 1) then
+      else if (spi_abl_model(i_inj) >= 1) then
   
         call find_RZ(node_list,element_list,pellets(i_p)%spi_R,pellets(i_p)%spi_Z,&
                      R_out,Z_out,i_elm,s_out,t_out,ifail)
@@ -336,11 +336,11 @@ module pellet_module
           stop
         end if
 
-        if (drift_distance /= 0) then ! when considering plasmoid drift by shifting neutral source
+        if (drift_distance(i_inj) /= 0) then ! when considering plasmoid drift by shifting neutral source
 
           pellets(i_p)%plasmoid_in_domain = 0 ! Always assumed to be out of domain before searching again
 
-          call find_RZ(node_list,element_list,pellets(i_p)%spi_R+drift_distance,pellets(i_p)%spi_Z,&
+          call find_RZ(node_list,element_list,pellets(i_p)%spi_R+drift_distance(i_inj),pellets(i_p)%spi_Z,&
                            R_out_drift,Z_out_drift,i_elm_drift,s_out_drift,t_out_drift,ifail_drift) 
 
           if (ifail_drift == 0) then ! Post-teleportation plasmoid in computational domain
@@ -356,8 +356,8 @@ module pellet_module
 #if ((defined WITH_Impurities) || (defined WITH_Neutrals))
 #ifdef WITH_TiTe
         call interp_PRZ(node_list,element_list,i_elm,[var_rho,var_Te,var_rhon,var_psi],4,s_out,t_out,pellets(i_p)%spi_phi,&
-                        P,P_s,P_t,P_phi,R,R_s,R_t,Z,Z_s,Z_t)
-        if (drift_distance /= 0) then
+                        P,P_s,P_t,P_phi,R,R_s,R_t,Z,Z_s,Z_t)        
+        if (drift_distance(i_inj) /= 0) then
           call interp_PRZ(node_list,element_list,i_elm_drift,[var_rho,var_Te,var_rhon,var_psi],4,s_out_drift,t_out_drift,pellets(i_p)%spi_phi,&
                                  P_drift,P_s_drift,P_t_drift,P_phi_drift,R_drift,R_s_drift,R_t_drift,Z_drift,Z_s_drift,Z_t_drift)
         end if
@@ -365,7 +365,7 @@ module pellet_module
 #else /* WITH_TiTe */
         call interp_PRZ(node_list,element_list,i_elm,[var_rho,var_T,var_rhon,var_psi],4,s_out,t_out,pellets(i_p)%spi_phi,&
                         P,P_s,P_t,P_phi,R,R_s,R_t,Z,Z_s,Z_t)
-        if (drift_distance /= 0) then
+        if (drift_distance(i_inj) /= 0) then
           call interp_PRZ(node_list,element_list,i_elm_drift,[var_rho,var_T,var_rhon,var_psi],4,s_out_drift,t_out_drift,pellets(i_p)%spi_phi,&
                                  P_drift,P_s_drift,P_t_drift,P_phi_drift,R_drift,R_s_drift,R_t_drift,Z_drift,Z_s_drift,Z_t_drift)
         end if
@@ -378,7 +378,7 @@ module pellet_module
         pellets(i_p)%spi_psi = P(4)
         pellets(i_p)%spi_grad_psi = sqrt(psi_R**2 + psi_Z**2)
 
-        if (drift_distance /= 0) then
+        if (drift_distance(i_inj) /= 0) then
           if (pellets(i_p)%plasmoid_in_domain ==1 ) then ! if the drifted position locates inside the JOREK grid
             xjac_drift  = R_s_drift * Z_t_drift - R_t_drift * Z_s_drift
             psi_R_drift = (  P_s_drift(4) * Z_t_drift - P_t_drift(4) * Z_s_drift) / xjac_drift
@@ -439,9 +439,8 @@ module pellet_module
         endif
  
         ! NGS model
-        if (spi_abl_model == 1) then
-          ne_SI = n_SI
-          pellets(i_p)%spi_abl    = 4.12d16 * (pellets(i_p)%spi_radius**(4.0/3.0)) * (ne_SI**(1.0/3.0)) * &
+        if (spi_abl_model(i_inj) == 1) then
+          pellets(i_p)%spi_abl    = 4.12d16 * (pellets(i_p)%spi_radius**(4.0/3.0)) * (n_SI**(1.0/3.0)) * &
                                    (T_eV**1.64)
           if (nonlocal_abl) then
             spi_abl_nl            = 4.12d16 * (pellets(i_p)%spi_radius**(4.0/3.0)) * (ne_SI_nl**(1.0/3.0)) * &
@@ -451,7 +450,7 @@ module pellet_module
           if (my_id == 0 .and. pellets(i_p)%spi_radius > 0.0 .and. mod(index_now,20)==0) then
             write(*,*) "Check Point, n_SI, T_eV = ", n_SI, T_eV
           end if
-        else if (spi_abl_model == 2) then
+        else if (spi_abl_model(i_inj) == 2) then
           select case ( trim(imp_type(index_main_imp)) )
             case('D2')
               ne_SI   = n_SI
@@ -543,7 +542,7 @@ module pellet_module
           if (my_id == 0 .and. pellets(i_p)%spi_radius > 0.0 .and. mod(index_now,20)==0) then
             write(*,*) "Check Point, ne_SI, T_eV = ", ne_SI, T_eV
           end if
-        else if (spi_abl_model == 3) then
+        else if (spi_abl_model(i_inj) == 3) then
           select case ( trim(imp_type(index_main_imp)) )
             case('D2') ! We temporarily wusing D2 ablation rate for H2 ablation here
               pellets(i_p)%spi_abl = 39.0023 * 2. * MOLE_NUMBER * ((pellets(i_p)%spi_radius*1.d2 / 0.2)**(4./3.)) &
@@ -833,7 +832,7 @@ module pellet_module
         case('Ne')
           ! Only Parks formula can properly treat the mixing of neon and D2/H2,
           ! otherwise we assume neon and D2/H2 formed seperately.
-          if (spi_abl_model == 3 .and. mix_ratio < 1. .and. mix_ratio > 0.) then
+          if (spi_abl_model(i_inj) == 3 .and. mix_ratio < 1. .and. mix_ratio > 0.) then
             do i = 1, n_spi
               i_p = i - 1 + n_spi_begin
               pellets(i_p)%spi_species = spi_quantity/(spi_quantity + spi_quantity_bg)
@@ -1252,7 +1251,7 @@ module pellet_module
         case('Ne')
           ! Only Parks formula can properly treat the mixing of neon and D2/H2.
           ! otherwise we assume neon and D2/H2 formed separately.
-          if (spi_abl_model == 3) then
+          if (spi_abl_model(i_inj) == 3) then
             do i = 1, n_spi
               i_p = i - 1 + n_spi_begin
               spi_species_atomic_tmp = 1.d0 - 2.d0 * spi_species_molar_D2_tmp(i) / (spi_species_molar_D2_tmp(i) + 1.d0)
@@ -1279,7 +1278,7 @@ module pellet_module
                 spi_density_tmp = pellet_density_bg
                 real_spi_quantity(1) = real_spi_quantity(1) + (4./3.) * PI * (spi_radius_tmp(i)**3) * spi_density_tmp *1.d20
               else
-                write(*,*) "ERROR in pellet_module: Only 'spi_abl_model = 3' can properly treat the mixing of neon and D2/H2  , exiting."
+                write(*,*) "ERROR in pellet_module: Only 'spi_abl_model(i_inj) = 3' can properly treat the mixing of neon and D2/H2  , exiting."
                 stop
               end if
             end do

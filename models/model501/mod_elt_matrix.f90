@@ -107,7 +107,10 @@ real*8     :: aux_rho0, aux_T0, aux_Vpar0, aux_dEion_dt, aux_rad
 real*8     :: aux_P0, aux_P0_s,  aux_P0_t, aux_P0_p, aux_q0, aux_jx0, aux_jy0, aux_jz0, aux_jz0_pcs
 
 ! Impurity and background source
-real*8     :: source_imp, source_bg
+real*8     :: source_imp, source_bg, source_imp_arr(n_inj_max), source_bg_arr(n_inj_max)
+real*8     :: source_bg_drift_arr(n_inj_max)
+real*8     :: power_dens_teleport_ju, power_dens_teleport_ju_arr(n_inj_max)
+
 
 ! time normalization
 real*8     :: t_norm
@@ -1030,25 +1033,41 @@ do ms=1, n_gauss
 
      phi = 2.d0*PI*float(mp-1)/float(n_plane)/float(n_period)
 
-     source_imp = 0.d0                    
-     source_bg  = 0.d0
+     source_imp = 0.d0; source_imp_arr = 0.d0
+     source_bg  = 0.d0; source_bg_arr  = 0.d0
 
-     call total_imp_source(x_g(ms,mt),y_g(ms,mt),phi,ps0,source_bg,source_imp,m_i_over_m_imp,index_main_imp)
+     source_bg_drift_arr = 0.d0
+
+     call total_imp_source(x_g(ms,mt),y_g(ms,mt),phi,ps0,source_bg_arr,source_imp_arr,m_i_over_m_imp,index_main_imp,source_bg_drift_arr)
+
+     do i_inj = 1,n_inj
+       source_imp = source_imp + source_imp_arr(i_inj)
+       if (drift_distance(i_inj) /= 0.d0) then
+         source_bg = source_bg + source_bg_drift_arr(i_inj)
+       else
+         source_bg = source_bg + source_bg_arr(i_inj)
+       end if
+     end do
 
      ! This is to detect N/A
      if (source_imp /= source_imp .or. source_bg /= source_bg) then
-       write(*,*) "WARNING: source_imp = ", source_imp
-       write(*,*) "WARNING: source_bg = ", source_bg
+       write(*,*) "ERROR in mod_elt_matrix (501): source_imp = ", source_imp
+       write(*,*) "ERROR in mod_elt_matrix (501): source_bg = ", source_bg
        stop
-     end if     
+     end if
 
-     if (source_imp .lt. 0.d0) then
-      source_imp = 0.d0
-     endif
-     
-     if (source_bg .lt. 0.d0) then
-      source_bg = 0.d0
-     endif
+     source_imp = max(0., source_imp)
+     source_bg  = max(0., source_bg)
+
+     ! teleported energy
+     power_dens_teleport_ju = 0.d0; power_dens_teleport_ju_arr = 0.d0
+     do i_inj = 1,n_inj
+       if (energy_teleported(i_inj) /= 0.d0) then
+         power_dens_teleport_ju_arr(i_inj) = (-source_bg_arr(i_inj) + source_bg_drift_arr(i_inj)) * energy_teleported(i_inj) * & 
+                                             EL_CHG * (GAMMA-1.) * MU_ZERO * 1.d20 * central_density
+         power_dens_teleport_ju = power_dens_teleport_ju + power_dens_teleport_ju_arr(i_inj)
+       end if
+     end do
 
    !--------------------------------------------------------
    ! --- Radiation from background impurity
@@ -1261,6 +1280,8 @@ do ms=1, n_gauss
 
          rhs_ij_6 =   v * BigR * heat_source(ms,mt)                                    * xjac * tstep &
                     - v * BigR * (aux_dEion_dt + aux_rad)                              * xjac * tstep &
+
+                    + v * BigR * power_dens_teleport_ju                                * xjac * tstep &
  
                     + v * (r0 + rn0*alpha_imp_bis) * BigR**2 * ( T0_s * u0_t - T0_t * u0_s)   * tstep &
                     + v * T0 * BigR**2 * ( r0_s * u0_t - r0_t * u0_s)                         * tstep &
