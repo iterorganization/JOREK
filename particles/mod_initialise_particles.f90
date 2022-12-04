@@ -238,7 +238,7 @@ subroutine initialise_particles_marker(particles, node_list, element_list, field
   use mod_interp
   use mod_fields
   use constants
-  use phys_module, only: central_density, central_mass, imp_type, n_adas, index_main_imp, n_inj, n_inj_max
+  use phys_module, only: central_density, central_mass, imp_type, n_adas, index_main_imp, n_inj, n_inj_max, drift_distance
 #ifdef WITH_Neutrals
   use mod_neutral_source, only: total_neutral_source
 #endif
