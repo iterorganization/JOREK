@@ -451,7 +451,7 @@ subroutine initialise_particles_marker(particles, node_list, element_list, field
           source_bg_drift_arr = 0.d0
 
           call interp_PRZ(node_list, element_list,i_elm,[var_psi],1,s,t,phi,P,P_s,P_t,P_phi,R,R_s,R_t,Z,Z_s,Z_t)
-          call total_imp_source(R,Z,phi,P(1),source_bg_arr,source_imp_arr,m_i_over_m_imp,index_main_impi,source_bg_drift_arr) 
+          call total_imp_source(R,Z,phi,P(1),source_bg_arr,source_imp_arr,m_i_over_m_imp,index_main_imp,source_bg_drift_arr) 
           do i_inj = 1,n_inj
             source_tmp = source_tmp + source_imp_arr(i_inj)
             if (drift_distance(i_inj) /= 0.d0) then
