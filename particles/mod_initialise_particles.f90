@@ -238,7 +238,7 @@ subroutine initialise_particles_marker(particles, node_list, element_list, field
   use mod_interp
   use mod_fields
   use constants
-  use phys_module, only: central_density, central_mass, imp_type, n_adas, index_main_imp
+  use phys_module, only: central_density, central_mass, imp_type, n_adas, index_main_imp, n_inj, n_inj_max
 #ifdef WITH_Neutrals
   use mod_neutral_source, only: total_neutral_source
 #endif
@@ -273,8 +273,9 @@ subroutine initialise_particles_marker(particles, node_list, element_list, field
   real*8  :: ran(4)
   real*8  :: B(3), psi, U, V(3), timesteps
   real*8  :: t_norm, n_norm
-  integer :: i_elm
+  integer :: i_elm, i_inj
   real*8  :: t0, t1, ostart, oend, phys_source, source_tmp, source_bg_tmp
+  real*8  :: source_imp_arr(n_inj_max), source_bg_arr(n_inj_max), source_bg_drift_arr(n_inj_max)
   integer :: seq, n_streams, n_threads, i_thread
   integer :: n_particle_asn
   logical :: uniform_sampling
@@ -425,7 +426,7 @@ subroutine initialise_particles_marker(particles, node_list, element_list, field
     !$omp          rngs, uniform_sampling, n_threads, n_streams, seed, my_id, i_to_find, not_found) &
     !$omp   private(j, i, spi_i, R, Z, phi, i_elm, s, t, ifail, seq, ran, i_thread, DUMMY_REAL,   &
     !$omp           source_tmp, source_bg_tmp, V, B, psi, U, P, P_s, P_t, P_phi,                  &
-    !$omp           R_s, R_t, Z_s, Z_t, R_i, Z_i)
+    !$omp           source_imp_arr, source_bg_arr,source_bg_drift_arr,R_s, R_t, Z_s, Z_t, R_i, Z_i)
     i_thread = 0
     !$ i_thread=omp_get_thread_num()
     !$omp do
@@ -444,11 +445,29 @@ subroutine initialise_particles_marker(particles, node_list, element_list, field
         if (.not. uniform_sampling) then
           ! Obtain the source term value at randomly generated particle position
 #ifdef WITH_Impurities
+          source_tmp = 0.d0; source_imp_arr = 0.d0
+          source_bg_tmp  = 0.d0; source_bg_arr = 0.d0
+
+          source_bg_drift_arr = 0.d0
+
           call interp_PRZ(node_list, element_list,i_elm,[var_psi],1,s,t,phi,P,P_s,P_t,P_phi,R,R_s,R_t,Z,Z_s,Z_t)
-          call total_imp_source(R,Z,phi,P(1),source_bg_tmp,source_tmp,m_i_over_m_imp,index_main_imp) 
+          call total_imp_source(R,Z,phi,P(1),source_bg_arr,source_imp_arr,m_i_over_m_imp,index_main_impi,source_bg_drift_arr) 
+          do i_inj = 1,n_inj
+            source_tmp = source_tmp + source_imp_arr(i_inj)
+            if (drift_distance(i_inj) /= 0.d0) then
+              source_bg_tmp = source_bg_tmp + source_bg_drift_arr(i_inj)
+            else
+              source_bg_tmp = source_bg_tmp + source_bg_arr(i_inj)
+            end if
+          end do
 #endif 
 #ifdef WITH_Neutrals
-          call total_neutral_source(R,Z,phi,P(1),source_tmp) 
+          source_tmp = 0.d0; source_bg_arr = 0.d0
+          source_bg_drift_arr = 0.d0
+          call total_neutral_source(R,Z,phi,P(1),source_bg_arr,source_bg_drift_arr) 
+          do i_inj = 1,n_inj
+            source_tmp = source_tmp + source_bg_drift_arr(i_inj)
+          end do
 #endif 
           if (present(transform_rej_f)) then
             if (ran(4) .lt. transform_rej_f(source_tmp,(phys_source*t_norm/n_norm))) then
