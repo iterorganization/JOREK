@@ -423,9 +423,10 @@ subroutine initialise_particles_marker(particles, node_list, element_list, field
     !$omp parallel default(none) &
     !$omp   shared(particles, node_list, element_list, Rbox, Zbox, PhiBox, t_norm, n_norm, &
     !$omp          phys_source, m_i_over_m_imp, time, fields, timesteps, n_particle_asn, index_main_imp,&
+    !$omp          n_inj, n_inj_max, drift_distance,                                                &
     !$omp          rngs, uniform_sampling, n_threads, n_streams, seed, my_id, i_to_find, not_found) &
     !$omp   private(j, i, spi_i, R, Z, phi, i_elm, s, t, ifail, seq, ran, i_thread, DUMMY_REAL,   &
-    !$omp           source_tmp, source_bg_tmp, V, B, psi, U, P, P_s, P_t, P_phi,                  &
+    !$omp           source_tmp, source_bg_tmp, V, B, psi, U, P, P_s, P_t, P_phi, i_inj,           &
     !$omp           source_imp_arr, source_bg_arr,source_bg_drift_arr,R_s, R_t, Z_s, Z_t, R_i, Z_i)
     i_thread = 0
     !$ i_thread=omp_get_thread_num()
