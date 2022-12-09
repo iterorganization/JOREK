@@ -136,7 +136,7 @@ subroutine setup_solvers(this, sim)
 
     if (restart) then
       do i = 1, index_start
-       call write_live_data_all(i)
+       if ( sim%my_id == 0 ) call write_live_data_all(i)
 !      call write_live_data_vacuum(index_now, diag_coil_curr)
       end do
     endif
