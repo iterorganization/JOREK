@@ -72,7 +72,7 @@ do i=1,n_points
   call find_RZ(sim%fields%node_list, sim%fields%element_list, &
       R, Z, & ! inputs
       R, Z, i_elm, s, t, ifail) ! outputs
-  if (ifail .ne. 0 .or. i_elm .eq. 0) cycle ! Particle out of domain, try a new position in the next loop
+  if (ifail .ne. 0 .or. i_elm .le. 0) cycle ! Particle out of domain, try a new position in the next loop
 
   ! Calculate the region of the plasma the particle is in
   if (Z .lt. Z_xpoint .and. above_xpoint_only) cycle ! skip positions below the xpoint

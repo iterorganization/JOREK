@@ -123,7 +123,7 @@ do while (.not. sim%stop_now)
        do j=1,size(particles,1)
           time_local = sim%time !< copy simulation time in local variable
           dt_local = timesteps(i)!< time step in local variable
-          do while((time_local.lt.target_time) .and. (particles(j)%i_elm.ne.0)) !< continue until we reach the target time
+          do while((time_local.lt.target_time) .and. (particles(j)%i_elm.gt.0)) !< continue until we reach the target time
 #ifdef TEST
           call runge_kutta_error_control_dt_gc_push_jorek(sim%fields,tolerances,&
                time_local,dt_local,target_time,sim%groups(i)%mass,dt_try,particles(j),error) !< push in jorek 
@@ -140,7 +140,7 @@ do while (.not. sim%stop_now)
 #endif
           dt_local = dt_try !< update the time step
 
-          if (particles(j)%i_elm .eq. 0) n_lost = n_lost + 1		
+          if (particles(j)%i_elm .le. 0) n_lost = n_lost + 1		
        end do !< time steps
       end do !< particles
 !      !$omp end parallel do

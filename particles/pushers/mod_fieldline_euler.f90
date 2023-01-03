@@ -115,7 +115,7 @@ end function gc_to_fieldline
 !> the marker is pushed. Intented to be used with the RK4 solver.
 subroutine compute_field_line_rhs(fields,n_variables, &
      n_int_parameters,n_real_parameters,t,solution_old,solution,            &
-     int_parameters,real_parameters,derivatives,i_elm_new)
+     int_parameters,real_parameters,derivatives,ifail)
   
   !> load modules
   use mod_fields, only: fields_base
@@ -131,11 +131,11 @@ subroutine compute_field_line_rhs(fields,n_variables, &
   real(kind=8), dimension(n_real_parameters), intent(in) :: real_parameters
   
   !> declare output variables
-  integer, intent(out)                              :: i_elm_new
+  integer, intent(out)                              :: ifail !< Zero in case of failure
   real(kind=8), dimension(n_variables), intent(out) :: derivatives
 
   real(kind=8) :: E(3), B(3), psi, U, st_new(2)
-  integer :: ifail
+  integer :: i_elm_new
 
   call find_RZ_nearby(fields%node_list,fields%element_list,solution_old(1), &
        solution_old(2),real_parameters(1),real_parameters(2),                  &
@@ -143,8 +143,11 @@ subroutine compute_field_line_rhs(fields,n_variables, &
        st_new(2),i_elm_new,ifail)
 
   !> compute required fields
-  if(i_elm_new .ne. 0) then
+  if(i_elm_new .gt. 0) then
+     ifail = 1
      call fields%calc_EBpsiU(t, i_elm_new, st_new, solution(3), E, B, psi, U)
+  else
+     ifail = 0
   end if
 
   B = B / norm2(B)
@@ -176,10 +179,10 @@ subroutine field_line_runge_kutta_fixed_dt_push_jorek(fields, particle, t, dt)
   !> compute Runge-Kutta differentials
   call runge_kutta_fixed_dt(compute_field_line_rhs, &
        fields,3,1,2,t,dt,[particle%x(1),particle%x(2),particle%x(3)],  &
-       [particle%i_elm],[particle%st(1),particle%st(2)], solution_new, i_elm_new)
+       [particle%i_elm],[particle%st(1),particle%st(2)], solution_new, ifail)
 
   !> compute the new local coordinates
-  if(i_elm_new.ne.0) call find_rz_nearby(fields%node_list, &
+  call find_rz_nearby(fields%node_list, &
        fields%element_list,particle%x(1),particle%x(2),       &
        particle%st(1),particle%st(2),particle%i_elm,          &
        solution_new(1),solution_new(2),st_new(1),st_new(2),   &

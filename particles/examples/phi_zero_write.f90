@@ -49,7 +49,7 @@ do i=1,size(sim_in%groups)
   select type (particles => sim_in%groups(i)%particles)
   type is (particle_kinetic_leapfrog)
     do j=1,size(particles)
-      if (particles(j)%i_elm .eq. 0) then
+      if (particles(j)%i_elm .le. 0) then
         sim_out%groups(i)%particles(j) = particles(j)
       else
         ! Calculate magnetic field to get GC coordinate
@@ -95,7 +95,7 @@ do while (.not. sim_out%stop_now)
       !$omp do
       do j=1,size(particles,1)
         do k=1,n_steps
-          if (particles(j)%i_elm .eq. 0) exit
+          if (particles(j)%i_elm .le. 0) exit
           call sim_in%fields%calc_EBpsiU(0.d0, particles(j)%i_elm, &
               particles(j)%st, particles(j)%x(3), E, B, psi, U)
           rz_old    = particles(j)%x(1:2)
@@ -105,7 +105,7 @@ do while (.not. sim_out%stop_now)
           call fieldline_euler_push_cylindrical(particles(j), B, dt)
           call find_RZ_nearby(sim_in%fields%node_list, sim_in%fields%element_list, rz_old(1), rz_old(2), st_old(1), st_old(2), i_elm_old, &
               particles(j)%x(1), particles(j)%x(2), particles(j)%st(1), particles(j)%st(2), particles(j)%i_elm, ifail)
-          if (particles(j)%i_elm .eq. 0) n_lost = n_lost + 1
+          if (particles(j)%i_elm .le. 0) n_lost = n_lost + 1
         end do ! steps
       end do ! particles
       !$omp end do

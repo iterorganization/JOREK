@@ -484,7 +484,7 @@ subroutine calculate_particle_diagnostics(fields, time, particles, mass, real8_s
         end if
         particle = kinetic_to_gc(fields%node_list, fields%element_list, particle_centered, B, mass)
 
-        if (particle%i_elm .eq. 0) cycle
+        if (particle%i_elm .le. 0) cycle
 
         ! P_phi (generalized canonical toroidal momentum) at the particle position
         real_stats_tmp(6) = particle_centered%q * EL_CHG * psi + mass * ATOMIC_MASS_UNIT * particle_centered%x(1) * particle_centered%v(3)

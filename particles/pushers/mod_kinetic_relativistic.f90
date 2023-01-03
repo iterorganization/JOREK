@@ -111,7 +111,7 @@ subroutine volume_preserving_push_jorek(particle,fields,mass,time,timestep,ifail
   real(kind=8) :: scaling_factor !< in [s^2*C/(kg*m)]
 
   ! check if the particle is valid
-  if(particle%i_elm.eq.0) return
+  if(particle%i_elm.le.0) return
   ! transform the particle position from cylindrical to cartesian coordinates
   half_position(1:3) = cylindrical_to_cartesian(particle%x)
   ! compute first half-step
@@ -125,7 +125,7 @@ subroutine volume_preserving_push_jorek(particle,fields,mass,time,timestep,ifail
        half_position(4),half_position(5),particle%st(1),particle%st(2),&
        particle%i_elm,ifail)
   ! check if the particle is lost, exit if it is the case
-  if(particle%i_elm.eq.0) return
+  if(particle%i_elm.le.0) return
   ! copy RZPHI coordinates in particles
   particle%x = half_position(4:6)
   ! compute magnetic and electric fields
@@ -174,7 +174,7 @@ subroutine volume_preserving_radiation_push_jorek(particle,fields,mass,time,time
   real(kind=8) :: scaling_factor !< in [s^2*C/(kg*m)]
 
   ! check if the particle is valid
-  if(particle%i_elm.eq.0) return
+  if(particle%i_elm.le.0) return
   ! transform the particle position from cylindrical to cartesian coordinates
   half_position(1:3) = cylindrical_to_cartesian(particle%x)
   ! compute first half-step
@@ -188,7 +188,7 @@ subroutine volume_preserving_radiation_push_jorek(particle,fields,mass,time,time
        half_position(4),half_position(5),particle%st(1),particle%st(2),&
        particle%i_elm,ifail)
   ! check if the particle is lost, exit if it is the case
-  if(particle%i_elm.eq.0) return
+  if(particle%i_elm.le.0) return
   ! copy RZPHI coordinates in particles
   particle%x = half_position(4:6)
   ! compute magnetic and electric fields

@@ -749,7 +749,7 @@ subroutine initialise_particles_H_mu_psi(particles, fields, rng_base, mass, T_ma
         call transform_uniform_cylindrical([ran(3),ran(4),ran(5)], Rbox, Zbox, [0.d0,TWOPI], R, Z, phi)
         call find_RZ(fields%node_list, fields%element_list,R,Z,DUMMY_R,DUMMY_Z,i_elm,s,t,ifail)
 
-        if (present(uniform_space_rej_f) .and. i_elm .ne. 0) then
+        if (present(uniform_space_rej_f) .and. i_elm .gt. 0) then
 
           do k=1,n_geom
             select case (uniform_space_rej_vars(k))
@@ -810,7 +810,7 @@ subroutine initialise_particles_H_mu_psi(particles, fields, rng_base, mass, T_ma
       end if
       ! By this point i_elm, s, t, R, Z, phi must be set
 
-      if (i_elm .ne. 0) then
+      if (i_elm .gt. 0) then
         found(i) = .true.
         ! If we are here a suitable position has been found
         particle%weight = 1.d0 ! This is needed because the initializing values for
@@ -1219,7 +1219,7 @@ subroutine initialise_particles_H_mu_psi_phiplanes(particles, fields, rng_base, 
 
         call find_RZ(fields%node_list, fields%element_list,R,Z,DUMMY_R,DUMMY_Z,i_elm,s,t,ifail)
 
-        if (present(uniform_space_rej_f) .and. i_elm .ne. 0) then
+        if (present(uniform_space_rej_f) .and. i_elm .gt. 0) then
 
           do k=1,n_geom
             select case (uniform_space_rej_vars(k))
@@ -1280,7 +1280,7 @@ subroutine initialise_particles_H_mu_psi_phiplanes(particles, fields, rng_base, 
       end if
       ! By this point i_elm, s, t, R, Z, phi must be set
 
-      if (i_elm .ne. 0) then
+      if (i_elm .gt. 0) then
         !Can only set found later
         ! If we are here a suitable position has been found
         particle%weight = 1. ! This is needed because the initializing values for
@@ -1495,7 +1495,7 @@ subroutine set_particle_weights_canonical_maxwellian(particles, node_list, eleme
   !$omp shared(particles, node_list, element_list, mass, central_density, my_alpha)
   do i=1,size(particles,1)
 
-    if (particles(i)%i_elm .eq. 0) cycle
+    if (particles(i)%i_elm .le. 0) cycle
 
     call interp_PRZ(node_list,element_list,particles(i)%i_elm,[1],1,        &
       particles(i)%st(1),particles(i)%st(2),particles(i)%x(3), &
@@ -1641,7 +1641,7 @@ subroutine weigh_with_interp_f(node_list, element_list, particles, vars, f)
 
   do i=1,size(particles,1)
 
-    if (particles(i)%i_elm .ne. 0) then
+    if (particles(i)%i_elm .gt. 0) then
 
       call interp_0(node_list,element_list,particles(i)%i_elm,                             &
         vars(n_geom:n_geom+n_mhd),n_mhd,particles(i)%st(1),particles(i)%st(2), &
@@ -1810,7 +1810,7 @@ subroutine set_velocity_from_T(particles, mass, node_list, element_list, cor, v_
 #endif
 
   do i=1,size(particles)
-    if (particles(i)%i_elm .eq. 0) cycle
+    if (particles(i)%i_elm .le. 0) cycle
 #ifdef WITH_TiTe
     call interp_PRZ(node_list,element_list,particles(i)%i_elm,[1,5,var_Te,7],4,particles(i)%st(1),particles(i)%st(2),particles(i)%x(3),&
       P,P_s,P_t,P_phi,R,R_s,R_t,Z,Z_s,Z_t)

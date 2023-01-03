@@ -69,12 +69,17 @@ do while (.not. sim%stop_now)
       !$omp shared (i, n_steps, timesteps, sim, wall)
        do j=1,size(particles,1)
           do k=1,n_steps
-             if (particles(j)%i_elm .le. 0) exit
+             if(particles(j)%i_elm .le. 0) exit
 
              pos_prev = particles(j)%x
 
              call runge_kutta_fixed_dt_gc_push_jorek(sim%fields,sim%time,timesteps(i), &
                   sim%groups(i)%mass,particles(j))
+             if(particles(j)%i_elm .le. 0) then
+                particles(j)%i_elm = 0 ! This marker was lost outside the grid without hitting the 3D triangular mesh wall
+                exit
+             end if
+
              call mod_wall_collision_check(pos_prev, particles(j)%x, wall, wall_id, wall_pos)
              if(wall_id .gt. 0) then
                 particles(j)%x      = wall_pos

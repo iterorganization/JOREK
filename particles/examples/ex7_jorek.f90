@@ -120,7 +120,7 @@ do while (.not. sim%stop_now)
 !      !$omp reduction(+:n_lost)	
       do j=1,size(particles,1)
         do k=1,n_steps
-          if (particles(j)%i_elm .eq. 0) exit
+          if (particles(j)%i_elm .le. 0) exit
 
 	  sim%time = sim%time + timesteps(i)
 	  
@@ -137,7 +137,7 @@ do while (.not. sim%stop_now)
 !	    write(22,'(7e26.16)') sim%time, P, P_time, R, Z
 !	  end if
 
-          if (particles(j)%i_elm .eq. 0) then
+          if (particles(j)%i_elm .le. 0) then
 	    n_lost = n_lost + 1
 	    write(*,*) 'PARTICLE IS LOST, STOPPING'
 	    stop

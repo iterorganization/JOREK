@@ -772,6 +772,7 @@ write(*,'(1x,a)',advance='no') ' USE_BICGSTAB : '
 
 #ifdef fullmhd
     write(*,LOGI_FMT) 'Mach1_openBC          ', Mach1_openBC
+    write(*,LOGI_FMT) 'Mach1_fix_B           ', Mach1_fix_B
     write(*,REA3_FMT) 'eta_ARAZ_const        ', eta_ARAZ_const
     write(*,LOGI_FMT) 'eta_ARAZ_on           ', eta_ARAZ_on
     write(*,LOGI_FMT) 'eta_ARAZ_simple       ', eta_ARAZ_simple

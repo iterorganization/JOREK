@@ -35,17 +35,18 @@
  Z_geo = -0.05
  F0    = -33.0 !-10.9
 
- eqdsk_psi_fact      = -1.0 !-0.3333333333333333
- FF_0       = -8.00      !-3.28938 
- FF_1       =  0.0       !-0.00221552
- FF_coef(1) = -1.0       !5.04423    
- FF_coef(2) = -0.0       !-15.0656   
- FF_coef(3) =  0.0       !9.50755   
- FF_coef(4) =  0.01      !0.0175846  
- FF_coef(5) =  0.99       !0.942365  
- FF_coef(6) = -7.5       !715.145 
- FF_coef(7) = 0.977      !1.00766    
- FF_coef(8) = 0.03       !-0.0183293 
+ eqdsk_psi_fact = -1.0  
+ FF_0           = -8.00 
+ FF_1           =  0.0  
+ FF_coef(1)     = -1.0  
+ FF_coef(2)     = -0.0  
+ FF_coef(3)     =  0.0  
+ FF_coef(4)     =  0.01 
+ FF_coef(5)     =  0.99 
+ FF_coef(6)     = +0.5515445896623198 ! -7.5  
+ FF_coef(7)     = 0.977 
+ FF_coef(8)     = 0.03  
+ FF_coef(9)     = 1.d0
 
  central_density = 0.7
  rho_0       = 1.00
@@ -68,13 +69,9 @@
  ! -------------------------------
  ! --- Visco-resistive parameters
  ! -------------------------------
+ eta_ARAZ_on = .f.
  eta       = 5.d-6
  visco     = 3.d-5
- visco_par = 5.d-5
-
- visco_num = 1.d-10
- eta_num   = 1.d-11
- D_perp_num= 1.d-12
 
  D_par     = 0.d0
  D_perp(1) = 1.d-6
@@ -90,10 +87,10 @@
  ZK_perp(4) = 0.01d0
  ZK_perp(5) = 0.92d0
 
- D_prof_neg_thresh = 1.d-3
- D_prof_neg = 5.d-4
- ZK_prof_neg_thresh = 1.d-4
- ZK_prof_neg = 5.d-4
+ !D_prof_neg_thresh = 1.d-3
+ !D_prof_neg = 5.d-4
+ !ZK_prof_neg_thresh = 1.d-4
+ !ZK_prof_neg = 5.d-4
 
  heatsource     = 0.d-7
  particlesource = 0.d-6
@@ -115,6 +112,7 @@
  grid_to_wall        = .t.
  n_tht_equidistant   = .t.
  fix_axis_nodes      = .t.
+ Mach1_openBC        = .f.
 
  n_R       = 200 ! 75
  n_Z       = 400 !150

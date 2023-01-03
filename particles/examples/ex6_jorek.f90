@@ -165,7 +165,7 @@ do while (.not. sim%stop_now)
 !      !$omp reduction(+:n_lost)	
       do j=1,size(particles,1)
         do k=1,n_steps
-          if (particles(j)%i_elm .eq. 0) exit
+          if (particles(j)%i_elm .le. 0) exit
 	  sim%time = sim%time + timesteps(i)
 
           !call volume_preserving_push_analytical(particles(j),sim%fields,sim%groups(i)%mass,sim%time,timesteps(i))
@@ -176,7 +176,7 @@ do while (.not. sim%stop_now)
 !	    write(22,'(7e26.16)') sim%time, P, P_time, R, Z
 !	  end if
 
-	  if (particles(j)%i_elm .eq. 0) n_lost = n_lost + 1	
+	  if (particles(j)%i_elm .le. 0) n_lost = n_lost + 1	
         end do !< time steps
       end do !< particles
 !      !$omp end parallel do

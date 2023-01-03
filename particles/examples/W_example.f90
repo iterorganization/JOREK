@@ -76,7 +76,7 @@ do while (.not. sim%stop_now)
       !$omp shared(sim, n_steps, timesteps, i)
       do j=1,size(particles,1)
         do k=1,n_steps
-          if (particles(j)%i_elm .eq. 0) exit
+          if (particles(j)%i_elm .le. 0) exit
           t = sim%time + k*timesteps(i)
           call sim%fields%calc_EBpsiU(t, particles(j)%i_elm, &
               particles(j)%st, particles(j)%x(3), E, B, psi, U)

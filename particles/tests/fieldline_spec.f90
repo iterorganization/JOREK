@@ -59,7 +59,7 @@ subroutine test_fieldline_backforth_euler
       
       do j=1,20*10**(-(i+5)) ! 200 steps at smallest dt
 
-        if (p(k)%i_elm .eq. 0) then
+        if (p(k)%i_elm .le. 0) then
           call assert_true(.false., 'Particle should be in domain dt=10**'//is)
           exit
         end if
@@ -82,7 +82,7 @@ subroutine test_fieldline_backforth_euler
 
       end do
 
-      if (p(k)%i_elm .ne. 0) then
+      if (p(k)%i_elm .gt. 0) then
         call f%calc_EBpsiU(0.d0, p(k)%i_elm, p(k)%st, p(k)%x(3), E, B, psi, u)
         call assert_equals(0.d0, psi-psi0, 32d4*dt, "Must not leave flux surface dt=1e"//is)
         call assert_equals(0.d0, p(k)%x(3)-phi0, 7d6*dt, "Must be back at same phi dt=1e"//is)
@@ -149,7 +149,7 @@ subroutine test_fieldline_backforth_adams_bashforth
 
       do j=2,20*10**(-(i+5)) ! 200 steps at smallest dt
       
-        if (p(k)%i_elm .eq. 0) then
+        if (p(k)%i_elm .le. 0) then
           call assert_true(.false., 'Particle should be in domain dt=1e'//is)
           exit
         end if
@@ -172,7 +172,7 @@ subroutine test_fieldline_backforth_adams_bashforth
       
       end do
       
-      if (p(k)%i_elm .ne. 0) then
+      if (p(k)%i_elm .gt. 0) then
         call f%calc_EBpsiU(0.d0, p(k)%i_elm, p(k)%st, p(k)%x(3), E, B, psi, u)
         call assert_equals(0.d0, psi-psi0, 2d9*dt**2, "Must not leave flux surface dt=1e"//is)
         call assert_equals(0.d0, p(k)%x(3)-phi0, 8d4*dt, "Must be back at same phi dt=1e"//is) ! WARNING: this is linear instead of quadratic

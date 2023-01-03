@@ -78,25 +78,23 @@ contains
       fields,4,2,4,t,t_stop,dt,[particle%x(1),particle%x(2),particle%x(3),             &
       particle%p(1)],[particle%i_elm,int(particle%q)],[particle%st(1),                 &
       particle%st(2),mass,particle%p(2)],                                              &
-      tolerances,dt_new,solution_new,i_elm_new,error)
+      tolerances,dt_new,solution_new,ifail,error)
 #else
     call runge_kutta_order_error_control_dt(compute_relativistic_gc_derivatives_jorek, &
       fields,4,2,4,t,t_stop,dt,[particle%x(1),particle%x(2),particle%x(3),             &
       particle%p(1)],[particle%i_elm,int(particle%q)],[particle%st(1),                 &
       particle%st(2),mass,particle%p(2)],                                              &
-      tolerances,dt_new,solution_new,i_elm_new)
+      tolerances,dt_new,solution_new,ifail)
 #endif
 
     !> compute the new local coordinates
+    call find_rz_nearby(fields%node_list,                  &
+         fields%element_list,particle%x(1),particle%x(2),     &
+         particle%st(1),particle%st(2),particle%i_elm,        &
+         solution_new(1),solution_new(2),st_new(1),st_new(2), &
+         i_elm_new,ifail)
+    particle%st = st_new
     particle%i_elm = i_elm_new
-    if(i_elm_new.gt.0) then 
-      call find_rz_nearby(fields%node_list,                  &
-        fields%element_list,particle%x(1),particle%x(2),     &
-        particle%st(1),particle%st(2),particle%i_elm,        &
-        solution_new(1),solution_new(2),st_new(1),st_new(2), &
-        i_elm_new,ifail)
-      particle%st = st_new       
-    endif
 
     !> overwrite particle fields
     particle%x    = solution_new(1:3)
@@ -141,10 +139,10 @@ contains
          adapt_time_step_gradB_curlb_dbdt,fields,4,2,4,&
          t,t_stop,dt,[particle%x(1),particle%x(2),particle%x(3),&
          particle%p(1)],[particle%i_elm,int(particle%q)],[particle%st(1),&
-         particle%st(2),mass,particle%p(2)],solution_new,i_elm_new)
+         particle%st(2),mass,particle%p(2)],solution_new,ifail)
     
     !> compute new local coordinates
-    if(i_elm_new.ne.0) call find_rz_nearby(fields%node_list,&
+    call find_rz_nearby(fields%node_list,&
          fields%element_list,particle%x(1),particle%x(2),&
          particle%st(1),particle%st(2),particle%i_elm,&
          solution_new(1),solution_new(2),st_new(1),st_new(2),&
@@ -258,10 +256,10 @@ contains
     call runge_kutta_fixed_dt(compute_relativistic_gc_derivatives_jorek, &
          fields,4,2,4,t,dt,[particle%x(1),particle%x(2),particle%x(3),      &
          particle%p(1)],[particle%i_elm,int(particle%q)],[particle%st(1),   &
-         particle%st(2),mass,particle%p(2)],solution_new,i_elm_new)
+         particle%st(2),mass,particle%p(2)],solution_new,ifail)
 
     !> compute the new local coordinates
-    if(i_elm_new.ne.0) call find_rz_nearby(fields%node_list, &
+    call find_rz_nearby(fields%node_list, &
          fields%element_list,particle%x(1),particle%x(2),       &
          particle%st(1),particle%st(2),particle%i_elm,          &
          solution_new(1),solution_new(2),st_new(1),st_new(2),   &
@@ -312,10 +310,10 @@ contains
     call runge_kutta_fixed_dt(compute_relativistic_gc_derivatives_jorek_radreactionforce, &
          fields,5,2,3,t,dt,[particle%x(1),particle%x(2),particle%x(3),      &
          particle%p(1),particle%p(2)],[particle%i_elm,int(particle%q)],[particle%st(1),   &
-         particle%st(2),mass],solution_new_rr,i_elm_new)
+         particle%st(2),mass],solution_new_rr,ifail)
        
     !> compute the new local coordinates
-    if(i_elm_new.ne.0) call find_rz_nearby(fields%node_list, &
+    call find_rz_nearby(fields%node_list, &
          fields%element_list,particle%x(1),particle%x(2),       &
          particle%st(1),particle%st(2),particle%i_elm,          &
          solution_new_rr(1),solution_new_rr(2),st_new(1),st_new(2),   &
@@ -406,7 +404,7 @@ contains
     integer, intent(out)                              :: ifail
     real(kind=8), dimension(n_variables), intent(out) :: derivatives
     !> internal variables
-    integer                    :: ierr !< error for find_rz nearby
+    integer                    :: i_elm_new
     real(kind=8)               :: normB, gamma !< magnetic field intensity and relativistic factor
     real(kind=8), dimension(2) :: st_new !< local GC postion at current RK step
     !> fields required to push the relativistic GC
@@ -416,11 +414,16 @@ contains
     call find_RZ_nearby(fields%node_list,fields%element_list,solution_old(1), &
       solution_old(2),real_parameters(1),real_parameters(2),                  &
       int_parameters(1),solution(1),solution(2),st_new(1),                    &
-      st_new(2),ifail,ierr)
+      st_new(2),i_elm_new,ifail)
 
     !> compute required fields at GC position
-    if(ifail.ne.0) call fields%calc_EBNormBGradBCurlbDbdt(t,ifail,st_new, &
-      solution(3),E,b,normB,gradB,curlb,dbdt)
+    if(i_elm_new .gt. 0) then
+       call fields%calc_EBNormBGradBCurlbDbdt(t,i_elm_new,st_new, &
+            solution(3),E,b,normB,gradB,curlb,dbdt)
+       ifail = 1
+    else
+       ifail = 0
+    end if
 
     !> compute RHS of GC evolution (Cary-Brizard) equations
     derivatives = compute_relativistic_gc_rhs(int_parameters(2), &
@@ -470,7 +473,7 @@ contains
     integer, intent(out)                              :: ifail
     real(kind=8), dimension(n_variables), intent(out) :: derivatives
     !> internal variables
-    integer                    :: ierr !< error for find_rz nearby
+    integer                    :: i_elm_new !< error for find_rz nearby
     real(kind=8)               :: normB, gamma !< magnetic field intensity and relativistic factor
     real(kind=8), dimension(2) :: st_new !< local GC postion at current RK step
     real(kind=8), dimension(2) :: derivatives_rr !< derivatives from radiation reaction force (ppardot, mudot)
@@ -482,11 +485,16 @@ contains
     call find_RZ_nearby(fields%node_list,fields%element_list,solution_old(1), &
       solution_old(2),real_parameters(1),real_parameters(2),                  &
       int_parameters(1),solution(1),solution(2),st_new(1),                    &
-      st_new(2),ifail,ierr)
+      st_new(2),i_elm_new,ifail)
 
     !> compute required fields at GC position
-    if(ifail.ne.0) call fields%calc_EBNormBGradBCurlbDbdt(t,ifail,st_new, &
-      solution(3),E,b,normB,gradB,curlb,dbdt)
+    if(i_elm_new .gt. 0) then
+       call fields%calc_EBNormBGradBCurlbDbdt(t,i_elm_new,st_new, &
+            solution(3),E,b,normB,gradB,curlb,dbdt)
+       ifail = 1
+    else
+       ifail = 0
+    end if
 
     !> compute RHS of GC evolution (Cary-Brizard) equations
     derivatives_h = compute_relativistic_gc_rhs(int_parameters(2), &

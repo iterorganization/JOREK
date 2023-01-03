@@ -86,6 +86,7 @@
 
  SIG_closed  = 0.025
  SIG_open    = 0.05
+ SIG_theta   = 0.01
 
  dPSI_open    = 0.06
  dPSI_private = 0.012
