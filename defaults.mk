@@ -282,6 +282,8 @@ endif
 
 ifeq (1, $(USE_BICGSTAB))
   DEFINES  := $(DEFINES) -DUSE_BICGSTAB
+else
+  DEFINES := $(DEFINES) -DUSE_GMRES
 endif
 
 ifeq (1, $(USE_IMAS))

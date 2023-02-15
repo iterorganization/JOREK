@@ -42,6 +42,7 @@ module mod_model_settings
   integer, parameter :: var_jec  = 0                       ! place of variable ECCD current                (jec)
   integer, parameter :: var_jec1 = 0                       ! place of variable ECCD current #1             (jec1)
   integer, parameter :: var_jec2 = 0                       ! place of variable ECCD current #2             (jec2)
+  integer, parameter :: var_rhoimp = 8                     ! place of variable for impurity density        (rhoimp)
 
 !  integer, parameter :: n_var          = 9         !< number of variables
 !  integer, parameter :: n_dim          = 2         !< number of dimensions
@@ -49,7 +50,7 @@ module mod_model_settings
 !  integer, parameter :: n_tor          = 11        !< number of toroidal harmonics in physics variables
 !  integer, parameter :: n_coord_tor    = 1         !< number of toroidal harmonics in (R, Z) coordinates
 !  integer, parameter :: n_period       = 1         !< periodicity in toroidal direction
-!  integer, parameter :: n_plane        = 32         !< number of toroidal angles
+!  integer, parameter :: n_plane        = 32        !< number of toroidal angles
 !  integer, parameter :: n_vertex_max   = 4         !< maximum number of corners of an element
 !  integer, parameter :: n_nodes_max    = 60001     !< maximum number of nodes
 !  integer, parameter :: n_elements_max = 60001     !< maximum number of elements

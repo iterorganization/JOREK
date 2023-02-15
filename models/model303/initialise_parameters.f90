@@ -4,9 +4,6 @@ subroutine initialise_parameters(my_id, filename)
 use tr_module
 use phys_module
 use pellet_module
-use mumps_module,  only: no_zeros_mumps, mumps_ordering
-use pastix_module, only: no_zeros_pastix, pastix_smp_only, pastix_pivot, &
-    pastix_maxthrd
 use vacuum
 use live_data
 
@@ -83,10 +80,9 @@ namelist /in1/  tstep, nstep, tstep_n, nstep_n,                     &
                 use_mumps, mumps_ordering,                          &
                 use_BLR_compression, epsilon_BLR, just_in_time_BLR, &
                 use_pastix, use_murge, use_murge_element, use_wsmp, &
-                pastix_smp_only, refinement, force_central_node,    &
+                refinement, force_central_node,                     &
                 fix_axis_nodes,                                     &
                 adaptive_time, equil, bench_without_plot,           &
-                no_zeros_pastix, no_zeros_mumps,                    &
                 eta_T_dependent, visco_T_dependent,                 &
                 eta_num_T_dependent, visco_num_T_dependent,         &
                 zkpar_T_dependent, T_max_eta, T_max_eta_ohm,        & 
@@ -139,7 +135,8 @@ namelist /in1/  tstep, nstep, tstep_n, nstep_n,                     &
                 filter_perp,    filter_hyper,    filter_par,        &
                 filter_perp_n0, filter_hyper_n0, filter_par_n0,     &
                 use_cx, use_sputtering, use_ionisation,             &
-                use_ncs, use_pcs, use_ccs, cte_current_FB_fact
+                use_ncs, use_pcs, use_ccs, cte_current_FB_fact,     &
+                CARIDDI_mode
 
 if (my_id .eq. 0) then
 

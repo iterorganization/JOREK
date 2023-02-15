@@ -3,9 +3,6 @@ subroutine initialise_parameters(my_id, filename)
 
 use tr_module
 use phys_module
-use mumps_module,  only: no_zeros_mumps, mumps_ordering
-use pastix_module, only: no_zeros_pastix, pastix_smp_only, pastix_pivot, &
-    pastix_maxthrd
 use vacuum
 use pellet_module
 use live_data
@@ -82,10 +79,9 @@ namelist /in1/  tstep, nstep, tstep_n, nstep_n,                     &
                 use_mumps, mumps_ordering,                          &
                 use_BLR_compression, epsilon_BLR, just_in_time_BLR, &
                 use_pastix, use_wsmp, n_tor_fft_thresh,             &
-                pastix_smp_only, refinement, force_central_node,    &
+                refinement, force_central_node,                     &
                 fix_axis_nodes, use_strumpack,                      &
                 adaptive_time, equil, bench_without_plot,           &
-                no_zeros_pastix, no_zeros_mumps,                    &
                 eta_T_dependent, visco_T_dependent,                 &
                 eta_num_T_dependent, visco_num_T_dependent,         &
                 zkpar_T_dependent, T_max_eta, T_max_eta_ohm,        & 
@@ -108,7 +104,8 @@ namelist /in1/  tstep, nstep, tstep_n, nstep_n,                     &
                 corr_neg_temp_coef, corr_neg_dens_coef,             &
                 D_prof_neg, ZK_prof_neg, ZK_par_neg,                &
                 D_prof_neg_thresh, ZK_prof_neg_thresh, T_min,       &
-				T_min_neg,rho_min_neg,                              &
+                D_prof_imp_neg_thresh, D_prof_tot_neg_thresh,       &
+                T_min_neg,rho_min_neg,                              &
                 ne_SI_min, Te_eV_min, rn0_min,                      &
                 D_imp_extra_R, D_imp_extra_Z, D_imp_extra_p,        &
                 D_imp_extra_neg, D_imp_extra_neg_thresh,            &
@@ -157,7 +154,7 @@ namelist /in1/  tstep, nstep, tstep_n, nstep_n,                     &
                 mode_families_modes, n_mode_families,               &
                 weights_per_family, autodistribute_ranks,           &
                 ranks_per_family, cte_current_FB_fact, treat_axis,  &
-                visco_par_heating
+                visco_par_heating, CARIDDI_mode
 
 if (my_id .eq. 0) then
 

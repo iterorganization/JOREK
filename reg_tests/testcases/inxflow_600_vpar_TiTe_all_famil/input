@@ -23,7 +23,7 @@
  
  min_sheath_angle     = 0.d0
 
- nout = 20
+ nout = 1
 
  fbnd(1)   = 2.
  fbnd(2:4) = 0.
@@ -154,7 +154,7 @@
  gmres_max_iter = 200
  gmres_tol = 1.d-6
 
- autodistribute_modes = .t.
+ autodistribute_modes = .f.
  n_mode_families = 4
  modes_per_family = 4,3,2,1
  mode_families_modes(1,:) = 2,3,4,5
@@ -163,6 +163,6 @@
  mode_families_modes(4,:) = 1
  weights_per_family(:) = 0.5,0.5,0.5,0.5
 
- autodistribute_ranks = .t.
+ autodistribute_ranks = .f.
  ranks_per_family = 3,2,1,1
 /

@@ -1,92 +1,79 @@
-subroutine solve_mumps_all(my_id)
-!---------------------------------------------------------------------
-! subroutine solves the complete system of equation using mumps with
-! distributed matrix on the main group mpi_comm_world
-!---------------------------------------------------------------------
-use tr_module 
-use mumps_module
-use global_distributed_matrix
-use mpi_mod
-use mod_clock
-use phys_module, only: use_BLR_compression, epsilon_BLR
-
-implicit none
-
-real*8,allocatable       :: column_local(:)
-real*8                   :: tsecond, t_analysis_0, t_analysis_1, t_fact_0, t_fact_1
-type(clcktype)           :: t0, t1
-integer                  :: k, j, ierr, my_id
 #ifdef USE_MUMPS
-!write(*,*) my_id,'*********************************'
-!write(*,*) my_id,'*      solve global matrix      *'
-!write(*,*) my_id,'*********************************'
+subroutine solve_mumps_all(mmss, a_mat, rhs_vec, solve_only, tag)
+  use tr_module
+  use mpi_mod
+  use mod_clock
+  use data_structure, only: type_SP_MATRIX, type_RHS
+  use mod_mumps,      only: type_MUMPS_SOLVER, mumps_initialize, mumps_analyze, mumps_factorize, mumps_solve
 
-mumps_par%A_loc   => A_glob(1:nz_glob)
-mumps_par%irn_loc => irn_glob(1:nz_glob)
-mumps_par%jcn_loc => jcn_glob(1:nz_glob)
-mumps_par%rhs     => rhs_glob(1:ndof_glob)
+  implicit none
 
-mumps_par%n      = ndof_glob
-mumps_par%nz_loc = nz_glob
+  type(type_SP_MATRIX)     :: a_mat
+  type(type_RHS)           :: rhs_vec
+  type(type_MUMPS_SOLVER)  :: mmss
+  logical                  :: solve_only
+  integer                  :: tag
 
+  real*8,allocatable       :: column_local(:)
+  real*8                   :: tsecond, t_analysis_0, t_analysis_1, t_fact_0, t_fact_1
+  type(clcktype)           :: t0, t1
+  integer                  :: k, j
+  integer                  :: my_id, n_cpu, comm, ierr
+  integer(kind=int_all)    :: i
 
-if (allocated(column_scaling))  call tr_deallocate(column_scaling,"column_scaling",CAT_DMATRIX)
-if (allocated(column_local))    call tr_deallocate(column_local,"column_local",CAT_DMATRIX)
-call tr_allocate(column_scaling,1,mumps_par%N,"column_scaling",CAT_DMATRIX)
-call tr_allocate(column_local,1,mumps_par%N,"column_local",CAT_DMATRIX)
+  logical                  :: verbose = .false.
 
-column_local = 1.d-20;   column_scaling = 1.d-20
-do k=1,mumps_par%nz_loc
-  j = mumps_par%jcn_loc(k)
-  column_local(j) = max(column_local(j),abs(mumps_par%A_loc(k)))
-enddo
+  comm = a_mat%comm
 
-call MPI_AllReduce(column_local,column_scaling,mumps_par%N,MPI_DOUBLE_PRECISION,MPI_MAX,MPI_COMM_WORLD,ierr)
-do k=1,mumps_par%nz_loc
-  j = mumps_par%jcn_loc(k)
-  mumps_par%A_loc(k) = mumps_par%A_loc(k) / column_scaling(j)
-enddo
+  call MPI_COMM_RANK(comm, my_id, ierr)
+  call MPI_COMM_SIZE(comm, n_cpu, ierr)
 
+  if ((tag.ge.0).and.(my_id.eq.0)) verbose = .true.
 
+  if (.not.solve_only) then
 
-mumps_par%JOB = 1                                  ! Analysis, only needed when grid has changed
+    call scale_by_cols(a_mat)
 
-mumps_par%icntl(7)  = mumps_ordering               ! ordering option (7:automatic, 3:Scotch, 4:PORD, 5:METIS), default: 7
-mumps_par%icntl(8)  = 7                            ! row and column scaling  7: automatic scaling
-mumps_par%icntl(18) = 3
-mumps_par%icntl(14) = 50                           ! MAXS
+    if (associated(mmss%solution_scaling)) then
+      deallocate(mmss%solution_scaling); mmss%solution_scaling => Null()
+    endif
+    allocate(mmss%solution_scaling(a_mat%ng))
+    do i = 1, a_mat%ng
+      mmss%solution_scaling(i) = a_mat%column_scaling(i)
+    enddo
+    mmss%scaled = .true.
 
-if (use_BLR_compression) then
-  mumps_par%icntl(35) = 1                          ! Block-low-rank (BLR) compression. 0: off (default), 1: automatic, 2: factorisation and solution, 3: only factorisation
-  mumps_par%cntl(7)   = epsilon_BLR                ! Accuracy of BLR approximation
-endif
+    if (.not. mmss%initialized) then
+      call mumps_initialize(mmss,comm)
+    endif
 
-call clck_time(t0)
+    if (.not. mmss%analyzed) then
+      call clck_time(t0)
 
-call DMUMPS(mumps_par)
+      call mumps_analyze(mmss,a_mat)
 
-call clck_time(t1)
-call clck_ldiff(t0,t1,tsecond)
-if (my_id .eq. 0)  then
-   write(*,FMT_TIMING) my_id, '## Elapsed time mumps analyis :', tsecond
-end if
+      call clck_time(t1); call clck_ldiff(t0,t1,tsecond)
+      if (verbose) write(*,FMT_TIMING) tag,  '## Elapsed time analysis:', tsecond
 
-call clck_time(t0)
-mumps_par%JOB = 2                                   ! factorisation
-call DMUMPS(mumps_par)
+    endif
 
-mumps_par%JOB = 3                                   ! Solve
-call clck_time(t1)
-call DMUMPS(mumps_par)
-call clck_ldiff(t0,t1,tsecond)
-if (my_id .eq. 0)  then
-   write(*,FMT_TIMING) my_id, '## Elapsed time mumps fact/solve :', tsecond
-end if
+    call clck_time(t0)
 
-do k=1,mumps_par%n
-  deltas(k) =  mumps_par%rhs(k)  / column_scaling(k)
-!  write(*,*) k,deltas(k)
-enddo
-#endif
-return
+    call mumps_factorize(mmss,a_mat)
+
+    call clck_time(t1); call clck_ldiff(t0,t1,tsecond)
+    if (verbose) write(*,FMT_TIMING) tag,  '## Elapsed time factorize:', tsecond
+
+  endif
+
+  call clck_time(t0)
+
+  call mumps_solve(mmss,rhs_vec)
+
+  call clck_time(t1); call clck_ldiff(t0,t1,tsecond)
+  if (verbose) write(*,FMT_TIMING) tag,  '## Elapsed time solve:', tsecond
+
+  return
+
 end
+#endif

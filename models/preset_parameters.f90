@@ -6,8 +6,6 @@
 subroutine preset_parameters
   
   use phys_module
-  use mumps_module,  only: no_zeros_mumps, mumps_ordering
-  use pastix_module, only: no_zeros_pastix, pastix_smp_only
   
   implicit none
   
@@ -219,6 +217,8 @@ subroutine preset_parameters
 
   D_prof_neg         = 1.d-5
   D_prof_neg_thresh  = 0.d0 ! default is zero for keeping the old behavior
+  D_prof_imp_neg_thresh  = 0.d0 ! default is zero for keeping the old behavior
+  D_prof_tot_neg_thresh  = 0.d0 ! default is zero for keeping the old behavior
 
   D_imp_extra_R = 0.d0
   D_imp_extra_Z = 0.d0
@@ -282,6 +282,8 @@ subroutine preset_parameters
   visco_par_sc_num = 0.d0
   Dn_pol_sc_num    = 0.d0
   Dn_p_sc_num      = 0.d0
+  D_perp_imp_sc_num= 0.d0
+  D_par_imp_sc_num = 0.d0
 
   heatsource          = 1.e-7
   heatsource_e        = 0.5e-7
@@ -581,6 +583,7 @@ subroutine preset_parameters
   tgnum_Te           = 0.d0
   tgnum_vpar         = 0.d0
   tgnum_rhon         = 0.d0
+  tgnum_rhoimp       = 0.d0
   tgnum_nre          = 0.d0
   tgnum_AR           = 0.d0
   tgnum_AZ           = 0.d0
@@ -627,8 +630,6 @@ subroutine preset_parameters
   tauIC_ARAZ_on      = .true.               !< Full-MHD: to switch on/off diamagnetic terms for AR and AZ equations
 
   bench_without_plot = .false.              ! .true. for benchmark (mesuring elapsed time without plot phases) 
-  no_zeros_pastix    = .false.              ! .true. to remove nonzeros in the preconditioning matrix with MUMPS
-  no_zeros_mumps     = .false.              ! .true. to remove nonzeros in the preconditioning matrix with PaStiX
 
   mumps_ordering     = 7                    ! MUMPS ordering option (7:automatic, 3:Scotch, 4:PORD, 5:METIS)
   use_BLR_compression = .false.             ! Use MUMPS / PaStiX 6 solver with Block-low-rank (BLR) compression
@@ -706,6 +707,7 @@ subroutine preset_parameters
   use_imp_adas = .true. ! Directly use adas for impurity radiation; hard-coded one only implemented for argon
   drift_distance = 0.d0 ! No artificial plasmoid drift by default
   energy_teleported = 0.d0 
+  constant_imp_source = 0.d0
 
   !====== JET DMV-2 parameters
   L_tube = 2.4d0
@@ -793,7 +795,7 @@ subroutine preset_parameters
 
 !===================== Thermalization flag========
 
-  thermalization = .false.
+  thermalization = .true.
 
 !===================== Polar axis treatment flag========
 

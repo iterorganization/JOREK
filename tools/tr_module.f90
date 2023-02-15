@@ -2218,6 +2218,7 @@ contains
             'memsize occupied by libraries/others = ', &
             lcount, ' Bytes'
     end if
+#ifdef USE_PASTIX
     call pastix_getmem(pcount)
     if (pcount .gt. GBconst) then
        write(uout_mem,'(A20,A50,1f10.3,A)') label, &
@@ -2232,6 +2233,7 @@ contains
             'memsize PaStiX = ', &
             pcount/dfloat(KBconst), ' KBytes'
     end if
+#endif    
     if (rcount.gt.GBconst) then
        write(uout_mem,'(A20,A50,1f10.3,A)') label, &
             'memsize total   (RSS) = ', &

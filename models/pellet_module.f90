@@ -353,46 +353,63 @@ module pellet_module
         end if
 
 
-#if ((defined WITH_Impurities) || (defined WITH_Neutrals))
+        if (with_impurities) then
 #ifdef WITH_TiTe
-        call interp_PRZ(node_list,element_list,i_elm,[var_rho,var_Te,var_rhon,var_psi],4,s_out,t_out,pellets(i_p)%spi_phi,&
-                        P,P_s,P_t,P_phi,R,R_s,R_t,Z,Z_s,Z_t)        
-        if (drift_distance(i_inj) /= 0) then
-          call interp_PRZ(node_list,element_list,i_elm_drift,[var_rho,var_Te,var_rhon,var_psi],4,s_out_drift,t_out_drift,pellets(i_p)%spi_phi,&
-                                 P_drift,P_s_drift,P_t_drift,P_phi_drift,R_drift,R_s_drift,R_t_drift,Z_drift,Z_s_drift,Z_t_drift)
-        end if
-
+          call interp_PRZ(node_list,element_list,i_elm,[var_rho,var_Te,var_psi,var_rhoimp],4,s_out,t_out,pellets(i_p)%spi_phi,&
+                          P,P_s,P_t,P_phi,R,R_s,R_t,Z,Z_s,Z_t)        
+          if (drift_distance(i_inj) /= 0) then
+            call interp_PRZ(node_list,element_list,i_elm_drift,[var_rho,var_Te,var_psi,var_rhoimp],4,s_out_drift,t_out_drift,pellets(i_p)%spi_phi,&
+                                   P_drift,P_s_drift,P_t_drift,P_phi_drift,R_drift,R_s_drift,R_t_drift,Z_drift,Z_s_drift,Z_t_drift)
+          end if
+  
 #else /* WITH_TiTe */
-        call interp_PRZ(node_list,element_list,i_elm,[var_rho,var_T,var_rhon,var_psi],4,s_out,t_out,pellets(i_p)%spi_phi,&
-                        P,P_s,P_t,P_phi,R,R_s,R_t,Z,Z_s,Z_t)
-        if (drift_distance(i_inj) /= 0) then
-          call interp_PRZ(node_list,element_list,i_elm_drift,[var_rho,var_T,var_rhon,var_psi],4,s_out_drift,t_out_drift,pellets(i_p)%spi_phi,&
-                                 P_drift,P_s_drift,P_t_drift,P_phi_drift,R_drift,R_s_drift,R_t_drift,Z_drift,Z_s_drift,Z_t_drift)
-        end if
+          call interp_PRZ(node_list,element_list,i_elm,[var_rho,var_T,var_psi,var_rhoimp],4,s_out,t_out,pellets(i_p)%spi_phi,&
+                          P,P_s,P_t,P_phi,R,R_s,R_t,Z,Z_s,Z_t)
+          if (drift_distance(i_inj) /= 0) then
+            call interp_PRZ(node_list,element_list,i_elm_drift,[var_rho,var_T,var_psi,var_rhoimp],4,s_out_drift,t_out_drift,pellets(i_p)%spi_phi,&
+                                   P_drift,P_s_drift,P_t_drift,P_phi_drift,R_drift,R_s_drift,R_t_drift,Z_drift,Z_s_drift,Z_t_drift)
+          end if
 #endif /* WITH_TiTe */
-#endif /* ((defined WITH_Impurities) || (defined WITH_Neutrals)) */
+        else  ! /*  with_impurities  */
+#ifdef WITH_TiTe
+          call interp_PRZ(node_list,element_list,i_elm,[var_rho,var_Te,var_psi],3,s_out,t_out,pellets(i_p)%spi_phi,&
+                          P,P_s,P_t,P_phi,R,R_s,R_t,Z,Z_s,Z_t)        
+          if (drift_distance(i_inj) /= 0) then
+            call interp_PRZ(node_list,element_list,i_elm_drift,[var_rho,var_Te,var_psi],3,s_out_drift,t_out_drift,pellets(i_p)%spi_phi,&
+                                   P_drift,P_s_drift,P_t_drift,P_phi_drift,R_drift,R_s_drift,R_t_drift,Z_drift,Z_s_drift,Z_t_drift)
+          end if
+  
+#else /* WITH_TiTe */
+          call interp_PRZ(node_list,element_list,i_elm,[var_rho,var_T,var_psi],3,s_out,t_out,pellets(i_p)%spi_phi,&
+                          P,P_s,P_t,P_phi,R,R_s,R_t,Z,Z_s,Z_t)
+          if (drift_distance(i_inj) /= 0) then
+            call interp_PRZ(node_list,element_list,i_elm_drift,[var_rho,var_T,var_psi],3,s_out_drift,t_out_drift,pellets(i_p)%spi_phi,&
+                                   P_drift,P_s_drift,P_t_drift,P_phi_drift,R_drift,R_s_drift,R_t_drift,Z_drift,Z_s_drift,Z_t_drift)
+          end if
+#endif /* WITH_TiTe */
+        endif  ! /*  with_impurities  */
 
         xjac  = R_s * Z_t - R_t * Z_s
-        psi_R = (  P_s(4) * Z_t - P_t(4) * Z_s ) / xjac
-        psi_Z = (- P_s(4) * R_t + P_t(4) * R_s ) / xjac
-        pellets(i_p)%spi_psi = P(4)
+        psi_R = (  P_s(3) * Z_t - P_t(3) * Z_s ) / xjac
+        psi_Z = (- P_s(3) * R_t + P_t(3) * R_s ) / xjac
+        pellets(i_p)%spi_psi = P(3)
         pellets(i_p)%spi_grad_psi = sqrt(psi_R**2 + psi_Z**2)
 
         if (drift_distance(i_inj) /= 0) then
           if (pellets(i_p)%plasmoid_in_domain ==1 ) then ! if the drifted position locates inside the JOREK grid
             xjac_drift  = R_s_drift * Z_t_drift - R_t_drift * Z_s_drift
-            psi_R_drift = (  P_s_drift(4) * Z_t_drift - P_t_drift(4) * Z_s_drift) / xjac_drift
-            psi_Z_drift = (- P_s_drift(4) * R_t_drift + P_t_drift(4) * R_s_drift) / xjac_drift
-            pellets(i_p)%spi_psi_drift = P_drift(4)
+            psi_R_drift = (  P_s_drift(3) * Z_t_drift - P_t_drift(3) * Z_s_drift) / xjac_drift
+            psi_Z_drift = (- P_s_drift(3) * R_t_drift + P_t_drift(3) * R_s_drift) / xjac_drift
+            pellets(i_p)%spi_psi_drift = P_drift(3)
             pellets(i_p)%spi_grad_psi_drift = sqrt(psi_R_drift**2 + psi_Z_drift**2)
           else ! if not, simply fill the same values as the non-drifted location - will be excluded in neutral_source
-            pellets(i_p)%spi_psi_drift = P(4)
+            pellets(i_p)%spi_psi_drift = P(3)
             pellets(i_p)%spi_grad_psi_drift = sqrt(psi_R**2 + psi_Z**2)
           end if
         end if
 
         ! Now, P(1) represents mass density and P(2) represents temperature, P(3)
-        ! is the impurity density
+        ! is the Psi, P(4) is the optional impurity density
         ! Correct any possible negative values!
   
         !n_corr         = corr_neg_dens(P(1))
@@ -403,7 +420,7 @@ module pellet_module
         !n_SI           = n_corr * 1.d20 * central_density
         !T_eV           = T_corr / (2.d0* EL_CHG * MU_ZERO * central_density * 1.d20)
 
-        Psi_spi        = P(4)
+        Psi_spi        = P(3)
         
         n_SI           = P(1) * 1.d20 * central_density
         if (n_SI < 0.) n_SI = 0.
@@ -417,7 +434,8 @@ module pellet_module
   
         ! This is only used for 501 as impurity density, 500 don't use this
         ! variable
-        n_imp_SI           = P(3) * 1.d20 * central_density
+        n_imp_SI           = 0.
+        if (with_impurities) n_imp_SI = P(4) * 1.d20 * central_density
         if (n_imp_SI < 0.) n_imp_SI = 0.      
  
         T_eV_nl = 0.
@@ -450,7 +468,7 @@ module pellet_module
           if (my_id == 0 .and. pellets(i_p)%spi_radius > 0.0 .and. mod(index_now,20)==0) then
             write(*,*) "Check Point, n_SI, T_eV = ", n_SI, T_eV
           end if
-        else if (spi_abl_model(i_inj) == 2) then
+        else if (spi_abl_model(i_inj) == 2 .and. with_impurities) then
           select case ( trim(imp_type(index_main_imp)) )
             case('D2')
               ne_SI   = n_SI
@@ -542,7 +560,15 @@ module pellet_module
           if (my_id == 0 .and. pellets(i_p)%spi_radius > 0.0 .and. mod(index_now,20)==0) then
             write(*,*) "Check Point, ne_SI, T_eV = ", ne_SI, T_eV
           end if
-        else if (spi_abl_model(i_inj) == 3) then
+        else if (spi_abl_model(i_inj)== 2) then ! .not. with_impurities
+          ne_SI   = n_SI
+          ! The scaling law is in gauss unit
+          pellets(i_p)%spi_abl = 3.9d14 * ((pellets(i_p)%spi_radius*1.d2)**1.455) &
+                                 * ((ne_SI*1.d-6)**0.455) * (T_eV**1.679)
+          if (my_id == 0 .and. pellets(i_p)%spi_radius > 0.0 .and. mod(index_now,20)==0) then
+            write(*,*) "Check Point, ne_SI, T_eV = ", ne_SI, T_eV
+          end if
+        else if (spi_abl_model(i_inj) == 3 .and. with_impurities) then
           select case ( trim(imp_type(index_main_imp)) )
             case('D2') ! We temporarily wusing D2 ablation rate for H2 ablation here
               pellets(i_p)%spi_abl = 39.0023 * 2. * MOLE_NUMBER * ((pellets(i_p)%spi_radius*1.d2 / 0.2)**(4./3.)) &
@@ -623,6 +649,12 @@ module pellet_module
           nu = 0.843
           if (B0 > 2.) pellets(i_p)%spi_abl = pellets(i_p)%spi_abl * (2./B0)**nu
   
+        else if (spi_abl_model(i_inj) == 3) then ! .not. with_impurities
+          pellets(i_p)%spi_abl = 39.0023 * 2. * MOLE_NUMBER * ((pellets(i_p)%spi_radius*1.d2 / 0.2)**(4./3.)) &
+                                 * ((n_SI*1.d-20)**(1./3.)) * ((T_eV/2.d3)**(5./3.)) / 4.0282
+          B0 = abs(F0 / R_geo)
+          nu = 0.843
+          if (B0 > 2.) pellets(i_p)%spi_abl = pellets(i_p)%spi_abl * (2./B0)**nu
         else 
           write(*,*) "Unknown ablation model, terminating now!"
           stop

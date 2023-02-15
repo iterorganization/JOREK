@@ -97,7 +97,7 @@ module equil_info
   end type t_equil_state
   
 
-  type(t_equil_state)   :: ES  
+  type(t_equil_state), target   :: ES  
   
   
   contains

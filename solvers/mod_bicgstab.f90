@@ -8,20 +8,11 @@ module mod_bicgstab
 #ifdef USE_BICGSTAB
   use iso_c_binding
   use mpi
-  use mumps_module, only: mumps_par
-  use phys_module, only: use_pastix, use_mumps, use_strumpack
+  use mod_sparse_data, only: pastix, mumps, strumpack
+
+  use mod_integer_types
 
   implicit none
-
-  type SPARSE_MATRIX_T
-    integer(kind=C_INT), pointer :: irn(:), jcn(:)
-    real(kind=C_DOUBLE), pointer :: val(:)
-    integer                      :: indexing
-    integer(kind=C_INT)          :: n
-    integer(kind=C_INT)          :: nnz
-  end type SPARSE_MATRIX_T
-
-  type(SPARSE_MATRIX_T)          :: cooA
 
   ! MPI related
   integer                        :: my_id, my_id_n, n_cpu
@@ -33,7 +24,7 @@ module mod_bicgstab
   real(kind=C_DOUBLE), allocatable  :: b_tmp(:)
   integer, allocatable              :: rcv_c(:), rcv_d(:)
 
-  logical                        :: bicgstab_initialized = .false.
+  logical                           :: bicgstab_initialized = .false.
 
 
   private
@@ -42,127 +33,121 @@ module mod_bicgstab
   contains
 
 !> solve Ax = b using iterative preconditioned BiCGStab method
-!! x=sol contains the initial guess
-!! max_it - maximum number of iterations
-!! tol - iteration tolerance
-  subroutine bicgstab_driver(irn, jcn, val, x, b, max_it, tol, comm_glob, comm_n, comm_master)
+  subroutine bicgstab_driver(a_mat, rhs_vec, sol_vec, solver)
+
+    use data_structure,  only: type_SP_MATRIX, type_RHS
+    use mod_sparse_data, only: type_SP_SOLVER
     implicit none
 
-    integer(kind=C_INT), pointer, intent(in)    :: irn(:), jcn(:)
-    real(kind=C_DOUBLE), pointer, intent(in)    :: val(:)
-    real(kind=C_DOUBLE), allocatable            :: b(:)
-    real(kind=C_DOUBLE), allocatable            :: x(:)
-    integer, intent(in)                         :: comm_glob, comm_n, comm_master
-    integer, intent(inout)                      :: max_it
+    type(type_SP_MATRIX)                    :: a_mat
+    type(type_SP_SOLVER)                    :: solver
+    type(type_RHS)                          :: sol_vec, rhs_vec
 
-    real(kind=C_DOUBLE), allocatable, target :: r(:), r_tld(:), s(:), s_hat(:), tmp(:), p(:), p_hat(:), v(:), t(:)
+    integer                                 :: comm_glob, comm_n, comm_master, ierr
+
+    real(kind=C_DOUBLE), pointer :: r(:), r_tld(:), s(:), s_hat(:), tmp(:), p(:), p_hat(:), v(:), t(:)
     integer                          :: iter, flag
-    integer                          :: ierr
-    real(kind=C_DOUBLE)              :: tol, error, alpha, beta, omega, bnrm2, rho, rho_1, resid, snrm2
+    real(kind=C_DOUBLE)              :: error, alpha, beta, omega, bnrm2, rho, rho_1, resid, snrm2
 
     real(kind=C_DOUBLE), external :: dnrm2, ddot ! 2-norm and dot product functions from BLAS
     real :: t0, t1, t2
 
-    MPI_GLOB = comm_glob
-    MPI_COMM_N = comm_n
-    MPI_COMM_MASTER = comm_master
+    MPI_GLOB   = solver%pc%comm
+    MPI_COMM_N = solver%pc%MPI_COMM_N
+    MPI_COMM_MASTER = solver%pc%MPI_COMM_MASTER
+
     call MPI_COMM_RANK(MPI_GLOB, my_id, ierr)
     call MPI_COMM_SIZE(MPI_GLOB, n_cpu, ierr)
     call MPI_COMM_RANK(MPI_COMM_N, my_id_n, ierr)
 
     if (.not.bicgstab_initialized) then
-      call bicgstab_init()
+      call bicgstab_init(a_mat)
       bicgstab_initialized = .true.
     endif
 
-    cooA%irn => irn
-    cooA%jcn => jcn
-    cooA%val => val
-    cooA%indexing = 1
-    cooA%n = n_glob
-    cooA%nnz = nnz
-
-    call MPI_Bcast(b,n_glob,MPI_DOUBLE_PRECISION,0,MPI_GLOB,ierr)
-    call MPI_Bcast(x,n_glob,MPI_DOUBLE_PRECISION,0,MPI_GLOB,ierr)
-
     iter = 0
     flag = 0
+    t1 = 0; t2 = 0;
 
     allocate(r(n_glob), r_tld(n_glob), s(n_glob), s_hat(n_glob), &
              tmp(n_glob), p(n_glob), p_hat(n_glob), v(n_glob), t(n_glob))
 
-    bnrm2 = dnrm2(n_glob, b, 1)
+    bnrm2 = dnrm2(n_glob, rhs_vec%val, 1)
 
     if (bnrm2 == 0.0) bnrm2 = 1.0
 
-    call matv(x,tmp)
-    r = b - tmp
+    call matv(a_mat, sol_vec%val, tmp)
+    r = rhs_vec%val - tmp
 
     error = dnrm2(n_glob, r, 1)/bnrm2;
-    if (error <= tol) then
-      !if (my_id.eq.0) write(*,*) "bicgstab exiting, initial relative error:", error
-      max_it = 0
-    endif
-
-    omega  = 1.0
-    r_tld = r
-
-    t1 = 0; t2 = 0;
 
     if (my_id.eq.0) write(*,*) "bicgstab initial relative error:", error
 
-    do iter = 1, max_it
-      rho = ddot(n_glob,r_tld,1,r,1) ! direction vector
+    if (error <= solver%iter_tol) then
 
-      if (rho == 0.0) exit
+      solver%iter_gmres = 1
 
-      if (iter > 1) then
-        beta  = (rho/rho_1)*(alpha/omega)
-        p = r + beta*(p - omega*v)
-      else
-        p = r
-      endif
+    else ! go into iterations
 
-      t0 = get_time()
-      call prec(p,p_hat)
-      t1 = t1 + get_time() - t0
-      t0 = get_time()
-      call matv(p_hat,v)
-      t2 = t2 + get_time() - t0
+      omega  = 1.0
+      r_tld = r
 
-      alpha = rho/ddot(n_glob,r_tld,1,v,1)
-      s = r - alpha*v
-      !snrm2 = dnrm2(n_glob, s, 1)
+      do iter = 1, solver%iter_max
+        rho = ddot(n_glob,r_tld,1,r,1) ! direction vector
 
-      !if (snrm2 < tol) then
-      !  x = x + alpha*p_hat
-      !  resid = snrm2/bnrm2
-      !  exit
-      !endif
+        if (rho == 0.0) exit
 
-      t0 = get_time()
-      call prec(s,s_hat) ! stabilizer
-      t1 = t1 + get_time() - t0
-      t0 = get_time()
-      call matv(s_hat,t)
-      t2 = t2 + get_time() - t0
+        if (iter > 1) then
+          beta  = (rho/rho_1)*(alpha/omega)
+          p = r + beta*(p - omega*v)
+        else
+          p = r
+        endif
 
-      omega = ddot(n_glob,t,1,s,1)/ddot(n_glob,t,1,t,1)
-      x = x + alpha*p_hat + omega*s_hat ! update approximation
-      r = s - omega*t
-      error = dnrm2(n_glob, r, 1)/bnrm2
+        t0 = get_time()
+        call prec(solver, p, p_hat)
+        t1 = t1 + get_time() - t0
+        t0 = get_time()
+        call matv(a_mat, p_hat, v)
+        t2 = t2 + get_time() - t0
 
-      if (error <= tol) exit
-      if (omega == 0.0) exit
+        alpha = rho/ddot(n_glob,r_tld,1,v,1)
+        s = r - alpha*v
+        !snrm2 = dnrm2(n_glob, s, 1)
 
-      rho_1 = rho
-    enddo
+        !if (snrm2 < tol) then
+        !  x = x + alpha*p_hat
+        !  resid = snrm2/bnrm2
+        !  exit
+        !endif
 
-    max_it = iter! - 1 ! actual number of iterations
+        t0 = get_time()
+        call prec(solver, s, s_hat) ! stabilizer
+        t1 = t1 + get_time() - t0
+        t0 = get_time()
+        call matv(a_mat, s_hat, t)
+        t2 = t2 + get_time() - t0
 
-    if (error <= tol) then ! converged
+        omega = ddot(n_glob,t,1,s,1)/ddot(n_glob,t,1,t,1)
+        sol_vec%val = sol_vec%val + alpha*p_hat + omega*s_hat ! update approximation
+        r = s - omega*t
+        error = dnrm2(n_glob, r, 1)/bnrm2
+
+        if (my_id.eq.0) write(*,'(A12,1X,I3,5X,A6,1X,E10.3)') "bicgstab it:", iter, "error:", error
+
+        if (error <= solver%iter_tol) exit
+        if (omega == 0.0) exit
+
+        rho_1 = rho
+      enddo
+
+      solver%iter_gmres = iter
+
+    endif
+
+    if (error <= solver%iter_tol) then ! converged
      flag = 0
-     if (my_id.eq.0) write(*,*) "bicgstab completed successfully with n_iter: ", max_it
+     if (my_id.eq.0) write(*,*) "bicgstab completed successfully with n_iter: ", solver%iter_gmres
     elseif (omega == 0.0) then ! breakdown
      flag = -2
      if (my_id.eq.0) write(*,*) "bicgstab fails, flag: ", flag
@@ -183,38 +168,42 @@ module mod_bicgstab
   end subroutine bicgstab_driver
 
 !> get matrix-vector product b=Ax
-  subroutine matv(x,b)
+  subroutine matv(a_mat, x, b)
+    use data_structure,  only: type_SP_MATRIX
+
     implicit none
 
-    real(kind=C_DOUBLE), allocatable  :: x(:), b(:)
+    type(type_SP_MATRIX)                    :: a_mat
+    real(kind=8), pointer  :: x(:), b(:)
     integer                           :: i, j, ir, jc
     integer                           :: ierr
     integer                           :: iA_start, ix_start, iy_start
-    real(kind=C_DOUBLE)               :: b_tmp_block(blocksize)
+    real(kind=8), allocatable         :: b_tmp_block(:)
+
+    allocate(b_tmp_block(a_mat%block_size))
 
     !b = 0.d0
 
-    !do i=1,cooA%nnz
-    !  ir = cooA%irn(i)
-    !  jc = cooA%jcn(i)
-    !  b(ir) = b(ir) + cooA%val(i) * x(jc)
+    !do i=1,a_mat%nnz
+    !  ir = a_mat%irn(i)
+    !  jc = a_mat%jcn(i)
+    !  b(ir) = b(ir) + a_mat%val(i) * x(jc)
     !enddo
     !call MPI_AllReduce(MPI_IN_PLACE,b,n_glob,MPI_DOUBLE_PRECISION,MPI_SUM,MPI_GLOB,ierr)
 
     b_tmp = 0.d0
 
-!$omp parallel default(none)                                      &
-!$omp shared(cooA,x,n_blocks,blocksize,blocksize2,index_offset)   &
+!$omp parallel                                    &
 !$omp private(i,iA_start,ix_start,iy_start,b_tmp_block)           &
 !$omp reduction(+:b_tmp)
 !$omp do schedule(guided)
     do i = 1, n_blocks
 
       iA_start = (i - 1)*blocksize2
-      ix_start = cooA%jcn(iA_start + 1)
-      iy_start = cooA%irn(iA_start + 1) - index_offset
+      ix_start = a_mat%jcn(iA_start + 1)
+      iy_start = a_mat%irn(iA_start + 1) - index_offset
 
-      call dgemv('T',blocksize,blocksize,1.d0,cooA%val(iA_start + 1),blocksize,x(ix_start),1,0.d0,b_tmp_block,1)
+      call dgemv('T',blocksize,blocksize,1.d0,a_mat%val(iA_start + 1),blocksize,x(ix_start),1,0.d0,b_tmp_block,1)
 
       b_tmp(iy_start:iy_start + blocksize - 1) = b_tmp(iy_start:iy_start + blocksize - 1) + b_tmp_block(1:blocksize)
 
@@ -223,50 +212,57 @@ module mod_bicgstab
 !$omp end parallel
 
     call MPI_Allgatherv(b_tmp,n_local,MPI_DOUBLE_PRECISION,b,rcv_c,rcv_d,MPI_DOUBLE_PRECISION,MPI_GLOB,ierr)
+    deallocate(b_tmp_block)
 
   end subroutine matv
 
 !> apply preconditioner b = M\x
-  subroutine prec(x,b)
-    use preconditioner_module, only: my_row_index, my_row_factor
+  subroutine prec(solver,x,b)
+    use mod_sparse_data, only: type_SP_SOLVER
 #ifdef USE_STRUMPACK
-    use strumpack_module, only: strumpack_solve
+    use mod_strumpack, only: strumpack_solve
+#endif
+#ifdef USE_PASTIX
+    use mod_pastix, only: pastix_solve
+#endif
+#ifdef USE_MUMPS
+    use mod_mumps, only: mumps_solve
 #endif
     implicit none
 
-    real(kind=C_DOUBLE), allocatable, target :: x(:), b(:)
+    type(type_SP_SOLVER)         :: solver
+
+    real(kind=8), pointer :: x(:), b(:)
     integer :: i
     integer :: ierr
     real :: t0, t1, t2
 
     !t0 = get_time()
-
-    if (.not.associated(mumps_par%rhs)) allocate(mumps_par%rhs(mumps_par%n))
-
-    if (my_id_n.eq.0) then
-      do i = 1, mumps_par%n
-        mumps_par%rhs(i) = x(my_row_index(i))
-      enddo
-    endif
-    call MPI_Bcast(mumps_par%rhs,mumps_par%n,MPI_DOUBLE_PRECISION,0,MPI_COMM_N,ierr)
+    do i = 1, solver%pc%rhs%n
+      solver%pc%rhs%val(i) = x(solver%pc%row_index(i))
+    enddo
 
     !t1 = get_time()
-    if (use_strumpack) then
+    if (solver%library.eq.strumpack) then
 #ifdef USE_STRUMPACK
-      call strumpack_solve(mumps_par%n,mumps_par%rhs,MPI_COMM_N)
+      call strumpack_solve(solver%spss, solver%pc%rhs)
 #endif
-    elseif (use_pastix) then
+    elseif (solver%library.eq.pastix) then
 #ifdef USE_PASTIX
-      call pastix_solve(mumps_par%n,mumps_par%rhs,MPI_COMM_N)
+      call pastix_solve(solver%ptss, solver%pc%rhs)
+#endif
+    elseif (solver%library.eq.mumps) then
+#ifdef USE_MUMPS
+      call mumps_solve(solver%mmss, solver%pc%rhs)
 #endif
     endif
 
     !if (my_id_n.eq.0) write(*,*) my_id, "bicgstab pc solve time", get_time() - t1
 
     b = 0.d0
-    if (my_id_n.eq.0) then
-      do i = 1, mumps_par%n
-        b(my_row_index(i)) = mumps_par%rhs(i)*my_row_factor
+    if (solver%pc%my_id_n.eq.0) then
+      do i = 1, solver%pc%rhs%n
+        b(solver%pc%row_index(i)) = solver%pc%rhs%val(i)*solver%pc%row_factor
       enddo
     endif
     call MPI_BARRIER(MPI_GLOB,ierr)
@@ -278,30 +274,33 @@ module mod_bicgstab
   end subroutine prec
 
 !> initialize local module variables
-  subroutine bicgstab_init()
-    use mod_parameters, only : n_tor, n_var
-    use global_distributed_matrix, only: ndof_glob, nz_glob, local_index_start, local_index_end
+  subroutine bicgstab_init(a_mat)
+    use data_structure,  only: type_SP_MATRIX
+
     implicit none
 
+    type(type_SP_MATRIX)  :: a_mat
+
     integer :: i
+    integer(kind=int_all) ::nnz
 
     ! set module values
-    n_glob = ndof_glob ! rank of global sparse matrix
-    nnz = nz_glob ! number of nonzero entries in the local piece of global sparse matrix
+    n_glob = a_mat%ng ! rank of global sparse matrix
+    nnz = a_mat%nnz ! number of nonzero entries in the local piece of global sparse matrix
 
-    blocksize = n_tor*n_var
+    blocksize = a_mat%block_size
 
     blocksize2 = blocksize*blocksize
-    n_blocks = nz_glob/blocksize2
+    n_blocks = nnz/blocksize2
 
-    index_offset = (local_index_start(my_id + 1) - 1)*blocksize
-    n_local   = (local_index_end(my_id + 1) - local_index_start(my_id + 1) + 1)*blocksize
+    index_offset = (a_mat%index_min(my_id + 1) - 1)*blocksize
+    n_local   = (a_mat%index_max(my_id + 1) - a_mat%index_min(my_id + 1) + 1)*blocksize
 
     allocate(b_tmp(n_local))
     allocate(rcv_c(n_cpu),rcv_d(n_cpu))
 
     do i = 1, n_cpu
-      rcv_c(i) = (local_index_end(i) - local_index_start(i) + 1)*blocksize
+      rcv_c(i) = (a_mat%index_max(i) - a_mat%index_min(i) + 1)*blocksize
     enddo
 
     rcv_d(1) = 0
@@ -326,44 +325,6 @@ module mod_bicgstab
     call system_clock(count=cc, count_rate=cr)
     get_time =  real(cc)/cr
   end function get_time
-
-#ifdef USE_PASTIX
-!> call PaStiX solver
-  subroutine pastix_solve(n, rhs, comm)
-#include "pastix_fortran.h"
-    use pastix_module
-    use global_distributed_matrix, only: column_scaling
-    implicit none
-
-    real(kind=C_DOUBLE), dimension(:), pointer :: rhs
-    integer(kind=C_INT_ALL), intent(in) :: n
-    integer, intent(in) :: comm
-
-    integer :: ierr
-    integer :: i, n_blocks_loc, blocksize_loc
-    real*8  :: DUMMY_REAL(1:1)
-    integer :: DUMMY_INT (1:1)
-
-    pastix_iparm(IPARM_START_TASK) = API_TASK_SOLVE
-    pastix_iparm(IPARM_END_TASK)   = pastix_endsolve
-    pastix_iparm(IPARM_RHS_MAKING) = pastix_rhs
-
-    blocksize_loc = pastix_iparm(IPARM_DOF_NBR)
-    n_blocks_loc = n/blocksize_loc
-
-    call pastix_fortran(pastix_data,comm, n_blocks_loc, DUMMY_INT, DUMMY_INT, DUMMY_REAL, &
-                        pastix_perm_vars, pastix_iperm_vars, rhs, 1, pastix_iparm, pastix_dparm)
-
-    if (my_id_n.eq.0) then
-      do i = 1, n
-        rhs(i) = rhs(i)/column_scaling(i)
-      enddo
-    endif
-
-    call MPI_BARRIER(comm,ierr)
-
-  end subroutine pastix_solve
-#endif
 
 #endif
 end module mod_bicgstab

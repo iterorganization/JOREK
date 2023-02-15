@@ -59,6 +59,9 @@ else if ( i_var == var_Vpar ) then
 else if ( i_var == var_rhon ) then
   name  = 'rho_n'
   descr = 'neutral particle density'
+else if ( i_var == var_rhoimp ) then
+  name  = 'rho_imp'
+  descr = 'impurity density'
 else if ( i_var == var_nre ) then
   name  = 'n_RE'
   descr = 'runaway electron particle density'

@@ -20,16 +20,13 @@ contains
 !*   psi_axis     -                                                            *
 !*   psi_bnd      -                                                            *
 !*   Z_xpoint     -                                                            *
-!*   gmres        - boolean indicating if we are using GMRES method            *
-!*   solve_only   - Indicate if we want to perform only solve                  *
 !*                                                                             *
 !*******************************************************************************
 
 subroutine boundary_conditions( my_id, node_list, element_list, bnd_node_list, local_elms,& 
                                 n_local_elms, index_min, index_max, rhs_loc, xpoint2,     &
                                 xcase2, R_axis, Z_axis, psi_axis, psi_bnd,                &
-                                R_xpoint, Z_xpoint, psi_xpoint, gmres, solve_only,        & 
-                                ijA_index, ijA_size, irn_jcn, irn, jcn, A_mat, i_tor_min, i_tor_max )
+                                R_xpoint, Z_xpoint, psi_xpoint, a_mat)
 
 use mod_assembly, only : boundary_conditions_add_one_entry, boundary_conditions_add_RHS
 use data_structure
@@ -41,7 +38,6 @@ use phys_module, only: F0, GAMMA, freeboundary, RMP_on, psi_RMP_cos, dpsi_RMP_co
        Number_RMP_harmonics, RMP_har_cos_spectrum,RMP_har_sin_spectrum, grid_to_wall, n_wall_blocks, keep_n0_const
 use tr_module
 use mpi_mod
-use mod_locate_irn_jcn
 use mod_basisfunctions
 use mod_interp
 use mod_integer_types
@@ -66,16 +62,8 @@ real*8,                             intent(in)    :: psi_bnd
 real*8,                             intent(in)    :: R_xpoint(2)
 real*8,                             intent(in)    :: Z_xpoint(2)
 real*8,                             intent(in)    :: psi_xpoint(2)
-logical,                            intent(in)    :: gmres
-logical,                            intent(in)    :: solve_only
 real*8,                             intent(inout) :: rhs_loc(*)
-integer,                            intent(in)    :: i_tor_min, i_tor_max 
-real*8,  allocatable,               intent(inout) :: A_mat(:) 
-integer(kind=int_all), allocatable, intent(in)    :: ijA_index(:,:)
-integer(kind=int_all), allocatable, intent(in)    :: ijA_size(:)
-integer(kind=int_all), allocatable, intent(in)    :: irn_jcn(:,:) 
-integer(kind=int_all), allocatable, intent(inout) :: irn(:)
-integer(kind=int_all), allocatable, intent(inout) :: jcn(:) 
+type(type_SP_MATRIX)                              :: a_mat
 
 ! Internal parameters
 real*8  :: zbig, zbig_backup
@@ -300,7 +288,7 @@ do i=1, n_local_elms !=== do elements
       if (Mach1_openBC) apply_cs = .false.
 
 
-      do in=i_tor_min, i_tor_max  ! === do n_tor
+      do in=a_mat%i_tor_min, a_mat%i_tor_max  ! === do n_tor
       
         if (keep_n0_const  .and.  in .eq. 1 ) then
           zbig = 1.d15
@@ -340,21 +328,19 @@ do i=1, n_local_elms !=== do elements
               index_node = node_list%node(inode)%index(1) 
               call boundary_conditions_add_one_entry(                &
                      index_node, var_A3, in, index_node, var_A3, in, &
-                     zbig, solve_only, gmres, index_min, index_max,  & 
-                     ijA_index, ijA_size, irn_jcn, irn, jcn, A_mat, i_tor_min, i_tor_max)
+                     zbig, index_min, index_max, a_mat)
               call boundary_conditions_add_RHS(                      &
                      index_node, var_A3, in, index_min, index_max,   &
-                     RHS_loc, ZBIG * delta_psi_rmp, i_tor_min, i_tor_max)
+                     RHS_loc, ZBIG * delta_psi_rmp, a_mat%i_tor_min, a_mat%i_tor_max)
                   
               ! --- Apply RMP to variable derivative
               index_node2 = node_list%node(inode)%index(iv_dir)
               call boundary_conditions_add_one_entry(                 &
                      index_node2, var_A3, in, index_node2, var_A3, in,&
-                     zbig, solve_only, gmres, index_min, index_max,   & 
-                     ijA_index, ijA_size, irn_jcn,  irn, jcn, A_mat, i_tor_min, i_tor_max)
+                     zbig, index_min, index_max, a_mat)
               call boundary_conditions_add_RHS(                       &
                      index_node2, var_A3, in, index_min, index_max,   &
-                     RHS_loc, ZBIG * delta_psi_rmp_ds, i_tor_min, i_tor_max)
+                     RHS_loc, ZBIG * delta_psi_rmp_ds, a_mat%i_tor_min, a_mat%i_tor_max)
 
             endif !=== endif selection RMP harmonics
           enddo   !=== enddo RMP harmonics   
@@ -390,28 +376,24 @@ do i=1, n_local_elms !=== do elements
             index_node = node_list%node(inode)%index(1)
             call boundary_conditions_add_one_entry(                 &
                    index_node, k, in, index_node, k, in,            &
-                   zbig, solve_only, gmres, index_min, index_max,   & 
-                   ijA_index, ijA_size, irn_jcn, irn, jcn, A_mat, i_tor_min, i_tor_max)
+                   zbig, index_min, index_max, a_mat)
 
             ! --- Fix derivatives in one direction
             index_node = node_list%node(inode)%index(iv_dir)
             call boundary_conditions_add_one_entry(                 &
                    index_node, k, in, index_node, k, in,            &
-                   zbig, solve_only, gmres, index_min, index_max,   & 
-                   ijA_index, ijA_size, irn_jcn, irn, jcn, A_mat, i_tor_min, i_tor_max)
+                   zbig, index_min, index_max, a_mat)
 
             ! --- Fix A3 also across boundary???
             if (k .eq. var_A3) then
               index_node = node_list%node(inode)%index(iv_perp_dir)
               call boundary_conditions_add_one_entry(                 &
                      index_node, k, in, index_node, k, in,            &
-                     zbig, solve_only, gmres, index_min, index_max,   & 
-                     ijA_index, ijA_size, irn_jcn, irn, jcn, A_mat, i_tor_min, i_tor_max)
+                     zbig, index_min, index_max, a_mat)
               index_node = node_list%node(inode)%index(4)
               call boundary_conditions_add_one_entry(                 &
                      index_node, k, in, index_node, k, in,            &
-                     zbig, solve_only, gmres, index_min, index_max,   & 
-                     ijA_index, ijA_size, irn_jcn, irn, jcn, A_mat, i_tor_min, i_tor_max)
+                     zbig, index_min, index_max, a_mat)
             endif
 
           endif ! --- apply Dirichlet
@@ -791,16 +773,16 @@ do i=1, n_local_elms !=== do elements
               if (var_VVV(k) == var_uZ) BC_tmp = uZ    - factor * beta       * BZ
               if (var_VVV(k) == var_up) BC_tmp = up    - factor * beta       * Bp
               call boundary_conditions_add_RHS( index_node, var_VVV(k), in, index_min, index_max, RHS_loc, &
-                                                - Zbig * BC_tmp, i_tor_min, i_tor_max)
+                                                - Zbig * BC_tmp, a_mat%i_tor_min, a_mat%i_tor_max)
             else
               call boundary_conditions_add_RHS( index_node, var_VVV(k), in, index_min, index_max, RHS_loc, &
-                                                0.d0, i_tor_min, i_tor_max)
+                                                0.d0, a_mat%i_tor_min, a_mat%i_tor_max)
             endif
             
             ! --- LHS for variable value d/dVVV
             call boundary_conditions_add_one_entry( index_node, var_VVV(k), in, index_node, var_VVV(k), in, &
                                                     zbig,                                                   &
-                                                    solve_only, gmres, index_min, index_max, ijA_index, ijA_size, irn_jcn, irn, jcn, A_mat, i_tor_min, i_tor_max)
+                                                    index_min, index_max, a_mat)
             
             ! --- LHS for variable value d/dT
             if (var_VVV(k) == var_uR) BC_tmp =       - factor * beta_T    * BR
@@ -808,7 +790,7 @@ do i=1, n_local_elms !=== do elements
             if (var_VVV(k) == var_up) BC_tmp =       - factor * beta_T    * Bp
             call boundary_conditions_add_one_entry( index_node, var_VVV(k), in, index_node, var_T, in, &
                                                     zbig * BC_tmp,                                      &
-                                                    solve_only, gmres, index_min, index_max, ijA_index, ijA_size, irn_jcn, irn, jcn, A_mat, i_tor_min, i_tor_max)
+                                                    index_min, index_max, a_mat)
 
             ! --- LHS for variable value d/dA3_b
             if (var_VVV(k) == var_uR) BC_tmp =       - factor * beta_A3b    * BR - factor * beta    * BR_A3b
@@ -816,7 +798,7 @@ do i=1, n_local_elms !=== do elements
             if (var_VVV(k) == var_up) BC_tmp =       - factor * beta_A3b    * Bp
             call boundary_conditions_add_one_entry( index_node, var_VVV(k), in, index_node2, var_A3, in, &
                                                     zbig * BC_tmp * element_size_0,                      &
-                                                    solve_only, gmres, index_min, index_max, ijA_index, ijA_size, irn_jcn, irn, jcn, A_mat, i_tor_min, i_tor_max)
+                                                    index_min, index_max, a_mat)
 
             ! --- LHS for variable value d/dA3_c
             if (var_VVV(k) == var_uR) BC_tmp =       - factor * beta_A3c    * BR - factor * beta    * BR_A3c
@@ -824,7 +806,7 @@ do i=1, n_local_elms !=== do elements
             if (var_VVV(k) == var_up) BC_tmp =       - factor * beta_A3c    * Bp
             call boundary_conditions_add_one_entry( index_node, var_VVV(k), in, index_node3, var_A3, in, &
                                                     zbig * BC_tmp * element_size_0,                      &
-                                                    solve_only, gmres, index_min, index_max, ijA_index, ijA_size, irn_jcn, irn, jcn, A_mat, i_tor_min, i_tor_max)
+                                                    index_min, index_max, a_mat)
 
             ! --- LHS for variable value d/dAR_b
             if (var_VVV(k) == var_uR) BC_tmp =       - factor * beta_ARb    * BR
@@ -832,7 +814,7 @@ do i=1, n_local_elms !=== do elements
             if (var_VVV(k) == var_up) BC_tmp =       - factor * beta_ARb    * Bp - factor * beta    * Bp_ARb
             call boundary_conditions_add_one_entry( index_node, var_VVV(k), in, index_node2, var_AR, in, &
                                                     zbig * BC_tmp * element_size_0,                      &
-                                                    solve_only, gmres, index_min, index_max, ijA_index, ijA_size, irn_jcn, irn, jcn, A_mat, i_tor_min, i_tor_max)
+                                                    index_min, index_max, a_mat)
 
             ! --- LHS for variable value d/dAR_c
             if (var_VVV(k) == var_uR) BC_tmp =       - factor * beta_ARc    * BR
@@ -840,7 +822,7 @@ do i=1, n_local_elms !=== do elements
             if (var_VVV(k) == var_up) BC_tmp =       - factor * beta_ARc    * Bp - factor * beta    * Bp_ARc
             call boundary_conditions_add_one_entry( index_node, var_VVV(k), in, index_node3, var_AR, in, &
                                                     zbig * BC_tmp * element_size_0,                      &
-                                                    solve_only, gmres, index_min, index_max, ijA_index, ijA_size, irn_jcn, irn, jcn, A_mat, i_tor_min, i_tor_max)
+                                                    index_min, index_max, a_mat)
 
             ! --- LHS for variable value d/dAZ_b
             if (var_VVV(k) == var_uR) BC_tmp =       - factor * beta_AZb    * BR
@@ -848,7 +830,7 @@ do i=1, n_local_elms !=== do elements
             if (var_VVV(k) == var_up) BC_tmp =       - factor * beta_AZb    * Bp - factor * beta    * Bp_AZb
             call boundary_conditions_add_one_entry( index_node, var_VVV(k), in, index_node2, var_AZ, in, &
                                                     zbig * BC_tmp * element_size_0,                      &
-                                                    solve_only, gmres, index_min, index_max, ijA_index, ijA_size, irn_jcn, irn, jcn, A_mat, i_tor_min, i_tor_max)
+                                                    index_min, index_max, a_mat)
 
             ! --- LHS for variable value d/dAZ_c
             if (var_VVV(k) == var_uR) BC_tmp =       - factor * beta_AZc    * BR
@@ -856,7 +838,7 @@ do i=1, n_local_elms !=== do elements
             if (var_VVV(k) == var_up) BC_tmp =       - factor * beta_AZc    * Bp - factor * beta    * Bp_AZc
             call boundary_conditions_add_one_entry( index_node, var_VVV(k), in, index_node3, var_AZ, in, &
                                                     zbig * BC_tmp * element_size_0,                      &
-                                                    solve_only, gmres, index_min, index_max, ijA_index, ijA_size, irn_jcn, irn, jcn, A_mat, i_tor_min, i_tor_max)
+                                                    index_min, index_max, a_mat)
                         
             ! -------------------------------------
             ! --- Variable Derivative -------------
@@ -868,16 +850,16 @@ do i=1, n_local_elms !=== do elements
               if (var_VVV(k) == var_uZ) BC_tmp = uZ_b - factor * beta_b     * BZ  - Hfact_b * beta       * BZ - factor * beta     * BZ_b
               if (var_VVV(k) == var_up) BC_tmp = up_b - factor * beta_b     * Bp  - Hfact_b * beta       * Bp - factor * beta     * Bp_b
               call boundary_conditions_add_RHS( index_node2, var_VVV(k), in, index_min, index_max, RHS_loc, &
-                                                - Zbig * BC_tmp, i_tor_min, i_tor_max)
+                                                - Zbig * BC_tmp, a_mat%i_tor_min, a_mat%i_tor_max)
             else
               call boundary_conditions_add_RHS( index_node2, var_VVV(k), in, index_min, index_max, RHS_loc, &
-                                                0.d0, i_tor_min, i_tor_max) 
+                                                0.d0, a_mat%i_tor_min, a_mat%i_tor_max) 
             endif
             
             ! --- LHS for variable derivative d/dVVV_b
             call boundary_conditions_add_one_entry( index_node2, var_VVV(k), in, index_node2, var_VVV(k), in, &
                                                     zbig * element_size_0,                                    &
-                                                    solve_only, gmres, index_min, index_max, ijA_index, ijA_size, irn_jcn, irn, jcn, A_mat, i_tor_min, i_tor_max)
+                                                    index_min, index_max, a_mat)
             
             ! --- LHS for variable derivative d/dT_b
             if (var_VVV(k) == var_uR) BC_tmp =       - factor * beta_b_Tb * BR
@@ -885,7 +867,7 @@ do i=1, n_local_elms !=== do elements
             if (var_VVV(k) == var_up) BC_tmp =       - factor * beta_b_Tb * Bp
             call boundary_conditions_add_one_entry( index_node2, var_VVV(k), in, index_node2, var_T, in, &
                                                     zbig * BC_tmp * element_size_0,                       &
-                                                    solve_only, gmres, index_min, index_max, ijA_index, ijA_size, irn_jcn, irn, jcn, A_mat, i_tor_min, i_tor_max)
+                                                    index_min, index_max, a_mat)
 
             ! --- LHS for variable derivative d/dT
             if (var_VVV(k) == var_uR) BC_tmp =       - factor * beta_b_T  * BR  - Hfact_b * beta_T    * BR 
@@ -893,7 +875,7 @@ do i=1, n_local_elms !=== do elements
             if (var_VVV(k) == var_up) BC_tmp =       - factor * beta_b_T  * Bp  - Hfact_b * beta_T    * Bp
             call boundary_conditions_add_one_entry( index_node2, var_VVV(k), in, index_node, var_T, in, &
                                                     zbig * BC_tmp * element_size_0,                      &
-                                                    solve_only, gmres, index_min, index_max, ijA_index, ijA_size, irn_jcn, irn, jcn, A_mat, i_tor_min, i_tor_max)
+                                                    index_min, index_max, a_mat)
 
             ! --- LHS for variable derivative d/dA3b
             if (var_VVV(k) == var_uR) BC_tmp = - factor * beta_b_A3b * BR     - Hfact_b * beta_A3b   * BR     - factor * beta_A3b * BR_b     &
@@ -903,7 +885,7 @@ do i=1, n_local_elms !=== do elements
             if (var_VVV(k) == var_up) BC_tmp = - factor * beta_b_A3b * Bp     - Hfact_b * beta_A3b   * Bp     - factor * beta_A3b * Bp_b     
             call boundary_conditions_add_one_entry( index_node2, var_VVV(k), in, index_node2, var_A3, in,&
                                                     zbig * BC_tmp * element_size_0,                      &
-                                                    solve_only, gmres, index_min, index_max, ijA_index, ijA_size, irn_jcn, irn, jcn, A_mat, i_tor_min, i_tor_max)
+                                                    index_min, index_max, a_mat)
 
             ! --- LHS for variable derivative d/dA3c
             if (var_VVV(k) == var_uR) BC_tmp = - factor * beta_b_A3c * BR     - Hfact_b * beta_A3c   * BR     - factor * beta_A3c * BR_b     &
@@ -913,7 +895,7 @@ do i=1, n_local_elms !=== do elements
             if (var_VVV(k) == var_up) BC_tmp = - factor * beta_b_A3c * Bp     - Hfact_b * beta_A3c   * Bp     - factor * beta_A3c * Bp_b     
             call boundary_conditions_add_one_entry( index_node2, var_VVV(k), in, index_node3, var_A3, in,&
                                                     zbig * BC_tmp * element_size_0,                      &
-                                                    solve_only, gmres, index_min, index_max, ijA_index, ijA_size, irn_jcn, irn, jcn, A_mat, i_tor_min, i_tor_max)
+                                                    index_min, index_max, a_mat)
 
             ! --- LHS for variable derivative d/dA3st
             if (var_VVV(k) == var_uR) BC_tmp = - factor * beta_b_A3st* BR                                                                    &
@@ -923,7 +905,7 @@ do i=1, n_local_elms !=== do elements
             if (var_VVV(k) == var_up) BC_tmp = - factor * beta_b_A3st* Bp 
             call boundary_conditions_add_one_entry( index_node2, var_VVV(k), in, index_node4, var_A3, in,&
                                                     zbig * BC_tmp * element_size_0,                      &
-                                                    solve_only, gmres, index_min, index_max, ijA_index, ijA_size, irn_jcn, irn, jcn, A_mat, i_tor_min, i_tor_max)
+                                                    index_min, index_max, a_mat)
 
             ! --- LHS for variable derivative d/dARb
             if (var_VVV(k) == var_uR) BC_tmp = - factor * beta_b_ARb * BR     - Hfact_b * beta_ARb   * BR     - factor * beta_ARb * BR_b     
@@ -932,7 +914,7 @@ do i=1, n_local_elms !=== do elements
                                                - factor * beta_b     * Bp_ARb - Hfact_b * beta       * Bp_ARb - factor * beta     * Bp_b_ARb 
             call boundary_conditions_add_one_entry( index_node2, var_VVV(k), in, index_node2, var_AR, in,&
                                                     zbig * BC_tmp * element_size_0,                      &
-                                                    solve_only, gmres, index_min, index_max, ijA_index, ijA_size, irn_jcn, irn, jcn, A_mat, i_tor_min, i_tor_max)
+                                                    index_min, index_max, a_mat)
 
             ! --- LHS for variable derivative d/dARc
             if (var_VVV(k) == var_uR) BC_tmp = - factor * beta_b_ARc * BR     - Hfact_b * beta_ARc   * BR     - factor * beta_ARc * BR_b     
@@ -941,7 +923,7 @@ do i=1, n_local_elms !=== do elements
                                                - factor * beta_b     * Bp_ARc - Hfact_b * beta       * Bp_ARc - factor * beta     * Bp_b_ARc 
             call boundary_conditions_add_one_entry( index_node2, var_VVV(k), in, index_node3, var_AR, in,&
                                                     zbig * BC_tmp * element_size_0,                      &
-                                                    solve_only, gmres, index_min, index_max, ijA_index, ijA_size, irn_jcn, irn, jcn, A_mat, i_tor_min, i_tor_max)
+                                                    index_min, index_max, a_mat)
 
             ! --- LHS for variable derivative d/dARst
             if (var_VVV(k) == var_uR) BC_tmp = - factor * beta_b_ARst* BR 
@@ -950,7 +932,7 @@ do i=1, n_local_elms !=== do elements
                                                                                                               - factor * beta     * Bp_b_ARst
             call boundary_conditions_add_one_entry( index_node2, var_VVV(k), in, index_node4, var_AR, in,&
                                                     zbig * BC_tmp * element_size_0,                      &
-                                                    solve_only, gmres, index_min, index_max, ijA_index, ijA_size, irn_jcn, irn, jcn, A_mat, i_tor_min, i_tor_max)
+                                                    index_min, index_max, a_mat)
 
             ! --- LHS for variable derivative d/dAZb
             if (var_VVV(k) == var_uR) BC_tmp = - factor * beta_b_AZb * BR     - Hfact_b * beta_AZb   * BR     - factor * beta_AZb * BR_b     
@@ -959,7 +941,7 @@ do i=1, n_local_elms !=== do elements
                                                - factor * beta_b     * Bp_AZb - Hfact_b * beta       * Bp_AZb - factor * beta     * Bp_b_AZb 
             call boundary_conditions_add_one_entry( index_node2, var_VVV(k), in, index_node2, var_AZ, in,&
                                                     zbig * BC_tmp * element_size_0,                      &
-                                                    solve_only, gmres, index_min, index_max, ijA_index, ijA_size, irn_jcn, irn, jcn, A_mat, i_tor_min, i_tor_max)
+                                                    index_min, index_max, a_mat)
 
             ! --- LHS for variable derivative d/dAZc
             if (var_VVV(k) == var_uR) BC_tmp = - factor * beta_b_AZc * BR     - Hfact_b * beta_AZc   * BR     - factor * beta_AZc * BR_b     
@@ -968,7 +950,7 @@ do i=1, n_local_elms !=== do elements
                                                - factor * beta_b     * Bp_AZc - Hfact_b * beta       * Bp_AZc - factor * beta     * Bp_b_AZc 
             call boundary_conditions_add_one_entry( index_node2, var_VVV(k), in, index_node3, var_AZ, in,&
                                                     zbig * BC_tmp * element_size_0,                      &
-                                                    solve_only, gmres, index_min, index_max, ijA_index, ijA_size, irn_jcn, irn, jcn, A_mat, i_tor_min, i_tor_max)
+                                                    index_min, index_max, a_mat)
 
             ! --- LHS for variable derivative d/dAZst
             if (var_VVV(k) == var_uR) BC_tmp = - factor * beta_b_AZst* BR 
@@ -977,7 +959,7 @@ do i=1, n_local_elms !=== do elements
                                                                                                               - factor * beta     * Bp_b_AZst
             call boundary_conditions_add_one_entry( index_node2, var_VVV(k), in, index_node4, var_AZ, in,&
                                                     zbig * BC_tmp * element_size_0,                      &
-                                                    solve_only, gmres, index_min, index_max, ijA_index, ijA_size, irn_jcn, irn, jcn, A_mat, i_tor_min, i_tor_max)
+                                                    index_min, index_max, a_mat)
 
           enddo !=== var_VVV (3 variables of uR, uZ, up)
 

@@ -419,6 +419,8 @@ if (my_id == 0) then
   psi_axis = psi_axis - psi_offset_freeb
   psi_bnd  = psi_bnd  - psi_offset_freeb
 
+  ! --- This fills in the data for the current variable "zj" (for R-MHD only)
+#ifndef fullmhd
   do i=1,node_list%n_nodes
   
     node_list%node(i)%values(1,1,1) = node_list%node(i)%values(1,1,1) - psi_offset_freeb
@@ -449,22 +451,8 @@ if (my_id == 0) then
     		     zT,dT_dpsi,dT_dz,dT_dpsi2,dT_dz2,dT_dpsi_dz,dT_dpsi3,dT_dpsi_dz2, dT_dpsi2_dz)
     endif
   
-#ifdef fullmhd
-      call F_profile(xpoint2, xcase2, Z, Z_xpoint, psi,psi_axis,psi_bnd,F_prof,dF_dpsi      ,dF_dz      , &
-                                                                  dF_dpsi2    ,dF_dz2       ,dF_dpsi_dz , &
-                                                                  zFFprime    ,dFFprime_dpsi,dFFprime_dz, &
-                                                                  dFFprime_dpsi2,dFFprime_dz2 ,dFFprime_dpsi_dz)
-  
-      node_list%node(i)%Fprof_eq(1) =   F_prof
-      node_list%node(i)%Fprof_eq(2) =   dF_dpsi * node_list%node(i)%values(1,2,var_A3)  + dF_dz * node_list%node(i)%x(1,2,2)
-      node_list%node(i)%Fprof_eq(3) =   dF_dpsi * node_list%node(i)%values(1,3,var_A3)  + dF_dz * node_list%node(i)%x(1,3,2)
-      node_list%node(i)%Fprof_eq(4) =   dF_dpsi * node_list%node(i)%values(1,4,var_A3)  + dF_dz * node_list%node(i)%x(1,4,2)      &
-                                      + dF_dpsi2 * node_list%node(i)%values(1,2,var_A3) * node_list%node(i)%values(1,3,var_A3)  &
-                                      + dF_dz2   * node_list%node(i)%x(1,2,2) * node_list%node(i)%x(1,3,2)
-#else
     call FFprime(    xpoint2, xcase2, Z, Z_xpoint, psi,psi_axis,psi_bnd,zFFprime,dFFprime_dpsi,dFFprime_dz, &
                                                                dFFprime_dpsi2,dFFprime_dz2, dFFprime_dpsi_dz, .true.)
-#endif
 
   
     zjz     = zFFprime      - R*R *      (dn_dpsi    * zT + zn * dT_dpsi)
@@ -587,6 +575,8 @@ if (my_id == 0) then
     call Poisson(my_id,0,node_list,element_list,bnd_node_list,bnd_elm_list, &
                  var_psi,var_zj,1, psi_axis,psi_bnd,xpoint2,xcase2,Z_xpoint,freeboundary_equil,refinement,1)
   endif
+#endif
+  ! --- END of filling data for current variable "zj" (R-MHD only)
   
   ! --- Find flux surfaces and plot them; determine the q-profile.  
   if (xpoint2 .and. (n_flux .gt. 1)) then

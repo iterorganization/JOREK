@@ -3,9 +3,6 @@ subroutine initialise_parameters(my_id, filename)
 
 use tr_module
 use phys_module
-use mumps_module,  only: no_zeros_mumps, mumps_ordering
-use pastix_module, only: no_zeros_pastix, pastix_smp_only, pastix_pivot, &
-    pastix_maxthrd
 use vacuum
 use pellet_module
 use live_data
@@ -109,10 +106,9 @@ namelist /in1/  tstep, nstep, tstep_n, nstep_n,                     &
                 use_BLR_compression, epsilon_BLR, just_in_time_BLR, &
                 use_pastix, use_murge, use_murge_element, use_wsmp, &
                 n_tor_fft_thresh, use_strumpack,                    &
-                pastix_smp_only, refinement, force_central_node,    &
+                refinement, force_central_node,                     &
                 fix_axis_nodes,                                     &
                 adaptive_time, equil, bench_without_plot,           &
-                no_zeros_pastix, no_zeros_mumps,                    &
                 eta_T_dependent, visco_T_dependent,                 &
                 zkpar_T_dependent, T_max_eta, T_max_eta_ohm,        & 
                 heatsource_psin, heatsource_sig,                    &
@@ -144,7 +140,9 @@ namelist /in1/  tstep, nstep, tstep_n, nstep_n,                     &
                 spi_tor_rot, tor_frequency, spi_num_vol,            &
                 NEO, neo_file, aki_neo_const, amu_neo_const,        &
                 D_prof_neg_thresh, ZK_prof_neg_thresh, T_min,       &
-				T_min_neg,rho_min_neg,                              &
+                D_prof_imp_neg_thresh, D_prof_tot_neg_thresh,       &
+                ZK_par_neg_thresh, D_imp_extra_neg_thresh,          &
+                T_min_neg,rho_min_neg,                              &
                 ne_SI_min, Te_eV_min, rn0_min,                      &
                 D_neutral_x, D_neutral_y, D_neutral_p,              &
                 neutral_reflection, rho_min,                        &
@@ -189,7 +187,7 @@ namelist /in1/  tstep, nstep, tstep_n, nstep_n,                     &
                 autodistribute_modes, modes_per_family,             &
                 mode_families_modes, n_mode_families,               &
                 weights_per_family, autodistribute_ranks,           &
-                ranks_per_family, treat_axis, Z_xpoint_limit,       &
+                ranks_per_family, treat_axis, Z_xpoint_limit, tgnum_rhoimp,     &
                 tgnum_psi, tgnum_u, tgnum_zj, tgnum_w, tgnum_rho,   &
                 tgnum_T, tgnum_Ti, tgnum_Te, tgnum_vpar, tgnum_rhon,&
                 tgnum_nre, tgnum_AR, tgnum_AZ, tgnum_A3,            &
@@ -205,8 +203,13 @@ namelist /in1/  tstep, nstep, tstep_n, nstep_n,                     &
                 ZK_par_sc_num, ZK_i_perp_sc_num, ZK_i_par_sc_num,   &
                 ZK_e_perp_sc_num, ZK_e_par_sc_num, visco_par_sc_num,&
                 Dn_pol_sc_num, Dn_p_sc_num, cte_current_FB_fact,    &
-                eta_num_prof, eta_num_psin_dependent,               &
-                visco_par_heating,T_min_ZKpar,Ti_min_ZKpar,Te_min_ZKpar
+                D_perp_imp_sc_num, D_par_imp_sc_num,                &
+                eta_num_prof, eta_num_psin_dependent, D_par_imp,    &
+                D_perp_imp, spi_quantity_bg, pellet_density_bg,     &
+                visco_par_heating, constant_imp_source,             &
+                T_min_ZKpar,Ti_min_ZKpar,Te_min_ZKpar,              &
+                CARIDDI_mode
+
 
 if (my_id .eq. 0) then
 
@@ -349,6 +352,12 @@ if ( my_id == 0 ) then
   end do
 
   if (using_spi) call init_spi_all()
+  ! ---- This is an ad hoc way to stop duplication of neutral source and ionized main species source, should find a permanenty solution later
+
+  if (with_impurities .and. with_neutrals .and. using_spi .and. (maxval(spi_quantity_bg)>0.0)) then
+    write(*,*) "WARNNING! Currently do not support both with_neutrals and with impurities enabled at the same time while injecting background species! Should be fixed sonn. EXITING!"
+    stop
+  endif
 
 end if
 

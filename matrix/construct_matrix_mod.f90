@@ -21,8 +21,6 @@ contains
     use mod_boundary_matrix_open, only : boundary_matrix_open
     use mod_elt_matrix,           only : element_matrix
     use mod_elt_matrix_fft,       only : element_matrix_fft
-    use mod_locate_irn_jcn
-    use mod_global_matrix_structure
     use mpi_mod
 
     ! --- Routine parameters
@@ -261,11 +259,8 @@ contains
 !! The element contributions are determined by element_matrix(_fft). Additional
 !! contributions from boundary conditions and the free boundary extension are
 !! added by external routine calls.
-subroutine construct_matrix(my_id, MPI_COMM_N, my_id_n, MPI_COMM_MASTER, my_id_master, local_elms, n_local_elms, index_min, index_max,& 
-                            xpoint2, xcase2, R_axis, Z_axis, psi_axis, psi_bnd, R_xpoint, Z_xpoint, psi_xpoint,i_tor_min, i_tor_max,  &
-                            n, nz, ndof, n_matrix_block_size, A_mat, rhs, irn, jcn, ijA_index, ijA_size, irn_jcn, harmonic_matrix)
+subroutine construct_matrix(mhd_sim, local_elms, n_local_elms, a_mat, rhs_vec, harmonic_matrix)
   
-  use mumps_module 
   use tr_module 
   use mod_parameters
   use data_structure
@@ -284,6 +279,8 @@ subroutine construct_matrix(my_id, MPI_COMM_N, my_id_n, MPI_COMM_MASTER, my_id_m
   use mod_locate_irn_jcn
   use mod_integer_types
   use mod_axis_treatment
+  use mod_simulation_data, only: type_MHD_SIM
+  use global_distributed_matrix, only: global_matrix_structure_vacuum
   
   !$ use omp_lib
   implicit none
@@ -291,37 +288,24 @@ subroutine construct_matrix(my_id, MPI_COMM_N, my_id_n, MPI_COMM_MASTER, my_id_m
 #include "r3_info.h"
 
   ! --- Routine parameters
-  integer,               intent(in) :: my_id
-  integer,               intent(in) :: MPI_COMM_N
-  integer,               intent(in) :: my_id_n
-  integer,               intent(in) :: MPI_COMM_MASTER
-  integer,               intent(in) :: my_id_master
-  integer,               intent(in) :: local_elms(*)
-  integer,               intent(in) :: n_local_elms
-  integer,               intent(in) :: index_min
-  integer,               intent(in) :: index_max
-  integer,               intent(in) :: xcase2
-  real*8,                intent(in) :: R_axis
-  real*8,                intent(in) :: Z_axis
-  real*8,                intent(in) :: psi_axis
-  real*8,                intent(in) :: psi_bnd
-  real*8,                intent(in) :: R_xpoint(2)
-  real*8,                intent(in) :: Z_xpoint(2)
-  real*8,                intent(in) :: psi_xpoint(2)
-  logical,               intent(in) :: xpoint2
-  integer,               intent(in) :: i_tor_min
-  integer,               intent(in) :: i_tor_max
-  integer(kind=int_all), intent(in) :: n
-  integer(kind=int_all), intent(in) :: nz
-  integer(kind=int_all), intent(in) :: ndof
-  integer(kind=int_all), intent(in) :: n_matrix_block_size
-  logical,               intent(in) :: harmonic_matrix
-  real*8,                intent(inout), allocatable :: A_mat(:)
-  real*8,                intent(inout), allocatable :: rhs(:)
-  integer(kind=int_all), intent(inout), allocatable :: irn(:)
-  integer(kind=int_all), intent(inout), allocatable :: jcn(:)
-  integer(kind=int_all), intent(in),    allocatable :: ijA_index(:,:), ijA_size(:), irn_jcn(:,:)
+  logical,              intent(in)    :: harmonic_matrix
+  type(type_SP_MATRIX), intent(inout) :: a_mat
+  type(type_RHS),       intent(inout) :: rhs_vec
+  type(type_MHD_SIM),   intent(in)    :: mhd_sim
+  integer, dimension(:), pointer      :: local_elms
+  integer                             :: n_local_elms  
   
+  integer  :: my_id
+  integer  :: xcase2
+  real*8   :: R_axis
+  real*8   :: Z_axis
+  real*8   :: psi_axis
+  real*8   :: psi_bnd
+  real*8   :: R_xpoint(2)
+  real*8   :: Z_xpoint(2)
+  real*8   :: psi_xpoint(2)
+  logical  :: xpoint2  
+    
   !--- Internal variables
   type (type_element)               :: element
   type (type_node)                  :: nodes(n_vertex_max), aux_nodes(n_vertex_max)
@@ -329,37 +313,60 @@ subroutine construct_matrix(my_id, MPI_COMM_N, my_id_n, MPI_COMM_MASTER, my_id_m
   type (type_node)                  :: nodes_father(n_vertex_max)
   real*8,              allocatable  :: rhs_local(:)
   integer                           :: i, ife, iv, iv2, inode, inode1, inode2, knode, j, k, l, index_ij, index_kl
-  integer(kind=int_all), parameter  :: Int1=1
   integer                           :: index_node1, index_node2, index_min_loc, index_max_loc
   integer(kind=int_all)             :: ijA_position
   integer(kind=int_all)             :: index_large_i, index_large_k, ilarge2
-  integer                           :: i_order, k_order, ielm, ierr
+  integer                           :: my_ind_min, my_ind_max
+  integer                           :: i_order, k_order, ielm
   integer                           :: vertex(2), direction(2)
   integer                           :: omp_nthreads, omp_tid, n_tor_local
   integer                           :: node_out(n_vertex_max)
-  integer                           :: i_father,INODE_FATHER, ios
+  integer                           :: i_father, inode_father, ios
   integer                           :: ilarge_vp, in, ivertex, iorder, ivar, itor, jvertex, jorder, jvar, jtor
   integer                           :: random_element, n_var_reduced, v1, v2, im, index_ij_model400_e, index_kl_model400_e
   real*8                            :: tmp_rhs, tmp_elm, tmp_elm_v2_8
   CHARACTER(LEN=128)                :: fname
   integer                           :: i_v(n_var)
   integer, allocatable              :: i_harm(:)
+  integer                           :: comm, ierr, counts
+  
+
 
   ! --- Timing call
   call r3_info_begin (r3_info_index_0, 'construct_matrix')
+  
+  comm = a_mat%comm
+  
+  my_id           = mhd_sim%my_id
+  xpoint2         = mhd_sim%es%xpoint
+  xcase2          = mhd_sim%es%xcase
+  R_axis          = mhd_sim%es%R_axis
+  Z_axis          = mhd_sim%es%Z_axis
+  psi_axis        = mhd_sim%es%psi_axis
+  psi_bnd         = mhd_sim%es%psi_bnd
+  R_xpoint(1:2)   = mhd_sim%es%R_xpoint(1:2)
+  Z_xpoint(1:2)   = mhd_sim%es%Z_xpoint(1:2)
+  psi_xpoint(1:2) = mhd_sim%es%psi_xpoint(1:2)
 
   ! --- Printout
   if (my_id .eq. 0) then
     if(.NOT.harmonic_matrix) then
       write(*,*) '****************************************'
-      write(*,*) '*  construct global matrix             *'
+      write(*,*) '*       construct global matrix        *'
       write(*,*) '****************************************'
     else
       write(*,*) '****************************************'
-      write(*,*) '*  construct harmonic matrix           *'
+      write(*,*) '*        construct PC matrix           *'
       write(*,*) '****************************************'
     endif
   endif
+
+  ! --- Initialise the buffers needed by OpenMP threads. The values of n_tor,
+  ! --- n_plane, n_var have to remain the same until the end of the program.
+  call new_thread_buffers()
+
+  my_ind_min = a_mat%index_min(my_id+1)
+  my_ind_max = a_mat%index_max(my_id+1)
   
   ! --- Memory tracking
   call tr_print_memsize("DebConstM")
@@ -396,24 +403,36 @@ subroutine construct_matrix(my_id, MPI_COMM_N, my_id_n, MPI_COMM_MASTER, my_id_m
   endif ! (.not. harmonic_matrix)
 
   ! --- Memory allocation
-  if (allocated(A_mat))   call tr_deallocate(A_mat,"A_mat",CAT_DMATRIX) 
-  call tr_allocate(A_mat,Int1,nz,"A_mat",  CAT_DMATRIX)
-  A_mat = 0.0d0
+  if (associated(a_mat%irn)) call tr_deallocatep(a_mat%irn, "irn", CAT_DMATRIX)
+  if (associated(a_mat%jcn)) call tr_deallocatep(a_mat%jcn, "jcn", CAT_DMATRIX)
+  if (associated(a_mat%val)) call tr_deallocatep(a_mat%val, "val", CAT_DMATRIX)
 
-  if (allocated(rhs)) call tr_deallocate(rhs,"rhs",CAT_DMATRIX) 
-  call tr_allocate(rhs, Int1,ndof,"rhs", CAT_DMATRIX)
-  rhs = 0.0d0 
+  call tr_allocatep(a_mat%irn, Int1, a_mat%nnz, "irn", CAT_DMATRIX)
+  call tr_allocatep(a_mat%jcn, Int1, a_mat%nnz, "jcn", CAT_DMATRIX)
+  call tr_allocatep(a_mat%val, Int1, a_mat%nnz, "val", CAT_DMATRIX)
 
-  call tr_allocate(rhs_local, Int1,ndof,"rhs_local", CAT_DMATRIX)
+  a_mat%irn(1:a_mat%nnz) = 0
+  a_mat%jcn(1:a_mat%nnz) = 0
+  a_mat%val(1:a_mat%nnz) = 0.0d0
+
+  if (associated(rhs_vec%val)) call tr_deallocatep(rhs_vec%val,"rhs",CAT_DMATRIX)
+  call tr_allocatep(rhs_vec%val, Int1, a_mat%ng, "rhs", CAT_DMATRIX)
+  rhs_vec%val(:) = 0.0d0 
+
+  call tr_allocate(rhs_local, Int1, a_mat%ng, "rhs_local", CAT_DMATRIX)
   rhs_local  = 0.d0
+
+  if (mhd_sim%freeboundary .and. (mhd_sim%sr_n_tor /= 0 ) ) then
+    call global_matrix_structure_vacuum(mhd_sim%node_list, mhd_sim%bnd_node_list, a_mat, i_tor_min=1, i_tor_max=n_tor)
+  endif
  
   ! --- Declare shared and private variables for omp
   !$omp parallel default(none) &
   !$omp   shared(n_local_elms,local_elms,element_list,node_list, aux_node_list,                                &
-  !$omp          index_min, index_max,xpoint2,xcase2,R_axis,Z_axis,psi_axis,psi_bnd,Z_xpoint,harmonic_matrix,  &
-  !$omp          A_mat, rhs_local, rhs, irn, jcn,                                                              &
+  !$omp          my_ind_min, my_ind_max,xpoint2,xcase2,R_axis,Z_axis,psi_axis,psi_bnd,Z_xpoint,harmonic_matrix,  &
+  !$omp          a_mat, rhs_local, rhs_vec,                                                               &
   !$omp          R_xpoint,my_id,bc_natural_open,bc_natural_flux,refinement,thread_struct,n_tor_fft_thresh,     &
-  !$omp          difference_found,rhs_problem,elm_problem, i_tor_min, i_tor_max, ijA_index, ijA_size, irn_jcn) &
+  !$omp          difference_found,rhs_problem,elm_problem) &
   !$omp   private(ife,ielm,iv,inode,element,nodes, aux_nodes, i,inode1,i_order,index_node1, n_tor_local,   &
   !$omp           index_large_i,j,index_ij,k,knode,k_order,index_node2,index_large_k,ijA_position,         &
   !$omp           l,index_kl,ilarge2,iv2,vertex,direction,inode2,omp_nthreads,omp_tid,                     &
@@ -431,13 +450,13 @@ subroutine construct_matrix(my_id, MPI_COMM_N, my_id_n, MPI_COMM_MASTER, my_id_m
   omp_tid      = 1
 #endif
  
-  n_tor_local = i_tor_max - i_tor_min + 1
+  n_tor_local = a_mat%i_tor_max - a_mat%i_tor_min + 1
   if(treat_axis) then
      do i = 1, n_var
        i_v(i) = i
      enddo
      if (.not. allocated(i_harm)) allocate(i_harm(n_tor_local))
-     do i = i_tor_min, i_tor_max
+     do i = a_mat%i_tor_min, a_mat%i_tor_max
        i_harm(i) = i
      enddo
   endif
@@ -450,7 +469,7 @@ subroutine construct_matrix(my_id, MPI_COMM_N, my_id_n, MPI_COMM_MASTER, my_id_m
     ielm = local_elms(ife)
     element = element_list%element(ielm)
     
-    ! --- Define nodes (this depends on whether our element has been refined)
+    ! --- Define nodes (mhd_sim% depends on whether our element has been refined)
     if (refinement .and. .not. harmonic_matrix) then
 
       i_father = element_list%element(ielm)%father
@@ -474,9 +493,9 @@ subroutine construct_matrix(my_id, MPI_COMM_N, my_id_n, MPI_COMM_MASTER, my_id_m
     endif
 
     call elementary_matrix_build(element, nodes, xpoint2, xcase2, R_axis, Z_axis, psi_axis,        &
-      psi_bnd, R_xpoint, Z_xpoint, omp_tid, ife, n_local_elms, node_list, i_tor_min, i_tor_max, aux_nodes)
+      psi_bnd, R_xpoint, Z_xpoint, omp_tid, ife, n_local_elms, node_list, a_mat%i_tor_min, a_mat%i_tor_max, aux_nodes)
 
-    ! Transform basis functions for the axis nodes. This will solve for new degrees of freedom at the axis.
+    ! Transform basis functions for the axis nodes. mhd_sim% will solve for new degrees of freedom at the axis.
     if(treat_axis .and. (nodes(1)%axis_node .or. nodes(2)%axis_node .or. nodes(3)%axis_node .or. nodes(4)%axis_node) ) then
       call transform_basis_for_axis_element(nodes, thread_struct(omp_tid)%ELM, thread_struct(omp_tid)%RHS, i_v, n_var, i_harm, n_tor_local)
     endif
@@ -484,7 +503,7 @@ subroutine construct_matrix(my_id, MPI_COMM_N, my_id_n, MPI_COMM_MASTER, my_id_m
 #ifdef PRINT_ELM_RHS
     if (.not. harmonic_matrix) then
       ! --- Write out rhs and elm for one element to compare models.
-      !     Switch this on by adding -DPRINT_ELM_RHS as compiler flag.
+      !     Switch mhd_sim% on by adding -DPRINT_ELM_RHS as compiler flag.
       if (ielm == element_list%n_elements/2) then
       
         open(unit = 387, file = 'comp_matrix_elements_elm.dat', status='REPLACE', action='WRITE')
@@ -618,7 +637,7 @@ subroutine construct_matrix(my_id, MPI_COMM_N, my_id_n, MPI_COMM_MASTER, my_id_m
 
           index_large_i = n_tor_local * n_var * (index_node1 - 1)
 
-          if ((index_node1 .ge. index_min) .and. (index_node1 .le. index_max)) then
+          if ((index_node1 .ge. my_ind_min) .and. (index_node1 .le. my_ind_max)) then
 
             do j = 1, n_var * n_tor_local
 
@@ -639,7 +658,7 @@ subroutine construct_matrix(my_id, MPI_COMM_N, my_id_n, MPI_COMM_MASTER, my_id_m
 
                 index_large_k = n_tor_local * n_var * (index_node2 - 1)
 
-                call locate_irn_jcn(index_node1,index_node2,index_min,index_max,ijA_position,ijA_index, ijA_size, irn_jcn)
+                call locate_irn_jcn(index_node1,index_node2,my_ind_min,my_ind_max,ijA_position,a_mat)
 
                 thread_struct(omp_tid)%synch_buff(1:n_var*n_tor_local*n_var*n_tor_local) = 0.d0
                 do j = 1, n_var * n_tor_local
@@ -651,8 +670,8 @@ subroutine construct_matrix(my_id, MPI_COMM_N, my_id_n, MPI_COMM_MASTER, my_id_m
 
                     ilarge2 = ijA_position - 1 + (j-1) * n_var * n_tor_local + l
 
-                    irn(ilarge2) = index_large_i	+ j
-                    jcn(ilarge2) = index_large_k	+ l
+                    a_mat%irn(ilarge2) = index_large_i	+ j
+                    a_mat%jcn(ilarge2) = index_large_k	+ l
 
                     thread_struct(omp_tid)%synch_buff((j-1)*n_var*n_tor_local+l) = &
                       thread_struct(omp_tid)%synch_buff((j-1)*n_var*n_tor_local+l) + thread_struct(omp_tid)%ELM(index_ij,index_kl)
@@ -662,15 +681,15 @@ subroutine construct_matrix(my_id, MPI_COMM_N, my_id_n, MPI_COMM_MASTER, my_id_m
                 enddo ! n_var * n_tor_local
 
                 !$omp critical
-                A_mat(ijA_position : ijA_position + n_var*n_tor_local*n_var*n_tor_local - 1) = &
-                  A_mat(ijA_position : ijA_position + n_var*n_tor_local*n_var*n_tor_local - 1) +  &
+                a_mat%val(ijA_position : ijA_position + n_var*n_tor_local*n_var*n_tor_local - 1) = &
+                  a_mat%val(ijA_position : ijA_position + n_var*n_tor_local*n_var*n_tor_local - 1) +  &
                   thread_struct(omp_tid)%synch_buff(1:n_var*n_tor_local*n_var*n_tor_local)
                 !$omp end critical 
 
               enddo ! n_degrees
             enddo ! n_vertex_max
 
-          endif ! index_min < index < index_max
+          endif ! my_ind_min < index < my_ind_max
 
         enddo ! n_degrees
 
@@ -685,33 +704,28 @@ subroutine construct_matrix(my_id, MPI_COMM_N, my_id_n, MPI_COMM_MASTER, my_id_m
   !$omp end parallel
  
   ! --- Memory tracking
-  call tr_vnorms("cm_A_bef_bc",A_mat,nz)
+  call tr_vnorms("cm_A_bef_bc", a_mat%val, a_mat%nnz)
   
   ! --- Apply boundary conditions.
   call boundary_conditions(my_id, node_list, element_list,  bnd_node_list,local_elms, n_local_elms,  &
-                           index_min, index_max,  rhs_local, xpoint2, xcase2, R_axis, Z_axis,        & 
-                           psi_axis, psi_bnd, R_xpoint, Z_xpoint, psi_xpoint, .false., .false.,      & 
-                           ijA_index, ijA_size, irn_jcn, irn, jcn, A_mat, i_tor_min, i_tor_max )
+                           my_ind_min, my_ind_max, rhs_local, xpoint2, xcase2, R_axis, Z_axis,        & 
+                           psi_axis, psi_bnd, R_xpoint, Z_xpoint, psi_xpoint, a_mat)
 
   if (fix_axis_nodes) then
-    call fix_nodes_on_axis(node_list, element_list, local_elms, n_local_elms, index_min, index_max, & 
-                           ijA_index, ijA_size, irn_jcn, irn, jcn, A_mat, i_tor_min, i_tor_max )
+    call fix_nodes_on_axis(node_list, element_list, local_elms, n_local_elms, my_ind_min, my_ind_max, a_mat)
   elseif(treat_axis)then
-    call penalize_dof_on_axis(node_list, 4, element_list, local_elms, n_local_elms, index_min, index_max, &
-                           ijA_index, ijA_size, irn_jcn, irn, jcn, A_mat, i_tor_min, i_tor_max )
+    call penalize_dof_on_axis(node_list, 4, element_list, local_elms, n_local_elms, my_ind_min, my_ind_max, a_mat)
   endif
 
   ! --- Memory tracking
-  call tr_vnorms("cm_A_aft_bc",A_mat,nz)
+  call tr_vnorms("cm_A_aft_bc", a_mat%val, a_mat%nnz)
 
+  ! --- Add vacuum response (boundary integral) for free boundary computations
+  if ( freeboundary .and. ( sr%n_tor /= 0 ) ) then
+    call vacuum_boundary_integral(my_id, bnd_node_list, node_list, bnd_elm_list, freeboundary_equil, &
+                                  resistive_wall, my_ind_min, my_ind_max, rhs_local, tstep, index_now, a_mat)
+  endif
 
-    ! --- Add vacuum response (boundary integral) for free boundary computations
-    if ( freeboundary .and. ( sr%n_tor /= 0 ) ) then
-      call vacuum_boundary_integral(my_id, bnd_node_list, node_list, bnd_elm_list, freeboundary_equil, & 
-                                  resistive_wall, index_min, index_max, rhs_local, A_mat, tstep, index_now, & 
-                                  irn, jcn, n_matrix_block_size, ijA_index, ijA_size, irn_jcn, i_tor_min, i_tor_max)
-    end if
-  
   if ( .not. harmonic_matrix ) then 
     ! --- Summarise element_matrix comparison
 #ifdef COMPARE_ELEMENT_MATRIX
@@ -741,28 +755,31 @@ subroutine construct_matrix(my_id, MPI_COMM_N, my_id_n, MPI_COMM_MASTER, my_id_m
 
 #ifdef NORMTRACE
     ! --- For debugging purpose
-    call MPI_Reduce(RHS_local,RHS,ndof,MPI_DOUBLE_PRECISION,MPI_SUM,0,MPI_COMM_WORLD,ierr)
-    call tr_locvnorms("cm_Rhs",RHS,ndof)
+
+    call tr_locvnorms("cm_Rhs",rhs_vec%val,a_mat%ng)
     if (my_id .eq. 0) then
       write(fname,'(A,I6.6)')"rhs",index_now
-      call tr_vdump(fname,RHS,ndof)
+      call tr_vdump(fname,rhs_vec%val,a_mat%ng)
     end if
 #endif
-    call MPI_Reduce(RHS_local,RHS,ndof,MPI_DOUBLE_PRECISION,MPI_SUM,0,MPI_COMM_WORLD,ierr)
+  endif
 
-  else ! ( if harmonic_matrix)
-  
-    ! --- Form a global rhs from the rhss of the individual mpi tasks
-    call MPI_Reduce(RHS_local,RHS,ndof,MPI_DOUBLE_PRECISION,MPI_SUM,0,MPI_COMM_N,ierr)
-
-  endif 
+  counts = a_mat%ng
+  call MPI_AllReduce(RHS_local,rhs_vec%val,counts,MPI_DOUBLE_PRECISION,MPI_SUM,comm,ierr)
+  rhs_vec%n  = a_mat%ng
 
   call tr_deallocate(RHS_local,"RHS_local",CAT_DMATRIX)
+  
+  call check_if_distributed(a_mat)
+  
      
   ! --- Memory tracking
-  call tr_locvnorms("cm_BCRhs",RHS,ndof)
-  call tr_debug_write("ndof",ndof)
+  call tr_locvnorms("cm_BCRhs",rhs_vec%val,a_mat%ng)
+  call tr_debug_write("ndof",a_mat%ng)
   
+  ! --- Free the buffers needed by OpenMP threads (ELM-RHS etc.)
+  call del_thread_buffers()
+
   ! --- Timing
   call r3_info_end(r3_info_index_0)
   call tr_print_memsize("EndConstM")
@@ -797,6 +814,27 @@ subroutine  decrypt_index(ind, ivertex, iorder, ivar, itor)
   itor = ind2
 
 end subroutine decrypt_index
+
+!> check if matrix is row distributed
+subroutine check_if_distributed(a_mat)
+  use mpi_mod
+  use data_structure, only: type_SP_MATRIX
+  use mod_integer_types
+  implicit none
+
+  type(type_SP_MATRIX)  :: a_mat
+  integer(kind=int_all) :: nloc, nglob
+  integer               :: ierr
+
+  nloc = a_mat%irn(a_mat%nnz) - a_mat%irn(1) + 1
+  call MPI_AllReduce(nloc,nglob,1,MPI_INTEGER_ALL,MPI_SUM,a_mat%comm,ierr)
+  a_mat%row_distributed = (nglob.eq.a_mat%ng)
+
+  nloc = a_mat%jcn(a_mat%nnz) - a_mat%jcn(1) + 1
+  call MPI_AllReduce(nloc,nglob,1,MPI_INTEGER_ALL,MPI_SUM,a_mat%comm,ierr)
+  a_mat%col_distributed = (nglob.eq.a_mat%ng)
+
+end subroutine check_if_distributed
 
 
 end module construct_matrix_mod

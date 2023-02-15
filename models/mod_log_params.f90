@@ -9,8 +9,6 @@ contains
 subroutine log_parameters(my_id, short)
 
 use phys_module
-use mumps_module,  only: no_zeros_mumps, mumps_ordering
-use pastix_module, only: no_zeros_pastix, pastix_smp_only, pastix_pivot, pastix_maxthrd
 use vacuum
 use gauss, only: n_gauss
 
@@ -512,11 +510,14 @@ write(*,'(1x,a)',advance='no') ' USE_BICGSTAB : '
   write(*,REAL_FMT) 'visco_par_sc_num      ', visco_par_sc_num
   write(*,REAL_FMT) 'Dn_pol_sc_num         ', Dn_pol_sc_num
   write(*,REAL_FMT) 'Dn_p_sc_num           ', Dn_p_sc_num
+  write(*,REAL_FMT) 'D_perp_imp_sc_num     ', D_perp_imp_sc_num
+  write(*,REAL_FMT) 'D_par_imp_sc_num      ', D_par_imp_sc_num
 
   if(jorek_model == 004 ) then
     write(*,REAL_FMT) 'HW_coef               ', HW_coef(1:2)
   endif
 
+  write(*,REAL_FMT) 'constant_imp_source   ', constant_imp_source
   write(*,LOGI_FMT) 'add_sources_in_sc     ', add_sources_in_sc
   if (with_TiTe) then
     write(*,REAL_FMT) 'ZK_i_perp_num         ', ZK_i_perp_num
@@ -547,6 +548,7 @@ write(*,'(1x,a)',advance='no') ' USE_BICGSTAB : '
   end if
   write(*,REAL_FMT) 'tgnum_vpar            ', tgnum_vpar
   write(*,REAL_FMT) 'tgnum_rhon            ', tgnum_rhon
+  write(*,REAL_FMT) 'tgnum_rhoimp          ', tgnum_rhoimp
   write(*,REAL_FMT) 'tgnum_nre             ', tgnum_nre 
   write(*,REAL_FMT) 'tgnum_AR              ', tgnum_AR  
   write(*,REAL_FMT) 'tgnum_AZ              ', tgnum_AZ  
@@ -558,6 +560,8 @@ write(*,'(1x,a)',advance='no') ' USE_BICGSTAB : '
   write(*,LOGI_FMT) 'linear_run            ', linear_run
   write(*,REAL_FMT) 'D_prof_neg            ', D_prof_neg
   write(*,REAL_FMT) 'D_prof_neg_thresh     ', D_prof_neg_thresh
+  write(*,REAL_FMT) 'D_prof_imp_neg_thresh ', D_prof_imp_neg_thresh
+  write(*,REAL_FMT) 'D_prof_tot_neg_thresh ', D_prof_tot_neg_thresh
   if (with_TiTe) then
     write(*,REAL_FMT) 'ZK_e_prof_neg           ', ZK_e_prof_neg
     write(*,REAL_FMT) 'ZK_e_par_neg            ', ZK_e_par_neg
@@ -637,6 +641,7 @@ write(*,'(1x,a)',advance='no') ' USE_BICGSTAB : '
     write(*,REA3_FMT) 'z_limiter             ', z_limiter(1:min(9,n_limiter))
   end if
 
+  write(*,LOGI_FMT) 'CARIDDI_mode          ', CARIDDI_mode
   write(*,LOGI_FMT) 'freeboundary_equil    ', freeboundary_equil
   write(*,LOGI_FMT) 'freeboundary          ', freeboundary
   write(*,LOGI_FMT) 'freeb_change_indices  ', freeb_change_indices
@@ -753,7 +758,6 @@ write(*,'(1x,a)',advance='no') ' USE_BICGSTAB : '
   write(*,LOGI_FMT) 'use_mumps_eq          ', use_mumps_eq
   write(*,LOGI_FMT) 'use_pastix_eq         ', use_pastix_eq
   write(*,LOGI_FMT) 'use_strumpack_eq      ', use_strumpack_eq  
-  write(*,LOGI_FMT) 'pastix_smp_only       ', pastix_smp_only
   write(*,REAL_FMT) 'pastix_pivot          ', pastix_pivot
   write(*,INTG_FMT) 'pastix_maxthrd        ', pastix_maxthrd
   write(*,LOGI_FMT) 'refinement            ', refinement
@@ -762,8 +766,6 @@ write(*,'(1x,a)',advance='no') ' USE_BICGSTAB : '
   write(*,LOGI_FMT) 'adaptive_time         ', adaptive_time
   write(*,LOGI_FMT) 'equil                 ', equil
   write(*,LOGI_FMT) 'bench_without_plot    ', bench_without_plot
-  write(*,LOGI_FMT) 'no_zeros_mumps        ', no_zeros_mumps
-  write(*,LOGI_FMT) 'no_zeros_pastix       ', no_zeros_pastix
   write(*,LOGI_FMT) 'mach_one_bnd_integral ', mach_one_bnd_integral
   write(*,LOGI_FMT) 'deuterium_adas        ', deuterium_adas       
   write(*,LOGI_FMT) 'deuterium_adas_1e20   ', deuterium_adas_1e20

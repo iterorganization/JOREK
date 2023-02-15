@@ -24,9 +24,6 @@
 program JOREK2
 
   use constants
-  use mumps_module
-  use pastix_module
-  use wsmp_module
   use data_structure
   use phys_module
   use mod_parameters
@@ -52,18 +49,7 @@ program JOREK2
   use mod_integrals3D
   use mod_openadas, only : read_adf11
   use mod_atomic_coeff_deuterium, only: ad_deuterium 
-#ifdef USE_STRUMPACK
-  use strumpack_module
-#endif
-#ifdef USE_PASTIX6
-  use mod_pastix, only: pastix_finalize
-#endif
-  use preconditioner_module
-  use mod_distribute_preconditioner
-  use direct_construction_mod
-  use centralization_mod
   use mod_exchange_indices
-  use mod_gmres, only: gmres_driver
   use mod_startup_teardown
   use mod_initial_grid
   use mod_flux_grid
@@ -76,8 +62,6 @@ program JOREK2
   use live_data4,          only: init_live_data4, write_live_data4, finalize_live_data4
 #endif
 #endif
-
-  use solve_mat_n
   use tr_module
   use mod_clock
 #ifdef USE_HDF5
@@ -85,10 +69,10 @@ program JOREK2
   use hdf5_io_module
 #endif
   use mpi_mod
-  use mod_impurity, only: init_imp_adas
-#ifdef USE_BICGSTAB
-  use mod_bicgstab, only: bicgstab_driver, bicgstab_finalize
-#endif  
+  use mod_impurity,        only: init_imp_adas
+  use mod_sparse,          only: solve_sparse_system, solver_finalize
+  use mod_sparse_data,     only: type_SP_SOLVER, mumps, pastix, strumpack
+  use mod_simulation_data, only: type_MHD_SIM
 
   use, intrinsic :: iso_c_binding
   use, intrinsic :: iso_fortran_env, only : stdin=>input_unit, &
@@ -130,18 +114,16 @@ program JOREK2
   real*8                   :: t_matrix, t_send, t_solve
   type(clcktype)           :: t_itstart, t0, t1
   real*8                   :: mindelta, maxdelta
-  integer                  :: my_id, my_id_n, my_id_master
+  integer                  :: my_id
   integer                  :: istep,jstep,ierr,i,itor,inode, i_elm_axis, i_elm_xpoint(2)
   integer                  :: n_local_ELMs
-  integer                  :: i_rank(n_tor), n_cpu, n_cpu_n, n_cpu_master, m_cpu, n_masters, n_cpu_trans, my_id_trans
-  integer                  :: iter_gmres
-  integer                  :: MPI_COMM_N, MPI_GROUP_MASTER, MPI_GROUP_WORLD, MPI_COMM_MASTER, MPI_COMM_TRANS
+  integer                  :: n_cpu
   character*8              :: label, itlabel
   character*14             :: fileout
   integer                  :: mpi_required,mpi_provided,StatInfo
-  integer, allocatable     :: local_elms(:), index_min(:), index_max(:)
+  integer, dimension(:), pointer :: local_elms => null()
   real*8                   :: zjz, E_min, E_max
-  logical                  :: solve_only, to_quit, freeb_equil2
+  logical                  :: to_quit, freeb_equil2
   integer*4                :: rank, comm_size 
   real*8                   :: zn,  dn_dpsi,  dn_dz,  dn_dpsi2,  dn_dz2,  dn_dpsi_dz,  dn_dpsi3,  dn_dpsi_dz2,  dn_dpsi2_dz
   real*8                   :: zT,  dT_dpsi,  dT_dz,  dT_dpsi2,  dT_dz2,  dT_dpsi_dz,  dT_dpsi3,  dT_dpsi_dz2,  dT_dpsi2_dz
@@ -152,7 +134,7 @@ program JOREK2
   real*8                   :: Rp_start, Rp_end, density_tot,density_in,density_out,pressure_tot,pressure_in,pressure_out,Bgeo
   real*8,allocatable       :: xp(:), yp1(:), yp2(:), yp3(:)
   real*8,allocatable       :: res(:) 
-  integer                  :: nplot, iplot, i_elm, ifail, ivar, iter_big, n_aa, iter_prev, n_since_update, n_spi_begin
+  integer                  :: nplot, iplot, i_elm, ifail, ivar, n_aa, n_since_update, n_spi_begin
   logical                  :: is_local, file_exists
   integer                  :: i_elem, inode1, i_order, index_node1
   type (type_element)      :: element
@@ -179,6 +161,11 @@ program JOREK2
   integer :: getpid
 
   logical :: input_treat_axis
+  
+  type(type_MHD_SIM)          :: mhd_sim
+  type(type_SP_MATRIX)        :: a_mat
+  type(type_RHS)              :: rhs_vec, sol_vec
+  type(type_SP_SOLVER)        :: solver
   
   call init_expr()
   allocate(res(exprs_all_int%n_expr+1))
@@ -237,22 +224,12 @@ mpi_required = 0
 
   ! --- Set a signal handler for SIGTERM
   call set_trap_sigterm()
-
-  ! --- Preset some solver variables
-  pastix_initialised = .false.
-  pastix_analysed    = .false.
-#ifdef USE_STRUMPACK  
-  spss_initialized = .false.
-  spss_analyzed    = .false.
-#endif  
   
   ! --- Preset input parameters to reasonable defaults, then read the input file.
   call initialise_and_broadcast_parameters(my_id, "__NO_FILENAME__")
   
   ! --- Initialize the vacuum part.
   call vacuum_init(my_id, freeboundary_equil, freeboundary, resistive_wall)
-
-  if (nstep .gt. 0)   call check_preconditioner_consistency
   
   ! --- Initialize live data file which will be filled during the code run
   if ( my_id == 0 ) call init_live_data()
@@ -397,14 +374,6 @@ mpi_required = 0
     ! --- Check sanity of grid
     if (.not. RZ_grid_inside_wall) call check_grid(my_id, node_list, element_list)
 
-#ifdef USE_MUMPS
-    ! --- Initialize MUMPS solver (used for equilibrium)
-    call MPI_COMM_GROUP(MPI_COMM_WORLD,MPI_GROUP_WORLD,ierr)
-    call MPI_GROUP_INCL(MPI_GROUP_WORLD,1,[0],MPI_GROUP_MUMPS_EQUIL,ierr)
-    call MPI_COMM_CREATE(MPI_COMM_WORLD,MPI_GROUP_MUMPS_EQUIL,MPI_COMM_MUMPS_EQUIL,ierr)
-    if (my_id == 0) call initialise_mumps(MPI_COMM_MUMPS_EQUIL)
-#endif
-
     ! --- Compute the plasma equilibrium
     if (equil) then
       call equilibrium(my_id,node_list,element_list,bnd_node_list,bnd_elm_list,xpoint,xcase, .true.) 
@@ -450,15 +419,6 @@ mpi_required = 0
 
     end if ! (my_id == 0)
     
-#ifdef USE_MUMPS
-    ! --- Clean up this instance of mumps (used for equilibrium)
-    mumps_par%JOB = -2
-    if (my_id == 0) call DMUMPS(mumps_par)
-#endif
-    ! -- For PaStiX solver before version 6.x
-    if (allocated(pastix_perm_vars))  call tr_deallocate(pastix_perm_vars,"pastix_perm_vars",CAT_UNKNOWN)
-    if (allocated(pastix_iperm_vars)) call tr_deallocate(pastix_iperm_vars,"pastix_iperm_vars",CAT_UNKNOWN)
-
   end if if_not_restart
   
   ! --- Print some grid information
@@ -487,14 +447,12 @@ mpi_required = 0
      if (my_id == 0) then
         call read_RMP_profiles(bnd_node_list)
      endif
-
   endif
   
   ! --- Broadcast grid information and input parameters to other MPI procs
   call broadcast_elements(my_id, element_list)                ! elements
-  if (RMP_on) then
-     call broadcast_RMP_profiles(my_id, bnd_node_list)        ! psi_RMP profiles
-  endif
+  
+  if (RMP_on) call broadcast_RMP_profiles(my_id, bnd_node_list)        ! psi_RMP profiles
 
   call broadcast_nodes(my_id, node_list)                      ! nodes
 
@@ -508,14 +466,9 @@ mpi_required = 0
   call broadcast_equil_state(my_id)                           ! equil_state
 
   if ( freeboundary ) call broadcast_vacuum(my_id, resistive_wall)
-  n_AA = 0  
-  do inode = 1, node_list%n_nodes  
-    n_AA = max(n_AA,node_list%node(inode)%index(4))  
-  end do
-  mumps_par%n = n_AA
 
   ! --- Load deuterium ADAS data if required
-  if (deuterium_adas) ad_deuterium =  read_adf11(my_id,'96_h') 
+  if (deuterium_adas) ad_deuterium = read_adf11(my_id,'96_h') 
 
    ! --- Initialize FFTW
 #ifdef USE_FFTW
@@ -542,31 +495,6 @@ mpi_required = 0
   t_now     = t_start      ! t_now: current time in the simulation
   
   if (nstep > 0) then
-    
-    !*******************************************************
-    !*      create groups /communicators		   *
-    !* MPI_COMM_N      : group for each harmonic	   *
-    !* MPI_COMM_TRANS  : Transversal communicator	   *
-    !*   (ie : all first proc of MPI_COMM_N, all second,   *
-    !*         all third...)				   *
-    !* MPI_COMM_MASTER : group of masters of each harmonic *
-    !*  		 (i.e id=0 from each MPI_COMM_N)   *
-    !*******************************************************
-    if (gmres) then
-    
-       call create_communicators(my_id_n, n_cpu_n, MPI_COMM_N, my_id_master, n_masters, &
-                                 MPI_COMM_MASTER, MPI_COMM_TRANS)
-       m_cpu = n_cpu_n
-       write(*,*) "my_id, my_id_n", my_id, my_id_n
-
-       call distribute_modes
-       
-    else
-       my_id_n = my_id
-       MPI_COMM_N = MPI_COMM_WORLD
-       m_cpu = n_cpu
-    endif
-
 
     !***********************************************************************
     !*  	  distribute nodes and elements over cpu's		   *
@@ -574,42 +502,30 @@ mpi_required = 0
     index_size  = n_cpu
     id_elements = my_id
 
-    call tr_allocate(local_elms,1,element_list%n_elements,"local_elms",CAT_FEM)
-    call tr_allocate(index_min,1,index_size,"index_min",CAT_FEM)
-    call tr_allocate(index_max,1,index_size,"index_max",CAT_FEM)
-    call tr_allocate(local_index_start,1,n_cpu,"local_index_start",CAT_FEM)
-    call tr_allocate(local_index_end,1,n_cpu,"local_index_end",CAT_FEM)
+    call tr_allocatep(local_elms,1,element_list%n_elements,"local_elms",CAT_FEM)
+    
+    a_mat%comm = MPI_COMM_WORLD
+    
+    mhd_sim%my_id = my_id
+    mhd_sim%n_cpu = n_cpu
+    mhd_sim%n_tor = n_tor
+    mhd_sim%freeboundary = freeboundary
+    mhd_sim%restart = restart
+    
+    mhd_sim%node_list     => node_list
+    mhd_sim%element_list  => element_list
+    mhd_sim%bnd_node_list => bnd_node_list
+    mhd_sim%bnd_elm_list  => bnd_elm_list
+    mhd_sim%local_elms    => local_elms
+    mhd_sim%sr_n_tor      = sr%n_tor
+    
+    call distribute_nodes_elements(id_elements, n_cpu, index_size, mhd_sim%node_list, mhd_sim%element_list, .false., mhd_sim%local_elms, & 
+                                   mhd_sim%n_local_elms, restart, freeboundary, a_mat)    
+    
+    call global_matrix_structure(mhd_sim%node_list, mhd_sim%element_list, mhd_sim%bnd_elm_list, freeboundary,&
+                                 mhd_sim%local_elms, mhd_sim%n_local_elms, a_mat, i_tor_min=1, i_tor_max=n_tor)
 
-    !
-    ! Construct index_min, index_max and local_elems
-    !
-    call distribute_nodes_elements(id_elements,m_cpu,index_size,node_list,element_list,.false.,local_elms, & 
-         n_local_elms,ndof_glob,index_min,index_max, restart, freeboundary)    
-
-    node_list%n_dof = ndof_glob
-    local_index_start = index_min
-    local_index_end   = index_max
-    ! Build ijA_index, ijA_size and irn_jcn
-
-    call global_matrix_structure(my_id,my_id_n,node_List,element_list,bnd_elm_list, freeboundary,&
-         local_elms,n_local_elms,index_min(id_elements+1),index_max(id_elements+1),              & 
-         ijA_index, ijA_size, irn_jcn, irn_glob, jcn_glob, 1, n_tor,                 &
-         n_glob, nz_glob, ndof_glob, n_matrix_block_size)
-
-    call MPI_Barrier(MPI_COMM_WORLD,ierr)
-    if ( freeboundary .and. ( sr%n_tor /= 0 ) ) then 
-      call global_matrix_structure_vacuum(node_list, bnd_node_list, index_min(my_id+1), index_max(my_id+1),& 
-           1, n_tor, irn_glob, jcn_glob, n_matrix_block_size, ijA_index, ijA_size, irn_jcn) 
-    endif
-
-    if ((gmres).and.(my_id_n.eq.0)) call map_row_index(ndof_glob)
-    if (use_mumps) then
-       if (.not. gmres) then
-         call initialise_mumps(MPI_COMM_WORLD)    ! start MUMPS sparse matrix solver all cpus
-       else
-         call initialise_mumps(MPI_COMM_N)        ! start MUMPS sparse matrix solver on local groups
-       endif
-    endif
+    call MPI_Barrier(a_mat%comm,ierr)
 
   endif ! (nstep >0)
   
@@ -631,6 +547,7 @@ mpi_required = 0
     write(*,*) '  values after restarting.'
   end if
   
+  
   !***********************************************************************
   !***********************************************************************
   !*                          time stepping                              *
@@ -639,10 +556,21 @@ mpi_required = 0
   
   if (nstep > 0) call update_deltas(my_id, node_list) ! create list of delta values in local_matrix module
 
-  iter_gmres     = iter_precon
-  iter_big       = gmres_max_iter
-  iter_prev      = 0
-  n_since_update = 0
+  solver%iterative          = gmres
+  solver%iter_precon        = iter_precon
+  solver%iter_gmres         = iter_precon
+  solver%iter_max           = gmres_max_iter
+  solver%max_steps_noUpdate = max_steps_noUpdate
+  solver%iter_tol           = gmres_tol
+  solver%iter_prev          = 0
+  solver%n_since_update     = 0
+  if (use_strumpack) then
+    solver%library = strumpack
+  elseif (use_mumps) then
+    solver%library = mumps
+  elseif (use_pastix) then
+    solver%library = pastix
+  endif
 
   call tr_print_memsize("BeforeTimeStepping")
   call r3_info_print (-2, -2, 'INITIALIZATION')    ! timing
@@ -653,6 +581,7 @@ mpi_required = 0
 
   jstep_loop: do jstep = 1, 10 ! Go through the different values of the tstep_n and nstep_n arrays
   istep_loop: do istep = 1, nstep_n(jstep)
+  
     call clck_time_barrier(t_itstart)
     t0 = t_itstart
 
@@ -662,10 +591,17 @@ mpi_required = 0
     index_now = index_now + 1
     
     tstep = tstep_n(jstep)
+
     ! start from t=0 
-    if ( index_now <= 1 ) tstep_prev = tstep
+    if (index_now <= 1) tstep_prev = tstep
     
-    if ( freeboundary ) call update_response(my_id,tstep, freeboundary_equil, resistive_wall)
+    if ( my_id == 0 ) then
+      write(*,*) '******************************************************'
+      write(*,'(A17,3i7,2f14.5,A)') ' *   time step : ',jstep,istep,index_now,tstep,tstep_prev,'  *'
+      write(*,*) '******************************************************'
+    end if
+    
+    if (freeboundary) call update_response(my_id,tstep, freeboundary_equil, resistive_wall)
 
     ! ---- For now running the jorek2_main should not include aux inputs
     aux_node_list%n_nodes = 0
@@ -674,21 +610,12 @@ mpi_required = 0
       aux_node_list%node(i)%deltas = 0.d0
     enddo
 
-    if ( my_id == 0 ) then
-      write(*,*) '******************************************************'
-      write(*,'(A17,3i7,2f14.5,A)') ' *   time step : ',jstep,istep,index_now,tstep,tstep_prev,'  *'
-      write(*,*) '******************************************************'
-    end if
-
-    ! --- Initialise the buffers needed by OpenMP threads. The values of n_tor, 
-    ! --- n_plane, n_var have to remain the same until the end of the program.
-    call new_thread_buffers()
-    
     call update_equil_state(my_id,node_list, element_list, bnd_elm_list, xpoint, xcase)
     if ( my_id == 0 ) call print_equil_state(.false.)
 
     ! --- Prepare minor radius and q-,ft-,B-splines for bootstrap current
     minRad = 0.0
+    
     if (bootstrap) then
       call bootstrap_find_minRad(node_list, element_list, ES%R_axis, ES%Z_axis, ES%psi_axis, ES%psi_bnd)
       call bootstrap_get_q_and_ft_splines(node_list, element_list, ES%psi_axis, ES%psi_xpoint, ES%R_xpoint, ES%Z_xpoint)
@@ -698,166 +625,34 @@ mpi_required = 0
     call tr_debug_write("JMAIN:Find_axis_Z",ES%Z_axis)
     call clck_time_barrier(t1)
     call clck_ldiff(t0,t1,tsecond)
-!    if (my_id .eq. 0) then
-!       write(*,FMT_TIMING)  my_id, '# Elapsed time init_time_step :',tsecond
-!    end if
-
-    ! Build the matrix 
-    call clck_time_barrier(t0)
-    if (gmres) then
-      ! Matrix analysis and factorization in the preconditioner is re-done...
-      ! ... in the first step of a simulation (also when restarting)
-      ! ... when tstep changes
-      ! ... when the previous time steps took too many iterations
-      solve_only = (istep > 1) .and. ((iter_gmres+iter_prev <= 2*iter_precon) .and. (n_since_update < max_steps_noUpdate))
-      if (solve_only) then 
-        n_since_update = n_since_update + 1
-      else
-        n_since_update = 0
-      endif
-      !if ( my_id == 0 ) write(*,*) 'solve_only: ', solve_only
-    endif
     
     if (use_pellet) then	    ! calculating the pellet_volume (total_pellet_volume)
       pellet_volume = PI * pellet_radius**2 * 2.d0 * PI * pellet_R * (pellet_phi/PI)
       call int3d_new(my_id, node_list, element_list, bnd_node_list, bnd_elm_list, exprs_all_int, res, 1)
     endif
-    call tr_debug_write("JMAIN:Debconstruct_n_elms",n_local_elms)
+    call tr_debug_write("JMAIN:Debconstruct_n_elms",mhd_sim%n_local_elms)    
 
-    ! --- The following is for parallel debugging only
-
-    !holder = 0;
-    !write(*,*) "my_id", my_id, "PID", getpid(), "Host", name
-
-    !do while (holder == 0)
-    !  call sleep(5)
-    !end do
-
-    ! --- End of parallel debugging section 
+    ! Build the matrix 
+    call clck_time_barrier(t0)
 
     !--------- Constructing Global Matrix
-    call construct_matrix(my_id, MPI_COMM_N, my_id_n, MPI_COMM_MASTER, my_id_master, local_elms,   &
-         n_local_ELms, index_min(my_id+1), index_max(my_id+1), xpoint, xcase, ES%R_axis, ES%Z_axis,&
-         ES%psi_axis, ES%psi_bnd, ES%R_xpoint, ES%Z_xpoint, ES%psi_xpoint, 1, n_tor,   &
-         n_glob, nz_glob, ndof_glob, n_matrix_block_size, A_glob, rhs_glob, irn_glob, jcn_glob, ijA_index, ijA_size,    &
-         irn_jcn, harmonic_matrix=.false.)
+    mhd_sim%es => es ! assign pointer to the equilibrium state
 
+    call construct_matrix(mhd_sim, mhd_sim%local_elms, mhd_sim%n_local_elms, a_mat, rhs_vec, harmonic_matrix=.false.)
 
-    call clck_time_barrier(t1)
-    if (my_id .eq. 0) then
-      call clck_ldiff(t0,t1,tsecond)
-      write(*,FMT_TIMING) my_id, '# Elapsed time in construct global matrix :',tsecond
-    endif     
-
-    if (.not. gmres) then
-
-      if (use_mumps) then
-#ifdef USE_MUMPS
-        call solve_mumps_all(my_id)
-#endif
-      elseif (use_strumpack) then
-#ifdef USE_STRUMPACK
-        call solve_strumpack_all(n_cpu,my_id,index_min(my_id+1),index_max(my_id+1))
-#endif
-      elseif (use_pastix) then
-#if defined(USE_PASTIX) || defined(USE_PASTIX6)     
-         call solve_pastix_all(n_cpu,my_id,index_min(my_id+1),index_max(my_id+1))
-#endif
-      endif
-
-    else
-
-      if (.not. solve_only) then
-
-#ifndef DIRECT_CONSTRUCTION
-        call clck_time(t0)
-         ! --- Extract harmonic matrix from global matrix via MPI communication
-        call distribute_harmonics(my_id,my_id_n,n_cpu)
-        if(my_id_n.eq.0) call distribute_vector(rhs_glob,mumps_par%rhs,MPI_COMM_MASTER)
-        call MPI_Barrier(MPI_COMM_WORLD,ierr)
-        call clck_time_barrier(t1)
-        call clck_ldiff(t0,t1,tsecond)
-        if (my_id .eq. 0) then
-          write(*,FMT_TIMING) my_id, '# Elapsed time distribute :',tsecond
-        end if
-#else 
-
-         call clck_time_barrier(t0) 
-         ! --- Direct construction of harmonic matrix
-         call direct_construction_harmonic(my_id, my_id_n, m_cpu, n_cpu, MPI_COMM_N, MPI_COMM_MASTER, my_id_master, & 
-              node_list, element_list, bnd_elm_list, bnd_node_list, xpoint, xcase, restart, freeboundary, .true.)
-        call MPI_Barrier(MPI_COMM_WORLD,ierr)
-        call clck_time_barrier(t1) 
-
-        if (my_id .eq. 0) then
-          call clck_ldiff(t0,t1,tsecond)
-          write(*,FMT_TIMING) my_id, '# Elapsed time in construct harmonic matrix :',tsecond
-        endif     
-
-        call clck_time_barrier(t0) 
-        ! --- Centralize the harmonic matrix on the master task of the MPI group (if needed)
-        call centralization_harmonic(my_id, my_id_n, n_cpu_n, MPI_COMM_N)
-        call MPI_Barrier(MPI_COMM_WORLD,ierr)
-  
-        call clck_time_barrier(t1) 
-
-        if (my_id .eq. 0) then
-          call clck_ldiff(t0,t1,tsecond)
-          write(*,FMT_TIMING) my_id, '# Elapsed time in centralizing the matrix:',tsecond
-        endif     
-
-#endif
-
-      else
-
-        if(my_id_n.eq.0) call distribute_vector(rhs_glob,mumps_par%rhs,MPI_COMM_MASTER)
-      endif
-
-       ! --- Free the buffers needed by OpenMP threads (ELM-RHS etc.)
-       call del_thread_buffers()
-
-       call clck_time(t0)
-      if (use_strumpack) then 
-#ifdef USE_STRUMPACK
-        call solve_matrix_n_spk(my_id,MPI_COMM_N,MPI_COMM_MASTER,solve_only)
-#endif
-      else
-#if defined(USE_PASTIX) || defined(USE_MUMPS)
-        call solve_matrix_n(my_id,MPI_COMM_N,MPI_COMM_MASTER,solve_only) ! factorise preconditioning matrices
-#endif
-#if defined(USE_PASTIX6)
-        call solve_matrix_n_ptx(my_id,MPI_COMM_N,MPI_COMM_MASTER,solve_only)
-#endif
-      endif
-
-
-      call clck_time_barrier(t1)
-      call clck_ldiff(t0,t1,tsecond)
-      if (my_id .eq. 0) then
-        write(*,FMT_TIMING) my_id, '# Elapsed time first solve :',tsecond
-      end if
-    endif
+    call clck_time_barrier(t1); call clck_ldiff(t0,t1,tsecond)
+    if (my_id.eq.0) write(*,FMT_TIMING) my_id, '# Elapsed time in construct global matrix :',tsecond
+    
+    solver%tstep = tstep
+    solver%istep = istep
+    solver%index_now = index_now
+    sol_vec%val => deltas
+    
+    call solve_sparse_system(a_mat, rhs_vec, sol_vec, solver, mhd_sim)
 
     call clck_time(t0)
-    if (gmres) then
-      iter_prev = iter_gmres
-      iter_gmres = gmres_max_iter
-
-#ifdef USE_BICGSTAB
-      call bicgstab_driver(irn_glob, jcn_glob, a_glob, deltas, rhs_glob, iter_gmres, gmres_tol, MPI_COMM_WORLD, MPI_COMM_N, MPI_COMM_MASTER)
-#else
-      call gmres_driver(my_id,my_id_n,MPI_COMM_N,MPI_COMM_MASTER,iter_gmres)
-#endif
-
-    endif
-    call clck_time_barrier(t1)
-    call clck_ldiff(t0,t1,tsecond)
-    if (my_id .eq. 0) then
-      write(*,FMT_TIMING)  my_id, '# Elapsed time gmres/solve :',tsecond
-    end if
-
-    call clck_time(t0)
-    if ( (gmres .and. (iter_gmres .lt. iter_big)) .or. (.not.gmres) ) then
+    if (solver%step_success) then
+    ! successful step
 
       if (use_pellet) then
         pellet_volume = total_pellet_volume
@@ -886,7 +681,6 @@ mpi_required = 0
        end if
 #endif
 
-
       call update_values(my_id,element_list,node_list,deltas)         ! add solution to node values
       call update_deltas(my_id,node_list)
 
@@ -895,39 +689,39 @@ mpi_required = 0
       ! save previous time step
       tstep_prev = tstep
 
-
     else
+    
       if ( my_id == 0 ) then
         write(*,*)
-        write(*,'(a,i6.6,a)') '>>>>> NO CONVERGENCE AFTER ', iter_gmres, ' ITERATIONS. ABORTING <<<<<'
+        write(*,'(a,i6.6,a)') '>>>>> NO CONVERGENCE AFTER ', solver%iter_gmres, ' ITERATIONS. ABORTING <<<<<'
         write(*,*)
       end if
       index_now = index_now - 1 ! Undo the time step
       exit jstep_loop
-    end if
-    call clck_time_barrier(t1)
-    call clck_ldiff(t0,t1,tsecond)
-    if (my_id .eq. 0) then
-      write(*,FMT_TIMING)  my_id, '#  Elapsed time Final Update:',tsecond
-    end if
+      
+    endif
+    
+    call clck_time_barrier(t1); call clck_ldiff(t0,t1,tsecond)
+    if (my_id .eq. 0) write(*,FMT_TIMING)  my_id, '#  Elapsed time Final Update:',tsecond
+
 
     !-------------------------------------------------------- adapt time step (in progress...)
     mindelta = minval(deltas); maxdelta = maxval(deltas);
-
-    if (gmres .and. adaptive_time) then        ! experimental
-       if (iter_gmres .ge. iter_big) then
-          tstep = tstep /2.d0
-          write(*,*) my_id,' REDUCTION TIMESTEP : ',tstep
-       elseif (max(abs(mindelta),abs(maxdelta)) .gt. 0.05) then
-          !	 tstep = tstep /2.d0
-          !	 iter_gmres = 99999
-          !	 write(*,*) my_id,' REDUCTION TIMESTEP : ',tstep
-       elseif (max(abs(mindelta),abs(maxdelta)) .lt. 0.001) then
-          !	 tstep = tstep * 2.d0
-          !	 iter_gmres = 99999
-          !	 write(*,*) my_id,' INCREASE TIMESTEP : ',tstep
-       endif
-    endif
+    !
+    !if (gmres .and. adaptive_time) then        ! experimental
+    !   if (iter_gmres .ge. iter_big) then
+    !      tstep = tstep /2.d0
+    !      write(*,*) my_id,' REDUCTION TIMESTEP : ',tstep
+    !   elseif (max(abs(mindelta),abs(maxdelta)) .gt. 0.05) then
+    !      !	 tstep = tstep /2.d0
+    !      !	 iter_gmres = 99999
+    !      !	 write(*,*) my_id,' REDUCTION TIMESTEP : ',tstep
+    !   elseif (max(abs(mindelta),abs(maxdelta)) .lt. 0.001) then
+    !      !	 tstep = tstep * 2.d0
+    !      !	 iter_gmres = 99999
+    !      !	 write(*,*) my_id,' INCREASE TIMESTEP : ',tstep
+    !   endif
+    !endif
 
     !--------------------------------------------------------- energies
     if ( (my_id == 0) .and. (.not. bench_without_plot) ) then
@@ -1060,8 +854,8 @@ mpi_required = 0
         open(42, file='REDO_LU', iostat=ierr)
         if ( ierr == 0 ) close(42, status='delete')
       end if
-      iter_prev  = iter_precon + 1
-      iter_gmres = iter_precon + 1
+      solver%iter_prev  = solver%iter_precon + 1
+      solver%iter_gmres = solver%iter_precon + 1
     end if
 
 
@@ -1096,57 +890,13 @@ mpi_required = 0
   enddo istep_loop
   enddo jstep_loop
   
+  
   !***********************************************************************
   !*                         cleanup  (solvers)                          *
   !***********************************************************************
 
   if (nstep .gt.0) then
-#ifdef USE_MUMPS
-    if (use_mumps) then
-      mumps_par%JOB = -2                            ! clean up this instance of mumps
-      call DMUMPS(mumps_par)
-    endif
-#endif
-
-#ifdef USE_STRUMPACK
-    if (use_strumpack) then
-      call strumpack_finalize(MPI_COMM_WORLD)
-    endif
-#endif
-
-#ifdef USE_BICGSTAB
-    if (gmres) call bicgstab_finalize()
-#endif
-
-#ifdef USE_PASTIX6
-    if (use_pastix) then
-      call pastix_finalize()
-    endif
-#endif
-
-#if defined(USE_PASTIX)
-    if (use_pastix) then
-      ! -- For PaStiX solver before version 6.x
-      pastix_iparm(2)     = 7                       ! Clean-up
-      pastix_iparm(3)     = 7
-
-      if (.not. gmres) then
-        call pastix_fortran(pastix_data,MPI_COMM_WORLD,mumps_par%n,DUMMY_INT,DUMMY_INT,DUMMY_REAL, &
-          pastix_perm_vars,pastix_iperm_vars,mumps_par%rhs,1,pastix_iparm,pastix_dparm)
-      elseif ( (.not. pastix_smp_only) .or. (pastix_smp_only .and. (my_id_n .eq.0))  ) then
-        call pastix_fortran(pastix_data,MPI_COMM_N,mumps_par%n, &
-          DUMMY_INT,DUMMY_INT,DUMMY_REAL,                       &
-          pastix_perm_vars,pastix_iperm_vars,mumps_par%rhs,1,pastix_iparm,pastix_dparm)
-      endif
-    endif
-#endif
-
-#ifdef USE_WSMP
-    if (use_wsmp) then
-      call PWGSMP__deallocate()
-    endif
-#endif
-    
+    call solver_finalize(solver)    
   endif
   
   ! --- Close open files

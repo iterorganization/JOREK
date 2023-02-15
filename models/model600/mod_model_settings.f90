@@ -6,7 +6,7 @@ implicit none
 logical, parameter :: with_vpar       = .true.
 logical, parameter :: with_TiTe       = .false.
 logical, parameter :: with_neutrals   = .false. 
-logical, parameter :: with_impurities = .false. ! not yet possible to switch
+logical, parameter :: with_impurities = .false.
 logical, parameter :: with_refluid    = .false. ! not yet possible to switch
 
 
@@ -16,7 +16,7 @@ logical, parameter :: with_refluid    = .false. ! not yet possible to switch
 
 
 ! The following line is needed by ./util/config.sh:
-! #SETTINGS# with_vpar with_TiTe with_neutrals
+! #SETTINGS# with_vpar with_TiTe with_neutrals with_impurities
 
 integer, parameter :: jorek_model     = 600
 
@@ -60,8 +60,8 @@ integer, parameter :: var_Ti       = sum(merge((/                               
 integer, parameter :: var_Te       = sum(merge((/n_var_base+n_var_vpar         +1/), (/0/), with_TiTe      ))
 integer, parameter :: var_Vpar     = sum(merge((/                               7/), (/0/), with_vpar      ))
 integer, parameter :: var_rhon     = sum(merge((/n_var_base+sum(n_var_ext(1:2))+1/), (/0/), with_neutrals  ))
-integer, parameter :: var_nre      = sum(merge((/n_var_base+sum(n_var_ext(1:3))+1/), (/0/), with_refluid   ))
-integer, parameter :: var_rho_imp  = sum(merge((/n_var_base+sum(n_var_ext(1:4))+1/), (/0/), with_impurities))
+integer, parameter :: var_rhoimp   = sum(merge((/n_var_base+sum(n_var_ext(1:3))+1/), (/0/), with_impurities))
+integer, parameter :: var_nre      = sum(merge((/n_var_base+sum(n_var_ext(1:4))+1/), (/0/), with_refluid   ))
 ! --- variables not relevant to this model
 integer, parameter :: var_AR   = 0
 integer, parameter :: var_AZ   = 0
@@ -79,11 +79,12 @@ integer,  parameter :: n_terms_u    = 11
 integer,  parameter :: n_terms_zj   = 1
 integer,  parameter :: n_terms_w    = 1
 integer,  parameter :: n_terms_rho  = 12
-integer,  parameter :: n_terms_T    = 17
-integer,  parameter :: n_terms_Te   = 16
+integer,  parameter :: n_terms_T    = 19
+integer,  parameter :: n_terms_Te   = 18
 integer,  parameter :: n_terms_Ti   = 12
 integer,  parameter :: n_terms_vpar = 10
 integer,  parameter :: n_terms_rhon = 7
+integer,  parameter :: n_terms_rhoimp = 10
 
 character*36, dimension(n_var, max_terms) :: term_names
 character*36, dimension(n_terms_psi),  parameter :: Psi_term_names=  &
@@ -142,8 +143,10 @@ character*36, dimension(n_terms_T),     parameter :: T_term_names=  &
                                                  'T_Eq__line_radiation   ', &  ! 13:
                                                  'T_Eq__Brems_radiation  ', &  ! 14:
                                                  'T_Eq__backg_imp_radiat ', &  ! 15:
-                                                 'T_Eq__power_teleported ', &  ! 16:
-                                                 'T_Eq__viscopar_heating '/)   ! 17:
+                                                 'T_Eq__main_imp_radiat  ', &  ! 16:
+                                                 'T_Eq__imp_ionization   ', &  ! 17:
+                                                 'T_Eq__power_teleported ', &  ! 18:
+                                                 'T_Eq__viscopar_heating '/)   ! 19:
 
 character*36, dimension(n_terms_Ti),    parameter :: Ti_term_names=  &
                                               (/ 'Ti_Eq__ext_heat_source ', &  !  1:
@@ -175,7 +178,9 @@ character*36, dimension(n_terms_Te),    parameter :: Te_term_names=  &
                                                  'Te_Eq__line_radiation  ', &  ! 13:
                                                  'Te_Eq__Brems_radiation ', &  ! 14:
                                                  'Te_Eq__backg_imp_radiat', &  ! 15:
-                                                 'Te_Eq__power_teleported'/)   ! 16:
+                                                 'Te_Eq__main_imp_radiat ', &  ! 16:
+                                                 'Te_Eq__imp_ionization  ', &  ! 17:
+                                                 'Te_Eq__power_teleported'/)   ! 18:
 
 
 character*36, dimension(n_terms_vpar),  parameter :: vpar_term_names=  &
@@ -199,6 +204,17 @@ character*36, dimension(n_terms_vpar),  parameter :: vpar_term_names=  &
                                                  'rhon_Eq__Dn_perp_num_term ', &  !  6:
                                                  'rhon_Eq__zeta_timevol_term'/)   !  7:
 
+ character*36, dimension(n_terms_rhoimp), parameter :: rhoimp_term_names=  &
+                                              (/ 'rhoimp_Eq__parallel_diffus ', &  !  1:
+                                                 'rhoimp_Eq__perp_diffusion  ', &  !  2: 
+                                                 'rhoimp_Eq__perp_convection ', &  !  3: 
+                                                 'rhoimp_Eq__divergence_v    ', &  !  4: 
+                                                 'rhoimp_Eq__parallel_convect', &  !  5:
+                                                 'rhoimp_Eq__diamag_term     ', &  !  6:
+                                                 'rhoimp_Eq__tg_num_term     ', &  !  7:
+                                                 'rhoimp_Eq__ext_dens_source ', &  !  8:
+                                                 'rhoimp_Eq__zeta_time_evol  ', &  !  9:
+                                                 'rhoimp_Eq__Dn_perp_num_term'/)   ! 10:
 
 contains
 
@@ -234,6 +250,8 @@ subroutine assign_term_names()
       term_names(k_var, 1:n_terms_vpar) = vpar_term_names(:)
     else if (k_var == var_rhon) then
       term_names(k_var, 1:n_terms_rhon) = rhon_term_names(:)
+    else if (k_var == var_rhoimp) then
+      term_names(k_var, 1:n_terms_rhoimp) = rhoimp_term_names(:)
     endif
 
   enddo
@@ -266,7 +284,7 @@ elemental pure logical function ext_available(i_ext)
   else if ( i_ext == i_ext_neutrals ) then
     ext_available = .true.
   else if ( i_ext == i_ext_impurities ) then
-    ext_available = .false.
+    ext_available = .true.
   else if ( i_ext == i_ext_refluid ) then
     ext_available = .false.
   end if

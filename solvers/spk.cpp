@@ -31,7 +31,7 @@ extern "C" void spk_init(StrumpackSparseSolverMPIDist<double,int_all>** spss_,MP
   StrumpackSparseSolverMPIDist<double,int_all>* spss= *spss_;
   MPI_Comm comm=MPI_Comm_f2c(*comm_);
   int thread_level,rank,P;
-  double eps=1e-36, epsr=1.e-12, rnorm;
+  double eps=1e-36, epsr=1.e-12;
 
   MPI_Comm_rank(comm, &rank);
   MPI_Comm_size(comm, &P);
@@ -46,7 +46,7 @@ extern "C" void spk_init(StrumpackSparseSolverMPIDist<double,int_all>** spss_,MP
   spss->options().set_matching(MatchingJob::MAX_DIAGONAL_PRODUCT_SCALING);
 //  spss->options().set_matching(MatchingJob::NONE);
   spss->options().set_reordering_method(ReorderingStrategy::METIS);
-  spss->options().enable_METIS_NodeNDP();
+  spss->options().enable_METIS_NodeND();
 
 //  spss->options().set_reordering_method(ReorderingStrategy::PARMETIS);
 //  spss->options().set_reordering_method(ReorderingStrategy::PTSCOTCH);
@@ -209,10 +209,15 @@ extern "C" void spk_solve(int_all* n_, int_all ** dist_, double** rhs_,
   return;
 }
 
+extern "C" void spk_delete_factors(StrumpackSparseSolverMPIDist<double,int>** spss_) {
+  StrumpackSparseSolverMPIDist<double,int>* spss= *spss_;
+
+  spss->delete_factors();
+
+  return;
+}
 
 extern "C" void spk_finalize(StrumpackSparseSolverMPIDist<double,int_all>** spss_,MPI_Fint* comm_) {
-  StrumpackSparseSolverMPIDist<double,int_all>* spss= *spss_;
-  MPI_Comm comm=MPI_Comm_f2c(*comm_);
 
   delete *spss_;
   scalapack::Cblacs_exit(1);
@@ -223,7 +228,6 @@ extern "C" void spk_finalize(StrumpackSparseSolverMPIDist<double,int_all>** spss
 int_all* distribute(int_all n, int P){
   int_all* dist;
   int* nl;
-  int_all n_local;
 
   dist = new int_all[P+1];
   nl = new int[P];

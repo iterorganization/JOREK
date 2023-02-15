@@ -710,7 +710,6 @@ contains
        integer(kind=int_all)  dblePrec, noPrec
        integer(kind=int_all)  iwarn, ihist
        integer(kind=int_all)  compRsd
-       integer(kind=int_all)  Int1
        double precision    beta, bn, sA, sb, sPA, sPb, bea, be, temp
        double precision    dloo, dnormw, dnormx, dnormres, trueNormRes
        double precision dVi, aux
@@ -748,7 +747,6 @@ contains
        integer retlbl
        DATA retlbl /0/
 
-       Int1 = 1
 !*
 !*       Executable statements
 !*
@@ -1421,8 +1419,7 @@ contains
            info(2) = iterOut*m+jH
            if (ihist.ne.0) then
              write(ihist,'(A10,I2)') 'info(1) = ',info(1)
-             write(ihist,'(A32,I5)') &
-                     'Number of iterations (info(2)): ',info(2)  
+             !write(ihist,'(A32,I5)') 'Number of iterations (info(2)): ',info(2)  
            endif
            irc(1)  = 0
            retlbl  = 0

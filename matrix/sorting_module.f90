@@ -216,13 +216,13 @@ contains
 
     call system_clock(count=cc, count_rate=cr); t0 =  real(cc)/cr
 
-    irn0 = minval(irn(1:nnz)) - 1
-    nloc = maxval(irn(1:nnz)) - irn0
-    write(*,*) minval(irn(1:nnz)), maxval(irn(1:nnz)), "nloc", nloc
-    irn = irn - irn0
-
+    irn0 = minval(irn(1:nnz))
+    nloc = maxval(irn(1:nnz)) - irn0 + 1
+    !write(*,*) minval(irn(1:nnz)), maxval(irn(1:nnz)), "nloc", nloc
+    irn(1:nnz) = irn(1:nnz) - irn0 + 1 ! irn used as index
 
     write(*,*) "nloc", nloc, "nnz", nnz, "residue", mod(nnz,block_size)
+        
     allocate(indmin(nloc), indmax(nloc), iptr(nloc+1))
     iptr = 0
 
@@ -257,13 +257,22 @@ contains
         ib = ib + 1
       endif
     enddo
+    
+    ! find maximal block size for temporary buffer allocation
+    ni = 0
+    do ib = 1, n_irn_block
+      cnt = 1
+      n1 = indmin(iblock(ib))
+      n2 = indmax(iblock(ib+1)-1)
+      ni = max(ni, n2 - n1 + 1)
+    enddo
+    allocate(jcn_tmp(ni),val_tmp(ni))
 
     do ib = 1, n_irn_block
       cnt = 1
       n1 = indmin(iblock(ib))
       n2 = indmax(iblock(ib+1)-1)
       ni = n2 - n1 + 1
-      allocate(jcn_tmp(ni),val_tmp(ni))
       do idum = iblock(ib),iblock(ib+1)-1
         do i = indmin(idum), indmax(idum), block_size
           if (irn(i).eq.idum) then
@@ -275,8 +284,9 @@ contains
       enddo
       jcn(n1:n2) = jcn_tmp(1:ni)
       val(n1:n2) = val_tmp(1:ni)
-      deallocate(jcn_tmp,val_tmp)
     enddo
+    
+    deallocate(jcn_tmp,val_tmp)
 
     irn(1:nloc+1) = iptr(1:nloc+1)
     

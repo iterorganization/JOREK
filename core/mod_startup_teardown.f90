@@ -108,9 +108,6 @@ end subroutine initialise
 !> Verify that we are not doing stupid things. Run this after loading parameters
 !> from the input file.
 subroutine sanity_checks(my_id, n_cpu, mpi_required, mpi_provided)
-  use mumps_module
-  use pastix_module
-  use wsmp_module
   use mod_parameters, only: n_tor, n_plane
   use phys_module
   use preconditioner_module, only: check_preconditioner_consistency

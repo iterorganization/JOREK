@@ -702,7 +702,8 @@ module live_data
       li3_tot_t, part_src_tot_t, heat_src_tot_t, volume_t, area_t, mag_ener_src_tot, eta_ohmic, eta, &
       dpart_tot_dt, part_flux_Dpar_t, part_flux_Dperp_t, part_flux_vpar_t, part_flux_vperp_t, &
       dnpart_tot_dt, npart_tot_t, npart_flux_t, density_tot_t, flux_poynting_t, xtime_rad_power, &
-      xtime_E_ion_power, thermal_e_tot_t, thermal_i_tot_t, xtime_P_ei, thmwork_e_tot_t, thmwork_i_tot_t
+      xtime_E_ion_power, thermal_e_tot_t, thermal_i_tot_t, xtime_P_ei, visco_par, visco_par_heating,&
+      thmwork_e_tot_t, thmwork_i_tot_t
 
 
     implicit none
@@ -817,7 +818,7 @@ module live_data
 
      sum_fluxes_dissip = flux_Pvn_t(index-1)  + flux_kinpar_t(index-1) + flux_qpar_t(index-1) + flux_qperp_t(index-1) &
                        - heat_src_tot_t(index-1) + ohmic_tot_t(index-1)*(1.d0 - eta_ohmic/eta) - mag_ener_src_tot(index-1) &
-                       - flux_poynting_t(index-1)
+                       - flux_poynting_t(index-1) + viscopar_dissip_tot_t(index-1)*(1.d0 - visco_par_heating/max(visco_par,1e-12))
 #if (defined WITH_Neutrals) || (defined WITH_Impurities)
      sum_fluxes_dissip = sum_fluxes_dissip + xtime_rad_power(index-1) + xtime_E_ion_power(index-1)
 #endif

@@ -1414,7 +1414,7 @@ do i=1,n_vertex_max
                              - eta_ARAZ * eta_T * ( - v_Z * Bp00 )                     &
                              - eta_ARAZ_const   * ( - v_Z * Bp00)                      &
                              + eta_ARAZ * eta_T * v * current_source_JR(ms,mt)         &
-                             + eta_ARAZ * eta_num * lap_Vstar * lap_AR
+                             - eta_ARAZ * eta_num * lap_Vstar * lap_AR
             Qvec_k(var_AR) = - eta_ARAZ * eta_T * ( + v_p * BZ0 / R)
 
             !###################################################################################################
@@ -1428,7 +1428,7 @@ do i=1,n_vertex_max
                              - eta_ARAZ * eta_T * ( + v_R * Bp00)                      &
                              - eta_ARAZ_const   * ( + v_R * Bp00)                      &
                              + eta_ARAZ * eta_T * v * current_source_JZ(ms,mt)         &
-                             + eta_ARAZ * eta_num * lap_Vstar * lap_AZ
+                             - eta_ARAZ * eta_num * lap_Vstar * lap_AZ
             Qvec_k(var_AZ) = - eta_ARAZ * eta_T * ( - v_p * BR0 / R)
 
             !###################################################################################################
@@ -1442,7 +1442,7 @@ do i=1,n_vertex_max
                              + eta_T * ( 2.d0 * v + R * v_R ) * BZ0         &
                              + R * v * (eta_R * BZ0 - eta_Z * BR0)          &
                              + eta_T * v * current_source_Jp(ms,mt)         &
-                             + eta_num * lap_Vstar * lap_A3
+                             - eta_num * lap_Vstar * lap_A3
 
             !###################################################################################################
             !#  equation 4   (R component momentum equation)                                                   #
@@ -2413,7 +2413,7 @@ do i=1,n_vertex_max
                                            + eta_ARAZ * v * (eta_Z * Bp0_AR ) &
                                            - eta_ARAZ * eta_T * ( - v_Z * Bp0_AR ) &
                                            - eta_ARAZ_const   * ( - v_Z * Bp0_AR ) &
-                                           + eta_ARAZ * eta_num * lap_Vstar * lap_bf
+                                           - eta_ARAZ * eta_num * lap_Vstar * lap_bf
                   Qjac_n (var_AR,var_AR) = + v * (- Up0   * BZ0_AR__n     ) &
                                            + tauIC_ARAZ * v * tau_IC*F0/rho0_corr/BB2    * BR0 * BgradP_AR__n &
                                            - tauIC_ARAZ * v * tau_IC*F0/rho0_corr/BB2**2 * BR0 * BgradP * BB2_AR__n &
@@ -2477,7 +2477,7 @@ do i=1,n_vertex_max
                                            + eta_ARAZ * v * (- eta_R * Bp0_AZ) &
                                            - eta_ARAZ * eta_T * ( + v_R * Bp0_AZ ) &
                                            - eta_ARAZ_const   * ( + v_R * Bp0_AZ ) &
-                                           + eta_ARAZ * eta_num * lap_Vstar * lap_bf
+                                           - eta_ARAZ * eta_num * lap_Vstar * lap_bf
                   Qjac_n (var_AZ,var_AZ) = + v * (Up0 * BR0_AZ__n)       &
                                            + tauIC_ARAZ * v * tau_IC*F0/rho0_corr/BB2    * BZ0 * BgradP_AZ__n &
                                            - tauIC_ARAZ * v * tau_IC*F0/rho0_corr/BB2**2 * BZ0 * BgradP * BB2_AZ__n &
@@ -2543,7 +2543,7 @@ do i=1,n_vertex_max
                                            - eta_T * v_Z * R                * BR0_A3 &
                                            + eta_T * ( 2.d0 * v + R * v_R ) * BZ0_A3 &
                                            + R * v * (eta_R * BZ0_A3 - eta_Z * BR0_A3) &
-                                           + eta_num * lap_Vstar * lap_bf
+                                           - eta_num * lap_Vstar * lap_bf
 
                   Qjac_p (var_A3,var_UR) = + R * v * (  UR * BZ0)
                   Qjac_p (var_A3,var_UZ) = + R * v * (- UZ * BR0)

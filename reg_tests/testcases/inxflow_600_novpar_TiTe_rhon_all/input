@@ -23,7 +23,7 @@
  
  min_sheath_angle     = 0.d0
 
- nout = 20
+ nout = 10
 
  fbnd(1)   = 2.
  fbnd(2:4) = 0.
