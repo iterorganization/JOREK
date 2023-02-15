@@ -110,7 +110,6 @@ end subroutine initialise
 subroutine sanity_checks(my_id, n_cpu, mpi_required, mpi_provided)
   use mod_parameters, only: n_tor, n_plane
   use phys_module
-  use preconditioner_module, only: check_preconditioner_consistency
   use gauss
 
   integer :: ierr, i
@@ -340,7 +339,6 @@ subroutine sanity_checks(my_id, n_cpu, mpi_required, mpi_provided)
   write(*,*) '  Consider setting USE_FFTW=1 in your Makefile.inc'
 #endif
 
-  call check_preconditioner_consistency
   if (use_pastix .and. use_BLR_compression) then
     write(*,*) 'WARNING: PaStiX versions before 6.x do not support BLR compression.'
     write(*,*) '  No compression will be used in this run.'
