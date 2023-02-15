@@ -275,7 +275,6 @@ subroutine do_jorek_timestep(this, sim, ev)
   use mod_expression,          only: exprs_all_int, init_expr
   use mod_integrals3D
   use pellet_module,           only: update_spi
-  use mod_distribute_preconditioner, only: distribute_vector, distribute_harmonics
 #if (defined WITH_Neutrals) && (!defined WITH_Impurities)
   use mod_neutral_source
 #endif
