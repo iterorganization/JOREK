@@ -36,12 +36,14 @@ contains
     type(type_MHD_SIM), optional       :: sim
 
     integer                            :: my_id, n_cpu, j, k, l, n, ierr
-    integer                            :: nm, ji, nr, lmode, kmode, n_i, n_j, isplit
+    integer                            :: nm, ji, nr, lmode, kmode, n_i, n_j, isplit, icpu, ie
     integer(kind=int_all)              :: i, i0, i1, nz_split, ibufsize, block_size
     integer(kind=int_all)              :: n_tor_int
 
     real*8,  allocatable               :: Asnd_buffer(:)
     integer(kind=int_all), allocatable :: isnd_buffer(:), jsnd_buffer(:)
+    real*8,  allocatable               :: Arcv_buffer(:)
+    integer(kind=int_all), allocatable :: ircv_buffer(:), jrcv_buffer(:)
     integer(kind=int_all), allocatable :: indx(:)
 
     logical                            :: distribute_row, distribute_col
@@ -69,6 +71,7 @@ contains
     allocate(indx(n_cpu))
 
     if (.not.pc%structured) call set_pc_structure(pc,a_mat)
+
 ! --- Allocate PC matrices
     if (.not.associated(pc%mat%val)) allocate(pc%mat%val(pc%mat%nnz))
     if (.not.associated(pc%mat%irn)) allocate(pc%mat%irn(pc%mat%nnz))
@@ -147,15 +150,38 @@ contains
 
       endif
 
-      call mpi_alltoallv(Asnd_buffer, pc%send_counts(isplit,1:n_cpu), pc%send_disp(isplit,1:n_cpu),MPI_DOUBLE_PRECISION, &
-                          pc%mat%val, pc%recv_counts(isplit,1:n_cpu), pc%recv_disp(isplit,1:n_cpu),MPI_DOUBLE_PRECISION,a_mat%comm,ierr)
-      call mpi_alltoallv(isnd_buffer, pc%send_counts(isplit,1:n_cpu), pc%send_disp(isplit,1:n_cpu),MPI_INTEGER_ALL, &
-                          pc%mat%irn, pc%recv_counts(isplit,1:n_cpu), pc%recv_disp(isplit,1:n_cpu),MPI_INTEGER_ALL,a_mat%comm,ierr)
-      call mpi_alltoallv(jsnd_buffer, pc%send_counts(isplit,1:n_cpu), pc%send_disp(isplit,1:n_cpu),MPI_INTEGER_ALL, &
-                          pc%mat%jcn, pc%recv_counts(isplit,1:n_cpu), pc%recv_disp(isplit,1:n_cpu),MPI_INTEGER_ALL,a_mat%comm,ierr)
-
+      allocate(Arcv_buffer(sum(pc%recv_counts(isplit,1:n_cpu))))
+      call mpi_alltoallv(Asnd_buffer, pc%send_counts(isplit,1:n_cpu), pc%send_disp(isplit,1:n_cpu), MPI_DOUBLE_PRECISION, &
+                         Arcv_buffer, pc%recv_counts(isplit,1:n_cpu), pc%splt_disp(isplit,1:n_cpu), MPI_DOUBLE_PRECISION,a_mat%comm,ierr)
+      do icpu = 1, n_cpu
+        i0 = pc%recv_disp(isplit,icpu) + int1
+        i1 = i0 + pc%recv_counts(isplit,icpu) - int1
+        pc%mat%val(i0:i1) = Arcv_buffer(pc%splt_disp(isplit,icpu) + 1:pc%splt_disp(isplit,icpu) + pc%recv_counts(isplit,icpu))
+      enddo
+      deallocate(Arcv_buffer)
       deallocate(Asnd_buffer)
+
+      allocate(ircv_buffer(sum(pc%recv_counts(isplit,1:n_cpu))))
+      call mpi_alltoallv(isnd_buffer, pc%send_counts(isplit,1:n_cpu), pc%send_disp(isplit,1:n_cpu), MPI_INTEGER_ALL, &
+                         ircv_buffer, pc%recv_counts(isplit,1:n_cpu), pc%splt_disp(isplit,1:n_cpu), MPI_INTEGER_ALL,a_mat%comm,ierr)
+
+      do icpu = 1, n_cpu
+        i0 = pc%recv_disp(isplit,icpu) + int1
+        i1 = i0 + pc%recv_counts(isplit,icpu) - int1
+        pc%mat%irn(i0:i1) = ircv_buffer(pc%splt_disp(isplit,icpu) + 1:pc%splt_disp(isplit,icpu) + pc%recv_counts(isplit,icpu))
+      enddo
+      deallocate(ircv_buffer)
       deallocate(isnd_buffer)
+
+      allocate(jrcv_buffer(sum(pc%recv_counts(isplit,1:n_cpu))))
+      call mpi_alltoallv(jsnd_buffer, pc%send_counts(isplit,1:n_cpu), pc%send_disp(isplit,1:n_cpu), MPI_INTEGER_ALL, &
+                         jrcv_buffer, pc%recv_counts(isplit,1:n_cpu), pc%splt_disp(isplit,1:n_cpu), MPI_INTEGER_ALL,a_mat%comm,ierr)
+      do icpu = 1, n_cpu
+        i0 = pc%recv_disp(isplit,icpu) + int1
+        i1 = i0 + pc%recv_counts(isplit,icpu) - int1
+        pc%mat%jcn(i0:i1) = jrcv_buffer(pc%splt_disp(isplit,icpu) + 1:pc%splt_disp(isplit,icpu) + pc%recv_counts(isplit,icpu))
+      enddo
+      deallocate(jrcv_buffer)
       deallocate(jsnd_buffer)
 
     enddo
@@ -202,7 +228,8 @@ contains
     integer(kind=int_all), allocatable :: long_recv_counts(:), long_send_counts(:)
     integer(kind=int_all)              :: block_size, block_size2
     integer(kind=int_all)              :: nz_split, i0, i1, ind
-    integer                            :: isplit, i, j
+    integer(kind=int_all)              :: nzg, nnz, nm
+    integer                            :: isplit, i, j, ie, icpu
     integer                            :: ierr
     integer                            :: nr
     
@@ -222,20 +249,15 @@ contains
       pc%n_per_rank(j) = block_size*((a_mat%ng/block_size)/nr) - block_size ! number of rows per rank for j-th family (lower limit)
     enddo
  
-    pc%mat%block_size = n_var*pc%modes_per_family(pc%family_id) ! set block size for current family
+    pc%mat%block_size = n_var*pc%mode_set_n ! set block size for current family
 
     allocate(long_send_counts(pc%n_cpu))
     allocate(long_recv_counts(pc%n_cpu))
 
-    ! determine how many splits is needed
-    i0 = Int1
-    i1 = a_mat%nnz
-    call get_send_recv(i0,i1,long_send_counts,long_recv_counts,pc,a_mat)
-
-    pc%mat%nnz = sum(long_recv_counts(1:pc%n_cpu)) ! summing up all recieves
-     
-    pc%nsplit = maxval((/maxval(long_recv_counts),maxval(long_send_counts)/))/INT_MAX + 1
-    call MPI_Allreduce(MPI_IN_PLACE,pc%nsplit,1,MPI_INTEGER_ALL,MPI_MAX,pc%MPI_COMM_N,ierr)
+    call MPI_Allreduce(a_mat%nnz,nzg,1,MPI_INTEGER_ALL,MPI_SUM,a_mat%comm,ierr)
+    nm = sum(pc%modes_per_family(1:pc%n_mode_families)) ! number of modes in all families (can be larger than n_tor)
+    nzg = (nzg/n_tor**2)*nm**2                          ! number of elements in all families (can be larger than global nnz)
+    pc%nsplit = nzg/INT_MAX + 1
 
     if ((pc%my_id.eq.0).and.(pc%nsplit>1)) write(*,*) "Using split communication for preconditioner construction", pc%nsplit
 
@@ -253,25 +275,26 @@ contains
       pc%istart(isplit)  = pc%ifinish(isplit-1) + 1
       pc%ifinish(isplit) = pc%istart(isplit) + nz_split - 1
     enddo
-    
     pc%ifinish(pc%nsplit) = a_mat%nnz
 
     allocate(pc%send_counts(pc%nsplit,pc%n_cpu))
     allocate(pc%recv_counts(pc%nsplit,pc%n_cpu))
     allocate(pc%send_disp(pc%nsplit,pc%n_cpu))
     allocate(pc%recv_disp(pc%nsplit,pc%n_cpu))
+    allocate(pc%splt_disp(pc%nsplit,pc%n_cpu))
 
-    if (pc%nsplit.eq.1) then
-      pc%send_counts(1,1:pc%n_cpu) = long_send_counts(1:pc%n_cpu)
-      pc%recv_counts(1,1:pc%n_cpu) = long_recv_counts(1:pc%n_cpu)
-    else
-      do isplit = 1, pc%nsplit
-        i0 = pc%istart(isplit); i1 = pc%ifinish(isplit)
-        call get_send_recv(i0,i1,long_send_counts,long_recv_counts,pc,a_mat)
-        pc%send_counts(isplit,1:pc%n_cpu) = long_send_counts(1:pc%n_cpu)
-        pc%recv_counts(isplit,1:pc%n_cpu) = long_recv_counts(1:pc%n_cpu)
-      enddo
-    endif
+    do isplit = 1, pc%nsplit
+      i0 = pc%istart(isplit); i1 = pc%ifinish(isplit)
+      call get_send_recv(i0,i1,long_send_counts,long_recv_counts,pc,a_mat)
+      pc%send_counts(isplit,1:pc%n_cpu) = long_send_counts(1:pc%n_cpu)
+      pc%recv_counts(isplit,1:pc%n_cpu) = long_recv_counts(1:pc%n_cpu)
+    enddo
+
+    nnz = 0
+    do isplit = 1, pc%nsplit
+      nnz = nnz + sum(pc%recv_counts(isplit,1:pc%n_cpu))
+    enddo
+    pc%mat%nnz=nnz
 
     do isplit = 1, pc%nsplit
       pc%send_disp(isplit,1) = 0
@@ -282,17 +305,24 @@ contains
 
     !cpu:    |   cpu0    |   cpu1    |   cpu2    |
     !split:  | 1 | 2 | 3 | 1 | 2 | 3 | 1 | 2 | 3 |
-    ! displacements calculated cpu by cpu
-    
+    ! long displacements calculated cpu by cpu
+
     pc%recv_disp(1,1) = 0
     do isplit = 2, pc%nsplit
       pc%recv_disp(isplit,1) = pc%recv_disp(isplit-1,1) + pc%recv_counts(isplit-1,1)
     enddo
-    
     do i = 2, pc%n_cpu
       pc%recv_disp(1,i) = pc%recv_disp(pc%nsplit,i-1) + pc%recv_counts(pc%nsplit,i-1)
       do isplit = 2, pc%nsplit
         pc%recv_disp(isplit,i) = pc%recv_disp(isplit-1,i) + pc%recv_counts(isplit-1,i)
+      enddo
+    enddo
+
+    ! short int displacement for every isplit
+    do isplit = 1, pc%nsplit
+      pc%splt_disp(isplit,1) = 0
+      do i = 2, pc%n_cpu
+        pc%splt_disp(isplit,i) = pc%splt_disp(isplit,i-1) + pc%recv_counts(isplit,i-1)
       enddo
     enddo
 
@@ -321,7 +351,7 @@ contains
     
     write(*,*) pc%my_id, "PC matrix: ng, nnz", pc%mat%ng, pc%mat%nnz
     pc%structured = .true.
-    
+
     return         
   
   end subroutine set_pc_structure
@@ -409,7 +439,8 @@ contains
     sendrecv(1:pc%n_cpu*pc%n_cpu) = 0
     sendrecv(pc%my_id*pc%n_cpu + 1:(pc%my_id+1)*pc%n_cpu) = long_send_counts(1:pc%n_cpu)
     j = pc%n_cpu*pc%n_cpu
-    call mpi_allreduce(MPI_IN_PLACE,sendrecv,j,MPI_INTEGER_ALL,MPI_SUM,a_mat%comm,ierr)
+    call MPI_Barrier(a_mat%comm,ierr)
+    call MPI_Allreduce(MPI_IN_PLACE,sendrecv,j,MPI_INTEGER_ALL,MPI_SUM,a_mat%comm,ierr)
 
     long_recv_counts(1:pc%n_cpu) = 0
     do i = 1, pc%n_cpu

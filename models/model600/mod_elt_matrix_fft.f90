@@ -4173,7 +4173,7 @@ do i=1,n_vertex_max
                      else
                         amat(var_rhoimp,var_T) = 0
                      endif
-
+                   if (with_vpar) then
                      amat(var_rhoimp,var_vpar) = + v * F0 / BigR * Vpar * rimp0_p                    *  xjac * theta * tstep &
                           + v * Vpar * (rimp0_s * ps0_t - rimp0_t * ps0_s)                                   * theta * tstep &
                           + v * rimp0 * (vpar_s * ps0_t - vpar_t * ps0_s)                                    * theta * tstep &
@@ -4187,7 +4187,7 @@ do i=1,n_vertex_max
                           * (                            + F0 / BigR * v_p) * xjac * theta * tstep * tstep 
 
                      amat_n(var_rhoimp,var_vpar) = + v * rimp0 * F0 / BigR * vpar_p                   * xjac * theta * tstep 
-
+                   end if
                      amat(var_rhoimp,var_rhoimp)  = + v * rhoimp * BigR * xjac * (1.d0 + zeta)                                                          &
                           - v * BigR**2 * ( rhoimp_s * u0_t - rhoimp_t * u0_s)                                  * theta * tstep &
                           - v * 2.d0 * BigR * rhoimp * u0_y                                            * xjac * theta * tstep &

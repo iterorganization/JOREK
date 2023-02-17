@@ -214,7 +214,8 @@ module data_structure
     integer, dimension(:,:), pointer             :: send_counts => Null()         !< number of entries sent to each other MPI ranks (PC distribution)
     integer, dimension(:,:), pointer             :: recv_counts => Null()         !< number of entries received from each other MPI ranks (PC distribution)
     integer, dimension(:,:), pointer             :: send_disp => Null()           !< send dispalcements for mpi_alltoallv (PC distribution)
-    integer, dimension(:,:), pointer             :: recv_disp => Null()           !< receive dispalcements for mpi_alltoallv (PC distribution)
+    integer, dimension(:,:), pointer             :: splt_disp => Null()           !< receive displacement for split communication
+    integer(kind=int_all), dimension(:,:), pointer :: recv_disp => Null()           !< receive dispalcements for mpi_alltoallv (PC distribution)
     integer(kind=int_all), dimension(:), pointer :: istart => Null()              !< start-index for split communication
     integer(kind=int_all), dimension(:), pointer :: ifinish => Null()             !< end-index for split communication
     integer                                      :: nsplit                        !< number of communication splits
