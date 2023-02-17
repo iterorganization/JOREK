@@ -1070,7 +1070,7 @@ module pellet_module
     use phys_module, only: pellets, imp_type, pellet_density, pellet_density_bg,  xtime_spi_ablation,           &
                            xtime_spi_ablation_bg, xtime_spi_ablation_rate, xtime_spi_ablation_bg_rate, nstep,   &
                            spi_plume_file, spi_plume_hdf5, spi_abl_model, n_spi_tot, n_adas, index_main_imp,    &
-                           spi_tor_rot, ns_phi_rotate, tor_frequency
+                           spi_tor_rot, ns_phi_rotate, tor_frequency, spi_quantity, spi_quantity_bg
     use mpi_mod
 #ifdef USE_HDF5
     use hdf5
@@ -1341,6 +1341,9 @@ module pellet_module
       end select
 
       write(*,*) "Real injection quantity (atom):", real_spi_quantity(1), real_spi_quantity(2)
+      write(*,*) "WARNING: Since spi_quantity and spi_quantity_bg are not used with init_spi_plume_file, we are overwriting them with real_spi_quantity for injector:", i_inj
+      spi_quantity(i_inj)    = real_spi_quantity(2)
+      spi_quantity_bg(i_inj) = real_spi_quantity(1) 
 #endif
 
       ! put values into arrays
