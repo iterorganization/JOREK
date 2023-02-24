@@ -636,6 +636,7 @@ subroutine preset_parameters
   pastix_blr_abs_tol = .true.               ! Use absolute tolerance
   epsilon_BLR        = 0.                   ! Accuracy of BLR compression (0. = lossless)
   just_in_time_BLR   = .true.               ! Use Just-in-time strategy for BLR compression (.false. = memory-optimal)
+  pastix_maxthrd     = 1024
 
   
 !==== RMP parameters =====

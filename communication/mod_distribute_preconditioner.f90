@@ -228,7 +228,8 @@ contains
     integer(kind=int_all), allocatable :: long_recv_counts(:), long_send_counts(:)
     integer(kind=int_all)              :: block_size, block_size2
     integer(kind=int_all)              :: nz_split, i0, i1, ind
-    integer(kind=int_all)              :: nzg, nnz, nm
+    integer(kind=int_all)              :: nm
+    integer(kind=8)                    :: nnz, nzg
     integer                            :: isplit, i, j, ie, icpu
     integer                            :: ierr
     integer                            :: nr
@@ -254,7 +255,8 @@ contains
     allocate(long_send_counts(pc%n_cpu))
     allocate(long_recv_counts(pc%n_cpu))
 
-    call MPI_Allreduce(a_mat%nnz,nzg,1,MPI_INTEGER_ALL,MPI_SUM,a_mat%comm,ierr)
+    nnz = a_mat%nnz
+    call MPI_Allreduce(nnz,nzg,1,MPI_INTEGER8,MPI_SUM,a_mat%comm,ierr)
     nm = sum(pc%modes_per_family(1:pc%n_mode_families)) ! number of modes in all families (can be larger than n_tor)
     nzg = (nzg/n_tor**2)*nm**2                          ! number of elements in all families (can be larger than global nnz)
     pc%nsplit = nzg/INT_MAX + 1
