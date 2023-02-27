@@ -178,7 +178,7 @@ subroutine initialise_particles(particles, node_list, element_list, &
         if (present(variables)) then
           ! Select the mhd variables requested
           if (n_mhd .ge. 1) then
-            call interp_0(node_list,element_list,i_elm,variables(n_geom:n_geom+n_mhd),n_mhd,s,t,phi,P(n_geom:n_geom+n_mhd))
+            call interp_0(node_list,element_list,i_elm,variables(n_geom+1:n_geom+n_mhd),n_mhd,s,t,phi,P(n_geom+1:n_geom+n_mhd))
           end if
           do k=1,n_geom
             select case (variables(k))

@@ -12,6 +12,9 @@ use mpi_mod
   use mod_injection_source
 #endif
 use pellet_module
+#ifdef USE_CATALYST
+  use mod_catalyst_adaptor, only: catalyst_scripts
+#endif
 
 implicit none
 
@@ -817,6 +820,11 @@ if (my_id .eq. 0) then
     call MPI_PACK(ranks_per_family(1:n_mode_families),n_mode_families,MPI_INTEGER,buffer,bufsize,position,MPI_COMM_WORLD,ierr)
   endif
   call MPI_PACK(treat_axis,             1,MPI_LOGICAL,buffer,bufsize,position,MPI_COMM_WORLD,ierr)
+
+#ifdef USE_CATALYST
+  call MPI_PACK(catalyst_scripts,65536,MPI_CHARACTER,buffer,bufsize,position,MPI_COMM_WORLD,ierr)
+#endif
+
 
     ! --- Please leave this as last parameter
   test_value = 42
@@ -1625,6 +1633,9 @@ if (my_id .ne. 0) then
   endif  
   call MPI_UNPACK(buffer,bufsize,position,treat_axis,            1,MPI_LOGICAL,MPI_COMM_WORLD,ierr)
   
+#ifdef USE_CATALYST
+  call MPI_UNPACK(buffer,bufsize,position,catalyst_scripts,    65536,MPI_CHARACTER,MPI_COMM_WORLD,ierr)
+#endif
   
   ! --- Please leave this as last parameter
   call MPI_UNPACK(buffer,bufsize,position,test_value,             1,MPI_INTEGER,MPI_COMM_WORLD,ierr)

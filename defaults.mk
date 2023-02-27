@@ -292,6 +292,12 @@ ifeq (1, $(USE_IMAS))
   DEFINES  := $(DEFINES) -DUSE_IMAS
 endif
 
+ifeq (1, $(USE_CATALYST))
+  LIBS     := $(LIBS) $(CATALYSTLIB)
+  INCLUDES := $(INCLUDES) -I$(CATALYSTINCLUDE)
+  DEFINES  := $(DEFINES) -DUSE_CATALYST
+endif
+
 
 # Do not check to make these files to speed up and clean -d output
 Makefile: ;
