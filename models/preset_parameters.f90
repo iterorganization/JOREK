@@ -253,6 +253,8 @@ subroutine preset_parameters
   Te_min_ZKpar       = -1.d12 
   rho_min_neg        = -1.d12
   
+  implicit_heat_source = 0.d0
+  
   corr_neg_temp_coef(:) = (/ 0.5, 0.5 /)
   corr_neg_dens_coef(:) = (/ 0.5, 0.5 /)
 

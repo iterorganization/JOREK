@@ -79,17 +79,19 @@ end type octree_node
 contains
 
 
-subroutine mod_wall_collision_export(sim, file)
-  type(particle_sim), intent(in) :: sim  !< The particle sim struct
-  character(len=*),   intent(in) :: file !< Filename for output
+subroutine mod_wall_collision_export(sim, file, iangle_groups)
+  type(particle_sim), intent(in) :: sim    !< The particle sim struct
+  character(len=*),   intent(in) :: file   !< Filename for output
+  real*8, intent(in) :: iangle_groups(:,:) !< Angle of incidence (ngroup,nprt) for all markers in this process (dummy for confined markers)
 
   integer              :: n_wetted               ! Number of wetted triangles
   integer, allocatable :: wetted_id(:)           ! IDs of wetted triangles (i.e. their position index in wall input)
   real*8, allocatable  :: particle_deposition(:) ! Deposited particles (assuming weight = number of real particles)
   real*8, allocatable  :: energy_deposition(:)   ! Deposited energy (J)
+  real*8, allocatable  :: iangle_mean(:)         ! Mean angle of incidence weight by energy deposition of each marker
 
   integer, allocatable :: particles_per_proc(:), wall_id_all(:), wall_id(:)
-  real*8, allocatable  :: weight_all(:), energy_all(:), weight(:), energy(:)
+  real*8, allocatable  :: weight_all(:), energy_all(:), weight(:), energy(:), iangle(:), iangle_all(:)
 
   character(len=5) :: group_name
   integer(HID_T) :: file_id, group_id
@@ -132,10 +134,11 @@ subroutine mod_wall_collision_export(sim, file)
         n_total = sum(particles_per_proc,1)
 
         ! Collect wall IDs, weights, and evaluate energy. TODO add other particle types
-        allocate( wall_id(n_here), weight(n_here), energy(n_here) )
+        allocate( wall_id(n_here), weight(n_here), energy(n_here), iangle(n_here) )
         do k=1,n_here
            wall_id(k) = -sim%groups(i)%particles(k)%i_elm ! Assuming i_elm = - wall_id for markers that were lost.
            weight(k)  = sim%groups(i)%particles(k)%weight
+           iangle(k)  = iangle_groups(i,k)
 
            ! Energy has to be evaluated separately
            select type (p => sim%groups(i)%particles)
@@ -153,20 +156,17 @@ subroutine mod_wall_collision_export(sim, file)
               gamma = sqrt( 1.d0 + p(k)%p(1)**2 / (sim%groups(i)%mass*SPEED_OF_LIGHT)**2 &
                              + 2 * p(k)%p(2) * norm2(B) / (sim%groups(i)%mass*SPEED_OF_LIGHT**2) )
               energy(k) = ( gamma - 1.d0 ) * sim%groups(i)%mass * ATOMIC_MASS_UNIT * SPEED_OF_LIGHT**2
-
            class default
               ! Not yet implemented, write error message (but only for the first marker)
               if(k .eq. 1) then
                  write(*,*) "WARNING: The requested type is not yet implemented in mod_wall_collision_export." 
                  write(*,*) "Wall ID and particle load will be stored but not the heat load."
               end if
-
            end select
-
         end do
 
         ! Gather data from other processes
-        allocate( wall_id_all(n_total), weight_all(n_total), energy_all(n_total) )
+        allocate( wall_id_all(n_total), weight_all(n_total), energy_all(n_total), iangle_all(n_total) )
         call MPI_Gatherv(wall_id(:), n_here, MPI_INTEGER, &
              wall_id_all(:), particles_per_proc, [(sum(particles_per_proc(1:i),1), i=0,n_cpu-1)], &
              MPI_INTEGER, 0, MPI_COMM_WORLD, ierr)
@@ -178,7 +178,12 @@ subroutine mod_wall_collision_export(sim, file)
         call MPI_Gatherv(energy(:), n_here, MPI_REAL8, &
              energy_all(:), particles_per_proc, [(sum(particles_per_proc(1:i),1), i=0,n_cpu-1)], &
              MPI_REAL8, 0, MPI_COMM_WORLD, ierr)
-        deallocate(particles_per_proc, wall_id, energy, weight)
+
+        call MPI_Gatherv(iangle(:), n_here, MPI_REAL8, &
+             iangle_all(:), particles_per_proc, [(sum(particles_per_proc(1:i),1), i=0,n_cpu-1)], &
+             MPI_REAL8, 0, MPI_COMM_WORLD, ierr)
+
+        deallocate(particles_per_proc, wall_id, energy, weight, iangle)
 
         if( my_id .eq. 0 ) then
            ! Find how many unique wetted wall IDs there are
@@ -187,14 +192,14 @@ subroutine mod_wall_collision_export(sim, file)
            maxid = maxval(wall_id_all)
            if( maxid .eq. 0) then
               write(*,*) 'No losses. Therefore no wall load output is generated for group ', i
-              deallocate(wall_id_all, weight_all, energy_all)
+              deallocate(wall_id_all, weight_all, energy_all, iangle_all)
               cycle
            end if
 
            do k = minid,maxid
               if( any(wall_id_all .eq. k) ) n_wetted = n_wetted + 1
            end do
-           allocate( wetted_id(n_wetted), particle_deposition(n_wetted), energy_deposition(n_wetted) )
+           allocate( wetted_id(n_wetted), particle_deposition(n_wetted), energy_deposition(n_wetted), iangle_mean(n_wetted) )
 
            ! Compute loads for each wetted wall element
            j = 1
@@ -203,6 +208,7 @@ subroutine mod_wall_collision_export(sim, file)
                  wetted_id(j) = k
                  particle_deposition(j) = sum(weight_all, wall_id_all .eq. k)
                  energy_deposition(j)   = sum(weight_all*energy_all, wall_id_all .eq. k)
+                 iangle_mean(j)         = sum(weight_all*energy_all*iangle_all, wall_id_all .eq. k) / energy_deposition(j)
                  j = j + 1
               end if
            end do
@@ -213,6 +219,7 @@ subroutine mod_wall_collision_export(sim, file)
            call HDF5_array1D_saving_int(file_id, wetted_id, n_wetted, group_name//'wallid')
            call HDF5_array1D_saving(file_id, particle_deposition, n_wetted, group_name//'particledepot')
            call HDF5_array1D_saving(file_id, energy_deposition, n_wetted, group_name//'energydepot')
+           call HDF5_array1D_saving(file_id, iangle_mean, n_wetted, group_name//'angleofincidence')
            deallocate( wetted_id, particle_deposition, energy_deposition )
         end if
      end do
@@ -282,7 +289,7 @@ subroutine mod_wall_collision_free(octree)
 end subroutine mod_wall_collision_free
 
 !< Check for wall collisions between particle ini and end points.
-subroutine mod_wall_collision_check(p, q, octree, wall_id, wall_pos)
+subroutine mod_wall_collision_check(p, q, octree, wall_id, wall_pos, iangle)
   implicit none
 
   real(kind=8), intent(in)      :: p(3), q(3) !< Particle initial and final positions in (r,z,phi)
@@ -290,6 +297,7 @@ subroutine mod_wall_collision_check(p, q, octree, wall_id, wall_pos)
   integer, intent(out) :: wall_id     !< Zero when there is no collision or ID (position in the input array) of the 
                                       !< wall element the particle collided. Negative if particle outside octree volume.
   real*8, intent(out)  :: wall_pos(3) !< The intersection point (r,z,phi) if applicable
+  real*8, intent(out)  :: iangle      !< Angle of incidence [rad] if applicable
 
   type(octree_node), pointer :: nodep, nodeq
   real*8                     :: pxyz(3), qxyz(3), t
@@ -315,7 +323,7 @@ subroutine mod_wall_collision_check(p, q, octree, wall_id, wall_pos)
   ! Check collisions for the initial point's node
   do i = 1,size(nodep%contained)
      call mod_wall_collision_intersect(pxyz, qxyz, nodep%contained(i)%v0, &
-          nodep%contained(i)%v1, nodep%contained(i)%v2, t)
+          nodep%contained(i)%v1, nodep%contained(i)%v2, t, iangle)
      if (t .ge. 0.d0) then
         wall_id = nodep%contained(i)%triangle_id
         wall_pos = cartesian_to_cylindrical( pxyz + t * ( qxyz - pxyz ) )
@@ -330,7 +338,7 @@ subroutine mod_wall_collision_check(p, q, octree, wall_id, wall_pos)
   
      do i = 1,size(nodeq%contained)
         call mod_wall_collision_intersect(pxyz, qxyz, nodeq%contained(i)%v0, &
-             nodeq%contained(i)%v1, nodeq%contained(i)%v2, t)  
+             nodeq%contained(i)%v1, nodeq%contained(i)%v2, t, iangle)
         if (t .ge. 0.d0) then
            wall_id = nodeq%contained(i)%triangle_id
            wall_pos = cartesian_to_cylindrical( pxyz + t * ( qxyz - pxyz ) )
@@ -345,15 +353,16 @@ end subroutine mod_wall_collision_check
 !< Check for collision between line segment and triangle in 3D.
 !< 
 !< This subroutine implements Moeller-Trumbore algorithm.
-subroutine mod_wall_collision_intersect(p, q, v0, v1, v2, t)
+subroutine mod_wall_collision_intersect(p, q, v0, v1, v2, t, iangle)
   implicit none
 
   real(kind=8), dimension(3), intent(in) :: p, q       !< Ini and end (x,y,z) positions defining the segment.
   real(kind=8), dimension(3), intent(in) :: v0, v1, v2 !< Triangle vertices (x,y,z).
   real(kind=8), intent(out) :: t !< Parameter defining the intersection point as p + t * (q -p) or negative if
                                  !< there is no intersection.
+  real(kind=8), intent(out) :: iangle !< Angle of incidence [rad] if applicable
 
-  real(kind=8) :: e1(3), e2(3), e3(3)
+  real(kind=8) :: e1(3), e2(3), e3(3), pq(3)
   real(kind=8) :: ao(3), dao(3)
   real(kind=8) :: det, invdet, u, v, length, epsilon
 
@@ -363,12 +372,13 @@ subroutine mod_wall_collision_intersect(p, q, v0, v1, v2, t)
   e2 = v2 - v0
   e3 = cross_product(e1,e2)
 
-  length = norm2(q - p)
-  det    = -dot_product( (q - p) / length, e3 )
+  pq     = q - p
+  length = norm2(pq)
+  det    = -dot_product( pq / length, e3 )
   invdet = 1.d0 / det
 
   ao  = p - v0
-  dao = cross_product(ao, (q - p) / length )
+  dao = cross_product(ao, pq / length )
   u =  dot_product(e2,dao) * invdet
   v = -dot_product(e1,dao) * invdet
   t =  dot_product(ao,e3)  * invdet
@@ -376,6 +386,11 @@ subroutine mod_wall_collision_intersect(p, q, v0, v1, v2, t)
   if (abs(det) >= epsilon .and. t >= 0.d0 .and. u >= 0.d0 .and. v >= 0.d0 .and. &
          (u+v) <= 1.d0 .and. t .lt. length ) then
      t = t / length
+
+     ! Make sure triangle normal and incident vector point to same direction 
+     if( dot_product(e3, pq) .lt. 0.d0 ) e3 = -e3
+     ! Incident angle is then just the angle between these two
+     iangle = acos( dot_product(pq, e3) / ( length * norm2(e3) ) )
   else
      t = -1.d0
   end if

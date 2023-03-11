@@ -142,7 +142,7 @@ namelist /in1/  tstep, nstep, tstep_n, nstep_n,                     &
                 D_prof_neg_thresh, ZK_prof_neg_thresh, T_min,       &
                 D_prof_imp_neg_thresh, D_prof_tot_neg_thresh,       &
                 ZK_par_neg_thresh, D_imp_extra_neg_thresh,          &
-                T_min_neg,rho_min_neg,                              &
+                T_min_neg,rho_min_neg,implicit_heat_source,         &
                 ne_SI_min, Te_eV_min, rn0_min,                      &
                 D_neutral_x, D_neutral_y, D_neutral_p,              &
                 neutral_reflection, rho_min,                        &

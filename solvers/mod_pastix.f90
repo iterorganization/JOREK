@@ -486,10 +486,6 @@ module mod_pastix
     call MPI_COMM_RANK(comm, my_id, ierr)
     call MPI_COMM_SIZE(comm, n_cpu, ierr)
 
-    ! clean from previous factorization
-    if (associated(ptss%perm_vars)) deallocate(ptss%perm_vars); ptss%perm_vars  => Null()
-    if (associated(ptss%iperm_vars)) deallocate(ptss%iperm_vars); ptss%iperm_vars => Null()
-
     if (.not.ptss%equilibrium) then
 
       call scale_by_cols(ad_mat)

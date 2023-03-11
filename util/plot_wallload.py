@@ -99,6 +99,7 @@ def read_wallinput(wallin, limiter, pyvista):
         wallmesh.cell_data['pload'] = np.zeros((ntriangle,))
         wallmesh.cell_data['eload'] = np.zeros((ntriangle,))
         wallmesh.cell_data['eloadlog10'] = np.zeros((ntriangle,))
+        wallmesh.cell_data['iangle'] = np.zeros((ntriangle,))
         out.append(wallmesh)
 
     return out
@@ -108,6 +109,7 @@ def read_loads(wallload, warea, wallmesh=None, fnout=None):
         wallid = h5[group]["wallid"][:] - 1 # Fortran indexing starts at 1, python at 0
         eload  = h5[group]["energydepot"][:] / warea[wallid]
         pload  = h5[group]["particledepot"][:] / warea[wallid]
+        iangle  = h5[group]["angleofincidence"][:]
 
     wetted_area = np.sum(warea[wallid])
     peak_pload  = np.amax(pload)
@@ -117,6 +119,7 @@ def read_loads(wallload, warea, wallmesh=None, fnout=None):
         wallmesh.cell_data['pload'][wallid] = pload
         wallmesh.cell_data['eload'][wallid] = eload
         wallmesh.cell_data['eloadlog10'][wallid] = np.log10(eload)
+        wallmesh.cell_data['eload'][wallid] = iangle
 
         if fnout is not None:
             wallmesh.save(fnout)
@@ -125,14 +128,14 @@ def read_loads(wallload, warea, wallmesh=None, fnout=None):
     print("Peak particle load: " + "{:.2e}".format(peak_pload)  + " prt/m^2")
     print("Peak energy load: "   + "{:.2e}".format(peak_eload)  + " J/m^2")
 
-    return [wallid, eload, pload, (wetted_area, peak_pload, peak_eload)]
+    return [wallid, eload, pload, iangle, (wetted_area, peak_pload, peak_eload)]
 
 def read_markers(partout, group, warea):
     with h5py.File(partout,'r') as h5:
         wallid_prt = h5["groups/"+group+"/i_elm"][:]
         r_prt   = h5["groups/"+group+"/x"][:,0]
         z_prt   = h5["groups/"+group+"/x"][:,1]
-        phi_prt = np.mod(h5["groups/"+group+"/x"][:,2], 2*np.pi)
+        phi_prt = 2*np.pi - np.mod(h5["groups/"+group+"/x"][:,2], 2*np.pi) # Change direction of phi from JOREK coords to right-handed
         pol_prt = np.arctan2( z_prt - z0, r_prt - r0 )
         weight  = h5["groups/"+group+"/weight"][:]
 
@@ -172,7 +175,7 @@ def plot_wallcontour(ax, wr, wz, r0, z0, wallmesh=None, phi=0):
         while i < idx.size:
             nk = idx[i]
             xyz = pts[idx[i+1:i+1+nk],:]
-            ax.plot(xyz[:,0], xyz[:,2], color='black')
+            ax.plot(np.sqrt(xyz[:,0]**2+xyz[:,1]**2), xyz[:,2], color='black')
             i = i + nk + 1
 
     ax.set_xlabel(r'R [m]')
@@ -227,6 +230,22 @@ def plotphipol(ax, wphi, wpol, wallid):
     ax.set_yticks([-180, -90, 0, 90, 180])
 
     return h1
+
+def plotianglehist(ax, iangle, pload):
+    y2, x = np.histogram(iangle*180/np.pi, bins=np.linspace(0,90,179), density=True)
+    y1, x = np.histogram(iangle*180/np.pi, bins=np.linspace(0,90,179), density=True, weights=pload)
+    xc = (x[:-1] + x[1:])/2
+
+    h1,=s1.plot(xc, y2, color='gray')
+    h2,=s1.plot(xc, y1, color='black')
+
+    ax.legend([h2,h1], ["Weighted with heat load", "Unweighted"], frameon=False)
+
+    ax.set_xlabel("Angle of incidence [deg]")
+    ax.set_xlim(0,90)
+    ax.set_xticks([0, 30, 60, 90])
+    ax.set_ylim(bottom=0)
+    ax.get_yaxis().set_visible(False)
 
 def plotpattern(ax, wphi, wd, bins, pload=None, eload=None):
     import matplotlib as mpl
@@ -370,7 +389,7 @@ if __name__ == "__main__":
 
     del out
 
-    [wallid, eload, pload, quantities] = read_loads(wallload, warea, wallmesh=wallmesh, fnout=fnvtk)
+    [wallid, eload, pload, iangle, quantities] = read_loads(wallload, warea, wallmesh=wallmesh, fnout=fnvtk)
 
     if partout is not None:
         [r_prt, z_prt, phi_prt, pol_prt, lost, pload_prt, wettedid, pload_prt, quantities_prt] = read_markers(partout, group, warea)
@@ -432,6 +451,10 @@ if __name__ == "__main__":
             s1 = fig4.add_subplot(1,1,1)
         plotmesh(wallmesh, r0, z0, phicam=330 * np.pi / 180, load='eloadlog10', bounds=bounds, ax=s1)
 
+        fig5 = plt.figure()
+        s1 = fig5.add_subplot(1,1,1)
+        plotianglehist(s1, iangle, pload)
+
         plt.tight_layout()
 
         # Uncomment to save figures
@@ -439,4 +462,5 @@ if __name__ == "__main__":
         fig2.savefig("wallloadmean.png", format="png", dpi=96*2)
         fig3.savefig("wallloadhist.png", format="png", dpi=96*2)
         fig4.savefig("wallload3d.png", format="png", dpi=96*2)
+        fig5.savefig("angleofincidence.png", format="png", dpi=96*2)
         plt.show()
