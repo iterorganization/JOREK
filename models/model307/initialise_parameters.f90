@@ -149,7 +149,8 @@ namelist /in1/  tstep, nstep, tstep_n, nstep_n,                     &
                 use_cx, use_sputtering, use_ionisation,             &
                 use_ncs, use_pcs, use_ccs, use_pcs_full, use_rcs,   &
                 cte_current_FB_fact, Z_xpoint_limit,                &
-                CARIDDI_mode,                                       &
+                CARIDDI_mode, use_newton, maxNewton, gamma_Newton,  &
+                alpha_Newton,                                       &        
                 use_puffing, fueling_rate, valve_r,                 &
                 R_valve_loc, Z_valve_loc, PHI_valve_loc,            &
                 initial_E, puffing_direction, puffing_timestep,     &

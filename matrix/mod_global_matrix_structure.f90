@@ -254,6 +254,7 @@ subroutine global_matrix_structure(node_list, element_list, boundary_list, freeb
   
   ! --- Allocate ijA_index to actually needed size
   maxsize = maxval(a_mat%ijA_size(:))
+  a_mat%maxsize = maxsize
   if (associated(a_mat%ijA_index))  call tr_deallocatep(a_mat%ijA_index,"ijA_index",CAT_DMATRIX) 
   call tr_allocatep(a_mat%ijA_index,Int1,a_mat%my_ind_max-a_mat%my_ind_min+Int1,Int1,maxsize,"ijA_index",CAT_DMATRIX)
   

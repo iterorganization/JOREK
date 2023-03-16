@@ -782,6 +782,10 @@ write(*,'(1x,a)',advance='no') ' USE_CATALYST : '
   write(*,LOGI_FMT) 'deuterium_adas_1e20   ', deuterium_adas_1e20
   write(*,LOGI_FMT) 'old_deuterium_atomic  ', old_deuterium_atomic
   write(*,LOGI_FMT) 'no_mach1_bc           ', no_mach1_bc
+  write(*,LOGI_FMT) 'use_newton            ', use_newton
+  write(*,INTG_FMT) 'maxNewton             ', maxNewton
+  write(*,REAL_FMT) 'gamma_Newton          ', gamma_Newton
+  write(*,REAL_FMT) 'alpha_Newton          ', alpha_Newton
 
 #ifdef fullmhd
     write(*,LOGI_FMT) 'Mach1_openBC          ', Mach1_openBC

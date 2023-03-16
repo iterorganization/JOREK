@@ -639,6 +639,10 @@ subroutine preset_parameters
   epsilon_BLR        = 0.                   ! Accuracy of BLR compression (0. = lossless)
   just_in_time_BLR   = .true.               ! Use Just-in-time strategy for BLR compression (.false. = memory-optimal)
   pastix_maxthrd     = 1024
+  use_newton         = .false.
+  maxNewton          = 20
+  gamma_Newton       = 0.5
+  alpha_Newton       = 2.d0
 
   
 !==== RMP parameters =====

@@ -1,18 +1,21 @@
-subroutine update_deltas(my_id,node_list)
+subroutine update_deltas(node_list, deltas)
 !---------------------------------------------------------------------
 ! subroutine to create a local list of delta values
 !---------------------------------------------------------------------
 use tr_module
-use data_structure
-use global_distributed_matrix
+use data_structure, only: type_node_list, type_RHS
+use mod_parameters, only: n_tor, n_var, n_degrees
+!use global_distributed_matrix
 
 implicit none
-integer               :: my_id, i, j, k, in, index, index_node
-type (type_node_list) :: node_list
+integer               :: i, j, k, in, index, index_node
+type(type_node_list)  :: node_list
+type(type_RHS)        :: deltas
 
-if (.not. allocated(deltas)) then
-  call tr_allocate(deltas,1,node_list%n_dof,"deltas",CAT_FEM)
-  deltas = 0.d0
+if (.not. associated(deltas%val)) then
+  call tr_allocatep(deltas%val,int1,node_list%n_dof,"deltas",CAT_FEM)
+  deltas%n = node_list%n_dof
+  deltas%val(1:deltas%n) = 0.d0
 endif
 
 do i = 1, node_list%n_nodes
@@ -27,7 +30,7 @@ do i = 1, node_list%n_nodes
 
         index = n_tor*n_var * (index_node - 1) + n_tor*(k-1) + in
 
-        deltas(index) = node_list%node(i)%deltas(in,j,k)
+        deltas%val(index) = node_list%node(i)%deltas(in,j,k)
 
       enddo
 

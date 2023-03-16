@@ -2668,7 +2668,7 @@ module exec_commands
     use nodes_elements, only: type_element, type_node
     use mod_position, only: t_pol_pos_list, t_tor_pos_list
     
-    use mod_sparse,          only: solve_sparse_system, solver_finalize
+    use mod_sparse,          only: solve_sparse_system
     use mod_sparse_data,     only: type_SP_SOLVER
     use data_structure,      only: type_SP_MATRIX, type_RHS, type_thread_buffer
  
@@ -3212,7 +3212,7 @@ module exec_commands
           solver%equilibrium = .true.
           solver%verbose = .false.
           call solve_sparse_system(a_mat, rhs_vec, rhs_vec, solver)
-          call solver_finalize(solver)  
+          call solver%finalize()  
 
           do i = 1, pol_pos_list%n_pos(1)
     

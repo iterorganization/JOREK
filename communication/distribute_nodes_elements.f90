@@ -157,6 +157,7 @@ a_mat%index_max => index_max
 
 a_mat%my_ind_min = a_mat%index_min(my_id + 1)
 a_mat%my_ind_max = a_mat%index_max(my_id + 1)
+a_mat%my_ind_size = a_mat%my_ind_max - a_mat%my_ind_min + Int1
 
 return
 end

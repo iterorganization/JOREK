@@ -128,6 +128,10 @@ module phys_module
   integer :: mumps_ordering       !< MUMPS ordering option (7:automatic, 3:Scotch, 4:PORD, 5:METIS), default: 7
   integer :: pastix_maxthrd       !< maximum number of threads used by pastix solver (could be beneficial to use the reduced number)
   real*8  :: pastix_pivot         !< Pastix epsilon for magnitude control (pivot threshold)
+  logical :: use_newton           !< Use inexact Newton method
+  integer :: maxNewton            !< maximum number of Newton iterations
+  real(kind=8) :: gamma_Newton    !< Newton gamma-parameter: gmres_tol = gamma_Newton*(normRHScurrent/normRHSprevious)**alpha_Newton
+  real(kind=8) :: alpha_Newton    !< Newton alpha-parameter: gmres_tol = gamma_Newton*(normRHScurrent/normRHSprevious)**alpha_Newton
 
   ! ------------------------------------------------
   ! --- Structures to implement BCs in model600
