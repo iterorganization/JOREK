@@ -45,6 +45,7 @@ real*8     :: source_volume, source_pellet, source_pellet2
 real*8     :: R_axis, Z_axis, psi_axis, psi_bnd, R_xpoint(2), Z_xpoint(2), dj_dpsi, dj_dz
 real*8     :: Bgrad_rho_star,     Bgrad_rho,     Bgrad_rhon, Bgrad_T_star, Bgrad_Ti, Bgrad_Te, BB2
 real*8     :: Bgrad_rho_star_psi, Bgrad_rho_psi, Bgrad_rhon_psi, Bgrad_rho_rho, Bgrad_rho_rhon
+real*8     :: Bgrad_vpar, Bgrad_vpar_psi
 real*8     :: Bgrad_T_star_psi, Bgrad_Ti_psi, Bgrad_Ti_T, Bgrad_Te_psi, Bgrad_Te_T, BB2_psi
 real*8     :: rhs_ij_1,   rhs_ij_2,   rhs_ij_3,   rhs_ij_4,   rhs_ij_5,   rhs_ij_6, rhs_ij_7
 real*8     :: rhs_stab_1, rhs_stab_2, rhs_stab_3, rhs_stab_4, rhs_stab_5, rhs_stab_6    
@@ -1393,6 +1394,7 @@ do ms=1, n_gauss
            Bgrad_rho_star = ( F0 / BigR * v_p  +  v_x  * ps0_y - v_y  * ps0_x ) / BigR    ! F0 due to absence of normalisation
            Bgrad_rho      = ( F0 / BigR * r0_p +  r0_x * ps0_y - r0_y * ps0_x ) / BigR    ! F0 due to absence of normalisation
            Bgrad_rhon     = ( F0 / BigR * rn0_p +  rn0_x * ps0_y - rn0_y * ps0_x ) / BigR    ! F0 due to absence of normalisation
+           Bgrad_vpar     = ( F0 / BigR * vpar0_p +  vpar0_x * ps0_y - vpar0_y * ps0_x ) / BigR
            Bgrad_T_star   = ( F0 / BigR * v_p  +  v_x  * ps0_y - v_y  * ps0_x ) / BigR    ! F0 due to absence of normalisation
            Bgrad_Ti       = ( F0 / BigR * Ti0_p +  Ti0_x * ps0_y - Ti0_y * ps0_x ) / BigR    ! F0 due to absence of normalisation
            Bgrad_Te       = ( F0 / BigR * Te0_p +  Te0_x * ps0_y - Te0_y * ps0_x ) / BigR    ! F0 due to absence of normalisation
@@ -1572,13 +1574,13 @@ do ms=1, n_gauss
          rhs_ij_7 = - v * F0 / BigR * P0_p                                              * xjac * tstep &
                     - v * (P0_s * ps0_t - P0_t * ps0_s)                                        * tstep &
 
-                      - visco_par * (v_x * vpar0_x + v_y * vpar0_y) * BigR                * xjac * tstep &
-		       
-		      - 0.5d0 * r0 * vpar0**2 * BB2 * (ps0_s * v_t - ps0_t * v_s)                * tstep &
-                      + 0.5d0 * r0 * vpar0**2 * BB2 * F0 / BigR * v_p                     * xjac * tstep &
+                    - visco_par * (v_x * vpar0_x + v_y * vpar0_y) * BigR                * xjac * tstep &
+                    - visco_par_par * r0_corr * BigR/BB2 * Bgrad_rho_star * Bgrad_vpar  * xjac * tstep &
+                    - 0.5d0 * r0 * vpar0**2 * BB2 * (ps0_s * v_t - ps0_t * v_s)                * tstep &
+                    + 0.5d0 * r0 * vpar0**2 * BB2 * F0 / BigR * v_p                     * xjac * tstep &
 
-                      - 0.5d0 * v * vpar0**2 * BB2 * (ps0_s * r0_t - ps0_t * r0_s)                * tstep &
-                      + 0.5d0 * v * vpar0**2 * BB2 * F0 / BigR * r0_p                      * xjac * tstep &
+                    - 0.5d0 * v * vpar0**2 * BB2 * (ps0_s * r0_t - ps0_t * r0_s)                * tstep &
+                    + 0.5d0 * v * vpar0**2 * BB2 * F0 / BigR * r0_p                      * xjac * tstep &
 
                     - visco_par_num * (v_xx + v_x/Bigr + v_yy)*(vpar0_xx + vpar0_x/Bigr + vpar0_yy) * BigR * xjac * tstep &
                                   
@@ -1852,6 +1854,7 @@ do ms=1, n_gauss
                  Bgrad_rho_rho      = ( F0 / BigR * rho_p +  rho_x * ps0_y - rho_y * ps0_x ) / BigR
                  Bgrad_rho_rhon     = ( F0 / BigR * rhon_p +  rhon_x * ps0_y - rhon_y * ps0_x ) / BigR
                  BB2_psi            = 2.d0 * (psi_x * ps0_x + psi_y * ps0_y ) /BigR**2
+                 Bgrad_vpar_psi     = ( vpar0_x  * psi_y - vpar0_y  * psi_x ) / BigR
 
                  Btheta2_psi  = 2.d0 * (psi_x * ps0_x + psi_y * ps0_y ) /BigR**2
                  rhon_hat   = BigR**2 * rhon                                     
@@ -2361,11 +2364,15 @@ do ms=1, n_gauss
              amat_71 = v * r0 * vpar0 / BigR * (ps0_x * psi_x + ps0_y * psi_y) * xjac * (1.d0 + zeta) &
 
                          + v * (P0_s * psi_t - P0_t * psi_s)                                            * theta * tstep &
+                         - visco_par_par * r0_corr * BigR * BB2_psi/ BB2**2 * Bgrad_rho_star     * Bgrad_vpar * xjac * theta * tstep &
+                         + visco_par_par * r0_corr * BigR / BB2             * Bgrad_rho_star_psi * Bgrad_vpar * xjac * theta * tstep &
+                         + visco_par_par * r0_corr * BigR / BB2             * Bgrad_rho_star * Bgrad_vpar_psi * xjac * theta * tstep &
                          + 0.5d0 * r0 * vpar0**2 * BB2     * (psi_x * v_y  - psi_y * v_x)   * xjac * theta * tstep &
                          + 0.5d0 * r0 * vpar0**2 * BB2_psi * (ps0_x * v_y  - ps0_y * v_x)   * xjac * theta * tstep &
                          + 0.5d0 * v  * vpar0**2 * BB2     * (psi_x * r0_y - psi_y * r0_x)  * xjac * theta * tstep &
                          + 0.5d0 * v  * vpar0**2 * BB2_psi * (ps0_x * r0_y - ps0_y * r0_x)  * xjac * theta * tstep &
                          - 0.5d0 * v  * vpar0**2 * BB2_psi * F0 / BigR * r0_p               * xjac * theta * tstep &
+                         - 0.5d0 * r0 * vpar0**2 * BB2_psi * F0 / BigR * v_p                * xjac * theta * tstep
 
                       ! New terms coming from -(\partial_t \rho + \nabla \cdot (\rho \mathbf{v})) \mathbf{v} in RHS of momentum equation
                       ! (see wiki: https://www.jorek.eu/wiki/doku.php?id=model500_501_555#equations):
