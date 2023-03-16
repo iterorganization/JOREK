@@ -2372,7 +2372,7 @@ do ms=1, n_gauss
                          + 0.5d0 * v  * vpar0**2 * BB2     * (psi_x * r0_y - psi_y * r0_x)  * xjac * theta * tstep &
                          + 0.5d0 * v  * vpar0**2 * BB2_psi * (ps0_x * r0_y - ps0_y * r0_x)  * xjac * theta * tstep &
                          - 0.5d0 * v  * vpar0**2 * BB2_psi * F0 / BigR * r0_p               * xjac * theta * tstep &
-                         - 0.5d0 * r0 * vpar0**2 * BB2_psi * F0 / BigR * v_p                * xjac * theta * tstep
+                         - 0.5d0 * r0 * vpar0**2 * BB2_psi * F0 / BigR * v_p                * xjac * theta * tstep &
 
                       ! New terms coming from -(\partial_t \rho + \nabla \cdot (\rho \mathbf{v})) \mathbf{v} in RHS of momentum equation
                       ! (see wiki: https://www.jorek.eu/wiki/doku.php?id=model500_501_555#equations):
