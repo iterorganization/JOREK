@@ -1662,7 +1662,7 @@ do ms=1, n_gauss
 
     
              rhs_ij_7_k = + 0.5d0 * r0 * vpar0**2 * BB2 * F0 / BigR * v_p                     * xjac * tstep &
-                          - visco_par_par * r0_corr * BigR/BB2 * Bgrad_rho_k_star * Bgrad_vpar * xjac * tstep
+                          - visco_par_par * r0_corr * BigR/BB2 * Bgrad_rho_k_star * Bgrad_vpar * xjac * tstep &
 
             - TG_NUM7 * 0.25d0 * r0 * Vpar0**2 * BB2 &
                       * (-(ps0_s * vpar0_t - ps0_t * vpar0_s)/xjac + F0 / BigR * vpar0_p) / BigR  &
