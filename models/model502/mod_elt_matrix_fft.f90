@@ -2629,9 +2629,8 @@ do ms=1, n_gauss
                                  * (-(ps0_s * v_t     - ps0_t * v_s)    /xjac) * xjac * theta * tstep*tstep
 !===============================End of new TG_num terms============================
 
-             amat_71_k = - 0.5d0 * r0 * vpar0**2 * BB2_psi * F0 / BigR * v_p    * xjac * theta * tstep
-&
-                         - visco_par_par * r0_corr * BigR * BB2_psi/ BB2**2 * Bgrad_rho_k_star * Bgrad_vpar * xjac * theta * tstep &
+             amat_71_k = - 0.5d0 * r0 * vpar0**2 * BB2_psi * F0 / BigR * v_p    * xjac * theta * tstep                              &
+                         - visco_par_par * r0_corr * BigR * BB2_psi/ BB2**2 * Bgrad_rho_k_star * Bgrad_vpar * xjac * theta * tstep  &
                          + visco_par_par * r0_corr * BigR / BB2             * Bgrad_rho_k_star * Bgrad_vpar * xjac * theta * tstep
 
              ! New term coming from -(\partial_t \rho + \nabla \cdot (\rho \mathbf{v})) \mathbf{v} in RHS of momentum equation
