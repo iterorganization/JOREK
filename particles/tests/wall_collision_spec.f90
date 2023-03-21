@@ -124,7 +124,7 @@ end subroutine test_octree
 !> Test collision between line segment and a triangle
 subroutine test_triangle_intersection
   type(octree_triangle) :: triangles(4)
-  real*8 :: pxyz(3), qxyz(3), rnd(2), r, t
+  real*8 :: pxyz(3), qxyz(3), rnd(2), r, t, normal(3), iangle, eangle
   logical :: collided, fail
   integer i, j, n
 
@@ -153,12 +153,14 @@ subroutine test_triangle_intersection
   triangles(4)%v1 = (/ -1.0, -1.0, 0.0 /)
   triangles(4)%v2 = (/  0.0,  0.0, 1.0 /)
 
+!  normals = transpose( reshape(/ -1.0, 0.0, -1.0, 0.0, -1.0, -1.0, 0.0, 1.0, -1.0, 1.0, 0.0, -1.0 /), (/ size(normals, 2), size(normals, 1) /)))
+
   ! Generate random directions for the line segment and verify that we have
   ! a collision when its z component is positive and miss when it is negative.
+  ! Also checks that the angle of incidence is correct.
   fail = .false.
   n = 100
   r = 1.0
-  !write(*,*) 'Testiing'
   do j=1,n
      call random_number(rnd)
      rnd(1) = TWOPI * rnd(1)
@@ -168,11 +170,16 @@ subroutine test_triangle_intersection
      collided = .false.
      do i=1,4
         call mod_wall_collision_intersect(pxyz, qxyz, triangles(i)%v0, &
-             triangles(i)%v1, triangles(i)%v2, t)
-        if( t .ge. 0.d0 ) collided = .true.
+             triangles(i)%v1, triangles(i)%v2, t, iangle)
+        if( t .ge. 0.d0 ) then
+           collided = .true.
+           normal = (/ -( triangles(i)%v0(1) + triangles(i)%v1(1) ) / 2.0, -( triangles(i)%v0(2) + triangles(i)%v1(2) ) / 2.0, -1.0  /)
+           normal = normal / sqrt(2.0)
+           eangle = PI - acos( dot_product(qxyz, normal) / r )
+        end if
      end do
      if( collided .and. ( cos(rnd(2)) .lt. 0.d0 ) ) fail = .true.
-
+     if( collided .and. .not. fail .and. ( abs(iangle - eangle) .gt. 1.e-6 ) ) fail = .true.
   end do
   call assert_false(fail, "Collision check")
 

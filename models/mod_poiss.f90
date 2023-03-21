@@ -24,7 +24,7 @@ use mod_axis_treatment
 use mod_pastix
 #endif
 use mod_sparse_data, only: type_SP_SOLVER, mumps, pastix, strumpack
-use mod_sparse, only: solve_sparse_system, solver_finalize
+use mod_sparse, only: solve_sparse_system
 
 implicit none
 
@@ -485,7 +485,7 @@ if (my_id == 0) then
     solver%library = pastix
   endif
   call solve_sparse_system(a_mat, rhs_vec, rhs_vec, solver)
-  call solver_finalize(solver)
+  call solver%finalize()
   
   call tr_debug_write("a_mat%ng",int(a_mat%ng))
   call tr_debug_write("a_mat%nnz",int(a_mat%nnz))

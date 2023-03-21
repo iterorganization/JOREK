@@ -2,7 +2,7 @@ module mod_sparse
   use mod_sparse_data
 
   private
-  public :: solve_sparse_system, solver_finalize
+  public :: solve_sparse_system
 
   contains
 
@@ -95,7 +95,7 @@ module mod_sparse
       if (solver%verbose) tag = my_id
 
       ! condition for no PC update
-      solver%solve_only = (solver%istep > 1) .and. ((solver%iter_gmres + solver%iter_prev <= 2*solver%iter_precon) &
+      solver%solve_only = solver%solve_only .and. ((solver%iter_gmres + solver%iter_prev <= 2*solver%iter_precon) &
                                              .and.  (solver%n_since_update < solver%max_steps_noUpdate))
 
       if (solver%solve_only) then
@@ -155,43 +155,6 @@ module mod_sparse
     endif
 
   end subroutine solve_sparse_system
-
-!> Finilize solver instance
-  subroutine solver_finalize(solver)
-#if (defined USE_PASTIX) || (defined USE_PASTIX6)
-    use mod_pastix, only: pastix_finalize
-#endif
-#ifdef USE_MUMPS
-    use mod_mumps, only: mumps_finalize
-#endif
-#ifdef USE_STRUMPACK
-    use mod_strumpack, only: strumpack_finalize
-#endif
-    implicit none
-
-    type(type_SP_SOLVER)     :: solver
-
-    if (solver%verbose) write(*,*) "Finalizing solver"
-
-#if (defined USE_PASTIX) || (defined USE_PASTIX6)
-    if (solver%ptss%initialized) call pastix_finalize(solver%ptss)
-#endif
-#ifdef USE_MUMPS
-    if (solver%mmss%initialized) call mumps_finalize(solver%mmss)
-#endif
-#ifdef USE_STRUMPACK
-    if (solver%spss%initialized) call strumpack_finalize(solver%spss)
-#endif
-
-    solver%solve_only   = .false.
-    solver%step_success = .false.
-    solver%iterative    = .false.
-    solver%equilibrium  = .false.
-    solver%verbose      = .true.
-
-
-    return
-  end subroutine solver_finalize
 
 
 end module mod_sparse

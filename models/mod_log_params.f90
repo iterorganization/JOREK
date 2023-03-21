@@ -600,6 +600,7 @@ write(*,'(1x,a)',advance='no') ' USE_CATALYST : '
   write(*,REAL_FMT) 'Te_min_ZKpar          ', Te_min_ZKpar
   write(*,REAL_FMT) 'ne_SI_min             ', ne_SI_min
   write(*,REAL_FMT) 'Te_eV_min             ', Te_eV_min
+  write(*,REAL_FMT) 'implicit_heat_source  ', implicit_heat_source
   write(*,REAL_FMT) 'rn0_min               ', rn0_min
   write(*,REAL_FMT) 'rho_min               ', rho_min
   write(*,REAL_FMT) 'rho_min_neg           ', rho_min_neg
@@ -782,6 +783,10 @@ write(*,'(1x,a)',advance='no') ' USE_CATALYST : '
   write(*,LOGI_FMT) 'deuterium_adas_1e20   ', deuterium_adas_1e20
   write(*,LOGI_FMT) 'old_deuterium_atomic  ', old_deuterium_atomic
   write(*,LOGI_FMT) 'no_mach1_bc           ', no_mach1_bc
+  write(*,LOGI_FMT) 'use_newton            ', use_newton
+  write(*,INTG_FMT) 'maxNewton             ', maxNewton
+  write(*,REAL_FMT) 'gamma_Newton          ', gamma_Newton
+  write(*,REAL_FMT) 'alpha_Newton          ', alpha_Newton
 
 #ifdef fullmhd
     write(*,LOGI_FMT) 'Mach1_openBC          ', Mach1_openBC

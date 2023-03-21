@@ -52,7 +52,14 @@ subroutine F_profile(xpoint2,xcase2,Z,Z_xpoint,psi,psi_axis,psi_bnd,&
 
   ! --- Value of F at the edge should be F0 (NEEDS TO BE DECIDED!!!)
   F_edge = F0
-
+  
+  ! --- Initialise
+  F_prof     = 0.d0
+  dF_dpsi    = 0.d0
+  dF_dz      = 0.d0
+  dF_dpsi2   = 0.d0
+  dF_dz2     = 0.d0
+  dF_dpsi_dz = 0.d0
   ! --- Profile as a function of Psi_N.
   if (force_analytical) then 
 
@@ -62,13 +69,7 @@ subroutine F_profile(xpoint2,xcase2,Z,Z_xpoint,psi,psi_axis,psi_bnd,&
     myFF_coef(1:8) =   FF_coef(1:8)
     myFF_coef(6)   = - FF_coef(6)
 
-    ! --- Initialise
-    F_prof     = 0.d0
-    dF_dpsi    = 0.d0
-    dF_dz      = 0.d0
-    dF_dpsi2   = 0.d0
-    dF_dz2     = 0.d0
-    dF_dpsi_dz = 0.d0
+
 
     ! --- There are some rules when using FF_coefs with the F-profile in Full-MHD
     if (myFF_1 .ne. 0.d0) then

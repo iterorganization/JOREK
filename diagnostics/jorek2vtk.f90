@@ -106,10 +106,10 @@ real*8                :: Te_eV, ne_SI, Lrad_imp, r_imp_bg
 real*8                :: Te_corr_eV, coef_rad_1, Sion_T, eta_Sp, ksiion, LradDcont_T
 real*8                :: LradDrays_T, coef_ion_1, coef_ion_2, coef_ion_3, S_ion_puiss
 real*8                :: r0_real8, rn0_real8
-real*8                :: T0_corr, r0_corr, rn0_corr
+real*8                :: T0_corr, r0_corr, rn0_corr, ne_JOREK
 integer               :: i_imp, offset_bgimp, i_bg     ! Loop for more than one background impurity
 integer               :: i_proj
-integer               :: i_psin, i_test, iimp(6), ineu(7), ibg_tot, i_pellet(2), i_flux(8), i_neo(10), i_boot(2)
+integer               :: i_psin, i_test, iimp(6), i_ne, ineu(7), ibg_tot, i_pellet(2), i_flux(8), i_neo(10), i_boot(2)
 integer               :: i_full(11), i_vec_B, i_vec_V, i_vec_E, i_vec_Jpol
 integer, allocatable  :: iibg(:), iproj(:)
 character*36          :: imp_label, proj_label
@@ -349,7 +349,7 @@ allocate(iibg(n_adas),iproj(n_var))
 if (include_radiation) then
 
 #if (defined WITH_Neutrals) && (!defined WITH_Impurities)
-  call add_vtk_entry('Nt_Ionis    ', 'NtIonis_Wm-3',  ineu(1), n_scalars, si_units, scalar_names) 
+  call add_vtk_entry('Nt_Ionis    ', 'NtIonis_Wm-3',    ineu(1), n_scalars, si_units, scalar_names) 
   call add_vtk_entry('Lin_rad     ', 'Lin_radWm-3 ',    ineu(2), n_scalars, si_units, scalar_names) 
   call add_vtk_entry('Brems       ', 'Brems_Wm-3  ',    ineu(3), n_scalars, si_units, scalar_names) 
   call add_vtk_entry('Joule       ', 'Joule_Wm-3  ',    ineu(4), n_scalars, si_units, scalar_names) 
@@ -364,10 +364,12 @@ end if
 
 #ifdef WITH_Impurities
   call add_vtk_entry('Ionis       ', 'Ionis_Jm-3  ',    iimp(1), n_scalars, si_units, scalar_names) 
-  call add_vtk_entry('Coronal_rad ', 'Cor_radWm-3 ', iimp(2), n_scalars, si_units, scalar_names) 
+  call add_vtk_entry('Coronal_rad ', 'Cor_radWm-3 ',    iimp(2), n_scalars, si_units, scalar_names) 
   call add_vtk_entry('Joule       ', 'Joule_Wm-3  ',    iimp(3), n_scalars, si_units, scalar_names) 
   call add_vtk_entry('Z_imp       ', 'Z_imp       ',    iimp(4), n_scalars, si_units, scalar_names) 
-  call add_vtk_entry('Z_eff       ', 'Z_eff       ',    iimp(5), n_scalars, si_units, scalar_names) 
+  call add_vtk_entry('Z_eff       ', 'Z_eff       ',    iimp(5), n_scalars, si_units, scalar_names)
+  call add_vtk_entry('beta_imp    ', 'beta_imp    ',    iimp(6), n_scalars, si_units, scalar_names)
+  call add_vtk_entry('ne_corr     ', 'ne20m-3_corr',    i_ne,    n_scalars, si_units, scalar_names)
 #endif
 
   ! --- Background radiation
@@ -1275,7 +1277,7 @@ enddo  ! n_elements
       scalars(i,ineu(4)) = 0.d0   ! NEEDS BE CALCULATED FOR FULL MHD ELESEWHERE! 
 #else /* not fullmhd */ 
       scalars(i,ineu(4)) = (2/(3 * BigR**2)) * eta_Sp * scalars(i,var_zj)**2.d0
-#endif /* with neutrals */
+#endif
 #endif /* with neutrals */
       
       !--------------------------------------------------------
@@ -1402,9 +1404,9 @@ enddo  ! n_elements
      !alpha_imp    = 0.5*m_i_over_m_imp*(Z_imp+1.) - 1.
      beta_imp     = m_i_over_m_imp*Z_imp - 1.
 
-     ne_SI       = (r0_corr + beta_imp * rimp0_corr) * 1.d20 * central_density ! electron density (SI)
-     scalars(i,var_rho) = (r0_corr + beta_imp * rimp0_corr)                           ! electron density (JOREK units)
-
+     ne_SI           = (r0_corr + beta_imp * rimp0_corr) * 1.d20 * central_density ! electron density (SI)
+     ne_JOREK        = (r0_corr + beta_imp * rimp0_corr)                           ! electron density (JOREK units)
+     scalars(i,i_ne) = ne_JOREK
 
      !Calculate the Z_eff, as it is done in mod_elt_matrix
      if (.not. use_marker) then
@@ -1412,16 +1414,16 @@ enddo  ! n_elements
        do ion_i=1, imp_adas(index_main_imp)%n_Z
          Z_eff = Z_eff + m_i_over_m_imp * rimp0_corr * P_imp(ion_i) * real(ion_i,8)**2
        end do
-       Z_eff = Z_eff / scalars(i,var_rho)
+       Z_eff = Z_eff / ne_JOREK
      else
        Z_eff = Z_eff * n_imp
        Z_eff = Z_eff + max((r0_corr - rimp0_corr),0.)
-       Z_eff = max(Z_eff / scalars(i,var_rho), 1.)
+       Z_eff = max(Z_eff / ne_JOREK, 1.)
      end if
      if (Z_eff < 1.0d0) Z_eff = 1.0d0
      if (Z_eff > imp_adas(1)%n_Z) Z_eff = imp_adas(1)%n_Z
 
-     scalars(inode,iimp(5)) = Z_eff
+     scalars(i,iimp(5)) = Z_eff
 
      ! This is to represent the dependence on Z_eff in resistivity
      eta_coef = Z_eff*(1.+1.198*Z_eff+0.222*Z_eff**2)/(1.+2.966*Z_eff+0.753*Z_eff**2) 
@@ -1457,14 +1459,15 @@ enddo  ! n_elements
          Lrad_imp = 0.
        end if
        frad_bg = frad_bg + r_imp_bg * Lrad_imp
-       scalars(i,iibg(i_imp)) = scalars(i,var_rho) * r_imp_bg * Lrad_imp
+       scalars(i,iibg(i_imp)) = ne_JOREK * r_imp_bg * Lrad_imp
      end do
      scalars(i,iimp(1)) = (2./3.) * scalars(i,var_rhoimp) * E_ion
      scalars(i,iimp(2)) = (r0_corr+beta_imp*rimp0_corr) * rimp0_corr * Lrad
      scalars(i,iimp(3)) = (2./(3. * BigR**2)) * eta_Sp * scalars(i,var_zj)**2.d0
      scalars(i,iimp(4)) = Z_imp
      scalars(i,iimp(5)) = Z_eff
-     scalars(i,ibg_tot) = scalars(i,var_rho) * frad_bg
+     scalars(i,iimp(6)) = beta_imp
+     scalars(i,ibg_tot) = ne_JOREK * frad_bg
 
    end do
  endif
@@ -1514,6 +1517,9 @@ if (SI_units) then
 #ifdef fullmhd
     !===========================================density in 1e20m-3
     scalars(i,var_rho) = scalars(i,var_rho) * central_density
+    if (with_impurities) then
+      scalars(i,i_ne)    = scalars(i,i_ne) * central_density
+    end if
     !===========================================electron temperature in keV
     if (with_TiTe) then
       scalars(i,var_Ti ) = scalars(i,var_Ti)  / MU_zero / (central_density * 1d20) / EL_CHG /1.e3 
@@ -1566,6 +1572,9 @@ if (SI_units) then
     scalars(i,var_zj) = currdens(i) / MU_zero * 1.e-6
     !============================================density in 1e20m-3
     scalars(i,var_rho) = scalars(i,var_rho) * central_density
+    if (with_impurities) then
+      scalars(i,i_ne)    = scalars(i,i_ne) * central_density
+    end if
     if (with_TiTe) then
       !===========================================ion and electron temperatures in keV
       scalars(i,var_Ti) = scalars(i,var_Ti) / MU_zero / (central_density * 1d20) / EL_CHG /1.e3 !
@@ -1700,7 +1709,9 @@ if (SI_units) then
    scalars(i,iimp(1)) = scalars(i,iimp(1))/(K_BOLTZ*MU_ZERO)
    scalars(i,iimp(2)) = scalars(i,iimp(2))/(2.d0/3.d0*MU_ZERO**1.5d0*(central_mass*MASS_PROTON*central_density*1.d20)**0.5d0)
    scalars(i,iimp(3)) = scalars(i,iimp(3))/(2.d0/3.d0*((central_mass*MASS_PROTON*central_density*1.d20)**0.5)*(MU_ZERO**1.5)) 
-   scalars(i,iimp(4)) = scalars(i,iimp(4))
+   scalars(i,iimp(4)) = scalars(i,iimp(4)) ! Z_imp
+   scalars(i,iimp(5)) = scalars(i,iimp(5)) ! Z_eff
+   scalars(i,iimp(6)) = scalars(i,iimp(6)) ! beta_imp
    scalars(i,ibg_tot) = scalars(i,ibg_tot) &
        /((GAMMA-1.d0)*MU_ZERO**1.5d0*(central_mass*MASS_PROTON*central_density*1.d20)**0.5d0)
    do i_imp=1,n_adas

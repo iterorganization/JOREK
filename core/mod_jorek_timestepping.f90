@@ -6,7 +6,7 @@ use mod_parameters, only: n_plane
 use data_structure, only: type_bnd_element_list, type_bnd_node_list, type_SP_MATRIX, type_RHS !< store these in jorek_timestep_action
 use mod_simulation_data, only: type_MHD_SIM
 
-use mod_sparse,        only: solve_sparse_system, solver_finalize
+use mod_sparse,        only: solve_sparse_system
 use mod_sparse_data,   only: type_SP_SOLVER
 
 use equil_info
@@ -47,7 +47,8 @@ type, extends(action) :: jorek_timestep_action
 
   ! MHD solver
   type(type_SP_MATRIX)                          :: a_mat
-  type(type_RHS)                                :: rhs_vec, sol_vec
+  type(type_RHS)                                :: rhs_vec
+  type(type_RHS)                                :: deltas
   type(type_SP_SOLVER)                          :: solver
   type(type_MHD_SIM)                            :: mhd_sim
   
@@ -89,7 +90,6 @@ subroutine setup_solvers(this, sim)
   use mod_live_data_core,   only: write_live_data_all
   use mpi_mod
   use tr_module
-  use global_distributed_matrix
   use mod_boundary,         only: boundary_from_grid
   use mod_global_matrix_structure
   use vacuum
@@ -97,7 +97,6 @@ subroutine setup_solvers(this, sim)
   use vacuum_equilibrium,   only: import_external_fields
   use mod_startup_teardown, only: sanity_checks
   use mod_log_params,       only: log_parameters
-  use mod_sparse_data,      only: mumps, pastix, strumpack
 
   implicit none
 
@@ -225,27 +224,14 @@ subroutine setup_solvers(this, sim)
   call distribute_nodes_elements(id_elements, this%mhd_sim%n_cpu, index_size, this%mhd_sim%node_list, this%mhd_sim%element_list, .false., this%mhd_sim%local_elms, & 
                                    this%mhd_sim%n_local_elms, this%mhd_sim%restart, this%mhd_sim%freeboundary, this%a_mat)
 
-  call update_deltas(this%mhd_sim%my_id, this%mhd_sim%node_list)
+  call update_deltas(this%mhd_sim%node_list,this%deltas)
                                    
   call global_matrix_structure(this%mhd_sim%node_list, this%mhd_sim%element_list, this%mhd_sim%bnd_elm_list, this%mhd_sim%freeboundary,&
                                  this%mhd_sim%local_elms, this%mhd_sim%n_local_elms, this%a_mat, i_tor_min=1, i_tor_max=n_tor)                                   
 
   call MPI_Barrier(MPI_COMM_WORLD,ierr)
   
-  this%solver%iter_precon        = iter_precon
-  this%solver%iter_gmres         = iter_precon
-  this%solver%iter_max           = gmres_max_iter
-  this%solver%max_steps_noUpdate = max_steps_noUpdate
-  this%solver%iter_tol           = gmres_tol
-  this%solver%iter_prev          = 0
-  this%solver%n_since_update     = 0
-  if (use_strumpack) then
-    this%solver%library = strumpack
-  elseif (use_mumps) then
-    this%solver%library = mumps
-  elseif (use_pastix) then
-    this%solver%library = pastix
-  endif
+  call this%solver%setup()
   this%setup_done = .true.
 
   if (.not. associated(aux_node_list)) allocate(aux_node_list) ! information of particle moments is stored in aux_list
@@ -386,10 +372,8 @@ subroutine do_jorek_timestep(this, sim, ev)
   this%solver%istep     = this%istep
   this%solver%index_now = index_now
   this%solver%iterative = gmres
-    
-  this%sol_vec%val => deltas
-  
-  call solve_sparse_system(this%a_mat, this%rhs_vec, this%sol_vec, this%solver)
+
+  call solve_sparse_system(this%a_mat, this%rhs_vec, this%deltas, this%solver)
 
   call clck_time(t0)
   if (this%solver%step_success) then  
@@ -406,8 +390,8 @@ subroutine do_jorek_timestep(this, sim, ev)
     end if
 #endif    
 
-    call update_values(sim%my_id, sim%fields%element_list, sim%fields%node_list, deltas)         ! add solution to node values
-    call update_deltas(sim%my_id, sim%fields%node_list)
+    call update_values(sim%fields%element_list, sim%fields%node_list, this%deltas)         ! add solution to node values
+    call update_deltas(sim%fields%node_list, this%deltas)
     t_now = t_now + dt_jorek
   else
     if ( sim%my_id == 0 ) then
@@ -446,7 +430,7 @@ subroutine do_jorek_timestep(this, sim, ev)
     energies(1:n_tor,1,index_now) = W_mag(1:n_tor)
     energies(1:n_tor,2,index_now) = W_kin(1:n_tor)
 
-    mindelta = minval(deltas); maxdelta = maxval(deltas);
+    mindelta = minval(this%deltas%val(1:this%deltas%n)); maxdelta = maxval(this%deltas%val(1:this%deltas%n));
     
     ! --- Output some information about the current timestep
     130 format(1x,a,i5.5,a,es10.3,a)
@@ -457,7 +441,7 @@ subroutine do_jorek_timestep(this, sim, ev)
     write(*,132)
     write(*,130) 'After step ', index_now, ' (t_now=', t_now, '):'
     write(*,132)
-    write(*,133) 'min,max deltas  =', mindelta, minloc(deltas), maxdelta, maxloc(deltas)
+    write(*,133) 'min,max deltas  =', mindelta, minloc(this%deltas%val(1:this%deltas%n)), maxdelta, maxloc(this%deltas%val(1:this%deltas%n))
     write(*,131) 'W_mag,_kin      =', W_mag(1), W_mag(n_tor), W_kin(1), W_kin(n_tor)
     
     Growth_mag  = 0.d0; Growth_kin  = 0.d0; Growth_mag0 = 0.d0; Growth_kin0 = 0.d0
@@ -513,8 +497,8 @@ subroutine do_jorek_timestep(this, sim, ev)
   endif
   
   ! --- Exit the code if NaNs are detected.
-  if ( allocated(deltas) ) then
-    sum_deltas = sum(deltas)
+  if (associated(this%deltas%val)) then
+    sum_deltas = sum(this%deltas%val(1:this%deltas%n))
     if ( sum_deltas /= sum_deltas ) then
       write(*,*)
       write(*,*) '>>>>> NaNs DETECTED: EXITING THE CODE <<<<<'

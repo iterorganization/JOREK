@@ -20,16 +20,13 @@ contains
 !*   psi_axis     -                                                            *
 !*   psi_bnd      -                                                            *
 !*   Z_xpoint     -                                                            *
-!*   gmres        - boolean indicating if we are using GMRES method            *
-!*   solve_only   - Indicate if we want to perform only solve                  *
 !*                                                                             *
 !*******************************************************************************
 
 subroutine boundary_conditions( my_id, node_list, element_list, bnd_node_list, local_elms,& 
                                 n_local_elms, index_min, index_max, rhs_loc, xpoint2,     &
                                 xcase2, R_axis, Z_axis, psi_axis, psi_bnd,                &
-                                R_xpoint, Z_xpoint, psi_xpoint, gmres, solve_only,        & 
-                                ijA_index, ijA_size, irn_jcn, irn, jcn, A_mat, i_tor_min, i_tor_max )
+                                R_xpoint, Z_xpoint, psi_xpoint, a_mat)
 
 use mod_assembly, only : boundary_conditions_add_one_entry, boundary_conditions_add_RHS
 use data_structure
@@ -67,16 +64,8 @@ real*8,                             intent(in)    :: psi_bnd
 real*8,                             intent(in)    :: R_xpoint(2)
 real*8,                             intent(in)    :: Z_xpoint(2)
 real*8,                             intent(in)    :: psi_xpoint(2)
-logical,                            intent(in)    :: gmres
-logical,                            intent(in)    :: solve_only
 real*8,                             intent(inout) :: rhs_loc(*)
-integer,                            intent(in)    :: i_tor_min, i_tor_max 
-real*8,  allocatable,               intent(inout) :: A_mat(:) 
-integer(kind=int_all), allocatable, intent(in)    :: ijA_index(:,:)
-integer(kind=int_all), allocatable, intent(in)    :: ijA_size(:)
-integer(kind=int_all), allocatable, intent(in)    :: irn_jcn(:,:) 
-integer(kind=int_all), allocatable, intent(inout) :: irn(:)
-integer(kind=int_all), allocatable, intent(inout) :: jcn(:) 
+type(type_SP_MATRIX)                              :: a_mat
 
 ! Internal parameters
 real*8  :: zbig, zbig_backup,  T0, T0i, T0e, Vpar0, bigR
@@ -174,7 +163,7 @@ do i=1, n_local_elms !=== do elements
 
       bnd_type = node_list%node(inode)%boundary
 
-      do in=i_tor_min, i_tor_max  ! === do n_tor
+      do in=a_mat%i_tor_min, a_mat%i_tor_max  ! === do n_tor
       
         if (keep_n0_const  .and.  in .eq. 1 ) then
           zbig = 1.d15
@@ -188,15 +177,13 @@ do i=1, n_local_elms !=== do elements
 
             call boundary_conditions_add_one_entry(                 &
                    index_node, k, in, index_node, k, in,            &
-                   zbig, solve_only, gmres, index_min, index_max,   & 
-                   ijA_index, ijA_size, irn_jcn, irn, jcn, A_mat, i_tor_min, i_tor_max)
+                   zbig, index_min, index_max, a_mat)
 
             index_node = node_list%node(inode)%index(iv_dir)
 
             call boundary_conditions_add_one_entry(                 &
                    index_node, k, in, index_node, k, in,            &
-                   zbig, solve_only, gmres, index_min, index_max,   & 
-                   ijA_index, ijA_size, irn_jcn, irn, jcn, A_mat, i_tor_min, i_tor_max)
+                   zbig, index_min, index_max, a_mat)
 
         enddo !=== variables
 

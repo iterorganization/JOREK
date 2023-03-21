@@ -109,7 +109,7 @@ namelist /in1/  tstep, nstep, tstep_n, nstep_n,                     &
                 time_evol_scheme, corr_neg_temp_coef,               &
                 corr_neg_dens_coef, D_prof_neg, ZK_prof_neg,        &
                 D_prof_neg_thresh, ZK_prof_neg_thresh, T_min,rho_min,&
-				T_min_neg,rho_min_neg,                              &
+				T_min_neg,rho_min_neg,implicit_heat_source,         &
                 Number_RMP_harmonics,RMP_har_cos_spectrum,          &
                 RMP_har_sin_spectrum,                               &
                 amix, amix_freeb, equil_accuracy,                   &
@@ -137,7 +137,8 @@ namelist /in1/  tstep, nstep, tstep_n, nstep_n,                     &
                 use_cx, use_sputtering, use_ionisation,             &
                 use_ncs, use_pcs, use_ccs, use_pcs_full,            &
                 cte_current_FB_fact, Z_xpoint_limit,                &
-                CARIDDI_mode
+                CARIDDI_mode, use_newton, maxNewton, gamma_Newton,  &
+                alpha_Newton
 
 if (my_id .eq. 0) then
 

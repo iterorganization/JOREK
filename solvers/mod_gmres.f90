@@ -5,7 +5,7 @@ module mod_gmres
   use mod_clock
 
   use data_structure, only: type_SP_MATRIX, type_RHS
-  use phys_module,    only: gmres_4, gmres_tol, gmres_m, index_now
+  use phys_module,    only: gmres_4, gmres_m, index_now
   
 
   private
@@ -63,7 +63,7 @@ module mod_gmres
     icntl(6) = 1            ! initial guess  (1) = user supplied guess
     icntl(8) = 1            ! residual calculation strategy at restart
 
-    cntl(1) = gmres_tol         ! stopping tolerance
+    cntl(1) = solver%iter_tol         ! stopping tolerance
     cntl(2) = 1.d0
     cntl(3) = 1.d0
     cntl(4) = gmres_4          ! 1.d0

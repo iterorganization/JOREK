@@ -10,9 +10,6 @@ module global_distributed_matrix
   
   public
   
-  ! --- The global distributed matrix and related quantities
-  real*8,                allocatable, target  :: deltas(:)                                 !< solution from previous step
-    
   ! --- The complex harmonic matrix 
 #ifdef USE_COMPLEX_PRECOND
   double complex,        allocatable, target :: A_cmplx(:)          !< Distributed harmonic matrix

@@ -142,8 +142,8 @@ real*8  :: u0_x, u0_y
 real*8  :: viscopar_flux, viscopar_f, vpar_s, vpar_t, vpar_x, vpar_y, li3_tot, li3
 real*8  :: varmin(n_var), varmax(n_var), V_min(n_var), V_max(n_var)
 real*8  :: R_curr_cent, Z_curr_cent, Zcurr_tmp, R2curr_tmp, R2curr
-
-
+real*8  :: heating_impl_in, heating_impl_out, H_impl_int, H_impl_ext,heating_impl_tot
+real*8  :: Tie_min_neg
 #if (defined WITH_Neutrals)
 real*8  :: source_neutral, source_neutral_drift
 real*8  :: source_neutral_arr(n_inj_max), source_neutral_drift_arr(n_inj_max)
@@ -250,6 +250,7 @@ P_e_int  = 0.d0
 P_i_int  = 0.d0
 C_intern = 0.d0
 H_int    = 0.d0
+H_impl_int = 0.d0
 S_int    = 0.d0
 VP_int   = 0.d0
 VK_int   = 0.d0
@@ -261,6 +262,7 @@ P_e_ext  = 0.d0
 P_i_ext  = 0.d0
 C_ext    = 0.d0
 H_ext    = 0.d0
+H_impl_ext  = 0.d0
 S_ext    = 0.d0
 VP_ext   = 0.d0
 VK_ext   = 0.d0
@@ -347,6 +349,10 @@ ife_delta = ceiling(float(element_list%n_elements) / n_cpu)
 ife_min   =      my_id     * ife_delta + 1
 ife_max   = min((my_id +1) * ife_delta, element_list%n_elements)
 
+#ifdef WITH_TiTe
+Tie_min_neg = 0.5*T_min_neg
+#endif
+
 !$omp parallel default(none)                                                                   &
 !$omp   shared(element_list,node_list, H, H_s, H_t, HZ, HZ_p, ife_min, ife_max, xpoint, xcase, &
 !$omp          H_ss, H_tt, H_st,                                                               &
@@ -355,6 +361,7 @@ ife_max   = min((my_id +1) * ife_delta, element_list%n_elements)
 !$omp          VK_ext, VK_int, VK_tot, VM_ext, VM_int, VM_tot, J2_tot, J2_ext, J2_int,         &
 !$omp          H_int, H_ext, S_int, S_ext,psi_xpoint,  F0, VP_tot,eta, T_0, Te_0, T_min,       &
 !$omp          ne_SI_min, Te_eV_min, rn0_min, P_e_tot, P_i_tot, P_e_int, P_i_int, P_e_ext, P_i_ext, &
+!$omp          T_min_neg, Tie_min_neg, H_impl_int,H_impl_ext,implicit_heat_source,GAMMA,                                     &
 !$omp          pellet_amplitude,pellet_R,pellet_Z,pellet_psi,pellet_phi,                       &
 !$omp          pellet_radius, pellet_delta_psi, pellet_sig, pellet_length, pellet_ellipse, pellet_theta,  &
 !$omp          central_density, pellet_particles,pellet_density, pellet_volume,                &
@@ -373,7 +380,7 @@ ife_max   = min((my_id +1) * ife_delta, element_list%n_elements)
 !$omp          n_adas, nimp_bg, local_radiation_bg,                                            &
 #endif
 #if (defined WITH_Neutrals) && (!defined WITH_Impurities)
-!$omp          ksi_ion, GAMMA, use_imp_adas,                                                   &
+!$omp          ksi_ion, use_imp_adas,                                                   &
 #endif
 #if (defined WITH_Impurities)
 !$omp          index_main_imp,                                                                 &
@@ -446,7 +453,7 @@ omp_tid      = 0
 !$omp                VP_int, VP_ext, VP_tot, VK_tot, VK_int, VK_ext, VM_ext,                  &
 !$omp                VM_int, VM_tot, Vol, P_tot, D_tot,J2_tot, J2_int, J2_ext,                &
 !$omp                heli_tot, mag_wk_tot, vpar_disp_tot, thm_wk_tot, area1, mag_src_tot,     &
-!$omp                fric_disp_tot, R2curr_tmp, Zcurr_tmp)
+!$omp                fric_disp_tot, R2curr_tmp, Zcurr_tmp,H_impl_int,H_impl_ext)
 
 do ife = ife_min, ife_max
 
@@ -1206,6 +1213,18 @@ do ife = ife_min, ife_max
           P_i_int = P_e_int
 #endif /* WITH_TiTe */
 #endif /* WITH_Impurities */
+#ifdef WITH_TiTe
+		  !H_impl_int Te
+          H_impl_int = H_impl_int +implicit_heat_source*(gamma-1.d0)   *xjac*BigR*wst*delta_phi&
+               *( 0.5d0*Tie_min_neg* (1+exp( (min(T0e,Tie_min_neg)-Tie_min_neg)/(0.5d0*Tie_min_neg) )) -min(T0e,Tie_min_neg))
+		  !H_impl_int Ti
+          H_impl_int = H_impl_int +implicit_heat_source*(gamma-1.d0)  *xjac*BigR*wst*delta_phi & 
+               *( 0.5d0*Tie_min_neg* (1+exp( (min(T0i,Tie_min_neg)-Tie_min_neg)/(0.5d0*Tie_min_neg) )) -min(T0i,Tie_min_neg))
+#else /* WITH_TiTe */
+		  !H_impl_int T0
+          H_impl_int = H_impl_int + implicit_heat_source*(gamma-1.d0) *xjac*BigR*wst*delta_phi &
+          *(0.5d0*T_min_neg * ( 1+exp( (min(T0,T_min_neg)-T_min_neg)/(0.5d0*T_min_neg) )) -min(T0,T_min_neg))
+#endif /* WITH_TiTe */
           C_intern = C_intern - zj0 /BigR * xjac *        wst * delta_phi    ! 2D integral
           area1    = area1    +  xjac * wst * delta_phi         
           Vol   = Vol   +             xjac * BigR * wst * delta_phi
@@ -1239,6 +1258,18 @@ do ife = ife_min, ife_max
           P_i_ext = P_e_ext
 #endif /* WITH_TiTe */
 #endif /* WITH_Impurities */
+#ifdef WITH_TiTe
+		  !H_impl_ext Te
+          H_impl_ext = H_impl_ext +implicit_heat_source*(gamma-1.d0)*xjac*BigR*wst*delta_phi & 
+               *(0.5d0*Tie_min_neg * (1 + exp( (min(T0e,Tie_min_neg)-Tie_min_neg)/(0.5d0*Tie_min_neg) )) -min(T0e,Tie_min_neg))
+		  !H_iml_ext Ti
+          H_impl_ext = H_impl_ext +implicit_heat_source*(gamma-1.d0)*xjac*BigR*wst*delta_phi & 
+               *(  0.5d0*Tie_min_neg*(1 + exp( (min(T0i,Tie_min_neg)-Tie_min_neg)/(0.5d0*Tie_min_neg))) -min(T0i,Tie_min_neg))
+#else /* WITH_TiTe */
+		  !H_impl_ext T0
+          H_impl_ext = H_impl_ext + implicit_heat_source*(gamma-1.d0)*xjac*BigR*wst*delta_phi&
+               *(0.5d0*T_min_neg * (1 + exp( (min(T0,T_min_neg)-T_min_neg)/(0.5d0*T_min_neg) ) ) -min(T0,T_min_neg))
+#endif /* WITH_TiTe */
           C_ext = C_ext - zj0 / BigR * xjac *        wst * delta_phi  ! 2D integral
           H_ext = H_ext + heat_source     * xjac * BigR * wst * delta_phi
           S_ext = S_ext + particle_source * xjac * BigR * wst * delta_phi
@@ -1708,6 +1739,8 @@ call MPI_AllReduce(P_e_tot,pressure_e,1,MPI_DOUBLE_PRECISION,MPI_SUM,MPI_COMM_WO
 call MPI_AllReduce(P_i_tot,pressure_i,1,MPI_DOUBLE_PRECISION,MPI_SUM,MPI_COMM_WORLD,ierr)
 call MPI_AllReduce(H_ext,heating_out,1,MPI_DOUBLE_PRECISION,MPI_SUM,MPI_COMM_WORLD,ierr)
 call MPI_AllReduce(H_int,heating_in,1,MPI_DOUBLE_PRECISION,MPI_SUM,MPI_COMM_WORLD,ierr)
+call MPI_AllReduce(H_impl_ext,heating_impl_out,1,MPI_DOUBLE_PRECISION,MPI_SUM,MPI_COMM_WORLD,ierr)
+call MPI_AllReduce(H_impl_int,heating_impl_in,1,MPI_DOUBLE_PRECISION,MPI_SUM,MPI_COMM_WORLD,ierr)
 call MPI_AllReduce(S_ext,source_out,1,MPI_DOUBLE_PRECISION,MPI_SUM,MPI_COMM_WORLD,ierr)
 call MPI_AllReduce(S_int,source_in,1,MPI_DOUBLE_PRECISION,MPI_SUM,MPI_COMM_WORLD,ierr)
 call MPI_AllReduce(VP_int,kin_par_in,1,MPI_DOUBLE_PRECISION,MPI_SUM,MPI_COMM_WORLD,ierr)
@@ -1760,6 +1793,8 @@ pressure_e           = P_e_tot
 pressure_i           = P_i_tot
 heating_out          = H_ext
 heating_in           = H_int
+heating_impl_out     = H_impl_ext
+heating_impl_in      = H_impl_int
 source_out           = S_ext
 source_in            = S_int
 kin_par_in           = VP_int
@@ -1880,6 +1915,8 @@ ohm_in               = n_period * ohm_in      * fact_flux
 ohm_out              = n_period * ohm_out     * fact_flux
 heating_out          = n_period * heating_out * fact_flux / (GAMMA-1.d0)
 heating_in           = n_period * heating_in  * fact_flux / (GAMMA-1.d0)
+heating_impl_out     = n_period * heating_impl_out * fact_flux / (GAMMA-1.d0)
+heating_impl_in      = n_period * heating_impl_in  * fact_flux / (GAMMA-1.d0)
 source_out           = n_period * source_out  * fact_part / t_norm2
 source_in            = n_period * source_in   * fact_part / t_norm2
 density_tot          = n_period * density_tot * fact_part 
@@ -1923,6 +1960,7 @@ E_in         = mag_in  + pressure_in  + kin_par_in  + kin_perp_in
 E_out        = mag_out + pressure_out + kin_par_out + kin_perp_out 
 current_tot  = current_in + current_out
 heating_tot  = heating_in + heating_out
+heating_impl_tot  = heating_impl_in + heating_impl_out
 source_tot   = source_in  + source_out
 Bgeo         = F0 / R_geo
 current_MA   = current_in * 1.d-6 * (1.d0/fact_mu0) * (1/mu_zero)
@@ -1938,7 +1976,12 @@ Z_curr_cent  = Z_curr_cent / current_tot
 
 ! --- Externally calculated quantities
 ! --- Halo currents
-call integrated_normal_bnd_curr(node_list, bnd_node_list, bnd_elm_list, I_halo, TPF, .false.)
+#ifdef fullmhd   
+  I_halo = 0.d0 ! Needs to be adapted for Full MHD
+  TPF    = 0.d0 
+#else
+  call integrated_normal_bnd_curr(node_list, bnd_node_list, bnd_elm_list, I_halo, TPF, .false.)
+#endif
 
 ! --- Safety factor at important locations
 surface_list%n_psi = 4 
@@ -2310,6 +2353,7 @@ if (my_id .eq. 0) then
   write(*,'(A,4es14.6,A)') ' magnetic (total/in/out)         : ',xt,mag_tot/1.d6, mag_in/1.d6, mag_out/1.d6,' [MJ]'
   write(*,'(A,3es14.6,A)') ' current  (in/out)               : ',xt,current_in/1.d6, current_out/1.d6, ' [MA]'
   write(*,'(A,3es14.6,A)') ' heating  (in/out)               : ',xt,heating_in/1d6, heating_out/1.d6 ,' [MW]'
+  write(*,'(A,4es14.6,A)') ' Implicit heating  (total/in/out): ',xt,heating_impl_tot/1.d6,heating_impl_in/1.d6, heating_impl_out/1.d6 ,' [MW]'
   write(*,'(A,3es14.6,A)') ' source   (in/out)               : ',xt,source_in, source_out,' [10^20/m^3/s]'
   write(*,'(A,4es14.6,A)') ' Ohmic    (in/out)               : ',xt,Ohm_tot/1.d6, Ohm_in/1.d6, Ohm_out/1.d6,' [MW]'
 

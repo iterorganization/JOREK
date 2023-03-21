@@ -129,6 +129,10 @@ module phys_module
   integer :: mumps_ordering       !< MUMPS ordering option (7:automatic, 3:Scotch, 4:PORD, 5:METIS), default: 7
   integer :: pastix_maxthrd       !< maximum number of threads used by pastix solver (could be beneficial to use the reduced number)
   real*8  :: pastix_pivot         !< Pastix epsilon for magnitude control (pivot threshold)
+  logical :: use_newton           !< Use inexact Newton method
+  integer :: maxNewton            !< maximum number of Newton iterations
+  real(kind=8) :: gamma_Newton    !< Newton gamma-parameter: gmres_tol = gamma_Newton*(normRHScurrent/normRHSprevious)**alpha_Newton
+  real(kind=8) :: alpha_Newton    !< Newton alpha-parameter: gmres_tol = gamma_Newton*(normRHScurrent/normRHSprevious)**alpha_Newton
 
   ! ------------------------------------------------
   ! --- Structures to implement BCs in model600
@@ -841,6 +845,7 @@ module phys_module
   real*8              :: rho_min            !< minimum density
   real*8              :: T_min_neg          !< minimum temperature,used for correcting negative values,in jorek units: 2.01d-5*central_density*Tmin_ev (preset central_density = 1, 20 eV)  
   real*8              :: rho_min_neg        !< minimum density, used for correcting negative values  
+  real*8              :: implicit_heat_source !< Choose = 1.d0 to fully switch on the implicit heat source for numerical stabilization
   
   real*8              :: ne_SI_min          !< minimum e density (in SI unit) below which we cut-off the radiation loss
   real*8              :: Te_eV_min          !< minimum temperature (in eV) below which we cut-off the radiation loss
