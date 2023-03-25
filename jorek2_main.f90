@@ -646,7 +646,6 @@ mpi_required = 0
     solver%tstep = tstep
     solver%istep = istep
     solver%index_now = index_now
-    solver%solve_only = (istep > 1)
 
     if (solver%use_newton) then
       call solve_newton(a_mat, rhs_vec, deltas, solver, mhd_sim, my_id)
