@@ -2195,6 +2195,10 @@ do i=1,n_vertex_max
                     amat_n(var_psi,var_T) = - v * tauIC/(r0_corr*BB2) * F0**3/BigR**3 * r0 * T_p       * xjac * theta * tstep
                   end if ! (with_TiTe) *************************************************************
 
+                  if (with_impurities) then
+                    amat(var_psi,var_rhoimp) = - deta_drimp0 * v * rhoimp * (zj0-current_source(ms,mt)-Jb) / BigR * xjac * theta * tstep
+                  endif
+
                   !###################################################################################################
                   !#  Perpendicular Momentum Equation                                                                #
                   !###################################################################################################
@@ -2440,9 +2444,27 @@ do i=1,n_vertex_max
                     amat(var_u,var_rhon) = -(1.d0 - delta_n_convection) * BigR**3 * ((r0+alpha_e*rimp0) * rhon * Sion_T) * (v_x * u0_x + v_y * u0_y) * xjac * theta * tstep 
                   endif
                   if (with_impurities) then
+                    if (with_TiTe) then
+                      amat(var_u,var_Ti) = amat(var_u,var_Ti) &
+                                           - BigR**2 * (v_s * rimp0_t * alpha_i * Ti - v_t * rimp0_s * alpha_i * Ti) * theta * tstep  & 
+                                           - BigR**2 * (v_s * rimp0 * alpha_i * Ti_t - v_t * rimp0 * alpha_i * Ti_s) * theta * tstep 
+                      amat(var_u,var_Te) = amat(var_u,var_Te) &
+                                           - BigR**2 * (v_s * rimp0_t * alpha_e_bis * Te - v_t * rimp0_s * alpha_e_bis * Te) * theta * tstep  &
+                                           - BigR**2 * (v_s * rimp0 * alpha_e_bis * Te_t - v_t * rimp0 * alpha_e_bis * Te_s) * theta * tstep  &
+                                           - BigR**2 * (v_s * rimp0 * alpha_e_tri * Te * Te0_t - v_t * rimp0 * alpha_e_tri * Te * Te0_s) * theta * tstep
+                    else
+                      amat(var_u,var_T)  = amat(var_u,var_T) &
+                                           - BigR**2 * (v_s * rimp0_t * alpha_imp_bis * T - v_t * rimp0_s * alpha_imp_bis * T) * theta * tstep  &
+                                           - BigR**2 * (v_s * rimp0 * alpha_imp_bis * T_t - v_t * rimp0 * alpha_imp_bis * T_s) * theta * tstep  &
+                                           - BigR**2 * (v_s * rimp0 * alpha_imp_tri * T * T0_t - v_t * rimp0 * alpha_imp_tri * T * T0_s) * theta * tstep
+                    endif
                     amat(var_u,var_rhoimp) = -(1.d0 - delta_n_convection) * BigR**3 * (&
                               +(alpha_e * rn0 * rhoimp * Sion_T)                          * (v_x * u0_x + v_y * u0_y) * xjac * theta * tstep &
-                              -((-2.d0*alpha_e*rimp0 +(alpha_e-1.)*r0) * rhoimp * Srec_T) * (v_x * u0_x + v_y * u0_y) * xjac * theta * tstep )
+                              -((-2.d0*alpha_e*rimp0 +(alpha_e-1.)*r0) * rhoimp * Srec_T) * (v_x * u0_x + v_y * u0_y) * xjac * theta * tstep ) &
+                              - BigR**2 * (v_s * rhoimp_t * alpha_i * Ti0 - v_t * rhoimp_s * alpha_i * Ti0)                  * theta * tstep &
+                              - BigR**2 * (v_s * rhoimp * alpha_i * Ti0_t - v_t * rhoimp * alpha_i * Ti0_s)                  * theta * tstep &
+                              - BigR**2 * (v_s * rhoimp_t * alpha_e * Te0     - v_t * rhoimp_s * alpha_e * Te0)              * theta * tstep &
+                              - BigR**2 * (v_s * rhoimp * alpha_e_bis * Te0_t - v_t * rhoimp * alpha_e_bis * Te0_s)          * theta * tstep
                   endif
 
                   !###################################################################################################
@@ -2914,9 +2936,43 @@ do i=1,n_vertex_max
                       amat(var_vpar,var_rhon) = (1.d0 - delta_n_convection) * v *((r0+alpha_e*rimp0) * rhon * Sion_T) * vpar0 * BB2 * BigR * xjac * theta * tstep
                     endif
                     if (with_impurities) then
+                      if (with_TiTe) then
+                        amat(var_vpar,var_Ti)   = amat(var_vpar,var_Ti) &
+                                                  + v * (Ti_s * rimp0 * alpha_i * ps0_t - Ti_t * rimp0 * alpha_i * ps0_s)    * theta * tstep &
+                                                  + v * (Ti * rimp0_s * alpha_i * ps0_t - Ti * rimp0_t * alpha_i * ps0_s)    * theta * tstep &
+                                                  + v * F0 / BigR * (                       + Ti * rimp0_p * alpha_i) * xjac * theta * tstep
+                        amat_n(var_vpar,var_Ti) = amat_n(var_vpar,var_Ti) &
+                                                  + v * F0 / BigR * (Ti_p * rimp0 * alpha_i                         ) * xjac * theta * tstep
+                        amat(var_vpar,var_Te)   = amat(var_vpar,var_Te) &
+                                                  + v * (Te_s * rimp0 * alpha_e_bis * ps0_t  - Te_t * rimp0 * alpha_e_bis *  ps0_s) * theta * tstep &
+                                                  + v * (Te0_s* rimp0 * alpha_e_tri*Te*ps0_t - Te0_t* rimp0 * alpha_e_tri*Te*ps0_s) * theta * tstep &
+                                                  + v * (Te * rimp0_s * alpha_e_bis * ps0_t  - Te * rimp0_t * alpha_e_bis *  ps0_s) * theta * tstep &
+                                                  + v * F0 / BigR * (                         + Te * rimp0_p * alpha_e_bis)  * xjac * theta * tstep &
+                                                  + v * F0 / BigR * Te0_p * rimp0 * Te                       * alpha_e_tri   * xjac * theta * tstep
+                        amat_n(var_vpar,var_Te) = amat_n(var_vpar,var_Te) &
+                                                  + v * F0 / BigR * (Te_p * rimp0 * alpha_e_bis                           )  * xjac * theta * tstep
+                      else
+                        amat(var_vpar,var_T)    = amat(var_vpar,var_T) &
+                                                  + v * (T_s * rimp0 * alpha_imp_bis * ps0_t - T_t * rimp0 * alpha_imp_bis * ps0_s) * theta * tstep &
+                                                  + v * (T0_s* rimp0 * alpha_imp_tri*T*ps0_t - T0_t* rimp0 * alpha_imp_tri*T*ps0_s) * theta * tstep &
+                                                  + v * (T * rimp0_s * alpha_imp_bis * ps0_t - T * rimp0_t * alpha_imp_bis * ps0_s) * theta * tstep &
+                                                  + v * F0 / BigR * T * rimp0_p * alpha_imp_bis                              * xjac * theta * tstep &
+                                                  + v * F0 / BigR * T0_p * rimp0 * T                       * alpha_imp_tri   * xjac * theta * tstep
+                        amat_n(var_vpar,var_T)  = amat_n(var_vpar,var_T) &
+                                                  + v * F0 / BigR * T_p * rimp0 * alpha_imp_bis                              * xjac * theta * tstep
+                      endif
                       amat(var_vpar,var_rhoimp) = (1.d0 - delta_n_convection) * (&
                                   + v *(alpha_e * rn0 * rhoimp  * Sion_T) * vpar0 * BB2 * BigR                         * xjac * theta * tstep &
-                                  - v *(rhoimp * (-2.d0*alpha_e*rimp0 +(alpha_e-1.)*r0) * Srec_T) * vpar0 * BB2 * BigR * xjac * theta * tstep )
+                                  - v *(rhoimp * (-2.d0*alpha_e*rimp0 +(alpha_e-1.)*r0) * Srec_T) * vpar0 * BB2 * BigR * xjac * theta * tstep ) &
+                                  + v * (rhoimp_s * alpha_i * Ti0 * ps0_t     - rhoimp_t * alpha_i * Ti0 * ps0_s)             * theta * tstep &
+                                  + v * (rhoimp * alpha_i * Ti0_s * ps0_t     - rhoimp * alpha_i * Ti0_t * ps0_s)             * theta * tstep &
+                                  + v * F0 / BigR * (                         + rhoimp * alpha_i * Ti0_p)              * xjac * theta * tstep &
+                                  + v * (rhoimp_s * alpha_e * Te0 * ps0_t     - rhoimp_t * alpha_e * Te0 * ps0_s)             * theta * tstep &
+                                  + v * (rhoimp * alpha_e_bis * Te0_s * ps0_t - rhoimp * alpha_e_bis * Te0_t * ps0_s)         * theta * tstep &
+                                  + v * F0 / BigR * (                         + rhoimp * alpha_e_bis * Te0_p)          * xjac * theta * tstep
+                      amat_n(var_vpar,var_rhoimp) = &
+                                  + v * F0 / BigR * (rhoimp_p * alpha_i * Ti0                           )              * xjac * theta * tstep &
+                                  + v * F0 / BigR * (rhoimp_p * alpha_e * Te0                           )              * xjac * theta * tstep
                     endif
 
                   end if ! (with_vpar)
@@ -3409,6 +3465,7 @@ do i=1,n_vertex_max
                               - v * (r0 + rimp0 * alpha_e_bis) * BigR**2  * (Te_s * u0_t - Te_t  * u0_s) * theta * tstep &
                               - v * (rimp0 * alpha_e_tri) * Te * BigR**2 * (Te0_s* u0_t - Te0_t * u0_s)  * theta * tstep &
                               - v * Te  * BigR**2 * ( r0_s * u0_t - r0_t * u0_s)                         * theta * tstep &
+                              - v * alpha_e_bis * Te * BigR**2 * (rimp0_s * u0_t - rimp0_t * u0_s)       * theta * tstep &
   
                               - v * (r0 + rimp0 * alpha_e_bis) * 2.d0* GAMMA * BigR * Te * u0_y   * xjac * theta * tstep &
                               - implicit_heat_source*(gamma-1.d0)*v                                                      &
