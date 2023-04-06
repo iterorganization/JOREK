@@ -18,14 +18,14 @@ function compile_jorek () {
 
 # --- Initial run only required when preparing or updating the test case
 function initial_run () {
-  ${codedir}/util/setinput.sh input restart=.f. nstep_n=30 tstep_n=3000.             || exit 1
+  ${codedir}/util/setinput.sh input restart=.f. nstep_n=25,15,5,20 tstep_n=2000.,1000.,500.,200. || exit 1
   $MPIRUN $mpitasks ./jorek_model${jorekmodel}_3 < input | tee logfile_initial       || exit 1
 }
 
 
 # --- Carry out the test case
 function restart_run () {
-  ${codedir}/util/setinput.sh input restart=.t. nstep_n=1 tstep_n=3000. nout=1       || exit 1
+  ${codedir}/util/setinput.sh input restart=.t. nstep_n=1 tstep_n=200. nout=1       || exit 1
   $MPIRUN $mpitasks ./jorek_model${jorekmodel}_3 < input | tee logfile               || exit 1
 }
 

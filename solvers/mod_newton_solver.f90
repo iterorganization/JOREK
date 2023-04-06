@@ -58,7 +58,7 @@ module mod_newton_solver
     solve_tol = solver%iter_tol
 
     newton_loop: do inewton=1, solver%newton%maxNewton
-
+      solver%newton%it = inewton
       if (inewton.gt.1) call matrix_vector(deln, a_mat, rhsk)
       normRHSprevious = normRHScurrent
       rhsk%val(1:rhsk%n) = rhs_vec%val(1:rhs_vec%n) - rhsk%val(1:rhsk%n)
@@ -94,15 +94,17 @@ module mod_newton_solver
         deallocate(dum_vec%val)
 
         if (inewton.eq.solver%newton%maxNewton) then
-          write(*,*) "Newton failed to converge:", inewton - 1, tol_Newton
+          if (verbose) then
+            write(*,*) "Newton failed to converge:", inewton - 1, tol_Newton
+          endif
           solver%step_success = .false.
+          return
         endif
 
       endif
 
       solver%iter_tol = tol_Gmres
       call solve_sparse_system(a_matk, rhsk, deltas, solver, mhd_sim)
-      solver%solve_only = .true.
 
       if (.not.solver%step_success) return
 

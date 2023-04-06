@@ -137,16 +137,16 @@ program jorek2_wall_forces
 
     call MPI_Barrier(MPI_COMM_WORLD,ierr)
     ! --- Fill the vacuum response matrices for freeboundary computations
-    if (first_step) then
-    
-       ! --- Determine boundary information from the grid
-       if ( my_id == 0 ) call boundary_from_grid(node_list, element_list, bnd_node_list, bnd_elm_list, output_bnd_elements)
-       call broadcast_boundary(my_id, bnd_elm_list, bnd_node_list)
-   
-       call broadcast_vacuum(my_id, resistive_wall)
 
+    
+    ! --- Determine boundary information from the grid
+    if ( my_id == 0 ) call boundary_from_grid(node_list, element_list, bnd_node_list, bnd_elm_list, output_bnd_elements)
+    call broadcast_boundary(my_id, bnd_elm_list, bnd_node_list)
+
+    call broadcast_vacuum(my_id, resistive_wall)
+    if (first_step) then
        call get_vacuum_response(my_id, node_list, bnd_elm_list, bnd_node_list, freeboundary_equil,    &
-        resistive_wall)
+            resistive_wall)
        call import_external_fields('coil_field.dat', my_id)
        if ( .not. wall_curr_initialized ) call init_wall_currents(my_id, resistive_wall)
        first_step = .false.

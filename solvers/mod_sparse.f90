@@ -96,13 +96,15 @@ module mod_sparse
 
       ! condition for no PC update
       solver%solve_only = (solver%istep.gt.1) .and. ((solver%iter_gmres + solver%iter_prev <= 2*solver%iter_precon) &
-                                             .and.  (solver%n_since_update < solver%max_steps_noUpdate))
-
-      if (solver%solve_only) then
-        solver%n_since_update = solver%n_since_update + 1
-      else
-        solver%n_since_update = 0
+                                              .and.  (solver%n_since_update < solver%max_steps_noUpdate))
+      if (solver%newton%it.lt.2) then ! no counter within Newton loop
+        if (solver%solve_only) then
+          solver%n_since_update = solver%n_since_update + 1
+        else
+          solver%n_since_update = 0
+        endif
       endif
+      solver%solve_only = (solver%solve_only).or.(solver%newton%it.gt.1) ! no PC update within Newton loop
 
       if (.not.solver%pc%initialized) then
         call initialize_preconditioner(solver%pc,a_mat%comm)

@@ -22,6 +22,7 @@ module mod_sparse_data
     real(kind=8)                  :: alpha_Newton = 2.d0
     real(kind=8), pointer         :: store_value(:,:,:,:) => null()
     real(kind=8), pointer         :: store_delta(:,:,:,:) => null()
+    integer                       :: it = 1                   !< current iteration
 
     contains
     procedure :: newton_setup, newton_finalize
@@ -47,7 +48,7 @@ module mod_sparse_data
 
     integer                     :: iter_precon                         !< maximum number of iterations without pc update (input)
     integer                     :: max_steps_noUpdate                  !< maximum number of time steps without pc update (input)
-    integer                     :: iter_max                            !< maximum allowed number of iterations (input)
+    integer                     :: iter_max                            !< maximum allowed number of GMRES/BiCGSTAB iterations (input)
 
     integer                     :: n_since_update = 0                  !< number of time steps since last pc update
     integer                     :: iter_prev = 0                       !< number of iterations in the previous step
@@ -57,7 +58,7 @@ module mod_sparse_data
     logical                     :: step_success = .false.              !< flag indicating successfull time step completion
     logical                     :: iterative = .false.                 !< flag indicating use of iterative solver
     logical                     :: equilibrium = .false.               !< flag indicating equilibrium solver (with duplicate entries in sparse matrix)
-    logical                     :: use_newton = .false.
+    logical                     :: use_newton = .false.                !< flag for using iterative Newton method
 
     integer                     :: library = pastix                    !< solver library (default=pastix)
 
@@ -157,6 +158,7 @@ module mod_sparse_data
     self%maxNewton = 20
     self%gamma_Newton = 0.5
     self%alpha_Newton = 2.d0
+    self%it = 1
     return
   end subroutine newton_finalize
 

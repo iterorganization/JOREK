@@ -73,7 +73,7 @@ real*8  :: ps0_b, T0_b, T0i_b, T0e_b, u0_b, Vpar0_b, R_b, Z_b, R_bb, Z_bb, ps0_b
 real*8  :: Btot, grad_psi, u0_s, u0_t, u0_x, u0_y
 real*8  :: element_size_s, element_size_t, element_size_0
 real*8  :: H1(2,n_degrees_1d), H1_s(2,n_degrees_1d), H1_ss(2,n_degrees_1d)
-integer :: i, in, iv, iv2, iv3, inode, inode2, inode3, k
+integer :: i, in, iv, iv2, iv3, inode, inode2, inode3, k, i_var1, i_var2
 integer :: index_large_i, index_node, index_node2, ielm
 integer(kind=int_all) :: ijA_position,ijA_position2
 integer :: ilarge2, ilarge_vv, ilarge_vT, ilarge_vus, ilarge_vn
@@ -292,7 +292,7 @@ do i=1, n_local_elms !=== do elements
             if ( .not. is_freebound(in,k) )   apply_current_BC = .true.
           endif
           !---------------------------------------------------------------------------------------------------                      
-
+          
           
           !------------ Decide when to apply vpar=cs ---------------------------------------------------------                      
           apply_cs = .false.          
@@ -319,20 +319,29 @@ do i=1, n_local_elms !=== do elements
             if ( (k==var_psi  ) .and. (.not. apply_psi_BC    ) )       cycle
             if ( (k==var_zj   ) .and. (.not. apply_current_BC) )       cycle
             if ( (k==var_vpar ) .and.  apply_cs .and. (bnd_type/=3)  ) cycle  ! vpar=cs is a special case (this is done below)
-                                                                              ! however bnd_type=3 needs both BCs for different directions
+                                                                                   ! however bnd_type=3 needs both BCs for different directions
+            i_var1 = k;       i_var2 = k;
+
+            ! --- If fixed boundary for psi but zj is free, put dpsi=0 in zj equation
+            if ((k==var_psi )     .and. (.not. bcs(bnd_type)%dirichlet%zj) )  then   
+              i_var1 = var_zj;       i_var2 = var_psi;
+            ! --- If u=0 but w is free, put u=0 in w equation
+            else if ( (k==var_u ) .and. (.not. bcs(bnd_type)%dirichlet%w) )  then   
+              i_var1 = var_w;        i_var2 = var_u;
+            endif
 
 !            if ((k.eq.7) .and. (node_list%node(inode)%boundary .eq. 3)) cycle  !=== better included for ITER extended wall
 
             index_node = node_list%node(inode)%index(1)
 
             call boundary_conditions_add_one_entry(                 &
-                   index_node, k, in, index_node, k, in,            &
+                   index_node, i_var1, in, index_node, i_var2, in,  &
                    zbig, index_min, index_max, a_mat)
-
+  
             index_node = node_list%node(inode)%index(iv_dir)
-
+  
             call boundary_conditions_add_one_entry(                 &
-                   index_node, k, in, index_node, k, in,            &
+                   index_node, i_var1, in, index_node, i_var2, in,  &
                    zbig, index_min, index_max, a_mat)
 
           endif
