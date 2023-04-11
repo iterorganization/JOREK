@@ -218,8 +218,9 @@ real*8, dimension(n_tor,n_plane) :: HHZ, HHZ_p, HHZ_pp
 real*8     :: midp_edge1(1:2), midp_edge2(1:2), midp_edge3(1:2), midp_edge4(1:2)
 real*8     :: len1, len2, h_e
 real*8     :: Ptot, Ptot_x,  Ptot_y,  Ptot_p, Ptot_corr
-real*8     :: f_p, d_p, tau_sc, R_rho, R_pi, R_pe, R_p, R_rhon, my_zero = 0.d0
-real*8     :: s_p, src_rho, src_p, src_pi, src_pe, src_rhon
+real*8     :: f_p, d_p, tau_sc, R_rho, R_Ti, R_Te, R_T, R_rhon, R_rhoimp
+real*8     :: s_p, src_p, src_pi, src_pe, rho_eff, rhoi_eff, rhoe_eff
+real*8     :: divU
 
 if (present(get_terms)) then
   max_terms_loop = max_terms
@@ -2173,7 +2174,9 @@ do i=1,n_vertex_max
                               - v * tauIC*2./(r0_corr*BB2) * F0**3/BigR**3 * rho * Te0_p                     * xjac * theta * tstep &
 
                               - v * tauIC*2. * rho /(r0_corr**2 * BB2) * F0**2/BigR**2 * (ps0_s * Pe0_t - ps0_t * Pe0_s) * theta * tstep &
-                              + v * tauIC*2. * rho /(r0_corr**2 * BB2) * F0**3/BigR**3 * Pe0_p                    * xjac * theta * tstep 
+                              + v * tauIC*2. * rho /(r0_corr**2 * BB2) * F0**3/BigR**3 * Pe0_p                    * xjac * theta * tstep &
+                              ! The density gradient term from Z_eff
+                              - deta_dr0 * v * rho * (zj0-current_source(ms,mt)-Jb) / BigR                        * xjac * theta * tstep
 
                   amat_n(var_psi,var_rho) = - v * tauIC*2./(r0_corr*BB2) * F0**3/BigR**3 * Te0  * rho_p           * xjac * theta * tstep 
 
@@ -4699,157 +4702,199 @@ CONTAINS
 
 ! subroutine that calculates shock-capturing stabilization related terms
 subroutine calculate_sc_quantities()
-! Define total pressure as (assuming neutrals are at same temperature as ions)
-! P_tot = r0 * (Ti0 + Te0) + rn0 * Ti0         and   r0 * T0 + 0.5d0 * rn0 * T0
-if ( with_TiTe ) then 
-  Ptot     = Pi0   + Pe0    + rn0 * Ti0
-  Ptot_corr= r0_corr * (Ti0_corr + Te0_corr) + rn0_corr * Ti0_corr
-  Ptot_p   = Pi0_p + Pe0_p  + rn0 * Ti0_p + rn0_p * Ti0
-  Ptot_x   = Pi0_x + Pe0_x  + rn0 * Ti0_x + rn0_x * Ti0
-  Ptot_y   = Pi0_y + Pe0_y  + rn0 * Ti0_y + rn0_y * Ti0
-else
-  Ptot     = P0    + 0.5d0 * rn0 * T0
-  Ptot_corr=  r0_corr * T0_corr + 0.5d0 * rn0_corr * T0_corr
-  Ptot_p   = P0_p  + 0.5d0 * (rn0 * T0_p + rn0_p * T0)
-  Ptot_x   = P0_x  + 0.5d0 * (rn0 * T0_x + rn0_x * T0)
-  Ptot_y   = P0_y  + 0.5d0 * (rn0 * T0_y + rn0_y * T0)
+
+! initialize variables
+f_p = 0.d0 ; d_p = 0.d0 ; s_p = 0.d0
+
+! step 1: construct total pressure to construct shock detector (f_p)
+Ptot     = P0
+Ptot_p   = P0_p
+Ptot_x   = P0_x
+Ptot_y   = P0_y
+
+! approximate residuals
+R_rho    = 0.d0
+R_Ti     = 0.d0
+R_Te     = 0.d0
+R_T      = 0.d0
+R_rhon   = 0.d0
+R_rhoimp = 0.d0
+
+! step 2: construct modulation term d_p 
+! divU = [vpar,\psi] / R + F*vpar0_p / R**2 - 2 * u_y
+divU = (vpar0_x * ps0_y - vpar0_y * ps0_x) / BigR  &
+       +  F0 * vpar0_p / BigR**2 - 2.d0 * u0_y
+
+! construct d_p using R_rho, R_Ti, R_Te, R_T, R_rhon, R_rhoimp
+! approximate residual in the density equation: \nabla \cdot (\rho \boldsymbol{v})
+R_rho = r0 * divU &
+      + Vpar0 * (r0_x * ps0_y - r0_y * ps0_x) / BigR &
+      - BigR  * (r0_x * u0_y  - r0_y * u0_x)         &
+      + F0    * Vpar0 * r0_p / BigR**2
+
+if(with_neutrals)then
+  ! approximate residual in the neutrals density equation: \nabla \cdot (\rho_n  \boldsymbol{v})
+  R_rhon =  delta_n_convection * ( rn0 * divU &
+         + Vpar0 * (rn0_x * ps0_y - rn0_y * ps0_x) / BigR &
+         - BigR  * (rn0_x * u0_y  - rn0_y * u0_x)         &
+         + F0    * Vpar0 * rn0_p / BigR**2 )
+
 endif
 
-d_p = 0.d0
-
-! approximate residual in the density equation: \nabla \cdot (\rho \boldsymbol{v})
-R_rho = + BigR**2 * ( r0_x * u0_y - r0_y * u0_x) &
-        + 2.d0 * BigR * r0 * u0_y                &
-        - F0 / BigR * Vpar0 * r0_p               &
-        - Vpar0 * (r0_x * ps0_y - r0_y * ps0_x)  &
-        - F0 / BigR * r0 * vpar0_p               &
-        - r0 * (vpar0_x * ps0_y - vpar0_y * ps0_x)
-
-! approximate residual in the neutrals density equation: \nabla \cdot (\rho_n  \boldsymbol{v})
-R_rhon =  delta_n_convection*( &
-       +  BigR**2 * ( rn0_x * u0_y - rn0_y * u0_x)  &
-       +  2.d0 * BigR * rn0 * u0_y                  &
-       -  rn0 * (vpar0_x * ps0_y - vpar0_y * ps0_x) &
-       -  Vpar0 * (rn0_x * ps0_y - rn0_y * ps0_x)   &
-       -  F0 / BigR * Vpar0 * rn0_p                 &
-       -  F0 / BigR * rn0 * vpar0_p )
+if( with_impurities ) then
+  ! approximate residual in the impurities density equation: \nabla \cdot (\rho_imp \boldsymbol{v})
+  R_rhoimp =  rimp0 * divU &
+           + Vpar0 * (rimp0_x * ps0_y - rimp0_y * ps0_x) / BigR &
+           - BigR  * (rimp0_x * u0_y  - rimp0_y * u0_x)         &
+           + F0    * Vpar0 * rimp0_p / BigR**2
+endif
 
 ! approximate residual in the pressure equations: \boldsymbol{v} \cdot \nabla p + \gamma p \nabla \boldsymbol{v}
 if ( with_TiTe ) then ! (with_TiTe)
 
-  R_pi = + r0 * BigR**2 * ( Ti0_x * u0_y - Ti0_y * u0_x)                       &
-         + Ti0 * BigR**2 * ( r0_x * u0_y - r0_y * u0_x)                        &
-         
-         + r0 * Ti0 * 2.d0* GAMMA * BigR * u0_y                                &
-         
-         - r0 * F0 / BigR * Vpar0 * Ti0_p                                      &
-         - Ti0 * F0 / BigR * Vpar0 * r0_p                                      &
-         
-         - r0 * Vpar0 * (Ti0_x * ps0_y - Ti0_y * ps0_x)                        &
-         - Ti0 * Vpar0 * (r0_x * ps0_y - r0_y * ps0_y)                         &
-         
-         - r0 * Ti0 * GAMMA * (vpar0_x * ps0_y - vpar0_y * ps0_x)              &
-         - r0 * Ti0 * GAMMA * F0 / BigR * vpar0_p
+  Ptot_corr = r0_corr * Ti0_corr + r0_corr * Te0_corr
 
-  R_pe = + r0 * BigR**2  * (Te0_x * u0_y - Te0_y * u0_x)                       &
-         + Te0 * BigR**2 * ( r0_x * u0_y -  r0_y * u0_x)                       &
-                                                                        
-         + r0 * Te0 * 2.d0* GAMMA * BigR * u0_y                                &
-                                                                        
-         - r0 * F0 / BigR * Vpar0 * Te0_p                                      &
-         - Te0 * F0 / BigR * Vpar0 * r0_p                                      &
-                                                                        
-         - r0 * Vpar0 * (Te0_x * ps0_y - Te0_y * ps0_x)                        &
-         - Te0 * Vpar0 * (r0_x * ps0_y - r0_y * ps0_x)                         &
-                                                                        
-         - r0 * Te0 * GAMMA * (vpar0_x * ps0_y - vpar0_y * ps0_x)              &
-         - r0 * Te0 * GAMMA * F0 / BigR * vpar0_p 
-                                                             
-  ! 1/BigR removes the factor R from the integrand in (R dR)                 
-  d_p = (Ti0 + Te0) * R_rho / BigR +  (R_pi + R_pe) / BigR  + Ti0 * R_rhon / BigR
+  rhoi_eff = r0_corr
+  rhoe_eff = r0_corr
 
-else
-
-  R_p = + r0 * BigR**2 * (T0_x  * u0_y - T0_y * u0_x)                          &
-        + T0 * BigR**2 * ( r0_x * u0_y - r0_y * u0_x)                          &
-                                                                   
-        + r0 * T0 * 2.d0* GAMMA * BigR * u0_y                                  &
-        
-        - r0 * F0 / BigR * Vpar0 * T0_p                                        &
-        - T0 * F0 / BigR * Vpar0 * r0_p                                        &
-        
-        - r0 * Vpar0 * (T0_x * ps0_y - T0_y * ps0_x)                           &
-        - T0 * Vpar0 * (r0_x * ps0_y - r0_y * ps0_x)                           &
-                                                                    
-        - r0 * T0 * GAMMA * (vpar0_x * ps0_y - vpar0_y * ps0_x)                &
-        - r0 * T0 * GAMMA * F0 / BigR * vpar0_p
-                
-  ! 1/BigR removes the factor R from the integrand in (R dR)
-  d_p = T0 * R_rho / BigR + R_p / BigR + T0 * R_rhon / BigR
-
-endif
-
-! Shock-detector term based on the total pressure gradient
-f_p = dsqrt( Ptot_x*Ptot_x + Ptot_y*Ptot_y + Ptot_p*Ptot_p/ (BigR*BigR) ) / Ptot_corr * h_e
-! Estimation of the numerical stabilization coefficient
-tau_sc = h_e * h_e * abs(d_p) / Ptot_corr * f_p
-
-! Use of source terms to increase the stabilization coefficients
-if(add_sources_in_sc)then
-  src_rho = (particle_source(ms,mt) + source_pellet) &
-          + r0_corr * rn0_corr * Sion_T              &
-          - r0_corr * r0_corr  * Srec_T
-
-  src_rhon = - r0_corr * rn0_corr * Sion_T      &
-           + r0_corr * r0_corr  * Srec_T        &
-           + source_neutral_drift
-
-  if ( with_TiTe ) then ! (with_TiTe)
-    src_pi  = heat_source_i(ms,mt)                                      &
-            + ((GAMMA - 1.)/2.) * vpar0**2 * BB2 * (r0_corr*rn0*Sion_T) &
-            + ((GAMMA - 1.)/2.) * vv2 * ((r0_corr*rn0*Sion_T))
-
-    src_pe  = heat_source_e(ms,mt)                           &
-             + (gamma-1.d0) * eta_T_ohm * (zj0 / BigR)**2.d0 &
-             - ksiion  * r0_corr * rn0_corr * Sion_T         &
-             - r0_corr * rn0_corr * LradDrays_T              &
-             - r0_corr * r0_corr  * LradDcont_T              &
-             - r0_corr * frad_bg
-            
-    s_p = (Ti0 + Te0) * src_rho + (src_pi + src_pe) + Ti0 * src_rhon
-  else
-    src_p   =  heat_source(ms,mt)                                         &
-            +  (gamma-1.d0) * eta_T_ohm * (zj0 / BigR)**2.d0              &
-            +  ((GAMMA - 1.)/2.) * vpar0**2 * BB2 * (r0_corr*rn0*Sion_T)  &
-            +  ((GAMMA - 1.)/2.) * vv2 * ((r0_corr*rn0*Sion_T))           &
-            -  ksiion  * r0_corr * rn0_corr * Sion_T                      &
-            -  r0_corr * rn0_corr * LradDrays_T                           &
-            -  r0_corr * r0_corr  * LradDcont_T                           &
-            -  r0_corr * frad_bg
-
-    s_p = T0 * src_rho + src_p + T0 * src_rhon
+  if( with_neutrals ) then
+    ! Define total pressure as (assuming neutrals are at same temperature as ions)
+    Ptot     = Ptot      + rn0 * Ti0
+    Ptot_corr= Ptot_corr + rn0_corr * Ti0_corr
+    Ptot_p   = Ptot_p    + rn0 * Ti0_p + rn0_p * Ti0
+    Ptot_x   = Ptot_x    + rn0 * Ti0_x + rn0_x * Ti0
+    Ptot_y   = Ptot_y    + rn0 * Ti0_y + rn0_y * Ti0
   endif
 
-  tau_sc = h_e * h_e * (abs(s_p) + abs(d_p)) / Ptot_corr * f_p
+  if( with_impurities ) then
+    ! Define 'total' pressure by including impurities and Ionization potential
+    ! P_tot = P0 + (GAMMA-1.d0) * rimp0 * E_ion
+    Ptot     = Ptot      + (GAMMA-1.d0) * rimp0 * E_ion
+    Ptot_corr= Ptot_corr + rimp0_corr * alpha_i * Ti0_corr + rimp0_corr * alpha_e * Te0_corr &
+                         + (GAMMA-1.d0) * rimp0_corr * E_ion
+    Ptot_p   = Ptot_p    + (GAMMA-1.d0) * (rimp0 * dE_ion_dT * T0_p + rimp0_p * E_ion)
+    Ptot_x   = Ptot_x    + (GAMMA-1.d0) * (rimp0 * dE_ion_dT * T0_x + rimp0_x * E_ion)
+    Ptot_y   = Ptot_y    + (GAMMA-1.d0) * (rimp0 * dE_ion_dT * T0_y + rimp0_y * E_ion)
+
+    rhoi_eff = r0_corr + alpha_i*rimp0 + rimp0*Ti0*dalpha_i_dT
+    rhoe_eff = r0_corr + alpha_e*rimp0 + rimp0*Te0*dalpha_e_dT + (GAMMA-1.d0)*rimp0*dE_ion_dT
+  endif
+
+  ! R_Ti = (\boldsymbol{v} \cdot \nabla Ti) + (GAMMA-1.d0) * (r0 + alpha_i*rimp0)*Ti0 / rhoi_eff * divU
+  R_Ti = (GAMMA-1.d0) * (r0 + alpha_i*rimp0)*Ti0 / rhoi_eff * divU &
+       + Vpar0 * (Ti0_x * ps0_y - Ti0_y * ps0_x) / BigR &
+       - BigR  * (Ti0_x * u0_y  - Ti0_y * u0_x)         &
+       + F0    * Vpar0 * Ti0_p / BigR**2
+
+  ! R_Te = (\boldsymbol{v} \cdot \nabla Te) + (GAMMA-1.d0) * (r0 + alpha_e*rimp0)*Te0 / rhoe_eff * divU
+  R_Te = (GAMMA-1.d0) * (r0 + alpha_e*rimp0)*Te0 / rhoe_eff * divU &
+       + Vpar0 * (Te0_x * ps0_y - Te0_y * ps0_x) / BigR &
+       - BigR  * (Te0_x * u0_y  - Te0_y * u0_x)         &
+       + F0    * Vpar0 * Te0_p / BigR**2
+
+  d_p = (Ti0+Te0)*R_rho + rhoi_eff*R_Ti + rhoe_eff*R_Te + Ti0*R_rhon &
+      + (alpha_i*Ti0 + alpha_e*Te0 + (GAMMA-1.d0)*E_ion)*R_rhoimp
+else
+
+  Ptot_corr = r0_corr * T0_corr
+  rho_eff   = r0_corr
+
+  if (with_neutrals)then
+    Ptot     = Ptot      + rn0 * T0
+    Ptot_corr= Ptot_corr + rn0_corr * T0_corr
+    Ptot_p   = Ptot_p    + (rn0 * T0_p + rn0_p * T0)
+    Ptot_x   = Ptot_x    + (rn0 * T0_x + rn0_x * T0)
+    Ptot_y   = Ptot_y    + (rn0 * T0_y + rn0_y * T0)
+  endif
+
+  if (with_impurities)then
+    Ptot     = Ptot      + (GAMMA-1.d0) * rimp0 * E_ion
+    Ptot_corr= Ptot_corr + rimp0_corr * alpha_e * T0_corr + (GAMMA-1.d0) * rimp0_corr * E_ion
+    Ptot_p   = Ptot_p    + (GAMMA-1.d0) * (rimp0 * dE_ion_dT * T0_p + rimp0_p * E_ion)
+    Ptot_x   = Ptot_x    + (GAMMA-1.d0) * (rimp0 * dE_ion_dT * T0_x + rimp0_x * E_ion)
+    Ptot_y   = Ptot_y    + (GAMMA-1.d0) * (rimp0 * dE_ion_dT * T0_y + rimp0_y * E_ion)
+
+    rho_eff  = r0_corr + alpha_imp*rimp0 + rimp0*dalpha_imp_dT*T0 + (GAMMA-1.d0)*rimp0*dE_ion_dT
+  endif
+             
+  ! R_T = (\boldsymbol{v} \cdot \nabla T) + (GAMMA-1.d0) * (r0 + alpha_imp*rimp0)*T0 / rho_eff * divU
+  R_T  = (GAMMA-1.d0) * (r0 + alpha_imp*rimp0)*T0 / rho_eff * divU &
+       + Vpar0 * (T0_x * ps0_y - T0_y * ps0_x) / BigR &
+       - BigR  * (T0_x * u0_y  - T0_y * u0_x)         &
+       + F0    * Vpar0 * T0_p / BigR**2
+
+  d_p = T0*R_rho +  rho_eff*R_T + T0*R_rhon + (alpha_imp*T0+(GAMMA-1.d0)*E_ion)*R_rhoimp
+endif
+
+! step 2.1: update modulation term by including sources (s_p)
+s_p        = 0.d0
+src_pi     = 0.d0
+src_pe     = 0.d0
+src_p      = 0.d0
+
+if(add_sources_in_sc)then
+  if ( with_TiTe ) then ! (with_TiTe)
+    src_pi = heat_source_i(ms,mt)
+    src_pe = heat_source_e(ms,mt)
+    if(with_neutrals)then
+      src_pi = src_pi                                                    &
+             + ((GAMMA - 1.)/2.) * vpar0**2 * BB2 * (r0_corr*rn0*Sion_T) &
+             + ((GAMMA - 1.)/2.) * vv2 * ((r0_corr*rn0*Sion_T))
+      src_pe = src_pe                                        &
+             - ksiion  * r0_corr * rn0_corr * Sion_T         &
+             - r0_corr * rn0_corr * LradDrays_T              &
+             - r0_corr * r0_corr  * LradDcont_T
+    endif
+    if(with_impurities)then
+      src_pi = src_pi                                                        &
+             + ((GAMMA - 1.)/2.) * vpar0**2 * BB2 * (source_bg + source_imp) &
+             + ((GAMMA - 1.)/2.) * vv2 * (source_bg + source_imp)
+      src_pe = src_pe                                                 &
+             - v * (r0_corr+alpha_e*rimp0_corr) * frad_bg             &
+             - v * (r0_corr+alpha_e*rimp0_corr) * rimp0_corr * Lrad  
+    endif
+    s_p = src_pi + src_pe
+  else ! (with_TiTe)
+    src_p = heat_source(ms,mt)
+    if(with_neutrals)then
+      src_p = src_p                                                      &
+            + ((GAMMA - 1.)/2.) * vv2 * ((r0_corr*rn0*Sion_T))           &
+            - ksiion  * r0_corr * rn0_corr * Sion_T                      &
+            - r0_corr * rn0_corr * LradDrays_T                           &
+            - r0_corr * r0_corr  * LradDcont_T                           &
+            - r0_corr * frad_bg
+    endif
+    if(with_impurities)then
+      src_p = src_p                                                         &
+            + ((GAMMA - 1.)/2.) * vpar0**2 * BB2 * (source_bg + source_imp) &
+            + ((GAMMA - 1.)/2.) * vv2 * (source_bg + source_imp)            & 
+            - v * (r0_corr+alpha_e*rimp0_corr) * frad_bg                    &
+            - v * (r0_corr+alpha_e*rimp0_corr) * rimp0_corr * Lrad
+    endif
+    s_p = src_p
+  endif
 
 endif
 
-! Updates in the physical diffusivities to locally add numerical stabilization.
-visco_T = visco_T + visco_sc_num  * tau_sc
-D_prof  = D_prof  + D_perp_sc_num * tau_sc
-D_prof_imp  = D_prof_imp  + D_perp_imp_sc_num * tau_sc
+! step 3: contruct the numerical stabilization coefficient and update all diffusivities
+f_p = dsqrt( Ptot_x*Ptot_x + Ptot_y*Ptot_y + Ptot_p*Ptot_p/ (BigR*BigR) ) / Ptot_corr * h_e
+tau_sc = h_e * h_e * (abs(s_p) + abs(d_p)) / Ptot_corr * f_p
+
+visco_T     = visco_T     + visco_sc_num   * tau_sc
+D_prof      = D_prof      + D_perp_sc_num  * tau_sc
 if ( with_TiTe ) then
   ZKi_prof  = ZKi_prof  + ZK_i_perp_sc_num * tau_sc
   ZKi_par_T = ZKi_par_T + ZK_i_par_sc_num  * tau_sc
   ZKe_prof  = ZKe_prof  + ZK_e_perp_sc_num * tau_sc
   ZKe_par_T = ZKe_par_T + ZK_e_par_sc_num  * tau_sc
 else
-  ZK_prof  = ZK_prof   + ZK_perp_sc_num * tau_sc
-  ZK_par_T = ZK_par_T  + ZK_par_sc_num  * tau_sc
+  ZK_prof   = ZK_prof   + ZK_perp_sc_num   * tau_sc
+  ZK_par_T  = ZK_par_T  + ZK_par_sc_num    * tau_sc
 endif
-Dn0x = Dn0x + Dn_pol_sc_num * tau_sc
-Dn0y = Dn0y + Dn_pol_sc_num * tau_sc
-Dn0p = Dn0p + Dn_p_sc_num   * tau_sc
+Dn0x        = Dn0x        + Dn_pol_sc_num     * tau_sc
+Dn0y        = Dn0y        + Dn_pol_sc_num     * tau_sc
+Dn0p        = Dn0p        + Dn_p_sc_num       * tau_sc
+D_prof_imp  = D_prof_imp  + D_perp_imp_sc_num * tau_sc
 
 end subroutine calculate_sc_quantities
 
