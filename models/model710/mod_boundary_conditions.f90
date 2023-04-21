@@ -41,6 +41,7 @@ use mpi_mod
 use mod_basisfunctions
 use mod_interp
 use mod_integer_types
+use mod_node_indices
 
 implicit none
 
@@ -109,7 +110,7 @@ real*8  :: Cs,   Cs_T,   Cs_b,   Cs_b_T,   Cs_b_Tb
 real*8  :: beta, beta_T, beta_b, beta_b_T, beta_b_Tb
 
 real*8  :: element_size_s, element_size_t, element_size_0, element_size_2
-real*8  :: H1(2,2), H1_s(2,2), H1_ss(2,2)
+real*8  :: H1(2,n_degrees_1d), H1_s(2,n_degrees_1d), H1_ss(2,n_degrees_1d)
 
 integer :: i, in, iv, iv2, iv3, inode, inode2, inode3, k
 integer :: j, err, itest, i_mid, i_bnd, idir, iv_dir, iv_perp_dir, k_max
@@ -132,6 +133,9 @@ real*8, allocatable :: psi_RMP_cos1(:),dpsi_RMP_cos_dR1(:),dpsi_RMP_cos_dZ1(:)
 real*8, allocatable :: psi_RMP_sin1(:),dpsi_RMP_sin_dR1(:),dpsi_RMP_sin_dZ1(:)
 real*8  :: establish_RMP
 real*8  :: delta_psi_rmp, delta_psi_rmp_dR, delta_psi_rmp_dZ, delta_psi_rmp_ds, delta_psi_rmp_dt, psi_test, sigmo_fonc
+
+integer :: node_indices( (n_order+1)/2, (n_order+1)/2 ), index_tmp, kk, ll
+logical, parameter :: include_2nd_derivatives = .false.
 
 
 RMPspectrum: if (RMP_on .and. (n_tor .ge. 3)) then !*****
@@ -184,6 +188,9 @@ end if RMPspectrum
 
 zbig        = 1.d12
 zbig_backup = zbig
+
+! --- calculate node_indices
+call calculate_node_indices(node_indices)
 
 do i=1, n_local_elms !=== do elements
 
@@ -372,17 +379,18 @@ do i=1, n_local_elms !=== do elements
                  .or. ((k .eq. var_rhon) .and. apply_dirichlet_all)  &
               ) then
 
-            ! --- Fix node values
-            index_node = node_list%node(inode)%index(1)
-            call boundary_conditions_add_one_entry(                 &
-                   index_node, k, in, index_node, k, in,            &
-                   zbig, index_min, index_max, a_mat)
-
             ! --- Fix derivatives in one direction
-            index_node = node_list%node(inode)%index(iv_dir)
-            call boundary_conditions_add_one_entry(                 &
-                   index_node, k, in, index_node, k, in,            &
-                   zbig, index_min, index_max, a_mat)
+            do kk = 1,(n_order+1)/2
+              if ( (iv_dir .eq. 3) .and. (kk .gt. 1) ) cycle ! do only t-derivatives and node value
+              do ll = 1,(n_order+1)/2
+                if ( (iv_dir .eq. 2) .and. (ll .gt. 1) ) cycle ! do only s-derivatives and node value
+                index_tmp = node_indices(kk,ll)
+                index_node = node_list%node(inode)%index(index_tmp)
+                call boundary_conditions_add_one_entry(                 &
+                       index_node, k, in, index_node, k, in,            &
+                       zbig, index_min, index_max, a_mat)
+              enddo
+            enddo
 
             ! --- Fix A3 also across boundary???
             if (k .eq. var_A3) then
@@ -960,6 +968,21 @@ do i=1, n_local_elms !=== do elements
             call boundary_conditions_add_one_entry( index_node2, var_VVV(k), in, index_node4, var_AZ, in,&
                                                     zbig * BC_tmp * element_size_0,                      &
                                                     index_min, index_max, a_mat)
+
+            ! --- Fix derivatives in one direction
+            do kk = 1,(n_order+1)/2
+              do ll = 1,(n_order+1)/2
+                if ( (iv_dir .eq. 2) .and. (ll .gt. 1) ) cycle ! do only pure s derivatives, not cross _st
+                if ( (iv_dir .eq. 3) .and. (kk .gt. 1) ) cycle ! do only pure t derivatives, not cross _st
+                if ( (iv_dir .eq. 2) .and. (kk .lt. 3) ) cycle ! do only node value, 1st and 2nd derivatives, fix the rest
+                if ( (iv_dir .eq. 3) .and. (ll .lt. 3) ) cycle ! do only node value, 1st and 2nd derivatives, fix the rest
+                index_tmp = node_indices(kk,ll)
+                index_node = node_list%node(inode)%index(index_tmp)
+                call boundary_conditions_add_one_entry(                        &
+                       index_node, var_VVV(k), in, index_node, var_VVV(k), in, &
+                       zbig, index_min, index_max, a_mat)
+              enddo
+            enddo
 
           enddo !=== var_VVV (3 variables of uR, uZ, up)
 

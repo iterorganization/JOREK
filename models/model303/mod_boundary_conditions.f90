@@ -565,7 +565,8 @@ do i=1, n_local_elms !=== do elements
           else
             call boundary_conditions_add_RHS(                         &
                    index_node, kv, in, index_min, index_max, RHS_loc, &
-                   0.d0, a_mat%i_tor_min, a_mat%i_tor_max)
+                   0.d0,                                              &
+                   a_mat%i_tor_min, a_mat%i_tor_max)
           endif
   
           ! --- Impose Mach1 on node derivatives
@@ -599,7 +600,8 @@ do i=1, n_local_elms !=== do elements
           else
              call boundary_conditions_add_RHS(                         &
                    index_node2, kv, in, index_min, index_max, RHS_loc, &
-                   0.d0, a_mat%i_tor_min, a_mat%i_tor_max) 
+                   0.d0,                                               &
+                   a_mat%i_tor_min, a_mat%i_tor_max) 
           endif
 
           ! --- Impose Mach1 on node 2nd derivatives
@@ -629,7 +631,8 @@ do i=1, n_local_elms !=== do elements
             else
                call boundary_conditions_add_RHS(                         &
                      index_node3, kv, in, index_min, index_max, RHS_loc, &
-                     0.d0, a_mat%i_tor_min, a_mat%i_tor_max) 
+                     0.d0,                                               &
+                     a_mat%i_tor_min, a_mat%i_tor_max) 
             endif
           endif
 
@@ -643,8 +646,9 @@ do i=1, n_local_elms !=== do elements
               if ( (iv_dir .eq. 3) .and. (ll .lt. 3) ) cycle ! do only node value, 1st and 2nd derivatives, fix the rest
               index_tmp = node_indices(kk,ll)
               index_node = node_list%node(inode)%index(index_tmp)
-              call boundary_conditions_add_one_entry(index_node, k, in, index_node, k, in, zbig, &
-                                                     index_min, index_max, a_mat)
+              call boundary_conditions_add_one_entry(                 &
+                     index_node, k, in, index_node, k, in,            &
+                     zbig, index_min, index_max, a_mat)
             enddo
           enddo
 

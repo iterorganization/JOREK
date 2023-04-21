@@ -24,7 +24,7 @@ integer, intent(in)   :: i_tor_max
 real*8     :: ELM(n_vertex_max*n_var*n_degrees*n_tor,n_vertex_max*n_var*n_degrees*n_tor)
 real*8     :: RHS(n_vertex_max*n_var*n_degrees*n_tor)
 
-integer    :: vertex(2), direction(2), xcase2
+integer    :: vertex(2), direction(n_degrees_1d), xcase2
 real*8     :: psi_axis, R_axis, Z_axis, psi_bnd, R_xpoint(2), Z_xpoint(2)
 logical    :: xpoint2
 real*8     :: R_g(n_gauss), R_s(n_gauss), R_t(n_gauss)
@@ -38,7 +38,7 @@ real*8     :: Qbnd(n_var), Qjac(n_var,n_var)
 
 integer    :: i, j, j2, ms, mt, mp, k, l, l2, index_ij, index_kl, ij, kl
 integer    :: in, im, ivar, kvar
-integer    :: j3, direction_perp(2)
+integer    :: j3, direction_perp(n_degrees_1d)
 real*8     :: ws, xjac,  R, phi, DL, Zbig
 real*8     :: R_mid, Z_mid, R_cnt, Z_cnt
 real*8     :: theta, zeta, psi_norm, ZK_prof, integrand
@@ -83,6 +83,8 @@ integer    :: n_tor_local
 
 logical    :: parallel_projection
 
+type (type_node)         :: tmp_node
+
 ! --- Time integration parameters
 theta = time_evol_theta
 !zeta  = time_evol_zeta
@@ -95,7 +97,7 @@ if (direction(2) == 3) return
 ! --- Flag to switch Mach-1 between boundary_conditions and boundary_matrix_open
 Mach1 = 0.d0
 if (Mach1_openBC) Mach1 = 1.d0
-parallel_projection = .true. ! note this is not exactly the same as the projection of the momentum equation, so we keep the option here...
+parallel_projection = .false. !.true. ! note this is not exactly the same as the projection of the momentum equation, so we keep the option here...
 
 ! --- Penalisation cofficient to impose BCs
 zbig = 1.d11
@@ -116,11 +118,17 @@ Z_cnt = sum(nodes(1:4)%x(1,1,2)) / 4.d0
 normal_direction = (/R_mid - R_cnt, Z_mid - Z_cnt /) / norm2((/R_mid - R_cnt, Z_mid - Z_cnt /))
 direction_perp(1) = 6 / direction(2)     ! =3 if direction(2)=2, =3 if direction(2)=3
 direction_perp(2) = 4
+if (n_order .ge. 5) then
+  direction_perp(1) = 6 / direction(2)     ! =3 if direction(2)=2, =3 if direction(2)=3
+  direction_perp(2) = 4
+  if (direction(2) .eq. 2) direction_perp(3) = 7
+  if (direction(2) .eq. 3) direction_perp(3) = 8
+endif
 
 ! --- Loop over nodes
 do i=1,2
   ! --- Loop over basis functions
-  do j=1,2
+  do j=1,n_degrees_1d
 
     j2 = direction(j)
     j3 = direction_perp(j)
@@ -273,7 +281,7 @@ do ms=1, n_gauss
     ! --- Loop over nodes
     do i=1,2
       ! --- Loop over basis functions
-      do j=1,2
+      do j=1,n_degrees_1d
 
         j2 = direction(j)
         element_size_ij = element%size(vertex(i),j2)
@@ -314,7 +322,7 @@ do ms=1, n_gauss
           do k=1,2
 
             ! --- loop over basis functions
-            do l=1,2
+            do l=1,n_degrees_1d
 
               l2 = direction(l)
 

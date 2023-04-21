@@ -2,8 +2,7 @@ module mod_elt_matrix
   implicit none
 contains
 
-subroutine element_matrix(element,nodes, xpoint2, xcase2, R_axis, Z_axis, psi_axis, psi_bnd, R_xpoint, Z_xpoint, &
-                          ELM, RHS, tid, i_tor_min, i_tor_max, aux_nodes)
+subroutine element_matrix(element,nodes, xpoint2, xcase2, R_axis, Z_axis, psi_axis, psi_bnd, R_xpoint, Z_xpoint, ELM, RHS, tid, i_tor_min, i_tor_max, aux_nodes)
 !---------------------------------------------------------------
 ! calculates the matrix contribution of one element
 !---------------------------------------------------------------
@@ -17,6 +16,7 @@ implicit none
 
 type (type_element)   :: element
 type (type_node)      :: nodes(n_vertex_max)
+type (type_node),optional :: aux_nodes(n_vertex_max)
 
 real*8, dimension (:,:), allocatable  :: ELM
 real*8, dimension (:)  , allocatable  :: RHS

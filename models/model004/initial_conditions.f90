@@ -36,7 +36,9 @@ if (my_id .eq. 0) then
   write(*,*) '***************************************'
 endif
 
-if (my_id .eq. 0) then
+! --- This old projection method should be replaced by a direct solve on the elements
+! --- It is much cleaner and more generic
+if ( (my_id .eq. 0) .and. (n_order .le. 3) ) then
 
   do i=1,node_list%n_nodes
 
@@ -111,7 +113,18 @@ if (my_id .eq. 0) then
 
   enddo
 
+endif ! n_order<=3
+
+
+! --- Variable projection is better at higher order...
+! --- (by the way, we could use this for n_order=3 and remove all the above as well, 
+! --- and remove all derivatives from profiles functions, which are not really needed, 
+! --- except dn_dpsi and dT_dpsi for current profile...)
+if (n_order .ge. 5) then
+  call Poisson(my_id,0,node_list,element_list,bnd_node_list,bnd_elm_list, &
+               var_psi,var_rho,1, ES%psi_axis,ES%psi_bnd,xpoint2,xcase2,ES%Z_xpoint,freeboundary_equil,refinement,1)
 endif
+
 
 
 ! ---------------------------------------
@@ -147,13 +160,13 @@ enddo
 ! --- copy node indices
 ! --- right-left periodicity (comment if unwanted)
 do i=1,n_bnd(2)
-  do j=1,4
+  do j=1,n_degrees
     node_list%node(bnd_list(2,i))%index(j) = node_list%node(bnd_list(1,i))%index(j)
   enddo
 enddo
 ! --- top-down periodicity (comment if unwanted)
 do i=1,n_bnd(4)
-  do j=1,4
+  do j=1,n_degrees
     node_list%node(bnd_list(4,i))%index(j) = node_list%node(bnd_list(3,i))%index(j)
   enddo
 enddo

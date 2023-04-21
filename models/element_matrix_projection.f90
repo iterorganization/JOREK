@@ -7,11 +7,12 @@ use data_structure
 use gauss
 use basis_at_gaussian
 use equil_info, only: ES
-use phys_module, only: xpoint, xcase
+use phys_module, only: xpoint, xcase, F0, n_jropes, R_jropes, Z_jropes, w_jropes, rho_jropes, T_jropes, normalized_velocity_profile
 use mod_F_profile
 use mod_interp
 use nodes_elements
 use mod_sources
+use constants
 
 implicit none
 
@@ -40,6 +41,9 @@ real*8     :: var_RHS
 real*8     :: R_out,Z_out,s_out,t_out
 integer    :: ielm_out,ifail
 real*8     :: dd1,dd2,dd3,dd4,dd5
+integer    :: nj
+real*8     :: rr,ww
+real*8     :: R,Z
 
 ELM=0.d0
 RHS=0.d0
@@ -93,7 +97,9 @@ do ms=1, n_gauss
   do mt=1, n_gauss
  
     wst = wgauss(ms)*wgauss(mt)
- 
+
+    R = x_g(ms,mt) 
+    Z = y_g(ms,mt) 
     xjac =  x_s(ms,mt)*y_t(ms,mt) - x_t(ms,mt)*y_s(ms,mt)
     
     if (ivar_out .eq. 710) then
@@ -106,12 +112,36 @@ do ms=1, n_gauss
     if ( (ivar_out .eq. var_rho) .or. (ivar_out .eq. var_zj) ) then
       call density        (xpoint, xcase, y_g(ms,mt), ES%Z_xpoint, eq_g(ms,mt), ES%psi_axis, ES%psi_bnd, &
                            zn,dn_dpsi,dn_dz,dn_dpsi2,dn_dz2,dn_dpsi_dz,dn_dpsi3,dn_dpsi_dz2, dn_dpsi2_dz)
-      if (ivar_out .eq. var_rho) var_RHS = zn
+      if (ivar_out .eq. var_rho) then
+        var_RHS = zn
+        ! --- Define density blobs for model002 and model003
+        if ((jorek_model .eq. 002) .or. (jorek_model .eq. 003) .or. (jorek_model .eq. 004)) then
+          do nj=1,n_jropes
+            rr = sqrt((R-R_jropes(nj))**2 + (Z-Z_jropes(nj))**2)
+            ww = w_jropes(nj)
+            if (rr .lt. 1.00*ww) then
+              var_RHS = var_RHS + rho_jropes(nj) * (1.0 - (rr/ww)**2 )**2
+            endif
+          enddo
+        endif
+      endif
     endif
     if ( (ivar_out .eq. var_T) .or. ( (ivar_out .eq. var_zj) .and. (.not. with_TiTe)) ) then
       call temperature    (xpoint, xcase, y_g(ms,mt), ES%Z_xpoint, eq_g(ms,mt), ES%psi_axis, ES%psi_bnd, &
                            zT,dT_dpsi,dT_dz,dT_dpsi2,dT_dz2,dT_dpsi_dz,dT_dpsi3,dT_dpsi_dz2, dT_dpsi2_dz)
-      if (ivar_out .eq. var_T) var_RHS = zT
+      if (ivar_out .eq. var_T) then
+        var_RHS = zT
+        ! --- Define temperature blobs for model003
+        if (jorek_model .eq. 003) then
+          do nj=1,n_jropes
+            rr = sqrt((R-R_jropes(nj))**2 + (Z-Z_jropes(nj))**2)
+            ww = w_jropes(nj)
+            if (rr .lt. 1.00*ww) then
+              var_RHS = var_RHS + T_jropes(nj) * (1.0 - (rr/ww)**2 )**2
+            endif
+          enddo
+        endif
+      endif
     endif
     if ( (ivar_out .eq. var_Ti) .or. ( (ivar_out .eq. var_zj) .and. with_TiTe) ) then
       call temperature_i  (xpoint, xcase, y_g(ms,mt), ES%Z_xpoint, eq_g(ms,mt), ES%psi_axis, ES%psi_bnd, &
@@ -131,7 +161,11 @@ do ms=1, n_gauss
     if (ivar_out .eq. var_Vpar) then
       call velocity       (xpoint, xcase, y_g(ms,mt), ES%Z_xpoint, eq_g(ms,mt), ES%psi_axis, ES%psi_bnd, &
                            zV,dV_dpsi,dV_dz,dV_dpsi2,dV_dz2,dV_dpsi_dz,dV_dpsi3,dV_dpsi_dz2, dV_dpsi2_dz)
-      var_RHS = zV
+      if (normalized_velocity_profile) then
+        var_RHS = zV
+      else
+        var_RHS = 2.d0 * PI / F0 * R**2 * zV
+      endif
     endif
 #endif
     if (ivar_out .eq. var_rhon) then

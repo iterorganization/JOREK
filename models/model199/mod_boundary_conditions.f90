@@ -24,14 +24,16 @@ implicit none
 contains
   subroutine boundary_conditions( my_id, node_list, element_list, bnd_node_list, local_elms,          &
                                   n_local_elms, index_min, index_max, rhs_loc, xpoint2, xcase2,       & 
-                                  R_axis, Z_axis, psi_axis, psi_bnd, R_xpoint, Z_xpoint, psi_xpoint, a_mat)
+                                  R_axis, Z_axis, psi_axis, psi_bnd, R_xpoint, Z_xpoint, psi_xpoint,  &  
+                                  a_mat)
 
     use data_structure
     use phys_module, only: F0, GAMMA, keep_n0_const
     use vacuum, only: is_freebound
     use mpi_mod
-    use mod_locate_irn_jcn
     use mod_integer_types
+    use mod_assembly, only : boundary_conditions_add_one_entry, boundary_conditions_add_RHS
+    use mod_node_indices
 
     implicit none
 
@@ -64,114 +66,89 @@ contains
     integer(kind=int_all) :: ijA_position
     integer               :: ilarge2
     integer               :: ierr, n_tor_local
+    integer               :: node_indices( (n_order+1)/2, (n_order+1)/2 ), index_tmp, kk, ll, iv_dir
+
+    ! --- calculate node_indices
+    call calculate_node_indices(node_indices)
 
     n_tor_local = a_mat%i_tor_max - a_mat%i_tor_min + 1
     zbig = 1.d12
     zbig_backup = zbig
-       do i=1, n_local_elms
 
-          ielm = local_elms(i)
+    do i=1, n_local_elms
 
-          do iv=1, n_vertex_max
+       ielm = local_elms(i)
 
-             inode = element_list%element(ielm)%vertex(iv)
+       do iv=1, n_vertex_max
 
-             if (node_list%node(inode)%boundary .ne. 0) then
+          inode = element_list%element(ielm)%vertex(iv)
 
-                do in=a_mat%i_tor_min, a_mat%i_tor_max 
-                  if (keep_n0_const  .and.  in .eq. 1 ) then
-                    zbig = 1.d15
-                  else
-                    zbig = zbig_backup
-                  endif
+          if (node_list%node(inode)%boundary .ne. 0) then
 
-                   do k=1, n_var
+             do in=a_mat%i_tor_min, a_mat%i_tor_max 
+               if (keep_n0_const  .and.  in .eq. 1 ) then
+                 zbig = 1.d15
+               else
+                 zbig = zbig_backup
+               endif
 
-                      !------------------------------------ the open field lines (in case of x-point grid)
-                      if ((node_list%node(inode)%boundary .eq. 1) .or. (node_list%node(inode)%boundary .eq. 3)) then
+                do k=1, n_var
 
-                         if ((k .eq. 1) .or. (k .eq. 2) .or. (k .eq. 3) .or. &
-                              (k .eq. 4) .or. (k .eq. 5) .or. (k .eq. 6) ) then
+                   !------------------------------------ the open field lines (in case of x-point grid)
+                   if ((node_list%node(inode)%boundary .eq. 1) .or. (node_list%node(inode)%boundary .eq. 3)) then
+
+                      if ((k .eq. 1) .or. (k .eq. 2) .or. (k .eq. 3) .or. &
+                           (k .eq. 4) .or. (k .eq. 5) .or. (k .eq. 6) ) then
  
-                          if ( (.not. is_freebound(in,k)) ) then ! apply fixed boundary conditions where necessary
+                       if ( (.not. is_freebound(in,k)) ) then ! apply fixed boundary conditions where necessary
 
-                            index_node = node_list%node(inode)%index(1)
-                            if ((index_node .ge. index_min) .and. (index_node .le. index_max)) then
+                         ! --- Fix derivatives in one direction
+                         iv_dir = 2
+                         do kk = 1,(n_order+1)/2
+                           if ( (iv_dir .eq. 3) .and. (kk .gt. 1) ) cycle ! do only t-derivatives and node value
+                           do ll = 1,(n_order+1)/2
+                             if ( (iv_dir .eq. 2) .and. (ll .gt. 1) ) cycle ! do only s-derivatives and node value
+                             index_tmp = node_indices(kk,ll)
+                             index_node = node_list%node(inode)%index(index_tmp)
+                             call boundary_conditions_add_one_entry(                 &
+                                    index_node, k, in, index_node, k, in,            &
+                                    zbig, index_min, index_max, a_mat)
+                           enddo
+                         enddo
 
-                               call locate_irn_jcn(index_node,index_node,index_min,index_max,ijA_position,a_mat)
+                       endif
+                     endif
+                   endif
 
-                               ilarge2 = ijA_position - 1 + ((k-1)*n_tor_local + in-a_mat%i_tor_min) * n_var*n_tor_local  & 
-                                 +  (k-1)*n_tor_local + in - a_mat%i_tor_min + 1
+                   !------------------------------------ wall aligned with fluxsurface (in case of x-point grid)
+                   if ((node_list%node(inode)%boundary .eq. 2) .or. (node_list%node(inode)%boundary .eq. 3)) then
 
-                               a_mat%irn(ilarge2) = n_tor_local * n_var * (index_node-1) + (k-1)*n_tor_local + in - a_mat%i_tor_min + 1
-                               a_mat%jcn(ilarge2) = n_tor_local * n_var * (index_node-1) + (k-1)*n_tor_local + in - a_mat%i_tor_min + 1
-                               a_mat%val(ilarge2) = zbig
+                      if ( (.not. is_freebound(in,k)) ) then ! apply fixed boundary conditions where necessary
 
-                            endif
-
-                            index_node = node_list%node(inode)%index(2)
-
-                            if ((index_node .ge. index_min) .and. (index_node .le. index_max)) then
-
-                               call locate_irn_jcn(index_node,index_node,index_min,index_max,ijA_position,a_mat)
-
-                               ilarge2 = ijA_position - 1 + ((k-1)*n_tor_local + in-a_mat%i_tor_min) * n_var*n_tor_local   & 
-                                 +  (k-1)*n_tor_local + in - a_mat%i_tor_min + 1
-
-                               a_mat%irn(ilarge2) = n_tor_local * n_var * (index_node-1) + (k-1)*n_tor_local + in - a_mat%i_tor_min + 1
-                               a_mat%jcn(ilarge2) = n_tor_local * n_var * (index_node-1) + (k-1)*n_tor_local + in - a_mat%i_tor_min + 1
-                               a_mat%val(ilarge2) = zbig
-
-                            endif
-
-                          endif
-                        endif
-                      endif
-
-                      !------------------------------------ wall aligned with fluxsurface (in case of x-point grid)
-                      if ((node_list%node(inode)%boundary .eq. 2) .or. (node_list%node(inode)%boundary .eq. 3)) then
-
-                         if ( (.not. is_freebound(in,k)) ) then ! apply fixed boundary conditions where necessary
-
-                            index_node = node_list%node(inode)%index(1)
-
-                            if ((index_node .ge. index_min) .and. (index_node .le. index_max)) then
-
-                               call locate_irn_jcn(index_node,index_node,index_min,index_max,ijA_position,a_mat)
-
-                               ilarge2 = ijA_position - 1 + ((k-1)*n_tor_local + in-a_mat%i_tor_min) * n_var*n_tor_local   & 
-                                 +  (k-1)*n_tor_local + in - a_mat%i_tor_min + 1
-
-                               a_mat%irn(ilarge2) = n_tor_local * n_var * (index_node-1) + (k-1)*n_tor_local + in - a_mat%i_tor_min + 1
-                               a_mat%jcn(ilarge2) = n_tor_local * n_var * (index_node-1) + (k-1)*n_tor_local + in - a_mat%i_tor_min + 1
-                               a_mat%val(ilarge2) = zbig
-
-                            endif
-
-                            index_node = node_list%node(inode)%index(3)
-
-                            if ((index_node .ge. index_min) .and. (index_node .le. index_max)) then
-
-                               call locate_irn_jcn(index_node,index_node,index_min,index_max,ijA_position,a_mat)
-
-                               ilarge2 = ijA_position - 1 + ((k-1)*n_tor_local + in-a_mat%i_tor_min) * n_var*n_tor_local   & 
-                                 +  (k-1)*n_tor_local + in - a_mat%i_tor_min + 1
-
-                               a_mat%irn(ilarge2) = n_tor_local * n_var * (index_node-1) + (k-1)*n_tor_local + in - a_mat%i_tor_min + 1
-                               a_mat%jcn(ilarge2) = n_tor_local * n_var * (index_node-1) + (k-1)*n_tor_local + in - a_mat%i_tor_min + 1
-                               a_mat%val(ilarge2) = zbig
-                            end if
-
-                         endif
+                         ! --- Fix derivatives in one direction
+                         iv_dir = 3
+                         do kk = 1,(n_order+1)/2
+                           if ( (iv_dir .eq. 3) .and. (kk .gt. 1) ) cycle ! do only t-derivatives and node value
+                           do ll = 1,(n_order+1)/2
+                             if ( (iv_dir .eq. 2) .and. (ll .gt. 1) ) cycle ! do only s-derivatives and node value
+                             index_tmp = node_indices(kk,ll)
+                             index_node = node_list%node(inode)%index(index_tmp)
+                             call boundary_conditions_add_one_entry(                 &
+                                    index_node, k, in, index_node, k, in,            &
+                                    zbig, index_min, index_max, a_mat)
+                           enddo
+                         enddo
 
                       endif
 
-                   enddo
+                   endif
 
                 enddo
-             endif
-          enddo
+
+             enddo
+          endif
        enddo
+    enddo
 
     return
   end subroutine boundary_conditions

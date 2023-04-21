@@ -39,10 +39,11 @@ use phys_module, only: F0, GAMMA, freeboundary, RMP_on, psi_RMP_cos, dpsi_RMP_co
        bcs 
 use tr_module
 use mpi_mod
-use mod_locate_irn_jcn
 use mod_basisfunctions
 use mod_interp
 use mod_integer_types
+use mod_assembly, only : boundary_conditions_add_one_entry, boundary_conditions_add_RHS
+use mod_node_indices
 
 implicit none
 
@@ -96,6 +97,11 @@ integer :: n_rmp_harm, N_rmp_har_block_size
 real*8  :: R_out, Z_out, s_elm, t_elm, QR,QR_s,QR_t,QR_st,QR_ss,QR_tt,QZ,QZ_s,QZ_t,QZ_st,QZ_ss,QZ_tt
 real*8  :: QPs0,QPs0_s,QPs0_t,QPs0_st,QPs0_ss,QPs0_tt
 integer :: ifail, i_elm
+
+integer :: node_indices( (n_order+1)/2, (n_order+1)/2 ), index_tmp, kk, ll
+
+! --- calculate node_indices
+call calculate_node_indices(node_indices)
 
 zbig        = 1.d12
 zbig_backup = zbig
@@ -176,17 +182,19 @@ do i=1, n_local_elms !=== do elements
           ! --- To start with, don't do anything for periodic conditions
           cycle
                                                                                                  
-            index_node = node_list%node(inode)%index(1)
+          ! --- Fix derivatives in one direction (not used for now)
+          do kk = 1,(n_order+1)/2
+            if ( (iv_dir .eq. 3) .and. (kk .gt. 1) ) cycle ! do only t-derivatives and node value
+            do ll = 1,(n_order+1)/2
+              if ( (iv_dir .eq. 2) .and. (ll .gt. 1) ) cycle ! do only s-derivatives and node value
+              index_tmp = node_indices(kk,ll)
+              index_node = node_list%node(inode)%index(index_tmp)
+              call boundary_conditions_add_one_entry(                 &
+                     index_node, k, in, index_node, k, in,            &
+                     zbig, index_min, index_max, a_mat)
+            enddo
+          enddo
 
-            call boundary_conditions_add_one_entry(                 &
-                   index_node, k, in, index_node, k, in,            &
-                   zbig, index_min, index_max, a_mat)
-
-            index_node = node_list%node(inode)%index(iv_dir)
-
-            call boundary_conditions_add_one_entry(                 &
-                   index_node, k, in, index_node, k, in,            &
-                   zbig, index_min, index_max, a_mat)
 
         enddo !=== variables
 

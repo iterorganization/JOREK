@@ -4046,111 +4046,112 @@ do i=1,n_vertex_max
                           + (GAMMA - 1.) * v * E_ion_bg * (r0-rimp0) * F0 / BigR * vpar_p       * xjac * theta * tstep
                       !================= End ionization potential energy ===========================
 
-                      if (with_neutrals) then
-                        amat(var_T,var_rhon) = + v * BigR * (r0+alpha_e*rimp0) * rhon * ksiion * Sion_T * xjac * theta * tstep &
-                                               + v * BigR * rhon * (r0_corr+alpha_e*rimp0_corr) * LradDrays_T * xjac * theta * tstep &
-                        !===================== Additional terms from friction terms============
-                              - v * BigR * ((GAMMA - 1.)/2.) * vpar0**2 * BB2 * ((r0+alpha_e*rimp0)*rhon*Sion_T)     * xjac * theta * tstep &
-                              - v * BigR * ((GAMMA - 1.)/2.) * vv2            * ((r0+alpha_e*rimp0)*rhon*Sion_T)     * xjac * theta * tstep 
-                        !==============================End of friction terms=================
-
-                      endif
-                      if (with_impurities) then
-                        amat(var_T,var_rhoimp) = v * rhoimp * alpha_imp * T0 * BigR * xjac * (1.d0 + zeta)&
-                        !=============== The ionization potential energy term=========================
-                       + (GAMMA - 1.) * v * rhoimp * (E_ion - E_ion_bg) * BigR * xjac * (1.d0 + zeta)                &
-                       - (GAMMA - 1.) * v * rhoimp * dE_ion_dT * BigR**2 * (T0_s*u0_t - T0_t*u0_s)    * theta * tstep&
-                       - (GAMMA - 1.) * v * (E_ion-E_ion_bg) * BigR**2 * (rhoimp_s*u0_t - rhoimp_t*u0_s)* theta * tstep&
-
-                       + (GAMMA - 1.) * v * rhoimp * dE_ion_dT * F0 / BigR * Vpar0 * T0_p      * xjac * theta * tstep&
-
-                       + (GAMMA - 1.) * v * rhoimp * dE_ion_dT * Vpar0 * (T0_s*ps0_t - T0_t*ps0_s)    * theta * tstep&
-                       + (GAMMA - 1.) * v * (E_ion-E_ion_bg) * Vpar0 * (rhoimp_s*ps0_t - rhoimp_t*ps0_s)* theta * tstep&
-
-                       - (GAMMA - 1.) * v * (E_ion-E_ion_bg) * rhoimp * 2.d0 * BigR * u0_y     * xjac * theta * tstep&
-                       + (GAMMA - 1.) * v * (E_ion-E_ion_bg) * rhoimp*(vpar0_s*ps0_t - vpar0_t*ps0_s) * theta * tstep&
-                       + (GAMMA - 1.) * v * (E_ion-E_ion_bg) * rhoimp * F0 / BigR * vpar0_p    * xjac * theta * tstep&
-                       ! New diffusive ionization energy flux term
-                       + (GAMMA - 1.) * E_ion * ((D_par_imp+D_par_imp_sc_num*tau_sc)-D_prof_imp) * BigR / BB2 * Bgrad_rho_star * Bgrad_rhoimp_rhoimp * xjac * theta * tstep &
-                       + (GAMMA - 1.) * E_ion * D_prof_imp * BigR  * (v_x*rhoimp_x + v_y*rhoimp_y                                                  ) * xjac * theta * tstep &
-                       - (GAMMA - 1.) * E_ion_bg * ((D_par+D_par_sc_num*tau_sc)-D_prof) * BigR / BB2 * Bgrad_rho_star * Bgrad_rhoimp_rhoimp          * xjac * theta * tstep &
-                       - (GAMMA - 1.) * E_ion_bg * D_prof * BigR  * (v_x*rhoimp_x + v_y*rhoimp_y                                                   ) * xjac * theta * tstep &
-
-                        !================= End ionization potential energy ===========================
-                        !=========================New TG_num terms====================================
-                       + tgnum_T * 0.25d0 * BigR**2 * T0 * alpha_imp * (rhoimp_x * u0_y - rhoimp_y * u0_x)    &
-                                 * ( v_x * u0_y - v_y * u0_x) * xjac * theta*tstep*tstep     &
-
-                       + tgnum_T * 0.25d0 * BigR**2 * alpha_imp_bis * rhoimp * (T0_x * u0_y - T0_y * u0_x)      &
-                                 * ( v_x * u0_y - v_y * u0_x) * xjac* theta*tstep*tstep      &
-
-                       + tgnum_T * 0.25d0 / BigR * vpar0**2 &
-                                 * T0 * alpha_imp * (rhoimp_x * ps0_y - rhoimp_y * ps0_x                     )           &
-                                 * ( v_x * ps0_y -  v_y * ps0_x                   ) * xjac * theta * tstep * tstep&
-                       + tgnum_T * 0.25d0 / BigR * vpar0**2 &
-                                 * alpha_imp_bis * rhoimp * (T0_x * ps0_y - T0_y * ps0_x + F0 / BigR * T0_p)           &
-                                 * ( v_x * ps0_y -  v_y * ps0_x                  ) * xjac * theta * tstep * tstep &
-                        !===========================End of new TG_num terms===========================
-                       ! New term from Z_eff
-                       - v * BigR * rhoimp * (GAMMA - 1.) * deta_drimp0_ohm * (zj0/BigR)**2 * xjac * theta * tstep &
-
-                       - v * rhoimp * BigR**2 * alpha_imp_bis * (T0_s * u0_t - T0_t * u0_s)     * theta * tstep &
-                       - v * alpha_imp * T0 * BigR**2 * (rhoimp_s * u0_t - rhoimp_t * u0_s)       * theta * tstep &
-                       + v * rhoimp * F0 / BigR * Vpar0 * alpha_imp_bis * T0_p           * xjac * theta * tstep &
-                       + v * rhoimp * Vpar0 * alpha_imp_bis * (T0_s * ps0_t - T0_t * ps0_s)     * theta * tstep &
-                       + v * alpha_imp * T0 * Vpar0 * (rhoimp_s * ps0_t - rhoimp_t * ps0_s)       * theta * tstep &
-
-                       - v * alpha_imp * rhoimp * 2.d0* GAMMA * BigR * T0 * u0_y                   * xjac * theta * tstep &
-                       + v * alpha_imp * rhoimp * GAMMA * T0 * (vpar0_s * ps0_t - vpar0_t * ps0_s)        * theta * tstep &
-                       + v * alpha_imp * rhoimp * GAMMA * T0 * F0 / BigR * vpar0_p                 * xjac * theta * tstep &
-
-                       + v * BigR * rhoimp * (r0_corr + 2*alpha_e*rimp0_corr) * Lrad * xjac * theta * tstep &
-                       + v * BigR * rhoimp * alpha_e * frad_bg                     * xjac * theta * tstep
-
-                        amat_n(var_T,var_rhoimp) = v * alpha_imp * T0 * F0 / BigR * Vpar0 * rhoimp_p * xjac * theta * tstep &
-                        !=============== The ionization potential energy term=========================
-                       + (GAMMA - 1.) * v * (E_ion-E_ion_bg) * F0 / BigR * Vpar0 * rhoimp_p   * xjac * theta * tstep &
-                       ! New diffusive ionization energy flux term
-                       + (GAMMA - 1.) * E_ion * ((D_par_imp+D_par_imp_sc_num*tau_sc)-D_prof_imp) * BigR / BB2 * Bgrad_rho_star * Bgrad_rhoimp_rhoimp_n   * xjac * theta * tstep &
-                       - (GAMMA - 1.) * E_ion_bg * ((D_par+D_par_sc_num*tau_sc)-D_prof) * BigR / BB2 * Bgrad_rho_star * Bgrad_rhoimp_rhoimp_n            * xjac * theta * tstep &
-                        !================= End ionization potential energy ===========================
-                        !=========================New TG_num terms====================================
-                       + tgnum_T * 0.25d0 / BigR * vpar0**2 &
-                                 * T0 * alpha_imp * (                              + F0 / BigR * rhoimp_p)       &
-                                 * ( v_x * ps0_y -  v_y * ps0_x                  ) * xjac * theta * tstep * tstep
-
-                        amat_k(var_T,var_rhoimp) = &
-                        !=============== The ionization potential energy term=========================
-                       ! New diffusive ionization energy flux term
-                       + (GAMMA - 1.) * E_ion * ((D_par_imp+D_par_imp_sc_num*tau_sc)-D_prof_imp) * BigR / BB2 * Bgrad_rho_k_star * Bgrad_rhoimp_rhoimp * xjac * theta * tstep &
-                       - (GAMMA - 1.) * E_ion_bg * ((D_par+D_par_sc_num*tau_sc)-D_prof) * BigR / BB2 * Bgrad_rho_k_star * Bgrad_rhoimp_rhoimp          * xjac * theta * tstep &
-                        !================= End ionization potential energy ===========================
-
-                         + tgnum_T * 0.25d0 / BigR * vpar0**2 &
-                              * T0 * alpha_imp * (rhoimp_x * ps0_y - rhoimp_y * ps0_x                    )    &
-                              * (                            + F0 / BigR * v_p) * xjac * theta * tstep * tstep&
-                         + tgnum_T * 0.25d0 / BigR * vpar0**2 &
-                              * alpha_imp_bis * rhoimp * (T0_x * ps0_y - T0_y * ps0_x + F0 / BigR * T0_p)        &
-                              * (                            + F0 / BigR * v_p) * xjac * theta * tstep * tstep
-
-                        amat_kn(var_T,var_rhoimp) = &
-                        !=============== The ionization potential energy term=========================
-                       ! New diffusive ionization energy flux term
-                       + (GAMMA - 1.) * E_ion * ((D_par_imp+D_par_imp_sc_num*tau_sc)-D_prof_imp) * BigR / BB2 * Bgrad_rho_k_star * Bgrad_rhoimp_rhoimp_n * xjac * theta * tstep &
-                       + (GAMMA - 1.) * E_ion * D_prof_imp * BigR  * (                        + v_p*rhoimp_p /BigR**2 )                                  * xjac * theta * tstep &
-                       - (GAMMA - 1.) * E_ion_bg * ((D_par+D_par_sc_num*tau_sc)-D_prof) * BigR / BB2 * Bgrad_rho_k_star * Bgrad_rhoimp_rhoimp_n          * xjac * theta * tstep &
-                       - (GAMMA - 1.) * E_ion_bg * D_prof * BigR  * (                        + v_p*rhoimp_p /BigR**2 )                                   * xjac * theta * tstep &
-                        !================= End ionization potential energy ===========================
-
-                          + tgnum_T * 0.25d0 / BigR * vpar0**2 &
-                              * T0 * alpha_imp * (+ F0 / BigR * rhoimp_p)                      &
-                              * (     + F0 / BigR * v_p) * xjac * theta * tstep * tstep
-
-                        !=====================End of new TG_num terms=================================
-
-                      endif
-
                     end if ! (with_vpar)
+                    
+                    if (with_neutrals) then
+                      amat(var_T,var_rhon) = + v * BigR * (r0+alpha_e*rimp0) * rhon * ksiion * Sion_T * xjac * theta * tstep &
+                                             + v * BigR * rhon * (r0_corr+alpha_e*rimp0_corr) * LradDrays_T * xjac * theta * tstep &
+                      !===================== Additional terms from friction terms============
+                            - v * BigR * ((GAMMA - 1.)/2.) * vpar0**2 * BB2 * ((r0+alpha_e*rimp0)*rhon*Sion_T)     * xjac * theta * tstep &
+                            - v * BigR * ((GAMMA - 1.)/2.) * vv2            * ((r0+alpha_e*rimp0)*rhon*Sion_T)     * xjac * theta * tstep 
+                      !==============================End of friction terms=================
+
+                    endif
+                      
+                    if (with_impurities) then
+                      amat(var_T,var_rhoimp) = v * rhoimp * alpha_imp * T0 * BigR * xjac * (1.d0 + zeta)&
+                      !=============== The ionization potential energy term=========================
+                     + (GAMMA - 1.) * v * rhoimp * (E_ion - E_ion_bg) * BigR * xjac * (1.d0 + zeta)                &
+                     - (GAMMA - 1.) * v * rhoimp * dE_ion_dT * BigR**2 * (T0_s*u0_t - T0_t*u0_s)    * theta * tstep&
+                     - (GAMMA - 1.) * v * (E_ion-E_ion_bg) * BigR**2 * (rhoimp_s*u0_t - rhoimp_t*u0_s)* theta * tstep&
+
+                     + (GAMMA - 1.) * v * rhoimp * dE_ion_dT * F0 / BigR * Vpar0 * T0_p      * xjac * theta * tstep&
+
+                     + (GAMMA - 1.) * v * rhoimp * dE_ion_dT * Vpar0 * (T0_s*ps0_t - T0_t*ps0_s)    * theta * tstep&
+                     + (GAMMA - 1.) * v * (E_ion-E_ion_bg) * Vpar0 * (rhoimp_s*ps0_t - rhoimp_t*ps0_s)* theta * tstep&
+
+                     - (GAMMA - 1.) * v * (E_ion-E_ion_bg) * rhoimp * 2.d0 * BigR * u0_y     * xjac * theta * tstep&
+                     + (GAMMA - 1.) * v * (E_ion-E_ion_bg) * rhoimp*(vpar0_s*ps0_t - vpar0_t*ps0_s) * theta * tstep&
+                     + (GAMMA - 1.) * v * (E_ion-E_ion_bg) * rhoimp * F0 / BigR * vpar0_p    * xjac * theta * tstep&
+                     ! New diffusive ionization energy flux term
+                     + (GAMMA - 1.) * E_ion * ((D_par_imp+D_par_imp_sc_num*tau_sc)-D_prof_imp) * BigR / BB2 * Bgrad_rho_star * Bgrad_rhoimp_rhoimp * xjac * theta * tstep &
+                     + (GAMMA - 1.) * E_ion * D_prof_imp * BigR  * (v_x*rhoimp_x + v_y*rhoimp_y                                                  ) * xjac * theta * tstep &
+                     - (GAMMA - 1.) * E_ion_bg * ((D_par+D_par_sc_num*tau_sc)-D_prof) * BigR / BB2 * Bgrad_rho_star * Bgrad_rhoimp_rhoimp          * xjac * theta * tstep &
+                     - (GAMMA - 1.) * E_ion_bg * D_prof * BigR  * (v_x*rhoimp_x + v_y*rhoimp_y                                                   ) * xjac * theta * tstep &
+
+                      !================= End ionization potential energy ===========================
+                      !=========================New TG_num terms====================================
+                     + tgnum_T * 0.25d0 * BigR**2 * T0 * alpha_imp * (rhoimp_x * u0_y - rhoimp_y * u0_x)    &
+                               * ( v_x * u0_y - v_y * u0_x) * xjac * theta*tstep*tstep     &
+
+                     + tgnum_T * 0.25d0 * BigR**2 * alpha_imp_bis * rhoimp * (T0_x * u0_y - T0_y * u0_x)      &
+                               * ( v_x * u0_y - v_y * u0_x) * xjac* theta*tstep*tstep      &
+
+                     + tgnum_T * 0.25d0 / BigR * vpar0**2 &
+                               * T0 * alpha_imp * (rhoimp_x * ps0_y - rhoimp_y * ps0_x                     )           &
+                               * ( v_x * ps0_y -  v_y * ps0_x                   ) * xjac * theta * tstep * tstep&
+                     + tgnum_T * 0.25d0 / BigR * vpar0**2 &
+                               * alpha_imp_bis * rhoimp * (T0_x * ps0_y - T0_y * ps0_x + F0 / BigR * T0_p)           &
+                               * ( v_x * ps0_y -  v_y * ps0_x                  ) * xjac * theta * tstep * tstep &
+                      !===========================End of new TG_num terms===========================
+                     ! New term from Z_eff
+                     - v * BigR * rhoimp * (GAMMA - 1.) * deta_drimp0_ohm * (zj0/BigR)**2 * xjac * theta * tstep &
+
+                     - v * rhoimp * BigR**2 * alpha_imp_bis * (T0_s * u0_t - T0_t * u0_s)     * theta * tstep &
+                     - v * alpha_imp * T0 * BigR**2 * (rhoimp_s * u0_t - rhoimp_t * u0_s)       * theta * tstep &
+                     + v * rhoimp * F0 / BigR * Vpar0 * alpha_imp_bis * T0_p           * xjac * theta * tstep &
+                     + v * rhoimp * Vpar0 * alpha_imp_bis * (T0_s * ps0_t - T0_t * ps0_s)     * theta * tstep &
+                     + v * alpha_imp * T0 * Vpar0 * (rhoimp_s * ps0_t - rhoimp_t * ps0_s)       * theta * tstep &
+
+                     - v * alpha_imp * rhoimp * 2.d0* GAMMA * BigR * T0 * u0_y                   * xjac * theta * tstep &
+                     + v * alpha_imp * rhoimp * GAMMA * T0 * (vpar0_s * ps0_t - vpar0_t * ps0_s)        * theta * tstep &
+                     + v * alpha_imp * rhoimp * GAMMA * T0 * F0 / BigR * vpar0_p                 * xjac * theta * tstep &
+
+                     + v * BigR * rhoimp * (r0_corr + 2*alpha_e*rimp0_corr) * Lrad * xjac * theta * tstep &
+                     + v * BigR * rhoimp * alpha_e * frad_bg                     * xjac * theta * tstep
+
+                      amat_n(var_T,var_rhoimp) = v * alpha_imp * T0 * F0 / BigR * Vpar0 * rhoimp_p * xjac * theta * tstep &
+                      !=============== The ionization potential energy term=========================
+                     + (GAMMA - 1.) * v * (E_ion-E_ion_bg) * F0 / BigR * Vpar0 * rhoimp_p   * xjac * theta * tstep &
+                     ! New diffusive ionization energy flux term
+                     + (GAMMA - 1.) * E_ion * ((D_par_imp+D_par_imp_sc_num*tau_sc)-D_prof_imp) * BigR / BB2 * Bgrad_rho_star * Bgrad_rhoimp_rhoimp_n   * xjac * theta * tstep &
+                     - (GAMMA - 1.) * E_ion_bg * ((D_par+D_par_sc_num*tau_sc)-D_prof) * BigR / BB2 * Bgrad_rho_star * Bgrad_rhoimp_rhoimp_n            * xjac * theta * tstep &
+                      !================= End ionization potential energy ===========================
+                      !=========================New TG_num terms====================================
+                     + tgnum_T * 0.25d0 / BigR * vpar0**2 &
+                               * T0 * alpha_imp * (                              + F0 / BigR * rhoimp_p)       &
+                               * ( v_x * ps0_y -  v_y * ps0_x                  ) * xjac * theta * tstep * tstep
+
+                      amat_k(var_T,var_rhoimp) = &
+                      !=============== The ionization potential energy term=========================
+                     ! New diffusive ionization energy flux term
+                     + (GAMMA - 1.) * E_ion * ((D_par_imp+D_par_imp_sc_num*tau_sc)-D_prof_imp) * BigR / BB2 * Bgrad_rho_k_star * Bgrad_rhoimp_rhoimp * xjac * theta * tstep &
+                     - (GAMMA - 1.) * E_ion_bg * ((D_par+D_par_sc_num*tau_sc)-D_prof) * BigR / BB2 * Bgrad_rho_k_star * Bgrad_rhoimp_rhoimp          * xjac * theta * tstep &
+                      !================= End ionization potential energy ===========================
+
+                       + tgnum_T * 0.25d0 / BigR * vpar0**2 &
+                            * T0 * alpha_imp * (rhoimp_x * ps0_y - rhoimp_y * ps0_x                    )    &
+                            * (                            + F0 / BigR * v_p) * xjac * theta * tstep * tstep&
+                       + tgnum_T * 0.25d0 / BigR * vpar0**2 &
+                            * alpha_imp_bis * rhoimp * (T0_x * ps0_y - T0_y * ps0_x + F0 / BigR * T0_p)        &
+                            * (                            + F0 / BigR * v_p) * xjac * theta * tstep * tstep
+
+                      amat_kn(var_T,var_rhoimp) = &
+                      !=============== The ionization potential energy term=========================
+                     ! New diffusive ionization energy flux term
+                     + (GAMMA - 1.) * E_ion * ((D_par_imp+D_par_imp_sc_num*tau_sc)-D_prof_imp) * BigR / BB2 * Bgrad_rho_k_star * Bgrad_rhoimp_rhoimp_n * xjac * theta * tstep &
+                     + (GAMMA - 1.) * E_ion * D_prof_imp * BigR  * (                        + v_p*rhoimp_p /BigR**2 )                                  * xjac * theta * tstep &
+                     - (GAMMA - 1.) * E_ion_bg * ((D_par+D_par_sc_num*tau_sc)-D_prof) * BigR / BB2 * Bgrad_rho_k_star * Bgrad_rhoimp_rhoimp_n          * xjac * theta * tstep &
+                     - (GAMMA - 1.) * E_ion_bg * D_prof * BigR  * (                        + v_p*rhoimp_p /BigR**2 )                                   * xjac * theta * tstep &
+                      !================= End ionization potential energy ===========================
+
+                        + tgnum_T * 0.25d0 / BigR * vpar0**2 &
+                            * T0 * alpha_imp * (+ F0 / BigR * rhoimp_p)                      &
+                            * (     + F0 / BigR * v_p) * xjac * theta * tstep * tstep
+
+                      !=====================End of new TG_num terms=================================
+
+                    endif ! (with_impurities)
                     
                   end if ! (with_TiTe) *************************************************************
  

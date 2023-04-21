@@ -1,6 +1,6 @@
 module construct_matrix_mod
 
-use mod_parameters, only : n_var
+use mod_parameters, only : n_var, n_order, n_degrees_1d
 
 implicit none
 
@@ -44,7 +44,7 @@ contains
     
     ! -- internal parameters
     integer :: iv, iv2, iv3, iv4, inode1, inode2, inode3, inode4, i, j
-    integer :: vertex(2), direction(2), bnd1, bnd2, side1, side2
+    integer :: vertex(2), direction(n_degrees_1d), bnd1, bnd2, side1, side2
     integer :: i_max   ! for keep_n0_const max index which should be updated
     integer :: n_tor_local
 
@@ -114,10 +114,13 @@ contains
           if (bnd1 .eq. 2) side1 = 3 ; if (bnd2 .eq. 2) side2 = 3
           if (bnd1 .eq.12) side1 = 2 ; if (bnd2 .eq.12) side2 = 2
           if (bnd1 .eq. 4) side1 = 2 ; if (bnd2 .eq. 4) side2 = 2
+          direction(1) = 1
           if     ( (side1 .eq. 2) .or. (side2 .eq. 2) ) then
-            direction = (/  1, 2  /)
+            direction(2) = 2
+            if (n_order .ge. 5) direction(3) = 5
           elseif ( (side1 .eq. 3) .or. (side2 .eq. 3) ) then
-            direction = (/  1, 3  /)
+            direction(2) = 3
+            if (n_order .ge. 5) direction(3) = 6
           endif
           ! --- This should never happen, but just in case...
           if (     ((side1 .eq. 2) .and. (side2 .eq. 3)) &
@@ -128,20 +131,24 @@ contains
           endif
         else
           ! --- The target has boundary 1 or 3
+          direction(1) = 1
           if (     (  ((bnd1 .eq. 1) .or. (bnd1 .eq. 3)) .and. ((bnd2 .eq. 1) .or. (bnd2 .eq. 3))  ) &
               .or. (  ((bnd1 .eq. 1) .or. (bnd1 .eq. 9)) .and. ((bnd2 .eq. 1) .or. (bnd2 .eq. 9))  ) &
               .or. (  ((bnd1 .eq. 4) .or. (bnd1 .eq. 9)) .and. ((bnd2 .eq. 4) .or. (bnd2 .eq. 9))  ) &
               .or. (  ((bnd1 .eq. 1) .or. (bnd1 .eq. 4)) .and. ((bnd2 .eq. 4) .or. (bnd2 .eq. 1))  ) ) then
             
-            direction = (/  1, 2  /)
+            direction(2) = 2
+            if (n_order .ge. 5) direction(3) = 5
             
           elseif (  ((bnd1 .eq. 5) .or. (bnd1 .eq. 9)) .and. ((bnd2 .eq. 5) .or. (bnd2 .eq. 9)) ) then
             
-            direction = (/  1, 3  /)
+            direction(2) = 3
+            if (n_order .ge. 5) direction(3) = 6
             
           elseif (  ((bnd1 .eq. 2) .or. (bnd1 .eq. 3)) .and. ((bnd2 .eq. 2) .or. (bnd2 .eq. 3)) ) then
             
-            direction = (/  1, 3  /)
+            direction(2) = 3
+            if (n_order .ge. 5) direction(3) = 6
             
           else
             write(*,'(A,4i8)') 'WARNING: boundary_matrix_open, boundary element not included ',&
