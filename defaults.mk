@@ -166,6 +166,9 @@ endif
 ifeq (model712, $(MODEL))
   DEFINES  := $(DEFINES) -Dfullmhd
 endif
+ifeq (model750, $(MODEL))
+  DEFINES  := $(DEFINES) -Dfullmhd
+endif
 
 ifeq (.true., $(shell ./util/config.sh -p with_vpar))
   DEFINES  := $(DEFINES) -DWITH_Vpar

@@ -857,6 +857,8 @@ endif
   if (allocated(deltas_tmp)) call tr_deallocate(deltas_tmp,"deltas_tmp",CAT_UNKNOWN)
 
   call populate_element_rtree(node_list, element_list)
+  
+  equil_initialized = .true.
 
   return
 end subroutine import_binary_restart
@@ -2090,6 +2092,8 @@ subroutine import_hdf5_restart(node_list, element_list, filename, format_rst, er
   write (6,*) " ERROR: trying to import with hdf5 but USE_HDF5 was not set at compile-time"
 #endif
   call populate_element_rtree(node_list, element_list)
+
+  equil_initialized = .true.
 
   return
 end subroutine import_hdf5_restart

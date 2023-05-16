@@ -178,7 +178,8 @@ module mod_expression
     call add(exprs_all, 'V_neo       ', 'Neoclassical Velocity                                 ')
     call add(exprs_all, 'Vperp_e     ', 'Electron Perpendicular Velocity                       ')
     call add(exprs_all, 'Vperp_i     ', 'Ion Perpendicular Velocity                            ')
-    call add(exprs_all, 'V_ExB       ', 'ExB Velocity                                          ')
+    call add(exprs_all, 'V_ExB_pol   ', 'Poloidal component of ExB Velocity                    ')
+    call add(exprs_all, 'V_ExB_R     ', 'R component of ExB Velocity                           ')
     call add(exprs_all, 'Vstar_e     ', 'Electron Diamagnetic Velocity                         ')
     call add(exprs_all, 'Vstar_i     ', 'Ion Diamagnetic Velocity                              ')
     call add(exprs_all, 'ki_neo      ', 'Neoclassical Heat Diffusivity                         ')
@@ -228,6 +229,7 @@ module mod_expression
 #if (defined WITH_Neutrals) && (!defined WITH_Impurities)
     call add(exprs_all, 'brem        ', 'Brem terms for bolometry diagnostic                   ')
     call add(exprs_all, 'line_rad    ', 'D neutral line radiation                              ')
+    call add(exprs_all, 'bg_imp_rad  ', 'Background impurity radiation                          ')
 #endif
     ! --- List of volume and boundary integrals
     call add(exprs_all_int, 'index_now   ', 'Restart file index (or number of run tsteps)          ')
@@ -1944,9 +1946,12 @@ module mod_expression
               case ( 'Vperp_i' )
                 res = Vperp_i / fact_time
                 
-              case ( 'V_ExB' )
+              case ( 'V_ExB_pol' )
                 res = V_ExB / fact_time
-                
+
+              case ( 'V_ExB_R' )
+                res = -R*u0_Z / fact_time 
+
               case ( 'Vstar_e' )
                 res = Vstar_e / fact_time
                 
@@ -2084,6 +2089,9 @@ module mod_expression
 
               case ('line_rad')
                 res = r0 * max(rn0,0.d0) * LradDrays_T * fact_rad
+
+              case ('bg_imp_rad')
+                res = r0 * fact_ne * frad_bg
 #endif
 #ifdef WITH_Impurities
               case ( 'radiation' )

@@ -107,7 +107,7 @@ module equil_info
   !> Re-calculate the equilibrium state.
   subroutine update_equil_state(my_id, node_list, element_list, bnd_elm_list, xpoint, xcase)
     
-    use phys_module,    only: freeboundary
+    use phys_module,    only: freeboundary, equil_initialized
 
     ! --- Routine parameters.
     integer,                     intent(in)    :: my_id
@@ -316,7 +316,7 @@ module equil_info
     endif
 
     ! --- Calculate shape parameters of the LCFS
-    call LCFS_shape_parameters(node_list,element_list)
+    if ( equil_initialized ) call LCFS_shape_parameters(node_list,element_list)
     
     ES%initialized = .true.
     

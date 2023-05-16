@@ -4765,6 +4765,20 @@ if ( with_TiTe ) then ! (with_TiTe)
     Ptot_p   = Ptot_p    + rn0 * Ti0_p + rn0_p * Ti0
     Ptot_x   = Ptot_x    + rn0 * Ti0_x + rn0_x * Ti0
     Ptot_y   = Ptot_y    + rn0 * Ti0_y + rn0_y * Ti0
+
+    ! R_Ti = (\boldsymbol{v} \cdot \nabla Ti) + (GAMMA-1.d0) * Ti0 * divU
+    R_Ti = (GAMMA-1.d0) * Ti0 * divU &
+         + Vpar0 * (Ti0_x * ps0_y - Ti0_y * ps0_x) / BigR &
+         - BigR  * (Ti0_x * u0_y  - Ti0_y * u0_x)         &
+         + F0    * Vpar0 * Ti0_p / BigR**2
+
+    ! R_Te = (\boldsymbol{v} \cdot \nabla Te) + (GAMMA-1.d0) * Te0 * divU
+    R_Te = (GAMMA-1.d0) * Te0 * divU &
+         + Vpar0 * (Te0_x * ps0_y - Te0_y * ps0_x) / BigR &
+         - BigR  * (Te0_x * u0_y  - Te0_y * u0_x)         &
+         + F0    * Vpar0 * Te0_p / BigR**2
+
+    d_p = (Ti0+Te0)*R_rho + (r0+rn0)*R_Ti + r0*R_Te + Ti0*R_rhon
   endif
 
   if( with_impurities ) then
@@ -4773,39 +4787,47 @@ if ( with_TiTe ) then ! (with_TiTe)
     Ptot     = Ptot      + (GAMMA-1.d0) * rimp0 * E_ion
     Ptot_corr= Ptot_corr + rimp0_corr * alpha_i * Ti0_corr + rimp0_corr * alpha_e * Te0_corr &
                          + (GAMMA-1.d0) * rimp0_corr * E_ion
-    Ptot_p   = Ptot_p    + (GAMMA-1.d0) * (rimp0 * dE_ion_dT * T0_p + rimp0_p * E_ion)
-    Ptot_x   = Ptot_x    + (GAMMA-1.d0) * (rimp0 * dE_ion_dT * T0_x + rimp0_x * E_ion)
-    Ptot_y   = Ptot_y    + (GAMMA-1.d0) * (rimp0 * dE_ion_dT * T0_y + rimp0_y * E_ion)
+    Ptot_p   = Ptot_p    + (GAMMA-1.d0) * (rimp0 * dE_ion_dT * Te0_p + rimp0_p * E_ion)
+    Ptot_x   = Ptot_x    + (GAMMA-1.d0) * (rimp0 * dE_ion_dT * Te0_x + rimp0_x * E_ion)
+    Ptot_y   = Ptot_y    + (GAMMA-1.d0) * (rimp0 * dE_ion_dT * Te0_y + rimp0_y * E_ion)
 
     rhoi_eff = r0_corr + alpha_i*rimp0 + rimp0*Ti0*dalpha_i_dT
     rhoe_eff = r0_corr + alpha_e*rimp0 + rimp0*Te0*dalpha_e_dT + (GAMMA-1.d0)*rimp0*dE_ion_dT
+
+    ! R_Ti = (\boldsymbol{v} \cdot \nabla Ti) + (GAMMA-1.d0) * (r0 + alpha_i*rimp0)*Ti0 / rhoi_eff * divU
+    R_Ti = (GAMMA-1.d0) * (r0 + alpha_i*rimp0)*Ti0 / rhoi_eff * divU &
+         + Vpar0 * (Ti0_x * ps0_y - Ti0_y * ps0_x) / BigR &
+         - BigR  * (Ti0_x * u0_y  - Ti0_y * u0_x)         &
+         + F0    * Vpar0 * Ti0_p / BigR**2
+
+    ! R_Te = (\boldsymbol{v} \cdot \nabla Te) + (GAMMA-1.d0) * (r0 + alpha_e*rimp0)*Te0 / rhoe_eff * divU
+    R_Te = (GAMMA-1.d0) * (r0 + alpha_e*rimp0)*Te0 / rhoe_eff * divU &
+         + Vpar0 * (Te0_x * ps0_y - Te0_y * ps0_x) / BigR &
+         - BigR  * (Te0_x * u0_y  - Te0_y * u0_x)         &
+         + F0    * Vpar0 * Te0_p / BigR**2
+
+    d_p = (Ti0+Te0)*R_rho + rhoi_eff*R_Ti + rhoe_eff*R_Te + Ti0*R_rhon &
+        + (alpha_i*Ti0 + alpha_e*Te0 + (GAMMA-1.d0)*E_ion)*R_rhoimp
   endif
-
-  ! R_Ti = (\boldsymbol{v} \cdot \nabla Ti) + (GAMMA-1.d0) * (r0 + alpha_i*rimp0)*Ti0 / rhoi_eff * divU
-  R_Ti = (GAMMA-1.d0) * (r0 + alpha_i*rimp0)*Ti0 / rhoi_eff * divU &
-       + Vpar0 * (Ti0_x * ps0_y - Ti0_y * ps0_x) / BigR &
-       - BigR  * (Ti0_x * u0_y  - Ti0_y * u0_x)         &
-       + F0    * Vpar0 * Ti0_p / BigR**2
-
-  ! R_Te = (\boldsymbol{v} \cdot \nabla Te) + (GAMMA-1.d0) * (r0 + alpha_e*rimp0)*Te0 / rhoe_eff * divU
-  R_Te = (GAMMA-1.d0) * (r0 + alpha_e*rimp0)*Te0 / rhoe_eff * divU &
-       + Vpar0 * (Te0_x * ps0_y - Te0_y * ps0_x) / BigR &
-       - BigR  * (Te0_x * u0_y  - Te0_y * u0_x)         &
-       + F0    * Vpar0 * Te0_p / BigR**2
-
-  d_p = (Ti0+Te0)*R_rho + rhoi_eff*R_Ti + rhoe_eff*R_Te + Ti0*R_rhon &
-      + (alpha_i*Ti0 + alpha_e*Te0 + (GAMMA-1.d0)*E_ion)*R_rhoimp
 else
 
   Ptot_corr = r0_corr * T0_corr
   rho_eff   = r0_corr
 
   if (with_neutrals)then
-    Ptot     = Ptot      + rn0 * T0
-    Ptot_corr= Ptot_corr + rn0_corr * T0_corr
-    Ptot_p   = Ptot_p    + (rn0 * T0_p + rn0_p * T0)
-    Ptot_x   = Ptot_x    + (rn0 * T0_x + rn0_x * T0)
-    Ptot_y   = Ptot_y    + (rn0 * T0_y + rn0_y * T0)
+    Ptot     = Ptot      + 0.5d0 * rn0 * T0
+    Ptot_corr= Ptot_corr + 0.5d0 * rn0_corr * T0_corr
+    Ptot_p   = Ptot_p    + 0.5d0 * (rn0 * T0_p + rn0_p * T0)
+    Ptot_x   = Ptot_x    + 0.5d0 * (rn0 * T0_x + rn0_x * T0)
+    Ptot_y   = Ptot_y    + 0.5d0 * (rn0 * T0_y + rn0_y * T0)
+
+    ! R_T = (\boldsymbol{v} \cdot \nabla T) + (GAMMA-1.d0) * T0 * divU
+    R_T  = (GAMMA-1.d0) * T0 * divU &
+         + Vpar0 * (T0_x * ps0_y - T0_y * ps0_x) / BigR &
+         - BigR  * (T0_x * u0_y  - T0_y * u0_x)         &
+         + F0    * Vpar0 * T0_p / BigR**2
+
+    d_p = T0*R_rho + (r0+0.5d0*rn0)*R_T + 0.5d0*T0*R_rhon 
   endif
 
   if (with_impurities)then
@@ -4816,15 +4838,15 @@ else
     Ptot_y   = Ptot_y    + (GAMMA-1.d0) * (rimp0 * dE_ion_dT * T0_y + rimp0_y * E_ion)
 
     rho_eff  = r0_corr + alpha_imp*rimp0 + rimp0*dalpha_imp_dT*T0 + (GAMMA-1.d0)*rimp0*dE_ion_dT
-  endif
              
-  ! R_T = (\boldsymbol{v} \cdot \nabla T) + (GAMMA-1.d0) * (r0 + alpha_imp*rimp0)*T0 / rho_eff * divU
-  R_T  = (GAMMA-1.d0) * (r0 + alpha_imp*rimp0)*T0 / rho_eff * divU &
-       + Vpar0 * (T0_x * ps0_y - T0_y * ps0_x) / BigR &
-       - BigR  * (T0_x * u0_y  - T0_y * u0_x)         &
-       + F0    * Vpar0 * T0_p / BigR**2
+    ! R_T = (\boldsymbol{v} \cdot \nabla T) + (GAMMA-1.d0) * (r0 + alpha_imp*rimp0)*T0 / rho_eff * divU
+    R_T  = (GAMMA-1.d0) * (r0 + alpha_imp*rimp0)*T0 / rho_eff * divU &
+         + Vpar0 * (T0_x * ps0_y - T0_y * ps0_x) / BigR &
+         - BigR  * (T0_x * u0_y  - T0_y * u0_x)         &
+         + F0    * Vpar0 * T0_p / BigR**2
 
-  d_p = T0*R_rho +  rho_eff*R_T + T0*R_rhon + (alpha_imp*T0+(GAMMA-1.d0)*E_ion)*R_rhoimp
+    d_p = T0*R_rho +  rho_eff*R_T + T0*R_rhon + (alpha_imp*T0+(GAMMA-1.d0)*E_ion)*R_rhoimp
+  endif
 endif
 
 ! step 2.1: update modulation term by including sources (s_p)

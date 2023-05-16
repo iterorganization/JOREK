@@ -565,11 +565,43 @@ for i in `seq $nthreads`; do
   mkdir -p ${tmpdir[$i]}
 done
 
+# --- Create a list of available selected files ---------------------------------
+if [ $selected_steps == "0-99999" ]; then
+  selected_available_files=$files
+else
+
+  file_available_restarts="available_restart_files.txt"
+  file_selected_restarts="selected_restart_files.txt"
+  
+  rm -f $file_available_restarts $file_selected_restarts
+  ls -1 $sourceDir/jorek?????.${RST_TYPE} > $file_available_restarts
+  
+  step_ranges=`echo $selected_steps | tr ',' ' '`
+  for step_range in $step_ranges; do
+    step_numbers=(`echo $step_range | tr '-' ' '`) # split step_range, e.g., 1-3 -> 1 3
+    if [[ ${#step_numbers[*]} -eq 1 ]]; then
+      istart=${step_numbers[0]};   istep=1;                    iend=${step_numbers[0]}
+    elif [[ ${#step_numbers[*]} -eq 2 ]]; then
+      istart=${step_numbers[0]};   istep=1;                    iend=${step_numbers[1]}
+    elif [[ ${#step_numbers[*]} -eq 3 ]]; then
+      istart=${step_numbers[0]};   istep=${step_numbers[1]};   iend=${step_numbers[2]}
+    fi
+
+    for i in `seq $istart $istep $iend`; do
+      padnumber=`printf "%05d" $i`
+      echo $padnumber >> $file_selected_restarts
+    done
+  done
+ 
+  selected_available_files=`grep -f $file_selected_restarts $file_available_restarts`
+  rm -f $file_available_restarts $file_selected_restarts
+fi
+# ------------------------------------------------------------------------------
 
 
 # --- Parallel file conversion
 echo ""
-for file in $files; do
+for file in $selected_available_files; do
   if [ -f "$ERROR_STOP_FILE" ]; then cleanup; fi
   ithread=`get_available_thread`
   if [ ! -f "$ERROR_STOP_FILE" ]; then

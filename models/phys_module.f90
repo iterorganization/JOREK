@@ -519,6 +519,7 @@ module phys_module
   real*8  :: delta_psi_GS      !< Expected psi_bnd - psi_axis for the final equilibrium  
   logical :: newton_GS_fixbnd  !< Newton instead of Picard iterations for fixed-boundary equilibria?
   logical :: newton_GS_freebnd !< Newton instead of Picard iterations for free-boundary equilibria?
+  logical :: equil_initialized = .false. !< Workaround to prevent determining lcfs shape when the equilibrium hasn't been initialized (by restarting or calling equilibrium)
  
   !> @name Free boundary extension
   !! Input parameters related to the free boundary extension (folder vacuum/).

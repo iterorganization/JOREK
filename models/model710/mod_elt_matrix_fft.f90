@@ -2104,33 +2104,6 @@ do i=1,n_vertex_max
                   gradT_gradVstar_T__p  = T_R * v_R  + T_Z * v_Z
                   gradT_gradVstar_T__kn = (T_p / R) * (v_p  / R)
 
-                  Qconv_UR_UR__p  = - v * ( rho0  * UgradUR_UR__p  +  UR * divRhoU + UR0 * divRhoU_UR  )
-                  Qconv_UR_UR__n  = - v * ( rho0  * UgradUR_UR__n )
-                  Qconv_UR_UZ__p  = - v * ( rho0  * UgradUR_UZ + UR0 * divRhoU_UZ  )
-                  Qconv_UR_UZ__n  = 0.d0
-                  Qconv_UR_Up__p  = - v * ( rho0  * ( UgradUR_Up - 2.0*Up0*Up / R ) + UR0 * divRhoU_Up__p  )
-                  Qconv_UR_Up__n  = - v * (                                         + UR0 * divRhoU_Up__n  )
-                  Qconv_UR_rho__p = - v * ( rho  * ( UgradUR - Up0**2 / R ) + UR0 * divRhoU_rho__p  )
-                  Qconv_UR_rho__n = - v * (                                 + UR0 * divRhoU_rho__n  )
-
-                  Qconv_UZ_UR__p  = - v * ( rho0  * UgradUZ_UR + UZ0 * divRhoU_UR  ) 
-                  Qconv_UZ_UR__n  = 0.d0
-                  Qconv_UZ_UZ__p  = - v * ( rho0  * UgradUZ_UZ__p + UZ * divRhoU + UZ0 * divRhoU_UZ  ) 
-                  Qconv_UZ_UZ__n  = - v * ( rho0  * UgradUZ_UZ__n ) 
-                  Qconv_UZ_Up__p  = - v * ( rho0  * UgradUZ_Up + UZ0 * divRhoU_Up__p  ) 
-                  Qconv_UZ_Up__n  = - v * (                    + UZ0 * divRhoU_Up__n  ) 
-                  Qconv_UZ_rho__p = - v * ( rho   * UgradUZ + UZ0 * divRhoU_rho__p  ) 
-                  Qconv_UZ_rho__n = - v * (                 + UZ0 * divRhoU_rho__n  ) 
-
-                  Qconv_Up_UR__p  = - v * ( rho0  * ( UgradUp_UR + UR * Up0 / R ) + Up0 * divRhoU_UR  )
-                  Qconv_Up_UR__n  = 0.d0
-                  Qconv_Up_UZ__p  = - v * ( rho0  * ( UgradUp_UZ ) + Up0 * divRhoU_UZ  )
-                  Qconv_Up_UZ__n  = 0.d0
-                  Qconv_Up_Up__p  = - v * ( rho0  * ( UgradUp_Up__p + UR0 * Up / R ) + Up0 * divRhoU_Up__p + Up * divRhoU  )
-                  Qconv_Up_Up__n  = - v * ( rho0  * ( UgradUp_Up__n                ) + Up0 * divRhoU_Up__n  )
-                  Qconv_Up_rho__p = - v * ( rho   * ( UgradUp + UR0 * Up0 / R ) + Up0 * divRhoU_rho__p  )
-                  Qconv_Up_rho__n = - v * (                                     + Up0 * divRhoU_rho__n  )
-
                   eta_T_T    = deta_dT * T
                   eta_R_T    = d2eta_d2T * T * T0_R + deta_dT * T_R
                   eta_Z_T    = d2eta_d2T * T * T0_Z + deta_dT * T_Z

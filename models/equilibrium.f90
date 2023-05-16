@@ -744,5 +744,8 @@ if (freeboundary_equil) then
   call broadcast_boundary(my_id, bnd_elm_list, bnd_node_list)
   call boundary_check(my_id)
 endif
+
+equil_initialized = .true.
+
 return
 end subroutine equilibrium

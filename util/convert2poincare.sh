@@ -46,7 +46,8 @@ function usage () {
   echo "  -l                          Creates a file containing all selected timesteps and times,"
   echo "                              if parameter -(d)time is used (default:off)"
   echo "  -zip                        Compress the .dat files using gzip"
-  echo "  -stpts                      Filename of startpoints [default:stpts]"
+  echo "  -tool                       Using jorek2_poincare or poincare? [default:jorek2_poincare]"
+  echo "  -input_poinc                Input file for jorek2_poincare / poincare [default:stpts / pncr]"
   echo ""
   echo "  binary                      executable (jorek2poincare)"
   echo "  infile                      Input file of the corresponding JOREK run"
@@ -109,9 +110,13 @@ function do_convert () {
 
   stepnum=${file##*/} # Remove directory from filename
   stepnum=${stepnum:5:5}
-  targetFile0="$targetDir/poinc_R-Z.$stepnum.dat" # Target filename with same number as source
-  targetFile1="$targetDir/poinc_rho-theta.$stepnum.dat" # Target filename with same number as source
-  
+  if [ "$poinc_tool" == "poincare" ]; then
+    targetFile0="$targetDir/poincare.$stepnum.h5" # Target filename with same number as source
+  else
+    targetFile0="$targetDir/poinc_R-Z.$stepnum.dat" # Target filename with same number as source
+    targetFile1="$targetDir/poinc_rho-theta.$stepnum.dat" # Target filename with same number as source
+  fi
+
   # Convert only new, selected restart files
   #   If -only flag is used, $select_arguments is empty and selection of steps is carried out below via 'is_selected'.
   #   If -time flag is used, selection of steps has happened before by python and every incoming step is accepted here.
@@ -122,10 +127,22 @@ function do_convert () {
     for copyfile in $copyfiles; do
       cp $startDir/$copyfile .
     done
-    if [ "$stpts" != "stpts" ]; then
-      mv "$stpts" "stpts"
+    if [ "$poinc_tool" == "jorek2_poincare" ]; then
+      if [ "$input_poinc" != "stpts" ]; then
+        mv "$input_poinc" "stpts"
+      fi
+    else
+      if [ "$input_poinc" != "pncr" ]; then
+        mv "$input_poinc" "pncr"
+      fi
     fi
-    $binary < $infile > ./log 2>&1
+
+    if [ "$poinc_tool" == "poincare" ]; then
+      mpirun -n 1 $binary < $infile > ./log 2>&1
+    else 
+      $binary < $infile > ./log 2>&1
+    fi
+
     if [ $? -ne 0 ]; then
       if [ ! -f $ERROR_STOP_FILE ]; then
         touch $ERROR_STOP_FILE
@@ -141,13 +158,20 @@ function do_convert () {
     else
       egrep -i "warning|restart time" ./log
     fi
-    mv poinc_R-Z.dat $targetFile0
-    mv poinc_rho-theta.dat $targetFile1
+    if [ "$poinc_tool" == "jorek2_poincare" ]; then
+      mv poinc_R-Z.dat $targetFile0
+      mv poinc_rho-theta.dat $targetFile1
+    else
+      mv poincare.h5 $targetFile0
+    fi
+
     if [ "$zipfiles" == "yes" ]; then
       rm -f ${targetFile0}.gz
       gzip $targetFile0
-      rm -f ${targetFile1}.gz
-      gzip $targetFile1
+      if [ "$poinc_tool" == "jorek2_poincare" ]; then 
+        rm -f ${targetFile1}.gz
+        gzip $targetFile1
+      fi
     fi 
   fi
   
@@ -164,7 +188,8 @@ SCRIPTDIR=`dirname $0`; SCRIPTDIR=`readlink -f $SCRIPTDIR`
 nthreads="1"
 customdir=""
 selected_steps="0-99999"
-stpts="stpts"
+input_poinc="stpts"
+poinc_tool="jorek2_poincare"
 select_arguments=""
 while [ $# -gt 1 ]; do
   if [ "$1" == "-j" ]; then
@@ -191,8 +216,11 @@ while [ $# -gt 1 ]; do
   elif [ "$1" == "-zip" ]; then
     zipfiles="yes"
     shift 1
-  elif [ "$1" == "-stpts" ]; then
-    stpts="$2"
+  elif [ "$1" == "-input_poinc" ]; then
+    input_poinc="$2"
+    shift 2
+  elif [ "$1" == "-tool" ]; then
+    poinc_tool="$2"
     shift 2
   elif [ "$1" == "-h" ] || [ "$1" = "--help" ]; then
     usage
@@ -225,7 +253,17 @@ if [[ ! "$selected_steps" =~ $regexp_steps   ]]; then
   exit 1
 fi
 
+if [ $poinc_tool != "jorek2_poincare" ] && [ $poinc_tool != "poincare" ]; then
+  echo "ERROR: Wrong poincare tool. Use either jorek2_poincare or poincare"
+  usage
+  exit 1
+fi
 
+if [ "$poinc_tool" == "poincare" ]; then
+  if [ "$input_poinc" == "stpts" ]; then
+    input_poinc="pncr"  
+  fi
+fi
 
 binary=`readlink -f $1`
 shift
@@ -233,7 +271,7 @@ infile=`readlink -f $1`
 shift
 sourceDir=`readlink -f .`
 copyfiles=`grep _file $infile | grep -v '^ *!' | sed -e "s/^.*= *[\"']\(.*\)[\"'].*$/\1/" | grep -v 'none'`
-copyfiles="$copyfiles $stpts $@"
+copyfiles="$copyfiles $input_poinc $@"
 for copyfile in $copyfiles; do
   if [ ! -f "$copyfile" ]; then
     echo "ERROR: Extra-file '$copyfile' does not exist."
@@ -248,7 +286,7 @@ done
 if [ ! -z "$customdir" ]; then
   dir="$customdir"
 else
-  dir="./poincare"
+  dir="./poincare_dir"
 fi
 
 
@@ -320,11 +358,43 @@ for i in `seq $nthreads`; do
   mkdir -p ${tmpdir[$i]}
 done
 
+# --- Create a list of available selected files ---------------------------------
+if [ $selected_steps == "0-99999" ]; then
+  selected_available_files=$files
+else
+
+  file_available_restarts="available_restart_files.txt"
+  file_selected_restarts="selected_restart_files.txt"
+  
+  rm -f $file_available_restarts $file_selected_restarts
+  ls -1 $sourceDir/jorek?????.${RST_TYPE} > $file_available_restarts
+  
+  step_ranges=`echo $selected_steps | tr ',' ' '`
+  for step_range in $step_ranges; do
+    step_numbers=(`echo $step_range | tr '-' ' '`) # split step_range, e.g., 1-3 -> 1 3
+    if [[ ${#step_numbers[*]} -eq 1 ]]; then
+      istart=${step_numbers[0]};   istep=1;                    iend=${step_numbers[0]}
+    elif [[ ${#step_numbers[*]} -eq 2 ]]; then
+      istart=${step_numbers[0]};   istep=1;                    iend=${step_numbers[1]}
+    elif [[ ${#step_numbers[*]} -eq 3 ]]; then
+      istart=${step_numbers[0]};   istep=${step_numbers[1]};   iend=${step_numbers[2]}
+    fi
+
+    for i in `seq $istart $istep $iend`; do
+      padnumber=`printf "%05d" $i`
+      echo $padnumber >> $file_selected_restarts
+    done
+  done
+ 
+  selected_available_files=`grep -f $file_selected_restarts $file_available_restarts`
+  rm -f $file_available_restarts $file_selected_restarts
+fi
+# ------------------------------------------------------------------------------
 
 
 # --- Parallel file conversion
 echo ""
-for file in $files; do
+for file in $selected_available_files; do
   if [ -f "$ERROR_STOP_FILE" ]; then cleanup; fi
   ithread=`get_available_thread`
   if [ ! -f "$ERROR_STOP_FILE" ]; then

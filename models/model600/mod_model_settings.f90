@@ -24,7 +24,7 @@ logical, parameter :: hydrodynamics   = .false.
 logical, parameter :: reduced_MHD     = .true.
 logical, parameter :: full_MHD        = .false.
 
-logical, parameter :: model_family      = .true. !< Is this 
+logical, parameter :: model_family      = .true.
 character(len=42)  :: base_mod_descr    = 'Model family for tokamak reduced MHD'
 
 ! --- extensions to it
@@ -41,8 +41,8 @@ logical, parameter :: with_ext(n_mod_ext) = &
 integer, parameter :: n_var_base        = 6         !< number of variables in base model
 integer, parameter :: n_var_TiTe        = sum(merge( (/1/), (/0/), with_TiTe      ))
 integer, parameter :: n_var_vpar        = sum(merge( (/1/), (/0/), with_vpar      ))
-integer, parameter :: n_var_neutrals    = sum(merge( (/1/), (/0/), with_neutrals  )) !### not yet
-integer, parameter :: n_var_impurities  = sum(merge( (/1/), (/0/), with_impurities)) !### not yet
+integer, parameter :: n_var_neutrals    = sum(merge( (/1/), (/0/), with_neutrals  ))
+integer, parameter :: n_var_impurities  = sum(merge( (/1/), (/0/), with_impurities))
 integer, parameter :: n_var_refluid     = sum(merge( (/1/), (/0/), with_refluid   )) !### not yet
 integer, parameter :: n_var_ext(n_mod_ext) = (/ n_var_TiTe, n_var_vpar, n_var_neutrals,         &
   n_var_impurities, n_var_refluid /)
