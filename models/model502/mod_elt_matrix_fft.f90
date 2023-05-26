@@ -711,11 +711,19 @@ do ms=1, n_gauss
          ZK_i_par_T   = Zk_par_max
          dZK_i_par_dT = 0.d0
        endif
+       if (Ti0 .lt. Ti_min_ZKpar) then
+         ZK_i_par_T   = ZK_i_par * (max(Ti0,Ti_min_ZKpar)/Ti_0)**(+2.5d0)
+         dZK_i_par_dT = 0.d0
+       endif
 
        ZK_e_par_T   = ZK_e_par * (Te0_corr/Te_0)**(+2.5d0)              ! temperature dependent parallel conductivity
        dZK_e_par_dT = ZK_e_par * (2.5d0)  * Te0_corr**(+1.5d0) * Te_0**(-2.5d0) * dTe0_corr_dT
        if (ZK_e_par_T .gt. ZK_par_max) then
          ZK_e_par_T   = Zk_par_max
+         dZK_e_par_dT = 0.d0
+       endif
+       if (Te0 .lt. Te_min_ZKpar) then
+         ZK_e_par_T   = ZK_e_par * (max(Te0,Te_min_ZKpar)/Te_0)**(+2.5d0)
          dZK_e_par_dT = 0.d0
        endif
      else

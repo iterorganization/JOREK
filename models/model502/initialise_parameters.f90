@@ -160,6 +160,7 @@ namelist /in1/  tstep, nstep, tstep_n, nstep_n,                     &
                 ranks_per_family, cte_current_FB_fact, treat_axis,  &
                 ZK_prof_neg_thresh, ZK_prof_neg, ZK_par_neg_thresh, &
                 ZK_par_neg, Z_xpoint_limit, visco_par_heating,      &
+                Ti_min_ZKpar,Te_min_ZKpar,                          &
                 CARIDDI_mode, use_newton, maxNewton, gamma_Newton,  &
                 alpha_Newton
 
