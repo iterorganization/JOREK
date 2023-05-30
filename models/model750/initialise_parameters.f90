@@ -152,7 +152,13 @@ namelist /in1/  tstep, nstep, tstep_n, nstep_n,                     &
                 autodistribute_modes, modes_per_family,             &
                 mode_families_modes, n_mode_families,               &
                 weights_per_family, autodistribute_ranks,           &
-                ranks_per_family                
+                ranks_per_family,                                   &                
+                use_sc, add_sources_in_sc, visco_sc_num,            &
+                D_perp_sc_num, D_par_sc_num, ZK_perp_sc_num,        &
+                ZK_par_sc_num, ZK_i_perp_sc_num, ZK_i_par_sc_num,   &
+                ZK_e_perp_sc_num, ZK_e_par_sc_num, visco_par_sc_num,&
+                Dn_pol_sc_num, Dn_p_sc_num, D_perp_imp_sc_num,      &
+                D_par_imp_sc_num
 
 if (my_id .eq. 0) then
 
