@@ -612,7 +612,6 @@ module mod_expression
 #if (defined WITH_Neutrals) && (!defined WITH_Impurities)
     real*8  :: Arad_bg, Brad_bg, Crad_bg
 #endif
-#ifdef WITH_Impurities
     ! See https://www.jorek.eu/wiki/doku.php?id=model500_501_555 for details
     real*8  :: rimp0_corr
     ! Atomic physics coefficients:
@@ -634,7 +633,6 @@ module mod_expression
     real*8, allocatable :: P_imp(:)
     real*8  :: E_ion
     integer*8  :: ion_i, ion_k
-#endif
     
     ierr = 0
     
