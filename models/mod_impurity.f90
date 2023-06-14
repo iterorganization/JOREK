@@ -34,7 +34,7 @@ module mod_impurity
     end if
 
     allocate (imp_cor(n_adas))  !< Dynamically allocate memeries for adas data
-    if (nimp_bg(1) .gt. 0 .or. with_impurities) then
+    if (nimp_bg(1) .gt. 0 .or. with_impurities .or. use_rcs) then
       do i=1, n_adas
         select case ( trim(imp_type(i)) )
           case('C')
@@ -47,12 +47,14 @@ module mod_impurity
             adas_suffix = '89_ar'
           case('Ne')
             adas_suffix = '96_ne'
+          case('Fe')
+            adas_suffix = '93_fe'
           case('W')
-            adas_suffix = '50_w'
+            adas_suffix = '89_w'
           case('Be')
             adas_suffix = '96_be'
           case('N')
-            adas_suffix = '96_n'	  
+            adas_suffix = '96_n' 
           case default
             write(*,*) "Unrecognized species, terminating."
             adas_suffix = 'none'
@@ -79,6 +81,10 @@ module mod_impurity
     if (nstep .gt. 0) call tr_allocate(xtime_E_ion,1,nstep,"xtime_E_ion")
     if (allocated(xtime_E_ion_power)) call tr_deallocate(xtime_E_ion_power,"xtime_E_ion_power",CAT_GRID)
     if (nstep .gt. 0) call tr_allocate(xtime_E_ion_power,1,nstep,"xtime_E_ion_power")
+    if (use_marker) then
+      if (allocated(xtime_Ne_imp)) call tr_deallocate(xtime_Ne_imp,"xtime_Ne_imp",CAT_GRID)
+      if (nstep .gt. 0) call tr_allocate(xtime_Ne_imp,1,nstep,"xtime_Ne_imp")
+    endif
 
   end subroutine init_imp_adas
 
@@ -158,6 +164,8 @@ module mod_impurity
       do iz=0,ad%n_Z
         radRB     = ad%PRB%interp_linear(iz,density,temperature)
         radLT     = ad%PLT%interp_linear(iz,density,temperature)
+        !call ad%PRB%interp_linear(iz,density,temperature, radRB)
+        !call ad%PLT%interp_linear(iz,density,temperature, radLT)
         rad_p(iz)   = radRB + radLT
         drad_dT(iz) = dradRB_dT(iz) * radRB / (10.0**temperature) &
                       + dradLT_dT(iz) * radLT / (10.0**temperature) ! Convert to normal gradient

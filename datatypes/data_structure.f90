@@ -119,6 +119,9 @@ module data_structure
      real*8, dimension(:,:,:,:) , allocatable:: eq_ss, eq_st, eq_tt   
      real*8, dimension(:,:,:,:) , allocatable :: delta_g, delta_s, delta_t
 
+     real*8, dimension(:,:,:,:) , allocatable :: eq_aux_g, eq_aux_s, eq_aux_t, eq_aux_p
+     real*8, dimension(:,:,:,:) , allocatable :: delta_aux_g, delta_aux_s, delta_aux_t, delta_aux_p
+
      real*8, dimension(:), allocatable  :: synch_buff
   END TYPE type_thread_buffer
 
@@ -255,17 +258,33 @@ contains
           call tr_allocate(thread_struct(i)%delta_g,1,n_plane,1,n_var,1,n_gauss,1,n_gauss,"delta_g",CAT_MATELEM) 
           call tr_allocate(thread_struct(i)%delta_s,1,n_plane,1,n_var,1,n_gauss,1,n_gauss,"delta_s",CAT_MATELEM)
           call tr_allocate(thread_struct(i)%delta_t,1,n_plane,1,n_var,1,n_gauss,1,n_gauss,"delta_t",CAT_MATELEM)
-          thread_struct(i)%eq_g    = 0.d0
-          thread_struct(i)%eq_s    = 0.d0
-          thread_struct(i)%eq_t    = 0.d0
-          thread_struct(i)%eq_p    = 0.d0
-          thread_struct(i)%eq_ss   = 0.d0
-          thread_struct(i)%eq_st   = 0.d0
-          thread_struct(i)%eq_tt   = 0.d0
-          thread_struct(i)%eq_pp   = 0.d0
-          thread_struct(i)%delta_g = 0.d0
-          thread_struct(i)%delta_s = 0.d0
-          thread_struct(i)%delta_t = 0.d0
+          call tr_allocate(thread_struct(i)%eq_aux_g,1,n_plane,1,n_var,1,n_gauss,1,n_gauss,"eq_aux_g",CAT_MATELEM)
+          call tr_allocate(thread_struct(i)%eq_aux_s,1,n_plane,1,n_var,1,n_gauss,1,n_gauss,"eq_aux_s",CAT_MATELEM)
+          call tr_allocate(thread_struct(i)%eq_aux_t,1,n_plane,1,n_var,1,n_gauss,1,n_gauss,"eq_aux_t",CAT_MATELEM)
+          call tr_allocate(thread_struct(i)%eq_aux_p,1,n_plane,1,n_var,1,n_gauss,1,n_gauss,"eq_aux_p",CAT_MATELEM)
+          call tr_allocate(thread_struct(i)%delta_aux_g,1,n_plane,1,n_var,1,n_gauss,1,n_gauss,"delta_aux_g",CAT_MATELEM)
+          call tr_allocate(thread_struct(i)%delta_aux_s,1,n_plane,1,n_var,1,n_gauss,1,n_gauss,"delta_aux_s",CAT_MATELEM)
+          call tr_allocate(thread_struct(i)%delta_aux_t,1,n_plane,1,n_var,1,n_gauss,1,n_gauss,"delta_aux_t",CAT_MATELEM)
+          call tr_allocate(thread_struct(i)%delta_aux_p,1,n_plane,1,n_var,1,n_gauss,1,n_gauss,"delta_aux_p",CAT_MATELEM)
+          thread_struct(i)%eq_g     = 0.d0
+          thread_struct(i)%eq_s     = 0.d0
+          thread_struct(i)%eq_t     = 0.d0
+          thread_struct(i)%eq_p     = 0.d0
+          thread_struct(i)%eq_ss    = 0.d0
+          thread_struct(i)%eq_st    = 0.d0
+          thread_struct(i)%eq_tt    = 0.d0
+          thread_struct(i)%eq_pp    = 0.d0
+          thread_struct(i)%delta_g  = 0.d0
+          thread_struct(i)%delta_s  = 0.d0
+          thread_struct(i)%delta_t  = 0.d0
+          thread_struct(i)%eq_aux_g = 0.d0
+          thread_struct(i)%eq_aux_s = 0.d0
+          thread_struct(i)%eq_aux_t = 0.d0
+          thread_struct(i)%eq_aux_p = 0.d0
+          thread_struct(i)%delta_aux_g = 0.d0
+          thread_struct(i)%delta_aux_s = 0.d0
+          thread_struct(i)%delta_aux_t = 0.d0
+          thread_struct(i)%delta_aux_p = 0.d0
 #ifdef COMPARE_ELEMENT_MATRIX
           call tr_allocate(thread_struct(i)%ELM2,  1,n_tor*n_vertex_max*n_degrees*n_var,1,n_tor*n_vertex_max*n_degrees*n_var,"ELM2",CAT_MATELEM)
           call tr_allocate(thread_struct(i)%RHS2,  1,n_tor*n_vertex_max*n_degrees*n_var,"RHS2",CAT_MATELEM)
@@ -300,6 +319,14 @@ contains
        call tr_deallocate(thread_struct(i)%delta_g,"delta_g",CAT_MATELEM) 
        call tr_deallocate(thread_struct(i)%delta_s,"delta_s",CAT_MATELEM)
        call tr_deallocate(thread_struct(i)%delta_t,"delta_t",CAT_MATELEM)
+       call tr_deallocate(thread_struct(i)%eq_aux_g,"eq_aux_g",CAT_MATELEM)
+       call tr_deallocate(thread_struct(i)%eq_aux_s,"eq_aux_s",CAT_MATELEM)
+       call tr_deallocate(thread_struct(i)%eq_aux_t,"eq_aux_t",CAT_MATELEM)
+       call tr_deallocate(thread_struct(i)%eq_aux_p,"eq_aux_p",CAT_MATELEM)
+       call tr_deallocate(thread_struct(i)%delta_aux_g,"eq_aux_g",CAT_MATELEM)
+       call tr_deallocate(thread_struct(i)%delta_aux_s,"eq_aux_s",CAT_MATELEM)
+       call tr_deallocate(thread_struct(i)%delta_aux_t,"eq_aux_t",CAT_MATELEM)
+       call tr_deallocate(thread_struct(i)%delta_aux_p,"eq_aux_p",CAT_MATELEM)
 #ifdef COMPARE_ELEMENT_MATRIX
        call tr_deallocate(thread_struct(i)%ELM2,"ELM2",CAT_MATELEM)
        call tr_deallocate(thread_struct(i)%RHS2,"RHS2",CAT_MATELEM)

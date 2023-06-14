@@ -20,7 +20,9 @@ module mod_fields
     procedure(interp_PRZ), deferred, public   :: interp_PRZ
     procedure(interp_PRZ_2), deferred, public :: interp_PRZ_2
     procedure, public :: calc_NeTe
+    procedure, public :: calc_NeTe_imp
     procedure, public :: calc_EBpsiU
+    procedure, public :: calc_VBpsiU
     procedure, public :: calc_F_profile
     procedure, public :: calc_gyro_average_E
     procedure, public :: calc_Qin, calc_Qin_analytic, check_consistency_Qin
@@ -193,8 +195,72 @@ pure subroutine calc_F_profile(fields,i_elm,s,t,phi,Fprof)
 
 end subroutine calc_F_profile
 
+!> Calculates the electric and magnetic fields at a specific position
+!> in the jorek element `i_elm` at `st`.
+subroutine calc_VBpsiU(fields, time, i_elm, st, phi, V, B, psi, U)
+use phys_module, only: F0, mode, central_mass, central_density
+use constants, only: mu_zero, mass_proton
+use mod_coordinate_transforms, only: transform_derivatives_st_to_RZ
+! Routine parameters
+class(fields_base), intent(in) :: fields
+real*8, intent(in)  :: time
+integer, intent(in) :: i_elm !< JOREK element index
+real*8, intent(in)  :: st(2) !< element-local coordinates
+real*8, intent(in)  :: phi !< toroidal angle
+real*8, intent(out) :: V(3) !< Parallel velocity in [m/(s)]
+real*8, intent(out) :: B(3) !< Magnetic field [T]
+real*8, intent(out) :: psi !< psi in JOREK units
+real*8, intent(out) :: U !< velocity stream function in m/s
+
+real*8              :: Vpar
+
+! Internal parameters
+integer, parameter :: i_var(3) = [var_psi,var_u,var_Vpar]
+real*8             :: P(3), P_s(3), P_t(3), P_phi(3), P_time(3) ! Placeholder for evaluating variables and derivatives locally
+! Values
+real*8             :: R, R_s, R_t, Z, Z_s, Z_t
+! Others
+real*8             :: inv_st_jac, R_inv
+real*8             :: psi_R, psi_Z, U_R, U_Z, U_phi, t_norm
+
+t_norm  = sqrt(mu_zero * mass_proton * central_mass * central_density * 1.d20) ! 1 jorek time unit in seconds
+
+! Interpolate the fields to get psi and U at the current position (and the
+! changes u_n - u(n-1))
+call fields%interp_PRZ(time, i_elm, i_var, 3, st(1), st(2), phi, P, P_s, P_t, P_phi, P_time, R, R_s, R_t, Z, Z_s, Z_t)
+
+R_inv = 1.d0/R
+inv_st_jac = 1.d0/(R_s * Z_t - R_t * Z_s)
+
+! Calculate the derivatives to R and Z
+psi_R    = (  P_s(1) * Z_t - P_t(1) * Z_s ) * inv_st_jac
+psi_Z    = (- P_s(1) * R_t + P_t(1) * R_s ) * inv_st_jac
+U_R      = (  P_s(2) * Z_t - P_t(2) * Z_s ) * inv_st_jac
+U_Z      = (- P_s(2) * R_t + P_t(2) * R_s ) * inv_st_jac
+U_phi    = P_phi(2)
+
+! Update psi and U
+psi = P(1)
+U   = P(2)/t_norm
+
+! Set dpsi/dt to 0 if flag is true
+if(fields%flag_zero_dpsidt) P_time(1) = 0.d0
+
+! Calculate the magnetic field (see http://jorek.eu/wiki/doku.php?id=reduced_mhd)
+B     = [+psi_Z, -psi_R, F0] * R_inv
+
+! Calculate the value of the parallel velocity field
+Vpar = P(3)/t_norm
+
+! Calculate the velocity field (see http://jorek.eu/wiki/doku.php?id=reduced_mhd)
+V    = [-U_Z, +U_R, 0.] * R / t_norm
+V    = V + Vpar * B
+
+end subroutine calc_VBpsiU
+
 pure subroutine calc_NeTe(fields, time, i_elm, st, phi, n_e, T_e, grad_T_e)
   use phys_module, only: central_density
+  use mod_parameters
   use constants
   class(fields_base), intent(in)                    :: fields
   integer, intent(in)                               :: i_elm
@@ -202,22 +268,22 @@ pure subroutine calc_NeTe(fields, time, i_elm, st, phi, n_e, T_e, grad_T_e)
   real*8, intent(out)                               :: n_e !< electron density [m^-3]
   real*8, intent(out)                               :: T_e !< electron temperature [K]
   real*8, intent(out), optional, dimension(3)       :: grad_T_e !< gradient of electron temperature [K/m]
-
+  
   real*8, dimension(2) :: P, P_s, P_t, P_phi, P_time
   real*8               :: R, R_s, R_t, Z, Z_s, Z_t, xjac
   real*8 :: T_norm !< temperature normalisation
-
-#if (JOREK_MODEL == 400)
-! electron temperature
-  call fields%interp_PRZ(time,i_elm,[5,8],2,st(1),st(2),phi,P,P_s,P_t,P_phi,P_time,R,R_s,R_t,Z,Z_s,Z_t)
+  
+#ifdef WITH_TiTe
+  ! electron temperature
+  call fields%interp_PRZ(time,i_elm,[var_rho,var_Te],2,st(1),st(2),phi,P,P_s,P_t,P_phi,P_time,R,R_s,R_t,Z,Z_s,Z_t) 
 #else
-! electron temperature + ion temperature (assumed equal)
-  call fields%interp_PRZ(time,i_elm,[5,6],2,st(1),st(2),phi,P,P_s,P_t,P_phi,P_time,R,R_s,R_t,Z,Z_s,Z_t)
+  ! electron temperature + ion temperature (assumed equal)
+  call fields%interp_PRZ(time,i_elm,[var_rho,var_T],2,st(1),st(2),phi,P,P_s,P_t,P_phi,P_time,R,R_s,R_t,Z,Z_s,Z_t)
 #endif
-
-  n_e = max(central_density * P(1) * 1d20,1d16)                           ! plasma density [1/m^3], capped against negative
+  
+  n_e = max(central_density * P(1) * 1d20,1d16)                         ! plasma density [1/m^3], capped against negative
   T_norm = (1.d0/K_BOLTZ/(2.d0*MU_ZERO*central_density*1.d20))
-#if (JOREK_MODEL == 400)
+#ifdef WITH_TiTe
   T_norm = T_norm*2.d0 ! P(1) contains the electron temperature, reverse previous correction
 #endif
   T_e = max(P(2)*T_norm, 1.d0) ! temperature capped against going negative
@@ -230,6 +296,74 @@ pure subroutine calc_NeTe(fields, time, i_elm, st, phi, n_e, T_e, grad_T_e)
                      P_phi(2)/R]
   end if
 end subroutine calc_NeTe
+
+pure subroutine calc_NeTe_imp(fields, time, i_elm, st, phi, n_bg, n_imp, T_e, grad_n_imp, grad_T_e)
+use phys_module, only: central_density, imp_type, central_mass, index_main_imp, n_adas
+use constants
+use mod_parameters
+class(fields_base), intent(in)                    :: fields
+integer, intent(in)                               :: i_elm
+real*8, intent(in)                                :: time, st(2), phi
+real*8, intent(out)                               :: n_bg !< background species density [m^-3]
+real*8, intent(out)                               :: n_imp !< Impurity species density [m^-3]
+real*8, intent(out)                               :: T_e !< electron temperature [K]
+real*8, intent(out), optional, dimension(3)       :: grad_T_e !< gradient of electron temperature [K/m]
+real*8, intent(out), optional, dimension(3)       :: grad_n_imp !< gradient of impurity density [/m^4]
+
+real*8, dimension(3) :: P, P_s, P_t, P_phi, P_time
+real*8               :: R, R_s, R_t, Z, Z_s, Z_t, xjac, m_i_over_m_imp
+real*8 :: T_norm !< temperature normalisation
+real*8 :: n_norm !< temperature normalisation
+
+call fields%interp_PRZ(time,i_elm,&
+#ifdef WITH_TiTe
+      [var_rho,var_Te, var_rhon],& ! electron temperature
+#else
+      [var_rho,var_T, var_rhon],& ! electron temperature + ion temperature (assumed equal)
+#endif
+          3,st(1),st(2),phi,P,P_s,P_t,P_phi,P_time,R,R_s,R_t,Z,Z_s,Z_t)
+
+select case ( trim(imp_type(index_main_imp)) )
+  case('D2')
+    m_i_over_m_imp = central_mass/2.
+  case('Ar')
+    m_i_over_m_imp = central_mass/40. ! Argon mass = 40 u and main ion (D) mass = 2 u
+  case('Ne')
+    m_i_over_m_imp = central_mass/20. ! Neon mass = 20 u and main ion (D) mass = 2 u
+  case('Fe')
+    m_i_over_m_imp = central_mass/56. ! Argon mass = 56 u and main ion (D) mass = 2 u
+  case('W')
+    m_i_over_m_imp = central_mass/184. ! Neon mass = 184 u and main ion (D) mass = 2 u
+  case default
+    m_i_over_m_imp = central_mass/2.
+end select
+
+n_bg  = P(1) - P(3)
+n_imp = P(3) * m_i_over_m_imp
+n_bg  = max(central_density * n_bg * 1d20,1d16)        ! plasma density [1/m^3], capped against negative
+n_imp = max(central_density * n_imp * 1d20,0.0)        ! plasma density [1/m^3], capped against negative
+T_norm = (1.d0/K_BOLTZ/(2.d0*MU_ZERO*central_density*1.d20))
+#ifdef WITH_TiTe
+T_norm = T_norm*2.d0 ! P(1) contains the electron temperature, reverse previous correction
+#endif
+T_e = max(P(2)*T_norm, 1.d4) ! temperature capped against going negative
+n_norm = central_density*1.d20
+
+if (present(grad_T_e)) then
+
+  xjac = R_s * Z_t - R_t * Z_s
+  grad_T_e = T_norm*[(  P_s(2) * Z_t - P_t(2) * Z_s)/ xjac, &
+                     (- P_s(2) * R_t + P_t(2) * R_s)/ xjac, &
+                     P_phi(2)/R]
+end if
+if (present(grad_n_imp)) then
+
+  xjac = R_s * Z_t - R_t * Z_s
+  grad_n_imp = n_norm*[(  P_s(3) * Z_t - P_t(3) * Z_s)/ xjac, &
+                     (- P_s(3) * R_t + P_t(3) * R_s)/ xjac, &
+                     P_phi(3)/R] * m_i_over_m_imp
+end if
+end subroutine calc_NeTe_imp
 
 !> Calculates the gyro-averaged electric fields from a set of particles (representing the gyro-orbit)
 pure subroutine calc_gyro_average_E(fields, time, particles, n_phases, E_average)
@@ -249,7 +383,7 @@ pure subroutine calc_gyro_average_E(fields, time, particles, n_phases, E_average
   real*8             :: E(3), R, R_s, R_t, Z, Z_s, Z_t
   real*8             :: inv_st_jac, R_inv
   real*8             :: U, U_R, U_Z, U_phi, t_norm
-  integer            :: i
+  integer            :: i, n_average
 
   !!!!!!!!!!!!! careful Ptime is not yet defined !!!!!!!!!!!!!!!!!!!!!!
 
@@ -261,8 +395,11 @@ pure subroutine calc_gyro_average_E(fields, time, particles, n_phases, E_average
   ! changes u_n - u(n-1))
 
   E_average = 0.d0
+  n_average = 0
 
   do i=1, n_phases
+
+    if (particles(i)%i_elm .lt. 0) cycle
 
     call fields%interp_PRZ(time, particles(i)%i_elm, i_var, 1, particles(i)%st(1), particles(i)%st(2), particles(i)%x(3), P, P_s, P_t, P_phi, P_time, R, R_s, R_t, Z, Z_s, Z_t)
 
@@ -284,10 +421,11 @@ pure subroutine calc_gyro_average_E(fields, time, particles, n_phases, E_average
     E(3)  = E(3) - R_inv*P_time(1) ! because this is not normalized with t_norm
 
     E_average = E_average + E
+    n_average = n_average + 1
 
   enddo
 
-  E_average = E_average / real(n_phases,8)
+  E_average = E_average / real(n_average,8)
 
 end subroutine calc_gyro_average_E
 

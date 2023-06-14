@@ -31,6 +31,10 @@ integer            :: nr, nz, n_psi, nbbs, limitr, i,j, nc, n_tht, n_sol, n_ext,
 character          :: AA*52, tokamak_name*50,boundary_type*100
 character          :: buffer*80, lf*1, str1*12, str2*24, string_in*250,eqdsk_string_r_min*250
 
+integer          :: err_alloc
+logical          :: ferr
+real*8,allocatable :: ne_spline(:)
+!----------------------------- read eqdsk file -----------
 namelist /eqdsk2jorek_params/ tokamak_name,boundary_type,ellip_in,tria_up_in,&
                               tria_low_in,quad_up_in,quad_low_in,n_tht_in,r0_in,&
                               z0_in,a0_in,B_scale,I_scale,R_scale,smth,eqdsk_string_r_min
@@ -403,6 +407,28 @@ n_ext = n_psi + n_sol
 
 write(*,*) ' n_psi, n_sol, n_ext : ',n_psi, n_sol, n_ext
 
+!===================== Read Spline Fitted Ne profile==============
+
+if (allocated(ne_spline)) then
+  deallocate(ne_spline)
+end if
+allocate (ne_spline(n_ext),stat=err_alloc)  !< Dynamically allocate memeries forshard sizes
+if (err_alloc /= 0) then
+  write(*,*) "Error when trying to dynamically allocate memeries for ne_spline."
+else
+  inquire(file="ne_spline_only.dat", exist=ferr) ! Check if the file exist
+  if (ferr) then
+    open(42,file="ne_spline_only.dat",status="OLD",action="READ")
+    read(42,*)  ne_spline(1:n_ext)
+    close(42)
+  else
+    write(*,*) "WARNING!!! ne_spline file does not exist!"
+    deallocate(ne_spline)
+  end if
+end if
+
+!=====================End of Ne profile===========================
+
 allocate(df2_ext(n_ext),rho_ext(n_ext),T_ext(n_ext),psi_ext(n_ext),p_ext(n_ext))
 
 df2_ext(1:n_psi) = df2(1:n_psi)
@@ -416,7 +442,7 @@ T_ext(n_psi-1:n_ext)   = T_ext(n_psi)
 psi_sep = 1.0d0     ! in normalised psi units
 sig_sep = 0.005     ! in normalised psi units
 rho_bnd = 0.01      ! in jorek units
-T_bnd   = 1.d-5     ! in jorek units
+T_bnd   = 2.d-5     ! in jorek units
 
 psi_ext(1:n_psi) = psi(1:n_psi)
 do i=n_psi+1,n_ext
@@ -428,8 +454,20 @@ zmu0 = 4.d-7 * PI
 do i=1,n_ext
   tanh1 = tanh((psi_ext(i) - psi_sep)/sig_sep)
   df2_ext(i) = df2_ext(i) * (0.5d0 - 0.5d0*tanh1)
-  rho_ext(i) = (rho_ext(i) - rho_bnd) * (0.5d0 - 0.5d0*tanh1) + rho_bnd
-  T_ext(i)   = T_ext(i)   * (0.5d0 - 0.5d0*tanh1) * zmu0 +T_bnd 
+  !rho_ext(i) = (rho_ext(i) - rho_bnd) * (0.5d0 - 0.5d0*tanh1) + rho_bnd
+  if (allocated(ne_spline)) then
+    rho_ext(i) = rho_ext(i) * ne_spline(i) + rho_bnd * (0.5 + 0.5*tanh1)
+    !rho_ext(i) = rho_ext(i) * ne_spline(i) * (0.5d0 - 0.5d0*tanh1) + 1.d-2 * (0.5 + 0.5*tanh1)
+  else
+    rho_ext(i) = rho_ext(i) * (0.5d0 - 0.5d0*tanh1) + rho_bnd * (0.5 + 0.5*tanh1)
+  end if
+  !T_ext(i)   = T_ext(i)   * (0.5d0 - 0.5d0*tanh1) * zmu0 
+  if (allocated(ne_spline)) then
+    T_ext(i)   = T_ext(i) * zmu0 * (0.5d0 - 0.5d0*tanh1) / rho_ext(i) + T_bnd * (0.5 + 0.5*tanh1)
+  else
+    T_ext(i)   = T_ext(i) * zmu0 * (0.5d0 - 0.5d0*tanh1) + T_bnd * (0.5 + 0.5*tanh1)
+  end if
+  !T_ext(i)   = T_ext(i)   * (0.5d0 - 0.5d0*tanh1) * zmu0 +T_bnd 
 !   T_ext(i)   = T_ext(i) / rho_ext(i) * zmu0 + T_bnd 
   p_ext(i)   = rho_ext(i) * T_ext(i)
 enddo
@@ -465,6 +503,16 @@ close(21)
 open(21,file='jorek_temperature')
 do i=1,n_ext
   write(21,*) psi_ext(i),T_ext(i)
+enddo
+close(21)
+open(21,file='jorek_e_temperature')
+do i=1,n_ext
+  write(21,*) psi_ext(i),T_ext(i)/2.
+enddo
+close(21)
+open(21,file='jorek_i_temperature')
+do i=1,n_ext
+  write(21,*) psi_ext(i),T_ext(i)/2.
 enddo
 close(21)
 

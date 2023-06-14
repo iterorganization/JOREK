@@ -89,7 +89,7 @@ real*8     :: dT_dpsi(n_gauss,n_gauss),dT_dz,dT_dpsi2,dT_dz2,dT_dpsi_dz,dT_dpsi3
 logical    :: xpoint2, use_fft
 real*8     :: Btheta2, epsil, Btheta2_psi
 real*8, dimension(n_gauss,n_gauss)    :: amu_neo_prof, aki_neo_prof
-real*8     :: aux_rho0, aux_T0, aux_Vpar0
+real*8     :: aux_rho0, aux_T0, aux_Vpar0, aux_dEion_dt, aux_rad
 real*8     :: aux_P0, aux_P0_s,  aux_P0_t, aux_P0_p, aux_q0, aux_jx0, aux_jy0, aux_jz0, aux_jz0_pcs 
 
 !Full pressure tensor terms 
@@ -102,6 +102,8 @@ real*8     :: aux_PIZP, aux_PIZP_s, aux_PIZP_t, aux_PIZP_R, aux_PIZP_Z,aux_PIZP_
 real*8     :: aux_divPIR_perp, aux_divPIZ_perp,     aux_divPIp_perp
 real*8     :: aux_divPIR,      aux_divPIZ,          aux_divPIp
 real*8     :: aux_BdivPI,aux_BB2
+! Impurity projections
+real*8     :: Z_imp, Z_eff, n_imp, eta_coef
 ! time normalisation
 real*8     :: t_norm
 ! Temporary variables serving the SPI module
@@ -134,12 +136,13 @@ real*8, dimension(n_plane,n_var,n_gauss,n_gauss) :: eq_p
 real*8, dimension(n_plane,n_var,n_gauss,n_gauss) :: eq_ss, eq_st, eq_tt
 real*8, dimension(n_plane,n_var,n_gauss,n_gauss) :: delta_g, delta_s, delta_t
 real*8, dimension(n_plane,n_var,n_gauss,n_gauss) :: eq_aux_g, eq_aux_s, eq_aux_t, eq_aux_p ! make allocatable?
+real*8, dimension(n_plane,n_var,n_gauss,n_gauss) :: delta_aux_g, delta_aux_s, delta_aux_t, delta_aux_p
 
 real*8, dimension(n_tor,n_plane) :: HHZ, HHZ_p, HHZ_pp
 
 
 if (.not. present(aux_nodes)) then
-  do i=1,4
+  do i=1,5
     aux_nodes(i)%values(:,:,:) = 0.d0
   enddo
 endif
@@ -161,7 +164,9 @@ TG_num1    = TGNUM(1); TG_num2    = TGNUM(2); TG_num5    = TGNUM(5); TG_num6    
 
 ! --- Take time evolution parameters from phys_module
 theta = time_evol_theta
-zeta  = time_evol_zeta
+!zeta  = time_evol_zeta
+! change zeta for variable dt
+zeta  = time_evol_zeta * 2.0d0 * tstep / (tstep + tstep_prev)
 
 ! --- Do we need to use the FFT or non-FFT version?
 if ( (i_tor_min == 1) .and. (i_tor_max == n_tor) ) then
@@ -208,6 +213,7 @@ eq_g = 0.d0; eq_s = 0.d0; eq_t = 0.d0; eq_st = 0.d0; eq_ss = 0.d0; eq_tt = 0.d0;
 eq_aux_g = 0.d0; eq_aux_s = 0.d0; eq_aux_t = 0.d0; eq_aux_p = 0.d0;
 
 delta_g = 0.d0; delta_s = 0.d0; delta_t = 0.d0
+delta_aux_g = 0.d0; delta_aux_s = 0.d0; delta_aux_t = 0.d0
 
 current_source  = 0.d0
 particle_source = 0.d0
@@ -218,10 +224,11 @@ dV_dz_source    = 0.d0
 eq_zne          = 0.d0
 eq_zTe          = 0.d0  
 
-aux_rho0  = 0.d0; aux_T0    = 0.d0; aux_Vpar0 = 0.d0
+aux_rho0  = 0.d0; aux_T0    = 0.d0; aux_Vpar0 = 0.d0; aux_dEion_dT = 0.0; aux_rad = 0.0
 aux_P0    = 0.d0; aux_P0_s  = 0.d0; aux_P0_t  = 0.d0; aux_P0_p  = 0.d0
 aux_q0    = 0.d0; aux_jx0   = 0.d0; aux_jy0   = 0.d0; aux_jz0   = 0.d0; aux_jz0_pcs = 0.d0
 aux_divPIR_perp = 0.d0; aux_divPIZ_perp=0.d0; aux_divPIp_perp=0.d0;
+Z_imp     = 0.d0; Z_eff     = 0.d0; n_imp     = 0.d0;
 
 amu_neo_prof   = 0.d0
 aki_neo_prof   = 0.d0
@@ -270,6 +277,9 @@ do i=1,n_vertex_max
                 eq_aux_s(mp,k,ms,mt) =  eq_aux_s(mp,k,ms,mt) + aux_nodes(i)%values(in,j,k) * element%size(i,j) * H_s(i,j,ms,mt) * HZ(in,mp)
                 eq_aux_t(mp,k,ms,mt) =  eq_aux_t(mp,k,ms,mt) + aux_nodes(i)%values(in,j,k) * element%size(i,j) * H_t(i,j,ms,mt) * HZ(in,mp)
                 eq_aux_p(mp,k,ms,mt) =  eq_aux_p(mp,k,ms,mt) + aux_nodes(i)%values(in,j,k) * element%size(i,j) * H(i,j,ms,mt)   * HZ_p(in,mp)
+               delta_aux_g(mp,k,ms,mt) = delta_aux_g(mp,k,ms,mt) + aux_nodes(i)%deltas(in,j,k) * element%size(i,j) * H(i,j,ms,mt)   * HZ(in,mp)
+               delta_aux_s(mp,k,ms,mt) = delta_aux_s(mp,k,ms,mt) + aux_nodes(i)%deltas(in,j,k) * element%size(i,j) * H_s(i,j,ms,mt) * HZ(in,mp)
+               delta_aux_t(mp,k,ms,mt) = delta_aux_t(mp,k,ms,mt) + aux_nodes(i)%deltas(in,j,k) * element%size(i,j) * H_t(i,j,ms,mt) * HZ(in,mp)
               endif
 
               delta_g(mp,k,ms,mt) = delta_g(mp,k,ms,mt) + nodes(i)%deltas(in,j,k) * element%size(i,j) * H(i,j,ms,mt)   * HZ(in,mp)
@@ -285,6 +295,14 @@ do i=1,n_vertex_max
     enddo
   enddo
 enddo
+
+! changes deltas for variable time steps
+delta_g = delta_g * tstep / tstep_prev
+delta_s = delta_s * tstep / tstep_prev
+delta_t = delta_t * tstep / tstep_prev
+delta_aux_g = delta_aux_g * tstep / tstep_prev
+delta_aux_s = delta_aux_s * tstep / tstep_prev
+delta_aux_t = delta_aux_t * tstep / tstep_prev
 
 do ms=1, n_gauss
   do mt=1, n_gauss
@@ -506,7 +524,18 @@ do i=1,n_vertex_max
             aux_divPIR_perp = aux_divPIR - ps0_y / BigR / aux_BB2 * aux_BdivPI
             aux_divPIZ_perp = aux_divPIZ + ps0_x / BigR / aux_BB2 * aux_BdivPI
             aux_divPIp_perp = aux_divPIp - F0 / BigR / aux_BB2 * aux_BdivPI
-    
+          elseif (use_rcs) then
+            aux_dEion_dt = eq_aux_g(mp,1,ms,mt) ! Accumulated ionization energy change
+            aux_rad    = max(eq_aux_g(mp,2,ms,mt),0.0)   ! The radiation power density
+            Z_eff      = max(eq_aux_g(mp,3,ms,mt),0.0)   ! The sum (q^2) divided by the impurity number density
+            Z_imp      = max(eq_aux_g(mp,4,ms,mt),0.0)   ! The sum (q) divided by the impurity number density
+            n_imp      = eq_aux_g(mp,5,ms,mt)            ! The time averaged impurity number density
+            n_imp      = max(n_imp, 2.d-3)!corr_neg_dens(n_imp, (/ 1.d-1, 1.d-1 /),1.d-3)
+
+            Z_eff      = Z_eff + max(r0_corr,0.)
+            Z_eff      = Z_eff / max((r0_corr + Z_imp),1.d-2)
+            Z_eff      = max(Z_eff, 1.)
+            Z_imp      = Z_imp / n_imp
           endif
 
           P0    = r0 * T0
@@ -663,6 +692,15 @@ do i=1,n_vertex_max
             deta_dT_ohm   = 0.d0
           end if
 
+          ! This is to represent the dependence on Z_eff in resistivity
+          eta_coef     = Z_eff*(1.+1.198*Z_eff+0.222*Z_eff**2)/(1.+2.966*Z_eff+0.753*Z_eff**2)
+          eta_coef     = eta_coef / ((1.+1.198+0.222)/(1.+2.966+0.753))
+
+          if ( eta_T_dependent ) then
+            eta_T     = eta_T * eta_coef
+            eta_T_ohm = eta_T_ohm * eta_coef
+          end if
+
           ! --- Temperature dependent viscosity
           if ( visco_T_dependent ) then
             visco_T     =   visco * (T0_corr/T_0)**(-1.5d0)
@@ -751,14 +789,18 @@ do i=1,n_vertex_max
           ZK_prof = get_zkperp(psi_norm)
 
           ! --- Increase diffusivity if very small density/temperature
-          if (xpoint2) then
+!          if (xpoint2) then
             if (r0 .lt. D_prof_neg_thresh)  then
+              D_par   = D_prof_neg
               D_prof  = D_prof_neg
             endif
             if (T0 .lt. ZK_prof_neg_thresh) then
               ZK_prof = ZK_prof_neg
             endif
-          endif
+            if (T0 .lt. ZK_par_neg_thresh) then
+              ZKpar_T = ZK_par_neg
+            endif
+!          endif
 
           phi       = 2.d0*PI*float(mp-1)/float(n_plane) / float(n_period)
           delta_phi = 2.d0*PI/float(n_plane) / float(n_period)
@@ -937,8 +979,9 @@ do i=1,n_vertex_max
             !###################################################################################################
 
             rhs_ij(6) =  v * BigR * (heat_source(ms,mt) + aux_T0)                         * xjac * tstep &
-			+implicit_heat_source*(gamma-1.d0)*v*(0.5d0*T_min_neg + 0.5d0*T_min_neg*exp( (min(T0,T_min_neg)-T_min_neg)/(0.5d0*T_min_neg) ) -min(T0,T_min_neg))* xjac*tstep*BigR    &
-
+                       - v * BigR * (aux_dEion_dt + aux_rad)                              * xjac * tstep &
+                       + v * BigR * (GAMMA - 1.) * eta_T_ohm * (zj0/BigR)**2              * xjac * tstep  &
+                       +implicit_heat_source*(gamma-1.d0)*v*(0.5d0*T_min_neg + 0.5d0*T_min_neg*exp( (min(T0,T_min_neg)-T_min_neg)/(0.5d0*T_min_neg) ) -min(T0,T_min_neg))* xjac*tstep*BigR    &
 
 !!!! terms not in 303 but 500!
                     + 0.5d0 * v * (particle_source(ms,mt) + source_pellet + aux_rho0) * vpar0**2 * BB2 * BigR * xjac * tstep &
@@ -1504,6 +1547,8 @@ do i=1,n_vertex_max
 
                             + v * rho * GAMMA * T0 * (vpar0_s * ps0_t - vpar0_t * ps0_s)        * theta * tstep &
                             + v * rho * GAMMA * T0 * F0 / BigR * vpar0_p                 * xjac * theta * tstep &
+                       ! Test heat source to remove the negative temperature region
+                            - (gamma-1.d0) * v * rho * (0.5d0* T_min + 0.5d0*T_min *exp( (min(T0,T_min)-T_min)/(0.5d0*T_min) ) -min(T0,T_min))   *theta* tstep & 
 
                          + TG_num6 * 0.25d0 * BigR**2 * T0* (rho_x * u0_y - rho_y * u0_x)      &
                                    * ( v_x * u0_y - v_y * u0_x) * xjac * theta*tstep*tstep     &
@@ -1559,6 +1604,8 @@ do i=1,n_vertex_max
                             + ZK_perp_num * (v_xx + v_x/BigR + v_yy)*(T_xx + T_x/BigR + T_yy) * BigR * xjac * theta * tstep &
 
                             -v * T * (gamma-1.d0) * deta_dT_ohm * (zj0 / BigR)**2.d0 * BigR * xjac * theta * tstep &
+                       ! Test heat source to remove the negative temperature region
+                            - (gamma-1.d0) * v * r0 * (exp( (min(T0,T_min)-T_min)/(0.5d0*T_min) ) -1.d0)*T   *theta* tstep &
 
                             + TG_num6 * 0.25d0 * BigR**2 * T* (r0_x * u0_y - r0_y * u0_x)         &
                                       * ( v_x * u0_y - v_y * u0_x) * xjac * theta * tstep * tstep &

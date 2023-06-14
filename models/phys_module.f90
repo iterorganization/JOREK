@@ -21,7 +21,8 @@ module phys_module
   real*8  :: visco_par_rst        !< visco_par value from restart file
   real*8  :: eta_rst              !< eta value from restart file
   logical :: visco_T_dependent    !< Viscosity dependent on temperature? Otherwise constant.
-  real*8  :: visco_par            !< Parallel viscosity (normalized)
+  real*8  :: visco_par            !< Parallel cross viscosity (normalized)
+  real*8  :: visco_par_par        !< Parallel viscosity (normalized)
   real*8  :: visco_par_heating    !< Parallel viscosity used in the parallel viscous heating term (normalized)
   real*8  :: F0                   !< Determines fixed toroidal magnetic field: \f$ B_\phi = F_0/R \f$
   real*8  :: central_density      !< particle density at the magnetic axis (in units of \f$10^{20} m^{-3}\f$)
@@ -430,6 +431,7 @@ module phys_module
   ! The reference spatial coordinate for shattered pellets are calculated using ns_R etc. 
   ! More information on the wiki: https://www.jorek.eu/wiki/doku.php?id=spi_tutorial
   logical :: using_spi          !< This determines whether to use SPI or traditional MGI; see [[spi_tutorial|SPI Tutorial]]
+  logical :: restart_spi        !< This determines whether to read SPI related restart information; see [[spi_tutorial|SPI Tutorial]]
   real*8  :: spi_Vel_Rref(n_inj_max)   !< Reference velocity of pellet center along R upon injection
   real*8  :: spi_Vel_Zref(n_inj_max)   !< Reference velocity of pellet center along Z upon injection
   real*8  :: spi_Vel_RxZref(n_inj_max) !< Reference velocity of pellet center along RxZ direction upon injection
@@ -459,6 +461,8 @@ module phys_module
   real*8, allocatable  :: xtime_E_ion_power(:)  !< Time derivative of xtime_E_ion
   real*8, allocatable  :: xtime_P_ei(:)         !< The time history of electron-ion energy exchange power
 
+  real*8, allocatable  :: xtime_Ne_imp(:)       !< The total amount of electron released by impurities
+
   integer :: n_spi(n_inj_max)   !< Number of shattered fragment injected for each injection
   integer :: n_spi_tot          !< Total number of shattered fragments injected
   integer :: n_inj              !< Number of injections
@@ -480,11 +484,33 @@ module phys_module
 
   type (type_SPI), allocatable :: pellets(:) !< Each element corresponds to one injected pellet (shard)
 
+  !> @name This is to record the flux-surface averaged ne and Te for the non-local ablation calculation
+  logical               :: nonlocal_abl ! Whether non-local ablation is on
+  integer               :: n_nonlocal_array  !< Length of the nonlocal array, the larger the higher the resolution
+  real*8, allocatable   :: nl_Psi(:)    !< The psi coordinate of the nonlocal array
+  real*8, allocatable   :: nl_avg_Te(:) !< The average fluid temperature of the nonlocal array
+  real*8, allocatable   :: nl_avg_ne(:) !< The average fluid density of the nonlocal array
+
   character(len=512)            :: adas_dir    !< The directory of ADAS data file to be read
   type (adf11_all), allocatable :: imp_adas(:) !< The ADAS data for impurities
   type (coronal), allocatable   :: imp_cor(:)  !< The coronal equilibrium distribution of impurities
 
   logical :: output_prad_phi    !< Output Prad(phi) into a file using integrals_3D
+
+  !> @name Particle gas puffing related input parameters
+  logical :: use_puffing   !<  Switch to use gas puffing
+  real*8  :: phys_particles_puff  !< physical puffing amount
+  real*8  :: fueling_rate  !< puffing fueling rate (/s)
+  real*8  :: R_valve_loc   !< valve location R
+  real*8  :: Z_valve_loc   !< valve location Z
+  real*8  :: PHI_valve_loc !< valve location phi
+  real*8  :: valve_r   !< radius of gas valve
+  real*8  :: initial_E   !< initial energy in Kelvin
+  real*8  :: puffing_direction(3)   !< puffing direction
+  real*8  :: puffing_timestep   !< timesteps between 2 puffing events(action) in SI unit
+  real*8  :: puff_starttime    !< Puffing start time
+  real*8  :: puffingtime  !< The duration of the puffing 
+
   
   !> @name Fix boundary equilibrium parameters
   real*8  :: amix              !< Mix Poisson solution with previous one with a given factor
@@ -789,7 +815,7 @@ module phys_module
     li3_tot_t(:), part_src_tot_t(:), heat_src_tot_t(:), volume_t(:), area_t(:), mag_ener_src_tot(:), &
     dpart_tot_dt(:), part_flux_Dpar_t(:), part_flux_Dperp_t(:), part_flux_vpar_t(:), part_flux_vperp_t(:), & 
     dnpart_tot_dt(:), npart_tot_t(:), npart_flux_t(:), density_tot_t(:), flux_poynting_t(:),         &
-    thermal_e_tot_t(:), thermal_i_tot_t(:)
+    thermal_e_tot_t(:), thermal_i_tot_t(:), thmwork_e_tot_t(:), thmwork_i_tot_t(:)
 
   !> @name gmres parameters
   integer             :: iter_precon        !< whenever the number of gmres iterations exceeds iter_precon, the preconditioning matrix is updated
@@ -876,11 +902,13 @@ module phys_module
   !> @name Particles-related input parameters
   logical :: restart_particles
   logical :: use_ncs          ! use neutral particles
+  logical :: use_rcs          ! use radiative coupling of particles
   logical :: use_ccs          ! use current coupling scheme for fast particles
   logical :: use_pcs          ! use pressure coupling scheme for fast particles
   logical :: use_pcs_full     ! use full tensor pressure coupling scheme for fast particles
   logical :: use_cx           ! switch on sputtering         (in particle module)
-  logical :: use_marker       ! This flag determines whether to use marker particles to treat impurity (Placeholder)
+  logical :: use_marker       ! This flag determines whether to use marker particles to treat impurity
+  logical :: diff_diffusive_flux ! This flag determines whether to use the differential diffusive flux for marker partircles
   logical :: use_sputtering   ! switch on charge-exchange    (in particle module)
   logical :: use_ionisation   ! switch on ionisation         (in particle module)
   real*8  :: n_particles      ! the number of particles (real on purpose)

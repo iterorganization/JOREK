@@ -250,7 +250,7 @@ subroutine do_jorek_timestep(this, sim, ev)
   use global_distributed_matrix
   use mod_bootstrap_functions, only: bootstrap_find_minRad, bootstrap_get_q_and_ft_splines
   use live_data
-  use mod_live_data_core,      only: write_live_data_all
+  use mod_live_data_core,      only: write_live_data_all, write_live_data_vacuum
   use tr_module,               only: tr_print_memsize, tr_resetfile
   use mod_export_restart
   use construct_matrix_mod
@@ -260,7 +260,7 @@ subroutine do_jorek_timestep(this, sim, ev)
   use mod_fields_linear
   use mod_expression,          only: exprs_all_int, init_expr
   use mod_integrals3D
-
+  use pellet_module,           only: update_spi
 #if (defined WITH_Neutrals) && (!defined WITH_Impurities)
   use mod_neutral_source
 #endif
@@ -312,16 +312,18 @@ subroutine do_jorek_timestep(this, sim, ev)
   if (.not. this%setup_done) then
     t_now = sim%time / sim%t_norm  
     index_now = index_start
-    if (sim%my_id .eq. 0) write(*,"(A,f16.8,A,g12.6,A)") "INFO: JOREK timestep: ", dt_jorek, " = ", dt, " s"
+    if (sim%my_id .eq. 0) write(*,"(A,f16.8,A,g15.6,A)") "INFO: JOREK timestep: ", dt_jorek, " = ", dt, " s"
     call setup_solvers(this, sim)
   end if
 
   index_now = index_now + 1 ! we started at 0
+  if ( index_now == 1 ) tstep_prev = tstep
 
   ! Set up the next start time to run this
   if (present(ev)) then
     ev%start = ev%start + dt
     if (sim%my_id .eq. 0) write(*,*) "INFO: scheduling next JOREK event for ", ev%start
+    if (sim%my_id .eq. 0) write(*,*) "INFO: previous JOREK time step: ", tstep_prev
   end if
 
   if (associated(this%extra_event)) then
@@ -379,9 +381,11 @@ subroutine do_jorek_timestep(this, sim, ev)
   if (this%solver%step_success) then  
 
     ! TODO add if use_pellet
-
 #if (defined WITH_Neutrals) || (defined WITH_Impurities)
     if (using_spi) then
+      if (nonlocal_abl) then
+        if (nl_avg_Te(1) .eq. 0.d0) call int3d_new(sim%my_id, sim%fields%node_list, sim%fields%element_list, bnd_node_list, bnd_elm_list, exprs_all_int, res, 1)
+      endif
       n_spi_begin = 1
       do i = 1, n_inj !< Do one update for each injection location
         if (t_now >= t_ns(i)) call update_spi(sim%my_id,sim%fields%node_list,sim%fields%element_list,i,n_spi_begin)
@@ -393,6 +397,9 @@ subroutine do_jorek_timestep(this, sim, ev)
     call update_values(sim%fields%element_list, sim%fields%node_list, this%deltas)         ! add solution to node values
     call update_deltas(sim%fields%node_list, this%deltas)
     t_now = t_now + dt_jorek
+
+    ! save previous time step
+    tstep_prev = tstep
   else
     if ( sim%my_id == 0 ) then
       write(*,*)
@@ -412,7 +419,7 @@ subroutine do_jorek_timestep(this, sim, ev)
     call update_equil_state(sim%my_id,sim%fields%node_list, sim%fields%element_list, bnd_elm_list, xpoint, xcase)
     this%es = ES
 
-    call energy(W_mag, W_kin)
+    call energy(W_mag,W_kin)
     
 !    call integrals(sim%fields%node_list, sim%fields%element_list,                                                         &
 !        this%es%R_axis, this%es%Z_axis, this%es%psi_axis, this%es%R_xpoint, this%es%Z_xpoint,       &

@@ -338,6 +338,7 @@ subroutine sanity_checks(my_id, n_cpu, mpi_required, mpi_provided)
   write(*,*) 'WARNING: You are not using USE_FFTW=1 which might be inefficient.'
   write(*,*) '  Consider setting USE_FFTW=1 in your Makefile.inc'
 #endif
+
   if (use_pastix .and. use_BLR_compression) then
     write(*,*) 'WARNING: PaStiX versions before 6.x do not support BLR compression.'
     write(*,*) '  No compression will be used in this run.'

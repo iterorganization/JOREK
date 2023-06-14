@@ -8,6 +8,7 @@ use mpi
 use mod_interp, only: interp_0
 use mod_particle_types
 use mod_particle_sim
+use phys_module, only: adas_dir
 implicit none
 private
 public write_simulation_hdf5, read_simulation_hdf5, get_simulation_hdf5_time
@@ -37,9 +38,9 @@ integer(HID_T)                :: data_type
 integer(HID_T)                :: time_space_id, time_set_id
 character(len=12)             :: group_name
 character(len=particle_type_name_length) :: particle_type_name
-integer                       :: i, j, hdferr
+integer                       :: i, j, hdferr, iZ
 type(c_ptr) :: p_ptr
-real*8, dimension(:,:), allocatable :: x, v, x_all, v_all, st, st_all
+real*8, dimension(:,:), allocatable :: x, v, x_all, v_all, st, st_all, P1, P1_all
 real*8, dimension(:), allocatable   :: weight, weight_all, Vpar, E, mu, v1, B_norm
 real*8, dimension(:), allocatable   :: E_all, mu_all, v1_all, Vpar_all, B_norm_all
 real*4, dimension(:), allocatable   :: t_birth, t_birth_all
@@ -330,6 +331,23 @@ if (allocated(sim%groups)) then
       end if
       deallocate(v1, v1_all)
 
+    type is (particle_marker)
+      particle_type_name = 'particle_marker'
+      ! P_imp
+      allocate(P1(0:sim%groups(i)%Z,n_here), P1_all(0:sim%groups(i)%Z,n_total))
+      do j=1,n_here
+        P1(0:sim%groups(i)%Z,j) = p(j)%P_imp(0:sim%groups(i)%Z)
+      end do
+      do iZ = 0, sim%groups(i)%Z 
+        call MPI_Gatherv(P1(iZ,:), n_here, MPI_REAL8, &
+                         P1_all(iZ,:), particles_per_proc, [(sum(particles_per_proc(1:i),1), i=0,n_cpu-1)], &
+                         MPI_REAL8, 0, MPI_COMM_WORLD, ierr)
+      enddo
+      if (my_id .eq. 0) then
+        call HDF5_array2D_saving(file,P1_all,sim%groups(i)%Z+1,n_total,group_name//"P_imp")
+      end if
+      deallocate(P1, P1_all)
+
     type is (particle_kinetic_relativistic)
       particle_type_name = 'particle_kinetic_relativistic'
  
@@ -454,6 +472,7 @@ real*8, dimension(:,:), allocatable :: real8_2D
 integer*4, dimension(:), allocatable :: int4_1D
 real*4, dimension(:), allocatable :: real4_1D
 real*8, dimension(:), allocatable :: real8_1D
+real*8  :: B(3), psi, U, V(3)
 
 ! Preparation
 call MPI_COMM_RANK(MPI_COMM_WORLD, my_id, ierr)      ! id of each MPI proc
@@ -516,6 +535,8 @@ do i=1,n
     allocate(particle_gc_vpar::sim%groups(i)%particles(n_here), stat=ierr)
   case ('particle_fieldline')
     allocate(particle_fieldline::sim%groups(i)%particles(n_here), stat=ierr)
+  case ('particle_marker')
+    allocate(particle_marker::sim%groups(i)%particles(n_here), stat=ierr)
   case ('particle_kinetic_relativistic')
     allocate(particle_kinetic_relativistic::sim%groups(i)%particles(n_here), stat=ierr)
   case ('particle_gc_relativistic')
@@ -531,7 +552,11 @@ do i=1,n
   call HDF5_real_reading(file,sim%groups(i)%mass,group_name//"mass")
   call HDF5_char_reading(file,sim%groups(i)%ad%suffix,group_name//"adas_suffix")
   if (len_trim(sim%groups(i)%ad%suffix) .gt. 0) then
-    sim%groups(i)%ad = read_adf11(my_id,sim%groups(i)%ad%suffix)
+    if (trim(adas_dir) .eq. '') then
+      sim%groups(i)%ad = read_adf11(sim%my_id,sim%groups(i)%ad%suffix)
+    else
+      sim%groups(i)%ad = read_adf11(sim%my_id,sim%groups(i)%ad%suffix,trim(adas_dir))
+    endif
     sim%groups(i)%cor = coronal(sim%groups(i)%ad)
   end if
 
@@ -690,6 +715,20 @@ do i=1,n
       p(j)%v = real8_1D(j)
     end do
     deallocate(real8_1D)
+
+  type is (particle_marker)
+    ! P_imp
+    allocate(real8_2D(0:sim%groups(i)%Z,n_here))
+    call HDF5_array2D_reading(file, real8_2D, group_name//"P_imp",start=[0_HSIZE_T,i_here])
+    do j=1,n_here
+      if (.not. allocated(p(j)%P_imp)) allocate(p(j)%P_imp(0:sim%groups(i)%Z))
+      p(j)%P_imp(0:sim%groups(i)%Z) = real8_2D(0:sim%groups(i)%Z,j)
+      if (allocated(sim%fields) .and. p(j)%i_elm .gt. 0) then
+        call sim%fields%calc_VBpsiU(sim%time , p(j)%i_elm, p(j)%st, p(j)%x(3), V, B, psi, U)
+        p(j)%V_prev = V
+      endif
+    end do
+    deallocate(real8_2D)
 
   type is (particle_kinetic_relativistic)
 

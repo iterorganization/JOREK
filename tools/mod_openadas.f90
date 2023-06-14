@@ -238,8 +238,6 @@ real*8 :: GRC_out
 ! If GRC exists and we are looking for a Z that is nonzero
 if (allocated(a%GRC) .and. z .le. ubound(a%GRC,3) .and. z .ge. lbound(a%GRC,3)) then
   GRC_out = 10.d0**L2Dinterp(a%density,a%temperature,a%GRC(:,:,z),density,temperature)
-  !call SL2Dinterp(a%GRCFspline(z),temperature,density,fout=GRC)
-  !GRC = 10.d0**GRC
 else
   GRC_out = 0.d0
 endif

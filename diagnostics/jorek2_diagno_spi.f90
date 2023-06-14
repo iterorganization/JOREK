@@ -32,7 +32,7 @@ real*8, allocatable          :: res(:)
 integer                      :: units
 
 
-integer :: i, in, i_tor, i_spi
+integer :: i, in, i_tor, i_spi, i_inj, i_count
 real*8  :: growth_kin, growth_mag,density,density_in,density_out,pressure,pressure_in,pressure_out
 real*8  :: Rplot(2), Zplot(2)
 real*8  :: psi_axis,R_axis,Z_axis,s_axis,t_axis
@@ -42,6 +42,8 @@ real*8  :: spi_abl_rate_tot, spi_abl_tot
 real*8  :: spi_abl_bg_rate_tot, spi_abl_bg_tot
 real*8  :: spi_x, spi_y
 
+real*8  :: spi_abl_rate_inj(n_inj_max), spi_abl_inj(n_inj_max)
+real*8  :: spi_abl_bg_rate_inj(n_inj_max), spi_abl_bg_inj(n_inj_max)
 
 write(*,*) '***************************************'
 write(*,*) '* JOREK2_diagno                       *'
@@ -114,33 +116,87 @@ do i=1,index_start
 enddo
 close(20)
 
-open(20,file="thermal_history.dat")
+open(20,file="ion_history.dat")
 
-write(20,'(3A20)') 'time', 'e_th_energy (MJ)', 'i_th_energy (MJ)'
+write(20,'(2A20)') 'time', 'ionization power (MW)', 'total_ionization (MJ)'
 
 do i=1,index_start
-  write(20,'(i7,f12.3,2e14.6)') i,xtime(i), thermal_e_tot_t(i)/1.d6, thermal_i_tot_t(i)/1.d6
+  write(20,'(i7,f12.3,2e14.6)') i,xtime(i), xtime_E_ion_power(i)/1.d6, xtime_E_ion(i)/1.d6
 enddo
 close(20)
+
+if (use_marker) then
+  open(20,file="Ne_imp_history.dat")
+  
+  write(20,'(A20)') 'time', 'Electron number'
+
+  do i=1,index_start
+    write(20,'(i7,f12.3,e14.6)') i,xtime(i), xtime_Ne_imp(i)
+  enddo
+  close(20)
+endif
+
+open(20,file="ohm_history.dat")
+
+write(20,'(3A20)') 'time', 'ohmic power (MW)', 'E_mag change (MW)', 'magnetic energy (MJ)'
+
+do i=1,index_start
+  write(20,'(i7,f12.3,3e14.6)') i,xtime(i), ohmic_tot_t(i)/1.d6, dWmag_tot_dt(i)/1.d6, Wmag_tot_t(i)/1.d6
+enddo
+close(20)
+
+if (with_TiTe) then
+  open(20,file="thermal_history.dat")
+  
+  write(20,'(3A20)') 'time', 'e_th_energy (MJ)', 'i_th_energy (MJ)'
+  
+  do i=1,index_start
+    write(20,'(i7,f12.3,2e14.6)') i,xtime(i), thermal_e_tot_t(i)/1.d6, thermal_i_tot_t(i)/1.d6
+  enddo
+  close(20)
+
+  open(20,file="Pei_history.dat")
+  
+  write(20,'(2A20)') 'time', 'E_th exchange e-i (MW)'
+  
+  do i=1,index_start
+    write(20,'(i7,f12.3,1e14.6)') i,xtime(i), xtime_P_ei(i)/1.d6
+  enddo
+  close(20)
+endif
 
 if (using_spi) then
 
   open(20,file="abl_history.dat")
 
-  write(20,'(A11)') 'time', 'total_abl_rate', 'total_abl_number'
+  write(20,'(A11)') 'time', 'abl_rate_inj', 'abl_number_inj', 'total_abl_rate', 'total_abl_number'
 
   do i=1,index_start
     spi_abl_rate_tot = 0.0
     spi_abl_tot = 0.0
     spi_abl_bg_rate_tot = 0.0
     spi_abl_bg_tot = 0.0
+    spi_abl_rate_inj = 0.0
+    spi_abl_inj = 0.0
+    spi_abl_bg_rate_inj = 0.0
+    spi_abl_bg_inj = 0.0
+    i_inj = 1
+    i_count = 0
     do i_spi = 1, n_spi_tot
+      if (i_spi > (i_count + n_spi(i_inj))) then
+        i_count = i_count + n_spi(i_inj)
+        i_inj = i_inj + 1
+      endif
+      spi_abl_rate_inj(i_inj) = spi_abl_rate_inj(i_inj) + xtime_spi_ablation_rate(i_spi,i)
+      spi_abl_inj(i_inj) = spi_abl_inj(i_inj) + xtime_spi_ablation(i_spi,i)
+      spi_abl_bg_rate_inj(i_inj) = spi_abl_bg_rate_inj(i_inj) + xtime_spi_ablation_bg_rate(i_spi,i)
+      spi_abl_bg_inj(i_inj) = spi_abl_bg_inj(i_inj) + xtime_spi_ablation_bg(i_spi,i)
       spi_abl_rate_tot = spi_abl_rate_tot + xtime_spi_ablation_rate(i_spi,i)
       spi_abl_tot = spi_abl_tot + xtime_spi_ablation(i_spi,i)
       spi_abl_bg_rate_tot = spi_abl_bg_rate_tot + xtime_spi_ablation_bg_rate(i_spi,i)
       spi_abl_bg_tot = spi_abl_bg_tot + xtime_spi_ablation_bg(i_spi,i)
     end do
-    write(20,'(i7,f12.3,4e14.6)') i,xtime(i), spi_abl_rate_tot, spi_abl_tot, spi_abl_bg_rate_tot, spi_abl_bg_tot
+    write(20,"(i7,f12.3,*(e14.6,:,a))") i,xtime(i), spi_abl_rate_inj(:), ',', spi_abl_inj(:), ',', spi_abl_bg_rate_inj(:), ',', spi_abl_bg_inj(:), ',', spi_abl_rate_tot, ',', spi_abl_tot, ',', spi_abl_bg_rate_tot, ',', spi_abl_bg_tot
   enddo
   close(20)
 

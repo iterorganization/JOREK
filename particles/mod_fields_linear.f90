@@ -351,11 +351,31 @@ subroutine do_read(this, sim, ev)
         if (file_exists) then
           call import_hdf5_restart(f%node_list,f%element_list,restart_file,this%rst_format,ierr)
           f%static = .true.
+          if (ierr .ne. 0) then
+            if (my_id .eq. 0) write(*,*) "ERROR: cannot open restart file"
+            call exit(1)
+          else
+            f%time_now = t_start*sim%t_norm ! set by import_hdf5_restart
+            ! Set sim%time to this time also, to start at the right point
+            if (sim%time .gt. 1d-16) then ! check if this is the right file if we have already set a time
+              if (sim%time .le. f%time_now) then
+                if (my_id .eq. 0) write(*,*) "ERROR: restart file read that is too far in the future"
+              end if
+            else ! otherwise set the time to the time of this file
+              sim%time = f%time_now
+            end if
+            if (my_id .eq. 0) write(*,"(A,f9.8,A)") "Read initial restart file, set t=", sim%time, " [s]"
+            ! for variable time step Gears method
+            if ( index_now==1) then
+              tstep_prev = tstep
+            else
+              tstep_prev = xtime(index_start) - xtime(index_start-1)
+            end if
+          endif
         else
           if (my_id .eq. 0) write(*,*) "ERROR: file ", trim(restart_file), " does not exist"
           call exit(1)
         end if
-        f%time_now = t_start * sim%t_norm
         t_now = t_start
         !Simulation time is now set
         sim%time=t_now*sim%t_norm
@@ -486,7 +506,7 @@ subroutine merge_restart(node_list,element_list, restart_file, format_rst,my_id,
 
   ! Save the old values to calculate the new deltas
   allocate(values(n_tor,n_degrees,n_var,node_list%n_nodes))
-  !$omp parallel do default(shared) private(inode)
+  !$omp parallel do default(none) shared(node_list, values) private(inode)
   do inode=1,node_list%n_nodes
     values(:,:,:,inode) = node_list%node(inode)%values(:,:,:)
   enddo
@@ -497,7 +517,7 @@ subroutine merge_restart(node_list,element_list, restart_file, format_rst,my_id,
   call import_hdf5_restart(node_list,element_list, restart_file, format_rst, ierr)
 
   ! Calculate deltas as values_new - values_old
-  !$omp parallel do default(shared) private(inode)
+  !$omp parallel do default(none) shared(node_list, values) private(inode)
   do inode=1,node_list%n_nodes
     node_list%node(inode)%deltas = node_list%node(inode)%values - values(:,:,:,inode)
   enddo

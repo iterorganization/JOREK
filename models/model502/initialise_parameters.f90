@@ -18,7 +18,7 @@ integer :: ierr,err,i
 ! --- Namelist with input parameters.                                                                                                                        
 namelist /in1/  tstep, nstep, tstep_n, nstep_n,                     &
                 rst_hdf5, rst_hdf5_version, keep_current_prof,      &
-                eta, visco, visco_par,                              &
+                eta, visco, visco_par, visco_par_par,               &
                 restart, rst_format, regrid, bootstrap, write_ps,   &
                 force_horizontal_Xline, fix_axis_nodes,             &
                 n_R, n_Z, n_radial, n_pol, n_tht, n_flux,           &
@@ -118,14 +118,15 @@ namelist /in1/  tstep, nstep, tstep_n, nstep_n,                     &
                 ns_amplitude, ns_R, ns_Z, ns_phi, ns_radius,        &
                 spi_Vel_Rref,spi_Vel_Zref, using_spi, n_spi, n_inj, &
                 spi_Vel_RxZref, spi_quantity, spi_abl_model,        &
+                nonlocal_abl, n_nonlocal_array,                     &
                 spi_quantity_bg, pellet_density_bg,                 &
                 ns_radius_ratio, ns_radius_min, spi_angle,          &
-                spi_L_inj, spi_L_inj_diff,                          &
+                spi_L_inj, spi_L_inj_diff, restart_spi,             &
                 drift_distance, energy_teleported,                  &
                 K_Dmv, A_Dmv, L_tube, V_Dmv, P_Dmv,                 &
                 spi_Vel_diff, t_ns, JET_MGI, ASDEX_MGI,             &
                 imp_type, delta_n_convection, nimp_bg,              &
-                index_main_imp,                                     &
+                index_main_imp, diff_diffusive_flux,                &
                 adas_dir, output_prad_phi, n_adas,                  &
                 RMP_on, RMP_har_cos,RMP_har_sin, spi_shard_file,    &
                 spi_plume_file, spi_plume_hdf5,                     &
@@ -145,6 +146,12 @@ namelist /in1/  tstep, nstep, tstep_n, nstep_n,                     &
                 voltage_coils, vert_FB_amp, find_pf_coil_currents,  &
                 delta_psi_GS, newton_GS_fixbnd, newton_GS_freebnd,  &
                 pastix_maxthrd, eta_ohmic, centralize_harm_mat,     & 
+                n_particles, tstep_particles, nstep_particles,      &
+                nsubstep_particles, restart_particles,              &
+                filter_perp,    filter_hyper,    filter_par,        &
+                filter_perp_n0, filter_hyper_n0, filter_par_n0,     &
+                use_cx, use_sputtering, use_ionisation,             &
+                use_ncs, use_pcs, use_ccs, use_marker,              &
                 vert_FB_amp_ts, vert_FB_gain, vert_pos_file,        & 
                 vert_FB_tact, start_VFB_ts, I_coils_max, rad_FB_amp,&
                 autodistribute_modes, modes_per_family,             &

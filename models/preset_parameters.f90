@@ -42,6 +42,7 @@ subroutine preset_parameters
 
   visco = 1.d-5
   visco_par = 1.d-5
+  visco_par_par = 0.d0
   visco_par_heating = 0.d0
   
   central_density = 1.d0        ! the central density in units 10^20 m^-3
@@ -747,8 +748,33 @@ subroutine preset_parameters
   spi_tor_rot     = .false.
   spi_num_vol     = .true.
   using_spi       = .false.
+  restart_spi     = .true.
+  nonlocal_abl    = .false.
+  n_nonlocal_array= 0
 
   output_prad_phi = .false.
+
+!==================Particle related presets==============
+  restart_particles = .false.
+  use_ncs           = .false.
+  use_rcs           = .false.
+  use_ccs           = .false.
+  use_pcs           = .false.
+  use_cx            = .false.
+  use_marker        = .false.
+  diff_diffusive_flux  = .false.
+  use_sputtering    = .false.
+  use_ionisation    = .false.
+  n_particles       = 0.0
+  tstep_particles   = 0.0
+  nstep_particles   = 0
+  nsubstep_particles = 0
+  filter_perp       = 0.0
+  filter_hyper      = 0.0
+  filter_par        = 0.0
+  filter_perp_n0    = 0.0
+  filter_hyper_n0   = 0.0
+  filter_par_n0     = 0.0
 
 !======================JP ECCD injection parameters
   nu_jec_fast=1.d1
@@ -786,6 +812,20 @@ subroutine preset_parameters
 !===================== not used?
   Q_bar = 0.d0
   Sigma = 0.d0
+
+!==================== Gas_puffing parameters=============
+  use_puffing   = .false.
+  phys_particles_puff = 0.d0
+  fueling_rate  = 0.d0 
+  valve_r       = 5.d-2
+  R_valve_loc   = 0.d0 
+  Z_valve_loc   = 0.d0 
+  PHI_valve_loc = 0.d0 
+  initial_E     = 3.d2
+  puffing_direction = (/0.d0,0.d0,0.d0/)
+  puffing_timestep  = 1.d-6
+  puff_starttime    = 0.d0
+  puffingtime       = 1.d-3 
 
 !===================== particle input values
 n_particles        = 0

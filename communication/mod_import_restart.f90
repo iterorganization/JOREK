@@ -428,6 +428,13 @@ subroutine import_binary_restart(node_list, element_list, filename, format_rst, 
     call tr_allocate(thmwork_tot_t,1,index_start+nstep,"thmwork_tot_t",CAT_UNKNOWN)
     thmwork_tot_t = 0.d0
 
+    if (allocated(thmwork_e_tot_t)) call tr_deallocate(thmwork_e_tot_t,"thmwork_e_tot_t",CAT_UNKNOWN)
+    call tr_allocate(thmwork_e_tot_t,1,index_start+nstep,"thmwork_e_tot_t",CAT_UNKNOWN)
+    thmwork_e_tot_t = 0.d0
+
+    if (allocated(thmwork_i_tot_t)) call tr_deallocate(thmwork_i_tot_t,"thmwork_i_tot_t",CAT_UNKNOWN)
+    call tr_allocate(thmwork_i_tot_t,1,index_start+nstep,"thmwork_i_tot_t",CAT_UNKNOWN)
+    thmwork_i_tot_t = 0.d0
 
     if (allocated(volume_t)) call tr_deallocate(volume_t,"volume_t",CAT_UNKNOWN)
     call tr_allocate(volume_t,1,index_start+nstep,"volume_t",CAT_UNKNOWN)
@@ -506,7 +513,6 @@ endif
     write(*,'(A,e12.4,2f10.5)') ' *** PELLET PARAMETERS : ',pellet_particles, pellet_R, pellet_Z
   endif
 
-#if (defined WITH_Neutrals) || (defined WITH_Impurities)
   if (index_start >= 1) then
     if (allocated(xtime_radiation)) &
       call tr_deallocate(xtime_radiation,"xtime_radiation",CAT_UNKNOWN)
@@ -524,14 +530,19 @@ endif
       call tr_deallocate(xtime_E_ion_power,"xtime_E_ion_power",CAT_UNKNOWN)
     call tr_allocate(xtime_E_ion_power,1,index_start+nstep,"xtime_E_ion_power",CAT_UNKNOWN)
     read(21)  xtime_E_ion_power(1:index_start)
+    if (use_marker) then
+      if (allocated(xtime_Ne_imp)) &
+        call tr_deallocate(xtime_Ne_imp,"xtime_Ne_imp",CAT_UNKNOWN)
+      call tr_allocate(xtime_Ne_imp,1,index_start+nstep,"xtime_Ne_imp",CAT_UNKNOWN)
+      read(21)  xtime_Ne_imp(1:index_start)
+    endif
     if (allocated(xtime_P_ei)) &
       call tr_deallocate(xtime_P_ei,"xtime_P_ei",CAT_UNKNOWN)
     call tr_allocate(xtime_P_ei,1,index_start+nstep,"xtime_P_ei",CAT_UNKNOWN)
     read(21)  xtime_P_ei(1:index_start)
   end if
-#endif
 
-  if (using_spi) then
+  if (using_spi .and. restart_spi) then
     if (n_spi_tot >= 1) then
 
       if (index_start >= 1) then
@@ -651,6 +662,26 @@ endif
       end if
 
     end if
+  elseif (using_spi) then
+    if (n_spi_tot >= 1) then
+
+      if (index_start >= 1) then
+
+        if (allocated(xtime_spi_ablation)) &
+          call tr_deallocate(xtime_spi_ablation,"xtime_spi_ablation",CAT_UNKNOWN)
+        call tr_allocate(xtime_spi_ablation,1,n_spi_tot,1,index_start+nstep,"xtime_spi_ablation",CAT_UNKNOWN)
+        if (allocated(xtime_spi_ablation_rate)) &
+          call tr_deallocate(xtime_spi_ablation_rate,"xtime_spi_ablation_rate",CAT_UNKNOWN)
+        call tr_allocate(xtime_spi_ablation_rate,1,n_spi_tot,1,index_start+nstep,"xtime_spi_ablation_rate",CAT_UNKNOWN)
+        if (allocated(xtime_spi_ablation_bg)) &
+          call tr_deallocate(xtime_spi_ablation_bg,"xtime_spi_ablation_bg",CAT_UNKNOWN)
+        call tr_allocate(xtime_spi_ablation_bg,1,n_spi_tot,1,index_start+nstep,"xtime_spi_ablation_bg",CAT_UNKNOWN)
+        if (allocated(xtime_spi_ablation_bg_rate)) &
+          call tr_deallocate(xtime_spi_ablation_bg_rate,"xtime_spi_ablation_bg_rate",CAT_UNKNOWN)
+        call tr_allocate(xtime_spi_ablation_bg_rate,1,n_spi_tot,1,index_start+nstep,"xtime_spi_ablation_bg_rate",CAT_UNKNOWN)
+
+      end if
+    endif
   end if
 
 999 continue
@@ -1503,6 +1534,15 @@ subroutine import_hdf5_restart(node_list, element_list, filename, format_rst, er
     thmwork_tot_t = 0.d0
     call HDF5_array1D_reading(file_id,thmwork_tot_t,'thmwork_tot_t')
 
+    if (allocated(thmwork_e_tot_t)) call tr_deallocate(thmwork_e_tot_t,"thmwork_e_tot_t",CAT_UNKNOWN)
+    call tr_allocate(thmwork_e_tot_t,1,index_start+nstep,"thmwork_e_tot_t",CAT_UNKNOWN)
+    thmwork_e_tot_t = 0.d0
+    call HDF5_array1D_reading(file_id,thmwork_e_tot_t,'thmwork_e_tot_t')
+
+    if (allocated(thmwork_i_tot_t)) call tr_deallocate(thmwork_i_tot_t,"thmwork_i_tot_t",CAT_UNKNOWN)
+    call tr_allocate(thmwork_i_tot_t,1,index_start+nstep,"thmwork_i_tot_t",CAT_UNKNOWN)
+    thmwork_i_tot_t = 0.d0
+    call HDF5_array1D_reading(file_id,thmwork_i_tot_t,'thmwork_i_tot_t')
 
     if (allocated(volume_t)) call tr_deallocate(volume_t,"volume_t",CAT_UNKNOWN)
     call tr_allocate(volume_t,1,index_start+nstep,"volume_t",CAT_UNKNOWN)
@@ -1656,7 +1696,6 @@ subroutine import_hdf5_restart(node_list, element_list, filename, format_rst, er
      call HDF5_real_reading(file_id,pellet_particles,"pellet_particles")
   endif
 
-#if (defined WITH_Neutrals) || (defined WITH_Impurities)
   if (index_start >= 1) then
     if (allocated(xtime_radiation)) &
       call tr_deallocate(xtime_radiation,"xtime_radiation",CAT_UNKNOWN)
@@ -1674,14 +1713,19 @@ subroutine import_hdf5_restart(node_list, element_list, filename, format_rst, er
       call tr_deallocate(xtime_E_ion_power,"xtime_E_ion_power",CAT_UNKNOWN)
     call tr_allocate(xtime_E_ion_power,1,index_start+nstep,"xtime_E_ion_power",CAT_UNKNOWN)
     call HDF5_array1D_reading(file_id,xtime_E_ion_power,"xtime_E_ion_power")
+    if (use_marker) then
+      if (allocated(xtime_Ne_imp)) &
+        call tr_deallocate(xtime_Ne_imp,"xtime_Ne_imp",CAT_UNKNOWN)
+      call tr_allocate(xtime_Ne_imp,1,index_start+nstep,"xtime_Ne_imp",CAT_UNKNOWN)
+      call HDF5_array1D_reading(file_id,xtime_Ne_imp,"xtime_Ne_imp")
+    endif
     if (allocated(xtime_P_ei)) &
       call tr_deallocate(xtime_P_ei,"xtime_P_ei",CAT_UNKNOWN)
     call tr_allocate(xtime_P_ei,1,index_start+nstep,"xtime_P_ei",CAT_UNKNOWN)
     call HDF5_array1D_reading(file_id,xtime_P_ei,"xtime_P_ei")
   end if
-#endif
 
-  if (using_spi) then
+  if (using_spi .and. restart_spi) then
     if (n_spi_tot >= 1) then
 
       if (index_start >= 1) then
@@ -1912,6 +1956,23 @@ subroutine import_hdf5_restart(node_list, element_list, filename, format_rst, er
       end if
 
 
+    end if
+  else if (using_spi) then
+    if (n_spi_tot >= 1) then
+      if (index_start >= 1) then
+        if (allocated(xtime_spi_ablation)) &
+          call tr_deallocate(xtime_spi_ablation,"xtime_spi_ablation",CAT_UNKNOWN)
+        call tr_allocate(xtime_spi_ablation,1,n_spi_tot,1,index_start+nstep,"xtime_spi_ablation",CAT_UNKNOWN)
+        if (allocated(xtime_spi_ablation_rate)) &
+          call tr_deallocate(xtime_spi_ablation_rate,"xtime_spi_ablation_rate",CAT_UNKNOWN)
+        call tr_allocate(xtime_spi_ablation_rate,1,n_spi_tot,1,index_start+nstep,"xtime_spi_ablation_rate",CAT_UNKNOWN)
+        if (allocated(xtime_spi_ablation_bg)) &
+          call tr_deallocate(xtime_spi_ablation_bg,"xtime_spi_ablation_bg",CAT_UNKNOWN)
+        call tr_allocate(xtime_spi_ablation_bg,1,n_spi_tot,1,index_start+nstep,"xtime_spi_ablation_bg",CAT_UNKNOWN)
+        if (allocated(xtime_spi_ablation_bg_rate)) &
+          call tr_deallocate(xtime_spi_ablation_bg_rate,"xtime_spi_ablation_bg_rate",CAT_UNKNOWN)
+        call tr_allocate(xtime_spi_ablation_bg_rate,1,n_spi_tot,1,index_start+nstep,"xtime_spi_ablation_bg_rate",CAT_UNKNOWN)
+      end if
     end if
   end if
 

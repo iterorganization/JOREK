@@ -14,11 +14,12 @@ use domains
 use corr_neg
 use equil_info, only : get_psi_n, ES
 !$ use omp_lib
-#ifdef WITH_Neutrals
+#if (defined WITH_Neutrals) && (!defined WITH_Impurities)
   use mod_neutral_source
 #endif
 #ifdef WITH_Impurities
   use mod_impurity
+  use mod_injection_source
 #endif
 use mod_sources
 
@@ -149,6 +150,7 @@ ife_max   = min((my_id +1) * ife_delta, element_list%n_elements)
 !$omp          ns_phi, ns_radius, ns_deltaphi, ns_tor_norm, spi_tor_rot,                       &
 !$omp          t_now, A_Dmv, K_Dmv, V_Dmv, P_Dmv, t_ns, L_tube, JET_MGI,ASDEX_MGI,             &
 !$omp          central_mass, pellets, tor_frequency,                                           &
+!$omp          n_spi, using_spi,                                                               &
 !$omp          ns_radius_ratio, ns_radius_min, spi_shard_file,                                 &
 #endif
 !$omp          wgauss_copy)                                                                    &

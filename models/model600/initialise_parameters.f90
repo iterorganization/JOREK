@@ -20,7 +20,7 @@ integer :: ierr,err,i
 ! --- Namelist with input parameters.
 namelist /in1/  tstep, nstep, tstep_n, nstep_n,                     &
                 rst_hdf5, rst_hdf5_version, keep_current_prof,      &
-                eta, visco, visco_par,                              &
+                eta, visco, visco_par, visco_par_par,               &
                 restart, rst_format, regrid, bootstrap, write_ps,   &
                 n_R, n_Z, n_radial, n_pol, n_tht, n_flux,           &
                 n_open, n_private, n_leg, n_leg_out, n_ext,         &
@@ -156,6 +156,7 @@ namelist /in1/  tstep, nstep, tstep_n, nstep_n,                     &
                 ns_amplitude, ns_R, ns_Z, ns_phi, ns_radius,        &
                 spi_Vel_Rref,spi_Vel_Zref, using_spi, n_spi, n_inj, &
                 spi_Vel_RxZref, spi_quantity, spi_abl_model,        &
+                nonlocal_abl, n_nonlocal_array,                     &
                 ns_radius_ratio, ns_radius_min, spi_angle,          &
                 spi_L_inj, spi_L_inj_diff,                          &
                 drift_distance, energy_teleported,                  &

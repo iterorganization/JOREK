@@ -437,15 +437,19 @@ subroutine do_count_action(this, sim, ev)
 
   ! Count the number of alive simulation particles in each group
   do i_group=1,size(sim%groups,1)
-    n_alive = count(sim%groups(i_group)%particles(:)%i_elm .gt. 0)
-    w_alive = sum(sim%groups(i_group)%particles(:)%weight, mask=sim%groups(i_group)%particles(:)%i_elm .gt. 0)
+    if (allocated(sim%groups(i_group)%particles)) then
+      n_alive = count(sim%groups(i_group)%particles(:)%i_elm .gt. 0)
+      w_alive = sum(sim%groups(i_group)%particles(:)%weight, mask=sim%groups(i_group)%particles(:)%i_elm .gt. 0)
 
-    call MPI_Reduce(n_alive, n_alive_total, 1, MPI_INTEGER, MPI_SUM, 0, MPI_COMM_WORLD, ierr)
-    call MPI_Reduce(w_alive, w_alive_total, 1, MPI_REAL8, MPI_SUM, 0, MPI_COMM_WORLD, ierr)
+      call MPI_Reduce(n_alive, n_alive_total, 1, MPI_INTEGER, MPI_SUM, 0, MPI_COMM_WORLD, ierr)
+      call MPI_Reduce(w_alive, w_alive_total, 1, MPI_REAL8, MPI_SUM, 0, MPI_COMM_WORLD, ierr)
 
-    if (sim%my_id .eq. 0) then
-      write(*,'(A,g16.8,A,i2,A,i9,A,2g16.8)') 'Number of particles at ', sim%time, " in group ", i_group, ": ", n_alive_total,&
-                                               ", w=", w_alive_total, sim%groups(i_group)%particles(1)%weight*n_alive_total
+      if (sim%my_id .eq. 0) then
+        write(*,'(A,g16.8,A,i2,A,i9,A,2g16.8)') 'Number of particles at ', sim%time, " in group ", i_group, ": ", n_alive_total,&
+                                                 ", w=", w_alive_total, sim%groups(i_group)%particles(1)%weight*n_alive_total
+      end if
+    else
+      if (sim%my_id .eq. 0) write(*,'(A,i3,A)') 'WARNING : group ',i_group,' has not been allocated'
     end if
   end do
 end subroutine do_count_action
