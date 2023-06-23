@@ -451,7 +451,7 @@ module mod_position
     integer,                      intent(in)    :: n_elm_pts
 
     ! --- Local variables
-    integer                  :: i_bnd, m_bndelem, mv1, m_elm, m_pt, i_elmi, ifail
+    integer                  :: i_bnd, m_bndelem, mv1, m_elm, m_pt, i_elm, ifail
     real*8                   :: s_or_t, s, t
     real*8                   :: R, R_s, R_t, Z, Z_s, Z_t
     real*8                   :: R_tmp, R_tmp_s, R_tmp_t, Z_tmp, Z_tmp_s, Z_tmp_t
