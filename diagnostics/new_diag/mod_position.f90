@@ -451,14 +451,18 @@ module mod_position
     integer,                      intent(in)    :: n_elm_pts
 
     ! --- Local variables
-    integer                  :: i_bnd, m_bndelem, mv1, m_elm, m_pt
+    integer                  :: i_bnd, m_bndelem, mv1, m_elm, m_pt, i_elm, ifail
     real*8                   :: s_or_t, s, t
     real*8                   :: R, R_s, R_t, Z, Z_s, Z_t
+    real*8                   :: R_tmp, R_tmp_s, R_tmp_t, Z_tmp, Z_tmp_s, Z_tmp_t
+    real*8                   :: R_find, Z_find
+    real*8                   :: bnd_shift
     real*8                   :: vec_out(2)
     logical                  :: s_const
     type(t_pol_pos), pointer :: pos
 
     i_bnd = 0  ! index for bnd point
+    bnd_shift = 0.0 ! The inward shift of the boundary
   
     ! --- alllocate position list
     call alloc_pol_pos(pos_list, (/1, n_elm_pts * bnd_elm_list%n_bnd_elements /))
@@ -512,6 +516,19 @@ module mod_position
         vec_out = (/  pos%R - R, pos%Z  - Z/)    ! vector pointing outside the domain
 
         pos%bnd_normal = pos%bnd_normal*sign(1.d0, vec_out(1)*pos%bnd_normal(1)+vec_out(2)*pos%bnd_normal(2))
+
+        ! --- Now, shrink the boundary inward to avoid the sharp gradient on the boundary elements!
+        if (bnd_shift /= 0.0) then
+          R_tmp = - pos%bnd_normal(1) * bnd_shift + pos%R
+          Z_tmp = - pos%bnd_normal(2) * bnd_shift + pos%Z
+       
+          call find_RZ(node_list,element_list,R_tmp,Z_tmp,R_find,Z_find,i_elm,s,t,ifail) 
+          pos%ielm = i_elm
+          pos%s    = s
+          pos%t    = t
+          call fill_pol_pos(pos, node_list, element_list)
+
+        endif
 
       enddo
 
