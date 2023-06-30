@@ -99,6 +99,8 @@ call with(sim, fieldreader)
 physical_particles = phys_particles_puff
 weight = physical_particles/n_particles
 
+fueling_rate = physical_particles / puffingtime
+
 if (use_puffing) then
   n_puffing_times = int(puffingtime/puffing_timestep)
   n_puff = n_particles_local / n_puffing_times
