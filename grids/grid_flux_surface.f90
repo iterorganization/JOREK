@@ -337,8 +337,8 @@ ds_dR = - dZZg1_dr / ejac
 dPS_dRR = dPSg1_drr * dr_dR * dr_dR + 2.d0*dPSg1_drs * dr_dR * ds_dR + dPSg1_dss * ds_dR * ds_dR
 dPS_dZZ = dPSg1_drr * dr_dZ * dr_dZ + 2.d0*dPSg1_drs * dr_dZ * ds_dZ + dPSg1_dss * ds_dZ * ds_dZ
 
-CRR_axis = dPS_dRR / 2.d0 / abs(ES%psi_axis)
-CZZ_axis = dPS_dZZ / 2.d0 / abs(ES%psi_axis)
+CRR_axis = dPS_dRR / 2.d0 / (ES%psi_bnd-ES%psi_axis)
+CZZ_axis = dPS_dZZ / 2.d0 / (ES%psi_bnd-ES%psi_axis)
 
 B_axis = 1.d0 / ES%R_axis
 q_axis = B_axis   /(2.d0*SQRT(CRR_axis*CZZ_axis)) / abs(ES%psi_axis)
