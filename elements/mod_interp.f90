@@ -467,7 +467,7 @@ integer,                  intent(in)  :: n_v, i_v(n_v)
 real*8,                   intent(in)  :: s, t
 real*8,                   intent(out) :: P(n_v)
 
-real*8  :: H(4,4)
+real*8  :: H(4,n_degrees)
 integer :: kv, iv, kf, m, i
 
 call basisfunctions(s,t,H)
@@ -476,7 +476,7 @@ P = 0.d0
 
 do kv = 1,n_vertex_max  ! 4 vertices
   iv = element_list%element(i_elm)%vertex(kv)  ! the node number
-  do kf = 1, n_order+1       ! 4 basis functions
+  do kf = 1, n_degrees       ! basis functions
     do i = 1, n_v
       P(i)    = P(i)   + node_list%node(iv)%values(1,kf,i_v(i)) * element_list%element(i_elm)%size(kv,kf) * H(kv,kf)
     end do
@@ -492,7 +492,7 @@ integer,                  intent(in)  :: n_v, i_v(n_v)
 real*8,                   intent(in)  :: s, t
 real*8,                   intent(out) :: P(n_v), P_s(n_v), P_t(n_v), R_s, R_t, Z_s, Z_t
 
-real*8  :: H(4,4), H_s(4,4), H_t(4,4)
+real*8  :: H(4,n_degrees), H_s(4,n_degrees), H_t(4,n_degrees)
 integer :: kv, iv, kf, m, i, i_harm
 
 call basisfunctions(s,t,H, H_s, H_t)
@@ -504,7 +504,7 @@ do kv = 1,n_vertex_max  ! 4 vertices
 
   iv = element_list%element(i_elm)%vertex(kv)  ! the node number
 
-  do kf = 1, n_order+1       ! 4 basis functions
+  do kf = 1, n_degrees       ! basis functions
 
     R_s = R_s + node_list%node(iv)%x(1,kf,1) * element_list%element(i_elm)%size(kv,kf) * H_s(kv,kf)
     R_t = R_t + node_list%node(iv)%x(1,kf,1) * element_list%element(i_elm)%size(kv,kf) * H_t(kv,kf)
