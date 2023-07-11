@@ -156,7 +156,8 @@ namelist /in1/  tstep, nstep, tstep_n, nstep_n,                     &
                 ranks_per_family, cte_current_FB_fact, treat_axis,  &
                 visco_par_heating, CARIDDI_mode,                    &
                 T_min_ZKpar,                                        &
-                use_newton, maxNewton, gamma_Newton, alpha_Newton
+                use_newton, maxNewton, gamma_Newton, alpha_Newton,  &
+                vacuum_min
 if (my_id .eq. 0) then
 
   ! --- Preset input parameters to reasonable default values.

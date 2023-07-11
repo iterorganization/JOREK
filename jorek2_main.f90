@@ -360,8 +360,8 @@ mpi_required = 0
     ! --- Fill the vacuum response matrices for freeboundary computations
     if ( freeboundary_equil .and. (n_flux .eq. 0)) then
       call get_vacuum_response(my_id, node_list, bnd_elm_list, bnd_node_list, freeboundary_equil,  &
-        resistive_wall)
-      call update_response(my_id,tstep, freeboundary_equil, resistive_wall)
+          resistive_wall)
+      call update_response(my_id,tstep, resistive_wall)
       call import_external_fields('coil_field.dat', my_id)
       call set_coil_curr_time_trace()
       if ( (.not. restart) .or. (.not. wall_curr_initialized) ) call init_wall_currents(my_id, resistive_wall)
@@ -395,8 +395,8 @@ mpi_required = 0
       if ( freeb_equil2) then
         freeboundary_equil = .true.
         call get_vacuum_response(my_id, node_list, bnd_elm_list, bnd_node_list, freeboundary_equil,  &
-          resistive_wall)
-        call update_response(my_id,tstep, freeboundary_equil, resistive_wall)
+            resistive_wall)
+        call update_response(my_id,tstep,  resistive_wall)
         call import_external_fields('coil_field.dat', my_id)
         call set_coil_curr_time_trace()
         if ( (.not. restart) .or. (.not. wall_curr_initialized) ) call init_wall_currents(my_id, resistive_wall)
@@ -437,8 +437,8 @@ mpi_required = 0
   ! --- Fill the vacuum response matrices for freeboundary computations
   if ( freeboundary ) then
     call get_vacuum_response(my_id, node_list, bnd_elm_list, bnd_node_list, freeboundary_equil,    &
-      resistive_wall)
-    call update_response(my_id,tstep, freeboundary_equil, resistive_wall)
+        resistive_wall)
+    call update_response(my_id,tstep,  resistive_wall)
     call import_external_fields('coil_field.dat', my_id)
     call set_coil_curr_time_trace()
     call read_Z_axis_profile() 
@@ -602,7 +602,7 @@ mpi_required = 0
       write(*,*) '******************************************************'
     end if
     
-    if (freeboundary) call update_response(my_id,tstep, freeboundary_equil, resistive_wall)
+    if (freeboundary) call update_response(my_id,tstep, resistive_wall)
 
     ! ---- For now running the jorek2_main should not include aux inputs
     aux_node_list%n_nodes = 0

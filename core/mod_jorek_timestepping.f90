@@ -157,7 +157,7 @@ subroutine setup_solvers(this, sim)
   
     call get_vacuum_response(sim%my_id, sim%fields%node_list, bnd_elm_list, bnd_node_list, freeboundary_equil, resistive_wall)
 
-    call update_response(sim%my_id,get_tstep_n(1), freeboundary_equil, resistive_wall)
+    call update_response(sim%my_id,get_tstep_n(1), resistive_wall)
     
     call import_external_fields('coil_field.dat', sim%my_id)
     
@@ -333,7 +333,7 @@ subroutine do_jorek_timestep(this, sim, ev)
   call clck_time_barrier(t_itstart)
   t0 = t_itstart
 
-  if ( freeboundary ) call update_response(sim%my_id,dt_jorek, freeboundary_equil, resistive_wall)
+  if ( freeboundary ) call update_response(sim%my_id,dt_jorek, resistive_wall)
 
   call update_equil_state(sim%my_id, sim%fields%node_list, sim%fields%element_list, bnd_elm_list, xpoint, xcase )
   this%es = ES

@@ -652,12 +652,12 @@ write(*,'(1x,a)',advance='no') ' USE_CATALYST : '
     write(*,REA3_FMT) 'r_limiter             ', r_limiter(1:min(9,n_limiter))
     write(*,REA3_FMT) 'z_limiter             ', z_limiter(1:min(9,n_limiter))
   end if
-
-  write(*,LOGI_FMT) 'CARIDDI_mode          ', CARIDDI_mode
-  write(*,LOGI_FMT) 'freeboundary_equil    ', freeboundary_equil
   write(*,LOGI_FMT) 'freeboundary          ', freeboundary
-  write(*,LOGI_FMT) 'freeb_change_indices  ', freeb_change_indices
   if ( freeboundary ) then
+    write(*,LOGI_FMT) 'CARIDDI_mode          ', CARIDDI_mode
+    write(*,LOGI_FMT) 'freeboundary_equil    ', freeboundary_equil
+    write(*,LOGI_FMT) 'freeb_change_indices  ', freeb_change_indices
+    write(*,LOGI_FMT) 'vacuum_min            ', vacuum_min
     write(*,LOGI_FMT) 'resistive_wall        ', resistive_wall
     if ( resistive_wall ) then
       write(*,REAL_FMT2) 'wall_resistivity      ', wall_resistivity, ' (used only if STARWALL response file_version==1)'

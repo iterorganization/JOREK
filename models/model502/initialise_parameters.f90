@@ -162,7 +162,7 @@ namelist /in1/  tstep, nstep, tstep_n, nstep_n,                     &
                 ZK_par_neg, Z_xpoint_limit, visco_par_heating,      &
                 Ti_min_ZKpar,Te_min_ZKpar,                          &
                 CARIDDI_mode, use_newton, maxNewton, gamma_Newton,  &
-                alpha_Newton
+                alpha_Newton, vacuum_min
 
 if (my_id .eq. 0) then
   ! --- Preset input parameters to reasonable default values.
