@@ -20,22 +20,24 @@ module mod_strumpack
   private
   public :: type_STRUMPACK_SOLVER, &
             strumpack_init, strumpack_set_mat, strumpack_analyze, &
-            strumpack_factorize, strumpack_solve, strumpack_finalize
+            strumpack_factorize, strumpack_solve, strumpack_finalize, &
+            spk_delete_factors
 
   interface
     subroutine spk() bind(C)
       use iso_c_binding
     end subroutine spk
 
-    subroutine spk_init(spss,comm) bind(C)
+    subroutine spk_init(sscp,iparm,comm) bind(C)
       use iso_c_binding
       implicit none
 
-      type(c_ptr), intent(inout) :: spss
+      type(c_ptr), intent(inout) :: sscp
+      type(c_ptr)         :: iparm
       integer, intent(in) :: comm
     end subroutine spk_init
 
-    subroutine spk_set_mat(n,dist,irn,jcn,val,spss,comm,upd) bind(C)
+    subroutine spk_set_mat(n,dist,irn,jcn,val,sscp,comm,upd) bind(C)
       use iso_c_binding
       use mod_integer_types
       implicit none
@@ -45,43 +47,50 @@ module mod_strumpack
       type(c_ptr) :: irn, jcn, val
       type(c_ptr) :: dist
       !integer(kind=C_INT_ALL), dimension(:), pointer, intent(in) :: dist
-      type(c_ptr), intent(inout) :: spss
+      type(c_ptr), intent(inout) :: sscp
       logical :: upd
     end subroutine spk_set_mat
 
-    subroutine spk_reord(spss,comm) bind(C)
+    subroutine spk_reord(sscp,comm) bind(C)
       use iso_c_binding
       implicit none
 
-      type(c_ptr), intent(inout) :: spss
+      type(c_ptr), intent(inout) :: sscp
       integer, intent(in) :: comm
     end subroutine spk_reord
 
-    subroutine spk_fact(spss,comm) bind(C)
+    subroutine spk_fact(sscp,comm) bind(C)
       use iso_c_binding
       implicit none
 
-      type(c_ptr), intent(inout) :: spss
+      type(c_ptr), intent(inout) :: sscp
       integer, intent(in) :: comm
     end subroutine spk_fact
 
-    subroutine spk_solve(n,dist,rhs,spss,comm) bind(C)
+    subroutine spk_solve(n,dist,rhs,sscp,comm) bind(C)
       use iso_c_binding
       use mod_integer_types
       implicit none
 
       integer(kind=C_INT_ALL), intent(in) :: n
-      type(c_ptr), intent(inout) :: spss, rhs
+      type(c_ptr), intent(inout) :: sscp, rhs
       type(c_ptr) :: dist
       !integer(kind=C_INT_ALL), dimension(:), pointer, intent(in) :: dist
       integer, intent(in) :: comm
     end subroutine spk_solve
 
-    subroutine spk_finalize(spss,comm) bind(C)
+    subroutine spk_delete_factors(sscp) bind(C)
       use iso_c_binding
       implicit none
 
-      type(c_ptr), intent(inout) :: spss
+      type(c_ptr), intent(inout) :: sscp
+    end subroutine spk_delete_factors
+
+    subroutine spk_finalize(sscp,comm) bind(C)
+      use iso_c_binding
+      implicit none
+
+      type(c_ptr), intent(inout) :: sscp
       integer, intent(in) :: comm
     end subroutine spk_finalize
 
@@ -90,14 +99,30 @@ module mod_strumpack
   contains
     
     subroutine strumpack_init(spss,comm)
+      use phys_module, only: strumpack_matching
       implicit none
 
-      integer comm,ierr, n_cpu
+      integer comm, ierr, n_cpu
       type(type_STRUMPACK_SOLVER) spss
+      type(c_ptr) iparm_c
+      integer(kind=C_INT), target :: iparm(5)=0
       
       spss%comm = comm
+      
+      ! set STRUMPACK solver method to direct (1), gmres (2) or refine (3)
+      iparm(1) = 1
+      ! set STRUMPACK matching strategy
+      if (strumpack_matching) then
+        iparm(3) = 1
+        ! set reordering to Metis (1)
+        iparm(2) = 1
+      else
+        iparm(3) = 0
+        ! set reordering to ParMetis (2) or PTScotch (3)
+        iparm(2) = 2
+      endif
 
-      call spk_init(spss%sscp,spss%comm)
+      call spk_init(spss%sscp, c_loc(iparm), spss%comm)
       
       call MPI_COMM_SIZE(spss%comm, n_cpu, ierr)
       allocate(spss%distr(n_cpu+1))

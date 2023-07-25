@@ -54,28 +54,39 @@ module matio_module
   end subroutine read_matrix_h5  
 
 !> Save sparse matrix into HDF5 file
-  subroutine save_mat_h5(rank,n,nnz,irn,jcn,val,rhs)
-    integer :: rank,n,nnz,ierr
+  subroutine save_mat_h5(fname, ng, nl, nnz, irn, jcn, val, l2g, rhs, ind_min, ind_max, block_size)
+    use phys_module, only: n_tor, n_var
+    integer :: rank, ng, nl, nt, nv, nd, nnz, ierr
     integer(HID_T) fid
-    CHARACTER(LEN=10)              :: fname
-    integer, dimension(:), pointer :: irn,jcn
-    real(kind=c_double), dimension(:), pointer:: val
-    real(kind=c_double), dimension(:), pointer, optional:: rhs
+    CHARACTER(LEN=10)                                    :: fname
+    integer, dimension(:), pointer                       :: irn, jcn
+    real(kind=c_double), dimension(:), pointer           :: val
+    integer, dimension(:), pointer, optional             :: l2g
+    real(kind=c_double), dimension(:), pointer, optional :: rhs
+    integer, optional             :: ind_min, ind_max, block_size
 
-    write(fname,'(A5,I2.2,A3)') "matA_",rank,".h5"
+    !write(fname,'(A5,I2.2,A3)') "matA_",rank,".h5"
+    fname = trim(fname)
 
     call HDF5_create(filename=fname,file_id=fid,ierr=ierr)
-    call HDF5_integer_saving(fid,n,'n')
+    call HDF5_integer_saving(fid,ng,'ng')
+    call HDF5_integer_saving(fid,nl,'nl')
+    call HDF5_integer_saving(fid,n_tor,'ntor')
+    call HDF5_integer_saving(fid,n_var,'nvar')
     call HDF5_integer_saving(fid,nnz,'nnz')
-    call HDF5_integer_saving(fid,1,'indexing')  
+    call HDF5_integer_saving(fid,1,'indexing')
     call HDF5_array1D_saving_int(fid,irn,nnz,'irn')
     call HDF5_array1D_saving_int(fid,jcn,nnz,'jcn')
     call HDF5_array1D_saving(fid,val,nnz,'val')
-    if (present(rhs)) call HDF5_array1D_saving(fid,rhs,n,'rhs')
+    if (present(l2g)) call HDF5_array1D_saving_int(fid,l2g,nl,'loc2glob')
+    if (present(rhs)) call HDF5_array1D_saving(fid,rhs,nl,'rhs')
+    if (present(ind_min)) call HDF5_integer_saving(fid,ind_min,'ind_min')
+    if (present(ind_max)) call HDF5_integer_saving(fid,ind_max,'ind_max')
+    if (present(block_size)) call HDF5_integer_saving(fid,block_size,'block_size')
     call HDF5_close(fid)
     return
-    
-  end subroutine save_mat_h5  
+
+  end subroutine save_mat_h5
 
 !> Saves 1D array into HDF5 file
   subroutine save_solution_h5(fname,n,x)

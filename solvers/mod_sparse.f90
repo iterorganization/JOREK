@@ -22,11 +22,15 @@ module mod_sparse
 #else
     use mod_distribute_preconditioner, only: update_pc_mat
 #endif
+#ifdef USE_STRUMPACK
+    use mod_strumpack, only: spk_delete_factors
+#endif
 #ifdef USE_BICGSTAB
     use mod_bicgstab, only: bicgstab_driver
 #else
     use mod_gmres, only: gmres_driver
 #endif
+    use matio_module, only: save_mat_h5
 
     implicit none
 
@@ -41,6 +45,8 @@ module mod_sparse
     integer(kind=int_all)    :: i
     logical                  :: verbose = .false.
     integer                  :: tag = -1   !< tag for log file output
+    character(len=10)        :: fname
+
 
     external :: solve_mumps_all, solve_pastix_all, solve_strumpack_all
 
@@ -50,6 +56,13 @@ module mod_sparse
     sol_vec%n = rhs_vec%n
 
     verbose = solver%verbose.and.(my_id.eq.0)
+#ifdef SAVEMATRIX
+    write(fname,'(A5,I2.2,A3)') "matA_",my_id,".h5"
+    call save_mat_h5_ext(fname, a_mat%ng, a_mat%ng, a_mat%nnz, &
+                           a_mat%irn, a_mat%jcn, a_mat%val, rhs=rhs_vec%val, &
+                           ind_min=a_mat%index_min(my_id+1),ind_max=a_mat%index_max(my_id+1), &
+                           block_size=a_mat%block_size)
+#endif
 
     if (.not.solver%iterative) then
 
@@ -117,11 +130,21 @@ module mod_sparse
 
 ! Finding PC solution
       if (.not.solver%solve_only) then
+#ifdef USE_STRUMPACK
+        if ((solver%library.eq.strumpack).and.(solver%spss%analyzed)) call spk_delete_factors(solver%spss%sscp)
+#endif
         call update_pc_mat(solver%pc,a_mat,mhd_sim)
       endif
 
       call update_pc_rhs(solver%pc,rhs_vec)
-
+#ifdef SAVEMATRIX
+      if (.not.solver%solve_only) then
+        write(fname,'(A3,I2.2,A3)') "pc_",my_id,".h5"
+        call save_mat_h5_ext(fname, a_mat%ng, solver%pc%mat%ng,solver%pc%mat%nnz, &
+                                       solver%pc%mat%irn, solver%pc%mat%jcn,solver%pc%mat%val, &
+                                       l2g=solver%pc%row_index,rhs=solver%pc%rhs%val, block_size=solver%pc%mat%block_size)
+      endif
+#endif
       if (solver%library.eq.mumps) then
 #ifdef USE_MUMPS
         call solve_mumps_all(solver%mmss, solver%pc%mat, solver%pc%rhs, solver%solve_only, tag)

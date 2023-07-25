@@ -520,7 +520,7 @@ do i=1,nrnew
            node_list%node(index)%index(4) = 4
            n_index_start = 4
            node_list%node(index)%axis_node = .true.
-           node_list%node(index)%axis_dof  = 2
+           node_list%node(index)%axis_dof  = 3
 
          else
            do k=1,n_degrees

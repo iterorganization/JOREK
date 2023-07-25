@@ -1777,7 +1777,7 @@ do i=1,newnode_list%n_nodes
 
   if (i .lt. n_tht) then 
     newnode_list%node(i)%axis_node = .true.
-    newnode_list%node(i)%axis_dof  = 2
+    newnode_list%node(i)%axis_dof  = 3
   endif
 
   do k=1,n_degrees

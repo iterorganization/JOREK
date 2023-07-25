@@ -26,9 +26,10 @@ using namespace strumpack;
 
 extern "C" void spk(void) {}
 
-extern "C" void spk_init(StrumpackSparseSolverMPIDist<double,int_all>** spss_,MPI_Fint* comm_) {
+extern "C" void spk_init(StrumpackSparseSolverMPIDist<double,int_all>** spss_, int** iparm_, MPI_Fint* comm_) {
 
   StrumpackSparseSolverMPIDist<double,int_all>* spss= *spss_;
+  int* iparm = *iparm_;
   MPI_Comm comm=MPI_Comm_f2c(*comm_);
   int thread_level,rank,P;
   double eps=1e-36, epsr=1.e-12;
@@ -43,17 +44,31 @@ extern "C" void spk_init(StrumpackSparseSolverMPIDist<double,int_all>** spss_,MP
   *spss_= new StrumpackSparseSolverMPIDist<double,int_all>(comm);
   spss = *spss_;
 
-  spss->options().set_matching(MatchingJob::MAX_DIAGONAL_PRODUCT_SCALING);
-//  spss->options().set_matching(MatchingJob::NONE);
-  spss->options().set_reordering_method(ReorderingStrategy::METIS);
+  if (iparm[0] == 1) {
+    spss->options().set_Krylov_solver(KrylovSolver::DIRECT);
+  } else if (iparm[0] == 2) {
+    spss->options().set_Krylov_solver(KrylovSolver::PREC_GMRES);
+  } else if (iparm[0] == 3) {
+    spss->options().set_Krylov_solver(KrylovSolver::REFINE);
+  }
+  
+  if (iparm[1] == 1) {
+    spss->options().set_reordering_method(ReorderingStrategy::METIS);
+  } else if (iparm[1] == 2) {
+    spss->options().set_reordering_method(ReorderingStrategy::PARMETIS);
+  } else if (iparm[1] == 3) {
+    spss->options().set_reordering_method(ReorderingStrategy::PTSCOTCH);
+  }
+  // set reordering to METIS and MatchingJob to MAX_DIAGONAL_PRODUCT_SCALING as needed for older version
+  if (STRUMPACK_VERSION_MAJOR<7) {iparm[1] = 1; iparm[2] = 1;}
   spss->options().enable_METIS_NodeND();
 
-//  spss->options().set_reordering_method(ReorderingStrategy::PARMETIS);
-//  spss->options().set_reordering_method(ReorderingStrategy::PTSCOTCH);
-//
-//  spss->options().set_Krylov_solver(KrylovSolver::PREC_GMRES);
-  spss->options().set_Krylov_solver(KrylovSolver::DIRECT);
-//  spss->options().set_Krylov_solver(KrylovSolver::REFINE);
+  if (iparm[2] == 0) {
+    spss->options().set_matching(MatchingJob::NONE);
+  } else if (iparm[2] == 1) {
+    spss->options().set_matching(MatchingJob::MAX_DIAGONAL_PRODUCT_SCALING);
+  }
+
   spss->options().set_rel_tol(epsr);
   spss->options().set_abs_tol(eps);
   spss->options().set_maxit(200);

@@ -644,6 +644,7 @@ subroutine preset_parameters
   maxNewton          = 20
   gamma_Newton       = 0.5
   alpha_Newton       = 2.d0
+  strumpack_matching = .false.
 
   
 !==== RMP parameters =====

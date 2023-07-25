@@ -143,7 +143,7 @@ namelist /in1/  tstep, nstep, tstep_n, nstep_n,                     &
                 use_cx, use_sputtering, use_ionisation,             &
                 use_ncs, use_pcs, use_ccs, cte_current_FB_fact,     &
                 eta_ohmic, CARIDDI_mode, use_newton, maxNewton,     &
-                gamma_Newton, alpha_Newton, vacuum_min
+                gamma_Newton, alpha_Newton, vacuum_min, strumpack_matching
 
 if (my_id .eq. 0) then
 

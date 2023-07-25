@@ -1293,12 +1293,12 @@ do i=1,newnode_list%n_nodes
   if (xcase .ne. DOUBLE_NULL) then
     if ((i .ge. 5) .and. (i .le. 4+n_tht-1)) then
        node_list%node(i)%axis_node = .true.
-       node_list%node(i)%axis_dof  = 2
+       node_list%node(i)%axis_dof  = 3
     endif
   else
     if ((i .ge. 9) .and. (i .le. 8+n_tht-2)) then
        node_list%node(i)%axis_node = .true.
-       node_list%node(i)%axis_dof  = 2
+       node_list%node(i)%axis_dof  = 3
     endif
   endif
 

@@ -787,6 +787,7 @@ write(*,'(1x,a)',advance='no') ' USE_CATALYST : '
   write(*,INTG_FMT) 'maxNewton             ', maxNewton
   write(*,REAL_FMT) 'gamma_Newton          ', gamma_Newton
   write(*,REAL_FMT) 'alpha_Newton          ', alpha_Newton
+  write(*,LOGI_FMT) 'strumpack_matching    ', strumpack_matching
 
 #ifdef fullmhd
     write(*,LOGI_FMT) 'Mach1_openBC          ', Mach1_openBC
