@@ -25,6 +25,7 @@ use mod_coronal
 use mod_bootstrap_functions
 use equil_info, only : get_psi_n
 use mod_sources
+use profiles, only: interpolProf
 
 implicit none
 
@@ -797,6 +798,10 @@ do ms=1, n_gauss
        Jb = Jb - Jb_0
      else
        Jb = 0.d0
+     endif
+
+     if (num_visco) then
+       visco_T = interpolProf(num_visco_x, num_visco_y, num_visco_len, psi_norm)
      endif
 
      D_prof     = get_dperp(psi_norm)
