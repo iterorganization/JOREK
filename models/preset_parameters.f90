@@ -542,6 +542,7 @@ subroutine preset_parameters
   R_Z_psi_bnd_file   = 'none'
   wall_file          = 'none'
   rot_file           = 'none'
+  visco_file         = 'none'
   normalized_velocity_profile = .true.
 
   n_Fprofile_internal = 300 ! model710 only: size of internal numerical F-profile

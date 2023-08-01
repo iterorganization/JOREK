@@ -474,6 +474,9 @@ write(*,'(1x,a)',advance='no') ' USE_CATALYST : '
   else
     write(*,CHAR_FMT) 'D_perp_file           ', trim(D_perp_file)
   end if
+  if ( num_visco ) then
+    write(*,CHAR_FMT) 'visco_file           ', trim(visco_file)
+  end if
 #ifdef WITH_Impurities
   write(*,REAL_FMT) 'D_par_imp               ', D_par_imp
   if ( .not. num_d_perp_imp ) then

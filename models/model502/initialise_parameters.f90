@@ -70,7 +70,7 @@ namelist /in1/  tstep, nstep, tstep_n, nstep_n,                     &
                 rho_file, T_file, Ti_file, Te_file, ffprime_file,   &
                 normalized_velocity_profile, SDN_threshold,         &
                 freeboundary_equil, freeboundary,  freeb_change_indices, &
-                resistive_wall,                                     &
+                resistive_wall, visco_file,                         &
                 wall_resistivity, wall_resistivity_fact,            &
                 bc_natural_open, rot_file, D_perp_imp_file,         &
                 NEO, neo_file, aki_neo_const, amu_neo_const,        &

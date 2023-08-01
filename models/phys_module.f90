@@ -629,16 +629,19 @@ module phys_module
   character(len=512)  :: zk_perp_file       !< ASCII file with perpendicular heat diffusion profile
   character(len=512)  :: zk_e_perp_file     !< ASCII file with perpendicular electron heat diffusion profile
   character(len=512)  :: zk_i_perp_file     !< ASCII file wtih perpendicular ion heat diffusion profile
+  character(len=512)  :: visco_file         !< ASCII file wtih viscosity profile
   logical             :: num_d_perp         !< automatically set true if d_perp_file /= 'none'
   logical             :: num_d_perp_imp     !< automatically set true if d_perp_file /= 'none'
   logical             :: num_zk_perp        !< automatically set true if zk_perp_file /= 'none'
   logical             :: num_zk_e_perp      !< automatically set true if zk_e_perp_file /= 'none'
   logical             :: num_zk_i_perp      !< automatically set true if zk_i_perp_file /= 'none'
+  logical             :: num_visco          !< automatically set true if visco_file /= 'none'
   integer             :: num_d_perp_len     !< Number of datapoints in d_perp profile
   integer             :: num_d_perp_len_imp !< Number of datapoints in d_perp profile for impurity
   integer             :: num_zk_perp_len    !< Number of datapoints in zk_perp profile
   integer             :: num_zk_e_perp_len  !< Number of datapoints in zk_e_perp profile
   integer             :: num_zk_i_perp_len  !< Number of datapoints in zk_i_perp profile
+  integer             :: num_visco_len      !< Number of datapoints in viscosity profile
   real*8, allocatable :: num_d_perp_x(:)    !< Psi_N values of d_perp  profile
   real*8, allocatable :: num_d_perp_y(:)    !< D_perp values of d_perp profile
   real*8, allocatable :: num_d_perp_x_imp(:)!< Psi_N values of d_perp  profile for impurity
@@ -649,6 +652,8 @@ module phys_module
   real*8, allocatable :: num_zk_e_perp_y(:) !< ZK_perp values of zk_e_perp profile
   real*8, allocatable :: num_zk_i_perp_x(:) !< Psi_N values of zk_i_perp profile
   real*8, allocatable :: num_zk_i_perp_y(:) !< ZK_perp values of zk_i_perp profile
+  real*8, allocatable :: num_visco_x(:)     !< Psi_N values of viscosity profile
+  real*8, allocatable :: num_visco_y(:)     !< ZK_perp values of viscosity profile
   
   !> @name Analytical input profile for the density
   real*8  :: rho_0             !< Central normalized density (usually 1)
