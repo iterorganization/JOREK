@@ -802,6 +802,7 @@ do ms=1, n_gauss
 
      if (num_visco) then
        visco_T = interpolProf(num_visco_x, num_visco_y, num_visco_len, psi_norm)
+       dvisco_dT = 0.
      endif
 
      D_prof     = get_dperp(psi_norm)
