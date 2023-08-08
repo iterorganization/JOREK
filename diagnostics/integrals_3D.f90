@@ -47,7 +47,7 @@ real*8  :: dT_dpsi,dT_dz,dT_dpsi2,dT_dz2,dT_dpsi_dz,dT_dpsi3,dT_dpsi_dz2, dT_dps
 integer :: i, j, k, in, ms, mt, mp, iv, inode, ife, n_elements, ifail
 integer :: ierr, n_cpu, my_id, ife_delta, ife_min, ife_max, omp_nthreads, omp_tid
 real*8  :: beta_p, beta_n, beta_t, aminor
-real*8  :: xjac, BigR, wst, P_int, C_intern, zj0, ps0, r0, T0, T0e, Vol, Volume, Area, Bgeo, psi_limit
+real*8  :: xjac, BigR, wst, P_int, C_intern, zj0, ps0, r0, T0, Te0, Vol, Volume, Area, Bgeo, psi_limit
 real*8  :: r0_corr, T0_corr
 
 real*8  :: current_in, current_out, D_int, D_ext, P_ext, C_ext, P_max, delta_phi, phi, P_tot, D_tot
@@ -156,7 +156,7 @@ ife_max   = min((my_id +1) * ife_delta, element_list%n_elements)
 !$omp          wgauss_copy)                                                                    &
 !$omp   private(ife,iv,inode,element,nodes,i,j, k,in, mp, ms, mt, spi_i,i_inj,                 &
 !$omp           x_g, y_g, x_s, y_s, x_t, y_t, xjac, eq_g, eq_s, eq_t, eq_p,                    &
-!$omp           wst, BigR, r0, T0, T0e, zj0, ps0, dTdx, dTdy, drhodx, drhody, dpsidx, dpsidy, dudx, dudy,  &
+!$omp           wst, BigR, r0, T0, Te0, zj0, ps0, dTdx, dTdy, drhodx, drhody, dpsidx, dpsidy, dudx, dudy,  &
 !$omp           dpdx, dpdy, grad_P, grad_psi, grad_P_psi,gradP_max, gradP_psi_max, phi,        &
 !$omp           P_max, source_pellet, source_volume, eq_zne, eq_zTe, vpar0, BB2, eta_T_ohm,    &
 !$omp           heat_source, heat_source_i, heat_source_e, particle_source, rotation_source,   &
@@ -281,11 +281,11 @@ do ife = ife_min, ife_max
 #ifdef WITH_TiTe
         T0      = eq_g(mp,var_Ti,ms,mt)
         T0_corr = corr_neg_temp1(T0)
-        T0e     = corr_neg_temp1(eq_g(mp,var_Te,ms,mt))
+        Te0     = corr_neg_temp1(eq_g(mp,var_Te,ms,mt))
 #else
         T0      = eq_g(mp,var_T,ms,mt)
         T0_corr = corr_neg_temp1(T0)
-        T0e     = eq_g(mp,var_T,ms,mt) /2.d0
+        Te0     = eq_g(mp,var_T,ms,mt) /2.d0
 #endif
         zj0    = eq_g(mp,var_zj,ms,mt)
         ps0    = eq_g(mp,var_psi,ms,mt)

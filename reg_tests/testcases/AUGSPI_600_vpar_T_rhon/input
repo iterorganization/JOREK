@@ -61,6 +61,7 @@
 
  visco = 1.d-5
  visco_par = 1.d-4
+ visco_old_setup = .true.
  
  visco_num = 1.d-10
  visco_par_num = 1.d-10

@@ -313,6 +313,11 @@ subroutine sanity_checks(my_id, n_cpu, mpi_required, mpi_provided)
     write(*,*) '  visco_par_heating are not the same. No problem if you know what you are doing,  ' 
     write(*,*) '  but with this setup you are not conserving energy.   '
   endif
+  if (abs(visco-visco_heating)/(visco+visco_heating+1.d-12) > 1.d-6) then
+    write(*,*) 'WARNING: The viscosity visco and the viscosity used for viscous heating '
+    write(*,*) '  visco_heating are not the same. No problem if you know what you are doing,  ' 
+    write(*,*) '  but with this setup you are not conserving energy.   '
+  endif
 
   if (abs(eta-eta_ohmic)/(eta+eta_ohmic+1.d-12) > 1.d-6) then
     write(*,*) 'WARNING: The resistivity eta and the resistivity used for Ohmic heating '

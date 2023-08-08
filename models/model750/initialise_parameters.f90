@@ -158,7 +158,12 @@ namelist /in1/  tstep, nstep, tstep_n, nstep_n,                     &
                 ZK_par_sc_num, ZK_i_perp_sc_num, ZK_i_par_sc_num,   &
                 ZK_e_perp_sc_num, ZK_e_par_sc_num, visco_par_sc_num,&
                 Dn_pol_sc_num, Dn_p_sc_num, D_perp_imp_sc_num,      &
-                D_par_imp_sc_num, vacuum_min, strumpack_matching
+                D_par_imp_sc_num, use_vms,                          &
+                vms_coeff_AR, vms_coeff_AZ, vms_coeff_A3,           &
+                vms_coeff_UR, vms_coeff_UZ, vms_coeff_Up,           &
+                vms_coeff_rho, vms_coeff_Ti, vms_coeff_Te,          &
+                vms_coeff_T, vms_coeff_rhon, vms_coeff_rhoimp,      &
+                vacuum_min, strumpack_matching
 
 if (my_id .eq. 0) then
 

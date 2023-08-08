@@ -418,8 +418,22 @@ module mod_injection_source
                         ns_radius,ns_deltaphi,ns_delta_minor_rad,ns_tor_norm, &
                         A_Dmv,K_Dmv,V_Dmv,P_Dmv,t_ns(i_inj),L_tube,R,Z,phi,psi, &
                         source_tmp, t_now, JET_MGI,ASDEX_MGI,central_density,central_mass, spi_vol_tmp,i_main_imp)
+        if (present(source_impurity_drift_arr)) then
+          if (drift_distance(i_inj) /= 0.d0) then
+            call inj_source(pellets(spi_i)%spi_abl,pellets(spi_i)%spi_R+drift_distance(i_inj),pellets(spi_i)%spi_Z,pellets(spi_i)%spi_phi, &
+                        pellets(spi_i)%spi_psi_drift,pellets(spi_i)%spi_grad_psi_drift, &
+                        ns_radius_loc,ns_deltaphi,ns_delta_minor_rad,ns_tor_norm, &
+                        A_Dmv,K_Dmv,V_Dmv,P_Dmv,t_ns(i_inj),0., R, Z, phi, psi, &
+                        source_tmp_drift,t_now,JET_MGI,ASDEX_MGI,central_density,central_mass,spi_vol_tmp_drift,i_main_imp)
+          else
+            source_tmp_drift = source_tmp
+          end if 
+        end if
 
         source_impurity_arr(i_inj) = source_impurity_arr(i_inj) + source_tmp
+        if (present(source_impurity_drift_arr)) then
+          source_impurity_drift_arr(i_inj) = source_impurity_drift_arr(i_inj) + source_tmp_drift
+        endif
       end do
 
       ! Converting number density into mass density for each species respectively

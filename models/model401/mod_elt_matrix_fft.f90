@@ -605,7 +605,7 @@ do i=1,n_vertex_max
           end if
 
           if ( eta_T_dependent .and.  xpoint2 .and. (Te0 .lt. T_min) ) then
-              eta_T     = eta    * (max(Te0,T_min)/Te_0)**(-1.5d0)
+              eta_T     = eta    * (T_min/Te_0)**(-1.5d0)
               deta_dT   = 0.d0
               d2eta_d2T = 0.d0
           end if
@@ -628,7 +628,7 @@ do i=1,n_vertex_max
             dvisco_dT   = - visco * (1.5d0)  * Te0_corr**(-2.5d0) * Te_0**(1.5d0)
             d2visco_dT2 =   visco * (3.75d0) * Te0_corr**(-3.5d0) * Te_0**(1.5d0)
             if ( xpoint2 .and. (Te0 .lt. T_min) ) then
-              visco_T     = visco  * (max(Te0,T_min)/Te_0)**(-1.5d0)
+              visco_T     = visco  * (T_min/Te_0)**(-1.5d0)
               dvisco_dT   = 0.d0
               d2visco_dT2 = 0.d0
             endif
@@ -646,8 +646,8 @@ do i=1,n_vertex_max
               ZKi_par_T   = Zk_par_max
               dZKi_par_dT = 0.d0
             endif
-            if ( xpoint2 .and. (Ti0 .lt. T_min) ) then
-              ZKi_par_T   = ZK_i_par * (max(Ti0,T_min)/Ti_0)**(+2.5d0)
+            if ( xpoint2 .and. (Ti0 .lt. Ti_min_ZKpar) ) then
+              ZKi_par_T   = ZK_i_par * (Ti_min_ZKpar/Ti_0)**(+2.5d0)
               dZKi_par_dT = 0.d0
             endif
 
@@ -657,8 +657,8 @@ do i=1,n_vertex_max
               ZKe_par_T   = Zk_par_max
               dZKe_par_dT = 0.d0
             endif
-            if ( xpoint2 .and. (Te0 .lt. T_min) ) then
-              ZKe_par_T   = ZK_e_par * (max(Te0,T_min)/Te_0)**(+2.5d0)
+            if ( xpoint2 .and. (Te0 .lt. Te_min_ZKpar) ) then
+              ZKe_par_T   = ZK_e_par * (Te_min_ZKpar/Te_0)**(+2.5d0)
               dZKe_par_dT = 0.d0
             endif
           else
@@ -673,7 +673,7 @@ do i=1,n_vertex_max
             eta_num_T     =   eta_num   * (Te0_corr/Te_0)**(-3.d0)
             deta_num_dT   = - eta_num   * (3.d0)  * Te0_corr**(-4.d0) * Te_0**(3.d0)
             if ( xpoint2 .and. (Te0 .lt. T_min) ) then
-              eta_num_T     = eta_num    * (max(Te0,T_min)/Te_0)**(-3.d0)
+              eta_num_T     = eta_num    * (T_min/Te_0)**(-3.d0)
               deta_num_dT   = 0.d0
             endif
           else
@@ -686,7 +686,7 @@ do i=1,n_vertex_max
             visco_num_T     =   visco_num   * (Te0_corr/Te_0)**(-3.d0)
             dvisco_num_dT   = - visco_num   * (3.d0)  * Te0_corr**(-4.d0) * Te_0**(3.d0)
             if ( xpoint2 .and. (Te0 .lt. T_min) ) then
-              visco_num_T     = visco_num    * (max(Te0,T_min)/Te_0)**(-3.d0)
+              visco_num_T     = visco_num    * (T_min/Te_0)**(-3.d0)
               dvisco_num_dT   = 0.d0
             endif
           else

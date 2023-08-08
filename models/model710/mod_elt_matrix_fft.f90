@@ -966,7 +966,7 @@ do i=1,n_vertex_max
             d2eta_d2T = 0.d0
           end if
           if ( eta_T_dependent .and.  xpoint2 .and. (T0 .lt. T_min) ) then
-              eta_T     = eta    * (max(T0,T_min)/T_0)**(-1.5d0)
+              eta_T     = eta    * (T_min/T_0)**(-1.5d0)
               deta_dT   = 0.d0
               d2eta_d2T = 0.d0
           end if
@@ -986,7 +986,7 @@ do i=1,n_vertex_max
             deta_dT_ohm   = 0.d0
           end if
           if ( eta_T_dependent .and.  xpoint2 .and. (T0 .lt. T_min) ) then
-              eta_T_ohm     = eta_ohmic    * (max(T0,T_min)/T_0)**(-1.5d0)
+              eta_T_ohm     = eta_ohmic    * (T_min/T_0)**(-1.5d0)
               deta_dT_ohm   = 0.d0
           end if
 
@@ -995,7 +995,7 @@ do i=1,n_vertex_max
             visco_T   = visco * (T0_corr/T_0)**(-1.5d0)
             dvisco_dT = - visco * (1.5d0)  * T0_corr**(-2.5d0) * T_0**(1.5d0)
             if ( xpoint2 .and. (T0 .lt. T_min) ) then
-              visco_T     = visco  * (max(T0,T_min)/T_0)**(-1.5d0)
+              visco_T     = visco  * (T_min/T_0)**(-1.5d0)
               dvisco_dT   = 0.d0
             endif
           else
@@ -1011,8 +1011,8 @@ do i=1,n_vertex_max
               ZKpar_T   = Zk_par_max
               dZKpar_dT = 0.d0
             endif
-            if ( xpoint2 .and. (T0 .lt. T_min) ) then
-              ZKpar_T   = ZK_par * (max(T0,T_min)/T_0)**(+2.5d0)
+            if ( xpoint2 .and. (T0 .lt. T_min_ZKpar) ) then
+              ZKpar_T   = ZK_par * (T_min_ZKpar/T_0)**(+2.5d0)
               dZKpar_dT = 0.d0
             endif
           else

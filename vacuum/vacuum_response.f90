@@ -2444,7 +2444,7 @@ module vacuum_response
       end do
       initialized = .true.
     end if
-    if (t_last==-1e3) t_last=tstep
+    if (t_last==-1e3) t_last=t_now
 
     ! --- Calculate the specified coil currents at present time 
     do i=1, n_coils
@@ -2816,7 +2816,8 @@ module vacuum_response
     end if
 
     if ( restart ) then
-      write(*,*) 'response_m_eq only required in equilibrium, return.'
+      if (my_id .eq. 0) & 
+          write(*,*) 'response_m_eq only required in equilibrium, return.'
       sr%initialized = .true.
       return
     end if

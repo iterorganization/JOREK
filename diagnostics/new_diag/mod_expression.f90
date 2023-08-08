@@ -25,6 +25,7 @@ module mod_expression
   use mod_poloidal_currents
   use mod_impurity, only: radiation_function, radiation_function_linear
   use mod_atomic_coeff_deuterium, only : atomic_coeff_deuterium
+  use mod_plasma_functions
 
   implicit none
   
@@ -276,7 +277,8 @@ module mod_expression
     call add(exprs_all_int, 'Heat_src_in ', 'Heat source (inside  LCFS)                            ')
     call add(exprs_all_int, 'Heat_src_out', 'Heat source (outside LCFS)                            ')
     call add(exprs_all_int, 'Viscpar_diss', 'Total parallel viscosity dissipation                  ')
-    call add(exprs_all_int, 'Friction_diss','Total frictional dissipation                          ')
+    call add(exprs_all_int, 'Visc_diss   ', 'Total perpendicular viscosity dissipation             ')
+    call add(exprs_all_int, 'Fric_diss   ', 'Total frictional dissipation                          ')
     call add(exprs_all_int, 'Wmag_src_tot', 'Total magnetic energy source (from current source)    ')
     call add(exprs_all_int, 'Ohmic_tot   ', 'Total ohmic heating                                   ')
     call add(exprs_all_int, 'Ohmic_in    ', 'Ohmic heating (inside  LCFS)                          ')
@@ -588,6 +590,7 @@ module mod_expression
       Vsound, Vneo, Vperp_e, Vperp_i, V_ExB, Vstar_e, Vstar_i, mu_neo, ki_neo, J_boot, Te0_eV,     &
       ne0_20, ln_Lambda, ln_Lambda0, dpsi_dt 
     real*8 :: T0_corr, Ti0_corr, Te0_corr, r0_corr, rn0_corr
+    real*8 :: T_or_Te, T_or_Te_corr, T_or_Te_0 
     real*8 :: FFprime_loc, Jpol, JpolR, JpolZ, Btot, Jpar, Jpar_ionsat, fact_jsat, Bnorm, Btan, Jtor
     real*8 :: nmlR, nmlZ, theta_geo, VR, VZ, V_phi, Vpar_tot, VperpR, VperpZ
     real*8 :: hh, hh_s, hh_t, hh_ss, hh_tt, hh_st, hhz, hhz_p, hhz_pp, sz, vv(0:n_var)
@@ -1288,159 +1291,33 @@ module mod_expression
           VperpZ   =  VZ - Vpar_tot * BZ / Btot
 
           ! --- Some input profiles
-          if ( eta_T_dependent ) then
-            if ( with_TiTe) then ! (with_TiTe) *****************************************************
-              if ( Te0_corr <= T_max_eta ) then
-                eta_T     =   eta   * (Te0_corr/Te_0)**(-1.5d0)
-                deta_dT   = - eta   * (1.5d0)  * Te0_corr**(-2.5d0) * Te_0**(1.5d0)
-                d2eta_d2T =   eta   * (3.75d0) * Te0_corr**(-3.5d0) * Te_0**(1.5d0)
-              else if ( Te0_corr > T_max_eta ) then
-                eta_T     =   eta   * (T_max_eta/Te_0)**(-1.5d0)
-                deta_dT   =   0.
-                d2eta_d2T =   0.
-              else
-                eta_T     =   eta
-                deta_dT   =   0.d0
-                d2eta_d2T =   0.d0
-              end if
-              if ( eq%xpoint .and. (Te0 .lt. T_min) ) then
-                eta_T     =   eta   * (max(Te0,T_min)/Te_0)**(-1.5d0)
-                deta_dT   =   0.d0
-                d2eta_d2T =   0.d0
-              end if
-
-            else ! (with_TiTe), i.e. with single temperature ***************************************
-              if ( T0_corr <= T_max_eta ) then
-                eta_T     =   eta   * (T0_corr/T_0)**(-1.5d0)
-                deta_dT   = - eta   * (1.5d0)  * T0_corr**(-2.5d0) * T_0**(1.5d0)
-                d2eta_d2T =   eta   * (3.75d0) * T0_corr**(-3.5d0) * T_0**(1.5d0)
-              else if ( T0_corr > T_max_eta ) then
-                eta_T     =   eta   * (T_max_eta/T_0)**(-1.5d0)
-                deta_dT   =   0.
-                d2eta_d2T =   0.
-              else
-                eta_T     =   eta
-                deta_dT   =   0.d0
-                d2eta_d2T =   0.d0
-              end if
-              if ( eq%xpoint .and. (T0 .lt. T_min) ) then
-                eta_T     =   eta   * (max(T0,T_min)/T_0)**(-1.5d0)
-                deta_dT   =   0.d0
-                d2eta_d2T =   0.d0
-              end if
-
-            end if ! (with_TiTe) *******************************************************************
+          if (with_TiTe) then
+            T_or_Te          = Te0
+            T_or_Te_corr     = Te0_corr
+            T_or_Te_0        = Te_0
           else
-            eta_T     = eta
-            deta_dT   = 0.d0
-            d2eta_d2T = 0.d0
-          end if
+            T_or_Te          = T0
+            T_or_Te_corr     = T0_corr
+            T_or_Te_0        = T_0
+          endif
 
-          if ( visco_T_dependent ) then
-            if ( with_TiTe) then ! (with_TiTe) *****************************************************
-              visco_T   =   visco * (Te0_corr/Te_0)**(-1.5d0)
-              dvisco_dT = - visco * (1.5d0)  * Te0_corr**(-2.5d0) * Te_0**(1.5d0)
-              if ( eq%xpoint .and. (Te0 .lt. T_min) ) then
-                visco_T     = visco  * (max(Te0,T_min)/Te_0)**(-1.5d0)
-                dvisco_dT   = 0.d0
-              endif
-            else ! (with_TiTe), i.e. with single temperature ***************************************
-              visco_T   = visco * (T0_corr/T_0)**(-1.5d0)
-              dvisco_dT = - visco * (1.5d0)  * T0_corr**(-2.5d0) * T_0**(1.5d0)
-              if ( eq%xpoint .and. (T0 .lt. T_min) ) then
-                visco_T     = visco  * (max(T0,T_min)/T_0)**(-1.5d0)
-                dvisco_dT   = 0.d0
-              endif
-            end if ! (with_TiTe) *******************************************************************
-          else
-            visco_T   = visco
-            dvisco_dT = 0.d0
-          end if
+          call viscosity(visco, T_or_Te, T_or_Te_corr,T_or_Te_0, visco_T)
         
-          ! --- Hyper-resistivity
-          if ( eta_num_psin_dependent ) then
-            eta_num_T = eta_num * 0.5d0 * ( 1.d0 - tanh( (psi_norm-eta_num_prof(1))/eta_num_prof(2)) )      
-          else if ( eta_num_T_dependent ) then
-            if ( with_TiTe) then ! (with_TiTe) *****************************************************
-              eta_num_T     = eta_num   * (Te0/Te_0)**(-3.d0)
-              if (Te0 .lt. T_min) then
-                eta_num_T   = eta_num   * (max(Te0,T_min)/Te_0)**(-3.d0)
-              endif
-            else !(with_TiTe), i.e. with single temperature ***************************************
-              eta_num_T     = eta_num   * (T0/T_0)**(-3.d0)
-              if (T0 .lt. T_min) then
-                eta_num_T   = eta_num   * (max(T0,T_min)/T_0)**(-3.d0)
-              endif
-            end if 
-          else
-            eta_num_T     = eta_num
-          end if
+          call hyper_resistivity(T_or_Te, T_or_Te_corr, T_or_Te_0, psi_norm, eta_num_T) 
           
-          ! --- Temperature dependent hyper-viscosity
-          if ( visco_num_T_dependent ) then
-            if ( with_TiTe) then ! (with_TiTe) *****************************************************
-              visco_num_T     = visco_num   * (Te0/Te_0)**(-3.d0)
-              if (Te0 .lt. T_min) then
-                visco_num_T   = visco_num   * (max(Te0,T_min)/Te_0)**(-3.d0)
-              endif
-            else !(with_TiTe), i.e. with single temperature ***************************************
-              visco_num_T     = visco_num   * (T0/T_0)**(-3.d0)
-              if (T0 .lt. T_min) then
-                visco_num_T   = visco_num   * (max(T0,T_min)/T_0)**(-3.d0)
-              endif
-            end if
-          else
-            visco_num_T     = visco_num
-          end if
+          call hyper_viscosity(T_or_Te, T_or_Te_corr, T_or_Te_0, visco_num_T) 
           
           if ( with_TiTe ) then ! (with_TiTe) ******************************************************
-            if ( ZKpar_T_dependent ) then
-              ZKi_par_T     = ZK_i_par * (Ti0_corr/Ti_0)**(+2.5d0)
-              dZKi_par_dT   = ZK_i_par * (2.5d0)  * Ti0_corr**(+1.5d0) * Ti_0**(-2.5d0)
-              if (ZKi_par_T .gt. ZK_par_max) then
-                ZKi_par_T   = Zk_par_max
-                dZKi_par_dT = 0.d0
-              end if
-              if ( Ti0 .lt. Ti_min_ZKpar ) then
-                ZKi_par_T   = ZK_i_par * (max(Ti0,Ti_min_ZKpar)/Ti_0)**(+2.5d0)
-                dZKi_par_dT = 0.d0
-              endif
 
-              ZKe_par_T   = ZK_e_par * (Te0_corr/Te_0)**(+2.5d0)
-              dZKe_par_dT = ZK_e_par * (2.5d0)  * Te0_corr**(+1.5d0) * Te_0**(-2.5d0)
-              if (ZKe_par_T .gt. ZK_par_max) then
-                ZKe_par_T   = Zk_par_max
-                dZKe_par_dT = 0.d0
-              end if
-              if ( Te0 .lt. Te_min_ZKpar ) then
-                ZKe_par_T   = ZK_e_par * (max(Te0,Te_min_ZKpar)/Te_0)**(+2.5d0)
-                dZKe_par_dT = 0.d0
-              endif
-            else
-              ZKi_par_T   = ZK_i_par
-              dZKi_par_dT = 0.d0
+            call conductivity_parallel(ZK_i_par, ZK_par_max, Ti0, Ti0_corr, Ti_min_ZKpar, Ti_0, &
+                                       ZKi_par_T, ZK_i_par_neg_thresh, ZK_i_par_neg)
 
-              ZKe_par_T   = ZK_e_par
-              dZKe_par_dT = 0.d0
-            end if
-            ZKpar_T   = 0.d0
+            call conductivity_parallel(ZK_e_par, ZK_par_max, Te0, Te0_corr, Te_min_ZKpar, Te_0, &
+                                       ZKe_par_T, ZK_e_par_neg_thresh, ZK_e_par_neg)
           else ! (with_TiTe), i.e. with single temperature *****************************************
-            if ( ZKpar_T_dependent ) then
-              ZKpar_T     = ZK_par * (T0_corr/T_0)**(+2.5d0)
-              dZKpar_dT   = ZK_par * (2.5d0)  * T0_corr**(+1.5d0) * T_0**(-2.5d0)
-              if (ZKpar_T .gt. ZK_par_max) then
-                ZKpar_T   = Zk_par_max
-                dZKpar_dT = 0.d0
-              end if
-              if ( T0 .lt. T_min_ZKpar ) then
-                ZKpar_T   = ZK_par * (max(T0,T_min_ZKpar)/T_0)**(+2.5d0)
-                dZKpar_dT = 0.d0
-              endif
 
-            else
-              ZKpar_T   = ZK_par
-              dZKpar_dT = 0.d0
-            end if
+            call conductivity_parallel(ZK_par, ZK_par_max, T0, T0_corr, T_min_ZKpar, T_0,       &
+                                      ZKpar_T, ZK_par_neg_thresh, ZK_par_neg)
             ZKi_par_T   = ZKpar_T
             ZKe_par_T   = ZKpar_T
           end if ! (with_TiTe) *********************************************************************
@@ -1710,6 +1587,10 @@ module mod_expression
     end if  
 
 #endif
+
+          if ( .not. with_impurities ) Z_eff = 1
+          call resistivity(eta, T_or_Te, T_or_Te_corr, T_max_eta, T_or_Te_0, Z_eff, eta_T)           
+
 
           ! --- Factors for switching between JOREK normalized and SI units.
           if ( units == SI_UNITS ) then
