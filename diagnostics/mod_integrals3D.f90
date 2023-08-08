@@ -200,7 +200,7 @@ real*8, allocatable :: local_source_volume(:), local_source_volume_drift(:)
 !   -Mass ratio between main ions and impurites (m_i/m_imp)
 real*8  :: m_i_over_m_imp, m_imp
 !   -Mean impurity ionization state
-real*8  :: Z_imp, dZ_imp_dT, T0_Zimp, alpha_Zimp, Z_eff, eta_coef, ne_JOREK, dne_JOREK_dx, dne_JOREK_dy
+real*8  :: Z_imp, dZ_imp_dT, T0_Zimp, alpha_Zimp, eta_coef, ne_JOREK, dne_JOREK_dx, dne_JOREK_dy
 real*8  :: Z_eff_imp 
 !   -Corrected plasma temperature and density for radiation calculation
 real*8  :: Ti_corr_eV
