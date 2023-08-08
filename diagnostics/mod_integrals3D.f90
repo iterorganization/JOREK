@@ -456,7 +456,7 @@ Tie_min_neg = 0.5*T_min_neg
 !$omp           source_bg_arr, source_imp_arr, source_bg_drift_arr, source_imp_drift_arr,      &
 !$omp           m_i_over_m_imp, m_imp, Z_imp, dZ_imp_dT, T0_Zimp, alpha_Zimp, n_imp,           &
 !$omp           ne_JOREK, P_imp, Lrad, E_ion, E_ion_bg, ion_i,                                 &
-!$omp           ion_k, Z_eff, Z_eff_imp, eta_coef, Ti_corr_eV,                                 &
+!$omp           ion_k, Z_eff_imp, eta_coef, Ti_corr_eV,                                        &
 !$omp           Z_imp_s, Z_imp_t, Z_imp_p, Z_imp_x, Z_imp_y,                                   &
 !$omp           n_imp_s, n_imp_t, n_imp_p, n_imp_x, n_imp_y,                                   &
 #endif
