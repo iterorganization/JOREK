@@ -449,7 +449,7 @@ module pellet_module
             i_loc = 1
           endif
           if (i_loc < 1 .or. i_loc > n_nonlocal_array) then
-            write(*,*) "ERROR in finding i_loc for Psi_spi!", i_loc, Psi_spi, nl_Psi(i_loc), ES%psi_axis, ES%psi_bnd
+            write(*,*) "ERROR in finding i_loc for Psi_spi!", i_loc, Psi_spi, nl_Psi(1), ES%psi_axis, ES%psi_bnd
             stop
           endif
           T_eV_nl  = nl_avg_Te(i_loc) / (EL_CHG * MU_ZERO * central_density * 1.d20)
