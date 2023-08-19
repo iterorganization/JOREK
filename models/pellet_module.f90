@@ -445,7 +445,7 @@ module pellet_module
           i_loc = minloc(abs(nl_Psi - Psi_spi), dim=1)
           if (abs(Psi_spi-ES%psi_axis) .lt. abs(nl_Psi(i_loc)-ES%psi_axis)) i_loc = i_loc - 1 ! find other index
           if (i_loc==0) then ! This should not occur normally double check 
-            write(*,*) "WARNING in finding i_loc for Psi_spi!", i_loc, Psi_spi, nl_Psi(i_loc), ES%psi_axis, ES%psi_bnd
+            write(*,*) "WARNING in finding i_loc for Psi_spi!", i_loc, Psi_spi, nl_Psi(1), ES%psi_axis, ES%psi_bnd
             i_loc = 1
           endif
           if (i_loc < 1 .or. i_loc > n_nonlocal_array) then
