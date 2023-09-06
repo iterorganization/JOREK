@@ -1102,8 +1102,8 @@ do i=1,element_list%n_elements
                   - xjac_y * (- w_s * R_t + w_t * R_s )  / xjac**2
 
             ! --- Full toroidal electric field evaluated at t_now - dt/2
-            E_R   = E_R   - F0*(U_x-0.5d0*dU_x)*HZ(i_tor,i_plane)
-            E_Z   = E_Z   - F0*(U_y-0.5d0*dU_y)*HZ(i_tor,i_plane) 
+            E_R   = E_R   - F0 * (U_x - 0.5d0*dU_x)
+            E_Z   = E_Z   - F0 * (U_y - 0.5d0*dU_y)
             E_phi = E_phi - dpsi/tstep * HZ(i_tor,i_plane)/BigR - F0*(U-0.5d0*dU)*HZ_p(i_tor,i_plane)/BigR 
 
           endif ! xjac
