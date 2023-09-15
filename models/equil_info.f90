@@ -43,6 +43,7 @@ module equil_info
     real*8           :: s_axis                   !< s coordinate of axis within element.
     real*8           :: t_axis                   !< t coordinate of axis within element.
     integer          :: ifail_axis               !< Error code for axis determination.
+    logical          :: axis_init = .false.      !< Has the find_axis routine been called in update_equil_state?
     
     ! --- Limiter Point
     real*8           :: R_lim                    !< R coordinate of limiter point.
@@ -65,6 +66,7 @@ module equil_info
     real*8           :: s_xpoint(2)              !< s coordinate of X-point within element.
     real*8           :: t_xpoint(2)              !< t coordinate of X-point within element.
     integer          :: ifail_xpoint             !< Error code for X-point determination.
+    logical          :: xpoint_init = .false.    !< Has the find_xpoint routine been called in update_equil_state?
     
     ! --- Boundary point (point defining the plasma LCFS, either the active limiter point or X-point)
     real*8           :: R_bnd                    !< R coordinate of boundary point.
@@ -127,6 +129,8 @@ module equil_info
     ! --- Find the magnetic axis.
     call find_axis(my_id_fake, node_list, element_list, ES%psi_axis, ES%R_axis, ES%Z_axis,              &
       ES%i_elm_axis, ES%s_axis, ES%t_axis, ES%ifail_axis)
+
+    ES%axis_init = .true.
       
     ! --- Find out if the axis is a minimum or a maximum of the poloidal flux (required for find_limiter)    
     if (.not. ES%initialized) call is_axis_psi_mininum(node_list, element_list, bnd_elm_list)
@@ -135,8 +139,12 @@ module equil_info
     ES%xpoint       = xpoint
     ES%xcase        = xcase
     ES%ifail_xpoint = 0
-    if ( xpoint ) call find_xpoint(my_id_fake, node_list, element_list, ES%psi_xpoint, ES%R_xpoint,     &
-      ES%Z_xpoint, ES%i_elm_xpoint, ES%s_xpoint, ES%t_xpoint, ES%xcase, ES%ifail_xpoint)
+    if ( xpoint ) then 
+      call find_xpoint(my_id_fake, node_list, element_list, ES%psi_xpoint, ES%R_xpoint,     &
+        ES%Z_xpoint, ES%i_elm_xpoint, ES%s_xpoint, ES%t_xpoint, ES%xcase, ES%ifail_xpoint)
+
+      ES%xpoint_init = .true.
+    endif
     
     ! --- Find the limiter point.
     ES%ifail_lim = 0
@@ -682,6 +690,7 @@ module equil_info
     call MPI_BCAST(ES%t_axis,       1,MPI_DOUBLE_PRECISION,0,MPI_COMM_WORLD,ierr)
     call MPI_BCAST(ES%i_elm_axis,   1,MPI_INTEGER,0,MPI_COMM_WORLD,ierr)
     call MPI_BCAST(ES%ifail_axis,   1,MPI_INTEGER,0,MPI_COMM_WORLD,ierr)
+    call MPI_BCAST(ES%axis_init,    1,MPI_LOGICAL,0,MPI_COMM_WORLD,ierr)
 
     
     ! --- Limiter Point
@@ -705,6 +714,7 @@ module equil_info
     call MPI_BCAST(ES%t_xpoint,       2,MPI_DOUBLE_PRECISION,0,MPI_COMM_WORLD,ierr)
     call MPI_BCAST(ES%i_elm_xpoint,   2,MPI_INTEGER,0,MPI_COMM_WORLD,ierr)
     call MPI_BCAST(ES%ifail_xpoint,   1,MPI_INTEGER,0,MPI_COMM_WORLD,ierr)
+    call MPI_BCAST(ES%xpoint_init,    1,MPI_LOGICAL,0,MPI_COMM_WORLD,ierr)
     
     ! --- Boundary Point
     call MPI_BCAST(ES%psi_bnd,     1,MPI_DOUBLE_PRECISION,0,MPI_COMM_WORLD,ierr)
