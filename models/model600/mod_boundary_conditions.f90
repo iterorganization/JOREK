@@ -306,11 +306,19 @@ do i=1, n_local_elms !=== do elements
 
           
           !------------ Decide when to apply vpar=cs ---------------------------------------------------------                      
-          apply_cs = .false.          
+          apply_cs = .false.
+          apply_dirichlet_all = .false.
           if ( (.not. mach_one_bnd_integral) .and. bcs(bnd_type)%mach1 .and. with_vpar) then
             apply_cs = .true.
           endif
-          !---------------------------------------------------------------------------------------------------                      
+
+          ! If the user decides not to use mach1 boundary conditions, apply dirichlet throughout
+          if (no_mach1_bc) then
+            apply_cs = .false.
+            apply_dirichlet_all = .true.
+          end if
+
+          !---------------------------------------------------------------------------------------------------
 
           if (  ( (k == var_psi     ) .and. bcs(bnd_type)%dirichlet%psi     )  .or.  &
                 ( (k == var_u       ) .and. bcs(bnd_type)%dirichlet%u       )  .or.  &
@@ -323,7 +331,8 @@ do i=1, n_local_elms !=== do elements
                 ( (k == var_Vpar    ) .and. bcs(bnd_type)%dirichlet%Vpar    )  .or.  &
                 ( (k == var_rhon    ) .and. bcs(bnd_type)%dirichlet%rhon    )  .or.  &
                 ( (k == var_rhoimp  ) .and. bcs(bnd_type)%dirichlet%rho_imp )  .or.  &
-                ( (k == var_nre     ) .and. bcs(bnd_type)%dirichlet%nre     )        &
+                ( (k == var_nre     ) .and. bcs(bnd_type)%dirichlet%nre     )  .or.  &
+                  apply_dirichlet_all                                                &
              ) then
 
             ! --- If special conditions apply (e.g. freeboundary, mach1), do not apply Dirichlet even if specified in the namelist
