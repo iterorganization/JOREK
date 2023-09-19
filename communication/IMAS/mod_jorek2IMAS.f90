@@ -7,9 +7,14 @@ module mod_jorek2IMAS
      imas_create_env, imas_close, ids_get, ids_put, ids_put_slice
 
   use mod_parameters 
+  use mod_new_diag
   use data_structure
   use nodes_elements
   use constants
+  use mod_expression, only: exprs
+  use exec_commands,  only: average, expr_list, clean_up, step_imported, qprofile
+  use parse_commands, only: type_command
+  use settings,       only: set_setting
   
   implicit none
   
@@ -280,7 +285,201 @@ module mod_jorek2IMAS
 
 
 
- 
+
+
+  subroutine fill_core_profiles_IDS(first_step, idx, n_grid)  
+
+    use phys_module, only : t_start, F0, central_density, sqrt_mu0_rho0, &
+                           sqrt_mu0_over_rho0, central_mass, imp_type, &
+                           gamma, index_main_imp
+    implicit none
+
+    ! --- External parameters
+    logical,      intent(in) :: first_step   ! is this the first step?
+    integer,      intent(in) :: idx          ! IMAS identifier
+    integer,      intent(in) :: n_grid       ! Number of flux surfaces to compute average
+   
+    ! --- Local parameters 
+    integer    :: i, j, k, m, var_rad, i_var, i_tor, index, index_node, my_id, ierr
+    real*8     :: fact_time, rho0, fact_rad, fact_psi
+    real*8, allocatable :: result(:,:), q_prof(:), rho_tor(:)
+    character(10)       :: str
+    type(type_command)  :: command_tmp
+    
+    ! **********************************************************************************
+    ! ******************************* IMAS **********************************************
+    ! **********************************************************************************
+    type(ids_core_profiles),     target  :: core_profiles_ids
+    integer :: n_slice, i_slice, i_exp, stat, i_psi
+    ! **********************************************************************************
+
+    ! --- Set times
+    n_slice = 1;   i_slice = 1
+
+    allocate( core_profiles_ids%profiles_1d(n_slice) )
+    allocate( core_profiles_ids%time(n_slice) )
+
+    ! --- Normalization factors for IMAS
+    rho0               = central_density * 1.d20 * central_mass * mass_proton
+    sqrt_mu0_rho0      = sqrt( mu_zero * rho0 )
+
+    fact_time =  sqrt_mu0_rho0 
+    fact_psi  = -2.d0 * PI                  ! Transform to COCOS convention 8 --> 11
+    
+    core_profiles_ids%ids_properties%homogeneous_time = 1    
+    core_profiles_ids%time(i_slice) = t_start * fact_time 
+
+    ! --- Call expressions and do a flux average
+    step_imported = .true.
+  
+  ! --- Preset namelist input parameters for jorek2_postproc
+    if (first_step) then 
+      call init_new_diag(.false.)
+      write(str, '(I0)') n_grid
+      call set_setting('units',           '1',     ierr, 'Calculate quantities in which units (0=JOREK, 1=SI)')
+      call set_setting('loop_units',      '1',     ierr, 'Use which units for time-loops (0=JOREK, 1=SI)'     )
+      call set_setting('linepoints',      '200',   ierr, 'Number of points along a line e.g. for pol_line'    )
+      call set_setting('tor_points',      '200',   ierr, 'Number of toroidal points e.g. for tor_line'        )
+      call set_setting('surfaces',         str,    ierr, 'number for flux surfaces e.g. for qprofile'         )
+      call set_setting('nsmallsteps',     '3',     ierr, 'numerical parameter for field line tracing'         )
+      call set_setting('nmaxsteps',       '2500',  ierr, 'numerical parameter for field line tracing'         )
+      call set_setting('deltaphi',        '0.3',   ierr, 'numerical parameter for field line tracing'         )
+      call set_setting('rad_range_min',   '0.001', ierr, 'numerical parameter for field line tracing'         )
+      call set_setting('rad_range_max',   '0.999', ierr, 'numerical parameter for field line tracing'         )
+      call set_setting('nTht',            '32',    ierr, 'numerical parameter for field line tracing'         )
+    endif
+
+    ! --- Get average and q-profile
+    command_tmp%n_args = 0
+    call clean_up()
+    expr_list = exprs((/'Psi_N', 'T_i', 'T_e', 'ne', 'pres', 'Phi', 'eta_T', &
+                        'Jpar', 'E_||', 'Er', 'vpar', 'Vtheta_i', 'Vstar_i'/), 13)
+    call average(command_tmp, first_step==.true., ierr, result, .true.)
+    call clean_up()
+    call qprofile(command_tmp, first_step==.true., ierr, q_prof)
+    ! --- Correct first and last points
+    q_prof(1)      = q_prof(2)        + (q_prof(2)-q_prof(3))
+    q_prof(n_grid) = q_prof(n_grid-1) + (q_prof(n_grid-1)-q_prof(n_grid-2))
+
+    ! --- Some allocations
+    allocate( core_profiles_ids%profiles_1d(i_slice)%ion(1) )
+
+    ! --- Fill expressions in IDSs
+    do i_exp=1, expr_list%n_expr
+
+      ! --- Psi_N
+      if (expr_list%expr(i_exp)%name=='Psi_N') then
+        allocate( core_profiles_ids%profiles_1d(i_slice)%grid%rho_pol_norm(n_grid) )
+        core_profiles_ids%profiles_1d(i_slice)%grid%psi_magnetic_axis = ES%Psi_axis * fact_psi
+        core_profiles_ids%profiles_1d(i_slice)%grid%psi_boundary      = ES%Psi_bnd  * fact_psi
+        core_profiles_ids%profiles_1d(i_slice)%grid%rho_pol_norm(:)   = sqrt(result(:,i_exp))
+      endif
+
+      ! --- Ion temperature
+      if (expr_list%expr(i_exp)%name=='T_i') then
+        allocate( core_profiles_ids%profiles_1d(i_slice)%t_i_average(n_grid) )
+        core_profiles_ids%profiles_1d(i_slice)%t_i_average(:) = result(:,i_exp)
+      endif
+
+      ! --- Electron temperature
+      if (expr_list%expr(i_exp)%name=='T_e') then
+        allocate( core_profiles_ids%profiles_1d(i_slice)%electrons%temperature(n_grid) )
+        core_profiles_ids%profiles_1d(i_slice)%electrons%temperature(:) = result(:,i_exp)
+      endif
+
+      ! --- Electron density
+      if (expr_list%expr(i_exp)%name=='ne') then
+        allocate( core_profiles_ids%profiles_1d(i_slice)%electrons%density(n_grid) )
+        core_profiles_ids%profiles_1d(i_slice)%electrons%density(:) = result(:,i_exp)
+      endif
+
+      ! --- Total pressure
+      if (expr_list%expr(i_exp)%name=='pres') then
+        allocate( core_profiles_ids%profiles_1d(i_slice)%pressure_thermal(n_grid) )
+        core_profiles_ids%profiles_1d(i_slice)%pressure_thermal(:) = result(:,i_exp)
+      endif
+
+      ! --- Electrostatic potential
+      if (expr_list%expr(i_exp)%name=='Phi') then
+        allocate( core_profiles_ids%profiles_1d(i_slice)%phi_potential(n_grid) )
+        core_profiles_ids%profiles_1d(i_slice)%phi_potential(:) = result(:,i_exp)
+      endif
+
+      ! --- Parallel conductivity
+      if (expr_list%expr(i_exp)%name=='eta_T') then
+        allocate( core_profiles_ids%profiles_1d(i_slice)%conductivity_parallel(n_grid) )
+        core_profiles_ids%profiles_1d(i_slice)%conductivity_parallel(:) = 1.d0 / result(:,i_exp)
+      endif
+
+      ! --- Parallel current density
+      if (expr_list%expr(i_exp)%name=='Jpar') then
+        allocate( core_profiles_ids%profiles_1d(i_slice)%j_total(n_grid) )
+        core_profiles_ids%profiles_1d(i_slice)%j_total(:) = result(:,i_exp)
+      endif
+
+      ! --- Parallel electric field
+      if (expr_list%expr(i_exp)%name=='E_||') then
+        allocate( core_profiles_ids%profiles_1d(i_slice)%e_field%parallel(n_grid) )
+        core_profiles_ids%profiles_1d(i_slice)%e_field%parallel(:) = result(:,i_exp)
+      endif
+
+      ! --- Radial electric field
+      if (expr_list%expr(i_exp)%name=='Er') then
+        allocate( core_profiles_ids%profiles_1d(i_slice)%e_field%radial(n_grid) )
+        core_profiles_ids%profiles_1d(i_slice)%e_field%radial(:) = result(:,i_exp)
+      endif
+
+      ! --- Parallel velocity
+      if (expr_list%expr(i_exp)%name=='vpar') then
+        allocate( core_profiles_ids%profiles_1d(i_slice)%ion(1)%velocity%parallel(n_grid) )
+        core_profiles_ids%profiles_1d(i_slice)%ion(1)%velocity%parallel(:) = result(:,i_exp)
+      endif
+
+      ! --- Poloidal velocity
+      if (expr_list%expr(i_exp)%name=='Vtheta_i') then
+        allocate( core_profiles_ids%profiles_1d(i_slice)%ion(1)%velocity%poloidal(n_grid) )
+        core_profiles_ids%profiles_1d(i_slice)%ion(1)%velocity%poloidal(:) = result(:,i_exp)
+      endif
+
+       ! --- Diamagnetic velocity
+      if (expr_list%expr(i_exp)%name=='Vstar_i') then
+        allocate( core_profiles_ids%profiles_1d(i_slice)%ion(1)%velocity%diamagnetic(n_grid) )
+        core_profiles_ids%profiles_1d(i_slice)%ion(1)%velocity%diamagnetic(:) = result(:,i_exp)
+      endif
+
+    end do
+    
+    ! --- q-profile
+    allocate( core_profiles_ids%profiles_1d(i_slice)%q(n_grid) )
+    core_profiles_ids%profiles_1d(i_slice)%q(:) = q_prof(:)
+
+    ! --- Get rho_norm_tor from psi_N and q_profile
+    allocate( core_profiles_ids%profiles_1d(i_slice)%grid%rho_tor_norm(n_grid) )
+    allocate(rho_tor(n_grid))
+    rho_tor(:) = 0.d0
+    do i_psi=2, n_grid
+      rho_tor(i_psi) = sum(q_prof(1:i_psi)) ! Assuming equidistant psi grid!!
+    end do
+    core_profiles_ids%profiles_1d(i_slice)%grid%rho_tor_norm(:) = rho_tor(:)/rho_tor(n_grid)
+    
+    ! --- Put data into local database
+    if (first_step) then  
+      call ids_put(idx,'core_profiles',core_profiles_ids,stat)
+    else
+      call ids_put_slice(idx,'core_profiles',core_profiles_ids,stat)
+    endif
+
+    if (stat==0) then
+       write(*,*) '    core_profiles IDS exported'
+    else
+       write(*,*) '    Something went wrong writting the core_profiles IDS!'
+    endif
+
+  end subroutine fill_core_profiles_IDS
+
+
+
+
 
 
   ! --- Fills Bezier coefficients in GGD

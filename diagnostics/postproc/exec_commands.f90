@@ -50,11 +50,11 @@ module exec_commands
   
   character(len=1024)                :: input_file
   logical,             private, save :: input_loaded  = .false. !< Has an input file been loaded?
-  logical,             private, save :: step_imported = .false. !< Has a restart file been imported?
+  logical,                      save :: step_imported = .false. !< Has a restart file been imported?
   logical,             private, save :: dir_created   = .false. !< Postproc directory created?
   logical,             private, save :: verbose
   logical,             private, save :: debug
-  type(t_expr_list),   private, save :: expr_list, expr_list_four
+  type(t_expr_list),            save :: expr_list, expr_list_four
   real*8, allocatable, private, save :: result(:,:,:,:), res2d(:,:,:), res1d(:,:), res0d(:), the_sum(:)
   complex*16, allocatable, private, save :: cp(:,:,:,:)
   real*8,              private, save :: time_now !< Time of current restart file in selected units
@@ -66,7 +66,8 @@ module exec_commands
   
   
   private
-  public exec_command, general_help, specific_help, clean_up
+  public exec_command, general_help, specific_help, clean_up, average, expr_list, step_imported, qprofile
+
   
   
   
@@ -1721,15 +1722,17 @@ module exec_commands
 
 
   !> Toroidally and poloidally averaged expressions.
-  subroutine average(command, first_step, ierr)
+  subroutine average(command, first_step, ierr, res1d_tmp, flux_av)
     
     ! --- Routine parameters
     type(type_command), intent(in)  :: command     !< Command to be executed
     logical,            intent(in)  :: first_step  !< First time step of a for loop?
     integer,            intent(out) :: ierr        !< Error flag
+    real*8, allocatable, optional, intent(out) :: res1d_tmp(:,:)
+    logical, optional, intent(in)   :: flux_av     !< Perform proper flux average
     
     ! --- Local variables
-    integer :: units, npts, nsmall
+    integer :: units, npts, nsmall, i_exp
     character(len=1024) :: filename, comment
     type(t_pol_pos_list), save :: pol_pos_list
     type(t_tor_pos_list), save :: tor_pos_list
@@ -1752,15 +1755,32 @@ module exec_commands
     pol_pos_list = pol_pos(node_list, element_list, ES, nPsiN=npts, nTht=max(150,6*n_plane),                &
       nsmallsteps=nsmall)
     tor_pos_list = tor_pos(nphi=max(n_plane,2))
-    
-    call eval_expr(ES, units, expr_list, pol_pos_list, tor_pos_list, result, ierr)
+
+    if (present(flux_av)) then
+      call add(expr_list, 'unity       ', 'Just unity, used to get R^2 average                   ')
+    endif
+
+    call eval_expr(ES, units, expr_list, pol_pos_list, tor_pos_list, result, ierr, flux_av)
     call apply_four_filter(result, simple_filter(m=0,n=0), expr_list%n_coord, ierr)
     call reduce_result_to_1d(ierr, result, res1d, i1=1, i2=1)
+
+    if (present(flux_av)) then 
+      if (flux_av) then
+        do i_exp=1, expr_list%n_expr
+          res1d(:,i_exp) = res1d(:,i_exp) / res1d(:,expr_list%n_expr)  ! Need to normalize for flux average
+        enddo
+      endif      
+    endif
     
-    write(comment,'(a,i6.6)') 'time step #', index_now
+    if (present(res1d_tmp)) then
+      allocate( res1d_tmp(size(res1d,1),size(res1d,2)) )
+      res1d_tmp = res1d
+    else
+      write(comment,'(a,i6.6)') 'time step #', index_now
     
-    call write_ascii_1d(ierr, ES, expr_list, res1d, FORM_TABLE, header=.true.,                     &
-      filename=trim(filename), append=(.not.first_step), blanks=.true., comment=trim(comment))
+      call write_ascii_1d(ierr, ES, expr_list, res1d, FORM_TABLE, header=.true.,                     &
+        filename=trim(filename), append=(.not.first_step), blanks=.true., comment=trim(comment))
+    endif
     
   end subroutine average
   
@@ -2201,12 +2221,13 @@ module exec_commands
 
  
   !> Output the q-profile as a function of Psi_N
-  recursive subroutine qprofile(command, first_step, ierr)
+  recursive subroutine qprofile(command, first_step, ierr, q_out)
   
     ! --- Routine parameters
     type(type_command), intent(in)  :: command     !< Command to be executed
     logical,            intent(in)  :: first_step  !< First time step of a for loop?
     integer,            intent(out) :: ierr        !< Error flag
+    real*8, optional, allocatable,intent(out) :: q_out(:) !< Option to export q-profile
 
     
     ! --- Local variables
@@ -2237,6 +2258,10 @@ module exec_commands
     call determine_q_profile(node_list, element_list, surface_list, ES%psi_axis, ES%psi_xpoint,    &
       ES%Z_xpoint, q, rad)
     
+    if (present(q_out)) then 
+      allocate(q_out(size(q,1)))
+      q_out = q
+    endif
 !    ! --- Clean up q-profile from "jumps" -- TODO: a better solution is needed
 !    do k = 5, 1, -1
 !      do i = k+1, npts-k

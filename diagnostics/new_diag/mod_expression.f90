@@ -34,7 +34,7 @@ module mod_expression
   
   
   public
-  private add
+  !private add
   
   
   
@@ -191,6 +191,7 @@ module mod_expression
     call add(exprs_all, 'E_crit      ', 'E_crit for RE avalanching (Connor-Hastie)             ')
     call add(exprs_all, 'E_dreicer   ', 'Electrical field for Dreicer RE primary source        ')
     call add(exprs_all, 'theta_geo   ', 'Polar angle with respect to Rgeo, Zgeo                ')
+    call add(exprs_all, 'unity       ', 'Just 1, trick needed for flux surface average         ')
     call add(exprs_all, 'bnd_normal_R', 'R component of unit vector pointing outside JOREKs bnd', 'boundary    ')
     call add(exprs_all, 'bnd_normal_Z', 'Z component of unit vector pointing outside JOREKs bnd', 'boundary    ')
     call add(exprs_all, 'Bnorm       ', 'Normal     magnetic field to the JOREKs boundary      ', 'boundary    ')
@@ -543,7 +544,7 @@ module mod_expression
   
   
   !> Evaluate one/several expressions at one/several poloidal and one/several toroidal positions.
-  subroutine eval_expr(eq, units, expr_list, pol_pos_list, tor_pos_list, result, ierr)
+  subroutine eval_expr(eq, units, expr_list, pol_pos_list, tor_pos_list, result, ierr, flux_av)
 
     character(len=64), parameter :: THIS_ROUTINE_NAME = trim(THIS_MOD_NAME) // ':eval_expr'
     
@@ -555,6 +556,7 @@ module mod_expression
     type(t_tor_pos_list), target, intent(in)    :: tor_pos_list
     real*8, allocatable,          intent(inout) :: result(:,:,:,:)
     integer,                      intent(out)   :: ierr
+    logical, optional,            intent(in)    :: flux_av   !< Prepare data for proper flux surface average?
     
     ! --- Local variables
     type(t_pol_pos), pointer :: pol_pos
@@ -604,6 +606,7 @@ module mod_expression
       fact_resistiv, fact_Er, fact_flux, fact_rad
     real*8  :: rn0, rn0_s, rn0_t, rn0_ss, rn0_tt, rn0_st, rn0_p, rn0_pp, rn0_R, rn0_Z
     real*8  :: rimp0, rimp0_s, rimp0_t, rimp0_ss, rimp0_tt, rimp0_st, rimp0_p, rimp0_pp, rimp0_R, rimp0_Z
+    real*8  :: flux_av_fact
 
 #if (defined WITH_Neutrals) || (defined WITH_Impurities)
     real*8  :: Te_corr_eV, Te_eV
@@ -1272,6 +1275,10 @@ module mod_expression
             FFprime_loc = zj0 !--- not fully correct, but better than to put 0...
           endif
 #endif
+          flux_av_fact = 1.d0
+          if (present(flux_av)) then 
+            if (flux_av) flux_av_fact = R**2.0
+          endif
 
           Kappa_R    = ( Btot*BR*BR_R - BR*BR*B_R   - BZ*BR*B_Z   + Btot*BZ*BR_Z - Btot*Btor**2/BigR ) / Btot**3.
           Kappa_Z    = ( Btot*BR*BZ_R - BR*BZ*B_R   - BZ*BZ*B_Z   + Btot*BZ*BZ_Z                     ) / Btot**3.
@@ -1279,7 +1286,7 @@ module mod_expression
 
           Jtor        = -zj0/BigR
           Jpol        = FFprime_loc * Btheta     / F0     !Jpol = F' Bpol
-          Jpar        = (JpolR*BR + JpolZ*BZ + Jtor*Btor) / Btot
+          Jpar        = (JpolR*BR + JpolZ*BZ + Jtor*Btor) / Btot * sign(1.d0, F0)
           Jpar_ionsat = r0 * vpar0 * Btot 
 
           ! --- Velocity
@@ -1454,8 +1461,6 @@ module mod_expression
 #else
           neut_part_flux= 0.d0
 #endif    
-          dpsi_dt   = BigR*(ps0_s*u0_t - ps0_t*u0_s)/xjac + eta_T*zj0 - F0*u0_p 
-          ExB_norm  = -dpsi_dt * (ps0_R*nmlR + ps0_Z*nmlZ) / (BigR**2.d0) 
          
           ! --- Other parameters (combination of the main variables)
           Er       = 0.d0
@@ -1520,10 +1525,7 @@ module mod_expression
           ne0_20     = max(1.d-8, r0) * central_density
           ln_Lambda0 = 14.9 - 0.5 * log( ne0_20 ) + log( Te0_eV / 1000.d0 ) ! Eq. (2.7) at thermal speeds
           ln_Lambda  = 14.6 + 0.5 * log( Te0_eV / ne0_20 )                  ! Eq. (2.9) at relativistic energies
-          
-          E_par = - R * ( eta_T * zj0 / R**2                                                       &
-                        + 2.d0*tauIC / r0 * ( (Pi0_R * Ps0_Z - Pi0_Z * Ps0_R) / R + F0 * Pi0_p / R**2 ) )
-          
+                  
           E_crit = C_LIGHT**2 * EL_CHG**3 * ln_Lambda * MU_ZERO**2.5 * (central_density*1.d20*central_mass*MASS_PROTON)**1.5 * r0 / ( 4 * PI * MASS_ELECTRON * MASS_PROTON * central_mass )
           
           E_dreicer = EL_CHG**3 * ln_Lambda0 * MU_ZERO**1.5 * (central_density*1.d20*central_mass*MASS_PROTON)**2.5 * r0 / ( 2.d0 * PI * EPS_ZERO**2 * (MASS_PROTON*central_mass)**2 * T0 )
@@ -1589,8 +1591,16 @@ module mod_expression
 #endif
 
           if ( .not. with_impurities ) Z_eff = 1
-          call resistivity(eta, T_or_Te, T_or_Te_corr, T_max_eta, T_or_Te_0, Z_eff, eta_T)           
-
+          call resistivity(eta, T_or_Te, T_or_Te_corr, T_max_eta, T_or_Te_0, Z_eff, eta_T)          
+          
+#ifdef fullmhd
+          dpsi_dt   = delta_g(var_A3) / tstep 
+#else
+          dpsi_dt   = delta_g(var_psi) / tstep  !BigR*(ps0_s*u0_t - ps0_t*u0_s)/xjac + eta_T*zj0 - F0*u0_p 
+#endif
+          ExB_norm  = -dpsi_dt * (ps0_R*nmlR + ps0_Z*nmlZ) / (BigR**2.d0)   
+          E_par     = - R * ( eta_T * zj0 / R**2                                                       &
+                        + 2.d0*tauIC / r0 * ( (Pi0_R * Ps0_Z - Pi0_Z * Ps0_R) / R + F0 * Pi0_p / R**2 ) )
 
           ! --- Factors for switching between JOREK normalized and SI units.
           if ( units == SI_UNITS ) then
@@ -1676,7 +1686,7 @@ module mod_expression
                 res = u0
                 
               case ( 'Phi' )
-                res = u0 * F0 !### sign?
+                res = u0 * F0 / fact_time !### sign?
                 
               case ( 'zj' )
                 res = zj0 / fact_mu_zero
@@ -1886,6 +1896,9 @@ module mod_expression
 
               case ( 'theta_geo'    )
                 res = theta_geo
+              
+              case ( 'unity' )
+                res = 1.d0
 
               case ( 'bnd_normal_R' )
                 res = nmlR
@@ -2014,7 +2027,7 @@ module mod_expression
                 
             end select
             
-            result(itorpos, ipolpos, jpolpos, iexpr) = res
+            result(itorpos, ipolpos, jpolpos, iexpr) = res * flux_av_fact  ! factor is R^2 for proper flux surface average, otherwise 1
             
           end do loop_expr
         end do loop_tor
