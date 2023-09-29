@@ -42,7 +42,7 @@ type(type_edge_domain), allocatable, dimension(:) :: edge_domains
 type(edge_elements)                               :: D_edge
 
 
-real*8    :: timesteps, tstep_si, t_norm, rho_norm, n_norm
+real*8    :: timesteps, tstep_si, t_norm, rho_norm, n_norm, c0_gas
 real*8    :: target_time, t, E(3), B(3), psi, U, V(3), n_rho, n_rho_imp, n_e, T_e, rz_old(2), st_old(2)
 real*8    :: diag_time 
 real*8    :: temp(3), T_eV, K_eV, B_norm(3)
@@ -228,7 +228,7 @@ type(jorek_timestep_action), target               :: jorek_stepper
 
 real*8,allocatable :: feedback_rhs(:,:,:,:,:)
 real*8    :: oldtime, step_rest_time, particle_step_time, particle_start_time, diag_time
-real*8    :: rho_norm, t_norm, v_norm, E_norm, M_norm, N_norm, tstep_si, c0_gas
+real*8    :: rho_norm, t_norm, v_norm, E_norm, M_norm, N_norm, tstep_si
 real*8    :: kinetic_energy, ion_energy
 real*8    :: E_lost_ion, E_lost_ion_all, E_lost_rad, E_lost_rad_all
 !$ real*8 :: w0, w1, mmm(3)
