@@ -110,16 +110,19 @@ else
       sim%groups(1)%mass = atomic_weights(-2) !< atomic mass units
       sim%groups(1)%ad   = imp_adas(index_main_imp)
       sim%groups(1)%cor  = imp_cor(index_main_imp)
+      c0_gas = sqrt(8.3145d0*293.d0/(sim%groups(1)%mass*1.d-3)*(7.d0/5.d0))
     case('Ar')
       sim%groups(1)%Z    = 18
       sim%groups(1)%mass = atomic_weights(18) !< atomic mass units
       sim%groups(1)%ad   = imp_adas(index_main_imp)
       sim%groups(1)%cor  = imp_cor(index_main_imp)
+      c0_gas = sqrt(8.3145d0*293.d0/(sim%groups(1)%mass*1.d-3)*(5.d0/3.d0))
     case('Ne')
       sim%groups(1)%Z    = 10
       sim%groups(1)%mass = atomic_weights(10) !< atomic mass units
       sim%groups(1)%ad   = imp_adas(index_main_imp)
       sim%groups(1)%cor  = imp_cor(index_main_imp)
+      c0_gas = sqrt(8.3145d0*293.d0/(sim%groups(1)%mass*1.d-3)*(5.d0/3.d0))
     case default
       write(*,*) '!! Impurity type "', trim(imp_type(index_main_imp)), '" unknown (in marker_502) !!'
       write(*,*) 'Exiting NOW!!!'
@@ -206,7 +209,7 @@ use mod_interp, only: mode_moivre, interp_RZ
 use mod_jorek_timestepping
 use mod_basisfunctions
 use phys_module, only: tstep, use_ncs, use_pcs, use_ccs, use_marker
-use phys_module, only: pellets, n_spi_tot, ns_amplitude, n_inj, t_ns, t_now, L_tube, c0_gas
+use phys_module, only: pellets, n_spi_tot, ns_amplitude, n_inj, t_ns, t_now, L_tube
 use phys_module, only: ns_radius_ratio, ns_radius, ns_radius_min, ns_R, ns_Z, ns_phi, D_prof_neg
 use phys_module, only: CENTRAL_MASS, CENTRAL_DENSITY, GAMMA
 use constants,   only: MU_ZERO, MASS_PROTON, ATOMIC_MASS_UNIT, K_BOLTZ, EL_CHG
@@ -225,7 +228,7 @@ type(jorek_timestep_action), target               :: jorek_stepper
 
 real*8,allocatable :: feedback_rhs(:,:,:,:,:)
 real*8    :: oldtime, step_rest_time, particle_step_time, particle_start_time, diag_time
-real*8    :: rho_norm, t_norm, v_norm, E_norm, M_norm, N_norm, tstep_si, t_loc
+real*8    :: rho_norm, t_norm, v_norm, E_norm, M_norm, N_norm, tstep_si, c0_gas
 real*8    :: kinetic_energy, ion_energy
 real*8    :: E_lost_ion, E_lost_ion_all, E_lost_rad, E_lost_rad_all
 !$ real*8 :: w0, w1, mmm(3)
@@ -385,6 +388,9 @@ do while (.not. sim%stop_now)
   spi_source_R         = 0.0
   spi_source_Z         = 0.0
   spi_source_phi       = 0.0
+  if (.not. using_spi) then
+    
+  endif
   if (using_spi) then
 
     spi_source_R = pellets(1)%spi_R
