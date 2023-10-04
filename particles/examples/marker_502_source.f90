@@ -388,9 +388,6 @@ do while (.not. sim%stop_now)
   spi_source_R         = 0.0
   spi_source_Z         = 0.0
   spi_source_phi       = 0.0
-  if (.not. using_spi) then
-    
-  endif
   if (using_spi) then
 
     spi_source_R = pellets(1)%spi_R
