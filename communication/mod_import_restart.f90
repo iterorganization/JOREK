@@ -420,6 +420,10 @@ subroutine import_binary_restart(node_list, element_list, filename, format_rst, 
     call tr_allocate(viscopar_dissip_tot_t,1,index_start+nstep,"viscopar_dissip_tot_t",CAT_UNKNOWN)
     viscopar_dissip_tot_t = 0.d0
 
+    if (allocated(visco_dissip_tot_t)) call tr_deallocate(visco_dissip_tot_t,"visco_dissip_tot_t",CAT_UNKNOWN)
+    call tr_allocate(visco_dissip_tot_t,1,index_start+nstep,"visco_dissip_tot_t",CAT_UNKNOWN)
+    visco_dissip_tot_t = 0.d0
+
     if (allocated(friction_dissip_tot_t)) call tr_deallocate(friction_dissip_tot_t,"friction_dissip_tot_t",CAT_UNKNOWN)
     call tr_allocate(friction_dissip_tot_t,1,index_start+nstep,"friction_dissip_tot_t",CAT_UNKNOWN)
     friction_dissip_tot_t = 0.d0
@@ -1523,6 +1527,11 @@ subroutine import_hdf5_restart(node_list, element_list, filename, format_rst, er
     call tr_allocate(viscopar_dissip_tot_t,1,index_start+nstep,"viscopar_dissip_tot_t",CAT_UNKNOWN)
     viscopar_dissip_tot_t = 0.d0
     call HDF5_array1D_reading(file_id,viscopar_dissip_tot_t,'viscopar_dissip_tot_t')
+
+    if (allocated(visco_dissip_tot_t)) call tr_deallocate(visco_dissip_tot_t,"visco_dissip_tot_t",CAT_UNKNOWN)
+    call tr_allocate(visco_dissip_tot_t,1,index_start+nstep,"visco_dissip_tot_t",CAT_UNKNOWN)
+    visco_dissip_tot_t = 0.d0
+    call HDF5_array1D_reading(file_id,visco_dissip_tot_t,'visco_dissip_tot_t')
 
     if (allocated(friction_dissip_tot_t)) call tr_deallocate(friction_dissip_tot_t,"friction_dissip_tot_t",CAT_UNKNOWN)
     call tr_allocate(friction_dissip_tot_t,1,index_start+nstep,"friction_dissip_tot_t",CAT_UNKNOWN)

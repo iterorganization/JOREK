@@ -109,7 +109,7 @@ namelist /in1/  tstep, nstep, tstep_n, nstep_n,                     &
                 refinement, force_central_node,                     &
                 fix_axis_nodes,                                     &
                 adaptive_time, equil, bench_without_plot,           &
-                eta_T_dependent, visco_T_dependent,                 &
+                eta_T_dependent, visco_T_dependent, T_max_visco,    &
                 zkpar_T_dependent, T_max_eta, T_max_eta_ohm,        & 
                 heatsource_psin, heatsource_sig,                    &
                 heatsource_e_psin, heatsource_e_sig,                &
@@ -209,7 +209,8 @@ namelist /in1/  tstep, nstep, tstep_n, nstep_n,                     &
                 visco_par_heating, constant_imp_source,             &
                 T_min_ZKpar,Ti_min_ZKpar,Te_min_ZKpar,              &
                 CARIDDI_mode, use_newton, maxNewton, gamma_Newton,  &
-                alpha_Newton, vacuum_min, strumpack_matching
+                alpha_Newton, vacuum_min, strumpack_matching,       &
+                visco_old_setup, visco_heating
 
 
 if (my_id .eq. 0) then

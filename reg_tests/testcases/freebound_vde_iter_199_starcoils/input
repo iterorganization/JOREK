@@ -1,9 +1,10 @@
 &in1
- restart        = .f.
- nstep_n        = 0
- tstep_n        = 1e-3
- nout           = 20
- xpoint         = .t.
+ restart          = .f.
+ nstep_n          = 0
+ tstep_n          = 1e-3
+ nout             = 20
+ time_evol_scheme = "Gears"
+ xpoint           = .t.
  
  freeboundary       = .t.
  freeboundary_equil = .t.

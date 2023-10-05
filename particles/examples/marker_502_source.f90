@@ -42,7 +42,7 @@ type(type_edge_domain), allocatable, dimension(:) :: edge_domains
 type(edge_elements)                               :: D_edge
 
 
-real*8    :: timesteps, tstep_si, t_norm, rho_norm, n_norm
+real*8    :: timesteps, tstep_si, t_norm, rho_norm, n_norm, c0_gas
 real*8    :: target_time, t, E(3), B(3), psi, U, V(3), n_rho, n_rho_imp, n_e, T_e, rz_old(2), st_old(2)
 real*8    :: diag_time 
 real*8    :: temp(3), T_eV, K_eV, B_norm(3)
@@ -110,16 +110,19 @@ else
       sim%groups(1)%mass = atomic_weights(-2) !< atomic mass units
       sim%groups(1)%ad   = imp_adas(index_main_imp)
       sim%groups(1)%cor  = imp_cor(index_main_imp)
+      c0_gas = sqrt(8.3145d0*293.d0/(sim%groups(1)%mass*1.d-3)*(7.d0/5.d0))
     case('Ar')
       sim%groups(1)%Z    = 18
       sim%groups(1)%mass = atomic_weights(18) !< atomic mass units
       sim%groups(1)%ad   = imp_adas(index_main_imp)
       sim%groups(1)%cor  = imp_cor(index_main_imp)
+      c0_gas = sqrt(8.3145d0*293.d0/(sim%groups(1)%mass*1.d-3)*(5.d0/3.d0))
     case('Ne')
       sim%groups(1)%Z    = 10
       sim%groups(1)%mass = atomic_weights(10) !< atomic mass units
       sim%groups(1)%ad   = imp_adas(index_main_imp)
       sim%groups(1)%cor  = imp_cor(index_main_imp)
+      c0_gas = sqrt(8.3145d0*293.d0/(sim%groups(1)%mass*1.d-3)*(5.d0/3.d0))
     case default
       write(*,*) '!! Impurity type "', trim(imp_type(index_main_imp)), '" unknown (in marker_502) !!'
       write(*,*) 'Exiting NOW!!!'
@@ -206,7 +209,7 @@ use mod_interp, only: mode_moivre, interp_RZ
 use mod_jorek_timestepping
 use mod_basisfunctions
 use phys_module, only: tstep, use_ncs, use_pcs, use_ccs, use_marker
-use phys_module, only: pellets, n_spi_tot, ns_amplitude, n_inj, t_ns, t_now
+use phys_module, only: pellets, n_spi_tot, ns_amplitude, n_inj, t_ns, t_now, L_tube
 use phys_module, only: ns_radius_ratio, ns_radius, ns_radius_min, ns_R, ns_Z, ns_phi, D_prof_neg
 use phys_module, only: CENTRAL_MASS, CENTRAL_DENSITY, GAMMA
 use constants,   only: MU_ZERO, MASS_PROTON, ATOMIC_MASS_UNIT, K_BOLTZ, EL_CHG
@@ -405,13 +408,13 @@ do while (.not. sim%stop_now)
 
       spi_source_imp = spi_source_imp + pellets(spi_i)%spi_abl * pellets(spi_i)%spi_species
     enddo
-  elseif (t_now .gt. minval(t_ns)) then
+  elseif (((t_now - minval(t_ns)) * t_norm + L_tube/(3.d0 * c0_gas)) .gt. 0.0) then
     spi_source_R(1) = minval(ns_R) - 5.* ns_radius
     spi_source_R(2) = maxval(ns_R) + 5.* ns_radius
     spi_source_Z(1) = minval(ns_Z) - 5.* ns_radius
     spi_source_Z(2) = maxval(ns_Z) + 5.* ns_radius
     do i_inj=1, n_inj
-      if (t_now .gt. t_ns(i_inj)) spi_source_imp = spi_source_imp + ns_amplitude(i_inj)
+      if (((t_now - t_ns(i_inj)) * t_norm + L_tube/(3.d0 * c0_gas)) .gt. 0.0) spi_source_imp = spi_source_imp + ns_amplitude(i_inj)
     enddo
   endif
   spi_source_imp_local = spi_source_imp / sim%n_cpu
@@ -507,7 +510,7 @@ do while (.not. sim%stop_now)
           grad_n_imp_tmp = grad_n_imp_fluid / max(n_rho_imp,1.d12) ! Extract the length scale of density gradient
         endif
 
-        call interp_PRZ(sim%fields%node_list,element_list,particles(j)%i_elm,[var_psi,var_rhon],2,particles(j)%st(1),&
+        call interp_PRZ(sim%fields%node_list,element_list,particles(j)%i_elm,[var_psi,var_rhoimp],2,particles(j)%st(1),&
                         particles(j)%st(2), particles(j)%x(3), P,P_s,P_t,P_phi,R_g,R_s,R_t,Z_g,Z_s,Z_t)
         psi_norm   = get_psi_n(P(1), Z_g) 
         D_prof     = get_dperp(psi_norm)
