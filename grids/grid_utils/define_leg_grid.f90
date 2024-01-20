@@ -6,6 +6,7 @@ use constants
 use tr_module 
 use data_structure
 use grid_xpoint_data
+use phys_module, only:   tokamak_device, SDN_threshold
 use py_plots_grids
 use mod_interp, only: interp_RZ
 use equil_info

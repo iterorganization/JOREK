@@ -420,10 +420,6 @@ subroutine import_binary_restart(node_list, element_list, filename, format_rst, 
     call tr_allocate(viscopar_dissip_tot_t,1,index_start+nstep,"viscopar_dissip_tot_t",CAT_UNKNOWN)
     viscopar_dissip_tot_t = 0.d0
 
-    if (allocated(visco_dissip_tot_t)) call tr_deallocate(visco_dissip_tot_t,"visco_dissip_tot_t",CAT_UNKNOWN)
-    call tr_allocate(visco_dissip_tot_t,1,index_start+nstep,"visco_dissip_tot_t",CAT_UNKNOWN)
-    visco_dissip_tot_t = 0.d0
-
     if (allocated(friction_dissip_tot_t)) call tr_deallocate(friction_dissip_tot_t,"friction_dissip_tot_t",CAT_UNKNOWN)
     call tr_allocate(friction_dissip_tot_t,1,index_start+nstep,"friction_dissip_tot_t",CAT_UNKNOWN)
     friction_dissip_tot_t = 0.d0
@@ -444,6 +440,16 @@ subroutine import_binary_restart(node_list, element_list, filename, format_rst, 
     if (allocated(mag_ener_src_tot)) call tr_deallocate(mag_ener_src_tot,"mag_ener_src_tot",CAT_UNKNOWN)
     call tr_allocate(mag_ener_src_tot,1,index_start+nstep,"mag_ener_src_tot",CAT_UNKNOWN)
     mag_ener_src_tot = 0.d0
+    
+#ifdef WITH_Refluid
+    if (allocated(re_current_t)) call tr_deallocate(re_current_t,"re_current_t",CAT_UNKNOWN)
+    call tr_allocate(re_current_t,1,index_start+nstep,"re_current_t",CAT_UNKNOWN)
+    current_t = 0.d0
+        
+    if (allocated(Ipre_tot_t)) call tr_deallocate(Ipre_tot_t,"Ipre_tot_t",CAT_UNKNOWN)
+    call tr_allocate(Ipre_tot_t,1,index_start+nstep,"Ipre_tot_t",CAT_UNKNOWN)
+    Ipre_tot_t = 0.d0
+#endif
 
 #ifdef JECCD
     if (allocated(energies2)) call tr_deallocate(energies2,"energies2",CAT_UNKNOWN)
@@ -992,7 +998,6 @@ subroutine import_hdf5_restart(node_list, element_list, filename, format_rst, er
   end if
   call HDF5_integer_reading(file_id,n_order_tmp,"n_order")
   call HDF5_integer_reading(file_id,n_tor_tmp, "n_tor")
-  n_tor_restart = n_tor_tmp
   if (rst_hdf5_version_tmp .eq. 2) then
     call HDF5_integer_reading(file_id,n_coord_tor_tmp, "n_coord_tor")
   else
@@ -1498,11 +1503,6 @@ subroutine import_hdf5_restart(node_list, element_list, filename, format_rst, er
     viscopar_dissip_tot_t = 0.d0
     call HDF5_array1D_reading(file_id,viscopar_dissip_tot_t,'viscopar_dissip_tot_t')
 
-    if (allocated(visco_dissip_tot_t)) call tr_deallocate(visco_dissip_tot_t,"visco_dissip_tot_t",CAT_UNKNOWN)
-    call tr_allocate(visco_dissip_tot_t,1,index_start+nstep,"visco_dissip_tot_t",CAT_UNKNOWN)
-    visco_dissip_tot_t = 0.d0
-    call HDF5_array1D_reading(file_id,visco_dissip_tot_t,'visco_dissip_tot_t')
-
     if (allocated(friction_dissip_tot_t)) call tr_deallocate(friction_dissip_tot_t,"friction_dissip_tot_t",CAT_UNKNOWN)
     call tr_allocate(friction_dissip_tot_t,1,index_start+nstep,"friction_dissip_tot_t",CAT_UNKNOWN)
     friction_dissip_tot_t = 0.d0
@@ -1573,6 +1573,18 @@ subroutine import_hdf5_restart(node_list, element_list, filename, format_rst, er
     call tr_allocate(density_tot_t,1,index_start+nstep,"density_tot_t",CAT_UNKNOWN)
     density_tot_t = 0.d0
     call HDF5_array1D_reading(file_id,density_tot_t,'density_tot_t')
+
+#ifdef WITH_Refluid
+    if (allocated(re_current_t)) call tr_deallocate(re_current_t,"re_current_t",CAT_UNKNOWN)
+    call tr_allocate(re_current_t,1,index_start+nstep,"re_current_t",CAT_UNKNOWN)
+    re_current_t = 0.d0
+    call HDF5_array1D_reading(file_id,re_current_t,'re_current_t')
+    
+    if (allocated(Ipre_tot_t)) call tr_deallocate(Ipre_tot_t,"Ipre_tot_t",CAT_UNKNOWN)
+    call tr_allocate(Ipre_tot_t,1,index_start+nstep,"Ipre_tot_t",CAT_UNKNOWN)
+    Ipre_tot_t = 0.d0
+    call HDF5_array1D_reading(file_id,Ipre_tot_t,'Ipre_tot_t')
+#endif    
 
 #ifdef JECCD                   
     if (allocated(t_energies2))   call tr_deallocate(t_energies2,"t_energies2",CAT_UNKNOWN)

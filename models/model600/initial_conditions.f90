@@ -30,6 +30,10 @@ real*8     :: ps0_s, ps0_t, p_s, p_t, zj0_s, zj0_t,R_s, R_t, ps0_x, ps0_y, Z_s, 
 logical    :: xpoint2
 real*8     :: zV, dV_dpsi, dV_dpsi2, dV_dz, dV_dz2, dV_dpsi_dz, dV_dpsi3, dV_dpsi2_dz, dV_dpsi_dz2
 real*8     :: Omega, dOmega_dpsi, dOmega_dz, dOmega_dpsi2, dOmega_dz2, dOmega_dpsi_dz
+! for REs
+real*8     :: const, psi_norm, Vlight
+real*8     :: m_i_over_m_imp
+
 if (my_id .eq. 0) then
   write(*,*) '***************************************'
   write(*,*) '*      initial conditions  (600)      *'
@@ -212,6 +216,62 @@ if ( (my_id .eq. 0) .and. (n_order .le. 3) ) then
         endif
       endif
     end if 
+
+    if(with_impurities) then
+    !================Impurity masss density, all charge states
+     select case ( trim(imp_type(index_main_imp)) )
+       case('D2')
+         m_i_over_m_imp = central_mass/2.  ! Deuterium mass = 2 u
+       case('Ar')
+         m_i_over_m_imp = central_mass/40. ! Argon mass = 40 u
+       case('Ne')
+         m_i_over_m_imp = central_mass/20. ! Neon mass = 20 u
+       case default
+         write(*,*) '!! Gas type "', trim(imp_type(index_main_imp)), '" unknown (in mod_injection_source.f90) !!'
+         write(*,*) '=> We assume the gas is D2.'
+         m_i_over_m_imp = central_mass/2.
+     end select
+     
+    node_list%node(i)%values(1,1,var_rhoimp) = impdens_init / (central_density*1.d20 * m_i_over_m_imp)
+    node_list%node(i)%values(1,2,var_rhoimp) = 0.d0
+    node_list%node(i)%values(1,3,var_rhoimp) = 0.d0
+    node_list%node(i)%values(1,4,var_rhoimp) = 0.d0
+    
+    node_list%node(i)%values(1,1,var_rho) = zn + node_list%node(i)%values(1,1,var_rhoimp)
+    !================Impurity masss density
+    endif ! with impurities
+
+    ! RE number density
+    if (with_refluid) then
+    
+           ! Normalized RE parallel velocity
+           Vlight = Vpar_re_sign * SPEED_OF_LIGHT * sqrt(MU_ZERO * central_mass * MASS_PROTON * central_density*1.d20) * sqrt ( 1.d0 - 1.d0 / gamma_rel**2 )
+
+           if( re_initialize .eq. 1 ) then
+              !   ### Gaussian profile ### 
+              const = 0.125 * re_gauss_fact * 1.17 /(abs(Vlight) * sqrt(2.d0 * PI) * re_gauss_width)
+              
+              psi_norm = (psi - ES%psi_axis)/(ES%psi_bnd - ES%psi_axis)
+              
+              node_list%node(i)%values(1,1,var_nre) = const * exp( - (psi_norm - re_gauss_origin)**2/(2.d0 * re_gauss_width**2) )  
+              node_list%node(i)%values(1,2,var_nre) = - node_list%node(i)%values(1,1,var_nre) * (psi_norm - re_gauss_origin) / re_gauss_width**2 * node_list%node(i)%values(1,2,var_psi) / (ES%psi_bnd - ES%psi_axis) 
+              node_list%node(i)%values(1,3,var_nre) = - node_list%node(i)%values(1,1,var_nre) * (psi_norm - re_gauss_origin) / re_gauss_width**2 * node_list%node(i)%values(1,3,var_psi) / (ES%psi_bnd - ES%psi_axis) 
+              node_list%node(i)%values(1,4,var_nre) = - 1.d0 / re_gauss_width**2 / (ES%psi_bnd - ES%psi_axis) * ( node_list%node(i)%values(1,3,var_nre) * (psi_norm - re_gauss_origin) * node_list%node(i)%values(1,2,var_psi)  &
+                                              + node_list%node(i)%values(1,1,var_nre) * (psi_norm - re_gauss_origin) * node_list%node(i)%values(1,4,var_psi)  &
+                                              + node_list%node(i)%values(1,1,var_nre) * node_list%node(i)%values(1,3,var_psi) * node_list%node(i)%values(1,2,var_psi) / (ES%psi_bnd - ES%psi_axis) )
+            elseif ( re_initialize .eq. 2)  then
+              !   ### Scaled down J-profile ###
+              node_list%node(i)%values(1,1,var_nre) = initial_re_current_fraction * node_list%node(i)%values(1,1,var_zj) / Vlight
+              node_list%node(i)%values(1,2,var_nre) = initial_re_current_fraction * node_list%node(i)%values(1,2,var_zj) / Vlight
+              node_list%node(i)%values(1,3,var_nre) = initial_re_current_fraction * node_list%node(i)%values(1,3,var_zj) / Vlight
+              node_list%node(i)%values(1,4,var_nre) = initial_re_current_fraction * node_list%node(i)%values(1,4,var_zj) / Vlight
+
+           else
+              ! No initialization
+              node_list%node(i)%values(1,:,var_nre) = 0.d0
+           endif
+
+    endif !refluid
     
     node_list%node(i)%deltas = 0.d0
 

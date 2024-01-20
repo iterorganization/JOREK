@@ -22,7 +22,6 @@ namelist /in1/  tstep, nstep, tstep_n, nstep_n,                     &
                 rst_hdf5, rst_hdf5_version, keep_current_prof,      &
                 eta, visco, visco_par,                              &
                 restart, rst_format, regrid, bootstrap, write_ps,   &
-                regrid_from_rz,                                     &
                 force_horizontal_Xline, fix_axis_nodes,             &
                 n_R, n_Z, n_radial, n_pol, n_tht, n_flux,           &
                 n_open, n_private, n_leg, n_leg_out, n_ext,         &
@@ -70,7 +69,6 @@ namelist /in1/  tstep, nstep, tstep_n, nstep_n,                     &
                 xampl,xwidth,xsig,xtheta,xshift,xleft, xpoint,      &
                 xcase, D_perp_file, D_perp_imp_file, ZK_perp_file,  &
                 rho_file, T_file, ffprime_file, rot_file,           &
-                forceSDN,                                           &
                 normalized_velocity_profile, SDN_threshold,         &
                 freeboundary_equil, freeboundary,  freeb_change_indices, &
                 resistive_wall,                                     &
@@ -84,7 +82,7 @@ namelist /in1/  tstep, nstep, tstep_n, nstep_n,                     &
                 refinement, force_central_node,                     &
                 fix_axis_nodes, use_strumpack,                      &
                 adaptive_time, equil, bench_without_plot,           &
-                eta_T_dependent, visco_T_dependent, T_max_visco,    &
+                eta_T_dependent, visco_T_dependent,                 &
                 eta_num_T_dependent, visco_num_T_dependent,         &
                 zkpar_T_dependent, T_max_eta, T_max_eta_ohm,        & 
                 heatsource_psin, heatsource_sig,                    &
@@ -150,9 +148,7 @@ namelist /in1/  tstep, nstep, tstep_n, nstep_n,                     &
                 weights_per_family, autodistribute_ranks,           &
                 ranks_per_family, cte_current_FB_fact, treat_axis,  &
                 visco_par_heating, CARIDDI_mode,                    &
-                T_min_ZKpar,                                        &
-                use_newton, maxNewton, gamma_Newton, alpha_Newton,  &
-                vacuum_min, strumpack_matching
+                use_newton, maxNewton, gamma_Newton, alpha_Newton
 if (my_id .eq. 0) then
 
   ! --- Preset input parameters to reasonable default values.

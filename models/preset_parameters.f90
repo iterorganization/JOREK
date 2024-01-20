@@ -13,6 +13,9 @@ subroutine preset_parameters
   
   n_tor_fft_thresh = 2
   if(jorek_model == 305 .or. jorek_model == 306) n_tor_fft_thresh = 99
+
+  loop_voltage_control = 0.d0
+  loop_voltage = 0.d0
   
   ! --- DoubleNull flag
   xcase = LOWER_XPOINT
@@ -22,8 +25,38 @@ subroutine preset_parameters
   nstep    = 0
   nstep_n  = 0
   
+  gamma_rel  = 39.d0
+  re_initialize = 0
+  vpar_re_sign = -1.d0
+  initial_re_current_fraction = 0
+  re_gauss_fact = 0.d0
+  re_gauss_origin = 0.d0
+  re_gauss_width = 0.1d0
+  re_trit_seed = .false.
+  re_compt_seed = .false.
+  re_sec_source = .false.
+  psinorm_aval_threshold = 1000.d0
+  re_adv_fact   = 1.d-3
+  Dre_par = 1.d-8
+  Dre_iso = 1.d-8
+  Dre_num  = 1.d-16
+
+ Dcontrad = .true.
+
+ impdens_init = 0.d0
+
+ imp_inj_flat(1:3)%density_rise = (/ 0., 0., 0. /)
+ imp_inj_flat(1:3)%rise_time = (/ 1.d10, 1.d10, 1.d10 /)
+ imp_inj_flat(1:3)%start_time = (/ 1.d10, 1.d10, 1.d10 /)
+ 
+ deut_inj_flat(1:3)%density_rise = (/ 0., 0., 0. /)
+ deut_inj_flat(1:3)%rise_time = (/ 1.d10, 1.d10, 1.d10 /)
+ deut_inj_flat(1:3)%start_time = (/ 1.d10, 1.d10, 1.d10 /)
+
+
+
+
   eta_T_dependent   = .true.
-  eta_coul_log_dep  = .true.
   visco_T_dependent = .true.
   ZKpar_T_dependent = .true.
 
@@ -37,25 +70,20 @@ subroutine preset_parameters
   eta_num_prof(2) = 0.03d0
 
   eta           = 1.d-5
-  T_max_eta     = 1.d99
+  T_max_eta     = 1.d3
   eta_ohmic     = 0.d0
-  T_max_eta_ohm = 1.d99
+  T_max_eta_ohm = 1.d3
 
   visco = 1.d-5
-  T_max_visco   = 1.d99
   visco_par = 1.d-5
-  visco_heating     = 0.d0
   visco_par_heating = 0.d0
-  visco_old_setup   = .false.
   
   central_density = 1.d0        ! the central density in units 10^20 m^-3
   central_mass    = 2.d0        ! the central average ion mass (D)
 
-  n_tor_restart= 0
   restart      = .false.
   import_equil = .false.
   regrid       = .false.
-  regrid_from_rz = .false.
   rst_format   = 0             ! use 'old' format for restart import
   write_ps     = .true.           ! write postscript file at the end of the run 
   
@@ -145,8 +173,7 @@ subroutine preset_parameters
   dPSI_inner   = 0.11
   dPSI_private = 0.03
   dPSI_up_priv = 0.03
-
-  forceSDN = .false.
+  
   SDN_threshold = 1.d-4
   
   R_geo     = 10.d0
@@ -293,20 +320,6 @@ subroutine preset_parameters
   Dn_p_sc_num      = 0.d0
   D_perp_imp_sc_num= 0.d0
   D_par_imp_sc_num = 0.d0
- 
-  use_vms = .false.
-  vms_coeff_AR     = 0.d0
-  vms_coeff_AZ     = 0.d0
-  vms_coeff_A3     = 0.d0
-  vms_coeff_UR     = 0.d0
-  vms_coeff_UZ     = 0.d0
-  vms_coeff_Up     = 0.d0
-  vms_coeff_rho    = 0.d0 
-  vms_coeff_T      = 0.d0
-  vms_coeff_Te     = 0.d0
-  vms_coeff_Ti     = 0.d0  
-  vms_coeff_rhon   = 0.d0 
-  vms_coeff_rhoimp = 0.d0
 
   heatsource          = 1.e-7
   heatsource_e        = 0.5e-7
@@ -664,7 +677,6 @@ subroutine preset_parameters
   maxNewton          = 20
   gamma_Newton       = 0.5
   alpha_Newton       = 2.d0
-  strumpack_matching = .false.
 
   
 !==== RMP parameters =====
@@ -714,7 +726,6 @@ subroutine preset_parameters
 
   JET_MGI = .false.
   ASDEX_MGI = .false.
-  t_ns  = 2.d3
   ns_amplitude = 0.d0
   ns_R      = 3.2d0
   ns_Z      =  1.5d0
@@ -739,14 +750,12 @@ subroutine preset_parameters
   energy_teleported = 0.d0 
   constant_imp_source = 0.d0
 
-  L_tube = 0. ! Needed to ensure injection starts at t_ns when JET_MGI=ASDEX_MGI=.false.
-
   !====== JET DMV-2 parameters
-  !L_tube = 2.4d0
+  L_tube = 2.4d0
   K_Dmv = 4.d-2
   A_Dmv = 1.77d-2
   V_Dmv = 9.75d-4
-
+  t_ns  = 2.d3
   !======= Additional parameters for SPI =======
   spi_Vel_Rref    = 0.0d0
   spi_Vel_Zref    = 0.0d0

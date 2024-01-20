@@ -328,9 +328,9 @@ mpi_required = 0
         call grid_flux_surface(xpoint,xcase, node_list, element_list, surface_list, n_flux, n_tht, xr1,  &
                                sig1, xr2, sig2, refinement)
       end if
-
+      
     end if
-
+    
     if ( freeboundary .and. freeb_change_indices) call exchange_indices(node_list, my_id, n_cpu, .false.)
     
  end if !   if ( restart .and. (my_id == 0) ) then
@@ -348,56 +348,44 @@ mpi_required = 0
   
   if_not_restart: if (.not. restart) then
     call tr_resetfile()
-
-    if_not_regrid_from_rz: if(.not. regrid_from_rz) then
-
-      call initial_grid(node_list, element_list, bnd_node_list, bnd_elm_list, my_id, n_cpu)
-
-      ! --- Synchronizing MPI processes avoid deadlock issues on some machine
-      call MPI_Barrier(MPI_COMM_WORLD,ierr)
-
-      ! --- Send boundary elements and nodes to other MPI procs
-      call broadcast_boundary(my_id,bnd_elm_list,bnd_node_list)
-
-      ! --- Fill the vacuum response matrices for freeboundary computations
-      if ( freeboundary_equil .and. (n_flux .eq. 0)) then
-        call get_vacuum_response(my_id, node_list, bnd_elm_list, bnd_node_list, freeboundary_equil,  &
-            resistive_wall)
-        call update_response(my_id,tstep, resistive_wall)
-        call import_external_fields('coil_field.dat', my_id)
-        call set_coil_curr_time_trace()
-        if ( (.not. restart) .or. (.not. wall_curr_initialized) ) call init_wall_currents(my_id, resistive_wall)
-      else
-        freeb_equil2        = freeboundary_equil
-        freeboundary_equil  = .false.
-      end if
-
-      ! --- Plot the grid
-      if ( (my_id == 0) .and. (.not. bench_without_plot) ) then
-        call plot_grid(node_list,element_list,bnd_elm_list,bnd_node_list,.true.,.false.,'initial')
-      end if
-
-      ! --- Check sanity of grid
-      if (.not. RZ_grid_inside_wall) call check_grid(my_id, node_list, element_list)
-
-      ! --- Compute the plasma equilibrium
-      if (equil) then
-        call equilibrium(my_id,node_list,element_list,bnd_node_list,bnd_elm_list,xpoint,xcase, .true.)
-        if (export_for_nemec) then
-          if(my_id ==0 ) call export_nemec(node_list, element_list, xpoint, xcase)
-        endif
-        if (my_id == 0) call update_equil_state(my_id,node_list, element_list, bnd_elm_list, xpoint, xcase)
-        if (.not. freeboundary) then
-          fileout = 'jorek_equil_rz'
-          call export_restart(node_list, element_list, fileout)
-        end if
-      end if ! if (equil) then
-
+    
+    call initial_grid(node_list, element_list, bnd_node_list, bnd_elm_list, my_id, n_cpu)
+    
+    ! --- Synchronizing MPI processes avoid deadlock issues on some machine
+    call MPI_Barrier(MPI_COMM_WORLD,ierr)
+    
+    ! --- Send boundary elements and nodes to other MPI procs
+    call broadcast_boundary(my_id,bnd_elm_list,bnd_node_list)
+    
+    ! --- Fill the vacuum response matrices for freeboundary computations
+    if ( freeboundary_equil .and. (n_flux .eq. 0)) then
+      call get_vacuum_response(my_id, node_list, bnd_elm_list, bnd_node_list, freeboundary_equil,  &
+        resistive_wall)
+      call update_response(my_id,tstep, freeboundary_equil, resistive_wall)
+      call import_external_fields('coil_field.dat', my_id)
+      call set_coil_curr_time_trace()
+      if ( (.not. restart) .or. (.not. wall_curr_initialized) ) call init_wall_currents(my_id, resistive_wall)
     else
-        write(*,*)'Restart from r/z grid equilibrium'
-        call import_restart(node_list, element_list, 'jorek_equil_rz', rst_format, ierr)
-        if ( ierr /= 0 ) stop
-    end if if_not_regrid_from_rz
+      freeb_equil2        = freeboundary_equil
+      freeboundary_equil  = .false.
+    end if
+    
+    ! --- Plot the grid  
+    if ( (my_id == 0) .and. (.not. bench_without_plot) ) then
+      call plot_grid(node_list,element_list,bnd_elm_list,bnd_node_list,.true.,.false.,'initial')
+    end if
+    
+    ! --- Check sanity of grid
+    if (.not. RZ_grid_inside_wall) call check_grid(my_id, node_list, element_list)
+
+    ! --- Compute the plasma equilibrium
+    if (equil) then
+      call equilibrium(my_id,node_list,element_list,bnd_node_list,bnd_elm_list,xpoint,xcase, .true.) 
+      if (export_for_nemec) then
+        if(my_id ==0 ) call export_nemec(node_list, element_list, xpoint, xcase)
+      endif
+      if (my_id == 0) call update_equil_state(my_id,node_list, element_list, bnd_elm_list, xpoint, xcase)
+    end if ! if (equil) then
 
     ! --- Determine a flux surface aligned grid and re-calculate the equilibrium on it
     if (n_flux > 1) then
@@ -407,8 +395,8 @@ mpi_required = 0
       if ( freeb_equil2) then
         freeboundary_equil = .true.
         call get_vacuum_response(my_id, node_list, bnd_elm_list, bnd_node_list, freeboundary_equil,  &
-            resistive_wall)
-        call update_response(my_id,tstep,  resistive_wall)
+          resistive_wall)
+        call update_response(my_id,tstep, freeboundary_equil, resistive_wall)
         call import_external_fields('coil_field.dat', my_id)
         call set_coil_curr_time_trace()
         if ( (.not. restart) .or. (.not. wall_curr_initialized) ) call init_wall_currents(my_id, resistive_wall)
@@ -449,8 +437,8 @@ mpi_required = 0
   ! --- Fill the vacuum response matrices for freeboundary computations
   if ( freeboundary ) then
     call get_vacuum_response(my_id, node_list, bnd_elm_list, bnd_node_list, freeboundary_equil,    &
-        resistive_wall)
-    call update_response(my_id,tstep,  resistive_wall)
+      resistive_wall)
+    call update_response(my_id,tstep, freeboundary_equil, resistive_wall)
     call import_external_fields('coil_field.dat', my_id)
     call set_coil_curr_time_trace()
     call read_Z_axis_profile() 
@@ -495,7 +483,7 @@ mpi_required = 0
   mhd_sim%bnd_elm_list  => bnd_elm_list
 
   ! --- Load deuterium ADAS data if required
-  if (deuterium_adas) ad_deuterium = read_adf11(my_id,'96_h') 
+  if (deuterium_adas) ad_deuterium = read_adf11(my_id,'96_h', adas_dir) 
 
    ! --- Initialize FFTW
 #ifdef USE_FFTW
@@ -559,7 +547,7 @@ mpi_required = 0
   ! --- Export a restart file before the first timestep
   if ( (my_id == 0) .and. (.not. restart) ) then
     if ( freeboundary .and. freeb_change_indices ) call exchange_indices(node_list, my_id, n_cpu, .true.)
-    fileout = 'jorek00000'
+    fileout = 'jorek000000'
     call export_restart(node_list, element_list, fileout)
     if ( freeboundary .and. freeb_change_indices ) call exchange_indices(node_list, my_id, n_cpu, .false.)
   end if
@@ -614,7 +602,7 @@ mpi_required = 0
       write(*,*) '******************************************************'
     end if
     
-    if (freeboundary) call update_response(my_id,tstep, resistive_wall)
+    if (freeboundary) call update_response(my_id,tstep, freeboundary_equil, resistive_wall)
 
     ! ---- For now running the jorek2_main should not include aux inputs
     aux_node_list%n_nodes = 0
@@ -845,7 +833,7 @@ mpi_required = 0
     ! --- Write a restart file every nout timesteps
     if ( (my_id == 0) .and. (mod(index_now,nout) == 0) ) then
       if ( freeboundary .and. freeb_change_indices ) call exchange_indices(mhd_sim%node_list, my_id, n_cpu, .true.)
-      write(fileout,'(A5,i5.5)') 'jorek',index_now
+      write(fileout,'(A5,i6.6)') 'jorek',index_now
       call export_restart(mhd_sim%node_list, mhd_sim%element_list, fileout)
       if ( freeboundary .and. freeb_change_indices ) call exchange_indices(mhd_sim%node_list, my_id, n_cpu, .false.)
     endif

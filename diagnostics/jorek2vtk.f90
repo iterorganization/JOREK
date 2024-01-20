@@ -1,6 +1,7 @@
 !> Program to convert a JOREK2 restart file into binary VTK format
 program jorek2vtk
 
+use constants
 use mod_parameters, only: n_var, variable_names
 use data_structure
 use phys_module
@@ -13,7 +14,6 @@ use corr_neg
 use mod_import_restart
 use equil_info
 use mod_boundary
-use mod_plasma_functions
 use mod_vtk
 use mod_interp
 use mod_poloidal_currents
@@ -106,14 +106,15 @@ real*8                :: Arad_bg, Brad_bg, Crad_bg, frad_bg
 real*8                :: Te_eV, ne_SI, Lrad_imp, r_imp_bg
 real*8                :: Te_corr_eV, coef_rad_1, Sion_T, eta_Sp, ksiion, LradDcont_T
 real*8                :: LradDrays_T, coef_ion_1, coef_ion_2, coef_ion_3, S_ion_puiss
-real*8                :: r0_real8, rn0_real8, lnA
-real*8                :: T0_corr, r0_corr, rn0_corr, ne_JOREK, T_or_Te, T_or_Te_corr, T_or_Te_0 
+real*8                :: r0_real8, rn0_real8
+real*8                :: T0_corr, r0_corr, rn0_corr, ne_JOREK
 integer               :: i_imp, offset_bgimp, i_bg     ! Loop for more than one background impurity
 integer               :: i_proj
 integer               :: i_psin, i_test, iimp(6), i_ne, ineu(7), ibg_tot, i_pellet(2), i_flux(8), i_neo(10), i_boot(2)
 integer               :: i_full(11), i_vec_B, i_vec_V, i_vec_E, i_vec_Jpol
 integer, allocatable  :: iibg(:), iproj(:)
 character*36          :: imp_label, proj_label
+real*8                :: Vlight
 
 
 #ifdef WITH_Impurities
@@ -220,6 +221,9 @@ if (use_imp_adas .and. (nimp_bg(1) > 0.d0)) then
 endif
 #endif
 
+Vlight  = vpar_re_sign * SPEED_OF_LIGHT * sqrt(MU_ZERO * central_mass * MASS_PROTON * central_density*1.d20) * sqrt ( 1.d0 - 1.d0 / gamma_rel**2 )
+
+
 ! --- Read parameters from namelist file 'vtk.nml' if it exists
 open(42, file='vtk.nml', action='read', status='old', iostat=ierr)
 if ( ierr == 0 ) then
@@ -283,6 +287,9 @@ if ( SI_units ) then
    endif
    if (with_Vpar) then
       variable_names_si(var_Vpar)='Vpar_km/s   '
+   endif
+   if (with_refluid) then
+      variable_names_si(var_nre)='nre_m-3   '
    endif
 #endif
 
@@ -753,23 +760,18 @@ do i=1,element_list%n_elements
           call interp(node_list,element_list,i,var_rho,i_tor,s,t,ZN0,ZN0_s,ZN0_t,ZN0_st,ZN0_ss,ZN0_tt)
 
           if (with_TiTe) then
-            call interp(node_list,element_list,i,var_Te,  i_tor,s,t,Te0, Te0_s, Te0_t, Te0_st, Te0_ss, Te0_tt)
-            call interp(node_list,element_list,i,var_Ti,  i_tor,s,t,Ti0, Ti0_s, Ti0_t, Ti0_st, Ti0_ss, Ti0_tt)
-            T0   = Ti0   + Te0
-            T0_s = Ti0_s + Te0_s
-            T0_t = Ti0_t + Te0_t
-            T_or_Te      = Te0 
-            T_or_Te_corr = corr_neg_temp(Te0*2.d0)/2.d0
-            T_or_Te_0    = Te_0
+             call interp(node_list,element_list,i,var_Te,  i_tor,s,t,Te0, Te0_s, Te0_t, Te0_st, Te0_ss, Te0_tt)
+             call interp(node_list,element_list,i,var_Ti,  i_tor,s,t,Ti0, Ti0_s, Ti0_t, Ti0_st, Ti0_ss, Ti0_tt)
+             T0   = Ti0   + Te0
+             T0_s = Ti0_s + Te0_s
+             T0_t = Ti0_t + Te0_t
           else
             call interp(node_list,element_list,i,var_T,  i_tor,s,t,T0, T0_s, T0_t, T0_st, T0_ss, T0_tt)
             Te0    = T0  /2.d0;     Ti0    = T0  /2.d0
             Te0_s  = T0_s/2.d0;     Ti0_s  = T0_s/2.d0
             Te0_t  = T0_t/2.d0;     Ti0_t  = T0_t/2.d0
-            T_or_Te      = T0 
-            T_or_Te_corr = corr_neg_temp(T0)
-            T_or_Te_0    = T_0
           endif
+
 
           if (i_tor == 1) then
             call interp(node_list,element_list,i,710,i_tor,s,t,F_prof  ,F_prof_s  ,F_prof_t  ,W_st,W_ss,W_tt)
@@ -920,8 +922,11 @@ do i=1,element_list%n_elements
         D_prof  = get_dperp (psi_norm)
         ZK_prof = get_zkperp(psi_norm)
 
-        call coulomb_log_ei(T_or_Te, T_or_Te_corr, rho, corr_neg_dens1(rho), 0.0, 0.0, 0.0, lnA)
-        call resistivity(eta, T_or_Te, T_or_Te_corr, T_max_eta, T_or_Te_0, 1.d0, lnA, eta_T)  ! NEEDS TO BE ADAPTED FOR IMPURITIES (Z_eff)!! 
+        if ( eta_T_dependent ) then
+          eta_T = eta * (max(TT,0.d0)/T_0)**(-1.5d0)
+        else
+          eta_T = eta
+        end if
 
         if (include_bootstrap) then
           call bootstrap_current(R, Z, ES%R_axis, ES%Z_axis, ES%psi_axis, ES%R_xpoint, ES%Z_xpoint, ES%psi_bnd, psi_norm,&
@@ -1103,8 +1108,8 @@ do i=1,element_list%n_elements
                   - xjac_y * (- w_s * R_t + w_t * R_s )  / xjac**2
 
             ! --- Full toroidal electric field evaluated at t_now - dt/2
-            E_R   = E_R   - F0 * (U_x - 0.5d0*dU_x)
-            E_Z   = E_Z   - F0 * (U_y - 0.5d0*dU_y)
+            E_R   = E_R   - F0*(U_x-0.5d0*dU_x)*HZ(i_tor,i_plane)
+            E_Z   = E_Z   - F0*(U_y-0.5d0*dU_y)*HZ(i_tor,i_plane) 
             E_phi = E_phi - dpsi/tstep * HZ(i_tor,i_plane)/BigR - F0*(U-0.5d0*dU)*HZ_p(i_tor,i_plane)/BigR 
 
           endif ! xjac
@@ -1246,16 +1251,10 @@ enddo  ! n_elements
         T_real8 = scalars(i,var_Te)
         Te_corr_eV = corr_neg_temp(T_real8*2.d0)/(2.d0*EL_CHG*MU_ZERO*central_density*1.d20)
         Te_eV = T_real8/(EL_CHG*MU_ZERO*central_density*1.d20)
-        T_or_Te      = T_real8 
-        T_or_Te_corr = corr_neg_temp(T_real8*2.d0)/2.d0
-        T_or_Te_0    = Te_0
       else
         T_real8 = scalars(i,var_T)
         Te_corr_eV = corr_neg_temp(T_real8)/(2.d0*EL_CHG*MU_ZERO*central_density*1.d20)
         Te_eV = T_real8/(2.d0*EL_CHG*MU_ZERO*central_density*1.d20)
-        T_or_Te      = T_real8 
-        T_or_Te_corr = corr_neg_temp(T_real8)
-        T_or_Te_0    = T_0
       endif
 
 #if (defined WITH_Neutrals) 
@@ -1275,16 +1274,21 @@ enddo  ! n_elements
                                   LradDcont_T, dLradDcont_dT, LradDrays_T, dLradDrays_dT,r0_real8,rn0_real8,.true. ) 
       endif
 
-      call coulomb_log_ei(T_or_Te, T_or_Te_corr, rho, corr_neg_dens1(rho), 0.0, 0.0, 0.0, lnA)
-      call resistivity(eta, T_or_Te, T_or_Te_corr, T_max_eta, T_or_Te_0, 1.d0, lnA, eta_Sp)           
+
+      eta_Sp = 1.65d-9*17*(1.d-3*Te_corr_eV)**(-1.5d0) &
+                              *(central_mass*MASS_PROTON*central_density * 1.d20/MU_ZERO)**(0.5d0)
 
       scalars(i,ineu(1)) = ksiion * scalars(i,var_rho) * scalars(i,var_rhon) * Sion_T
       scalars(i,ineu(2)) = scalars(i,var_rho) * scalars(i,var_rhon) * LradDrays_T
       scalars(i,ineu(3)) = LradDcont_T * scalars(i,var_rho)**2.d0
 #ifdef fullmhd
       scalars(i,ineu(4)) = 0.d0   ! NEEDS BE CALCULATED FOR FULL MHD ELESEWHERE! 
-#else /* not fullmhd */ 
-      scalars(i,ineu(4)) = (2/(3 * BigR**2)) * eta_Sp * scalars(i,var_zj)**2.d0
+#else /* not fullmhd */
+#ifdef WITH_Refluid
+      scalars(i,ineu(4)) = (2/(3 * BigR**2)) * eta_Sp * ( scalars(i,var_zj) - Vlight * F0 / (Btot*BigR) * scalars(i,var_nre) )**2.d0
+#else
+      scalars(i,ineu(4)) = (2/(3 * BigR**2)) * eta_Sp * scalars(i,var_zj) **2.d0
+#endif
 #endif
 #endif /* with neutrals */
       
@@ -1357,18 +1361,15 @@ enddo  ! n_elements
        T_real8 = scalars(i,var_Te)
        Te_corr_eV = corr_neg_temp(T_real8*2.d0)/(2.d0*EL_CHG*MU_ZERO*central_density*1.d20)
        Te_eV = T_real8/(EL_CHG*MU_ZERO*central_density*1.d20)
-       T_or_Te      = T_real8 
-       T_or_Te_corr = corr_neg_temp(T_real8*2.d0)/2.d0
-       T_or_Te_0    = Te_0
      else
        T_real8 = scalars(i,var_T)
        Te_corr_eV = corr_neg_temp(T_real8)/(2.d0*EL_CHG*MU_ZERO*central_density*1.d20)
        Te_eV = T_real8/(2.d0*EL_CHG*MU_ZERO*central_density*1.d20)
-       T_or_Te      = T_real8 
-       T_or_Te_corr = corr_neg_temp(T_real8)
-       T_or_Te_0    = T_0
      endif
      
+     eta_Sp = 1.65d-9*17*(1.d-3*Te_corr_eV)**(-1.5d0) &
+                        *(central_mass*MASS_PROTON*central_density * 1.d20/MU_ZERO)**(0.5d0)
+
      r0_real8 = scalars(i,var_rho)
      rimp0_real8 = scalars(i,var_rhoimp)
 
@@ -1436,9 +1437,11 @@ enddo  ! n_elements
 
      scalars(i,iimp(5)) = Z_eff
 
-     call coulomb_log_ei(T_or_Te, T_or_Te_corr, r0_real8, r0_corr, rimp0_real8, rimp0_corr, &
-                          beta_imp, lnA)
-     call resistivity(eta, T_or_Te, T_or_Te_corr, T_max_eta, T_or_Te_0, Z_eff, lnA, eta_Sp)           
+     ! This is to represent the dependence on Z_eff in resistivity
+     eta_coef = Z_eff*(1.+1.198*Z_eff+0.222*Z_eff**2)/(1.+2.966*Z_eff+0.753*Z_eff**2) 
+     eta_coef = eta_coef / ((1.+1.198+0.222)/(1.+2.966+0.753))
+
+     eta_Sp = eta_Sp * eta_coef
 
   !-------------------------------------------
   ! --- Radiative function, using interpolation
@@ -1472,7 +1475,11 @@ enddo  ! n_elements
      end do
      scalars(i,iimp(1)) = (2./3.) * scalars(i,var_rhoimp) * E_ion
      scalars(i,iimp(2)) = (r0_corr+beta_imp*rimp0_corr) * rimp0_corr * Lrad
-     scalars(i,iimp(3)) = (2./(3. * BigR**2)) * eta_Sp * scalars(i,var_zj)**2.d0
+#ifdef WITH_Refluid
+     scalars(i,iimp(3)) = (2./(3. * BigR**2)) * eta_Sp * ( scalars(i,var_zj) - Vlight * F0 / (Btot*BigR) * scalars(i,var_nre) )**2.d0
+#else
+     scalars(i,iimp(3)) = (2./(3. * BigR**2)) * eta_Sp * scalars(i,var_zj) **2.d0
+#endif
      scalars(i,iimp(4)) = Z_imp
      scalars(i,iimp(5)) = Z_eff
      scalars(i,iimp(6)) = beta_imp
@@ -1605,6 +1612,12 @@ if (SI_units) then
     !===================================== Impurity density in 1e20m-3
     scalars(i,var_rhoimp) = scalars(i,var_rhoimp) * central_density * m_i_over_m_imp
 #endif
+
+#ifdef WITH_Refluid
+    !===================================== RE density in m-3
+    scalars(i,var_nre) = scalars(i,var_nre) * sqrt(rho_norm / MU_zero) / EL_CHG / BigR 
+#endif
+
     !=====================Pressure in kPa
     if (include_fluxes) scalars(i,i_flux(1)) = scalars(i,i_flux(1)) / MU_zero/1.e3
     if (include_neo) then
@@ -1675,8 +1688,11 @@ if (SI_units) then
       scalars(i,ineu(2)) = scalars(i,var_rho)* 1.d20 * scalars(i,var_rhon) * 1.d20 * LradDrays_T/ coef_rad_1
 
       scalars(i,ineu(3)) = LradDcont_T * (scalars(i,var_rho)*1.d20)**2.d0 / coef_rad_1
-
-      scalars(i,ineu(4)) = eta_Sp * (1.d6*scalars(i,var_zj))**2.d0
+#ifdef WITH_Refluid
+      scalars(i,ineu(4)) = eta_Sp * (1.d6* (scalars(i,var_zj) + vpar_re_sign * SPEED_OF_LIGHT * EL_CHG * scalars(i,var_nre) * 1.d-6 ) )**2.d0
+#else
+      scalars(i,ineu(4)) = eta_Sp * (1.d6* scalars(i,var_zj))**2.d0
+#endif
 #endif /* WITH_Neutrals but not WITH_Impurities */
       !--------------------------------------------------------
       ! --- Radiation from background impurity

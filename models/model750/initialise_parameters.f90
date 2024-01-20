@@ -3,7 +3,6 @@ subroutine initialise_parameters(my_id, filename)
 
 use tr_module
 use phys_module
-use mod_plasma_functions, only: initialise_reference_parameters
 use vacuum
 use live_data
 use pellet_module
@@ -21,16 +20,14 @@ integer :: ierr, err, i
 namelist /in1/  tstep, nstep, tstep_n, nstep_n,                     &
                 rst_hdf5, rst_hdf5_version, keep_current_prof,      &
                 restart, regrid, write_ps, time_evol_theta,         &
-                regrid_from_rz,                                     &
                 time_evol_zeta, force_horizontal_Xline,             &
                 Mach1_openBC, thermalization, Mach1_fix_B,          &
                 eta_ARAZ_const, eta_ARAZ_on, eta_ARAZ_simple,       & 
                 tauIC_ARAZ_on,                                      &
                 n_tor_fft_thresh, fix_axis_nodes,                   &
                 n_R, n_Z, n_radial, n_pol, n_tht, n_flux,           &
-                n_open, n_private, n_leg, n_leg_out, n_ext,         &
-                n_outer, n_inner, n_up_priv, n_up_leg, n_up_leg_out,&
-                n_tht_equidistant,                                  &
+                n_open, n_private, n_leg,                           &
+                n_outer, n_inner, n_up_priv, n_up_leg,              &
                 psi_axis_init, XR_r, SIG_r, XR_tht, SIG_tht,        &
                 SIG_closed, SIG_open, SIG_private, SIG_theta,       &
                 SIG_leg_0, SIG_leg_1, dPSI_open, dPSI_private,      &
@@ -155,20 +152,7 @@ namelist /in1/  tstep, nstep, tstep_n, nstep_n,                     &
                 autodistribute_modes, modes_per_family,             &
                 mode_families_modes, n_mode_families,               &
                 weights_per_family, autodistribute_ranks,           &
-                ranks_per_family,                                   &                
-                use_sc, add_sources_in_sc, visco_sc_num,            &
-                D_perp_sc_num, D_par_sc_num, ZK_perp_sc_num,        &
-                ZK_par_sc_num, ZK_i_perp_sc_num, ZK_i_par_sc_num,   &
-                ZK_e_perp_sc_num, ZK_e_par_sc_num, visco_par_sc_num,&
-                Dn_pol_sc_num, Dn_p_sc_num, D_perp_imp_sc_num,      &
-                D_par_imp_sc_num, use_vms,                          &
-                vms_coeff_AR, vms_coeff_AZ, vms_coeff_A3,           &
-                vms_coeff_UR, vms_coeff_UZ, vms_coeff_Up,           &
-                vms_coeff_rho, vms_coeff_Ti, vms_coeff_Te,          &
-                vms_coeff_T, vms_coeff_rhon, vms_coeff_rhoimp,      &
-                vacuum_min, strumpack_matching,                     &
-                forceSDN, SDN_threshold, eta_coul_log_dep
-
+                ranks_per_family                
 
 if (my_id .eq. 0) then
 
@@ -241,7 +225,6 @@ if (my_id .eq. 0) then
   else
     gamma_i_stangeby = gamma_sheath_i / (gamma-1.d0) + 1.d0 + gamma
   end if
-
 
   if (sum(nstep_n) .gt. 0) then
     nstep = sum(nstep_n)
@@ -338,8 +321,6 @@ if ( my_id == 0 ) then
     write(*,*)  "while injecting background species! Should be fixed soon. EXITING!"
     stop
   endif
-
-  call initialise_reference_parameters()
 
 endif
 

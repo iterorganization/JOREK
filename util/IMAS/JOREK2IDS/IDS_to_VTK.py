@@ -140,7 +140,7 @@ def visualise():
             #values
             try:
                 ids_r = data_entry.get("radiation")
-                data_r = ids_r.process[0].ggd.array[slice]
+                data_r = ids_r.process[0].ggd.array[0]
                 radiation = True
             except:
                 radiation = False
@@ -178,13 +178,9 @@ def visualise():
 
             n_val = len(nam)
             a = np.shape(val_tor1)
-            n_tor = int(a[1]/len(xyz0))
-            print("n_tor = "+ str(n_tor))
-    
-
-            valu   = np.reshape(val_tor1, (n_val, n_tor, len(xyz0), 4))
-            values = np.swapaxes(valu, 2, 3)   # (n_val, n_tor, 4, n_pol_nodes)
-            values = np.swapaxes(values, 1, 2) # (n_val, 4, n_tor, n_pol_nodes)
+            n_tor = a[1]
+            valu = np.reshape(val_tor1, (n_val, n_tor, 4, len(xyz0)))
+            values = np.swapaxes(valu, 1, 2)
 
             #vertex
             ien0 = np.array(ids.grid_ggd.array[0].space.array[0].objects_per_dimension.array[2].object.array)

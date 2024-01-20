@@ -3,11 +3,11 @@ module mod_model_settings
 
 implicit none
 
-logical, parameter :: with_vpar       = .true.
+logical, parameter :: with_vpar       = .false.
 logical, parameter :: with_TiTe       = .false.
 logical, parameter :: with_neutrals   = .false. 
 logical, parameter :: with_impurities = .false.
-logical, parameter :: with_refluid    = .false. ! not yet possible to switch
+logical, parameter :: with_refluid    = .false. 
 
 
 ! ##################################################################################################
@@ -16,7 +16,7 @@ logical, parameter :: with_refluid    = .false. ! not yet possible to switch
 
 
 ! The following line is needed by ./util/config.sh:
-! #SETTINGS# with_vpar with_TiTe with_neutrals with_impurities
+! #SETTINGS# with_vpar with_TiTe with_neutrals with_impurities with_refluid
 
 integer, parameter :: jorek_model     = 600
 
@@ -79,12 +79,13 @@ integer,  parameter :: n_terms_u    = 11
 integer,  parameter :: n_terms_zj   = 1
 integer,  parameter :: n_terms_w    = 1
 integer,  parameter :: n_terms_rho  = 12
-integer,  parameter :: n_terms_T    = 21
+integer,  parameter :: n_terms_T    = 20
 integer,  parameter :: n_terms_Te   = 19
-integer,  parameter :: n_terms_Ti   = 14
+integer,  parameter :: n_terms_Ti   = 13
 integer,  parameter :: n_terms_vpar = 10
 integer,  parameter :: n_terms_rhon = 7
 integer,  parameter :: n_terms_rhoimp = 10
+integer,  parameter :: n_terms_nre = 9
 
 character*36, dimension(n_var, max_terms) :: term_names
 character*36, dimension(n_terms_psi),  parameter :: Psi_term_names=  &
@@ -147,8 +148,7 @@ character*36, dimension(n_terms_T),     parameter :: T_term_names=  &
                                                  'T_Eq__imp_ionization   ', &  ! 17:
                                                  'T_Eq__power_teleported ', &  ! 18:
                                                  'T_Eq__viscopar_heating ', &  ! 19:
-                                                 'T_Eq__impl_heating     ', &  ! 20:
-                                                 'T_Eq__visco_heating    '/)   ! 21:
+                                                 'T_Eq__impl_heating     '/)   ! 20:
 
 character*36, dimension(n_terms_Ti),    parameter :: Ti_term_names=  &
                                               (/ 'Ti_Eq__ext_heat_source ', &  !  1:
@@ -163,8 +163,7 @@ character*36, dimension(n_terms_Ti),    parameter :: Ti_term_names=  &
                                                  'Ti_Eq__neutral_friction', &  ! 10:
                                                  'Ti_Eq__TiTe_energy_exch', &  ! 11:
                                                  'Ti_Eq__viscopar_heating', &  ! 12:
-                                                 'Ti_Eq__implicit_heating', &  ! 13:
-                                                 'Ti_Eq__visco_heating   '/)   ! 14:
+                                                 'Ti_Eq__implicit_heating'/)   ! 13:
 
 character*36, dimension(n_terms_Te),    parameter :: Te_term_names=  &
                                               (/ 'Te_Eq__ext_heat_source ', &  !  1:
@@ -221,6 +220,19 @@ character*36, dimension(n_terms_vpar),  parameter :: vpar_term_names=  &
                                                  'rhoimp_Eq__zeta_time_evol  ', &  !  9:
                                                  'rhoimp_Eq__Dn_perp_num_term'/)   ! 10:
 
+ character*36, dimension(n_terms_nre), parameter :: nre_term_names=  &
+                                              (/ 'nre_Eq__zeta_timevol_term ', &  !  1:
+                                                 'nre_Eq__ExB_advection     ', &  !  2:
+                                                 'nre_Eq__Parallel_advec    ', &  !  3:
+                                                 'nre_Eq__Parallel_diffusion', &  !  4:
+                                                 'nre_Eq__Perp_diffusion    ', &  !  5:
+                                                 'nre_Eq__TG_num_term       ', &  !  6:
+                                                 'nre_Eq__Tritium           ', &  !  7:
+                                                 'nre_Eq__Compton           ', &  !  8:
+                                                 'nre_Eq__Avalanche         '/)   !  9:
+
+
+
 contains
 
 
@@ -257,6 +269,8 @@ subroutine assign_term_names()
       term_names(k_var, 1:n_terms_rhon) = rhon_term_names(:)
     else if (k_var == var_rhoimp) then
       term_names(k_var, 1:n_terms_rhoimp) = rhoimp_term_names(:)
+    else if (k_var == var_nre) then
+      term_names(k_var, 1:n_terms_nre) = nre_term_names(:)
     endif
 
   enddo
@@ -291,7 +305,7 @@ elemental pure logical function ext_available(i_ext)
   else if ( i_ext == i_ext_impurities ) then
     ext_available = .true.
   else if ( i_ext == i_ext_refluid ) then
-    ext_available = .false.
+    ext_available = .true.
   end if
   
 end function ext_available
@@ -322,7 +336,7 @@ pure logical function ext_compatible(i_ext1, i_ext2)
   
   ! --- exceptions for compatibility
   if ( ( iext1 == i_ext_TiTe ) .and. ( iext2 == i_ext_refluid ) ) then
-    ext_compatible = .false. ! ### just an example
+    ext_compatible = .false. ! ###TODO: RE fluid adaptations for two temperatures still missing
   end if
   
 end function ext_compatible

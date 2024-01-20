@@ -598,19 +598,15 @@ do ms=1, n_gauss
      end if     	 
 
      ! --- Temperature dependent viscosity
-     if ( visco_T_dependent ) then
-       visco_T     =   visco * (T0_corr/T_0)**(-1.5d0)
-       dvisco_dT   = - visco * (1.5d0)  * T0_corr**(-2.5d0) * T_0**(1.5d0) * dT0_corr_dT
-       if (T0_corr .lt. T_min) then
-         visco_T     = visco  * (T_min/T_0)**(-1.5d0)
-         dvisco_dT   = 0.d0
-       elseif (T0_corr .gt. T_max_visco) then
-         visco_T     = visco  * (T_max_visco/T_0)**(-1.5d0)
-         dvisco_dT   = 0.d0
-       endif
+     if ( visco_T_dependent .and. T0_corr <= T_max_eta ) then       
+       visco_T   = visco * (T0_corr/T_0)**(-1.5d0)
+       dvisco_dT = - visco * (1.5d0)  * T0_corr**(-2.5d0) * T_0**(1.5d0) * dT0_corr_dT
+     else if (visco_T_dependent .and. T0_corr > T_max_eta) then
+       visco_T   = visco * (T_max_eta/T_0)**(-1.5d0)
+       dvisco_dT = 0.
      else
-       visco_T     = visco
-       dvisco_dT   = 0.d0
+       visco_T   = visco
+       dvisco_dT = 0.d0
      end if
      
      ! --- Temperature dependent parallel heat diffusivity
@@ -619,10 +615,6 @@ do ms=1, n_gauss
        dZKpar_dT = ZK_par * (2.5d0)  * T0_corr**(+1.5d0) * T_0**(-2.5d0) * dT0_corr_dT
        if (ZKpar_T .gt. ZK_par_max) then
          ZKpar_T   = Zk_par_max
-         dZKpar_dT = 0.d0
-       endif
-       if (T0_corr .lt. T_min_ZKpar) then
-         ZKpar_T = ZK_par * (T_min_ZKpar/T_0)**(+2.5d0)
          dZKpar_dT = 0.d0
        endif
      else

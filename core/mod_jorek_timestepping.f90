@@ -157,7 +157,7 @@ subroutine setup_solvers(this, sim)
   
     call get_vacuum_response(sim%my_id, sim%fields%node_list, bnd_elm_list, bnd_node_list, freeboundary_equil, resistive_wall)
 
-    call update_response(sim%my_id,get_tstep_n(1), resistive_wall)
+    call update_response(sim%my_id,get_tstep_n(1), freeboundary_equil, resistive_wall)
     
     call import_external_fields('coil_field.dat', sim%my_id)
     
@@ -287,8 +287,6 @@ subroutine do_jorek_timestep(this, sim, ev)
   character*14   :: fileout
   integer        :: i, n_spi_begin
 
-  real*8,dimension(n_var) :: varmin,varmax
-
   call init_expr()
   allocate(res(exprs_all_int%n_expr+1))
   res = 0.d0  
@@ -333,7 +331,7 @@ subroutine do_jorek_timestep(this, sim, ev)
   call clck_time_barrier(t_itstart)
   t0 = t_itstart
 
-  if ( freeboundary ) call update_response(sim%my_id,dt_jorek, resistive_wall)
+  if ( freeboundary ) call update_response(sim%my_id,dt_jorek, freeboundary_equil, resistive_wall)
 
   call update_equil_state(sim%my_id, sim%fields%node_list, sim%fields%element_list, bnd_elm_list, xpoint, xcase )
   this%es = ES
@@ -357,7 +355,7 @@ subroutine do_jorek_timestep(this, sim, ev)
   if (use_pellet) then            ! calculating the pellet_volume (total_pellet_volume)
     pellet_volume = PI * pellet_radius**2 * 2.d0 * PI * pellet_R * (pellet_phi/PI)
     call Integrals_3D(sim%my_id, sim%fields%node_list, sim%fields%element_list, density_tot,density_in,density_out,pressure_tot,pressure_in,pressure_out, &
-                                                                    kin_par_tot, kin_par_in, kin_par_out, mom_par_tot,mom_par_in, mom_par_out,varmin,varmax)
+                                                                                kin_par_tot, kin_par_in, kin_par_out, mom_par_tot, mom_par_in, mom_par_out)
   endif
 
   this%mhd_sim%es => es ! assign pointer to the equilibrium state

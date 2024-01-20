@@ -50,11 +50,11 @@ module exec_commands
   
   character(len=1024)                :: input_file
   logical,             private, save :: input_loaded  = .false. !< Has an input file been loaded?
-  logical,                      save :: step_imported = .false. !< Has a restart file been imported?
+  logical,             private, save :: step_imported = .false. !< Has a restart file been imported?
   logical,             private, save :: dir_created   = .false. !< Postproc directory created?
   logical,             private, save :: verbose
   logical,             private, save :: debug
-  type(t_expr_list),            save :: expr_list, expr_list_four
+  type(t_expr_list),   private, save :: expr_list, expr_list_four
   real*8, allocatable, private, save :: result(:,:,:,:), res2d(:,:,:), res1d(:,:), res0d(:), the_sum(:)
   complex*16, allocatable, private, save :: cp(:,:,:,:)
   real*8,              private, save :: time_now !< Time of current restart file in selected units
@@ -66,9 +66,7 @@ module exec_commands
   
   
   private
-  public exec_command, general_help, specific_help, clean_up, average, expr_list, step_imported, qprofile, &
-         zeroD_quantities, separatrix, rectangle
-
+  public exec_command, general_help, specific_help, clean_up
   
   
   
@@ -305,7 +303,7 @@ module exec_commands
     
     ierr = 0
     
-    write(file_name,'(a,i5.5)') 'jorek', istep
+    write(file_name,'(a,i6.6)') 'jorek', istep
     if ( rst_hdf5 .ne. 0 ) then
       inquire (file=trim(file_name)//'.h5', exist=file_exists)
     else
@@ -317,7 +315,7 @@ module exec_commands
     end if
     
     write(*,*)
-    write(*,'(a,i5.5,a)') '#################### TIME STEP ', istep, ' ####################'
+    write(*,'(a,i6.6,a)') '#################### TIME STEP ', istep, ' ####################'
     write(*,*)
     
     ! --- Load the restart file
@@ -571,10 +569,10 @@ module exec_commands
       allocate(available_steps(100000))
       do istep = 0, 99999
         if ( rst_hdf5 .ne. 0 ) then
-          write (file_name,'(a, i5.5, a)') 'jorek', istep, '.h5'
+          write (file_name,'(a, i6.6, a)') 'jorek', istep, '.h5'
           inquire (file=file_name, exist=file_exists)
         else
-          write (file_name,'(a, i5.5, a)') 'jorek', istep, '.rst'
+          write (file_name,'(a, i6.6, a)') 'jorek', istep, '.rst'
           inquire (file=file_name, exist=file_exists)
         end if
 
@@ -585,7 +583,7 @@ module exec_commands
       end do
 
       ! --- Get xtime from the restart file with the highest step number
-      write (file_name,'(a, i5.5)') 'jorek', available_steps(n_avail)
+      write (file_name,'(a, i6.6)') 'jorek', available_steps(n_avail)
       call import_restart(node_list, element_list, file_name, rst_format, ierr, .true.)
       if ( ierr /= 0 ) return
 
@@ -630,7 +628,7 @@ module exec_commands
           n_select                 = n_select+1
           selected_steps(n_select) = temp_select
 
-          write(*,'(a, i5.5, a,f13.6)') 'Selected Step: ', selected_steps(n_select),&
+          write(*,'(a, i6.6, a,f13.6)') 'Selected Step: ', selected_steps(n_select),&
           ' at t=',xtime(selected_steps(n_select))
           write(*,'(a,f13.6,a)') '                        (=',xtime(selected_steps(n_select))*loop_fact_Time*1000,' ms)'
         end if
@@ -668,7 +666,7 @@ module exec_commands
     end do
     
     if ( first_step ) then
-      write(*,'(a,i5.5,a,i5.5,a)') 'WARNING: There were no restart files for steps ',              &
+      write(*,'(a,i6.6,a,i6.6,a)') 'WARNING: There were no restart files for steps ',              &
         loop_min_step, ' to ', loop_max_step, '.'
     end if
     
@@ -781,10 +779,10 @@ module exec_commands
     
     write(*,'(a)') 'Available restart files:'
     do i = 0, 99999
-      write (filename,'(a, i5.5, a)') 'jorek', i, '.rst'
+      write (filename,'(a, i6.6, a)') 'jorek', i, '.rst'
       inquire (file=filename, exist=file_exists)
       if (file_exists) write(*,'(i6)',advance='no') i
-      write (filename,'(a, i5.5, a)') 'jorek', i, '.h5'
+      write (filename,'(a, i6.6, a)') 'jorek', i, '.h5'
       inquire (file=filename, exist=file_exists)
       if (file_exists) write(*,'(i6)',advance='no') i
     end do
@@ -1065,9 +1063,9 @@ module exec_commands
     end if
 
     if ( min_step /= max_step ) then
-      write(step_range_string,'(a,i5.5,a,i5.5)') prefix, min_step, '..', max_step
+      write(step_range_string,'(a,i6.6,a,i6.6)') prefix, min_step, '..', max_step
     else
-      write(step_range_string,'(a,i5.5)') prefix, min_step
+      write(step_range_string,'(a,i6.6)') prefix, min_step
     end if
 
   end function step_range_string
@@ -1539,7 +1537,7 @@ module exec_commands
   
   
   !> Expressions in a rectangular area.
-  subroutine rectangle(command, first_step, ierr, only_n0, res2D_out)
+  subroutine rectangle(command, first_step, ierr)
     
     use mod_position, only: pol_pos, tor_pos
     
@@ -1547,14 +1545,10 @@ module exec_commands
     type(type_command), intent(in)  :: command     !< Command to be executed
     logical,            intent(in)  :: first_step  !< First time step of a for loop?
     integer,            intent(out) :: ierr        !< Error flag
-    logical, optional,  intent(in)  :: only_n0     !< Only use n=0 component
-    
-    real*8, allocatable, optional, intent(inout) :: res2D_out(:,:,:)
     
     ! --- Local variables
     real*8  :: Rmin, Rmax, Zmin, Zmax, phi
     integer :: nR, nZ, units
-    logical :: just_n0
     character(len=1024) :: filename, comment
     
     ierr = 0
@@ -1579,26 +1573,13 @@ module exec_commands
       trim(step_range_string(index_now,index_now)), '.h5'
       
     comment = 'Output produced by jorek2_postproc command "rectangle"'
-
-    just_n0 = .false.
-    if (present(only_n0)) then
-      just_n0 = only_n0
-    endif
     
     call eval_expr(ES, units, expr_list,                                                           &
        pol_pos(node_list,element_list,ES,Rmin=Rmin,Rmax=Rmax,nR=nR,Zmin=Zmin,Zmax=Zmax,nZ=nZ),     &
-       tor_pos(phi=phi), result, ierr,only_n0=just_n0)
+       tor_pos(phi=phi), result, ierr)
     
     call reduce_result_to_2d(ierr, result, res2d, i1=1)
-
-    if (.not. present(res2D_out)) then
-      call write_hdf5_2d(ierr, expr_list, res2d, trim(filename), comment=trim(comment), include_time=.true.)
-    endif
-
-    if (present(res2D_out)) then
-      allocate(res2D_out(size(res2d,1), size(res2d,2),size(res2d,3)))
-      res2D_out = res2d
-    endif
+    call write_hdf5_2d(ierr, expr_list, res2d, trim(filename), comment=trim(comment), include_time=.true.)
     
     if ( allocated(result) ) deallocate(result)
     if ( allocated(res2d ) ) deallocate(res2d )
@@ -1740,17 +1721,15 @@ module exec_commands
 
 
   !> Toroidally and poloidally averaged expressions.
-  subroutine average(command, first_step, ierr, res1d_tmp, flux_av)
+  subroutine average(command, first_step, ierr)
     
     ! --- Routine parameters
     type(type_command), intent(in)  :: command     !< Command to be executed
     logical,            intent(in)  :: first_step  !< First time step of a for loop?
     integer,            intent(out) :: ierr        !< Error flag
-    real*8, allocatable, optional, intent(out) :: res1d_tmp(:,:)
-    logical, optional, intent(in)   :: flux_av     !< Perform proper flux average
     
     ! --- Local variables
-    integer :: units, npts, nsmall, i_exp
+    integer :: units, npts, nsmall
     character(len=1024) :: filename, comment
     type(t_pol_pos_list), save :: pol_pos_list
     type(t_tor_pos_list), save :: tor_pos_list
@@ -1773,32 +1752,15 @@ module exec_commands
     pol_pos_list = pol_pos(node_list, element_list, ES, nPsiN=npts, nTht=max(150,6*n_plane),                &
       nsmallsteps=nsmall)
     tor_pos_list = tor_pos(nphi=max(n_plane,2))
-
-    if (present(flux_av)) then
-      call add(expr_list, 'unity       ', 'Just unity, used to get R^2 average                   ')
-    endif
-
-    call eval_expr(ES, units, expr_list, pol_pos_list, tor_pos_list, result, ierr, flux_av)
+    
+    call eval_expr(ES, units, expr_list, pol_pos_list, tor_pos_list, result, ierr)
     call apply_four_filter(result, simple_filter(m=0,n=0), expr_list%n_coord, ierr)
     call reduce_result_to_1d(ierr, result, res1d, i1=1, i2=1)
-
-    if (present(flux_av)) then 
-      if (flux_av) then
-        do i_exp=1, expr_list%n_expr
-          res1d(:,i_exp) = res1d(:,i_exp) / res1d(:,expr_list%n_expr)  ! Need to normalize for flux average
-        enddo
-      endif      
-    endif
     
-    if (present(res1d_tmp)) then
-      allocate( res1d_tmp(size(res1d,1),size(res1d,2)) )
-      res1d_tmp = res1d
-    else
-      write(comment,'(a,i6.6)') 'time step #', index_now
+    write(comment,'(a,i6.6)') 'time step #', index_now
     
-      call write_ascii_1d(ierr, ES, expr_list, res1d, FORM_TABLE, header=.true.,                     &
-        filename=trim(filename), append=(.not.first_step), blanks=.true., comment=trim(comment))
-    endif
+    call write_ascii_1d(ierr, ES, expr_list, res1d, FORM_TABLE, header=.true.,                     &
+      filename=trim(filename), append=(.not.first_step), blanks=.true., comment=trim(comment))
     
   end subroutine average
   
@@ -2079,7 +2041,7 @@ module exec_commands
     integer :: units, i_file
     character(len=1024) :: filename, status, access
     real*8 :: aminor, Bgeo, current, beta_p, beta_t, beta_n, density, density_in, density_out,     &
-      pressure, pressure_in, pressure_out, heat_src_in, heat_src_out, part_src_in, part_src_out
+      pressure, pressure_in, pressure_out, heat_src_in, heat_src_out, part_src_in, part_src_out, recurrent
     real*8 :: fact_mu_zero, fact_ne
     
     ierr = 0
@@ -2106,7 +2068,7 @@ module exec_commands
     if ( first_step ) then
       write(i_file,'(a)') '#               time            pressure         pressure_in        ' //&
         'pressure_out             density          density_in         density_out              ' //&
-        'beta_n              beta_t              beta_p            current'
+        'beta_n              beta_t              beta_p            current            recurrent'
     end if
     
     if ( units == SI_UNITS ) then
@@ -2120,11 +2082,11 @@ module exec_commands
     call integrals(node_list, element_list, ES%R_axis, ES%Z_axis, ES%psi_axis, ES%R_xpoint,        &
       ES%Z_xpoint, ES%psi_xpoint, ES%psi_lim, aminor, Bgeo, current, beta_p, beta_t, beta_n,       &
       density, density_in, density_out, pressure, pressure_in, pressure_out, heat_src_in,          &
-      heat_src_out, part_src_in, part_src_out)
+      heat_src_out, part_src_in, part_src_out,recurrent)
     
     write(i_file,'(33es20.13)') time_now, pressure/fact_mu_zero, pressure_in/fact_mu_zero,         &
       pressure_out/fact_mu_zero, density*fact_ne, density_in*fact_ne, density_out*fact_ne, beta_n, &
-      beta_t, beta_p, current
+      beta_t, beta_p, current, recurrent
     
     close(i_file)
     
@@ -2239,13 +2201,12 @@ module exec_commands
 
  
   !> Output the q-profile as a function of Psi_N
-  recursive subroutine qprofile(command, first_step, ierr, q_out)
+  recursive subroutine qprofile(command, first_step, ierr)
   
     ! --- Routine parameters
     type(type_command), intent(in)  :: command     !< Command to be executed
     logical,            intent(in)  :: first_step  !< First time step of a for loop?
     integer,            intent(out) :: ierr        !< Error flag
-    real*8, optional, allocatable,intent(out) :: q_out(:) !< Option to export q-profile
 
     
     ! --- Local variables
@@ -2276,10 +2237,6 @@ module exec_commands
     call determine_q_profile(node_list, element_list, surface_list, ES%psi_axis, ES%psi_xpoint,    &
       ES%Z_xpoint, q, rad)
     
-    if (present(q_out)) then 
-      allocate(q_out(size(q,1)))
-      q_out = q
-    endif
 !    ! --- Clean up q-profile from "jumps" -- TODO: a better solution is needed
 !    do k = 5, 1, -1
 !      do i = k+1, npts-k
@@ -2302,11 +2259,9 @@ module exec_commands
       k = k2 + 1 ! to avoid first and last point of q-profile which often is bad
       res1d(k2,:) = (/ get_psi_n(surface_list%psi_values(k)) , q(k) /)
     end do
-
-    if (.not. present(q_out)) then
-      call write_ascii_1d(ierr, ES, tmp_expr_list, res1d, FORM_TABLE, header=.true.,                 &
-        filename=trim(filename), append=(.not.first_step), blanks=.true., comment=trim(comment))
-    endif
+    
+    call write_ascii_1d(ierr, ES, tmp_expr_list, res1d, FORM_TABLE, header=.true.,                 &
+      filename=trim(filename), append=(.not.first_step), blanks=.true., comment=trim(comment))
     
     ! --- Clean up.
     if ( allocated(surface_list%psi_values)    ) deallocate(surface_list%psi_values)
@@ -2523,7 +2478,7 @@ module exec_commands
 
   
 
-  subroutine zeroD_quantities(command, first_step, ierr, res_out)
+  subroutine zeroD_quantities(command, first_step, ierr)
 
     use mod_integrals3D_nompi
 
@@ -2531,8 +2486,6 @@ module exec_commands
     type(type_command), intent(in)  :: command     !< Command to be executed
     logical,            intent(in)  :: first_step  !< First time step of a for loop?
     integer,            intent(out) :: ierr        !< Error flag
-    
-    real*8, allocatable,optional, intent(inout) :: res_out(:) 
     
     ! --- Local variables
     integer :: i_file, i, units
@@ -2548,11 +2501,7 @@ module exec_commands
     units = get_int_setting('units', ierr)
 
     allocate(res(exprs_all_int%n_expr+1))
-    res = 0.d0  
-    if (present(res_out)) then
-      allocate(res_out(exprs_all_int%n_expr+1))
-      res_out = 0.d0
-    endif 
+    res = 0.d0   
  
     write(filename,'(4a)') trim(DIR), 'zeroD_quantities',  &
        trim(step_range_string(loop_min_step,loop_max_step)), '.dat'
@@ -2569,6 +2518,7 @@ module exec_commands
         iostat=ierr)
     
     if ( first_step ) then
+      write(i_file,'(a)',advance='no') '# time                   '
       do i = 1, exprs_all_int%n_expr
         s = trim(exprs_all_int%expr(i)%name)
         write(i_file,'(a)',advance='no') s
@@ -2577,12 +2527,10 @@ module exec_commands
     end if
     close(i_file)
  
-    call int3d_new(0, node_list, element_list, bnd_node_list, bnd_elm_list, exprs_all_int, res, units)        
+   call int3d_new(0, node_list, element_list, bnd_node_list, bnd_elm_list, exprs_all_int, res, units)        
 
-    if (.not. present(res_out)) then
-      call write_ascii_0d(ierr, ES, expr_list, res, FORM_TABLE, header=.false.,                   &
-        filename=filename, append=.true., blanks=.false.)
-    endif
+   call write_ascii_0d(ierr, ES, expr_list, res, FORM_TABLE, header=.false.,                   &
+     filename=filename, append=.true., blanks=.false.)
 
     i_file =1569    
     open(i_file, file='0D_quantities_list.txt', form='formatted', status=trim(status), access=trim(access),  &
@@ -2591,17 +2539,14 @@ module exec_commands
     if ( first_step ) then
       write(i_file,'(a)') 'Column |  Quantity                | Description'
       write(i_file,'(a)') '-------------------------------------------------------------------------------------'
+      write(i_file,'(1I6,2a)') 1,' |  ' ,'Time                    | Time'
       do i = 1, exprs_all_int%n_expr
         s    = trim(exprs_all_int%expr(i)%name)
         desc = trim(exprs_all_int%expr(i)%descr)
-        write(i_file,'(1I6,4a)') i,' |  ' ,s, ' | ', desc
+        write(i_file,'(1I6,4a)') i+1,' |  ' ,s, ' | ', desc
       end do
     end if
     close(i_file)
-
-    if (present(res_out)) then
-      res_out = res
-    endif
  
   end subroutine zeroD_quantities 
   
@@ -3335,7 +3280,7 @@ module exec_commands
     write(*,*) ''
     write(*,*) '  Writing non-zero terms to vtk...'
   
-    write (file_name,'(2a, i5.5, a)') trim(DIR),'RHS.', index_start, '.vtk'
+    write (file_name,'(2a, i6.6, a)') trim(DIR),'RHS.', index_start, '.vtk'
     call write_vtk(file_name,xyz,ien,9,scalar_names,scalars)
   
     write(*,*) '  Finished writing vtk'
@@ -3352,15 +3297,14 @@ module exec_commands
   end subroutine RHS_terms_vtk   
   
   !> Output the separatrix.
-  recursive subroutine separatrix(command, ierr, R_sep, Z_sep)
+  recursive subroutine separatrix(command, ierr)
   
     ! --- Routine parameters
     type(type_command), intent(in)  :: command     !< Command to be executed
     integer,            intent(out) :: ierr        !< Error flag
-    real*8, optional, allocatable, intent(inout) :: R_sep(:), Z_sep(:)
-
+    
     ! --- Local variables
-    integer                  :: i, j, i_elm, npts, ip, nplot, i_file, i_count
+    integer                  :: i, j, i_elm, npts, ip, nplot, i_file
     type (type_surface_list) :: surface_list
     character(len=1024)      :: filename, comment
     type(t_expr_list)        :: tmp_expr_list
@@ -3383,20 +3327,12 @@ module exec_commands
     allocate( surface_list%psi_values(1) )
     surface_list%psi_values(1) = ES%psi_bnd
     call find_flux_surfaces(0,xpoint, xcase, node_list, element_list, surface_list)
-
+    
     ! --- Write out flux surfaces
     nplot  = 5
     i_file = 111
     call open_ascii_file(ierr, i_file, filename, .false.)
     i = 1
-
-    if (present(R_sep) .and. present(Z_sep)) then
-      allocate(R_sep(surface_list%flux_surfaces(i)%n_pieces*nplot))
-      allocate(Z_sep(surface_list%flux_surfaces(i)%n_pieces*nplot))
-    endif
-
-    i_count = 0
-
     ! --- Loop over all segments of this flux surface
     do j=1,surface_list%flux_surfaces(i)%n_pieces
       
@@ -3426,13 +3362,6 @@ module exec_commands
           
         ! --- Write out the (R,Z)-coordinates
         write(i_file,'(2ES16.7)') R, Z
-
-        i_count = i_count + 1
-
-        if (present(R_sep) .and. present(Z_sep)) then
-          R_sep(i_count) = R
-          Z_sep(i_count) = Z
-        endif
       end do
       
       write(i_file,*)

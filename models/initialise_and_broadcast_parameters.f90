@@ -3,13 +3,13 @@ subroutine initialise_and_broadcast_parameters(my_id, filename)
   
   use constants, only: mu_zero
   use mod_parameters,  only: n_tor, n_period
-  use mod_plasma_functions, only: initialise_reference_parameters
   use phys_module
   
   implicit none
   
   ! --- Routine parameters
   integer,                      intent(in) :: my_id
+  real*8                                   :: rho0, Te0_keV, Ti0_keV, lnA
   character(len=*),             intent(in) :: filename
   
   call initialise_parameters(my_id, filename)
@@ -23,8 +23,27 @@ subroutine initialise_and_broadcast_parameters(my_id, filename)
   ! --- Initialize the time-stepping parameters.
   call update_time_evol_params()
   
-  ! --- Initialize derived reference parameters
-  call initialise_reference_parameters()
+  ! --- Calculate normalization factors.
+  rho0               = central_density * 1.d20 * central_mass * mass_proton
+  sqrt_mu0_rho0      = sqrt( mu_zero * rho0 )
+  sqrt_mu0_over_rho0 = sqrt( mu_zero / rho0 )
+
+  ! --- Calculate nominal parameters printed in the logfile for reference
+  if (with_TiTe) then
+    Te0_keV               = Te_0 / ( EL_CHG * mu_zero * central_density * 1.d+20 ) / 1.d+3
+    Ti0_keV               = Ti_0 / ( EL_CHG * mu_zero * central_density * 1.d+20 ) / 1.d+3
+    lnA                   = 14.9 - 0.5*log( central_density ) + log( Te0_keV )
+
+    ZK_e_par_SpitzerHaerm = 5.5789d+0 * central_mass*mass_proton/(mass_electron*lnA) * Te0_keV**(2.5d+0) * (gamma-1.d0) * sqrt_mu0_over_rho0
+    ZK_i_par_SpitzerHaerm = 5.8410d+2 * sqrt(central_mass/2.d+0)/(lnA)               * Ti0_keV**(2.5d+0) * (gamma-1.d0) * sqrt_mu0_over_rho0
+  else
+    Te0_keV               = T_0 / 2.d+0 / ( EL_CHG * mu_zero * central_density * 1.d+20 ) / 1.d+3
+    lnA                   = 14.9 - 0.5*log( central_density ) + log( Te0_keV )
+
+    ZK_par_SpitzerHaerm   = 5.5789d+0 * central_mass*mass_proton/(mass_electron*lnA) * Te0_keV**(2.5d+0) * (gamma-1.d0) * sqrt_mu0_over_rho0
+  end if
+  tauIC_nominal      = central_mass * mass_proton / ( EL_CHG * F0 * sqrt_mu0_rho0 * 2.d0 )
+  eta_Spitzer        = ( 1.65d-9 * lnA * Te0_keV**(-1.5d+0) ) / sqrt_mu0_over_rho0
 
   ! --- Assign minimum values for parallel conduction if not given
   if (T_min_ZKpar  < -1.d10) T_min_ZKpar  = T_min   

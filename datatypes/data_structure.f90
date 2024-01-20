@@ -121,6 +121,12 @@ module data_structure
 
      real*8, dimension(:), allocatable  :: synch_buff
   END TYPE type_thread_buffer
+  
+  type flat_injection
+    real*8 :: density_rise
+    real*8 :: rise_time
+    real*8 :: start_time
+  end type flat_injection
 
   !> One shard of a shattered pellet (or the complete pellet if unshattered)
   type type_SPI

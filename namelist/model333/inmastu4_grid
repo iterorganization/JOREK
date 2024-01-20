@@ -34,7 +34,6 @@
  fbnd(1)   = 2.
  fbnd(2:4) = 0.
  mf	   = 0
- eqdsk_psi_fact = -1.0
 
  tokamak_device = 'MAST-U'
  
@@ -287,7 +286,7 @@
  dPSI_private= 0.008 !0.004 
  dPSI_up_priv= 0.008 !0.004
 
- n_wall_blocks              = 10
+ n_wall_blocks              = 0!10
 
  ! --- First block (outer bottom)
  n_ext_block         ( 1)    = 30
@@ -450,6 +449,8 @@
  !              = 3.32e-27 / (2 * 1.60e-19 * 0.285) = 3.6e-8
  tauIC          = 0.d0 ! 9.e-09
  Wdia           = .f.
+ U_sheath       = .f.
+ renormalise    = .t.
  !bootstrap      = .t.
  bc_natural_open = .t.
  

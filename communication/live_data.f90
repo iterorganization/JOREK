@@ -189,9 +189,6 @@ module live_data
     if (allocated(thmwork_tot_t)) call tr_deallocate(thmwork_tot_t,"thmwork_tot_t",CAT_UNKNOWN)
     if (nstep .gt. 0) call tr_allocate(thmwork_tot_t,1,index_start+nstep,"thmwork_tot_t",CAT_UNKNOWN)
 
-    if (allocated(visco_dissip_tot_t)) call tr_deallocate(visco_dissip_tot_t,"visco_dissip_tot_t",CAT_UNKNOWN)
-    if (nstep .gt. 0) call tr_allocate(visco_dissip_tot_t,1,index_start+nstep,"visco_dissip_tot_t",CAT_UNKNOWN)
-
     if (allocated(viscopar_dissip_tot_t)) call tr_deallocate(viscopar_dissip_tot_t,"viscopar_dissip_tot_t",CAT_UNKNOWN)
     if (nstep .gt. 0) call tr_allocate(viscopar_dissip_tot_t,1,index_start+nstep,"viscopar_dissip_tot_t",CAT_UNKNOWN)
 
@@ -252,6 +249,12 @@ module live_data
     if (allocated(dpart_tot_dt)) call tr_deallocate(dpart_tot_dt,"dpart_tot_dt",CAT_UNKNOWN)
     if (nstep .gt. 0) call tr_allocate(dpart_tot_dt,1,index_start+nstep,"dpart_tot_dt",CAT_UNKNOWN)
 
+    if (allocated(re_current_t)) call tr_deallocate(re_current_t,"re_current_t",CAT_UNKNOWN)
+    if (nstep .gt. 0) call tr_allocate(re_current_t,1,index_start+nstep,"re_current_t",CAT_UNKNOWN)
+    
+    if (allocated(Ipre_tot_t)) call tr_deallocate(Ipre_tot_t,"Ipre_tot_t",CAT_UNKNOWN)
+    if (nstep .gt. 0) call tr_allocate(Ipre_tot_t,1,index_start+nstep,"Ipre_tot_t",CAT_UNKNOWN)
+
     return
   end subroutine allocate_live_data
   
@@ -291,7 +294,7 @@ module live_data
     write(LIVE_DATA_HANDLE,'(A,5ES17.9)') '@sqrt_mu0_over_rho0: ', sqrt_mu0_over_rho0
     write(LIVE_DATA_HANDLE,'(A,5ES17.9)') '@mu_zero: ', mu_zero
     write(LIVE_DATA_HANDLE,'(A)') '@plottable: energies magnetic_energies kinetic_energies growth_rates magnetic_growth_rates  &
-                                    kinetic_growth_rates times input_profiles axis current betas particlecontent thermalenergy &
+                                    kinetic_growth_rates times input_profiles axis current recurrent betas particlecontent thermalenergy &
                                     heatingpower particlesource diag_coil_curr pf_coil_curr rmp_coil_curr integrated_energies  &
                                     bnd_fluxes dEdt helicity dissipative_terms work_terms mag_energy_balance                   &
                                     Xpoint_up Xpoint_low bnd_point                                                             &
@@ -492,6 +495,19 @@ module live_data
     write(LIVE_DATA_HANDLE,'(A)') '@current: %"time"       "Total"    "Inside LCFS"   "Outside LCFS" '
     write(LIVE_DATA_HANDLE,*)
 
+#ifdef WITH_Refluid
+    write(LIVE_DATA_HANDLE,'(A,I5)') '@n_recurrent: ', 3 
+    write(LIVE_DATA_HANDLE,'(A)') '@recurrent_xlabel: normalized time'
+    write(LIVE_DATA_HANDLE,'(A)') '@recurrent_xlabel_si: time [ms]'
+    write(LIVE_DATA_HANDLE,'(A)') '@recurrent_ylabel: RE current [A]'
+    write(LIVE_DATA_HANDLE,'(A)') '@recurrent_ylabel_si: RE current [MA]'
+    write(LIVE_DATA_HANDLE,'(A,5ES17.9)') '@recurrent_x2si: ', sqrt_mu0_rho0*1.e3
+    write(LIVE_DATA_HANDLE,'(A,5ES17.9)') '@recurrent_y2si: ', 1.e-6
+    write(LIVE_DATA_HANDLE,'(A)') '@recurrent_logy: 0'
+    write(LIVE_DATA_HANDLE,'(A)') '@recurrent: %"time"       "Total"    "Inside LCFS"   "Outside LCFS" '
+    write(LIVE_DATA_HANDLE,*)    
+#endif
+
     write(LIVE_DATA_HANDLE,'(A,I5)') '@n_helicity: ', 1
     write(LIVE_DATA_HANDLE,'(A)') '@helicity_xlabel: normalized time'
     write(LIVE_DATA_HANDLE,'(A)') '@helicity_xlabel_si: time [ms]'
@@ -566,9 +582,9 @@ module live_data
     write(LIVE_DATA_HANDLE,*)
  
 #if (defined WITH_Neutrals) || (defined WITH_Impurities)
-    write(LIVE_DATA_HANDLE,'(A,I5)') '@n_dissipative_terms: ', 6
+    write(LIVE_DATA_HANDLE,'(A,I5)') '@n_dissipative_terms: ', 5
 #else
-    write(LIVE_DATA_HANDLE,'(A,I5)') '@n_dissipative_terms: ', 4
+    write(LIVE_DATA_HANDLE,'(A,I5)') '@n_dissipative_terms: ', 3
 #endif
     write(LIVE_DATA_HANDLE,'(A)') '@dissipative_terms_xlabel: normalized time'
     write(LIVE_DATA_HANDLE,'(A)') '@dissipative_terms_xlabel_si: time [ms]'
@@ -578,11 +594,10 @@ module live_data
     write(LIVE_DATA_HANDLE,'(A,5ES17.9)') '@dissipative_terms_y2si: ', 1.0
     write(LIVE_DATA_HANDLE,'(A)') '@dissipative_terms_logy: 0'
 #if (defined WITH_Neutrals) || (defined WITH_Impurities)
-    write(LIVE_DATA_HANDLE,'(A)') '@dissipative_terms: %"time"         "Ohmic power"   "Frictional heating"   "Perp. viscosity power"  &
-                                                    "Parallel viscosity power"  "Radiated power"  "Ionization power"'
+    write(LIVE_DATA_HANDLE,'(A)') '@dissipative_terms: %"time"         "Ohmic power"   "Frictional heating"   "Parallel viscosity power"  &
+                                                        "Radiated power"  "Ionization power"'
 #else
-    write(LIVE_DATA_HANDLE,'(A)') '@dissipative_terms: %"time"         "Ohmic power"   "Frictional heating"   "Perp. viscosity power"  &
-                                                    "Parallel viscosity power" '
+    write(LIVE_DATA_HANDLE,'(A)') '@dissipative_terms: %"time"         "Ohmic power"   "Frictional heating"   "Parallel viscosity power" '
 #endif
     write(LIVE_DATA_HANDLE,*)
 
@@ -702,9 +717,7 @@ module live_data
       li3_tot_t, part_src_tot_t, heat_src_tot_t, volume_t, area_t, mag_ener_src_tot, eta_ohmic, eta, &
       dpart_tot_dt, part_flux_Dpar_t, part_flux_Dperp_t, part_flux_vpar_t, part_flux_vperp_t, &
       dnpart_tot_dt, npart_tot_t, npart_flux_t, density_tot_t, flux_poynting_t, xtime_rad_power, &
-      xtime_E_ion_power, thermal_e_tot_t, thermal_i_tot_t, xtime_P_ei, visco_par, visco_par_heating, &
-      visco_dissip_tot_t, visco, visco_heating
-      
+      xtime_E_ion_power, Ipre_tot_t, re_current_t, thermal_e_tot_t, thermal_i_tot_t, xtime_P_ei, visco_par, visco_par_heating
 
 
     implicit none
@@ -786,6 +799,9 @@ module live_data
     write(LIVE_DATA_HANDLE,'(A,6ES17.9)') '@bnd_point: ', xtime(index), R_bnd_t(index), Z_bnd_t(index), Psi_bnd_t(index)
 
     write(LIVE_DATA_HANDLE,'(A,5ES17.9)') '@current: ', xtime(index), Ip_tot_t(index), current_t(index), Ip_tot_t(index)-current_t(index)
+#if (defined WITH_Refluid)
+    write(LIVE_DATA_HANDLE,'(A,5ES17.9)') '@recurrent: ', xtime(index), Ipre_tot_t(index), re_current_t(index), Ipre_tot_t(index)-re_current_t(index)
+#endif
     write(LIVE_DATA_HANDLE,'(A,5ES17.9)') '@betas: ', xtime(index), beta_p_t(index), beta_t_t(index), beta_n_t(index)
     write(LIVE_DATA_HANDLE,'(A,5ES17.9)') '@particlecontent: ', xtime(index),density_tot_t(index), density_in_t(index), density_out_t(index), &
                                                                 npart_tot_t(index)
@@ -801,13 +817,11 @@ module live_data
 
 #if (defined WITH_Neutrals) || (defined WITH_Impurities)
     if (index>1) then
-      write(LIVE_DATA_HANDLE,'(A,7ES17.9)') '@dissipative_terms: ', xtime(index-1), ohmic_tot_t(index-1), friction_dissip_tot_t(index-1), &
-                                                                    visco_dissip_tot_t(index-1),  viscopar_dissip_tot_t(index-1),         &
+      write(LIVE_DATA_HANDLE,'(A,6ES17.9)') '@dissipative_terms: ', xtime(index-1), ohmic_tot_t(index-1), friction_dissip_tot_t(index-1), viscopar_dissip_tot_t(index-1), &
                                                                     xtime_rad_power(index-1), xtime_E_ion_power(index-1)
     endif
 #else
-    write(LIVE_DATA_HANDLE,'(A,5ES17.9)') '@dissipative_terms: ', xtime(index), ohmic_tot_t(index), friction_dissip_tot_t(index), &
-                                                                  visco_dissip_tot_t(index),        viscopar_dissip_tot_t(index)
+    write(LIVE_DATA_HANDLE,'(A,4ES17.9)') '@dissipative_terms: ', xtime(index), ohmic_tot_t(index), friction_dissip_tot_t(index), viscopar_dissip_tot_t(index)
 #endif
 
     write(LIVE_DATA_HANDLE,'(A,5ES17.9)') '@mag_energy_src: ', xtime(index), mag_ener_src_tot(index)
@@ -823,11 +837,9 @@ module live_data
      write(LIVE_DATA_HANDLE,'(A,6ES17.9)') '@dparticles_dt: ', xtime(index-1), dpart_tot_dt(index-1) + dnpart_tot_dt(index-1), &
                                                                       dpart_tot_dt(index-1), dnpart_tot_dt(index-1) 
 
-     sum_fluxes_dissip = flux_Pvn_t(index-1)  + flux_kinpar_t(index-1) + flux_qpar_t(index-1) + flux_qperp_t(index-1)      &
+     sum_fluxes_dissip = flux_Pvn_t(index-1)  + flux_kinpar_t(index-1) + flux_qpar_t(index-1) + flux_qperp_t(index-1) &
                        - heat_src_tot_t(index-1) + ohmic_tot_t(index-1)*(1.d0 - eta_ohmic/eta) - mag_ener_src_tot(index-1) &
-                       - flux_poynting_t(index-1) + visco_dissip_tot_t(index-1)*(1.d0 - visco_heating/max(visco,1d-20))    &
-                       + viscopar_dissip_tot_t(index-1)*(1.d0 - visco_par_heating/max(visco_par,1d-20))
-
+                       - flux_poynting_t(index-1) + viscopar_dissip_tot_t(index-1)*(1.d0 - visco_par_heating/max(visco_par,1e-12))
 #if (defined WITH_Neutrals) || (defined WITH_Impurities)
      sum_fluxes_dissip = sum_fluxes_dissip + xtime_rad_power(index-1) + xtime_E_ion_power(index-1)
 #endif

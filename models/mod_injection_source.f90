@@ -276,7 +276,7 @@ module mod_injection_source
   return
   end subroutine inj_source
 
-  subroutine total_imp_source(R,Z,phi,psi,source_background_arr,source_impurity_arr,mass_ratio,i_main_imp,source_background_drift_arr,source_impurity_drift_arr)
+  subroutine total_imp_source(R,Z,phi,psi,source_background_arr,source_impurity_arr,mass_ratio,i_main_imp, source_background_drift_arr)
 
     use phys_module, only: using_spi, JET_MGI, ASDEX_MGI, n_spi_tot, pellets, ns_radius_ratio, ns_radius
     use phys_module, only: ns_radius_min, n_inj_max, n_inj, n_spi, n_spi_tot, ns_deltaphi, L_tube
@@ -294,7 +294,6 @@ module mod_injection_source
     real*8, intent(out)  :: source_background_arr(n_inj_max)
     real*8, intent(out)  :: source_impurity_arr(n_inj_max)
     real*8, intent(out), optional :: source_background_drift_arr(n_inj_max)
-    real*8, intent(out), optional :: source_impurity_drift_arr(n_inj_max)
     real*8, intent(in)   :: mass_ratio
     integer, intent(in)  :: i_main_imp
 
@@ -312,9 +311,6 @@ module mod_injection_source
     if (present(source_background_drift_arr)) then
       source_background_drift_arr = 0.d0
     end if
-    if (present(source_impurity_drift_arr)) then
-      source_impurity_drift_arr = 0.d0
-    end if
 
     if (using_spi) then
 
@@ -325,7 +321,6 @@ module mod_injection_source
       end if
 
       n_spi_begin = 1
-
       do i_inj = 1,n_inj
 
         do i = 1,n_spi(i_inj)
@@ -356,7 +351,7 @@ module mod_injection_source
                           A_Dmv,K_Dmv,V_Dmv,P_Dmv,t_ns(i_inj),0., R, Z, phi, psi, &
                           source_tmp,t_now,JET_MGI,ASDEX_MGI,central_density,central_mass,spi_vol_tmp,i_main_imp)
 
-            if (present(source_background_drift_arr) .or. present(source_impurity_drift_arr)) then
+            if (present(source_background_drift_arr)) then
               if (drift_distance(i_inj) /= 0.d0) then
                 if (pellets(spi_i)%plasmoid_in_domain == 1) then
                   call inj_source(pellets(spi_i)%spi_abl,pellets(spi_i)%spi_R+drift_distance(i_inj),pellets(spi_i)%spi_Z,pellets(spi_i)%spi_phi, &
@@ -375,19 +370,14 @@ module mod_injection_source
               else
                 source_tmp_drift = source_tmp
               end if 
+              source_background_drift_arr(i_inj) = source_background_drift_arr(i_inj) + source_tmp_drift * (1. - pellets(spi_i)%spi_species)
             end if
+
           end if
 
           ! Converting number density into mass density for each species respectively
           source_background_arr(i_inj)  = source_background_arr(i_inj) + source_tmp * ( 1. - pellets(spi_i)%spi_species)
           source_impurity_arr(i_inj)    = source_impurity_arr(i_inj) + source_tmp * pellets(spi_i)%spi_species / mass_ratio
-
-          if (present(source_background_drift_arr)) then
-            source_background_drift_arr(i_inj) = source_background_drift_arr(i_inj) + source_tmp_drift * (1. - pellets(spi_i)%spi_species)
-          endif
-          if (present(source_impurity_drift_arr)) then
-            source_impurity_drift_arr(i_inj) = source_impurity_drift_arr(i_inj) + source_tmp_drift * pellets(spi_i)%spi_species / mass_ratio
-          endif
 
         end do
 
@@ -406,28 +396,13 @@ module mod_injection_source
         call inj_source(ns_amplitude(i_inj),ns_R(i_inj),ns_Z(i_inj),ns_phi(i_inj),spi_psi_tmp,spi_grad_psi_tmp, &
                         ns_radius,ns_deltaphi,ns_delta_minor_rad,ns_tor_norm, &
                         A_Dmv,K_Dmv,V_Dmv,P_Dmv,t_ns(i_inj),L_tube,R,Z,phi,psi, &
-                        source_tmp,t_now,JET_MGI,ASDEX_MGI,central_density,central_mass,spi_vol_tmp,i_main_imp)
-
-        if (present(source_impurity_drift_arr)) then
-          if (drift_distance(i_inj) /= 0.d0) then
-            call inj_source(ns_amplitude(i_inj),ns_R(i_inj)+drift_distance(i_inj),ns_Z(i_inj),ns_phi(i_inj),spi_psi_tmp,spi_grad_psi_tmp, &
-                            ns_radius,ns_deltaphi,ns_delta_minor_rad,ns_tor_norm, &
-                            A_Dmv,K_Dmv,V_Dmv,P_Dmv,t_ns(i_inj),L_tube,R,Z,phi,psi, &
-                            source_tmp_drift,t_now,JET_MGI,ASDEX_MGI,central_density,central_mass,spi_vol_tmp_drift,i_main_imp)
-          else
-            source_tmp_drift = source_tmp
-          end if 
-        end if
+                        source_tmp, t_now, JET_MGI,ASDEX_MGI,central_density,central_mass, spi_vol_tmp,i_main_imp)
 
         source_impurity_arr(i_inj) = source_impurity_arr(i_inj) + source_tmp
-        if (present(source_impurity_drift_arr)) then
-          source_impurity_drift_arr(i_inj) = source_impurity_drift_arr(i_inj) + source_tmp_drift
-        endif
       end do
 
       ! Converting number density into mass density for each species respectively
       source_impurity_arr = source_impurity_arr / mass_ratio
-      if (present(source_impurity_drift_arr)) source_impurity_drift_arr = source_impurity_drift_arr / mass_ratio
 
     end if
 

@@ -236,7 +236,7 @@ module mod_poloidal_currents
     I_halo       = 0.5*I_halo       / mu_zero * 1.d-6 * 2.d0 * PI / n_plane
     I_net        = 0.5*I_net        / mu_zero * 1.d-6 * 2.d0 * PI / n_plane
     I_halo_mp(:) = 0.5*I_halo_mp(:) / mu_zero * 1.d-6 * 2.d0 * PI 
-    TPF          = maxval(I_halo_mp)/max(I_halo, 1d-20) 
+    TPF          = maxval(I_halo_mp)/I_halo 
 
     if (print_halo) then
       write(*,*) ' I_halo, I_net [MA]:  ', I_halo, I_net

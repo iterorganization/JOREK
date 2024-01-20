@@ -6,7 +6,7 @@ function print_help() {
   echo "Usage: detect_rst_type.sh [options]"
   echo ""
   echo " -h        Print this help text"
-  echo " -n NNNNN  Detect restart type based on a certain time step"
+  echo " -n NNNNNN  Detect restart type based on a certain time step"
   echo " -v        Print additional information"
 }
 
@@ -19,7 +19,7 @@ function set_rst_type() {
   export RST_TYPE="$1"
 }
 
-timestep="[0-9][0-9][0-9][0-9][0-9]"
+timestep="[0-9][0-9][0-9][0-9][0-9][0-9]"
 verbose="0"
 while [ $# -gt 0 ]; do
   if [ "$1" == "-n" ]; then

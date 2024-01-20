@@ -224,18 +224,13 @@ write(*,'(1x,a)',advance='no') ' USE_CATALYST : '
   write(*,REAL_FMT) 'tstep_n               ', tstep_n
   write(*,INTG_FMT) 'nstep_n               ', nstep_n
   write(*,LOGI_FMT) 'eta_T_dependent       ', eta_T_dependent
-  write(*,LOGI_FMT) 'eta_coul_log_dep      ', eta_coul_log_dep
   write(*,REAL_FMT) 'eta                   ', eta
   write(*,REAL_FMT) 'eta_ohmic             ', eta_ohmic
   write(*,REAL_FMT) 'eta_Spitzer (not input parameter; printed for reference in JOREK units)', eta_Spitzer
-  write(*,REAL_FMT) 'lnA   (not input parameter; initial Coulomb logarithm at plasma center)', lnA_center
   write(*,REAL_FMT) 'T_max_eta             ', T_max_eta
   write(*,REAL_FMT) 'T_max_eta_ohm         ', T_max_eta_ohm  
-  write(*,REAL_FMT) 'T_max_visco           ', T_max_visco
   write(*,LOGI_FMT) 'visco_T_dependent     ', visco_T_dependent
-  write(*,LOGI_FMT) 'visco_old_setup       ', visco_old_setup
   write(*,REAL_FMT) 'visco                 ', visco
-  write(*,REAL_FMT) 'visco_heating         ', visco_heating
   write(*,REAL_FMT) 'visco_par             ', visco_par
   write(*,REAL_FMT) 'visco_par_heating     ', visco_par_heating
   write(*,LOGI_FMT) 'restart               ', restart
@@ -299,7 +294,6 @@ write(*,'(1x,a)',advance='no') ' USE_CATALYST : '
     write(*,REAL_FMT) 'dPSI_up_priv          ', dPSI_up_priv
     write(*,INTG_FMT) 'first_target_point    ', first_target_point
     write(*,INTG_FMT) 'last_target_point     ', last_target_point
-    write(*,LOGI_FMT) 'forceSDN              ', forceSDN
     write(*,REAL_FMT) 'SDN_threshold         ', SDN_threshold
   end if
 
@@ -529,22 +523,6 @@ write(*,'(1x,a)',advance='no') ' USE_CATALYST : '
   write(*,REAL_FMT) 'D_perp_imp_sc_num     ', D_perp_imp_sc_num
   write(*,REAL_FMT) 'D_par_imp_sc_num      ', D_par_imp_sc_num
 
-  write(*,LOGI_FMT) 'use_vms                ', use_vms
-  if(use_vms)then
-    write(*,REAL_FMT) 'vms_coeff_AR           ', vms_coeff_AR
-    write(*,REAL_FMT) 'vms_coeff_AZ           ', vms_coeff_AZ
-    write(*,REAL_FMT) 'vms_coeff_A3           ', vms_coeff_A3
-    write(*,REAL_FMT) 'vms_coeff_UR           ', vms_coeff_UR
-    write(*,REAL_FMT) 'vms_coeff_UZ           ', vms_coeff_UZ
-    write(*,REAL_FMT) 'vms_coeff_Up           ', vms_coeff_Up
-    write(*,REAL_FMT) 'vms_coeff_rho          ', vms_coeff_rho
-    write(*,REAL_FMT) 'vms_coeff_T            ', vms_coeff_T
-    write(*,REAL_FMT) 'vms_coeff_Te           ', vms_coeff_Te
-    write(*,REAL_FMT) 'vms_coeff_Ti           ', vms_coeff_Ti
-    write(*,REAL_FMT) 'vms_coeff_rhon         ', vms_coeff_rhon
-    write(*,REAL_FMT) 'vms_coeff_rhoimp       ', vms_coeff_rhoimp
-  endif
-
   if(jorek_model == 004 ) then
     write(*,REAL_FMT) 'HW_coef               ', HW_coef(1:2)
   endif
@@ -673,12 +651,12 @@ write(*,'(1x,a)',advance='no') ' USE_CATALYST : '
     write(*,REA3_FMT) 'r_limiter             ', r_limiter(1:min(9,n_limiter))
     write(*,REA3_FMT) 'z_limiter             ', z_limiter(1:min(9,n_limiter))
   end if
+
+  write(*,LOGI_FMT) 'CARIDDI_mode          ', CARIDDI_mode
+  write(*,LOGI_FMT) 'freeboundary_equil    ', freeboundary_equil
   write(*,LOGI_FMT) 'freeboundary          ', freeboundary
+  write(*,LOGI_FMT) 'freeb_change_indices  ', freeb_change_indices
   if ( freeboundary ) then
-    write(*,LOGI_FMT) 'CARIDDI_mode          ', CARIDDI_mode
-    write(*,LOGI_FMT) 'freeboundary_equil    ', freeboundary_equil
-    write(*,LOGI_FMT) 'freeb_change_indices  ', freeb_change_indices
-    write(*,LOGI_FMT) 'vacuum_min            ', vacuum_min
     write(*,LOGI_FMT) 'resistive_wall        ', resistive_wall
     if ( resistive_wall ) then
       write(*,REAL_FMT2) 'wall_resistivity      ', wall_resistivity, ' (used only if STARWALL response file_version==1)'
@@ -808,7 +786,6 @@ write(*,'(1x,a)',advance='no') ' USE_CATALYST : '
   write(*,INTG_FMT) 'maxNewton             ', maxNewton
   write(*,REAL_FMT) 'gamma_Newton          ', gamma_Newton
   write(*,REAL_FMT) 'alpha_Newton          ', alpha_Newton
-  write(*,LOGI_FMT) 'strumpack_matching    ', strumpack_matching
 
 #ifdef fullmhd
     write(*,LOGI_FMT) 'Mach1_openBC          ', Mach1_openBC
@@ -955,6 +932,47 @@ write(*,'(1x,a)',advance='no') ' USE_CATALYST : '
    end if
 #endif
 
+     write(*,LOGI_FMT) 'Dcontrad            ',  Dcontrad
+     
+    write(*,REAL_FMT,advance='no') 'deut_inj_flat      '
+    do i = 1, 3
+      write(*,'(10ES12.4)',advance='no') deut_inj_flat(i)%density_rise
+      write(*,'(10ES12.4)',advance='no') deut_inj_flat(i)%rise_time
+      write(*,'(10ES12.4)',advance='no') deut_inj_flat(i)%start_time
+    end do
+    write(*,*)
+
+#if (defined WITH_impurities)
+   write(*,REAL_FMT) 'impdens_init        ',  impdens_init
+    write(*,REAL_FMT,advance='no') 'imp_inj_flat      '
+    do i = 1, 3
+      write(*,'(10ES12.4)',advance='no') imp_inj_flat(i)%density_rise
+      write(*,'(10ES12.4)',advance='no') imp_inj_flat(i)%rise_time
+      write(*,'(10ES12.4)',advance='no') imp_inj_flat(i)%start_time
+    end do
+   write(*,*)
+#endif
+
+   !< Additional log for REs
+#if (defined WITH_Refluid)
+     write(*,REAL_FMT) 'gamma_rel           ',  gamma_rel
+     write(*,INTG_FMT) 're_initialize       ',  re_initialize
+     write(*,REAL_FMT) 'initial_re_current_fraction ',  initial_re_current_fraction
+     write(*,REAL_FMT) 're_gauss_fact       ',  re_gauss_fact
+     write(*,REAL_FMT) 're_gauss_origin     ',  re_gauss_origin
+     write(*,REAL_FMT) 're_gauss_width      ',  re_gauss_width
+     write(*,LOGI_FMT) 're_trit_seed        ',  re_trit_seed
+     write(*,LOGI_FMT) 're_compt_seed       ',  re_compt_seed
+     write(*,LOGI_FMT) 're_sec_source       ',  re_sec_source
+     write(*,REAL_FMT) 'psinorm_aval_threshold',  psinorm_aval_threshold
+     write(*,REAL_FMT) 're_adv_fact         ',  re_adv_fact
+     write(*,REAL_FMT) 'Dre_par             ',  Dre_par
+     write(*,REAL_FMT) 'Dre_iso        	    ',  Dre_iso
+     write(*,REAL_FMT) 'Dre_num             ',  Dre_num
+     write(*,REAL_FMT) 'vpar_re_sign        ',  vpar_re_sign
+#endif
+  write(*,REAL_FMT) 'loop_voltage          ', loop_voltage
+  write(*,REAL_FMT) 'loop_voltage_control  ', loop_voltage_control
   write(*,LOGI_FMT) 'restart_particles   ',restart_particles
   write(*,REAL_FMT) 'n_particles         ',n_particles
   write(*,INTG_FMT) 'nstep_particles     ',nstep_particles

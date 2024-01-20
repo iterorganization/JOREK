@@ -9,6 +9,7 @@ subroutine define_flux_values(node_list, element_list, flux_list, sep_list, xcas
   use data_structure
   use grid_xpoint_data
   use mod_interp
+  use phys_module, only:   SDN_threshold
   use equil_info
   
   implicit none

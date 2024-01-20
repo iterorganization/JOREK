@@ -33,7 +33,7 @@ real*8 :: ZJgi,dZJgi_dr,dZJgi_ds,dZJgi_drs,dZJgi_drr,dZJgi_dss
 real*8 :: RRgi,dRRgi_dr,dRRgi_ds,dRRgi_drs,dRRgi_drr,dRRgi_dss
 real*8 :: ZZgi,dZZgi_dr,dZZgi_ds,dZZgi_drs,dZZgi_drr,dZZgi_dss
 real*8 :: dRRgi_dt, dZZgi_dt, RZjac, PSI_R, PSI_Z, grad_psi, B_tot2, P0gi, dP0gi_dr,dP0gi_ds, P0_R, P0_Z 
-real*8 :: density, density_in, density_out, pressure, pressure_in, pressure_out, heat_src_in, heat_src_out, part_src_in, part_src_out
+real*8 :: density, density_in, density_out, pressure, pressure_in, pressure_out, heat_src_in, heat_src_out, part_src_in, part_src_out, recurrent
 integer :: i_elm_axis, i_elm_xpoint(2), nplot, i, j, n_bnd, i_elm, k, ip, ig
 integer :: node1, node2, node3, node4, ifail, my_id
 
@@ -179,7 +179,7 @@ write(*,'(A,f8.5,A)') ' Bgeo : ',Bgeo,' T'
 
 call Integrals(node_list, element_list, R_axis, Z_axis, psi_axis, R_xpoint, Z_xpoint, psi_xpoint, psi_bnd, aminor, &
   Bgeo, current, beta_p, beta_t, beta_n, density, density_in, density_out, pressure, pressure_in,  &
-  pressure_out, heat_src_in, heat_src_out, part_src_in, part_src_out)
+  pressure_out, heat_src_in, heat_src_out, part_src_in, part_src_out, recurrent)
   
 write(11,*) aminor, Rgeo, Bgeo
 write(11,*) current,beta_p,beta_t,beta_n

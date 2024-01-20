@@ -19,7 +19,6 @@ integer :: ierr, err, i
 namelist /in1/  tstep, nstep, tstep_n, nstep_n,                     &
                 rst_hdf5, rst_hdf5_version, keep_current_prof,      &
                 eta, visco, restart, regrid, write_ps,              &
-                regrid_from_rz,                                     &
                 force_horizontal_Xline,                             &
                 n_R, n_Z, n_radial, n_pol, n_tht, n_flux,           &
                 n_open, n_private, n_leg, n_ext,                    &
@@ -87,8 +86,7 @@ namelist /in1/  tstep, nstep, tstep_n, nstep_n,                     &
                 autodistribute_modes, modes_per_family,             &
                 mode_families_modes, n_mode_families,               &
                 weights_per_family, autodistribute_ranks,           &
-                ranks_per_family, cte_current_FB_fact, treat_axis,  &
-                vacuum_min
+                ranks_per_family, cte_current_FB_fact, treat_axis
 
 
 if (my_id .eq. 0) then

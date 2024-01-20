@@ -28,6 +28,7 @@ subroutine boundary_conditions( my_id, node_list, element_list, bnd_node_list, l
                                 xcase2, R_axis, Z_axis, psi_axis, psi_bnd,                &
                                 R_xpoint, Z_xpoint, psi_xpoint, a_mat)
 
+use constants, only : PI, MU_ZERO, MASS_PROTON
 use mod_assembly, only : boundary_conditions_add_one_entry, boundary_conditions_add_RHS
 use data_structure
 use vacuum, ONLY: is_freebound
@@ -36,7 +37,7 @@ use phys_module, only: F0, GAMMA, freeboundary, RMP_on, psi_RMP_cos, dpsi_RMP_co
        RMP_start_time, tstep, RMP_har_cos, RMP_har_sin, T_min,                                             &
        mach_one_bnd_integral, Vpar_smoothing, vpar_smoothing_coef, no_mach1_bc,                            &
        Number_RMP_harmonics, RMP_har_cos_spectrum,RMP_har_sin_spectrum, grid_to_wall, n_wall_blocks, keep_n0_const, &
-       bcs 
+       bcs, loop_voltage, loop_voltage_control, central_density, central_mass 
 use tr_module
 use mpi_mod
 use mod_basisfunctions
@@ -346,7 +347,35 @@ do i=1, n_local_elms !=== do elements
                        zbig, index_min, index_max, a_mat)
               enddo
             enddo
+            
+            ! --- Fix Psi also across boundary???
+            if ( (k .eq. var_psi) .and. (loop_voltage .eq. 0.d0) .and. (loop_voltage_control .eq. 0.d0) ) then
+              index_node = node_list%node(inode)%index(iv_perp_dir)
+              call boundary_conditions_add_one_entry(                 &
+                     index_node, k, in, index_node, k, in,            &
+                     zbig, index_min, index_max, a_mat)
+              index_node = node_list%node(inode)%index(4)
+              call boundary_conditions_add_one_entry(                 &
+                     index_node, k, in, index_node, k, in,            &
+                     zbig, index_min, index_max, a_mat)
+            endif
 
+          endif
+          
+          ! --- Apply loop voltage, suggestion from Pamela, Stanislas JP
+          ! <Stanislas.Pamela@ukaea.uk>
+
+          if ( (.not. is_freebound(in,k)) ) then
+            if ( ( loop_voltage .ne. 0.d0 ) .or. ( loop_voltage_control .ne. 0.d0 ) ) then
+              if ( (k == var_psi) .and. (in == 1) ) then
+                index_node = node_list%node(inode)%index(1)
+                call boundary_conditions_add_RHS(       &
+                          index_node, k, in,     &
+                          index_min, index_max,  &
+                          RHS_loc, ZBIG *((loop_voltage_control+loop_voltage)/2.d0/PI*sqrt(MU_ZERO*central_density*central_mass*MASS_PROTON*1.d20))* tstep, &
+                          a_mat%i_tor_min, a_mat%i_tor_max)
+              endif
+            endif
           endif
 
         enddo !=== variables

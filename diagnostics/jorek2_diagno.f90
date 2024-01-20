@@ -29,7 +29,7 @@ real*8  :: Rplot(2), Zplot(2)
 real*8  :: psi_axis,R_axis,Z_axis,s_axis,t_axis
 integer :: ifail, my_id, ierr, i_elm_axis
 integer :: required, provided, StatInfo
-real*8,dimension(n_var) :: varmin,varmax
+
 
 write(*,*) '***************************************'
 write(*,*) '* JOREK2_diagno                       *'
@@ -97,7 +97,7 @@ endif
 
 
 call Integrals_3D(my_id,node_list,element_list,density,density_in,density_out,pressure,pressure_in,pressure_out, &
-                                        kin_par_tot, kin_par_in, kin_par_out, mom_par_tot, mom_par_in, mom_par_out,varmin,varmax)
+                                               kin_par_tot, kin_par_in, kin_par_out, mom_par_tot, mom_par_in, mom_par_out)
 
 if (use_pellet) then
    pellet_volume = total_pellet_volume

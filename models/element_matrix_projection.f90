@@ -7,7 +7,7 @@ use data_structure
 use gauss
 use basis_at_gaussian
 use equil_info, only: ES
-use phys_module, only: xpoint, xcase, F0, n_jropes, R_jropes, Z_jropes, w_jropes, rho_jropes, T_jropes, normalized_velocity_profile, forceSDN
+use phys_module, only: xpoint, xcase, F0, n_jropes, R_jropes, Z_jropes, w_jropes, rho_jropes, T_jropes, normalized_velocity_profile
 use mod_F_profile
 use mod_interp
 use nodes_elements
@@ -176,28 +176,15 @@ do ms=1, n_gauss
     
     ! --- Special case for psi, we interpolate from the old grid copied into grid_xpoint_data module
     if (ivar_out .eq. var_psi) then
-
-      if (forceSDN) then
-        call find_RZ(node_list,element_list,x_g(ms,mt),-y_g(ms,mt),R_out,Z_out,ielm_out,s_out,t_out,ifail)
-        if (ifail .ne. 0) then ! if we can't find the point on the previous grid, use whatever was set before (should be the eqdsk value)
-          var_RHS = eq2_g(ms,mt)
-        else
-          call interp(node_list,element_list,ielm_out,1,1,s_out,t_out,psi,dd1,dd2,dd3,dd4,dd5)
-          var_RHS = (psi+eq2_g(ms,mt))/2.0
-        end if
-
+      call find_RZ(node_list,element_list,x_g(ms,mt),y_g(ms,mt),R_out,Z_out,ielm_out,s_out,t_out,ifail)
+      if (ifail .ne. 0) then ! if we can't find the point on the previous grid, use whatever was set before (should be the eqdsk value) 
+        !write(*,'(A,2f18.7)')'Projection Warning: location not found on old grid',x_g(ms,mt),y_g(ms,mt)
+        var_RHS = eq2_g(ms,mt)
       else
-        call find_RZ(node_list,element_list,x_g(ms,mt),y_g(ms,mt),R_out,Z_out,ielm_out,s_out,t_out,ifail)
-        if (ifail .ne. 0) then ! if we can't find the point on the previous grid, use whatever was set before (should be the eqdsk value)
-          var_RHS = eq2_g(ms,mt)
-        else
-          call interp(node_list,element_list,ielm_out,1,1,s_out,t_out,psi,dd1,dd2,dd3,dd4,dd5)
-          var_RHS = psi
-        end if
-
-      end if
-
-    end if
+        call interp(node_list,element_list,ielm_out,1,1,s_out,t_out,psi,dd1,dd2,dd3,dd4,dd5)
+        var_RHS = psi
+      endif
+    endif
 
     ! --- Special case for current
     if (ivar_out .eq. var_zj) then

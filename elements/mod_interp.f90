@@ -270,48 +270,25 @@ end subroutine interp_PRZ_2
 ! This is roughly 3-4 times faster in my tests than just calculating the sines
 ! and cosines (even when that is vectorized). Perhaps that changes for n_tor >> 10
 ! I tested n_tor = 17.
-#ifdef UNIT_TESTS
-pure subroutine sincosperiod_moivre(phi,HZ,dHZ,n_tor_in,n_period_in)
-  real*8, intent(out) :: HZ(:), dHZ(:)
-  integer,intent(in),optional :: n_tor_in,n_period_in
-#else
 pure subroutine sincosperiod_moivre(phi,HZ,dHZ)
   integer, parameter  :: n_mode = (n_tor-1)/2 ! number of modes excluding 0
-  real*8, intent(out) :: HZ(n_tor), dHZ(n_tor)
-#endif
   real*8, intent(in)  :: phi
-#ifdef UNIT_TESTS
-  integer :: n_tor_loc,n_period_loc,n_mode
-#endif
+  real*8, intent(out) :: HZ(n_tor), dHZ(n_tor)
+
   integer    :: i
   real*8     :: phase
   complex*16 :: H_complex
 
   HZ(1) = 1.d0
   dHZ(1) = 0.d0
-
-#ifdef UNIT_TESTS
-  n_tor_loc    = n_tor;    if(present(n_tor_in)) n_tor_loc       = n_tor_in
-  n_period_loc = n_period; if(present(n_period_in)) n_period_loc = n_period_in
-  n_mode       = (n_tor_loc-1)/2
-#endif
   
   do i=1,n_mode
-#ifdef UNIT_TESTS
-    phase      = real(n_period_loc*i,8)*phi
-#else
     phase      = real(n_period*i,8)*phi
-#endif
     H_complex  = exp(cmplx(0.d0,1.d0)*phase)
     HZ(2*i)    = real(H_complex)
     HZ(2*i+1)  = aimag(H_complex)
-#ifdef UNIT_TESTS
-    dHZ(2*i)   = HZ(2*i+1)*(-n_period_loc*i)
-    dHZ(2*i+1) = HZ(2*i)  *( n_period_loc*i)
-#else
     dHZ(2*i)   = HZ(2*i+1)*(-n_period*i)
     dHZ(2*i+1) = HZ(2*i)  *( n_period*i)
-#endif
   end do
 
 end subroutine sincosperiod_moivre
@@ -328,37 +305,19 @@ end subroutine moivre
 ! Assumes that mode is of the form [0 1 1 2 2 3 3 4 4] ([0 4 4 8 8 12 12])
 ! This is roughly 3-4 times faster in my tests than just calculating the sines
 ! and cosines (even when that is vectorized).
-#ifdef UNIT_TESTS 
-pure subroutine mode_moivre(phi,HZ,n_tor_in,n_period_in)
-  integer,intent(in),optional :: n_tor_in,n_period_in
-  real*8, intent(out) :: HZ(:)
-#else
 pure subroutine mode_moivre(phi,HZ)
   integer, parameter  :: n_mode = (n_tor-1)/2 ! number of modes excluding 0
-  real*8, intent(out) :: HZ(n_tor)
-#endif
   real*8, intent(in)  :: phi
-#ifdef UNIT_TESTS
-  integer :: n_tor_loc,n_period_loc,n_mode
-#endif
+  real*8, intent(out) :: HZ(n_tor)
+
   real*8     :: phase
   complex*16 :: H_complex
   integer    :: i
 
   HZ(1) = 1.d0
-
-#ifdef UNIT_TESTS
-  n_tor_loc    = n_tor;    if(present(n_tor_in)) n_tor_loc       = n_tor_in
-  n_period_loc = n_period; if(present(n_period_in)) n_period_loc = n_period_in
-  n_mode       = (n_tor_loc-1)/2
-#endif 
-
+  
   do i=1, n_mode
-#ifdef UNIT_TESTS
-    phase     = real(n_period_loc*i,8)*phi
-#else
     phase     = real(n_period*i,8)*phi
-#endif
     H_complex = exp(cmplx(0.d0,1.d0)*phase)
     HZ(2*i)   = real(H_complex)
     HZ(2*i+1) = aimag(H_complex)

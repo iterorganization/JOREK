@@ -6,7 +6,7 @@ use constants
 use tr_module 
 use data_structure
 use grid_xpoint_data
-use phys_module, only: n_tht_equidistant
+use phys_module, only:   tokamak_device, n_tht_equidistant, SDN_threshold
 use mod_interp, only: interp_RZ
 use equil_info
 

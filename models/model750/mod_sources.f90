@@ -33,8 +33,7 @@ real*8,  intent(out)  :: particle_source
 real*8,  intent(out)  :: heat_source_e, heat_source_i
 
 ! --- Local variables
-integer :: i
-real*8  :: psi_n
+real*8 :: psi_n
 
 psi_n = (psi - psi_axis) / (psi_bnd - psi_axis)
 
@@ -45,20 +44,14 @@ if (xpoint2) then
 endif
 
 particle_source = particlesource * (0.5d0 - 0.5d0*tanh((psi_n - particlesource_psin)/particlesource_sig)) &
-     + edgeparticlesource * (0.5d0 + 0.5d0*tanh((psi_n - edgeparticlesource_psin)/edgeparticlesource_sig))
+     + edgeparticlesource * (0.5d0 + 0.5d0*tanh((psi_n - edgeparticlesource_psin)/edgeparticlesource_sig))&
+     + particlesource_gauss * exp(-(psi_n - particlesource_gauss_psin)**2/(particlesource_gauss_sig**2))
 
-heat_source_i     = heatsource_i     * (0.5d0 - 0.5d0*tanh((psi_n - heatsource_psin    )/heatsource_sig    ))  
+heat_source_i     = heatsource_i     * (0.5d0 - 0.5d0*tanh((psi_n - heatsource_psin    )/heatsource_sig    ))  &
+      + heatsource_gauss_i * exp(-(psi_n - heatsource_gauss_psin)**2/(heatsource_gauss_sig**2))
 
-heat_source_e     = heatsource_e     * (0.5d0 - 0.5d0*tanh((psi_n - heatsource_psin    )/heatsource_sig    ))  
-
-do i = 1, 5
-  heat_source_i = heat_source_i  + heatsource_gauss_i(i) *                                                &
-    exp(-(psi_n - heatsource_gauss_psin(i))**2 / (heatsource_gauss_sig(i)**2))
-  heat_source_e = heat_source_e  + heatsource_gauss_e(i) *                                                &
-    exp(-(psi_n - heatsource_gauss_psin(i))**2 / (heatsource_gauss_sig(i)**2))
-  particle_source =  particle_source + particlesource_gauss(i) *                                          &
-    exp(-(psi_n - particlesource_gauss_psin(i))**2 / (particlesource_gauss_sig(i)**2))
-end do
+heat_source_e     = heatsource_e     * (0.5d0 - 0.5d0*tanh((psi_n - heatsource_psin    )/heatsource_sig    ))  &
+      + heatsource_gauss_e * exp(-(psi_n - heatsource_gauss_psin)**2/(heatsource_gauss_sig**2))
 
 return
 end subroutine sources_TiTe
@@ -81,8 +74,7 @@ real*8,  intent(out)  :: particle_source
 real*8,  intent(out)  :: heat_source
 
 ! --- Local variables
-integer :: i
-real*8  :: psi_n
+real*8 :: psi_n
 
 psi_n = (psi - psi_axis) / (psi_bnd - psi_axis)
 
@@ -93,16 +85,11 @@ if (xpoint2) then
 endif
 
 particle_source = particlesource * (0.5d0 - 0.5d0*tanh((psi_n - particlesource_psin)/particlesource_sig)) &
-     + edgeparticlesource * (0.5d0 + 0.5d0*tanh((psi_n - edgeparticlesource_psin)/edgeparticlesource_sig))
+     + edgeparticlesource * (0.5d0 + 0.5d0*tanh((psi_n - edgeparticlesource_psin)/edgeparticlesource_sig))&
+     + particlesource_gauss * exp(-(psi_n - particlesource_gauss_psin)**2/(particlesource_gauss_sig**2))
 
-heat_source     = heatsource     * (0.5d0 - 0.5d0*tanh((psi_n - heatsource_psin    )/heatsource_sig    ))
-
-do i = 1, 5
-  heat_source = heat_source  + heatsource_gauss(i) *                                                &
-    exp(-(psi_n - heatsource_gauss_psin(i))**2 / (heatsource_gauss_sig(i)**2))
-  particle_source =  particle_source + particlesource_gauss(i) *                                          &
-    exp(-(psi_n - particlesource_gauss_psin(i))**2 / (particlesource_gauss_sig(i)**2))
-end do
+heat_source     = heatsource     * (0.5d0 - 0.5d0*tanh((psi_n - heatsource_psin    )/heatsource_sig    ))  &
+      + heatsource_gauss * exp(-(psi_n - heatsource_gauss_psin)**2/(heatsource_gauss_sig**2))
 
 return
 end subroutine sources_T

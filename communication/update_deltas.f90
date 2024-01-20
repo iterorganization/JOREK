@@ -13,7 +13,7 @@ type(type_node_list)  :: node_list
 type(type_RHS)        :: deltas
 
 if (.not. associated(deltas%val)) then
-  call tr_allocatep(deltas%val,1,node_list%n_dof,"deltas",CAT_FEM)
+  call tr_allocatep(deltas%val,int1,node_list%n_dof,"deltas",CAT_FEM)
   deltas%n = node_list%n_dof
   deltas%val(1:deltas%n) = 0.d0
 endif

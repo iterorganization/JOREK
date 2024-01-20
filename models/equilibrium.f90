@@ -156,31 +156,16 @@ if (my_id == 0) then
     if(xcase2 .eq. UPPER_XPOINT) write(*,'(A,3es14.6,i3)') ' PSI_AXIS, PSI_BND  : ',ES%psi_axis,ES%psi_bnd,ES%Z_xpoint(2),ES%ifail_xpoint
 
     write(*,'(A,1f14.8)')                       ' PSI_BND - PSI_AXIS : ', ES%psi_bnd-ES%psi_axis 
-
+  
     call poisson(my_id,-1,node_list,element_list,bnd_node_list,bnd_elm_list,3,1,1, &
                  ES%psi_axis,ES%psi_bnd,xpoint2,xcase2,ES%Z_xpoint,freeboundary_equil,refinement,iter)   !----------- for GS use -1
-
-    if ( (my_id == 0) .and. forceSDN .and. iter .gt. 2) then
-      if (abs(ES%psi_xpoint(1)-ES%psi_xpoint(2)) .ge. SDN_threshold) then
-        ! --- Project psi to enforce up/down symmetry
-        call Poisson(0,0,node_list,element_list,bnd_node_list,bnd_elm_list, var_psi,var_psi,1, &
-                     0.0,1.0,.true.,xcase,ES%Z_xpoint,.false.,.false.,1)
-        call update_equil_state(my_id,node_list, element_list, bnd_elm_list, xpoint, xcase)
-      end if
-    end if
-
+  
     diff = 0.d0
     do i=1, node_list%n_nodes
       diff = diff + abs(node_list%node(i)%deltas(1,1,1))
     enddo  
     diff = diff / float(node_list%n_nodes)
-
-    ! Error handling, really is no point continuing if diff is NaN
-    if (ISNAN(diff)) then
-      write(*,*)'Equilibrium diff is NaN - stop here'
-      stop
-    end if
-
+    
     write(*,'(A,I4,A,ES10.3)') ' Iteration ', iter, ': diff=', diff
     
     if ( (iter > 1) .and. (diff < equil_accuracy) ) then
@@ -758,7 +743,6 @@ if (freeboundary_equil) then
   call broadcast_nodes(my_id, node_list)  !--- This is required for boundary_check
   call broadcast_boundary(my_id, bnd_elm_list, bnd_node_list)
   call boundary_check(my_id)
-  deallocate(response_m_eq)
 endif
 
 equil_initialized = .true.

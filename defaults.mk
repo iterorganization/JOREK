@@ -187,7 +187,7 @@ ifeq (.true., $(shell ./util/config.sh -p with_impurities))
 endif
 
 ifeq (.true., $(shell ./util/config.sh -p with_refluid))
-  DEFINES  := $(DEFINES) -DWITH_REFluid
+  DEFINES  := $(DEFINES) -DWITH_Refluid
 endif
 
 ifneq (0, $(shell ./util/config.sh -p n_mod_ext))
