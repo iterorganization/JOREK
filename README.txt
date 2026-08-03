@@ -38,3 +38,5 @@ To use it, we need
  - Fortran preprocessing options: -cpp -DUSE_R3_INFO_MPI -DUSE_R3_INFO (see trunk/configs/config.hpcff)
  - define a MPICC compiler and preprocessing options: -DUSE_R3_INFO_MPI -DUSE_R3_INFO (see trunk/configs/config.hpcff)
  - need #include "r3_info.h" statement (warning: C syntax with #) in Fortran file (see trunk/jorek2_main.f90 for example)
+
+Test
