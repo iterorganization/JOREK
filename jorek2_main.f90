@@ -216,7 +216,7 @@ mpi_required = 0
   
   ! --- Process command line arguments
   if ( my_id == 0 ) call jorek2help(n_mpi, nbthreads)
-  
+dfkjfkdjf  
   call MPI_Barrier(MPI_COMM_WORLD,ierr)
   CALL MPI_GET_PROCESSOR_NAME (name,resultlength,ierr)
   write(*,'(A,I5,2A)') '  #MPI id, ProcessorName ', rank, ': ', name
