@@ -7,4 +7,4 @@ layout: default
 render_with_liquid: false
 ---
 
-*This page is a stub — content to be added.*
+For a step-by-step example, see the [JOREK-STARWALL tutorial: resistive-wall tearing mode](../physics/model_extensions/freebound/jorek_startwall_tutorial_ex1.html).

@@ -8,4 +8,6 @@ layout: default
 render_with_liquid: false
 ---
 
-*This page is a stub — content to be added.*
+# Physics Options
+
+Configuration guides for boundary conditions, plasma functions and coefficients, optional physical terms, controllers, and actuators.

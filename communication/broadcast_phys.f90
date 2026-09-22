@@ -958,6 +958,7 @@ if (my_id .eq. 0) then
 
       call MPI_PACK(part_group_configs(i)%puff_ctrl(j)%times,            n_puff_segment_max,MPI_REAL8,buffer,bufsize,position,MPI_COMM_WORLD,ierr)
       call MPI_PACK(part_group_configs(i)%puff_ctrl(j)%rates,            n_puff_segment_max,MPI_REAL8,buffer,bufsize,position,MPI_COMM_WORLD,ierr)
+      call MPI_PACK(part_group_configs(i)%puff_ctrl(j)%from_file,         512,          MPI_CHARACTER,buffer,bufsize,position,MPI_COMM_WORLD,ierr)
     enddo
   enddo
 
@@ -1968,6 +1969,7 @@ if (my_id .ne. 0) then
 
       call MPI_UNPACK(buffer,bufsize,position,part_group_configs(i)%puff_ctrl(j)%times,           n_puff_segment_max,MPI_REAL8,MPI_COMM_WORLD,ierr)
       call MPI_UNPACK(buffer,bufsize,position,part_group_configs(i)%puff_ctrl(j)%rates,           n_puff_segment_max,MPI_REAL8,MPI_COMM_WORLD,ierr)
+      call MPI_UNPACK(buffer,bufsize,position,part_group_configs(i)%puff_ctrl(j)%from_file,         512,         MPI_CHARACTER,MPI_COMM_WORLD,ierr)
     enddo
   enddo
 

@@ -8,6 +8,8 @@ render_with_liquid: false
 
 # Information relevant for simulating ITER
 
+To obtain ITER equilibria, machine descriptions, and other simulation data through IMAS, see the [JOREK-IMAS documentation](../diagnostics/jorek-imas.md).
+
 ## Reference scenarios
 
 [Zipped folder](assets/iter/201905_iter_scenarios.zip) containing data from **CORSICA simulations of ITER reference scenarios**. Contains G-files (i.e. eqdsk files, which can be converted into JOREK input using [eqdsk2jorek.f90](../howto/eqdsk2jorek), P-files (profiles) and T-files (time traces) for the following scenarios:

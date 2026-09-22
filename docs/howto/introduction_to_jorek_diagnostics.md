@@ -120,6 +120,24 @@ You have already come across `jorek2vtk` in the tutorial [Running JOREK for the 
 
 Typical problems you may run into are that you compiled `jorek2vtk` with the wrong model or wrong hard-coded parameters or that an `.h5` restart file is damaged such that it cannot be read into `jorek2vtk` properly. 
 
+## Showing simulation time in ParaView plots
+
+To display the simulation time in a ParaView plot, use the **Annotate Global Data** filter.
+
+The legacy VTK format written by `jorek2vtk` does not provide the time information in a form that ParaView can use directly. ParaView versions 5.5 and newer support a [JSON-based meta-file format for file series](https://gitlab.kitware.com/paraview/paraview/blob/v5.5.0/Documentation/release/ParaView-5.5.0.md#json-based-new-meta-file-format-for-series-added), which provides a workaround.
+
+In the directory containing the VTK files, create a JSON file whose name ends in `.vtk.series`. For example:
+
+```json
+{
+  "file-series-version": "1.0",
+  "files": [
+    { "name": "jorek.32000.vtk", "time": 0.120529 },
+    { "name": "jorek.45000.vtk", "time": 0.148458 }
+  ]
+}
+```
+
 # jorek2vtk_3d
 
 <img align="right" src="assets/introduction_to_jorek_diagnostics/jorek2vtk3d-example.png" alt="jorek2vtk_3d example" width="400">

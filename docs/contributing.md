@@ -49,24 +49,24 @@ Use [RubyInstaller](https://rubyinstaller.org/) (select the version with Devkit)
 ## Local preview
 
 ```bash
-git clone https://github.com/LukeTheWalker/doc_repo.git
-cd doc_repo
+git clone git@github.com:<username>/<fork-name>.git
+cd fork-name
 bundle install        # only needed once, or after Gemfile changes
-bundle exec jekyll serve --baseurl /doc_repo
+bundle exec jekyll serve --baseurl /fork-name
 ```
 
-Open `http://localhost:4000/doc_repo/`. Changes to `.md` files are picked up on reload without restarting the server.
+Open `http://localhost:4000/fork-name/`. Changes to `.md` files are picked up on reload without restarting the server.
 
 ---
 
 ## Making a pull request
 
-1. Clone the repo (once) and keep it up to date:
+1. Clone the fork (once) and keep it up to date (see [Developments](/code_development/development_workflow.md) ):
    ```bash
-   git clone https://github.com/LukeTheWalker/doc_repo.git
-   git pull origin master
+   git clone git@github.com:<username>/<fork-name>.git
+   git pull origin develop
    ```
-2. Create a branch from `master`:
+2. Create a branch from `develop`:
    ```bash
    git checkout -b my-topic
    ```
@@ -76,7 +76,7 @@ Open `http://localhost:4000/doc_repo/`. Changes to `.md` files are picked up on 
    git commit -m "Add documentation for X"
    git push origin my-topic
    ```
-4. Open a pull request against `master` on GitHub. Once merged, the site redeploys automatically — no further action needed.
+4. Open a pull request against `develop` of the main repository on GitHub. Once merged, the site redeploys automatically — no further action needed.
 
 ---
 
@@ -196,13 +196,13 @@ See [Normalization](normalization.md) for details.
 For pages in a different directory, use a path relative to the current file:
 
 ```markdown
-[Getting Started](../compiling/getting_started/learn_jorek.md)
+[Compiling](compiling/compilation_and_libraries/compiling.md)
 ```
 
 Absolute paths from the repo root also work:
 
 ```markdown
-[Getting Started](compiling/getting_started/learn_jorek.md)
+[Compiling](compiling/compilation_and_libraries/compiling.md)
 ```
 
 Do not hard-code `.html` extensions — they will break if the site baseurl changes.
@@ -214,7 +214,7 @@ Do not hard-code `.html` extensions — they will break if the site baseurl chan
 Keep images next to the page that uses them. Create an `assets/` folder in the same directory as the `.md` file, with a subfolder named after the file:
 
 ```
-docs/howto/
+docs/howto/physics_options/physical_terms/
   diamag.md
   assets/
     diamag/

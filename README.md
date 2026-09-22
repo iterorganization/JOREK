@@ -10,14 +10,14 @@ The non-linear extended MHD code JOREK resolves realistic toroidal tokamak X-poi
 JOREK is licensed under LGPLv3.0-or-later. For contributions: Sign commits with `Signed-off-by` (DCO 1.1), where DCO refers to Developer Certificate of Origin that ensures compliance with the license requirements.
 
 ## Citing JOREK
-All publications using JOREK **must** cite the overview article (Nuclear Fusion 61, 065001 (2021)) and relevant prior works listed in [CITATION.cff](./CITATION.cff) and on the JOREK code website. GitHub generates BibTeX/APA.
+All publications using JOREK **must** cite the overview article (Nuclear Fusion 61, 065001 (2021)) and relevant prior works listed in [CITATION.cff](./docs/CITATION.cff) and on the JOREK code website. GitHub generates BibTeX/APA.
 
 ## Community Rules
 - **Forks/Renaming**: Stick to 'JOREK' or 'JOREK-fork'. Renaming fragments the community—merge upstream!
 - **Share** all own developments based on the code with the community via pull requests upstream to the central repository.
 - **Include the JOREK Team as co-author** in all publications referring to the most recent JOREK overview article as affiliation/footnote. At present this is "For a list of JOREK team members refer to the author list of M Hoelzl, GTA Huijsmans, FJ Artola, E Nardon, M Becoulet, N Schwarz, A Cathey, SJP Pamela et al. Nuclear Fusion 64, 112016 (2024) Doi: 10.1088/1741-4326/ad5a21".
 - Contributions: Pull requests require DCO. Discuss in Issues.
-- Code of Conduct: [See GOVERNANCE.md](./GOVERNANCE.md)
+- Code of Conduct: [See GOVERNANCE.md](./docs/GOVERNANCE.md)
 
 ## Development
 - Repository: [JOREK](https://github.com/iterorganization/JOREK)

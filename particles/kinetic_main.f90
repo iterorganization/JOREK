@@ -84,6 +84,7 @@ integer   :: n_reflect
 integer   :: i, j, istep_inner_loop, group_num, config_num, valve_num, n_lcm_blocks, inner_stepsize
 integer   :: seed, i_rng, n_stream
 logical   :: last_step !< whether it is the last step of the inner particle loop
+logical   :: puff_from_namelist, puff_from_file
 
 !> For keeping track of groups requiring specific physics (e.g. wall actions, recombination, puffing...)
 integer   :: n_wall_act_groups = 0
@@ -208,7 +209,10 @@ do group_num=1, n_part_groups
   if (sim%groups(group_num)%use_kin_puffing) then
     do valve_num=1, n_valves_max
       !> check for the puff_ctrl objects that have been set
-      if ((part_group_configs(config_num)%puff_ctrl(valve_num)%rates(1) > 0) .OR. (part_group_configs(config_num)%puff_ctrl(valve_num)%times(1) >= 0)) then
+      
+      puff_from_namelist = count(part_group_configs(group_num)%puff_ctrl(valve_num)%rates /= -1) + count(part_group_configs(group_num)%puff_ctrl(valve_num)%times /= -1) > 0
+      puff_from_file = trim(part_group_configs(group_num)%puff_ctrl(valve_num)%from_file) /= "none"
+      if (puff_from_namelist .or. puff_from_file) then
         puff_counter = puff_counter + 1   ! increase the number of puffing events required per fluid time step
         puff_actions(puff_counter) = particle_puffing(sim, group_num, valve_num, seed=seed)  
       endif

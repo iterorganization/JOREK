@@ -249,7 +249,7 @@ The next step is to compile JOREK with model 180, which is a "fake" model that d
 
 If Dommaschk coefficients are used, `l_pol_domm` should be set to the number passed to the `-l` parameter in `compute_dcoef_lsq.py` in the previous step. If the code is run without Dommaschk potentials, `USE_DOMM=0` in jorek/defaults.mk and `l_pol_domm=0` must be set. This will mean that a Poisson solve is carried out as part of model 180 to compute $\chi$. Note that while this can take some time, it will make further calculations significantly faster, as computation of Dommaschk potentials is computationally demanding.
 
-If 32-bit integers are used, an integer overflow of the matrix array indices may be reached for more complex setups due to the many DOF in the matrix solver. How switch to 64-bit integers is described here: [Compiling JOREK and solvers using long integers](../compiling/compiling_int64.md)
+If 32-bit integers are used, an integer overflow of the matrix array indices may be reached for more complex setups due to the many DOF in the matrix solver. How switch to 64-bit integers is described here: [Compiling JOREK and solvers using long integers](../compiling/compilation_and_libraries/compiling_int64.md)
 
 For the W7-A example considered here, using Dommaschk potentials, the hard-coded parameters have the following values:
 

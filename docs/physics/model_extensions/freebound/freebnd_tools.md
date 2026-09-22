@@ -13,6 +13,7 @@ This page is intended to describe tools related to the free-boundary extension. 
 * [Active controller model for vertical stabilization](#active-controller-model-for-vertical-stabilization)
 * [Calculate wall forces](#calculate-wall-forces)
 * [Calculate magnetic fields in vacuum](#calculate-magnetic-fields-in-vacuum)
+* [Compress STARWALL response matrices](#compress-starwall-response-matrices)
 
 
 ## Construct a free-boundary equilibrium without knowing the coil currents
@@ -182,3 +183,9 @@ To select the given JOREK restart files create a file named `steps.nml` with 3 i
 The fields are exported in the file `fields_xyz.dat` and are also separated into coil, wall, and plasma contributions. 
 
 **Note:** To calculate the required plasma fields, `n_plane` typically should be more than 60 (even for 2D).
+
+## Compress STARWALL response matrices
+
+> **Warning:** Response-matrix compression has not been merged into the standard `develop` branch. The current instructions apply only to the unmerged feature branch and may change before integration.
+
+An experimental tool can compress STARWALL response matrices using a singular-value decomposition. See [Compress the Response Matrices](compress_response_matrices.html) for the feature-branch requirements, compilation instructions, parameters, and current limitations.
