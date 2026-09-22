@@ -164,6 +164,12 @@ subroutine populate_element_rtree_2D(node_list, element_list)
        element_data(i)%max_vals(1) = real(rmax, C_DOUBLE)
        element_data(i)%max_vals(2) = real(zmax, C_DOUBLE)
 
+#if STELLARATOR_MODEL
+       ! Initialise phi component for stellarator geometry.
+       element_data(i)%min_vals(3) = real(-PI, C_DOUBLE)
+       element_data(i)%max_vals(3) = real(+PI, C_DOUBLE)
+#endif
+
        ! 4. Store Pointers for C++
        min_ptrs(i) = C_LOC(element_data(i)%min_vals)
        max_ptrs(i) = C_LOC(element_data(i)%max_vals)
