@@ -1,3 +1,9 @@
+# CMake
+/build/
+CMakeUserPresets.json
+/CMakeCache.txt
+/CMakeFiles/
+
 *.bck
 *.o
 *.mod
