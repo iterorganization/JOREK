@@ -907,6 +907,10 @@ module phys_module
 
   !> @name Flag to determine whether or not we keep current source term  
   logical             :: keep_current_prof !< Artificial current source to approximately keep the initial current profile, i.e., \f$\eta(j-j0)\f$?
+  logical             :: keep_current_prof_confined !< Restrict the keep_current_prof source to the confined region via smooth tanh masks (suppressed in SOL and private flux region)
+  real*8              :: keep_current_psin_cutoff   !< Center of the tanh mask in psi_N for keep_current_prof_confined
+  real*8              :: keep_current_psin_sig      !< Width of the tanh mask in psi_N for keep_current_prof_confined
+  real*8              :: keep_current_z_sig         !< Width of the tanh mask in Z beyond the X-point(s) for keep_current_prof_confined (masks the private flux region where psi_N < 1)
   logical             :: init_current_prof !< Initialize the current source from the current profile present
   logical             :: current_prof_initialized !< Flag that is automatically set to true once the current source has been initialized to prevent accidental reinitialization when restarting
   

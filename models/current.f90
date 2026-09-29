@@ -20,7 +20,7 @@ real*8,  intent(in)    :: psi_bnd
 real*8,  intent(out)   :: zjz        ! Current at the given position.
 
 ! --- local variables
-real*8  :: psi_n
+real*8  :: psi_n, mask
 real*8  :: zn,dn_dpsi,dn_dz,dn_dpsi2,dn_dz2,dn_dpsi_dz,dn_dpsi3,dn_dpsi_dz2,dn_dpsi2_dz
 real*8  :: zT,dT_dpsi,dT_dz,dT_dpsi2,dT_dz2,dT_dpsi_dz,dT_dpsi3,dT_dpsi_dz2,dT_dpsi2_dz
 real*8  :: zTi,zTe,dTi_dpsi,dTe_dpsi,dTi_dz,dTe_dz,dTi_dpsi2,dTe_dpsi2,dTi_dz2,dTe_dz2
@@ -58,6 +58,23 @@ zjz   = zFFprime - R*R * (zn * dT_dpsi + dn_dpsi * zT)
 !if ((bootstrap) .and. (restart)) then
 !  zjz   = zjz * (0.5d0 - 0.5d0* tanh( (psi_n - (FF_coef(7)-FF_coef(8)))/FF_coef(8) ) )
 !endif
+
+! --- Restrict the current source to the confined region: the input profiles are not exactly
+!     zero on open field lines (tanh tails in the SOL; psi_N < 1 again in the private flux
+!     region, where the profiles evaluate to near-separatrix core values and are only damped
+!     by the wide tanh(Z) cutoffs), and the eta*(j-j0) drive is stiffest where the plasma is
+!     cold. Masks in psi_N towards the SOL and, more sharply than the profile routines, in Z
+!     beyond the X-point(s) towards the private flux region.
+if (keep_current_prof_confined) then
+  mask = 0.5d0 * (1.d0 - tanh((psi_n - keep_current_psin_cutoff)/keep_current_psin_sig))
+  if (xpoint2) then
+    if (xcase2 .ne. UPPER_XPOINT) & ! mask below the lower X-point
+      mask = mask * 0.5d0 * (1.d0 - tanh((Z_xpoint(1) - Z)/keep_current_z_sig))
+    if (xcase2 .ne. LOWER_XPOINT) & ! mask above the upper X-point
+      mask = mask * 0.5d0 * (1.d0 - tanh((Z - Z_xpoint(2))/keep_current_z_sig))
+  endif
+  zjz = zjz * mask
+endif
 
 return
 end subroutine current

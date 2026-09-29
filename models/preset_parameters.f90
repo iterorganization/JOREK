@@ -653,6 +653,10 @@ subroutine preset_parameters
   tgnum_A3           = 0.d0
 
   keep_current_prof  = .true.               ! Keep the current_source term
+  keep_current_prof_confined = .false.      ! Apply the current_source term only in the confined region
+  keep_current_psin_cutoff   = 0.98d0
+  keep_current_psin_sig      = 0.01d0
+  keep_current_z_sig         = 0.02d0
   init_current_prof  = .false.
   current_prof_initialized = .false.
   
