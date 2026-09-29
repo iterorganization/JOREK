@@ -947,6 +947,7 @@ do i=1, n_part_groups_max
     !< which overrides the default value of supers_ratio_puff set here
     part_group_configs(i)%puff_ctrl(j)%times = -1.d0
     part_group_configs(i)%puff_ctrl(j)%rates = -1.d0
+    part_group_configs(i)%puff_ctrl(j)%from_file = "none"
   enddo
 enddo
 

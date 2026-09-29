@@ -45,6 +45,7 @@ integer           :: used_segs !< used for write out of puff ctrls
 integer           :: n_wall_actions, n_poly
 character(len=10) :: mode_num
 logical           :: short2
+logical           :: from_file !< whether a file has been specified for this input (used in puff ctrls)
 
 ! --- Text out format
 200 format(' ',79('*'))
@@ -1119,8 +1120,9 @@ write(*,'(1x,a)',advance='no') ' USE_DOMM            : '
           write(*,*) "Puff ctrls: "
 
           do i=1, n_valves_max
-            used_segs = count(part_group_configs(group_num)%puff_ctrl(i)%rates > 0)
-            if (used_segs > 0) then
+            used_segs = count(part_group_configs(group_num)%puff_ctrl(i)%rates /= -1)
+            from_file = trim(part_group_configs(group_num)%puff_ctrl(i)%from_file) /= "none"
+            if (used_segs > 0 .or. from_file) then
               write(*,"(3X,A,' = ',100I12)")    'Puff valve            ', i
 
               !> config of the number of supers to create per event
@@ -1131,9 +1133,13 @@ write(*,'(1x,a)',advance='no') ' USE_DOMM            : '
               else
                 write(*,"(3X,A,' = ',99ES12.4)")    'supers_ratio_puff     ', part_group_configs(group_num)%puff_ctrl(i)%supers_ratio_puff
               endif
-
-              write(*,"(3X,A,' = ',99ES10.3)")  'rates                 ', part_group_configs(group_num)%puff_ctrl(i)%rates(1:used_segs)
-              write(*,"(3X,A,' = ',99ES10.3)")  'times                 ', part_group_configs(group_num)%puff_ctrl(i)%times(1:used_segs)
+              if(used_segs > 0) then
+                write(*,"(3X,A,' = ',99ES10.3)")  'rates                 ', part_group_configs(group_num)%puff_ctrl(i)%rates(1:used_segs)
+                write(*,"(3X,A,' = ',99ES10.3)")  'times                 ', part_group_configs(group_num)%puff_ctrl(i)%times(1:used_segs)
+              end if
+              if(from_file) then
+                write(*,"(3X,A,' = ',99A)")  'from_file             ', part_group_configs(group_num)%puff_ctrl(i)%from_file
+              end if
             endif
           enddo
         endif ! puffing

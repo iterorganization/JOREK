@@ -1021,6 +1021,8 @@ module phys_module
 
     real*8  :: times(n_puff_segment_max)  !< array of time checkpoints (SI, in seconds) for which the puffing rate is specified (requires a defined puff_ctrl(i)%rates of the same length)   
     real*8  :: rates(n_puff_segment_max)  !< array of specified puff rates (atoms/second) at given time checkpoints (requires a defined puff_ctrl(i)%times of the same length)
+
+    character(len=512) :: from_file       !< file to read the puffrate from
   end type type_puff_ctrl
 
   ! ------------------------------------------------
