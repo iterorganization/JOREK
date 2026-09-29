@@ -43,7 +43,7 @@ To predict the currents in the 10 JET circuits that feed the 20 JET coils:
 2. Use the JET coils geometry file: [jet_coils.zip](../assets/freebound/jet_coils.zip).
 3. To translate the found total JET currents to STARWALL format, divide each coil current by its number of turns. Use this [excel file](../assets/freebound/turns_cf_star.xlsx) to assist with the conversion.
 
-## Active controller model for vertical stabilization
+## Active controller model for vertical and radial stabilization
 A PID controller was added to JOREK to enable active stabilization in free boundary simulation including n=0.
 
 ### Fundamentals
@@ -56,7 +56,7 @@ where $e=Z(t)-Z_{\text{ref}}(t)$ is the deviation from the reference value and $
 
 ### Implementation in JOREK
 
-The equation above is discretized and built into the coil_current_source routine in vacuum/vacuum_response.dat after the current profile of the PF coils is interpolated. There, it has the following form:
+The equation above is discretized and built into the coil_current_source routine in vacuum/vacuum_response.dat. It takes the following form (equivalent for the radial feedback):
 
 $$\begin{align}
 \mathrm{d}Z_{\text{err}} &= Z_{\text{axis}}(t_n) - Z_{\text{ref}}(t_n)\\
@@ -67,7 +67,7 @@ I(i) &= I(i) + \mathrm{vert\_FB\_amp\_ts}(i) \, \Delta I
 \end{align}$$
 
 It has the following features with the parameters listed in the table below:
-  * Activate the controller after a certain time start_VFB_ts
+  * Activate the controller after a certain time start_PFB_ts
   * Use a constant reference value or an input profile
   * Specify tact time, a periodic interval after which the controller acts
   * Set coil current limits for each coil individually
@@ -77,26 +77,25 @@ The controller is only activated if the amplification factors are specified and 
 
 ### Parameters
 
-| Parameter      | Comment   | Typical values           |
-|---|---|---|
-| vert_FB_gain(1)                 | proportional gain $K_P$                | 1.e0 (case dependent)  |
-| vert_FB_gain(2)                 | **derivative** gain $K_D$              | 1.e0                   |
-| vert_FB_gain(3)                 | **integral** gain $K_I$                | 1.e0                   |
-| start_VFB_ts [t<sub>JOREK</sub>]| start time of vertical feedback               | -                      |
-| vert_FB_amp_ts                  | gain amplification factor for individual coils| >0 for upper, <0 for lower coils    |
-| I_coils_max [A]                 | maximum allowed current in the PF coil        | case specific     |
-| vert_FB_tact [t<sub>JOREK</sub>]| Apply VFB only periodically                   | optional          |
-| Z_ref_ts(t)                     | time trace of reference axis position         | case specific     | 
-| vert_pos_file [t<sub>JOREK</sub> \| m] | input file for time dependent axis position   |                   |
+| Parameter                       | Comment                                       | Typical values                     |
+|---------------------------------|-----------------------------------------------|------------------------------------|
+| vert_FB_gain(1:3)               | $K_p, K_D, K_I$ gains for vertical feedback   | [1.e0,1.e0,1.e0] (case dependent)  |                 
+| rad_FB_gain(1:3)                | $K_p, K_D, K_I$ gains for radial feedback     | [1.e0,1.e0,1.e0] (case dependent)  |                 
+| start_PFB_ts [t<sub>JOREK</sub>]| start time of position feedback               | -                                  |
+| vert_FB_amp_ts                  | gain amplification factor for individual coils| >0 for upper, <0 for lower coils   |
+| rad_FB_amp_ts                   | gain amplification factor for individual coils| =0 for no control an radial control| 
+| I_coils_max [A]                 | maximum allowed current in the PF coil        | case specific                      |
+| pos_FB_tact [t<sub>JOREK</sub>] | Apply PFB only periodically                   | optional                           |
+| axis_pos_file                   | input file for time dependent axis position   |   -                                |
 
 ### How to specify the input profile
 
 The position can be specified by either 
-  * an input profile file (vert_pos_file)
+  * an input profile file (axis_pos_file) with 3 columns
     * the time is given in [t<sub>JOREK</sub>]
-    * the vertical position in [m]
-    * when the simulation is longer than specified by the profile, the last value of the profile is used as the reference.  
-  * the input parameter Z_axis_ref also used for the free boundary equilibrium
+    * The radial position in [m]
+    * the vertical position in [m]  
+  * the input parameter R_axis_ref, Z_axis_ref is also used for the free boundary equilibrium if no profile is specified
   * If none of this is specified, the initial or restart value of the axis is used
 
 ### Tuning

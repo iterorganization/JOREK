@@ -546,7 +546,7 @@ write(*,*) "n elements:", element_list%n_elements
 
   if ( freeboundary ) then
      call broadcast_vacuum(my_id, resistive_wall)
-     call read_Z_axis_profile()
+     call read_axis_profile(my_id)
   end if
 
   mhd_sim%my_id = my_id

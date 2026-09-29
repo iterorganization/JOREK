@@ -745,11 +745,11 @@ write(*,'(1x,a)',advance='no') ' USE_DOMM            : '
       write(*,REAL_FMT2) 'wall_resistivity      ', wall_resistivity, ' (used only if STARWALL response file_version==1)'
       write(*,REAL_FMT2) 'wall_resistivity_fact ', wall_resistivity_fact, ' (used only if STARWALL response file_version>=2)'
     end if
-    write(*,REAL_FMT) 'start_VFB_ts          ', start_VFB_ts
+    write(*,REAL_FMT) 'start_PFB_ts          ', start_PFB_ts
     write(*,REAL_FMT) 'vert_FB_gain          ', vert_FB_gain(:)
     write(*,REAL_FMT) 'vert_FB_amp_ts        ', vert_FB_amp_ts(1:n_pf_coils)
-    write(*,REAL_FMT) 'vert_FB_tact          ', vert_FB_tact
-    write(*,CHAR_FMT) 'vert_pos_file         ', trim(vert_pos_file)
+    write(*,REAL_FMT) 'pos_FB_tact           ', pos_FB_tact
+    write(*,CHAR_FMT) 'axis_pos_file         ', trim(axis_pos_file)
     write(*,REAL_FMT) 'I_coils_max           ', I_coils_max(1:n_pf_coils)
 
     

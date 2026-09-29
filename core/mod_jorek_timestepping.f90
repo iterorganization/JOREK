@@ -166,7 +166,7 @@ subroutine setup_solvers(this, sim)
     
     call set_coil_curr_time_trace()
 
-    call read_Z_axis_profile()
+    call read_axis_profile(sim%my_id)
     
     call MPI_BCAST(wall_curr_initialized, 1 , MPI_LOGICAL,          0, MPI_COMM_WORLD, ierr)
 
@@ -191,7 +191,6 @@ subroutine setup_solvers(this, sim)
 
   if ( freeboundary ) then
      call broadcast_vacuum(sim%my_id, resistive_wall)
-     call read_Z_axis_profile()
   end if
 
   if ( sim%my_id == 0 ) then
