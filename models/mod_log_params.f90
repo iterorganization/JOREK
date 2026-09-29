@@ -1148,7 +1148,7 @@ write(*,'(1x,a)',advance='no') ' USE_DOMM            : '
 
       ! rep (runaway electrons, only pressure coupling for now) -----
       if (sim%groups(group_num)%coupling_scheme .eq. 'rep') then
-        write(*,REAL_FMT) 'num_re,                 ',part_group_configs(group_num)%num_re
+        write(*,REAL_FMT) 'n_particles_total,      ',part_group_configs(group_num)%n_particles_total
         write(*,REAL_FMT) 're_energy,              ',part_group_configs(group_num)%re_energy
         write(*,REAL_FMT) 're_std_energy,          ',part_group_configs(group_num)%re_std_energy
         write(*,REAL_FMT) 're_pitch,               ',part_group_configs(group_num)%re_pitch

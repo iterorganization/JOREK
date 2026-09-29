@@ -4,6 +4,7 @@ module mod_neutral_density
     use mod_interp, only: mode_moivre
     use mod_basisfunctions
     use particle_tracer
+    use phys_module, only: n_part_groups
     !$ use omp_lib
   
     implicit none

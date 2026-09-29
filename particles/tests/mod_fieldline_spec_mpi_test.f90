@@ -6,6 +6,7 @@ use data_structure
 use mod_particle_types
 use mod_sobseq_rng
 use mod_initialise_particles
+use initialisers_base
 use mod_fields_linear
 use mod_fieldline_euler
 use mod_neighbours

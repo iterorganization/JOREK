@@ -12,7 +12,7 @@ use phys_module, only: xpoint, xcase
 use mod_random_seed, only: random_seed
 use mod_sobseq_rng, only: sobseq_rng
 use constants, only: TWOPI, PI
-use mod_initialise_particles, only: domain_bounding_box
+use initialisers_base, only: domain_bounding_box
 use domains
 use hdf5_io_module
 use mod_sampling, only: transform_uniform_cylindrical

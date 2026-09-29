@@ -1114,7 +1114,6 @@ module phys_module
 
     ! ================ for runaway electrons ('rep' coupling scheme) particles ===============
 
-    real*8              :: num_re                  !< number of runaway electrons in the group
     real*8              :: re_energy               !< energy [eV] of the runaway electrons in the group
     real*8              :: re_std_energy           !< standard deviation of the energy [eV] of the runaway electrons in the group
     real*8              :: re_pitch                !< pitch between RE momentum and magnetic field line (i.e. p_re_par/p_re_tot)
@@ -1125,6 +1124,8 @@ module phys_module
                                                    !< for example n_phi_planes=4, n_particles=1e4 then only 250 particles are initialised
                                                    !< each particle is then copied multiple (3) times around the torus with angle 2pi/n_phi_planes (= pi/2)
                                                    !< if n_phi_planes=int*n_period then projected particle quantities are initialised as 0 for n_tor>1
+
+    ! =============== for rep and epf ===================
     real*8              :: n_particles_total       !< Total number of particles to simulate (ie sum(weights)) !!NOT n_particles - total number of super/numeric-particles
 
 
