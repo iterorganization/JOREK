@@ -1,0 +1,372 @@
+{
+ "format_version": 1,
+ "source": "models/model600/mod_elt_matrix_fft.f90",
+ "source_sha256": "d6a21cedf0026e97a0ef5def48277a65ab9c2a2a2c1e53e664f0c6d907512ca4",
+ "block_count": 24,
+ "source_only_lines": 8,
+ "generated_only_lines": 158,
+ "blocks": {
+  "Single-temperature (T) model | amat(var_psi,var_rhoimp) | #0": {
+   "findings": [
+    2
+   ],
+   "source_only": [],
+   "generated_only": [
+    "-F0**2*v*rhoimp*T0_s*theta*tstep*alpha_e_bis*ps0_t*tauIC/(F0**2*r0_corr + ps0_x**2*r0_corr + ps0_y**2*r0_corr)",
+    "-F0**2*v*rhoimp_s*T0*theta*tstep*alpha_e*ps0_t*tauIC/(F0**2*r0_corr + ps0_x**2*r0_corr + ps0_y**2*r0_corr)",
+    "-F0**3*v*rhoimp*T0_p*xjac*theta*tstep*alpha_e_bis*tauIC/(BigR*F0**2*r0_corr + BigR*ps0_x**2*r0_corr + BigR*ps0_y**2*r0_corr)",
+    "F0**2*v*rhoimp*T0_t*theta*tstep*alpha_e_bis*ps0_s*tauIC/(F0**2*r0_corr + ps0_x**2*r0_corr + ps0_y**2*r0_corr)",
+    "F0**2*v*rhoimp_t*T0*theta*tstep*alpha_e*ps0_s*tauIC/(F0**2*r0_corr + ps0_x**2*r0_corr + ps0_y**2*r0_corr)"
+   ]
+  },
+  "Single-temperature (T) model | amat(var_psi,var_t) | #0": {
+   "findings": [
+    2
+   ],
+   "source_only": [],
+   "generated_only": [
+    "-F0**2*v*rhoimp0*T*T0_s*theta*tstep*alpha_e_tri*ps0_t*tauIC/(2*F0**2*r0_corr + 2*ps0_x**2*r0_corr + 2*ps0_y**2*r0_corr)",
+    "-F0**2*v*rhoimp0*T_s*theta*tstep*alpha_e_bis*ps0_t*tauIC/(F0**2*r0_corr + ps0_x**2*r0_corr + ps0_y**2*r0_corr)",
+    "-F0**2*v*rhoimp0_s*T*theta*tstep*alpha_e_bis*ps0_t*tauIC/(F0**2*r0_corr + ps0_x**2*r0_corr + ps0_y**2*r0_corr)",
+    "-F0**3*v*rhoimp0*T*T0_p*xjac*theta*tstep*alpha_e_tri*tauIC/(2*BigR*F0**2*r0_corr + 2*BigR*ps0_x**2*r0_corr + 2*BigR*ps0_y**2*r0_corr)",
+    "-F0**3*v*rhoimp0_p*T*xjac*theta*tstep*alpha_e_bis*tauIC/(BigR*F0**2*r0_corr + BigR*ps0_x**2*r0_corr + BigR*ps0_y**2*r0_corr)",
+    "F0**2*v*rhoimp0*T*T0_t*theta*tstep*alpha_e_tri*ps0_s*tauIC/(2*F0**2*r0_corr + 2*ps0_x**2*r0_corr + 2*ps0_y**2*r0_corr)",
+    "F0**2*v*rhoimp0*T_t*theta*tstep*alpha_e_bis*ps0_s*tauIC/(F0**2*r0_corr + ps0_x**2*r0_corr + ps0_y**2*r0_corr)",
+    "F0**2*v*rhoimp0_t*T*theta*tstep*alpha_e_bis*ps0_s*tauIC/(F0**2*r0_corr + ps0_x**2*r0_corr + ps0_y**2*r0_corr)"
+   ]
+  },
+  "Single-temperature (T) model | amat(var_rho,var_psi) | #0": {
+   "findings": [
+    4
+   ],
+   "source_only": [],
+   "generated_only": [
+    "-BigR*v_x*psi_x*xjac*theta*tstep*V_prof_pinch*ps0_x**2*r0/(ps0_x**2*sqrt(ps0_x**2 + ps0_y**2) + ps0_y**2*sqrt(ps0_x**2 + ps0_y**2))",
+    "-BigR*v_x*psi_y*xjac*theta*tstep*V_prof_pinch*ps0_x*ps0_y*r0/(ps0_x**2*sqrt(ps0_x**2 + ps0_y**2) + ps0_y**2*sqrt(ps0_x**2 + ps0_y**2))",
+    "-BigR*v_y*psi_x*xjac*theta*tstep*V_prof_pinch*ps0_x*ps0_y*r0/(ps0_x**2*sqrt(ps0_x**2 + ps0_y**2) + ps0_y**2*sqrt(ps0_x**2 + ps0_y**2))",
+    "-BigR*v_y*psi_y*xjac*theta*tstep*V_prof_pinch*ps0_y**2*r0/(ps0_x**2*sqrt(ps0_x**2 + ps0_y**2) + ps0_y**2*sqrt(ps0_x**2 + ps0_y**2))",
+    "BigR*v_x*psi_x*xjac*theta*tstep*V_prof_pinch*r0/(sqrt(ps0_x**2 + ps0_y**2))",
+    "BigR*v_y*psi_y*xjac*theta*tstep*V_prof_pinch*r0/(sqrt(ps0_x**2 + ps0_y**2))"
+   ]
+  },
+  "Single-temperature (T) model | amat(var_rho,var_rhoimp) | #0": {
+   "findings": [
+    1
+   ],
+   "source_only": [],
+   "generated_only": [
+    "-2*BigR*v*rhoimp*T0_y*xjac*theta*tstep*alpha_i*tauIC",
+    "-2*BigR*v*rhoimp_y*T0*xjac*theta*tstep*alpha_i*tauIC"
+   ]
+  },
+  "Single-temperature (T) model | amat(var_rho,var_t) | #0": {
+   "findings": [
+    1
+   ],
+   "source_only": [],
+   "generated_only": [
+    "-2*BigR*v*rhoimp0*T_y*xjac*theta*tstep*alpha_i*tauIC",
+    "-2*BigR*v*rhoimp0_y*T*xjac*theta*tstep*alpha_i*tauIC"
+   ]
+  },
+  "Single-temperature (T) model | amat(var_u,var_rhoimp) | #0": {
+   "findings": [
+    1
+   ],
+   "source_only": [],
+   "generated_only": [
+    "-2*BigR**4*v*u0_xy*rhoimp_y*T0_y*xjac*theta*tstep*alpha_i*tauIC",
+    "-BigR**4*v*u0_xx*rhoimp*T0_xy*xjac*theta*tstep*alpha_i*tauIC",
+    "-BigR**4*v*u0_xx*rhoimp_x*T0_y*xjac*theta*tstep*alpha_i*tauIC",
+    "-BigR**4*v*u0_xx*rhoimp_xy*T0*xjac*theta*tstep*alpha_i*tauIC",
+    "-BigR**4*v*u0_xx*rhoimp_y*T0_x*xjac*theta*tstep*alpha_i*tauIC",
+    "-BigR**4*v*u0_xy*rhoimp*T0_yy*xjac*theta*tstep*alpha_i*tauIC",
+    "-BigR**4*v*u0_xy*rhoimp_yy*T0*xjac*theta*tstep*alpha_i*tauIC",
+    "-BigR**4*v*w0_s*rhoimp*T0_t*theta*tstep*alpha_i*tauIC",
+    "-BigR**4*v*w0_s*rhoimp_t*T0*theta*tstep*alpha_i*tauIC",
+    "2*BigR**4*v*u0_xy*rhoimp_x*T0_x*xjac*theta*tstep*alpha_i*tauIC",
+    "BigR**3*v_x*u0_x*rhoimp*T0_y*xjac*theta*tstep*alpha_i*tauIC",
+    "BigR**3*v_x*u0_x*rhoimp_y*T0*xjac*theta*tstep*alpha_i*tauIC",
+    "BigR**3*v_y*u0_y*rhoimp*T0_y*xjac*theta*tstep*alpha_i*tauIC",
+    "BigR**3*v_y*u0_y*rhoimp_y*T0*xjac*theta*tstep*alpha_i*tauIC",
+    "BigR**4*v*u0_xy*rhoimp*T0_xx*xjac*theta*tstep*alpha_i*tauIC",
+    "BigR**4*v*u0_xy*rhoimp_xx*T0*xjac*theta*tstep*alpha_i*tauIC",
+    "BigR**4*v*u0_yy*rhoimp*T0_xy*xjac*theta*tstep*alpha_i*tauIC",
+    "BigR**4*v*u0_yy*rhoimp_x*T0_y*xjac*theta*tstep*alpha_i*tauIC",
+    "BigR**4*v*u0_yy*rhoimp_xy*T0*xjac*theta*tstep*alpha_i*tauIC",
+    "BigR**4*v*u0_yy*rhoimp_y*T0_x*xjac*theta*tstep*alpha_i*tauIC",
+    "BigR**4*v*w0_t*rhoimp*T0_s*theta*tstep*alpha_i*tauIC",
+    "BigR**4*v*w0_t*rhoimp_s*T0*theta*tstep*alpha_i*tauIC"
+   ]
+  },
+  "Single-temperature (T) model | amat(var_u,var_t) | #0": {
+   "findings": [
+    1
+   ],
+   "source_only": [],
+   "generated_only": [
+    "-2*BigR**4*v*u0_xy*rhoimp0_y*T_y*xjac*theta*tstep*alpha_i*tauIC",
+    "-BigR**4*v*u0_xx*rhoimp0*T_xy*xjac*theta*tstep*alpha_i*tauIC",
+    "-BigR**4*v*u0_xx*rhoimp0_x*T_y*xjac*theta*tstep*alpha_i*tauIC",
+    "-BigR**4*v*u0_xx*rhoimp0_xy*T*xjac*theta*tstep*alpha_i*tauIC",
+    "-BigR**4*v*u0_xx*rhoimp0_y*T_x*xjac*theta*tstep*alpha_i*tauIC",
+    "-BigR**4*v*u0_xy*rhoimp0*T_yy*xjac*theta*tstep*alpha_i*tauIC",
+    "-BigR**4*v*u0_xy*rhoimp0_yy*T*xjac*theta*tstep*alpha_i*tauIC",
+    "-BigR**4*v*w0_s*rhoimp0*T_t*theta*tstep*alpha_i*tauIC",
+    "-BigR**4*v*w0_s*rhoimp0_t*T*theta*tstep*alpha_i*tauIC",
+    "2*BigR**4*v*u0_xy*rhoimp0_x*T_x*xjac*theta*tstep*alpha_i*tauIC",
+    "BigR**3*v_x*u0_x*rhoimp0*T_y*xjac*theta*tstep*alpha_i*tauIC",
+    "BigR**3*v_x*u0_x*rhoimp0_y*T*xjac*theta*tstep*alpha_i*tauIC",
+    "BigR**3*v_y*u0_y*rhoimp0*T_y*xjac*theta*tstep*alpha_i*tauIC",
+    "BigR**3*v_y*u0_y*rhoimp0_y*T*xjac*theta*tstep*alpha_i*tauIC",
+    "BigR**4*v*u0_xy*rhoimp0*T_xx*xjac*theta*tstep*alpha_i*tauIC",
+    "BigR**4*v*u0_xy*rhoimp0_xx*T*xjac*theta*tstep*alpha_i*tauIC",
+    "BigR**4*v*u0_yy*rhoimp0*T_xy*xjac*theta*tstep*alpha_i*tauIC",
+    "BigR**4*v*u0_yy*rhoimp0_x*T_y*xjac*theta*tstep*alpha_i*tauIC",
+    "BigR**4*v*u0_yy*rhoimp0_xy*T*xjac*theta*tstep*alpha_i*tauIC",
+    "BigR**4*v*u0_yy*rhoimp0_y*T_x*xjac*theta*tstep*alpha_i*tauIC",
+    "BigR**4*v*w0_t*rhoimp0*T_s*theta*tstep*alpha_i*tauIC",
+    "BigR**4*v*w0_t*rhoimp0_s*T*theta*tstep*alpha_i*tauIC"
+   ]
+  },
+  "Single-temperature (T) model | amat(var_vpar,var_psi) | #0": {
+   "findings": [
+    4
+   ],
+   "source_only": [],
+   "generated_only": [
+    "-BigR*v*vpar0_x*psi_x*xjac*theta*tstep*V_prof_pinch*r0/(sqrt(ps0_x**2 + ps0_y**2))",
+    "-BigR*v*vpar0_y*psi_y*xjac*theta*tstep*V_prof_pinch*r0/(sqrt(ps0_x**2 + ps0_y**2))",
+    "BigR*v*vpar0_x*psi_x*xjac*theta*tstep*V_prof_pinch*ps0_x**2*r0/(ps0_x**2*sqrt(ps0_x**2 + ps0_y**2) + ps0_y**2*sqrt(ps0_x**2 + ps0_y**2))",
+    "BigR*v*vpar0_x*psi_y*xjac*theta*tstep*V_prof_pinch*ps0_x*ps0_y*r0/(ps0_x**2*sqrt(ps0_x**2 + ps0_y**2) + ps0_y**2*sqrt(ps0_x**2 + ps0_y**2))",
+    "BigR*v*vpar0_y*psi_x*xjac*theta*tstep*V_prof_pinch*ps0_x*ps0_y*r0/(ps0_x**2*sqrt(ps0_x**2 + ps0_y**2) + ps0_y**2*sqrt(ps0_x**2 + ps0_y**2))",
+    "BigR*v*vpar0_y*psi_y*xjac*theta*tstep*V_prof_pinch*ps0_y**2*r0/(ps0_x**2*sqrt(ps0_x**2 + ps0_y**2) + ps0_y**2*sqrt(ps0_x**2 + ps0_y**2))"
+   ]
+  },
+  "Single-temperature (T) model | amat(var_vpar,var_rho) | #0": {
+   "findings": [
+    9
+   ],
+   "source_only": [
+    "BigR*v*vpar0_x*rho*xjac*theta*tstep*V_prof_pinch*ps0_x/(sqrt(ps0_x**2 + ps0_y**2))",
+    "BigR*v*vpar0_y*rho*xjac*theta*tstep*V_prof_pinch*ps0_y/(sqrt(ps0_x**2 + ps0_y**2))"
+   ],
+   "generated_only": [
+    "-BigR*v*vpar0_x*rho*xjac*theta*tstep*V_prof_pinch*ps0_x/(sqrt(ps0_x**2 + ps0_y**2))",
+    "-BigR*v*vpar0_y*rho*xjac*theta*tstep*V_prof_pinch*ps0_y/(sqrt(ps0_x**2 + ps0_y**2))"
+   ]
+  },
+  "Single-temperature (T) model | amat(var_vpar,var_vpar) | #0": {
+   "findings": [
+    9
+   ],
+   "source_only": [
+    "BigR*v*vpar_x*xjac*theta*tstep*V_prof_pinch*ps0_x*r0/(sqrt(ps0_x**2 + ps0_y**2))",
+    "BigR*v*vpar_y*xjac*theta*tstep*V_prof_pinch*ps0_y*r0/(sqrt(ps0_x**2 + ps0_y**2))"
+   ],
+   "generated_only": [
+    "-BigR*v*vpar_x*xjac*theta*tstep*V_prof_pinch*ps0_x*r0/(sqrt(ps0_x**2 + ps0_y**2))",
+    "-BigR*v*vpar_y*xjac*theta*tstep*V_prof_pinch*ps0_y*r0/(sqrt(ps0_x**2 + ps0_y**2))"
+   ]
+  },
+  "Single-temperature (T) model | amat_n(var_psi,var_rhoimp) | #0": {
+   "findings": [
+    2
+   ],
+   "source_only": [],
+   "generated_only": [
+    "-F0**3*v*rhoimp_p*T0*xjac*theta*tstep*alpha_e*tauIC/(BigR*F0**2*r0_corr + BigR*ps0_x**2*r0_corr + BigR*ps0_y**2*r0_corr)"
+   ]
+  },
+  "Single-temperature (T) model | amat_n(var_psi,var_t) | #0": {
+   "findings": [
+    2
+   ],
+   "source_only": [],
+   "generated_only": [
+    "-F0**3*v*rhoimp0*T_p*xjac*theta*tstep*alpha_e_bis*tauIC/(BigR*F0**2*r0_corr + BigR*ps0_x**2*r0_corr + BigR*ps0_y**2*r0_corr)"
+   ]
+  },
+  "Two-temperature (Ti/Te) model | amat(var_psi,var_rhoimp) | #0": {
+   "findings": [
+    2
+   ],
+   "source_only": [],
+   "generated_only": [
+    "-2*F0**2*v*rhoimp*Te0_s*theta*tstep*alpha_e_bis*ps0_t*tauIC/(F0**2*r0_corr + ps0_x**2*r0_corr + ps0_y**2*r0_corr)",
+    "-2*F0**2*v*rhoimp_s*Te0*theta*tstep*alpha_e*ps0_t*tauIC/(F0**2*r0_corr + ps0_x**2*r0_corr + ps0_y**2*r0_corr)",
+    "-2*F0**3*v*rhoimp*Te0_p*xjac*theta*tstep*alpha_e_bis*tauIC/(BigR*F0**2*r0_corr + BigR*ps0_x**2*r0_corr + BigR*ps0_y**2*r0_corr)",
+    "2*F0**2*v*rhoimp*Te0_t*theta*tstep*alpha_e_bis*ps0_s*tauIC/(F0**2*r0_corr + ps0_x**2*r0_corr + ps0_y**2*r0_corr)",
+    "2*F0**2*v*rhoimp_t*Te0*theta*tstep*alpha_e*ps0_s*tauIC/(F0**2*r0_corr + ps0_x**2*r0_corr + ps0_y**2*r0_corr)"
+   ]
+  },
+  "Two-temperature (Ti/Te) model | amat(var_psi,var_te) | #0": {
+   "findings": [
+    2
+   ],
+   "source_only": [],
+   "generated_only": [
+    "-2*F0**2*v*rhoimp0*Te*Te0_s*theta*tstep*alpha_e_tri*ps0_t*tauIC/(F0**2*r0_corr + ps0_x**2*r0_corr + ps0_y**2*r0_corr)",
+    "-2*F0**2*v*rhoimp0*Te_s*theta*tstep*alpha_e_bis*ps0_t*tauIC/(F0**2*r0_corr + ps0_x**2*r0_corr + ps0_y**2*r0_corr)",
+    "-2*F0**2*v*rhoimp0_s*Te*theta*tstep*alpha_e_bis*ps0_t*tauIC/(F0**2*r0_corr + ps0_x**2*r0_corr + ps0_y**2*r0_corr)",
+    "-2*F0**3*v*rhoimp0*Te*Te0_p*xjac*theta*tstep*alpha_e_tri*tauIC/(BigR*F0**2*r0_corr + BigR*ps0_x**2*r0_corr + BigR*ps0_y**2*r0_corr)",
+    "-2*F0**3*v*rhoimp0_p*Te*xjac*theta*tstep*alpha_e_bis*tauIC/(BigR*F0**2*r0_corr + BigR*ps0_x**2*r0_corr + BigR*ps0_y**2*r0_corr)",
+    "2*F0**2*v*rhoimp0*Te*Te0_t*theta*tstep*alpha_e_tri*ps0_s*tauIC/(F0**2*r0_corr + ps0_x**2*r0_corr + ps0_y**2*r0_corr)",
+    "2*F0**2*v*rhoimp0*Te_t*theta*tstep*alpha_e_bis*ps0_s*tauIC/(F0**2*r0_corr + ps0_x**2*r0_corr + ps0_y**2*r0_corr)",
+    "2*F0**2*v*rhoimp0_t*Te*theta*tstep*alpha_e_bis*ps0_s*tauIC/(F0**2*r0_corr + ps0_x**2*r0_corr + ps0_y**2*r0_corr)"
+   ]
+  },
+  "Two-temperature (Ti/Te) model | amat(var_rho,var_psi) | #0": {
+   "findings": [
+    4
+   ],
+   "source_only": [],
+   "generated_only": [
+    "-BigR*v_x*psi_x*xjac*theta*tstep*V_prof_pinch*ps0_x**2*r0/(ps0_x**2*sqrt(ps0_x**2 + ps0_y**2) + ps0_y**2*sqrt(ps0_x**2 + ps0_y**2))",
+    "-BigR*v_x*psi_y*xjac*theta*tstep*V_prof_pinch*ps0_x*ps0_y*r0/(ps0_x**2*sqrt(ps0_x**2 + ps0_y**2) + ps0_y**2*sqrt(ps0_x**2 + ps0_y**2))",
+    "-BigR*v_y*psi_x*xjac*theta*tstep*V_prof_pinch*ps0_x*ps0_y*r0/(ps0_x**2*sqrt(ps0_x**2 + ps0_y**2) + ps0_y**2*sqrt(ps0_x**2 + ps0_y**2))",
+    "-BigR*v_y*psi_y*xjac*theta*tstep*V_prof_pinch*ps0_y**2*r0/(ps0_x**2*sqrt(ps0_x**2 + ps0_y**2) + ps0_y**2*sqrt(ps0_x**2 + ps0_y**2))",
+    "BigR*v_x*psi_x*xjac*theta*tstep*V_prof_pinch*r0/(sqrt(ps0_x**2 + ps0_y**2))",
+    "BigR*v_y*psi_y*xjac*theta*tstep*V_prof_pinch*r0/(sqrt(ps0_x**2 + ps0_y**2))"
+   ]
+  },
+  "Two-temperature (Ti/Te) model | amat(var_rho,var_rhoimp) | #0": {
+   "findings": [
+    1
+   ],
+   "source_only": [],
+   "generated_only": [
+    "-4*BigR*v*rhoimp*Ti0_y*xjac*theta*tstep*alpha_i*tauIC",
+    "-4*BigR*v*rhoimp_y*Ti0*xjac*theta*tstep*alpha_i*tauIC"
+   ]
+  },
+  "Two-temperature (Ti/Te) model | amat(var_rho,var_ti) | #0": {
+   "findings": [
+    1
+   ],
+   "source_only": [],
+   "generated_only": [
+    "-4*BigR*v*rhoimp0*Ti_y*xjac*theta*tstep*alpha_i*tauIC",
+    "-4*BigR*v*rhoimp0_y*Ti*xjac*theta*tstep*alpha_i*tauIC"
+   ]
+  },
+  "Two-temperature (Ti/Te) model | amat(var_u,var_rhoimp) | #0": {
+   "findings": [
+    1
+   ],
+   "source_only": [],
+   "generated_only": [
+    "-2*BigR**4*v*u0_xx*rhoimp*Ti0_xy*xjac*theta*tstep*alpha_i*tauIC",
+    "-2*BigR**4*v*u0_xx*rhoimp_x*Ti0_y*xjac*theta*tstep*alpha_i*tauIC",
+    "-2*BigR**4*v*u0_xx*rhoimp_xy*Ti0*xjac*theta*tstep*alpha_i*tauIC",
+    "-2*BigR**4*v*u0_xx*rhoimp_y*Ti0_x*xjac*theta*tstep*alpha_i*tauIC",
+    "-2*BigR**4*v*u0_xy*rhoimp*Ti0_yy*xjac*theta*tstep*alpha_i*tauIC",
+    "-2*BigR**4*v*u0_xy*rhoimp_yy*Ti0*xjac*theta*tstep*alpha_i*tauIC",
+    "-2*BigR**4*v*w0_s*rhoimp*Ti0_t*theta*tstep*alpha_i*tauIC",
+    "-2*BigR**4*v*w0_s*rhoimp_t*Ti0*theta*tstep*alpha_i*tauIC",
+    "-4*BigR**4*v*u0_xy*rhoimp_y*Ti0_y*xjac*theta*tstep*alpha_i*tauIC",
+    "2*BigR**3*v_x*u0_x*rhoimp*Ti0_y*xjac*theta*tstep*alpha_i*tauIC",
+    "2*BigR**3*v_x*u0_x*rhoimp_y*Ti0*xjac*theta*tstep*alpha_i*tauIC",
+    "2*BigR**3*v_y*u0_y*rhoimp*Ti0_y*xjac*theta*tstep*alpha_i*tauIC",
+    "2*BigR**3*v_y*u0_y*rhoimp_y*Ti0*xjac*theta*tstep*alpha_i*tauIC",
+    "2*BigR**4*v*u0_xy*rhoimp*Ti0_xx*xjac*theta*tstep*alpha_i*tauIC",
+    "2*BigR**4*v*u0_xy*rhoimp_xx*Ti0*xjac*theta*tstep*alpha_i*tauIC",
+    "2*BigR**4*v*u0_yy*rhoimp*Ti0_xy*xjac*theta*tstep*alpha_i*tauIC",
+    "2*BigR**4*v*u0_yy*rhoimp_x*Ti0_y*xjac*theta*tstep*alpha_i*tauIC",
+    "2*BigR**4*v*u0_yy*rhoimp_xy*Ti0*xjac*theta*tstep*alpha_i*tauIC",
+    "2*BigR**4*v*u0_yy*rhoimp_y*Ti0_x*xjac*theta*tstep*alpha_i*tauIC",
+    "2*BigR**4*v*w0_t*rhoimp*Ti0_s*theta*tstep*alpha_i*tauIC",
+    "2*BigR**4*v*w0_t*rhoimp_s*Ti0*theta*tstep*alpha_i*tauIC",
+    "4*BigR**4*v*u0_xy*rhoimp_x*Ti0_x*xjac*theta*tstep*alpha_i*tauIC"
+   ]
+  },
+  "Two-temperature (Ti/Te) model | amat(var_u,var_ti) | #0": {
+   "findings": [
+    1
+   ],
+   "source_only": [],
+   "generated_only": [
+    "-2*BigR**4*v*u0_xx*rhoimp0*Ti_xy*xjac*theta*tstep*alpha_i*tauIC",
+    "-2*BigR**4*v*u0_xx*rhoimp0_x*Ti_y*xjac*theta*tstep*alpha_i*tauIC",
+    "-2*BigR**4*v*u0_xx*rhoimp0_xy*Ti*xjac*theta*tstep*alpha_i*tauIC",
+    "-2*BigR**4*v*u0_xx*rhoimp0_y*Ti_x*xjac*theta*tstep*alpha_i*tauIC",
+    "-2*BigR**4*v*u0_xy*rhoimp0*Ti_yy*xjac*theta*tstep*alpha_i*tauIC",
+    "-2*BigR**4*v*u0_xy*rhoimp0_yy*Ti*xjac*theta*tstep*alpha_i*tauIC",
+    "-2*BigR**4*v*w0_s*rhoimp0*Ti_t*theta*tstep*alpha_i*tauIC",
+    "-2*BigR**4*v*w0_s*rhoimp0_t*Ti*theta*tstep*alpha_i*tauIC",
+    "-4*BigR**4*v*u0_xy*rhoimp0_y*Ti_y*xjac*theta*tstep*alpha_i*tauIC",
+    "2*BigR**3*v_x*u0_x*rhoimp0*Ti_y*xjac*theta*tstep*alpha_i*tauIC",
+    "2*BigR**3*v_x*u0_x*rhoimp0_y*Ti*xjac*theta*tstep*alpha_i*tauIC",
+    "2*BigR**3*v_y*u0_y*rhoimp0*Ti_y*xjac*theta*tstep*alpha_i*tauIC",
+    "2*BigR**3*v_y*u0_y*rhoimp0_y*Ti*xjac*theta*tstep*alpha_i*tauIC",
+    "2*BigR**4*v*u0_xy*rhoimp0*Ti_xx*xjac*theta*tstep*alpha_i*tauIC",
+    "2*BigR**4*v*u0_xy*rhoimp0_xx*Ti*xjac*theta*tstep*alpha_i*tauIC",
+    "2*BigR**4*v*u0_yy*rhoimp0*Ti_xy*xjac*theta*tstep*alpha_i*tauIC",
+    "2*BigR**4*v*u0_yy*rhoimp0_x*Ti_y*xjac*theta*tstep*alpha_i*tauIC",
+    "2*BigR**4*v*u0_yy*rhoimp0_xy*Ti*xjac*theta*tstep*alpha_i*tauIC",
+    "2*BigR**4*v*u0_yy*rhoimp0_y*Ti_x*xjac*theta*tstep*alpha_i*tauIC",
+    "2*BigR**4*v*w0_t*rhoimp0*Ti_s*theta*tstep*alpha_i*tauIC",
+    "2*BigR**4*v*w0_t*rhoimp0_s*Ti*theta*tstep*alpha_i*tauIC",
+    "4*BigR**4*v*u0_xy*rhoimp0_x*Ti_x*xjac*theta*tstep*alpha_i*tauIC"
+   ]
+  },
+  "Two-temperature (Ti/Te) model | amat(var_vpar,var_psi) | #0": {
+   "findings": [
+    4
+   ],
+   "source_only": [],
+   "generated_only": [
+    "-BigR*v*vpar0_x*psi_x*xjac*theta*tstep*V_prof_pinch*r0/(sqrt(ps0_x**2 + ps0_y**2))",
+    "-BigR*v*vpar0_y*psi_y*xjac*theta*tstep*V_prof_pinch*r0/(sqrt(ps0_x**2 + ps0_y**2))",
+    "BigR*v*vpar0_x*psi_x*xjac*theta*tstep*V_prof_pinch*ps0_x**2*r0/(ps0_x**2*sqrt(ps0_x**2 + ps0_y**2) + ps0_y**2*sqrt(ps0_x**2 + ps0_y**2))",
+    "BigR*v*vpar0_x*psi_y*xjac*theta*tstep*V_prof_pinch*ps0_x*ps0_y*r0/(ps0_x**2*sqrt(ps0_x**2 + ps0_y**2) + ps0_y**2*sqrt(ps0_x**2 + ps0_y**2))",
+    "BigR*v*vpar0_y*psi_x*xjac*theta*tstep*V_prof_pinch*ps0_x*ps0_y*r0/(ps0_x**2*sqrt(ps0_x**2 + ps0_y**2) + ps0_y**2*sqrt(ps0_x**2 + ps0_y**2))",
+    "BigR*v*vpar0_y*psi_y*xjac*theta*tstep*V_prof_pinch*ps0_y**2*r0/(ps0_x**2*sqrt(ps0_x**2 + ps0_y**2) + ps0_y**2*sqrt(ps0_x**2 + ps0_y**2))"
+   ]
+  },
+  "Two-temperature (Ti/Te) model | amat(var_vpar,var_rho) | #0": {
+   "findings": [
+    9
+   ],
+   "source_only": [
+    "BigR*v*vpar0_x*rho*xjac*theta*tstep*V_prof_pinch*ps0_x/(sqrt(ps0_x**2 + ps0_y**2))",
+    "BigR*v*vpar0_y*rho*xjac*theta*tstep*V_prof_pinch*ps0_y/(sqrt(ps0_x**2 + ps0_y**2))"
+   ],
+   "generated_only": [
+    "-BigR*v*vpar0_x*rho*xjac*theta*tstep*V_prof_pinch*ps0_x/(sqrt(ps0_x**2 + ps0_y**2))",
+    "-BigR*v*vpar0_y*rho*xjac*theta*tstep*V_prof_pinch*ps0_y/(sqrt(ps0_x**2 + ps0_y**2))"
+   ]
+  },
+  "Two-temperature (Ti/Te) model | amat(var_vpar,var_vpar) | #0": {
+   "findings": [
+    9
+   ],
+   "source_only": [
+    "BigR*v*vpar_x*xjac*theta*tstep*V_prof_pinch*ps0_x*r0/(sqrt(ps0_x**2 + ps0_y**2))",
+    "BigR*v*vpar_y*xjac*theta*tstep*V_prof_pinch*ps0_y*r0/(sqrt(ps0_x**2 + ps0_y**2))"
+   ],
+   "generated_only": [
+    "-BigR*v*vpar_x*xjac*theta*tstep*V_prof_pinch*ps0_x*r0/(sqrt(ps0_x**2 + ps0_y**2))",
+    "-BigR*v*vpar_y*xjac*theta*tstep*V_prof_pinch*ps0_y*r0/(sqrt(ps0_x**2 + ps0_y**2))"
+   ]
+  },
+  "Two-temperature (Ti/Te) model | amat_n(var_psi,var_rhoimp) | #0": {
+   "findings": [
+    2
+   ],
+   "source_only": [],
+   "generated_only": [
+    "-2*F0**3*v*rhoimp_p*Te0*xjac*theta*tstep*alpha_e*tauIC/(BigR*F0**2*r0_corr + BigR*ps0_x**2*r0_corr + BigR*ps0_y**2*r0_corr)"
+   ]
+  },
+  "Two-temperature (Ti/Te) model | amat_n(var_psi,var_te) | #0": {
+   "findings": [
+    2
+   ],
+   "source_only": [],
+   "generated_only": [
+    "-2*F0**3*v*rhoimp0*Te_p*xjac*theta*tstep*alpha_e_bis*tauIC/(BigR*F0**2*r0_corr + BigR*ps0_x**2*r0_corr + BigR*ps0_y**2*r0_corr)"
+   ]
+  }
+ }
+}
