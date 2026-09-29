@@ -98,7 +98,7 @@ subroutine compute_field_line_rhs(fields,n_variables, &
   !> declare input variables
   class(fields_base), intent(in)                         :: fields
   integer, intent(in)                                    :: n_variables, n_int_parameters, n_real_parameters
-  integer, dimension(n_variables), intent(in)            :: int_parameters
+  integer, dimension(n_int_parameters), intent(in)       :: int_parameters
   real(kind=8), intent(in)                               :: t
   real(kind=8), dimension(n_variables), intent(in)       :: solution, solution_old
   real(kind=8), dimension(n_real_parameters), intent(in) :: real_parameters
