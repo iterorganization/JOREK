@@ -47,6 +47,8 @@ module mod_impurity
             adas_suffix = '89_ar'
           case('Ne')
             adas_suffix = '96_ne'
+          case('O')
+            adas_suffix = '96_o'
           case('W')
             adas_suffix = '50_w'
           case('Be')
