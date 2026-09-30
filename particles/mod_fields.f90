@@ -85,9 +85,11 @@ module mod_fields
 contains
 !> Calculates the electric and magnetic fields at a specific position
 !> in the jorek element `i_elm` at `st`.
-subroutine calc_EBpsiU(fields, time, i_elm, st, phi, E, B, psi, U)
-  use phys_module, only: F0, mode, central_mass, central_density
-  use constants, only: mu_zero, atomic_mass_unit
+subroutine calc_EBpsiU(fields, time, i_elm, st, phi, E, B, psi, U, E_par_norm)
+  use phys_module, only: F0, mode, central_mass, central_density, imp_type, eta, Te_0, T_0, T_max_eta
+  use constants, only: mu_zero, atomic_mass_unit, EL_CHG, K_BOLTZ
+  use mod_plasma_functions, only: resistivity, coulomb_log_ei
+  use mod_poloidal_currents, only: J_pol
   use mod_coordinate_transforms, only: transform_derivatives_st_to_RZ
   use mod_chi
   ! Routine parameters
@@ -116,6 +118,27 @@ subroutine calc_EBpsiU(fields, time, i_elm, st, phi, E, B, psi, U)
   real*8             :: inv_st_jac, R_inv
   real*8             :: psi_R, psi_Z, psi_phi, U_R, U_Z, U_phi, t_norm
   real*8, dimension(0:n_order-1,0:n_order-1,0:n_order-1) :: chi
+
+  ! For the E= eta*J normalization (if E_par_norm=.true.)
+  logical, optional, intent(in)  :: E_par_norm  ! Indicate if a normalization of E in order to match E_par = eta_Spitz J is performed (done by default)
+  real*8                :: n_Z            !< Atomic number of the main impurity 
+  real*8                :: m_i_over_m_imp !< main ion mass / mass of the impurity 
+  real*8                :: ne             !< electron density [m^-3]
+  real*8                :: te             !< electron temperature [K]
+  real*8, allocatable   :: ni(:)          !< ion densities [m^-3] (for each charge state: [n_main, n_imp0, n_imp+1, ...])
+  real*8                :: ti             !< ion temperature [K]
+  real*8                :: T_or_Te        !< central temperature normalized temperature (electron or not depending of with_TiTe)
+  real*8                :: Te_eV          !< electron temperature [eV]
+  real*8                :: Te_Ju          !< electron temperature [Jorek units]
+  real*8                :: r0             !< total ion mass [Jorek units]
+  real*8                :: num_Z_eff, den_Z_eff, Z_eff    !< Z_eff 
+  real*8                :: lnA                            !< Coulomb logarithm
+  real*8                :: eta_Spitz_Ju, eta_Spitz        !< resistivity in Jorek units and Ohm.m
+  real*8                :: J_phi(3)         !< Current density [A/m2]
+  real*8                :: E_par     !< Parallel Electric field [V/m]
+  integer               :: i_plane
+  integer               :: i
+  logical               :: flag_norm
 
   t_norm  = sqrt(mu_zero * ATOMIC_MASS_UNIT * central_mass * central_density * 1.d20) ! 1 jorek time unit in seconds
 
@@ -194,6 +217,57 @@ subroutine calc_EBpsiU(fields, time, i_elm, st, phi, E, B, psi, U)
   ! See http://jorek.eu/wiki/doku.php?id=u_phi
   E     = [-F0*U_R, -F0*U_Z, -F0*U_phi*R_inv]/t_norm
   E(3)  = E(3) - R_inv*P_time(1) ! because this is not normalized with t_norm
+
+  flag_norm = .FALSE.
+  if (present(E_par_norm)) flag_norm = E_par_norm
+
+  !> Set the electric purely parallel with E_par = eta * J_par for electrons (approximation J_tor = J_par) to avoid errors due to temporal interpolations
+  if (flag_norm) then
+
+    !> compute Z_eff
+    select case ( trim(imp_type(1)) )
+    case('Ar')
+      m_i_over_m_imp = central_mass/40.   ! Argon mass = 40 u
+      n_Z = 18.0 
+    case('Ne')
+      m_i_over_m_imp = central_mass/20.   ! Neon mass = 20 u
+      n_Z = 10.0
+    case default
+      m_i_over_m_imp = central_mass/2.    ! Deuterium mass = 2 u
+    end select
+    allocate(ni(int(n_Z+2)))
+    call calc_NjTj(fields, time, i_elm, st, phi, m_i_over_m_imp, ne, te, ni, ti)
+    num_Z_eff = ni(1) + sum( ni(2:size(ni)) * ( (/ (i**2, i=0,size(ni)-2, 1) /) ) )  
+    den_Z_eff = ni(1) + sum( ni(2:size(ni)) * ( (/ (i, i=0,size(ni)-2, 1) /) ) ) 
+    Z_eff = num_Z_eff / den_Z_eff
+
+    !> compute the coulomb logarithm
+    Te_eV = te*K_BOLTZ/EL_CHG
+    Te_Ju = Te_eV*(EL_CHG*mu_zero*central_density*1.0d20)
+    r0 = ne / (1.d20 * central_density)
+    call coulomb_log_ei(Te_Ju, Te_Ju, r0, r0, 0.0, 0.0, 0.0, lnA)
+
+    if ( with_TiTe ) then
+        T_or_Te = Te_0
+    else
+        T_or_Te = T_0
+    end if
+    !> compute the resistivity
+    call resistivity(eta, Te_Ju, Te_Ju, T_max_eta, T_or_Te, Z_eff, lnA, eta_Spitz_Ju)
+    eta_Spitz = eta_Spitz_Ju * SQRT(mu_zero/ (central_mass * central_density * 1.0d20 * (1.0073*ATOMIC_MASS_UNIT)))
+
+    !> compute the toroidal current density
+    call fields%interp_PRZ(time, i_elm, [var_zj], 1, st(1), st(2), phi, P, P_s, P_t, P_phi, P_time, R, R_s, R_t, Z, Z_s, Z_t)  
+    J_phi = - P(1) / (mu_zero * R)
+
+    !> Electric purely parallel with E_par = eta * J_par (approximation J_tor = J_par)
+    E_par = (J_phi(1)*B(3))/norm2(B) * eta_Spitz 
+    if ((E_par /= E_par)) then 
+      E_par = 0.0
+    end if
+    E = B / norm2(B) * E_par
+    deallocate(ni)
+  end if
 #endif
 
 #endif
@@ -1357,11 +1431,13 @@ end subroutine check_consistency_Qin
 !>   gradB:  (real8)(3) gradient of the magnetic field intensity in T/m
 !>   curlb:  (real8)(3) curl of the magnetic field direction in 1/m
 !>   dbdt:   (real8)(3) magnetic field direction time derivative in 1/s
-pure subroutine calc_EBNormBGradBCurlbDbdt(fields,time,i_elm,st,phi,E,b, &
-  normB,gradB,curlb,dbdt)
+subroutine calc_EBNormBGradBCurlbDbdt(fields,time,i_elm,st,phi,E,b, &
+  normB,gradB,curlb,dbdt,E_par_norm)
   !> load modules
-  use phys_module, only: F0, mode, central_mass, central_density
-  use constants, only: mu_zero,atomic_mass_unit
+  use phys_module, only: F0, mode, central_mass, central_density, eta, Te_0, T_0, T_max_eta, imp_type
+  use constants, only: mu_zero,atomic_mass_unit, EL_CHG, K_BOLTZ
+  use mod_plasma_functions, only: resistivity, coulomb_log_ei
+  use mod_poloidal_currents, only: J_pol
   use mod_math_operators, only: cross_product
   use mod_coordinate_transforms, only: transform_first_derivatives_st_to_RZ
   use mod_coordinate_transforms, only: transform_second_derivatives_st_to_RZ
@@ -1389,6 +1465,29 @@ pure subroutine calc_EBNormBGradBCurlbDbdt(fields,time,i_elm,st,phi,E,b, &
   !> poloidal flux: psi, psi_s, psi_t, psi_phi, psi_time, psi_ss, psi_st, psi_tt,
   !>   psi_sphi, psi_tphi, psi_stime, psi_ttime
   real(kind=8), dimension(12) :: psi
+
+  ! For the E= eta*J normalization (if E_par_norm=.true.)
+  logical, optional, intent(in)  :: E_par_norm  ! Indicate if a normalization of E in order to match E_par = eta_Spitz J is performed (done by default)
+  real*8                :: P(2), P_s(2), P_t(2), P_phi(2), P_time(2) ! Placeholder for evaluating variables and derivatives locally
+  real*8                :: R, R_s, R_t, Z, Z_s, Z_t
+  real*8                :: n_Z            !< Atomic number of the main impurity 
+  real*8                :: m_i_over_m_imp !< main ion mass / mass of the impurity 
+  real*8                :: ne             !< electron density [m^-3]
+  real*8                :: te             !< electron temperature [K]
+  real*8, allocatable   :: ni(:)          !< ion densities [m^-3] (for each charge state: [n_main, n_imp0, n_imp+1, ...])
+  real*8                :: ti             !< ion temperature [K]
+  real*8                :: T_or_Te        !< central temperature normalized temperature (electron or not depending of with_TiTe)
+  real*8                :: Te_eV          !< electron temperature [eV]
+  real*8                :: Te_Ju          !< electron temperature [Jorek units]
+  real*8                :: r0             !< total ion mass [Jorek units]
+  real*8                :: num_Z_eff, den_Z_eff, Z_eff    !< Z_eff 
+  real*8                :: lnA                            !< Coulomb logarithm
+  real*8                :: eta_Spitz_Ju, eta_Spitz        !< resistivity in Jorek units and Ohm.m
+  real*8                :: J_phi(3)         !< Current density [A/m2]
+  real*8                :: E_par     !< Parallel Electric field [V/m]
+  integer               :: i_plane
+  integer               :: i
+  logical               :: flag_norm
 
   !> interpolate the stream function
   call fields%interp_PRZ(time,i_elm,[2],1,st(1),st(2),phi,U(1),U(2),U(3), &
@@ -1454,6 +1553,58 @@ pure subroutine calc_EBNormBGradBCurlbDbdt(fields,time,i_elm,st,phi,E,b, &
   !> compute the dbdt field
   dbdt = ((b(2)*psi_RZ(8)-b(1)*psi_RZ(9))*b +    &
     [psi_RZ(9),-psi_RZ(8),0.d0])*normB_inv*R_inv
+
+  flag_norm = .FALSE.
+  if (present(E_par_norm)) flag_norm = E_par_norm
+
+  !> Set the electric purely parallel with E_par = eta * J_par for electrons (approximation J_tor = J_par) to avoid errors due to temporal interpolations
+  if (flag_norm) then
+  
+    !> compute Z_eff
+    select case ( trim(imp_type(1)) )
+    case('Ar')
+      m_i_over_m_imp = central_mass/40.   ! Argon mass = 40 u
+      n_Z = 18.0 
+    case('Ne')
+      m_i_over_m_imp = central_mass/20.   ! Neon mass = 20 u
+      n_Z = 10.0
+    case default
+      m_i_over_m_imp = central_mass/2.    ! Deuterium mass = 2 u
+    end select
+    allocate(ni(int(n_Z+2)))
+    call calc_NjTj(fields, time, i_elm, st, phi, m_i_over_m_imp, ne, te, ni, ti)
+    num_Z_eff = ni(1) + sum( ni(2:size(ni)) * ( (/ (i**2, i=0,size(ni)-2, 1) /) ) )  
+    den_Z_eff = ni(1) + sum( ni(2:size(ni)) * ( (/ (i, i=0,size(ni)-2, 1) /) ) ) 
+    Z_eff = num_Z_eff / den_Z_eff
+
+    !> compute the coulomb logarithm
+    Te_eV = te*K_BOLTZ/EL_CHG
+    Te_Ju = Te_eV*(EL_CHG*mu_zero*central_density*1.0d20)
+    r0 = ne / (1.d20 * central_density)
+    call coulomb_log_ei(Te_Ju, Te_Ju, r0, r0, 0.0, 0.0, 0.0, lnA)
+
+    if ( with_TiTe ) then
+        T_or_Te = Te_0
+    else
+        T_or_Te = T_0
+    end if
+    !> compute the resistivity
+    call resistivity(eta, Te_Ju, Te_Ju, T_max_eta, T_or_Te, Z_eff, lnA, eta_Spitz_Ju)
+    eta_Spitz = eta_Spitz_Ju * SQRT(mu_zero/ (central_mass * central_density * 1.0d20 * (1.0073*ATOMIC_MASS_UNIT)))
+
+    !> compute the toroidal current density 
+    call fields%interp_PRZ(time, i_elm, [var_zj], 1, st(1), st(2), phi, P, P_s, P_t, P_phi, P_time, R, R_s, R_t, Z, Z_s, Z_t)  ! i_v = 3 --> zj
+    J_phi = - P(1) / (mu_zero * R)
+    
+    !> Electric purely parallel with E_par = eta * J_par (approximation J_tor = J_par)
+    E_par = (J_phi(1)*B(3))/norm2(B) * eta_Spitz  
+    if ((E_par /= E_par)) then 
+      E_par = 0.0
+    end if
+    
+    E = B / norm2(B) * E_par
+    deallocate(ni)
+  end if
 
 end subroutine calc_EBNormBGradBCurlbDbdt
 

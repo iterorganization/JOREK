@@ -68,6 +68,7 @@ DIRS := diagnostics				\
 	particles/diagnostics			\
 	particles/tests				\
 	particles/initialisers      \
+	particles/util      \
 	particles/postprocessors		\
 	particles/postprocessors/spectra	\
 	particles/postprocessors/lights		\

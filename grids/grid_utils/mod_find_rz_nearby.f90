@@ -64,6 +64,10 @@ integer :: newton_iter_number, i_elm_tmp, checked_elms
 real*8  :: inv_st_jac_det, R_s, R_t, Z_s, Z_t
 real*8  :: st_step(2), x_step(2), x_tmp(2), st_new(2), x_new(2) ! x_step = (R,Z) of trial position
 real*8  :: err2, err2_old, dist(2), fact
+logical :: flag_verbose
+
+! if true, verbose activated 
+flag_verbose = .TRUE.
 
 if (present(phi)) then
   p = phi
@@ -181,11 +185,13 @@ if (newton_iter_number .gt. find_RZ_nearby_iter) then
   if (ifail .eq. 0) then
     ifail=3
   else
-    !$omp critical
-      write(*,"(A,2f10.5,A)") "ERROR: issue in mod_find_rz_nearby; could not find ",R_old,Z_old
-      write(*,"(A)") "This position is likely outside of the domain but find_RZ_nearby_iter (namelist input parameter) is not big"
-      write(*,"(A)") "enough to find the domain boundary element closest to it. Consider using a larger find_RZ_nearby_iter."
-    !$omp end critical
+      !$omp critical
+      if (flag_verbose) then
+        write(*,"(A,2f10.5,A)") "ERROR: issue in mod_find_rz_nearby; could not find ",R_old,Z_old
+        write(*,"(A)") "This position is likely outside of the domain but find_RZ_nearby_iter (namelist input parameter) is not big"
+        write(*,"(A)") "enough to find the domain boundary element closest to it. Consider using a larger find_RZ_nearby_iter."
+      end if
+      !$omp end critical
   endif
   return
 endif

@@ -173,7 +173,7 @@ contains
    !>   real_parameters:   (real8)(4) real parameters 1:s, 2:t, 3:mass, 4:magnetic moment
    !> outputs:
    !>   dt_new: (real8) adapted time step
-  pure function adapt_time_step_gradB_curlb_dbdt(fields,n_variables,  &
+   function adapt_time_step_gradB_curlb_dbdt(fields,n_variables,  &
     n_int_parameters, n_real_parameters,t,dt,solution,int_parameters, &
     real_parameters) result(dt_new)
      !> modules
@@ -288,7 +288,7 @@ contains
   !> outputs:
   !>   t:        (real8) new time 
   !>   particle: (particle_gc_relativistic) pushed GC
-  subroutine runge_kutta_fixed_dt_gc_push_jorek_radreact(fields,t,dt,mass,particle)
+  subroutine runge_kutta_fixed_dt_gc_push_jorek_radreact(fields,t,dt,mass,particle,E_par_norm)
     !> modules
     use mod_fields, only: fields_base
     use mod_find_rz_nearby
@@ -300,18 +300,30 @@ contains
     !> input variables
     class(fields_base), intent(in) :: fields
     real(kind=8), intent(in)       :: dt, mass
+    logical, optional, intent(in)  :: E_par_norm 
     !> internal variables
-    integer                    :: ifail, i_elm_new 
+    integer                    :: ifail, i_elm_new, int_flag_norm
     real(kind=8), dimension(2) :: st_new
     !> global coordinates used during RK integration: 1:R, 2:Z, 3:phi, 4:p_parallel
     real(kind=8), dimension(4) :: solution_new
     !> global coordinates when RR is included includes also 5:mu
     real(kind=8), dimension(5) :: solution_new_rr
 
+    real(kind=8), dimension(3) :: E, b, gradB, curlb, dbdt
+    real(kind=8)  :: normB
+
+    !> flag for the E = eta*J normalization (done if flag_norm=1)
+    int_flag_norm = 0
+    if (present(E_par_norm)) then
+      if (E_par_norm) then
+        int_flag_norm = 1
+      end if
+    end if
+
     !> compute Runge-Kutta differentials
     call runge_kutta_fixed_dt(compute_relativistic_gc_derivatives_jorek_radreactionforce, &
-         fields,5,2,3,t,dt,[particle%x(1),particle%x(2),particle%x(3),      &
-         particle%p(1),particle%p(2)],[particle%i_elm,int(particle%q)],[particle%st(1),   &
+         fields,5,3,3,t,dt,[particle%x(1),particle%x(2),particle%x(3),      &
+         particle%p(1),particle%p(2)],[particle%i_elm,int(particle%q),int_flag_norm],[particle%st(1),   &
          particle%st(2),mass],solution_new_rr,ifail)
        
     !> compute the new local coordinates
@@ -482,6 +494,8 @@ contains
     real(kind=8), dimension(4) :: derivatives_h  !< derivatives from Hamiltonian motion (Rdot,zdor,phidot,ppardot)
     !> fields required to push the relativistic GC
     real(kind=8), dimension(3) :: E, b, gradB, curlb, dbdt, B_star
+    !> flag for the E=eta*J normalization
+    logical                    :: E_par_norm 
 
     !> find GC at current RK step
     call find_RZ_nearby(fields%node_list,fields%element_list,solution_old(1), &
@@ -491,8 +505,13 @@ contains
 
     !> compute required fields at GC position
     if(i_elm_new .gt. 0) then
+       if (int_parameters(1) .eq. 0) then
+         E_par_norm = .FALSE.
+       else 
+         E_par_norm = .TRUE.
+       end if
        call fields%calc_EBNormBGradBCurlbDbdt(t,i_elm_new,st_new, &
-            solution(3),E,b,normB,gradB,curlb,dbdt)
+            solution(3),E,b,normB,gradB,curlb,dbdt,E_par_norm)
        ifail = 1
     else
        ifail = 0
