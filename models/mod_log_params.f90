@@ -843,6 +843,7 @@ write(*,'(1x,a)',advance='no') ' USE_DOMM            : '
   write(*,INTG_FMT) 'iter_precon           ', iter_precon
   write(*,INTG_FMT) 'max_steps_noUpdate    ', max_steps_noUpdate
   write(*,INTG_FMT) 'gmres_m               ', gmres_m
+  write(*,LOGI_FMT) 'gmres_right_prec      ', gmres_right_prec
   write(*,REAL_FMT) 'gmres_4               ', gmres_4
   write(*,LOGI_FMT) 'centralize_harm_mat   ', centralize_harm_mat
   write(*,LOGI_FMT) 'use_mumps             ', use_mumps

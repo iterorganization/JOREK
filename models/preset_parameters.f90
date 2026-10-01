@@ -626,6 +626,7 @@ subroutine preset_parameters
   gmres_tol          = 1.d-8                ! converge tolerance GMRES
   gmres_4            = 1.d3                 ! error estimate GMRES (ratio preconditioned versus non-preconditioned error
   gmres_m            = 20                   ! gmres restart parameter
+  gmres_right_prec   = .true.               ! right (.true.) or left (.false.) preconditioning in GMRES
   iter_precon        = 10                   ! redo preconditioner when gmres iterations > iter_precon
   max_steps_noUpdate = 10000000             ! redo preconditioner when steps without preconditioning matrix update > max_steps_noUpdate
   centralize_harm_mat= .true.              ! centralize harmonic matrices on toroidal master rank 

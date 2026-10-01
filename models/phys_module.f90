@@ -886,6 +886,7 @@ module phys_module
   integer             :: gmres_m            !< gmres restart parameter (dimension)
   real*8              :: gmres_4            !< see gmres manual (error ratio between preconditioned and non-preconditioned error)
   real*8              :: gmres_tol          !< the tolerance for the gmres iterations to be seen as converged
+  logical             :: gmres_right_prec   !< .true.: right preconditioning (minimises the true residual ||b-Ax||), .false.: left preconditioning (minimises ||M^-1 (b-Ax)||)
 
   !> @name Taylor-Galerkin Stabilisation coefficients
   real*8              :: tgnum(n_var)   !< Coefficients for Taylor Galerkin stabilization for each equation separately
