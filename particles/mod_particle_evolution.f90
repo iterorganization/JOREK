@@ -513,7 +513,8 @@ contains
           n_lost_ion = n_lost_ion + ionize_source	!< local sum #particles lost due to ionisation
           p_lost_ion = p_lost_ion + ionize_source * ionize_energy
           p_lost_plt = p_lost_plt + line_rad_energy
-          p_lost_cx  = p_lost_cx + cx_source * cx_energy
+          ! delta_E_kin already includes particle weight
+          p_lost_cx  = p_lost_cx + delta_E_kin
 
 
           !> Calculate the projection of the ion source in real-time
