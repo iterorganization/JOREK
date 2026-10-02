@@ -31,8 +31,14 @@ contains
 
     use mod_assembly, only : boundary_conditions_add_one_entry, boundary_conditions_add_RHS
 
-    use phys_module, only: F0, GAMMA, bc_natural_open
+    use phys_module, only: F0, bc_natural_open, vpar_sbc_enable,&
+                           particle_flux_sbc_enable, heat_flux_sbc_enable, &
+                           loop_voltage, tstep, central_density, central_mass
+    use mod_boundary_ndotB, only: get_vpar_target_for_column, get_vpar_target_dT_for_column
+    use mod_model_settings, only: var_Psi, var_Phi, var_zj, var_w, var_rho, var_T, &
+                                  var_Vpar, var_Ti, var_Te, n_var
     use vacuum, only: is_freebound
+    use constants, only: MU_ZERO, ATOMIC_MASS_UNIT
     use mpi_mod
     use mod_locate_irn_jcn
     use mod_integer_types
@@ -66,6 +72,11 @@ contains
     integer               :: i, in, iv, inode, k
     integer               :: ielm
     integer               :: index_node
+    
+    ! v_par SBC variables
+    real*8                :: vpar_target, vpar_current, delta_vpar
+    real*8                :: ndotB_norm, T_local
+    real*8                :: cs, alpha_rad, alpha0_rad, factor_sbc
 
     zbig = 1.d12
        do i=1, n_local_elms
@@ -81,44 +92,85 @@ contains
                 do in=a_mat%i_tor_min, a_mat%i_tor_max
 
                    do k=1, n_var
-                     if (bc_natural_open .and. k .eq. var_zj) cycle
+                      ! Apply loop voltage to drive psi evolution (n=0 mode at boundary)
+                      ! Physics: loop_voltage drives Ohmic current via Faraday's law:
+                      !   d(psi)/dt = -V_loop => psi(t) = psi(0) - V_loop * t
+                      !  Loop voltage: n=0 mode, psi only - matches model600 pattern
+                      if (loop_voltage .ne. 0.d0 .and. k .eq. var_Psi .and. in .eq. 1) then
+                          if ( (.not. is_freebound(in, var_psi)) ) then
+                              index_node = node_list%node(inode)%index(1)
+                              call boundary_conditions_add_RHS(       &
+                                        index_node, var_psi, in, index_min, index_max,         &
+                                        RHS_loc, zbig*loop_voltage*sqrt(MU_ZERO*central_density*central_mass*ATOMIC_MASS_UNIT*1.d20)*tstep, &
+                                        a_mat%i_tor_min, a_mat%i_tor_max)
+                          endif
+                      endif
 
-                      !------------------------------------ the open field lines (in case of x-point grid)
-                      if ((node_list%node(inode)%boundary .eq. 1) .or. (node_list%node(inode)%boundary .eq. 3)) then
+                     ! Skip Dirichlet BC for density when particle flux SBC is enabled
+                     ! (weak-form natural BC handled in mod_boundary_matrix_open.f90)
+                     if (particle_flux_sbc_enable .and. k .eq. var_rho) cycle
+                     ! Skip Dirichlet BC for temperature when heat flux SBC is enabled
+                     if (heat_flux_sbc_enable .and. k .eq. var_T) cycle
 
-                         if ((k .eq. var_Psi) .or. (k .eq. var_Phi) .or. (k .eq. var_zj) .or. &
-                              (k .eq. var_w) .or. (k .eq. var_rho) .or. (k .eq. var_T) .or. (k .eq. var_vpar) .or. &
-                              (k .eq. var_Ti) .or. (k .eq. var_Te)) then
- 
+                      !------------------------------------ boundary nodes (types 1, 2, 3)
+                      ! Type 1: Open field lines (tokamak divertor targets)
+                      ! Type 2: Wall/limiter (stellarator with divertor geometry)
+                      ! Type 3: Corner nodes (both target and wall)
+                      if ((node_list%node(inode)%boundary .eq. 1) .or. &
+                          (node_list%node(inode)%boundary .eq. 2) .or. &
+                          (node_list%node(inode)%boundary .eq. 3)) then
+
                           if ( (.not. is_freebound(in,k)) ) then ! apply fixed boundary conditions where necessary
 
-                            index_node = node_list%node(inode)%index(1)
+                            ! Value DOF: constrain for ALL boundary types (1,2,3) — v_par target lives here
+                            index_node = node_list%node(inode)%index(1)        
+                            call boundary_conditions_add_one_entry(                 &
+                                   index_node, k, in, index_node, k, in,            &
+                                   zbig, index_min, index_max, a_mat)
                             
-                            call boundary_conditions_add_one_entry(                 &
-                                   index_node, k, in, index_node, k, in,            &
-                                   zbig, index_min, index_max, a_mat)
+                            ! v_par Dirichlet BC: add RHS term for non-zero target
+                            ! For n=0 mode, use toroidally-averaged ndotB
+                            ! For n>0 modes, use Fourier coefficients of ndotB
+                            if (k .eq. var_Vpar) then
+                              ! Compute angle-dependent target if SBC enabled
+                              if (vpar_sbc_enable) then
+                                ! calculate delta vpar and apply, just like in model 600
+                                delta_vpar = get_vpar_target_for_column(inode, in) &
+                                              - node_list%node(inode)%values(in,1,var_Vpar)
 
-                            index_node = node_list%node(inode)%index(2)
+                                call boundary_conditions_add_RHS(                     &
+                                        index_node, k, in, index_min, index_max,       &
+                                        rhs_loc, zbig * delta_vpar,                    &
+                                        a_mat%i_tor_min, a_mat%i_tor_max)
 
-                            call boundary_conditions_add_one_entry(                 &
-                                   index_node, k, in, index_node, k, in,            &
-                                   zbig, index_min, index_max, a_mat)
+                                 ! add dT derivative entry if using local T
+                                 if (var_T .gt. 0) then
+                                    call boundary_conditions_add_one_entry(                                &
+                                          index_node, var_Vpar, in, index_node, var_T, in,                &
+                                          -zbig * get_vpar_target_dT_for_column(inode, in),               &
+                                          index_min, index_max, a_mat)
+                                 endif
+                              endif
+                            endif
+
+                            ! index(2) derivative for types 1 and 3 only, not type 2
+                            if ((node_list%node(inode)%boundary .eq. 1) .or. (node_list%node(inode)%boundary .eq. 3)) then
+                              index_node = node_list%node(inode)%index(2)
+                              call boundary_conditions_add_one_entry(                 &
+                                    index_node, k, in, index_node, k, in,            &
+                                    zbig, index_min, index_max, a_mat)
+                            endif
                             
                           endif
-                        endif
                       endif
 
                       !------------------------------------ wall aligned with fluxsurface (in case of x-point grid)
                       if ((node_list%node(inode)%boundary .eq. 2) .or. (node_list%node(inode)%boundary .eq. 3)) then
 
                          if ( (.not. is_freebound(in,k)) ) then ! apply fixed boundary conditions where necessary
+                         ! free-boundary not yet implemented for 183
 
-                            index_node = node_list%node(inode)%index(1)
-
-                            call boundary_conditions_add_one_entry(                 &
-                                   index_node, k, in, index_node, k, in,            &
-                                   zbig, index_min, index_max, a_mat)
-
+                            ! --- constrain second tangential derivative DOF at type 2/3 nodes (X-point corner geometry)
                             index_node = node_list%node(inode)%index(3)
 
                             call boundary_conditions_add_one_entry(                 &
@@ -126,12 +178,9 @@ contains
                                    zbig, index_min, index_max, a_mat)
 
                          endif
-
                       endif
-
-                   enddo
-
-                enddo
+                   enddo  ! k=1,n_var (variables loop)
+                enddo  ! in (toroidal modes)
              endif
           enddo
        enddo

@@ -713,6 +713,23 @@ if (my_id .eq. 0) then
   call MPI_PACK(bc_natural_open,        1,MPI_LOGICAL,buffer,bufsize,position,MPI_COMM_WORLD,ierr)
   call MPI_PACK(use_pellet,             1,MPI_LOGICAL,buffer,bufsize,position,MPI_COMM_WORLD,ierr)
 
+  ! v_par SBC parameters
+  call MPI_PACK(vpar_sbc_enable,        1,MPI_LOGICAL,buffer,bufsize,position,MPI_COMM_WORLD,ierr)
+  call MPI_PACK(vpar_sbc_alpha0,        1,MPI_REAL8,buffer,bufsize,position,MPI_COMM_WORLD,ierr)
+  call MPI_PACK(vpar_sbc_strength,      1,MPI_REAL8,buffer,bufsize,position,MPI_COMM_WORLD,ierr)
+  call MPI_PACK(vpar_sbc_angle_scale,   1,MPI_REAL8,buffer,bufsize,position,MPI_COMM_WORLD,ierr)
+  
+  ! Particle flux SBC parameters
+  call MPI_PACK(particle_flux_sbc_enable,      1,MPI_LOGICAL,buffer,bufsize,position,MPI_COMM_WORLD,ierr)
+  call MPI_PACK(particle_flux_sbc_strength,    1,MPI_REAL8,buffer,bufsize,position,MPI_COMM_WORLD,ierr)
+  call MPI_PACK(particle_flux_sbc_angle_scale, 1,MPI_REAL8,buffer,bufsize,position,MPI_COMM_WORLD,ierr)
+
+  ! Heat flux SBC parameters
+  call MPI_PACK(heat_flux_sbc_enable,      1,MPI_LOGICAL,buffer,bufsize,position,MPI_COMM_WORLD,ierr)
+  call MPI_PACK(heat_flux_sbc_strength,    1,MPI_REAL8,buffer,bufsize,position,MPI_COMM_WORLD,ierr)
+  call MPI_PACK(heat_flux_sbc_angle_scale, 1,MPI_REAL8,buffer,bufsize,position,MPI_COMM_WORLD,ierr)
+  call MPI_PACK(vpar_sbc_T_floor,          1,MPI_REAL8, buffer, bufsize, position, MPI_COMM_WORLD, ierr)
+
   call MPI_PACK(gvec_grid_import,       1,MPI_LOGICAL,buffer,bufsize,position,MPI_COMM_WORLD,ierr)
   call MPI_PACK(extended_boundary,      1,MPI_LOGICAL,buffer,bufsize,position,MPI_COMM_WORLD,ierr)
   call MPI_PACK(j_cutoff_rcoord,        1,MPI_REAL8  ,buffer,bufsize,position,MPI_COMM_WORLD,ierr)
@@ -1705,6 +1722,23 @@ if (my_id .ne. 0) then
   call MPI_UNPACK(buffer,bufsize,position,bc_natural_flux,        1,MPI_LOGICAL,MPI_COMM_WORLD,ierr)
   call MPI_UNPACK(buffer,bufsize,position,bc_natural_open,        1,MPI_LOGICAL,MPI_COMM_WORLD,ierr)
   call MPI_UNPACK(buffer,bufsize,position,use_pellet,             1,MPI_LOGICAL,MPI_COMM_WORLD,ierr)
+
+  ! v_par SBC parameters
+  call MPI_UNPACK(buffer,bufsize,position,vpar_sbc_enable,        1,MPI_LOGICAL,MPI_COMM_WORLD,ierr)
+  call MPI_UNPACK(buffer,bufsize,position,vpar_sbc_alpha0,        1,MPI_REAL8,MPI_COMM_WORLD,ierr)
+  call MPI_UNPACK(buffer,bufsize,position,vpar_sbc_strength,      1,MPI_REAL8,MPI_COMM_WORLD,ierr)
+  call MPI_UNPACK(buffer,bufsize,position,vpar_sbc_angle_scale,   1,MPI_REAL8,MPI_COMM_WORLD,ierr)
+  call MPI_UNPACK(buffer,bufsize,position,vpar_sbc_T_floor,       1,MPI_REAL8,MPI_COMM_WORLD,ierr)  
+  
+  ! Particle flux SBC parameters
+  call MPI_UNPACK(buffer,bufsize,position,particle_flux_sbc_enable,      1,MPI_LOGICAL,MPI_COMM_WORLD,ierr)
+  call MPI_UNPACK(buffer,bufsize,position,particle_flux_sbc_strength,    1,MPI_REAL8,MPI_COMM_WORLD,ierr)
+  call MPI_UNPACK(buffer,bufsize,position,particle_flux_sbc_angle_scale, 1,MPI_REAL8,MPI_COMM_WORLD,ierr)
+
+  ! Heat flux SBC parameters
+  call MPI_UNPACK(buffer,bufsize,position,heat_flux_sbc_enable,      1,MPI_LOGICAL,MPI_COMM_WORLD,ierr)
+  call MPI_UNPACK(buffer,bufsize,position,heat_flux_sbc_strength,    1,MPI_REAL8,MPI_COMM_WORLD,ierr)
+  call MPI_UNPACK(buffer,bufsize,position,heat_flux_sbc_angle_scale, 1,MPI_REAL8,MPI_COMM_WORLD,ierr)
 
   call MPI_UNPACK(buffer,bufsize,position,gvec_grid_import,       1,MPI_LOGICAL,MPI_COMM_WORLD,ierr)
   call MPI_UNPACK(buffer,bufsize,position,extended_boundary,      1,MPI_LOGICAL,MPI_COMM_WORLD,ierr)

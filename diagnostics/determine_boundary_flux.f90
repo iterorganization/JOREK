@@ -24,7 +24,7 @@ type (type_element_list), intent(in)    :: element_list
 
 ! --- Local variables
 integer :: n_int
-integer :: i_elm, j, k, n1, n2, n3
+integer :: i_elm, j, k, n1, n2, n3, i_shell
 real*8  :: p, t,rr1, rr2, drr1, drr2, ss1, ss2, dss1, dss2, ri, si, dri, dsi, dA, theta
 real*8  :: RRgi, dRRgi_dr, dRRgi_ds, dRRgi_dp, ZZgi, dZZgi_dr, dZZgi_ds, dZZgi_dp, dRRgi_dt, dZZgi_dt
 real*8  :: PSgi, dPSgii_dr, dPSgii_ds, dPSgi_dr, dPSgi_ds, dPSgi_dp, PSI_R, PSI_Z, Psi_p, RZJAC, grad_psi, psi_n
@@ -35,7 +35,8 @@ real*8  :: dZZgi_drs,dZZgi_drr,dZZgi_dss, dZZgi_drp,dZZgi_dsp,dZZgi_dpp, dPSgi_d
 real*8  :: BR0, BZ0, Bp0
 real*8  :: dummy,BR0cos,BR0sin,BZ0cos,BZ0sin,Bp0cos,Bp0sin
 integer :: m, ig1, ig2, i_plane, i_tor, i_harm
-real*8  :: s_phi, c_phi, ndotB, ndotB_gvec, cross_deriv(3), n_perp(3), B_boundary(3), Bgvec_boundary(3)
+real*8  :: s_phi, c_phi, ndotB, ndotB_gvec, ndotB_bvac, cross_deriv(3), n_perp(3), B_boundary(3), Bgvec_boundary(3), Bbvac_boundary(3)
+real*8  :: BvR0, BvZ0, Bvp0, BvR0cos, BvR0sin, BvZ0cos, BvZ0sin, Bvp0cos, Bvp0sin
 real*8  :: chi(0:n_order-1,0:n_order-1,0:n_order-1)
 real*8  :: ndotB_max=0.0
 
@@ -44,13 +45,17 @@ write(*,*) "*********************************"
 write(*,*) "*    Determine Boundary Flux    *"
 write(*,*) "*********************************"
 
+! Outermost radial shell only
+i_shell = n_flux - 1
+
 delta_tht = 2 * PI / float(n_tht)
 delta_phi = 2 * PI / float(n_plane) / float(n_period)
 sum_dA = 0.d0
 sum_dA_abs = 0.d0
 surface_area = 0.d0
 open(21, file='ndotB_points.dat', action='write', status='replace')
-do i_elm=(n_flux-2)*n_tht+1, (n_flux-1)*n_tht
+
+do i_elm=(i_shell-1)*n_tht+1, i_shell*n_tht
   do i_plane=1,n_plane
     do ig1 = 1, 4
       si = 0.5 * (xgs(ig1) + 1.0)
@@ -102,6 +107,8 @@ do i_elm=(n_flux-2)*n_tht+1, (n_flux-1)*n_tht
         PSI_R = (   dPSgi_dr * dZZgi_ds - dPSgi_ds * dZZgi_dr ) / RZjac
         PSI_Z = ( - dPSgi_dr * dRRgi_ds + dPSgi_ds * dRRgi_dr ) / RZjac
         Psi_p = dPSgi_dp - Psi_R*dRRgi_dp - Psi_z*dZZgi_dp
+        
+        ! Full field (vacuum chi + plasma response from psi gradients)
         B_boundary = (/ chi(1,0,0)      + (Psi_z*chi(0,0,1) - Psi_p*chi(0,1,0))/(F0*RRgi), &
                         chi(0,1,0)      - (Psi_R*chi(0,0,1) - Psi_p*chi(1,0,0))/(F0*RRgi), &
                         chi(0,0,1)/RRgi + (Psi_R*chi(0,1,0) - Psi_z*chi(1,0,0))/F0 /)
@@ -132,12 +139,20 @@ do i_elm=(n_flux-2)*n_tht+1, (n_flux-1)*n_tht
 
         Bgvec_boundary = (/ BR0, BZ0, BP0 /)
 
+        ! ndotB_bvac: vacuum field only (chi without psi cross-terms).
+        ! Under USE_DOMM: Dommaschk analytic field. Under USE_EXT_FIELD: interpolated b_vac_field.
+        Bbvac_boundary = (/ chi(1,0,0), chi(0,1,0), chi(0,0,1)/RRgi /)
+        ndotB_bvac = sum(n_perp*Bbvac_boundary)
+
         ndotB = sum(n_perp*B_boundary)      
         ndotB_max = max(abs(ndotB), ndotB_max)
         ndotB_gvec = sum(n_perp*Bgvec_boundary)
         
-        theta = (i_elm - ((n_flux-2)*n_tht+1) + si) * delta_tht 
-        write(21, '(13e18.8)') theta, p, ndotB, ndotB_gvec, RRgi, ZZgi
+        ! Compute total magnetic field magnitude
+        B_tot2 = sum(B_boundary**2)
+        
+        theta = (i_elm - ((i_shell-1)*n_tht+1) + si) * delta_tht 
+        write(21, '(i4,13e18.8)') i_shell, theta, p, ndotB, ndotB_gvec, RRgi, ZZgi, sqrt(B_tot2), ndotB_bvac
         
         ! Factors of 0.5 to convert the integration interval from [-1,1] to [0,1] (poloidal direction) 
         !   and 0.5*delta_phi to convert the integration interval from [-1,1] to [phi_i,phi_i+delta_phi] (toroidal direction)
@@ -154,5 +169,7 @@ write(*,*) "Max n.B: ", ndotB_max
 write(*,*) "Surface area:        ", n_period * surface_area, "m^2"
 write(*,*) "Integrated abs(n.B): ", n_period * sum_dA_abs, "Tm^2"
 write(*,*) "Total Boundary Flux: ", n_period * sum_dA, "Tm^2"
+write(*,*) "Flux imbalance |integral(n.B)|/integral(|n.B|) =", abs(sum_dA)/sum_dA_abs
+write(*,*) "  (non-zero expected for open-boundary stellarator domains)"
 
 end subroutine determine_boundary_flux
