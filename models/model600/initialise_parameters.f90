@@ -75,6 +75,10 @@ namelist /in1/  tstep, nstep, tstep_n, nstep_n,                     &
                 FF_0,  FF_1,  FF_coef,                              &
                 ZK_par, ZK_i_par, ZK_e_par, ZK_par_max,             &
                 ZK_perp, ZK_i_perp, ZK_e_perp, D_par, D_perp,       &
+                ZK_perp_pri, ZK_perp_pri_z0, ZK_perp_pri_width,     &
+                ZK_i_perp_pri, ZK_i_perp_pri_z0, ZK_i_perp_pri_width,&
+                ZK_e_perp_pri, ZK_e_perp_pri_z0, ZK_e_perp_pri_width,&
+                D_perp_pri, D_perp_pri_z0, D_perp_pri_width,        &
                 V_pinch_gauss, V_pinch_psin, V_pinch_sig, v_pinch_file, &
                 heatsource_e, heatsource_i, heatsource,             &
                 particlesource, tauIC, Wdia,                        &
@@ -124,6 +128,8 @@ namelist /in1/  tstep, nstep, tstep_n, nstep_n,                     &
                 particlesource_psin, particlesource_sig,            &
                 edgeparticlesource, edgeparticlesource_psin,        &
                 edgeparticlesource_sig,                             &
+                privparticlesource, privparticlesource_z0,          &
+                privparticlesource_width,                           &
                 particlesource_gauss,    heatsource_gauss,          &
                 heatsource_gauss_i,      heatsource_gauss_e,        &
                 heatsource_gauss_psin,   heatsource_gauss_sig,      &
