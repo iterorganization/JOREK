@@ -134,6 +134,12 @@ program jorek2_connection_flux_aligned
   ! --- Define element neighbours
   allocate(element_neighbours(4,element_list%n_elements))
   element_neighbours = 0
+
+  !$omp parallel default(none) &
+  !$omp shared(node_list, element_list, element_neighbours) &
+  !$omp private(i, j, iside_i, iside_j)
+
+  !$omp do schedule(dynamic, 1)
   do i=1,element_list%n_elements
     do j=i+1,element_list%n_elements
       if (neighbours(node_list,element_list%element(i),element_list%element(j),iside_i,iside_j)) then
@@ -142,7 +148,9 @@ program jorek2_connection_flux_aligned
       endif
     enddo
   enddo
-  
+  !$omp end do
+  !$omp end parallel
+
   ! --- Initialise constants
   i_var_psi = 1                             ! magnetic flux index
   i_var_n   = 1                             ! number density index
