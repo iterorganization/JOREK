@@ -3,7 +3,7 @@ module mod_neighbours
   use mod_element_rtree, only: get_vertex_pos_in_rtree_plane
   implicit none
   private
-  public :: neighbours, update_neighbours
+  public :: neighbours, update_neighbours, build_element_neighbours
   public :: coord_in_neighbour
 contains
 logical function neighbours(node_list,elm1,elm2,inb1,inb2)
@@ -317,4 +317,112 @@ call cpu_time(t2)
 write(*,'(A,e12.4)') 'neighbours cpu_time, init tree      : ',t1-t0 
 write(*,'(A,e12.4)') 'neighbours cpu_time, init neighbours: ',t2-t1 
 end subroutine update_neighbours
+!> Element neighbours from a bounding-box grid instead of an O(N^2) pair loop.
+!! Only element pairs whose (R,Z) bounding boxes overlap are tested with neighbours(), in
+!! ascending order of the second element index, so the neighbour table matches the all-pairs loop.
+subroutine build_element_neighbours(node_list, element_list, element_neighbours)
+  implicit none
+  type (type_node_list),    intent(in)    :: node_list
+  type (type_element_list), intent(in)    :: element_list
+  integer, intent(inout)                  :: element_neighbours(4,element_list%n_elements)
+
+  integer :: n_el, i, j, k, v, ix, iy, nc, nx, ny, ncell, ic, jc, ilo, ihi, jlo, jhi, nrun
+  integer :: iside_i, iside_j, idx, n_cand
+  real*8  :: pos(2), bmin(2), bmax(2), gmin(2), gmax(2), cell(2), pad
+  real*8, allocatable :: bb_min(:,:), bb_max(:,:)
+  integer, allocatable :: cell_start(:), cell_items(:), cell_fill(:), stamp(:), cand(:)
+
+  n_el = element_list%n_elements
+  allocate(bb_min(2,n_el), bb_max(2,n_el), stamp(n_el))
+  stamp = 0
+  gmin = huge(1.d0); gmax = -huge(1.d0)
+  do i = 1, n_el
+    bmin = huge(1.d0); bmax = -huge(1.d0)
+    do v = 1, 4
+      pos = get_vertex_pos_in_rtree_plane(node_list%node(element_list%element(i)%vertex(v))%x(:,1,1:2))
+      bmin = min(bmin, pos); bmax = max(bmax, pos)
+    enddo
+    bb_min(:,i) = bmin; bb_max(:,i) = bmax
+    gmin = min(gmin, bmin); gmax = max(gmax, bmax)
+  enddo
+  pad = 1.d-6 * max(gmax(1)-gmin(1), gmax(2)-gmin(2))
+  nx = max(1, int(sqrt(real(n_el))))
+  ny = nx
+  cell = (gmax - gmin) / real([nx, ny], 8) + 1.d-30
+  ncell = nx * ny
+  allocate(cell_start(ncell+1), cell_fill(ncell))
+  ! count, then fill (counting sort of element indices per cell)
+  cell_start = 0
+  do i = 1, n_el
+    ilo = max(0, int((bb_min(1,i)-gmin(1)-pad)/cell(1))); ihi = min(nx-1, int((bb_max(1,i)-gmin(1)+pad)/cell(1)))
+    jlo = max(0, int((bb_min(2,i)-gmin(2)-pad)/cell(2))); jhi = min(ny-1, int((bb_max(2,i)-gmin(2)+pad)/cell(2)))
+    do jc = jlo, jhi
+      do ic = ilo, ihi
+        cell_start(ic + jc*nx + 2) = cell_start(ic + jc*nx + 2) + 1
+      enddo
+    enddo
+  enddo
+  do ic = 1, ncell
+    cell_start(ic+1) = cell_start(ic+1) + cell_start(ic)
+  enddo
+  allocate(cell_items(cell_start(ncell+1)))
+  cell_fill = cell_start(1:ncell)
+  do i = 1, n_el
+    ilo = max(0, int((bb_min(1,i)-gmin(1)-pad)/cell(1))); ihi = min(nx-1, int((bb_max(1,i)-gmin(1)+pad)/cell(1)))
+    jlo = max(0, int((bb_min(2,i)-gmin(2)-pad)/cell(2))); jhi = min(ny-1, int((bb_max(2,i)-gmin(2)+pad)/cell(2)))
+    do jc = jlo, jhi
+      do ic = ilo, ihi
+        k = ic + jc*nx + 1
+        cell_fill(k) = cell_fill(k) + 1
+        cell_items(cell_fill(k)) = i
+      enddo
+    enddo
+  enddo
+
+  ! candidate pairs (i<j) from shared cells, then the exact test
+  allocate(cand(n_el))
+  do i = 1, n_el
+    n_cand = 0
+    ilo = max(0, int((bb_min(1,i)-gmin(1)-pad)/cell(1))); ihi = min(nx-1, int((bb_max(1,i)-gmin(1)+pad)/cell(1)))
+    jlo = max(0, int((bb_min(2,i)-gmin(2)-pad)/cell(2))); jhi = min(ny-1, int((bb_max(2,i)-gmin(2)+pad)/cell(2)))
+    do jc = jlo, jhi
+      do ic = ilo, ihi
+        k = ic + jc*nx + 1
+        do idx = cell_start(k)+1, cell_start(k+1)
+          j = cell_items(idx)
+          if (j > i .and. stamp(j) /= i) then
+            stamp(j) = i
+            n_cand = n_cand + 1
+            cand(n_cand) = j
+          end if
+        enddo
+      enddo
+    enddo
+    ! ascending order, so the writes happen in the same order as the all-pairs loop
+    call sort_ascending(cand, n_cand)
+    do k = 1, n_cand
+      j = cand(k)
+      if (neighbours(node_list, element_list%element(i), element_list%element(j), iside_i, iside_j)) then
+        element_neighbours(iside_i,i) = j
+        element_neighbours(iside_j,j) = i
+      endif
+    enddo
+  enddo
+end subroutine build_element_neighbours
+
+subroutine sort_ascending(a, n)
+  implicit none
+  integer, intent(in)    :: n
+  integer, intent(inout) :: a(n)
+  integer :: i, j, t
+  do i = 2, n
+    t = a(i); j = i - 1
+    do while (j >= 1)
+      if (a(j) <= t) exit
+      a(j+1) = a(j); j = j - 1
+    enddo
+    a(j+1) = t
+  enddo
+end subroutine sort_ascending
+
 end module mod_neighbours
