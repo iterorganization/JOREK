@@ -56,6 +56,7 @@ namelist /in1/  tstep, nstep, tstep_n, nstep_n,                     &
                 maintain_profiles,                                  &
                 particlesource, heatsource,                         &
                 heatsource_i, heatsource_e, tauIC,                  &
+                loop_voltage,                                       &
                 eta_num, visco_num, visco_par_num, D_perp_num,      &
                 ZK_perp_num,                                        &
                 pellet_amplitude, pellet_R, pellet_Z, pellet_phi,   &
@@ -75,6 +76,8 @@ namelist /in1/  tstep, nstep, tstep_n, nstep_n,                     &
                 resistive_wall,                                     &
                 wall_resistivity, wall_resistivity_fact,            &
                 bc_natural_open,                                    &
+                vpar_sbc_enable, vpar_sbc_alpha0,                   &
+                particle_flux_sbc_enable, heat_flux_sbc_enable,     &
                 use_mumps_eq, use_pastix_eq, use_strumpack_eq,      &
                 use_mumps_prj, use_pastix_prj, use_strumpack_prj,   &
                 use_mumps, mumps_ordering,                          &
@@ -111,6 +114,7 @@ namelist /in1/  tstep, nstep, tstep_n, nstep_n,                     &
                 time_evol_scheme, corr_neg_temp_coef,               &
                 corr_neg_dens_coef, D_prof_neg, ZK_prof_neg,        &
                 D_prof_neg_thresh, ZK_prof_neg_thresh, T_min,       &
+                T_min_neg, rho_min_neg,                             &
                 amix, amix_freeb, equil_accuracy,                   &
                 equil_accuracy_freeb, current_ref, FB_Ip_position,  &
                 FB_Ip_integral, Z_axis_ref, FB_Zaxis_position,      &

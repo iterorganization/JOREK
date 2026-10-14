@@ -68,6 +68,16 @@ subroutine preset_parameters
   j_cutoff_rcoord = 99.0
   j_cutoff_sig = 0.025
   bloating_factor = 1.0d0
+  
+  ! Stellarator SBC defaults
+  vpar_sbc_enable = .false.
+  vpar_sbc_alpha0 = 5.d0      ! 5 degree transition angle
+  vpar_sbc_T_floor = 1.d-4   ! Minimum T_local used when computing the v_par SBC T-derivative 
+                             ! to protect against against 1/cs, does not affect target value itself  
+  particle_flux_sbc_enable = .false.
+  heat_flux_sbc_enable = .false.
+  zkpar_picard = .false.
+  use_core_freeze = .false.
 
   freeboundary_equil = .false. ! use free or fixed boundary equilibrium
   freeboundary       = .false. ! use free or fixed boundary?

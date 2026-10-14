@@ -5,6 +5,7 @@ use mod_parameters, only : n_var, n_order, n_degrees_1d
 implicit none
 
 logical  :: difference_found, rhs_problem(n_var), elm_problem(n_var,n_var)
+logical, save :: sbc_check_done = .false.
 
 contains
 
@@ -317,6 +318,9 @@ subroutine construct_matrix(mhd_sim, local_elms, n_local_elms, a_mat, rhs_vec, h
   use mod_axis_treatment
   use mod_simulation_data, only: type_MHD_SIM
   use global_distributed_matrix, only: global_matrix_structure_vacuum
+#if JOREK_MODEL == 183
+  use mod_boundary_ndotB, only: init_boundary_ndotB, finalize_boundary_ndotB
+#endif
   
   !$ use omp_lib
   implicit none
@@ -460,6 +464,22 @@ subroutine construct_matrix(mhd_sim, local_elms, n_local_elms, a_mat, rhs_vec, h
     call global_matrix_structure_vacuum(mhd_sim%node_list, mhd_sim%bnd_node_list, a_mat, i_tor_min=1, i_tor_max=n_tor)
   endif
 
+#if JOREK_MODEL == 183
+  ! One-time consistency check, if vpar_sbc_enable also needs bc_natural_open=.true.
+  if (my_id == 0) then
+    if (vpar_sbc_enable .and. (.not. bc_natural_open) .and. (.not. sbc_check_done)) then
+      write(*,'(A)') "FATAL: vpar_sbc_enable=.true. requires bc_natural_open=.true."
+      write(*,'(A)') "  Without it, n.B is never accumulated (boundary_matrix_open is not called),"
+      write(*,'(A)') "  and the v_par sheath BC silently reduces to driving v_par -> 0."
+      stop
+    endif
+    sbc_check_done = .true.
+  endif
+
+  ! Initialize n.B storage for stellarator BC (before OMP region)
+  ! Pass n_plane and n_tor for toroidal variation support
+  call init_boundary_ndotB(bnd_node_list%n_bnd_nodes, n_plane, n_tor)
+#endif
 
  
   ! --- Declare shared and private variables for omp
@@ -744,6 +764,11 @@ subroutine construct_matrix(mhd_sim, local_elms, n_local_elms, a_mat, rhs_vec, h
     call dealloc_node(aux_nodes(iv))
   enddo
   !$omp end parallel
+
+#if JOREK_MODEL == 183
+  ! Finalize n.B storage (average accumulated values, print stats)
+  call finalize_boundary_ndotB()
+#endif
  
   ! --- Memory tracking
   call tr_vnorms("cm_A_bef_bc", a_mat%val, a_mat%nnz)
