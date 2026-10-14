@@ -790,6 +790,8 @@ subroutine preset_parameters
   D_neutral_p = 1.d-5
   delta_n_convection = 0
   nimp_bg = 0.
+  nimp_bg_file = 'none'
+  nimp_bg_profile_type(:) = 0
 
   n_adas = 1
   adas_dir = ' '

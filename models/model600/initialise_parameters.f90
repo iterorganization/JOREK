@@ -175,7 +175,8 @@ namelist /in1/  tstep, nstep, tstep_n, nstep_n,                     &
                 drift_distance, energy_teleported,                  &
                 K_Dmv, A_Dmv, L_tube, V_Dmv, P_Dmv,                 &
                 spi_Vel_diff, t_ns, JET_MGI, ASDEX_MGI,             &
-                delta_n_convection, nimp_bg, output_prad_phi,       &
+                delta_n_convection, nimp_bg, nimp_bg_file,          &
+                nimp_bg_profile_type, output_prad_phi,              &
                 RMP_on, RMP_har_cos,RMP_har_sin, spi_shard_file,    &
                 spi_plume_file, spi_plume_hdf5,                     &
                 RMP_growth_rate, RMP_ramp_up_time,                  &

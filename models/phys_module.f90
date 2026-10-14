@@ -475,7 +475,16 @@ module phys_module
   real*8  :: delta_n_convection !< Switch to activate the convection term for neutrals (at the plasma velocity)
   real*8  :: nimp_bg(n_imp_max) !< Density of background impurities (in \f$m^{-3}\f$)
   integer :: index_main_imp     !< Index of the main impurity species (in imp_type and nimp_bg) solved with continuity equation
-                               
+
+  ! Loading impurities from files.
+  character(len=256)  :: nimp_bg_file                      !< Density profiles of background impurities
+  logical             :: num_nimp_bg                       !< automatically set true if nimp_bg_file /= 'none'
+  integer             :: num_nimp_bg_len                   !< Number of points in nimp_bg profile
+  integer             :: nimp_bg_profile_type(n_imp_max)   !< Select profile for each impurity (0: uniform, 1: profile1, 2: profile2)
+  real*8, allocatable :: num_nimp_bg_x(:)                  !< Psi_N values of nimp_bg profile points
+  real*8, allocatable :: num_nimp_bg_prof1(:)              !< Density values of nimp_bg profile, (in \f$m^{-4}\f$)
+  real*8, allocatable :: num_nimp_bg_prof2(:)              !< Density values of nimp_bg profile, (in \f$m^{-4}\f$)
+
   !> @name Shattered Pellet Injection related input parameters
   ! Note that the SPI share many of the MGI parameters. The code should return to simple MGI upon using_spi = false
   ! The reference spatial coordinate for shattered pellets are calculated using ns_R etc. 
