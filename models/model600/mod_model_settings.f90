@@ -50,6 +50,9 @@ integer, parameter :: n_var_refluid     = sum(merge( (/1/), (/0/), with_refluid 
 integer, parameter :: n_var_ext(n_mod_ext) = (/ n_var_TiTe, n_var_vpar, n_var_rho, n_var_neutrals,         &
   n_var_impurities, n_var_refluid /)
 integer, parameter :: n_var = n_var_base + sum(n_var_ext) !< total number of variables
+integer, parameter :: n_eq_var = n_var
+integer, private :: i_var_index
+integer, dimension(n_var), parameter :: var_index = (/ (i_var_index, i_var_index=1,n_var) /)
 
 ! --- variable indices for the base model
 integer, parameter :: var_psi  = 1
