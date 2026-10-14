@@ -1211,7 +1211,7 @@ do i=1,n_vertex_max
           endif
 
           ! --- Particle diffusivities
-          D_prof         = get_dperp (psi_norm)
+          D_prof         = get_dperp (psi_norm, y_g(ms, mt))
           V_prof_pinch   = get_vpinch(psi_norm) * sign(1.d0,psi_bnd-psi_axis)
           psi_grad2      = ps0_x**2 + ps0_y**2
           if (psi_grad2 < 1.d-30) psi_grad2 = 1.d-30
@@ -1253,18 +1253,18 @@ do i=1,n_vertex_max
           ! --- Perpendicular heat diffusivities
           if ( with_TiTe ) then
             if (use_zkperp_times_density) then
-              ZKi_prof = get_zk_iperp(psi_norm) * max(r0,zkperp_density_floor)
-              ZKe_prof = get_zk_eperp(psi_norm) * max(r0,zkperp_density_floor)
+              ZKi_prof = get_zk_iperp(psi_norm, y_g(ms,mt)) * max(r0,zkperp_density_floor)
+              ZKe_prof = get_zk_eperp(psi_norm, y_g(ms,mt)) * max(r0,zkperp_density_floor)
               if (r0 .gt. zkperp_density_floor) then
-                dZKi_prof_drho = get_zk_iperp(psi_norm)
-                dZKe_prof_drho = get_zk_eperp(psi_norm)
+                dZKi_prof_drho = get_zk_iperp(psi_norm, y_g(ms,mt))
+                dZKe_prof_drho = get_zk_eperp(psi_norm, y_g(ms,mt))
               else
                 dZKi_prof_drho = 0.d0
                 dZKe_prof_drho = 0.d0
               endif
             else
-              ZKi_prof = get_zk_iperp(psi_norm)
-              ZKe_prof = get_zk_eperp(psi_norm)
+              ZKi_prof = get_zk_iperp(psi_norm, y_g(ms,mt))
+              ZKe_prof = get_zk_eperp(psi_norm, y_g(ms,mt))
               dZKi_prof_drho = 0.d0
               dZKe_prof_drho = 0.d0
             endif
@@ -1276,14 +1276,14 @@ do i=1,n_vertex_max
                                  tanh((psi_norm-ZK_e_perp_num_tanh_psin)/ZK_e_perp_num_tanh_sig))
           else
             if (use_zkperp_times_density) then
-              ZK_prof = get_zkperp(psi_norm) * max(r0,zkperp_density_floor)
+              ZK_prof = get_zkperp(psi_norm, y_g(ms,mt)) * max(r0,zkperp_density_floor)
               if (r0 .gt. zkperp_density_floor) then
-                dZK_prof_drho = get_zkperp(psi_norm)
+                dZK_prof_drho = get_zkperp(psi_norm, y_g(ms,mt))
               else
                 dZK_prof_drho = 0.d0
               endif
             else
-              ZK_prof = get_zkperp(psi_norm)
+              ZK_prof = get_zkperp(psi_norm, y_g(ms,mt))
               dZK_prof_drho = 0.d0
             endif
             ZK_perp_num_psin = ZK_perp_num +                                                  &
