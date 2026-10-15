@@ -52,6 +52,7 @@ integer   :: status(MPI_STATUS_SIZE)
 real*8    :: rphin_arr(n_lines) = 0.d0, polturns_arr(n_lines) = 0.d0, torturns_arr(n_lines) = 0.d0, phi_arr(n_lines) = 0.d0, R_arr(n_lines) = 0.d0
 real*8    :: rphin_arr_tot(n_lines) = 0.d0, polturns_arr_tot(n_lines) = 0.0, torturns_arr_tot(n_lines) = 0.0, phi_arr_tot(n_lines) = 0.d0, R_arr_tot(n_lines) = 0.d0
 real*8    :: R_poinc_tot(n_lines*num_pol_turns*n_period*assumed_max_q) = 0.d0, Z_poinc_tot(n_lines*num_pol_turns*n_period*assumed_max_q), phi_poinc_tot(n_lines*num_pol_turns*n_period*assumed_max_q)
+real*8    :: q_tot(n_lines)    ! safety factor per line; 0 if the line ended before a measurable poloidal turn
 
 ! --- Initialise constants
 integer   :: v_s0_t0   = 1    ! the vertex and edge indices follow and anti-clockwise convention
@@ -162,19 +163,14 @@ do i = 1, n_lines
   phi = 2.d0*pi*float(i_plane_rtree - 1)/float(n_period*n_plane)
   t_global = 0.0
   call find_RZ(node_list,element_list,Rstart(i),Zstart(i),RR,ZZ,i_elm,s,t,ifail)
-  if (ifail .ne. 0) then
-    write(*,*) "Can not find RZ,", ifail 
-    exit
+  if (ifail .ne. 0 .or. i_elm < 1) then
+    write(*,*) 'Can not find start point of field line ', i, ' (ifail =', ifail, ') -- skipping'
+    cycle
   endif
   R_arr(i)        = RR
-  
+
   ! Get radial coordinate from current element and local s coordinate
   call interp_gvec(node_list,element_list,i_elm,4,1,1,s,t,rphin_arr(i),dummy,dummy,dummy,dummy,dummy)
-
-  if ( i_elm < 1 ) then
-    write(*,*) 'Illegal starting point for field line ', i, '. Skipping.'
-    cycle
-  end if
   
   ! --- Trace field line
   stop_tracing = .false.
@@ -216,7 +212,7 @@ do i = 1, n_lines
   ! Get total toroidal distance traced
   phi_arr(i)      = phi - 2.d0*pi*float(i_plane_rtree - 1)/float(n_period*n_plane)
   torturns_arr(i) = phi_arr(i)/float(n_period*n_plane)/(2.d0*PI)
-  polturns_arr(i) = polturns + t_global / float(n_tht) 
+  polturns_arr(i) = polturns + abs(t_global) / float(n_tht)      ! was: t_global / float(n_tht), as fractional turns lose their signs
   write(*,*) 'Finished tracing line ', i
 
 end do
@@ -229,6 +225,10 @@ call MPI_Reduce(polturns_arr,   polturns_arr_tot,   n_lines,MPI_DOUBLE_PRECISION
 call MPI_Reduce(torturns_arr,   torturns_arr_tot,   n_lines,MPI_DOUBLE_PRECISION,MPI_SUM,0,MPI_COMM_WORLD,ierr)
 call MPI_Reduce(R_arr,     R_arr_tot,     n_lines,MPI_DOUBLE_PRECISION,MPI_SUM,0,MPI_COMM_WORLD,ierr)
 
+! --- Safety factor per line (guard: lines ending at the wall before a poloidal turn)
+q_tot = 0.d0
+where (polturns_arr_tot > 1.d-3) q_tot = phi_arr_tot/(2.d0*PI)/polturns_arr_tot
+
 ! --- Open the output files to which the Poincare data will be written in ascii format
 if (my_id .eq. 0) then
   open(21,file='q_stel_poinc_R-Z.dat')
@@ -238,7 +238,7 @@ if (my_id .eq. 0) then
   do i = 1, n_lines
     do j = 1, num_pol_turns*n_period*assumed_max_q 
       if (R_poinc_tot((i-1)*num_pol_turns*n_period*assumed_max_q+j) .ne. 0.0) then
-        write(21,'(4e18.8,i6)') R_poinc_tot((i-1)*num_pol_turns*n_period*assumed_max_q+j), Z_poinc_tot((i-1)*num_pol_turns*n_period*assumed_max_q+j), 100.0 * polturns_arr_tot(i) / float(num_pol_turns), phi_arr_tot(i)/(2.d0*PI)/polturns_arr_tot(i), int(i)
+        write(21,'(4e18.8,i6)') R_poinc_tot((i-1)*num_pol_turns*n_period*assumed_max_q+j), Z_poinc_tot((i-1)*num_pol_turns*n_period*assumed_max_q+j), 100.0 * polturns_arr_tot(i) / float(num_pol_turns), q_tot(i), int(i)
       endif
     enddo
     write(21,*)
@@ -254,7 +254,7 @@ if (my_id .eq. 0) then
     do i = 1, n_lines
       do j = 1, num_pol_turns*n_period*assumed_max_q 
         if (R_poinc_tot((i-1)*num_pol_turns*n_period*assumed_max_q+j) .ne. 0.0) then
-          write(21,'(4e18.8,i6)') R_poinc_tot((i-1)*num_pol_turns*n_period*assumed_max_q+j), Z_poinc_tot((i-1)*num_pol_turns*n_period*assumed_max_q+j), 100.0 * polturns_arr_tot(i) / float(num_pol_turns), phi_arr_tot(i)/(2.d0*PI)/polturns_arr_tot(i), int(i)
+          write(21,'(4e18.8,i6)') R_poinc_tot((i-1)*num_pol_turns*n_period*assumed_max_q+j), Z_poinc_tot((i-1)*num_pol_turns*n_period*assumed_max_q+j), 100.0 * polturns_arr_tot(i) / float(num_pol_turns), q_tot(i), int(i)
         endif
       enddo
       write(21,*)
@@ -275,7 +275,7 @@ if ( my_id == 0 ) then
   open(99, file='q_profile.dat', action='write', status='replace')
   write(99,*) '# SQRT{Phi_N} | Safety factor | Radius at LFS midplane [m] | % Completion '
   do i = 1, n_lines
-    write(99,'(4es23.5)') rphin_arr_tot(i), phi_arr_tot(i)/(2.d0*PI)/polturns_arr_tot(i), R_arr_tot(i), 100 * polturns_arr_tot(i) / float(num_pol_turns)
+    write(99,'(4es23.5)') rphin_arr_tot(i), q_tot(i), R_arr_tot(i), 100 * polturns_arr_tot(i) / float(num_pol_turns)
   end do
   close(99)
 end if
@@ -327,7 +327,7 @@ contains
     ! --- Do we require a smaller step (< 1.0) 
     small_delta = min(small_delta_s, small_delta_t)
     debug = .false.
-    if (small_delta .le. 0) then
+    if (small_delta .lt. 0) then ! lt instead of le to avoid printout on every edge start
       write(*,*) 'ERROR: Something went wrong when calculating small_delta: ', i, i_steps, small_delta, small_delta_s, small_delta_t, s, t, delta_s, delta_t
       debug = .true.
     endif  
@@ -387,12 +387,12 @@ contains
     ! --- Reset the toroial step
     delta_phi_local = delta_phi_local + small_delta * delta_phi_step
 
-    ! --- Exit if we stepped out of domain
+    ! --- Exit this line if we stepped out of domain
     if (i_elm .eq. 0) then
-      write(*,*) "ERROR: New element found in do_step is outside the domain"
-      stop
+      write(*,*) 'Line ', i, ' reached the wall -- ending this line'
+      ifail = 2
+      return
     endif
-
   enddo ! end loop for single step
   
   if (i_steps .gt. 10) then
