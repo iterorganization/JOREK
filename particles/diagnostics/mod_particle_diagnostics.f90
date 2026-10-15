@@ -12,12 +12,12 @@ public write_particle_diagnostics, calculate_particle_diagnostics
 !> Cannot use HDF5 types here because these are invalid before h5open_f is called
 !> (I think, did not take the chance)
 integer, parameter :: REAL4 = 1, INT4 = 2, REAL8 = 3
-integer, parameter :: n_vars = 15
+integer, parameter :: n_vars = 17
 character(len=7)  :: var_names(n_vars) = ["e      ", "k      ", "mu     ", &
   "psi_n  ", "psi_bar", "p_phi  ", "weight ", "lost   ", "q      ", "region ", &
-  "theta  ", "phi    ", "R      ", "Z      ","i_elm  "]
-integer, parameter :: var_types(n_vars) = [REAL8, REAL8, REAL4, REAL4, REAL4, REAL8, REAL4, INT4, INT4, INT4, REAL4, REAL4, REAL4, REAL4,INT4]
-integer, parameter :: n_real8_var      = 3 !count(var_types .eq. REAL8)
+  "theta  ", "phi    ", "R      ", "Z      ","i_elm  ", "p      ", "xi     "]
+integer, parameter :: var_types(n_vars) = [REAL8, REAL8, REAL4, REAL4, REAL4, REAL8, REAL4, INT4, INT4, INT4, REAL4, REAL4, REAL4, REAL4, INT4, REAL8, REAL8]
+integer, parameter :: n_real8_var      = 5 !count(var_types .eq. REAL8)
 integer, parameter :: n_real4_var      = 8 !count(var_types .eq. REAL4)
 integer, parameter :: n_int4_var       = 4 !count(var_types .eq. INT4)
 ! HDF5 does not support booleans, use INT4
@@ -502,8 +502,10 @@ subroutine calculate_particle_diagnostics(fields, time, particles, mass, real8_s
 	! transform the particle into a gc to get E and mu
         call relativistic_kinetic_to_particle(fields%node_list,fields%element_list, particle_in, particle, mass, B)
       type is (particle_gc_relativistic)
-  ! compute the canonical toroidal momentum P_phi
+  ! compute the canonical toroidal momentum P_phi, ||p||, and xi=cos(theta)
         real_stats_tmp(6) = EL_CHG*particle_in%q*psi + ATOMIC_MASS_UNIT*particle_in%x(1)* particle_in%p(1)*B(3)/norm2(B)
+        real_stats_tmp(12) = sqrt(particle_in%p(2) * 2 * norm2(B) * mass + particle_in%p(1)**2) / ( mass * SPEED_OF_LIGHT )
+        real_stats_tmp(13) = particle_in%p(1) / sqrt(particle_in%p(2) * 2 * norm2(B) * mass + particle_in%p(1)**2)
   ! transform the particle into a gc to get E and mu
         call relativistic_gc_to_particle(fields%node_list,fields%element_list, particle_in,particle,mass,B) 
       class default
@@ -528,7 +530,7 @@ subroutine calculate_particle_diagnostics(fields, time, particles, mass, real8_s
       ! Psi_bar = P_phi/Ze
       if (particle%q .ne. 0) real_stats_tmp(5) = real_stats_tmp(6) / (particle%q * EL_CHG)
       ! weight
-      real_stats_tmp(7) = real(particle%weight, 8)
+      real_stats_tmp(7) = real(particles(i)%weight, 8)
       ! theta
       real_stats_tmp(8) = atan2(particles(i)%x(2)-Z_axis, particles(i)%x(1)-R_axis)
       ! phi
