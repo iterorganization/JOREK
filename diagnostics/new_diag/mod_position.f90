@@ -53,6 +53,8 @@ module mod_position
     real*8             :: volume  = 0.d0 !< Volume inside the flux surface (for flux surfaces)
     real*8             :: dV_dpsi = 0.d0 !< Derivative of the volume with respect to psi (for flux surfaces)
     real*8             :: R0_surf = 0.d0 !< (R_max+R_min)/2 of the flux surface (for flux surfaces)
+    real*8             :: q_over_F = 0.d0     !< q/F = |dV/dpsi| / (4 pi^2 <R^2>_theta*) (for flux surfaces)
+    real*8             :: dq_over_F_dpsi = 0.d0 !< Derivative of q_over_F with respect to psi (for flux surfaces)
     real*8             :: length     !< Length along a line (for line)
     ! --- Quantities related to boundary elements
     real*8             :: bnd_normal(2) = 0.d0 !< Normal vector to the computational boundary (pointing outside)
@@ -228,6 +230,7 @@ module mod_position
     integer :: i, j, k, nsub_loc, inode, iv
     real*8, allocatable :: surface(:) !< Poloidal surface inside flux surface (for r_minor)
     real*8, allocatable :: volume(:), dV_dpsi(:), psi_surf(:), R_min_surf(:), R_max_surf(:)
+    real*8, allocatable :: q_over_F(:), dq_over_F_dpsi(:)
     integer :: jm
     real*8  :: area_tri
    
@@ -357,6 +360,7 @@ module mod_position
       allocate(surface(nPsiN))
       surface(:) = 0.d0
       allocate(volume(nPsiN), dV_dpsi(nPsiN), psi_surf(nPsiN), R_min_surf(nPsiN), R_max_surf(nPsiN))
+      allocate(q_over_F(nPsiN), dq_over_F_dpsi(nPsiN))
       volume(:)     = 0.d0
       R_min_surf(:) = huge(1.d0)
       R_max_surf(:) = -huge(1.d0)
@@ -419,6 +423,18 @@ module mod_position
         end if
       end do
       
+      ! --- q/F from the straight field line Jacobian J = q R^2 / F: q = F |dV/dpsi| / (4 pi^2 <R^2>_theta*),
+      ! --- with <.>_theta* the plain average over theta* (the last point repeats the first one)
+      do i = 1, nPsiN
+        q_over_F(i) = abs(dV_dpsi(i)) / ( 4.d0 * PI**2                                                 &
+                      * sum( (/ (pos_list%pos(j,i)%R**2, j=1,nTht-1) /) ) / real(nTht-1) )
+      end do
+      ! --- Its derivative from a local least-squares quadratic over +-3 surfaces (q_over_F already
+      ! --- contains a finite-difference derivative of the volume, a second one would amplify the noise)
+      do i = 1, nPsiN
+        dq_over_F_dpsi(i) = local_quadratic_slope(psi_surf, q_over_F, i, 3)
+      end do
+      
       ! --- Fill in r_minor
       do j = 1, nTht
         do i = 1, nPsiN
@@ -426,11 +442,13 @@ module mod_position
           pos_list%pos(j,i)%volume  = volume(i)
           pos_list%pos(j,i)%dV_dpsi = dV_dpsi(i)
           pos_list%pos(j,i)%R0_surf = 0.5d0 * (R_min_surf(i) + R_max_surf(i))
+          pos_list%pos(j,i)%q_over_F       = q_over_F(i)
+          pos_list%pos(j,i)%dq_over_F_dpsi = dq_over_F_dpsi(i)
         end do
       end do
       
       call cleanup_mapping(mapping)
-      deallocate(surface, volume, dV_dpsi, psi_surf, R_min_surf, R_max_surf)
+      deallocate(surface, volume, dV_dpsi, psi_surf, R_min_surf, R_max_surf, q_over_F, dq_over_F_dpsi)
       
     ! --- Several (closed) flux surfaces.
     else if ( present(nPsiN) .and. present(nTht) ) then
@@ -706,4 +724,39 @@ module mod_position
   
   
   
+  !> Slope at x(i) of the least-squares quadratic through the points i-hw..i+hw (fewer at the ends;
+  !! straight line if there are only two points)
+  pure real*8 function local_quadratic_slope(x, y, i, hw) result(slope)
+    real*8,  intent(in) :: x(:), y(:)
+    integer, intent(in) :: i, hw
+    
+    integer :: k, k1, k2
+    real*8  :: dx, m(3,3), b(3), det
+    
+    k1 = max(1, i-hw)
+    k2 = min(size(x), i+hw)
+    slope = 0.d0
+    if ( k2 - k1 < 1 ) return
+    if ( k2 - k1 == 1 ) then
+      slope = (y(k2) - y(k1)) / (x(k2) - x(k1))
+      return
+    end if
+    ! --- Normal equations for y = a + slope (x-x(i)) + c (x-x(i))^2
+    m = 0.d0
+    b = 0.d0
+    do k = k1, k2
+      dx = x(k) - x(i)
+      m(1,:) = m(1,:) + (/ 1.d0,  dx,    dx**2 /)
+      m(2,:) = m(2,:) + (/ dx,    dx**2, dx**3 /)
+      m(3,:) = m(3,:) + (/ dx**2, dx**3, dx**4 /)
+      b      = b      + y(k) * (/ 1.d0, dx, dx**2 /)
+    end do
+    ! --- Cramer's rule for the second unknown
+    det   = m(1,1)*(m(2,2)*m(3,3)-m(2,3)*m(3,2)) - m(1,2)*(m(2,1)*m(3,3)-m(2,3)*m(3,1))               &
+          + m(1,3)*(m(2,1)*m(3,2)-m(2,2)*m(3,1))
+    if ( det == 0.d0 ) return
+    slope = ( m(1,1)*(b(2)*m(3,3)-m(2,3)*b(3)) - b(1)*(m(2,1)*m(3,3)-m(2,3)*m(3,1))                     &
+            + m(1,3)*(m(2,1)*b(3)-b(2)*m(3,1)) ) / det
+  end function local_quadratic_slope
+
 end module mod_position

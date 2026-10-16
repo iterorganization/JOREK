@@ -118,6 +118,7 @@ module mod_expression
     call add(exprs_all, 'q_cyl       ', 'Cylindrical safety factor r|B_phi|/(R B_theta)        ')
     call add(exprs_all, 'alpha_cyl   ', 'Normalised pressure gradient, cylindrical (with q_cyl)')
     call add(exprs_all, 'alpha_miller', 'Normalised pressure gradient, Miller (average only)   ')
+    call add(exprs_all, 'alpha_crit  ', 'Ballooning limit, s-alpha estimate 0.6s (average only)')
     call add(exprs_all, 'x           ', 'Cartesian Coordinate x                                ')
     call add(exprs_all, 'y           ', 'Cartesian Coordinate y                                ')
     call add(exprs_all, 'z           ', 'Cartesian Coordinate z (== Cylindrical Z)             ')
@@ -623,6 +624,7 @@ module mod_expression
     real*8 :: FFprime_loc, Jpol, JpolR, JpolZ, Btot, Jpar, Jpar_ionsat, fact_jsat, Bnorm, Btan, Jtor
     real*8 :: p_prime_loc
     real*8 :: r_axis_dist, B0_axis, q_cyl_loc   ! for q_cyl, alpha_cyl
+    real*8 :: F_loc, q_loc, shear_loc            ! for alpha_crit
     real*8 :: nmlR, nmlZ, theta_geo, VR, VZ, V_phi, Vpar_tot, VperpR, VperpZ
     real*8 :: hh, hh_s, hh_t, hh_ss, hh_tt, hh_st, hhz, hhz_p, hhz_pp, sz, vv(0:n_var), va(n_var), aux(20)
     real*8 :: delta_g(n_var), delta_s(n_var), delta_t(n_var)
@@ -1764,6 +1766,20 @@ module mod_expression
                 if ( (pol_pos%volume > 0.d0) .and. (pol_pos%R0_surf > 0.d0) ) then
                   res = - 2.d0 / (2.d0 * PI)**2 * pol_pos%dV_dpsi                                      &
                         * sqrt( pol_pos%volume / (2.d0 * PI**2 * pol_pos%R0_surf) ) * p_prime_loc
+                else
+                  res = ieee_value(1.d0, ieee_quiet_nan)
+                end if
+                
+              case ( 'alpha_crit' )
+                ! --- First stability boundary of ideal ballooning modes in the s-alpha model, alpha_crit ~ 0.6 s,
+                ! --- a rough estimate (moderate to large s; no second stability). Magnetic shear
+                ! --- s = (2V/q) dq/dV (Miller convention r ~ sqrt(V)), q = F q_over_F with F = |R B_phi|
+                ! --- (dF/dpsi neglected; exact for constant F). Needs flux-surface positions (command average).
+                F_loc = abs(BigR * Btor)
+                q_loc = F_loc * pol_pos%q_over_F
+                if ( (pol_pos%volume > 0.d0) .and. (q_loc > 0.d0) .and. (pol_pos%dV_dpsi /= 0.d0) ) then
+                  shear_loc = 2.d0 * pol_pos%volume / q_loc * F_loc * pol_pos%dq_over_F_dpsi / pol_pos%dV_dpsi
+                  res = 0.6d0 * shear_loc
                 else
                   res = ieee_value(1.d0, ieee_quiet_nan)
                 end if
