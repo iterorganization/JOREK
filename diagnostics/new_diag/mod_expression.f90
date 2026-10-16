@@ -26,7 +26,6 @@ module mod_expression
   use mod_impurity, only: radiation_function, radiation_function_linear
   use mod_atomic_coeff_deuterium, only : atomic_coeff_deuterium
   use mod_plasma_functions
-  use, intrinsic :: ieee_arithmetic, only: ieee_value, ieee_quiet_nan
 
   implicit none
   
@@ -1761,13 +1760,13 @@ module mod_expression
                 
               case ( 'alpha_miller' )
                 ! --- alpha = -(2 mu0/(2 pi)^2) dV/dpsi sqrt(V/(2 pi^2 R0)) dp/dpsi (Miller et al. 1998),
-                ! --- with P0 = mu0 p and R0 = (R_max+R_min)/2 of the flux surface. Needs flux-surface
-                ! --- positions (command average); NaN elsewhere.
+                ! --- with P0 = mu0 p and R0 = (R_max+R_min)/2 of the flux surface. 
+                !     Needs flux-surface positions (only command average).
                 if ( (pol_pos%volume > 0.d0) .and. (pol_pos%R0_surf > 0.d0) ) then
                   res = - 2.d0 / (2.d0 * PI)**2 * pol_pos%dV_dpsi                                      &
                         * sqrt( pol_pos%volume / (2.d0 * PI**2 * pol_pos%R0_surf) ) * p_prime_loc
                 else
-                  res = ieee_value(1.d0, ieee_quiet_nan)
+                  res = 0.d0
                 end if
                 
               case ( 'alpha_crit' )
@@ -1781,7 +1780,7 @@ module mod_expression
                   shear_loc = 2.d0 * pol_pos%volume / q_loc * F_loc * pol_pos%dq_over_F_dpsi / pol_pos%dV_dpsi
                   res = 0.6d0 * shear_loc
                 else
-                  res = ieee_value(1.d0, ieee_quiet_nan)
+                  res = 0.d0
                 end if
                 
               case ( 'xjac' )
