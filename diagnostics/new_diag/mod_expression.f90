@@ -26,6 +26,7 @@ module mod_expression
   use mod_impurity, only: radiation_function, radiation_function_linear
   use mod_atomic_coeff_deuterium, only : atomic_coeff_deuterium
   use mod_plasma_functions
+  use, intrinsic :: ieee_arithmetic, only: ieee_value, ieee_quiet_nan
 
   implicit none
   
@@ -114,6 +115,9 @@ module mod_expression
     call add(exprs_all, 'theta_star  ', 'Poloidal Straight Field Line Angle (for flux surfaces)')
     call add(exprs_all, 'length      ', 'Length Along Poloidal Line (for poloidal lines)       ')
     call add(exprs_all, 'r_minor     ', 'Minor Radius From A = r_minor^2 pi (for flux surfaces)')
+    call add(exprs_all, 'q_cyl       ', 'Cylindrical safety factor r|B_phi|/(R B_theta)        ')
+    call add(exprs_all, 'alpha_cyl   ', 'Normalised pressure gradient, cylindrical (with q_cyl)')
+    call add(exprs_all, 'alpha_miller', 'Normalised pressure gradient, Miller (average only)   ')
     call add(exprs_all, 'x           ', 'Cartesian Coordinate x                                ')
     call add(exprs_all, 'y           ', 'Cartesian Coordinate y                                ')
     call add(exprs_all, 'z           ', 'Cartesian Coordinate z (== Cylindrical Z)             ')
@@ -618,6 +622,7 @@ module mod_expression
     real*8 :: T_or_Te, T_or_Te_corr, T_or_Te_0 
     real*8 :: FFprime_loc, Jpol, JpolR, JpolZ, Btot, Jpar, Jpar_ionsat, fact_jsat, Bnorm, Btan, Jtor
     real*8 :: p_prime_loc
+    real*8 :: r_axis_dist, B0_axis, q_cyl_loc   ! for q_cyl, alpha_cyl
     real*8 :: nmlR, nmlZ, theta_geo, VR, VZ, V_phi, Vpar_tot, VperpR, VperpZ
     real*8 :: hh, hh_s, hh_t, hh_ss, hh_tt, hh_st, hhz, hhz_p, hhz_pp, sz, vv(0:n_var), va(n_var), aux(20)
     real*8 :: delta_g(n_var), delta_s(n_var), delta_t(n_var)
@@ -1729,6 +1734,39 @@ module mod_expression
                 
               case ( 'r_minor' )
                 res = pol_pos%r_minor
+                
+              case ( 'q_cyl' )
+                ! --- Cylindrical safety factor, r = distance from the magnetic axis
+                r_axis_dist = sqrt( (R - eq%R_axis)**2 + (Z - eq%Z_axis)**2 )
+                if ( Btheta > 0.d0 ) then
+                  res = r_axis_dist * abs(Btor) / (BigR * Btheta)
+                else
+                  res = ieee_value(1.d0, ieee_quiet_nan)
+                end if
+                
+              case ( 'alpha_cyl' )
+                ! --- alpha = -2 mu0 R0 q_cyl^2 / B0^2 dp/dr (P0 = mu0 p), with R0 = R_axis, B0 = |R B_phi|/R0
+                ! --- and dp/dr along the direction from the magnetic axis
+                r_axis_dist = sqrt( (R - eq%R_axis)**2 + (Z - eq%Z_axis)**2 )
+                B0_axis     = abs(BigR * Btor) / eq%R_axis
+                if ( (Btheta > 0.d0) .and. (r_axis_dist > 0.d0) .and. (B0_axis > 0.d0) ) then
+                  q_cyl_loc = r_axis_dist * abs(Btor) / (BigR * Btheta)
+                  res = - 2.d0 * eq%R_axis * q_cyl_loc**2 / B0_axis**2                                  &
+                        * ( P0_R * (R - eq%R_axis) + P0_Z * (Z - eq%Z_axis) ) / r_axis_dist
+                else
+                  res = ieee_value(1.d0, ieee_quiet_nan)
+                end if
+                
+              case ( 'alpha_miller' )
+                ! --- alpha = -(2 mu0/(2 pi)^2) dV/dpsi sqrt(V/(2 pi^2 R0)) dp/dpsi (Miller et al. 1998),
+                ! --- with P0 = mu0 p and R0 = (R_max+R_min)/2 of the flux surface. Needs flux-surface
+                ! --- positions (command average); NaN elsewhere.
+                if ( (pol_pos%volume > 0.d0) .and. (pol_pos%R0_surf > 0.d0) ) then
+                  res = - 2.d0 / (2.d0 * PI)**2 * pol_pos%dV_dpsi                                      &
+                        * sqrt( pol_pos%volume / (2.d0 * PI**2 * pol_pos%R0_surf) ) * p_prime_loc
+                else
+                  res = ieee_value(1.d0, ieee_quiet_nan)
+                end if
                 
               case ( 'xjac' )
                 res = xjac

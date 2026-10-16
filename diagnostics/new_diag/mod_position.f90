@@ -50,6 +50,9 @@ module mod_position
     ! --- The following quantities will only be available in certain cases of poloidal positions
     real*8             :: theta_star !< Straight field line angle (for flux surfaces)
     real*8             :: r_minor    !< Minor radius from A = r_minor^2 pi (for flux surfaces)
+    real*8             :: volume  = 0.d0 !< Volume inside the flux surface (for flux surfaces)
+    real*8             :: dV_dpsi = 0.d0 !< Derivative of the volume with respect to psi (for flux surfaces)
+    real*8             :: R0_surf = 0.d0 !< (R_max+R_min)/2 of the flux surface (for flux surfaces)
     real*8             :: length     !< Length along a line (for line)
     ! --- Quantities related to boundary elements
     real*8             :: bnd_normal(2) = 0.d0 !< Normal vector to the computational boundary (pointing outside)
@@ -224,6 +227,9 @@ module mod_position
     real*8  :: s_tmp, t_tmp, xjac
     integer :: i, j, k, nsub_loc, inode, iv
     real*8, allocatable :: surface(:) !< Poloidal surface inside flux surface (for r_minor)
+    real*8, allocatable :: volume(:), dV_dpsi(:), psi_surf(:), R_min_surf(:), R_max_surf(:)
+    integer :: jm
+    real*8  :: area_tri
    
     ierr = 0
     
@@ -350,6 +356,10 @@ module mod_position
       
       allocate(surface(nPsiN))
       surface(:) = 0.d0
+      allocate(volume(nPsiN), dV_dpsi(nPsiN), psi_surf(nPsiN), R_min_surf(nPsiN), R_max_surf(nPsiN))
+      volume(:)     = 0.d0
+      R_min_surf(:) = huge(1.d0)
+      R_max_surf(:) = -huge(1.d0)
       call alloc_pol_pos(pos_list, (/nTht,nPsiN/))
       pos_list%full_turn = .true.
       
@@ -380,15 +390,47 @@ module mod_position
         end do
       end do
       
+      ! --- Volume inside each flux surface: triangles (axis, previous point, point) rotated around
+      ! --- the symmetry axis (Pappus: 2 pi R_centroid * area), and radial extent of the surface
+      do i = 1, nPsiN
+        do j = 1, nTht
+          jm = j - 1
+          if ( j == 1 ) jm = nTht
+          area_tri = 0.5d0 * abs( (pos_list%pos(jm,i)%R - eq%R_axis) * (pos_list%pos(j,i)%Z - eq%Z_axis)   &
+                                - (pos_list%pos(jm,i)%Z - eq%Z_axis) * (pos_list%pos(j,i)%R - eq%R_axis) )
+          volume(i) = volume(i) + 2.d0 * PI * area_tri                                                 &
+                      * (eq%R_axis + pos_list%pos(jm,i)%R + pos_list%pos(j,i)%R) / 3.d0
+          R_min_surf(i) = min(R_min_surf(i), pos_list%pos(j,i)%R)
+          R_max_surf(i) = max(R_max_surf(i), pos_list%pos(j,i)%R)
+        end do
+        psi_surf(i) = eq%psi_axis + mapping%psin(i) * (eq%psi_bnd - eq%psi_axis)
+      end do
+      
+      ! --- dV/dpsi by finite differences between neighbouring flux surfaces
+      do i = 1, nPsiN
+        if ( nPsiN < 2 ) then
+          dV_dpsi(i) = 0.d0
+        else if ( i == 1 ) then
+          dV_dpsi(i) = (volume(2) - volume(1)) / (psi_surf(2) - psi_surf(1))
+        else if ( i == nPsiN ) then
+          dV_dpsi(i) = (volume(nPsiN) - volume(nPsiN-1)) / (psi_surf(nPsiN) - psi_surf(nPsiN-1))
+        else
+          dV_dpsi(i) = (volume(i+1) - volume(i-1)) / (psi_surf(i+1) - psi_surf(i-1))
+        end if
+      end do
+      
       ! --- Fill in r_minor
       do j = 1, nTht
         do i = 1, nPsiN
           pos_list%pos(j,i)%r_minor = sqrt( surface(i) / PI )
+          pos_list%pos(j,i)%volume  = volume(i)
+          pos_list%pos(j,i)%dV_dpsi = dV_dpsi(i)
+          pos_list%pos(j,i)%R0_surf = 0.5d0 * (R_min_surf(i) + R_max_surf(i))
         end do
       end do
       
       call cleanup_mapping(mapping)
-      deallocate(surface)
+      deallocate(surface, volume, dV_dpsi, psi_surf, R_min_surf, R_max_surf)
       
     ! --- Several (closed) flux surfaces.
     else if ( present(nPsiN) .and. present(nTht) ) then
