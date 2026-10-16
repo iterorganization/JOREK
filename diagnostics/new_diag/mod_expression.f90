@@ -623,7 +623,7 @@ module mod_expression
     real*8 :: T_or_Te, T_or_Te_corr, T_or_Te_0 
     real*8 :: FFprime_loc, Jpol, JpolR, JpolZ, Btot, Jpar, Jpar_ionsat, fact_jsat, Bnorm, Btan, Jtor
     real*8 :: p_prime_loc
-    real*8 :: r_axis_dist, B0_axis, q_cyl_loc   ! for q_cyl, alpha_cyl
+    real*8 :: r_from_axis, q_cyl, alpha_cyl   ! for q_cyl, alpha_cyl
     real*8 :: F_loc, q_loc, shear_loc            ! for alpha_crit
     real*8 :: nmlR, nmlZ, theta_geo, VR, VZ, V_phi, Vpar_tot, VperpR, VperpZ
     real*8 :: hh, hh_s, hh_t, hh_ss, hh_tt, hh_st, hhz, hhz_p, hhz_pp, sz, vv(0:n_var), va(n_var), aux(20)
@@ -1486,6 +1486,9 @@ module mod_expression
           V_ExB    = 0.d0 
           Vstar_e  = 0.d0
           Vstar_i  = 0.d0
+          q_cyl    = 0.d0
+          alpha_cyl= 0.d0
+          r_from_axis = 0.d0
           
           if ( (psi_abs > 1.d-6) .and. (r0 > 1.d-6) .and. (abs(Btheta) > 1.d-6) ) then
             
@@ -1515,6 +1518,12 @@ module mod_expression
             Vstar_e  = +1./Btheta * (  2.d0*tauIC/r0 * (Ti0_R*r0 + r0_R*Ti0) * ps0_R  +            &
               2.d0*tauIC/r0 * (Ti0_Z*r0 + r0_Z*Ti0) * ps0_Z )
             ! ### Warning : in jorek_model=400, Vstar_i .ne. -Vstar_e since T_i .ne. T_e
+
+            ! --- Cylindrical safety factor
+            r_from_axis = sqrt( (R - eq%R_axis)**2 + (Z - eq%Z_axis)**2 )
+            q_cyl = r_from_axis * abs(Btor) / (BigR * Btheta)
+            alpha_cyl = - 2.d0 * eq%R_axis**3/F0**2 * q_cyl**2 * ( P0_R * (R - eq%R_axis) + P0_Z * (Z - eq%Z_axis) ) / r_from_axis
+
           end if
           
           if (NEO) then
@@ -1739,25 +1748,16 @@ module mod_expression
                 
               case ( 'q_cyl' )
                 ! --- Cylindrical safety factor, r = distance from the magnetic axis
-                r_axis_dist = sqrt( (R - eq%R_axis)**2 + (Z - eq%Z_axis)**2 )
-                if ( Btheta > 0.d0 ) then
-                  res = r_axis_dist * abs(Btor) / (BigR * Btheta)
-                else
-                  res = ieee_value(1.d0, ieee_quiet_nan)
-                end if
+                !   r = sqrt( (R - R_axis)**2 + (Z - Z_axis)**2 )
+                !   q_cyl = r * abs(Btor) / (BigR * Btheta)
+                res = q_cyl
                 
               case ( 'alpha_cyl' )
-                ! --- alpha = -2 mu0 R0 q_cyl^2 / B0^2 dp/dr (P0 = mu0 p), with R0 = R_axis, B0 = |R B_phi|/R0
-                ! --- and dp/dr along the direction from the magnetic axis
-                r_axis_dist = sqrt( (R - eq%R_axis)**2 + (Z - eq%Z_axis)**2 )
-                B0_axis     = abs(BigR * Btor) / eq%R_axis
-                if ( (Btheta > 0.d0) .and. (r_axis_dist > 0.d0) .and. (B0_axis > 0.d0) ) then
-                  q_cyl_loc = r_axis_dist * abs(Btor) / (BigR * Btheta)
-                  res = - 2.d0 * eq%R_axis * q_cyl_loc**2 / B0_axis**2                                  &
-                        * ( P0_R * (R - eq%R_axis) + P0_Z * (Z - eq%Z_axis) ) / r_axis_dist
-                else
-                  res = ieee_value(1.d0, ieee_quiet_nan)
-                end if
+                ! --- alpha = -2 mu0 R0 q_cyl^2 / B0^2 dp/dr (P0 = mu0 p), 
+                !  with: R0 = R_axis, 
+                !        B0 = |R B_phi|/R0
+                !    dp/dr along the direction from the magnetic axis
+                res = alpha_cyl
                 
               case ( 'alpha_miller' )
                 ! --- alpha = -(2 mu0/(2 pi)^2) dV/dpsi sqrt(V/(2 pi^2 R0)) dp/dpsi (Miller et al. 1998),
