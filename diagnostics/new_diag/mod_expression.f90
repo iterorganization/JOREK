@@ -624,7 +624,7 @@ module mod_expression
     real*8 :: FFprime_loc, Jpol, JpolR, JpolZ, Btot, Jpar, Jpar_ionsat, fact_jsat, Bnorm, Btan, Jtor
     real*8 :: p_prime_loc
     real*8 :: r_from_axis, B0_axis, q_cyl, alpha_cyl   ! for q_cyl, alpha_cyl
-    real*8 :: F_loc, q_loc, shear_loc            ! for alpha_crit
+    real*8 :: F_loc, q_loc, shear_loc, alpha_local, alpha_miller            ! for alpha_crit
     real*8 :: nmlR, nmlZ, theta_geo, VR, VZ, V_phi, Vpar_tot, VperpR, VperpZ
     real*8 :: hh, hh_s, hh_t, hh_ss, hh_tt, hh_st, hhz, hhz_p, hhz_pp, sz, vv(0:n_var), va(n_var), aux(20)
     real*8 :: delta_g(n_var), delta_s(n_var), delta_t(n_var)
@@ -1358,6 +1358,21 @@ module mod_expression
           Kappa_Z    = ( Btot*BR*BZ_R - BR*BZ*B_R   - BZ*BZ*B_Z   + Btot*BZ*BZ_Z                     ) / Btot**3.
           Kappa_phi  = ( Btot*BR*Bp_R - BR*Btor*B_R - BZ*Btor*B_Z + Btot*BZ*Bp_Z + Btot*Btor*BR/BigR ) / Btot**3.
 
+          F_loc = abs(BigR * Btor)
+          q_loc = F_loc * pol_pos%q_over_F
+          shear_loc    = 0.d0
+          alpha_miller = 0.d0
+          if ( (pol_pos%volume > 0.d0) .and. (q_loc > 0.d0) .and. (pol_pos%dV_dpsi /= 0.d0) ) then
+            ! Magnetic shear: s = (2V/q) dq/dV
+            shear_loc = 2.d0 * pol_pos%volume / q_loc * F_loc * pol_pos%dq_over_F_dpsi / pol_pos%dV_dpsi
+            ! --- alpha = -2 / (2 pi)^2 dV/dpsi r_minor dp/dpsi (Miller et al. 1998, but with r_minor = sqrt(A/pi)
+            ! ---   instead of Miller's sqrt(V/(2 pi^2 R0)); the two differ by the shaping of the flux surface)
+            alpha_miller = - 2.d0 / (2.d0 * PI)**2 * pol_pos%dV_dpsi * pol_pos%r_minor * p_prime_loc
+          end if
+          ! Local alpha with curvature (ballooning drive):
+          ! alpha_local = 2 q^2 R^2 (kappa.grad(p)) / B^2 
+          alpha_local = 2.d0 * q_loc**2 * BigR**2 * ( P0_R*Kappa_R + P0_Z*Kappa_Z + P0_p / BigR * Kappa_phi ) / BB2
+
           Jtor        = -zj0/BigR
           Jpol        = FFprime_loc * Btheta     / F0     !Jpol = F' Bpol
           Jpar        = (JpolR*BR + JpolZ*BZ + Jtor*Btor) / Btot * sign(1.d0, F0)
@@ -1519,11 +1534,14 @@ module mod_expression
               2.d0*tauIC/r0 * (Ti0_Z*r0 + r0_Z*Ti0) * ps0_Z )
             ! ### Warning : in jorek_model=400, Vstar_i .ne. -Vstar_e since T_i .ne. T_e
 
-            ! --- Cylindrical safety factor
             r_from_axis = sqrt( (R - eq%R_axis)**2 + (Z - eq%Z_axis)**2 )
             q_cyl = r_from_axis * abs(Btor) / (BigR * Btheta)
             B0_axis = abs(BigR * Btor) / eq%R_axis
-            alpha_cyl = - 2.d0 * eq%R_axis * q_cyl**2 / B0_axis**2 * ( P0_R * (R - eq%R_axis) + P0_Z * (Z - eq%Z_axis) ) / r_from_axis
+            ! alpha = -2 R0 q_cyl^2 / B0^2 dp/dr
+            ! dp_dr = p_prime_loc*psi_abs ; normal to the flux surface, pointing outwards for either
+            !         sign convention of psi (psi increasing or decreasing from the axis to the boundary)
+            alpha_cyl = - 2.d0 * eq%R_axis * q_cyl**2 / B0_axis**2 * p_prime_loc * psi_abs                &
+                        * sign(1.d0, eq%psi_bnd - eq%psi_axis)
 
           end if
           
@@ -1748,60 +1766,23 @@ module mod_expression
                 res = pol_pos%r_minor
                 
               case ( 'q_cyl' )
-                ! --- Cylindrical safety factor, r = distance from the magnetic axis
-                !   r = sqrt( (R - R_axis)**2 + (Z - Z_axis)**2 )
-                !   q_cyl = r * abs(Btor) / (BigR * Btheta)
                 res = q_cyl
                 
               case ( 'alpha_cyl' )
-                ! --- alpha = -2 mu0 R0 q_cyl^2 / B0^2 dp/dr (P0 = mu0 p), 
-                !  with: R0 = R_axis, 
-                !        B0 = |R B_phi|/R0
-                !    dp/dr along the direction from the magnetic axis
                 res = alpha_cyl
                 
               case ( 'alpha_miller' )
-                ! --- alpha = -(2 mu0/(2 pi)^2) dV/dpsi sqrt(V/(2 pi^2 R0)) dp/dpsi (Miller et al. 1998),
-                ! --- with P0 = mu0 p and R0 = (R_max+R_min)/2 of the flux surface. 
-                !     Needs flux-surface positions (only command average).
-                if ( (pol_pos%volume > 0.d0) .and. (pol_pos%R0_surf > 0.d0) ) then
-                  res = - 2.d0 / (2.d0 * PI)**2 * pol_pos%dV_dpsi                                      &
-                        * sqrt( pol_pos%volume / (2.d0 * PI**2 * pol_pos%R0_surf) ) * p_prime_loc
-                else
-                  res = 0.d0
-                end if
+                ! --- Needs flux-surface positions (only command average).
+                res = alpha_miller
                 
               case ( 'alpha_crit' )
                 ! --- First stability boundary of ideal ballooning modes in the s-alpha model
                 !      ~ 0.6 s  ---  rough estimate (moderate to large s; no second stability). 
-                ! --- Magnetic shear: s = (2V/q) dq/dV 
-                !        (Miller convention r ~ sqrt(V)), q = F q_over_F with F = |R B_phi|
-                !        (dF/dpsi neglected; exact for constant F)
                 !     Needs flux-surface positions (command average).
-                F_loc = abs(BigR * Btor)
-                q_loc = F_loc * pol_pos%q_over_F
-                if ( (pol_pos%volume > 0.d0) .and. (q_loc > 0.d0) .and. (pol_pos%dV_dpsi /= 0.d0) ) then
-                  shear_loc = 2.d0 * pol_pos%volume / q_loc * F_loc * pol_pos%dq_over_F_dpsi / pol_pos%dV_dpsi
-                  res = 0.6d0 * shear_loc
-                else
-                  res = 0.d0
-                end if
+                res = 0.6d0 * shear_loc
                 
               case ( 'alpha_local' )
-                ! --- Local normalised pressure gradient with the normal curvature (the ideal ballooning drive):
-                !       alpha_local = 2 mu0 q^2 R^2 p'(psi) kappa.grad(psi) / B^2   (P0 = mu0 p)
-                !     with grad(psi) = (-R B_Z, R B_R) and q as for alpha_crit.
-                ! --- It equals alpha at the outboard midplane of a circular plasma and changes sign on the
-                !     inboard side, so its flux-surface average (command average) is small and NOT alpha_miller;
-                !     its poloidal structure is seen with four2d. Needs flux-surface positions.
-                F_loc = abs(BigR * Btor)
-                q_loc = F_loc * pol_pos%q_over_F
-                if ( (q_loc > 0.d0) .and. (BB2 > 0.d0) ) then
-                  res = 2.d0 * q_loc**2 * BigR**2 * p_prime_loc                                          &
-                        * BigR * ( Kappa_Z * BR - Kappa_R * BZ ) / BB2
-                else
-                  res = 0.d0
-                end if
+                res = alpha_local
                 
               case ( 'xjac' )
                 res = xjac
