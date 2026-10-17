@@ -424,15 +424,22 @@ module mod_position
       end do
       
       ! --- q/F from the straight field line Jacobian J = q R^2 / F: q = F |dV/dpsi| / (4 pi^2 <R^2>_theta*),
-      ! --- with <.>_theta* the plain average over theta* (the last point repeats the first one)
       do i = 1, nPsiN
-        q_over_F(i) = abs(dV_dpsi(i)) / ( 4.d0 * PI**2                                                 &
-                      * sum( (/ (pos_list%pos(j,i)%R**2, j=1,nTht-1) /) ) / real(nTht-1) )
+        q_over_F(i) = abs(dV_dpsi(i)) / ( 4.d0 * PI**2 )                                           &
+                        / sum( (/ (pos_list%pos(j,i)%R**2, j=1,nTht-1) /) ) / real(nTht-1)  ! <R^2>
       end do
-      ! --- Its derivative from a local least-squares quadratic over +-3 surfaces (q_over_F already
-      ! --- contains a finite-difference derivative of the volume, a second one would amplify the noise)
+      ! --- d(q/F)/dpsi by finite differences between neighbouring flux surfaces
+      ! --- maybe noisy because dV/dpsi is getting finite difference derivation again.
       do i = 1, nPsiN
-        dq_over_F_dpsi(i) = local_quadratic_slope(psi_surf, q_over_F, i, 3)
+        if ( nPsiN < 2 ) then
+          dq_over_F_dpsi(i) = 0.d0
+        else if ( i == 1 ) then
+          dq_over_F_dpsi(i) = (q_over_F(2) - q_over_F(1)) / (psi_surf(2) - psi_surf(1))
+        else if ( i == nPsiN ) then
+          dq_over_F_dpsi(i) = (q_over_F(nPsiN) - q_over_F(nPsiN-1)) / (psi_surf(nPsiN) - psi_surf(nPsiN-1))
+        else
+          dq_over_F_dpsi(i) = (q_over_F(i+1) - q_over_F(i-1)) / (psi_surf(i+1) - psi_surf(i-1))
+        end if
       end do
       
       ! --- Fill in r_minor
@@ -724,39 +731,5 @@ module mod_position
   
   
   
-  !> Slope at x(i) of the least-squares quadratic through the points i-hw..i+hw (fewer at the ends;
-  !! straight line if there are only two points)
-  pure real*8 function local_quadratic_slope(x, y, i, hw) result(slope)
-    real*8,  intent(in) :: x(:), y(:)
-    integer, intent(in) :: i, hw
-    
-    integer :: k, k1, k2
-    real*8  :: dx, m(3,3), b(3), det
-    
-    k1 = max(1, i-hw)
-    k2 = min(size(x), i+hw)
-    slope = 0.d0
-    if ( k2 - k1 < 1 ) return
-    if ( k2 - k1 == 1 ) then
-      slope = (y(k2) - y(k1)) / (x(k2) - x(k1))
-      return
-    end if
-    ! --- Normal equations for y = a + slope (x-x(i)) + c (x-x(i))^2
-    m = 0.d0
-    b = 0.d0
-    do k = k1, k2
-      dx = x(k) - x(i)
-      m(1,:) = m(1,:) + (/ 1.d0,  dx,    dx**2 /)
-      m(2,:) = m(2,:) + (/ dx,    dx**2, dx**3 /)
-      m(3,:) = m(3,:) + (/ dx**2, dx**3, dx**4 /)
-      b      = b      + y(k) * (/ 1.d0, dx, dx**2 /)
-    end do
-    ! --- Cramer's rule for the second unknown
-    det   = m(1,1)*(m(2,2)*m(3,3)-m(2,3)*m(3,2)) - m(1,2)*(m(2,1)*m(3,3)-m(2,3)*m(3,1))               &
-          + m(1,3)*(m(2,1)*m(3,2)-m(2,2)*m(3,1))
-    if ( det == 0.d0 ) return
-    slope = ( m(1,1)*(b(2)*m(3,3)-m(2,3)*b(3)) - b(1)*(m(2,1)*m(3,3)-m(2,3)*m(3,1))                     &
-            + m(1,3)*(m(2,1)*b(3)-b(2)*m(3,1)) ) / det
-  end function local_quadratic_slope
 
 end module mod_position
