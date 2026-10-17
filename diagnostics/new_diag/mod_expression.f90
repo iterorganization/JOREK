@@ -118,6 +118,7 @@ module mod_expression
     call add(exprs_all, 'alpha_cyl   ', 'Normalised pressure gradient, cylindrical (with q_cyl)')
     call add(exprs_all, 'alpha_miller', 'Normalised pressure gradient, Miller (average only)   ')
     call add(exprs_all, 'alpha_crit  ', 'Ballooning limit, s-alpha estimate 0.6s (average only)')
+    call add(exprs_all, 'alpha_local ', 'Local ballooning drive 2q^2R^2 kappa.grad(p)/B^2      ')
     call add(exprs_all, 'x           ', 'Cartesian Coordinate x                                ')
     call add(exprs_all, 'y           ', 'Cartesian Coordinate y                                ')
     call add(exprs_all, 'z           ', 'Cartesian Coordinate z (== Cylindrical Z)             ')
@@ -1782,6 +1783,22 @@ module mod_expression
                 if ( (pol_pos%volume > 0.d0) .and. (q_loc > 0.d0) .and. (pol_pos%dV_dpsi /= 0.d0) ) then
                   shear_loc = 2.d0 * pol_pos%volume / q_loc * F_loc * pol_pos%dq_over_F_dpsi / pol_pos%dV_dpsi
                   res = 0.6d0 * shear_loc
+                else
+                  res = 0.d0
+                end if
+                
+              case ( 'alpha_local' )
+                ! --- Local normalised pressure gradient with the normal curvature (the ideal ballooning drive):
+                !       alpha_local = 2 mu0 q^2 R^2 p'(psi) kappa.grad(psi) / B^2   (P0 = mu0 p)
+                !     with grad(psi) = (-R B_Z, R B_R) and q as for alpha_crit.
+                ! --- It equals alpha at the outboard midplane of a circular plasma and changes sign on the
+                !     inboard side, so its flux-surface average (command average) is small and NOT alpha_miller;
+                !     its poloidal structure is seen with four2d. Needs flux-surface positions.
+                F_loc = abs(BigR * Btor)
+                q_loc = F_loc * pol_pos%q_over_F
+                if ( (q_loc > 0.d0) .and. (BB2 > 0.d0) ) then
+                  res = 2.d0 * q_loc**2 * BigR**2 * p_prime_loc                                          &
+                        * BigR * ( Kappa_Z * BR - Kappa_R * BZ ) / BB2
                 else
                   res = 0.d0
                 end if
