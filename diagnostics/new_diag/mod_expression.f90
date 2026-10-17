@@ -1366,8 +1366,9 @@ module mod_expression
           if ( (pol_pos%volume > 0.d0) .and. (q_loc > 0.d0) .and. (pol_pos%dV_dpsi /= 0.d0) ) then
             ! Magnetic shear: s = (2V/q) dq/dV
             shear_loc = 2.d0 * pol_pos%volume / q_loc * F_loc * pol_pos%dq_over_F_dpsi / pol_pos%dV_dpsi
-            ! --- alpha = -2 / (2 pi)^2 dV/dpsi r_minor dp/dpsi (Miller et al. 1998, but with r_minor = sqrt(A/pi)
-            ! ---   instead of Miller's sqrt(V/(2 pi^2 R0)); the two differ by the shaping of the flux surface)
+            ! --- alpha = -2 / (2 pi)^2 dV/dpsi r_minor dp/dpsi 
+            ! where r_minor = sqrt(A / pi) = sqrt (V / (2 pi^2 R0)) 
+            ! Miller et al. Phys. Plasmas 5, 973–978 (1998)
             alpha_miller = - 2.d0 / (2.d0 * PI)**2 * pol_pos%dV_dpsi * pol_pos%r_minor * p_prime_loc
           end if
           ! Local alpha with curvature (ballooning drive):
