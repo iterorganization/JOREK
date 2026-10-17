@@ -622,7 +622,7 @@ module mod_expression
     real*8 :: T_or_Te, T_or_Te_corr, T_or_Te_0 
     real*8 :: FFprime_loc, Jpol, JpolR, JpolZ, Btot, Jpar, Jpar_ionsat, fact_jsat, Bnorm, Btan, Jtor
     real*8 :: p_prime_loc
-    real*8 :: r_from_axis, q_cyl, alpha_cyl   ! for q_cyl, alpha_cyl
+    real*8 :: r_from_axis, B0_axis, q_cyl, alpha_cyl   ! for q_cyl, alpha_cyl
     real*8 :: F_loc, q_loc, shear_loc            ! for alpha_crit
     real*8 :: nmlR, nmlZ, theta_geo, VR, VZ, V_phi, Vpar_tot, VperpR, VperpZ
     real*8 :: hh, hh_s, hh_t, hh_ss, hh_tt, hh_st, hhz, hhz_p, hhz_pp, sz, vv(0:n_var), va(n_var), aux(20)
@@ -1521,7 +1521,8 @@ module mod_expression
             ! --- Cylindrical safety factor
             r_from_axis = sqrt( (R - eq%R_axis)**2 + (Z - eq%Z_axis)**2 )
             q_cyl = r_from_axis * abs(Btor) / (BigR * Btheta)
-            alpha_cyl = - 2.d0 * eq%R_axis**3/F0**2 * q_cyl**2 * ( P0_R * (R - eq%R_axis) + P0_Z * (Z - eq%Z_axis) ) / r_from_axis
+            B0_axis = abs(BigR * Btor) / eq%R_axis
+            alpha_cyl = - 2.d0 * eq%R_axis * q_cyl**2 / B0_axis**2 * ( P0_R * (R - eq%R_axis) + P0_Z * (Z - eq%Z_axis) ) / r_from_axis
 
           end if
           
@@ -1770,10 +1771,12 @@ module mod_expression
                 end if
                 
               case ( 'alpha_crit' )
-                ! --- First stability boundary of ideal ballooning modes in the s-alpha model, alpha_crit ~ 0.6 s,
-                ! --- a rough estimate (moderate to large s; no second stability). Magnetic shear
-                ! --- s = (2V/q) dq/dV (Miller convention r ~ sqrt(V)), q = F q_over_F with F = |R B_phi|
-                ! --- (dF/dpsi neglected; exact for constant F). Needs flux-surface positions (command average).
+                ! --- First stability boundary of ideal ballooning modes in the s-alpha model
+                !      ~ 0.6 s  ---  rough estimate (moderate to large s; no second stability). 
+                ! --- Magnetic shear: s = (2V/q) dq/dV 
+                !        (Miller convention r ~ sqrt(V)), q = F q_over_F with F = |R B_phi|
+                !        (dF/dpsi neglected; exact for constant F)
+                !     Needs flux-surface positions (command average).
                 F_loc = abs(BigR * Btor)
                 q_loc = F_loc * pol_pos%q_over_F
                 if ( (pol_pos%volume > 0.d0) .and. (q_loc > 0.d0) .and. (pol_pos%dV_dpsi /= 0.d0) ) then
