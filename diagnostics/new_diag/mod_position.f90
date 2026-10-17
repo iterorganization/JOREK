@@ -426,7 +426,7 @@ module mod_position
       ! --- q/F from the straight field line Jacobian J = q R^2 / F: q = F |dV/dpsi| / (4 pi^2 <R^2>_theta*),
       do i = 1, nPsiN
         q_over_F(i) = abs(dV_dpsi(i)) / ( 4.d0 * PI**2 )                                           &
-                        / sum( (/ (pos_list%pos(j,i)%R**2, j=1,nTht-1) /) ) / real(nTht-1)  ! <R^2>
+                        / ( sum( (/ (pos_list%pos(j,i)%R**2, j=1,nTht-1) /) ) / real(nTht-1) )
       end do
       ! --- d(q/F)/dpsi by finite differences between neighbouring flux surfaces
       ! --- maybe noisy because dV/dpsi is getting finite difference derivation again.
