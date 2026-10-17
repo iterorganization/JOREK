@@ -26,8 +26,8 @@ SCRIPTDIR=`dirname $0`; SCRIPTDIR=`readlink -f $SCRIPTDIR`
 
 if [ "$1" == "-h" ] || [ "$1" == "--help" ]; then
   usage && exit
-elif [ -z "Makefile.inc" ]; then
-  echo "Could not find a ./Makefile.inc. Are you in the JOREK trunk?" >&2
+elif [ ! -f Makefile.inc ] && [ ! -f CMakePresets.json ]; then
+  echo "Could not find ./Makefile.inc or ./CMakePresets.json. Are you in the JOREK trunk?" >&2
   exit 1
 fi
 
@@ -48,14 +48,34 @@ function setmodel() {
     echo "ERROR: Illegal model specified: '$model'." >&2
     exit 1
   fi
-  # --- Set model in makefile configuration files
-  sed -i -e "s/\(^ *MODEL *= *\)[^ ]*\(.*$\)/\1$model\2/" Makefile.inc
-  # --- Clean up .d/.o/.mod files because of the model change
-  make cleanall
+  if [ -f Makefile.inc ]; then
+    # --- Legacy make build: set model in Makefile.inc, clean stale .d/.o/.mod
+    sed -i -e "s/\(^ *MODEL *= *\)[^ ]*\(.*$\)/\1$model\2/" Makefile.inc
+    make cleanall
+  elif [ -f CMakePresets.json ]; then
+    # --- CMake build: the model is JOREK_MODEL in CMakePresets.json
+    sed -i -E "s/(\"JOREK_MODEL\"[[:space:]]*:[[:space:]]*\")model[0-9]+(\")/\1$model\2/" CMakePresets.json
+    echo "Set JOREK_MODEL=$model in CMakePresets.json." >&2
+    echo "Reconfigure to apply, e.g.: cmake --preset <preset>" >&2
+  else
+    echo "ERROR: neither Makefile.inc nor CMakePresets.json found; cannot set model." >&2
+    exit 1
+  fi
 }
 
+# Determine the active physics model. Priority:
+#   1. JOREK_MODEL environment variable (explicit override)
+#   2. Makefile.inc            (legacy make build)
+#   3. JOREK_MODEL in CMakePresets.json (CMake build default)
 function getmodel() {
-  egrep "MODEL *= *model[0-9]*" Makefile.inc | sed -e "s/^ *MODEL *= *\(model[0-9]*\).*$/\1/"
+  if [ -n "$JOREK_MODEL" ]; then
+    echo "model${JOREK_MODEL#model}"
+  elif [ -f Makefile.inc ]; then
+    egrep "MODEL *= *model[0-9]*" Makefile.inc | sed -e "s/^ *MODEL *= *\(model[0-9]*\).*$/\1/"
+  elif [ -f CMakePresets.json ]; then
+    grep -oE '"JOREK_MODEL"[[:space:]]*:[[:space:]]*"model[0-9]+"' CMakePresets.json \
+      | head -1 | grep -oE 'model[0-9]+'
+  fi
 }
 
 function setparam() {
