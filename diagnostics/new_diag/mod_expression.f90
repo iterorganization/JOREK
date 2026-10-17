@@ -115,6 +115,7 @@ module mod_expression
     call add(exprs_all, 'length      ', 'Length Along Poloidal Line (for poloidal lines)       ')
     call add(exprs_all, 'r_minor     ', 'Minor Radius From A = r_minor^2 pi (for flux surfaces)')
     call add(exprs_all, 'q_cyl       ', 'Cylindrical safety factor r|B_phi|/(R B_theta)        ')
+    call add(exprs_all, 'q_volume    ', 'Safety factor F |dV/dpsi|/(4pi^2 <R^2>) (average only)')
     call add(exprs_all, 'alpha_cyl   ', 'Normalised pressure gradient, cylindrical (with q_cyl)')
     call add(exprs_all, 'alpha_miller', 'Normalised pressure gradient, Miller (average only)   ')
     call add(exprs_all, 'alpha_crit  ', 'Ballooning limit, s-alpha estimate 0.6s (average only)')
@@ -1767,7 +1768,13 @@ module mod_expression
                 
               case ( 'q_cyl' )
                 res = q_cyl
-                
+
+              case ( 'q_volume' )
+                ! --- Safety factor from the volume: q = F |dV/dpsi| / (4 pi^2 <R^2>_theta*), straight field
+                !     line Jacobian J = q R^2 / F, <.>_theta* plain average over theta*.
+                !     Needs flux-surface positions (only command average).
+                res = q_loc
+
               case ( 'alpha_cyl' )
                 res = alpha_cyl
                 
