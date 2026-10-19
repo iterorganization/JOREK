@@ -75,7 +75,7 @@ rhs_automatic.h
 amat_automatic.h
 non_regression_tests_*
 /test_*
-new_*
+new_diag
 neutrals_3D
 sep_*
 density_scan*
