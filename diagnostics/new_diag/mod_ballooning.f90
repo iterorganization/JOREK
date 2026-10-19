@@ -43,6 +43,34 @@
 !! theta0 + [-2 pi nturns, 2 pi nturns] with X = 0 at both ends. The generalized problem with
 !! diagonal w is symmetrised, and eigenvalues are located with Sturm sequence counts (number of
 !! unstable modes = number of eigenvalues > 0), bisection for lambda_max, inverse iteration for X.
+!!
+!! Mercier and peeling criteria (local, high-n; per surface):
+!! - Mercier, general form of Bauer, Betancourt & Garabedian (1984) as given in Landreman & Jorge,
+!!   J. Plasma Phys. (2020), arXiv:2006.14881, Eqs. (4.16)-(4.20) (= Mercier & Luc 1974, Eq. 37):
+!!   D_Merc = D_Shear + D_Curr + D_Well + D_Geod > 0 stable, in Boozer-type variables with 2 pi psi_t
+!!   the toroidal flux, iota = 1/q, I = mu0 I_tor/(2 pi), Xi = mu0 J - I'(psi_t) B, dS = 2 pi R dl:
+!!     D_Shear = iota'^2/(16 pi^2)
+!!     D_Curr  = -(s_G/(2pi)^4) iota' Int Xi.B/|grad psi_t|^3 dS
+!!     D_Well  = (mu0 p'/(2pi)^6) [s_psi V'' - mu0 p' Int dS/(B^2 |grad psi_t|)] Int B^2 dS/|grad psi_t|^3
+!!     D_Geod  = (2pi)^-6 [ (Int mu0 J.B dS/|grad psi_t|^3)^2
+!!                         - Int B^2 dS/|grad psi_t|^3  Int (mu0 J.B)^2 dS/(B^2 |grad psi_t|^3) ]
+!!   Tokamak normalisation (Glasser, Greene & Johnson, Phys. Fluids 18, 875 (1975), D_I = D_M - 1/4):
+!!     D_M = 1/4 - 4 pi^2 D_Merc / iota'^2   (D_M < 1/4: Mercier stable).
+!!   Evaluated with the outward poloidal flux u (per radian, |grad u| = R B_p): psi_t' = |q| u',
+!!   iota'^2 = q_u^2/q^6, V'(u) and V''(u) and I'(u) from surface integrals with the same normal
+!!   derivative as nu_psi (d/du Int h dl = Int (d_n h + kappa_c h) dl/|grad u|), no radial
+!!   differencing. Orientation signs are computed: sigma_F = sign(B_phi), sigma_theta = sign of
+!!   B_pol along phi^ x n^ (direction of the toroidal plasma current), sign(I_p B_phi) = sigma_F sigma_theta.
+!! - mu0 J.B from the toroidal current density (Delta*psi, as carried by reduced MHD) and the
+!!   poloidal current reconstructed with Grad-Shafranov (B = F grad phi + grad phi x grad psi):
+!!     mu0 J.B = F Delta*psi / R^2 - F' |grad psi|^2 / R^2,  FF' = -Delta*psi - R^2 P0'  (locally)
+!!   ( = -(F P0' + F' B^2) in an exact equilibrium).
+!! - Peeling (Connor, Hastie, Wilson & Miller, Phys. Plasmas 5, 2687 (1998); Eq. (1) of Snyder et al.,
+!!   Phys. Plasmas 9, 2037 (2002)): necessary condition for stability of a surface taken as the edge
+!!     sqrt(1 - 4 D_M) > 1 + (2/(2 pi q')) Oint J_par B /(R^2 B_p^3) dl,   psi per radian,
+!!   with J_par > 0 for edge current along the plasma current; peel_margin = lhs - rhs (> 0: satisfied).
+!!   Large-aspect-ratio checks: D_M = -(alpha/s^2) eps (1 - q^-2) and the peeling term
+!!   2 mu0 j_par R q/(s B), reproducing alpha D > (R q s/B) mu0 j_par (Connor & Wilson, ELM review).
 module mod_ballooning
 
   use constants
@@ -54,6 +82,7 @@ module mod_ballooning
   implicit none
 
   private
+  public :: ball_mercier, ball_salpha_mercier
   public :: t_ball_surface, t_ball_case, ball_surfaces_from_state, ball_evaluate, ball_alpha_crit,  &
     ball_eigenfunction, ball_salpha_lambda, ball_alpha_to_P0p, ball_cleanup_surface
 
@@ -76,6 +105,15 @@ module mod_ballooning
     real*8, allocatable :: theta(:), R(:), Z(:), Jac(:), BB2(:), gpsi2(:), rho(:), D0(:), D1(:), &
       E0(:)
     real*8, allocatable :: I0(:), Ip(:), IF(:) !< Cumulative integrals of nu_psi parts (0..np)
+    real*8  :: D_M = 0.d0                  !< Mercier coefficient (< 1/4 stable)
+    real*8  :: peel_term = 0.d0            !< (1/(pi q')) Oint mu0 J_par B/(R^2 B_p^3) dl
+    real*8  :: peel_margin = 0.d0          !< sqrt(1 - 4 D_M) - 1 - peel_term (> 0: satisfied)
+    real*8  :: jpar_rec = 0.d0             !< <mu0 J.B/B>, sign: > 0 along the plasma current
+    real*8  :: jpar_jorek = 0.d0           !< <Jpar> of eval_expr (n=0), for comparison
+    real*8  :: dV_du = 0.d0                !< dV/du from the surface integral (outward flux u)
+    ! --- Per-point data for Mercier/peeling (also for varied local equilibria, ball_mercier)
+    real*8  :: su = 1.d0                   !< sign(psi_bnd - psi_axis): u = su psi increases outward
+    real*8, allocatable :: m_dlt(:), m_jb(:), m_nHnu(:), m_kcu(:), m_nRu(:), m_sg(:), m_F(:)
   end type t_ball_surface
 
   !> One ballooning problem: either the analytic s-alpha model or a flux surface
@@ -100,6 +138,8 @@ contains
     type(t_ball_surface), intent(inout) :: surf
     if ( allocated(surf%theta) ) deallocate(surf%theta, surf%R, surf%Z, surf%Jac, surf%BB2,         &
       surf%gpsi2, surf%rho, surf%D0, surf%D1, surf%E0, surf%I0, surf%Ip, surf%IF)
+    if ( allocated(surf%m_dlt) ) deallocate(surf%m_dlt, surf%m_jb, surf%m_nHnu, surf%m_kcu,          &
+      surf%m_nRu, surf%m_sg, surf%m_F)
     surf%valid = .false.
     surf%np    = 0
   end subroutine ball_cleanup_surface
@@ -128,10 +168,10 @@ contains
     type(t_ball_surface), allocatable, target, intent(out) :: surfs(:)
     integer,                           intent(out) :: ierr
 
-    integer, parameter :: N_EX = 14
+    integer, parameter :: N_EX = 15
     character(len=12), parameter :: names(N_EX) = (/ 'R           ', 'Z           ', 'Psi_N       ', &
       'BR          ', 'BZ          ', 'Btor        ', 'BR_R        ', 'BR_Z        ', 'BZ_R        ', &
-      'BZ_Z        ', 'Btor_R      ', 'Btor_Z      ', 'p_prime_loc ', 'rho         ' /)
+      'BZ_Z        ', 'Btor_R      ', 'Btor_Z      ', 'p_prime_loc ', 'rho         ', 'Jpar        ' /)
     type(t_pol_pos_list) :: pol_pos_list
     type(t_tor_pos_list) :: tor_pos_list
     type(t_expr_list)    :: expr_list
@@ -141,6 +181,10 @@ contains
       a0(3), Bv(3), gv(3), Kv(3), axB(3), gxB(3), dq_over_F_dpsi, dphi
     integer :: i, j, jp, jm, iex, n_flip, k, nmaxs
     real*8  :: ffp(0:np-1)
+    ! --- Mercier / peeling
+    real*8  :: dlt(0:np-1), jb(0:np-1), nHnu(0:np-1), kcu(0:np-1), nRu(0:np-1), sgth(0:np-1),     &
+      fpt(0:np-1)
+    real*8  :: su, dstar, sF_
     type(t_ball_surface), pointer :: bs
 
     ierr = 0
@@ -194,6 +238,7 @@ contains
       end if
 
       n_flip = 0
+      bs%jpar_jorek = 0.d0
       do j = 0, np-1
         k  = j + 1                      ! index in the position list (theta* = 2 pi j / np)
         jp = modulo(j+1, np) + 1
@@ -218,6 +263,18 @@ contains
         gpsi   = sqrt( psi_R**2 + psi_Z**2 )
         nR     = psi_R / gpsi
         nZ     = psi_Z / gpsi
+        ! --- Mercier / peeling ingredients with the outward flux u = su psi (su = sign(psi_bnd - psi_axis))
+        su      = sign(1.d0, eq%psi_bnd - eq%psi_axis)
+        dstar   = psi_RR - psi_R / R + psi_ZZ
+        F       = R * Bt
+        jb(j)   = F * dstar / R**2 - ( ffp(j) / F ) * gpsi**2 / R**2      ! mu0 J.B (see header)
+        fpt(j)  = F
+        nRu(j)  = su * nR
+        nHnu(j) = su * ( nR*nR*psi_RR + 2.d0*nR*nZ*psi_RZ + nZ*nZ*psi_ZZ )
+        kcu(j)  = su * ( nZ*nZ*psi_RR - 2.d0*nR*nZ*psi_RZ + nR*nR*psi_ZZ ) / gpsi  ! t.H_u.t/|grad u|
+        ! --- Direction phi^ x n_u^ = (su nZ, -su nR): sign of B_pol along it = sign of the toroidal current
+        sgth(j) = sign(1.d0, BR * su * nZ - BZ * su * nR)
+        bs%jpar_jorek = bs%jpar_jorek + result(1,k,i,15) / real(np)
         ! --- Unit tangent in the direction of increasing theta*
         tR     = - nZ
         tZ     =   nR
@@ -242,6 +299,7 @@ contains
         bs%gpsi2(j) = gpsi**2
         bs%BB2(j)   = BR**2 + BZ**2 + Bt**2
         bs%Jac(j)   = qabs * R**2 / abs(F)
+        dlt(j)      = qabs * R * gpsi / abs(F)          ! dl/dtheta*
 
         ! --- Integrands for nu_psi (d theta*): actual state, P0' variation, FF' variation
         S     = ( nR*F_R + nZ*F_Z ) / F - nR / R - nHn / gpsi + tHt / gpsi
@@ -287,6 +345,21 @@ contains
       ! --- Finite difference estimate (F constant across surfaces assumed, as for alpha_crit)
       bs%dq_dpsi_fd = sign(1.d0, bs%q) * abs(F) * dq_over_F_dpsi
       bs%alpha0     = - 2.d0 / (2.d0 * PI)**2 * bs%dV_dpsi * bs%r_minor * bs%P0p
+
+      ! --- Mercier and peeling (see header) for the actual state
+      sF_ = sign(1.d0, F)
+      bs%su = su
+      allocate( bs%m_dlt(0:np-1), bs%m_jb(0:np-1), bs%m_nHnu(0:np-1), bs%m_kcu(0:np-1),             &
+        bs%m_nRu(0:np-1), bs%m_sg(0:np-1), bs%m_F(0:np-1) )
+      bs%m_dlt  = dlt
+      bs%m_jb   = jb
+      bs%m_nHnu = nHnu
+      bs%m_kcu  = kcu
+      bs%m_nRu  = nRu
+      bs%m_sg   = sgth * sF_
+      bs%m_F    = fpt
+      bs%jpar_rec = sum( bs%m_sg * jb / sqrt( bs%BB2 ) ) / real(np)
+      call ball_mercier(bs, 0.d0, 0.d0, 1.d0, bs%D_M, bs%peel_term, bs%peel_margin, bs%dV_du)
     end do
 
     deallocate( result, s0, sp, sF )
@@ -294,6 +367,74 @@ contains
     call cleanup_tor_pos(tor_pos_list)
 
   end subroutine ball_surfaces_from_state
+
+
+
+  !> Mercier coefficient and peeling criterion of a surface (see header), for the actual state
+  !! (dP = dFF = 0, shear_factor = 1) or for the Greene-Chance-varied local equilibrium
+  !! P0' -> P0' + dP, FF' -> FF' + dFF, q' -> shear_factor q' (shape, |grad psi|, F kept), which
+  !! changes Delta*psi by -R^2 dP - dFF (normal Hessian, toroidal current, J.B, V'', I').
+  pure subroutine ball_mercier(bs, dP, dFF, shear_factor, D_M, peel_term, peel_margin, dV_du)
+    type(t_ball_surface), intent(in)  :: bs
+    real*8,               intent(in)  :: dP, dFF, shear_factor
+    real*8,               intent(out) :: D_M, peel_term, peel_margin
+    real*8, optional,     intent(out) :: dV_du
+
+    real*8  :: h, R, gpsi, dl, ddst, jbv, nHnv, Vu, Vuu, Iu, A1, A2, A3, A4, qa, qu, Pu, D_Curr,      &
+      D_Well, D_Geod
+    integer :: j, np
+
+    np = bs%np
+    h  = 2.d0 * PI / real(np)
+    Vu = 0.d0; Vuu = 0.d0; Iu = 0.d0; A1 = 0.d0; A2 = 0.d0; A3 = 0.d0; A4 = 0.d0; peel_term = 0.d0
+    do j = 0, np-1
+      R    = bs%R(j)
+      gpsi = sqrt( bs%gpsi2(j) )
+      dl   = bs%m_dlt(j) * h
+      ddst = - R**2 * dP - dFF                                   ! change of Delta*psi
+      jbv  = bs%m_jb(j) + bs%m_F(j) * ddst / R**2 - ( dFF / bs%m_F(j) ) * gpsi**2 / R**2
+      nHnv = bs%m_nHnu(j) + bs%su * ddst
+      Vu   = Vu  + 2.d0 * PI * R / gpsi * dl
+      Vuu  = Vuu + ( 2.d0 * PI * ( bs%m_nRu(j) / gpsi - R * nHnv / gpsi**2 )                       &
+                   + bs%m_kcu(j) * 2.d0 * PI * R / gpsi ) / gpsi * dl
+      Iu   = Iu  + ( nHnv / R - gpsi * bs%m_nRu(j) / R**2 + bs%m_kcu(j) * gpsi / R ) / gpsi * dl    &
+                   / (2.d0 * PI)
+      A1   = A1 + bs%m_sg(j) * jbv / gpsi**3 * 2.d0 * PI * R * dl
+      A2   = A2 + bs%BB2(j) / gpsi**3 * 2.d0 * PI * R * dl
+      A3   = A3 + 1.d0 / ( bs%BB2(j) * gpsi ) * 2.d0 * PI * R * dl
+      A4   = A4 + jbv**2 / ( bs%BB2(j) * gpsi**3 ) * 2.d0 * PI * R * dl
+      peel_term = peel_term + bs%m_sg(j) * jbv * R / gpsi**3 * dl
+    end do
+    qa = abs(bs%q)
+    qu = bs%su * sign(1.d0, bs%q) * bs%dq_dpsi * shear_factor   ! d|q|/du
+    Pu = bs%su * ( bs%P0p + dP )                                 ! dP0/du
+    D_Curr = qu / ( (2.d0*PI)**4 * qa**6 ) * ( A1 - Iu / qa * A2 )
+    D_Well = ( Pu / qa**2 * ( Vuu / qa - Vu * qu / qa**2 ) - Pu**2 / qa**3 * A3 )                  &
+             * A2 / qa**3 / (2.d0*PI)**6
+    D_Geod = ( A1**2 - A2 * A4 ) / qa**6 / (2.d0*PI)**6
+    D_M = - 4.d0 * PI**2 * ( D_Curr + D_Well + D_Geod ) / ( qu**2 / qa**6 )
+    peel_term   = peel_term / ( PI * qu )
+    peel_margin = sqrt( max( 1.d0 - 4.d0 * D_M, 0.d0 ) ) - 1.d0 - peel_term
+    if ( present(dV_du) ) dV_du = Vu
+  end subroutine ball_mercier
+
+
+
+  !> Mercier coefficient and peeling margin for a target shear s_t and alpha_t (s-alpha map),
+  !! with the same local equilibrium variation as the self-consistent ballooning scan.
+  subroutine ball_salpha_mercier(cs, s_actual, s_t, alpha_t, D_M, peel_margin)
+    type(t_ball_case), intent(in)  :: cs
+    real*8,            intent(in)  :: s_actual, s_t, alpha_t
+    real*8,            intent(out) :: D_M, peel_margin
+    real*8  :: dP, dFF, C0, Ct, peel_term
+    associate( bs => cs%surf )
+      dP  = ball_alpha_to_P0p(bs, alpha_t) - bs%P0p
+      C0  = bs%I0(bs%np)
+      Ct  = C0 * s_t / s_actual
+      dFF = ( Ct - C0 - dP * bs%Ip(bs%np) ) / bs%IF(bs%np)
+      call ball_mercier(bs, dP, dFF, s_t / s_actual, D_M, peel_term, peel_margin)
+    end associate
+  end subroutine ball_salpha_mercier
 
 
 

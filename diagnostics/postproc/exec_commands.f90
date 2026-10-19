@@ -2415,7 +2415,7 @@ module exec_commands
     character(len=32)   :: cmd
     integer :: nsurf, nsmall, nmaxstep, n_unst, k0, i_file, i, is, ia, nsa
     real*8  :: psin_min, psin_max, alpha_max, s_max, deltaphi, psin, lam, a1, a2, shear, shear_fd, &
-      dpsin, f1, f2, an, a2n, fn, lam_c
+      dpsin, f1, f2, an, a2n, fn, lam_c, dm_sa, pm_sa
     real*8, allocatable :: theta(:), X(:), g(:), c(:), w(:), nu(:)
 
     ierr = 0
@@ -2491,9 +2491,14 @@ module exec_commands
         //' alpha_crit_naive, f_marg_naive: naive scan (only the curvature drive is scaled)'
       write(i_file,'(a)') '# rel_var_dP0, rel_var_FFp: poloidal variation of dP0/dpsi and of FF'''  &
         //' = -Delta*psi - R^2 dP0/dpsi on the surface (0 for a Grad-Shafranov equilibrium)'
+      write(i_file,'(a)') '# D_Mercier: Mercier coefficient (< 1/4 stable); peel_margin = sqrt(1-4 D_M) - 1 '&
+        //'- peel_term (> 0: peeling necessary condition satisfied if this surface were the edge; '   &
+        //'Connor et al. 1998); jpar_rec: <mu0 J.B/B> from the toroidal current + Grad-Shafranov '    &
+        //'(> 0 along the plasma current); jpar_jorek: <Jpar> of jorek2_postproc (n=0), for comparison'
       write(i_file,'(a)') '#      Psi_N              q          shear       shear_fd   alpha_miller'  &
         //'       dP0_dpsi    rel_var_dP0    rel_var_FFp         lambda         theta0 n_unst'     &
-        //'   alpha_crit_1   alpha_crit_2       f_marg_1       f_marg_2 alpha_crit_naive   f_marg_naive'
+        //'   alpha_crit_1   alpha_crit_2       f_marg_1       f_marg_2 alpha_crit_naive   f_marg_naive'&
+        //'      D_Mercier    peel_margin      peel_term       jpar_rec     jpar_jorek'
       do i = 1, nsurf
         if ( .not. surfs(i)%valid ) cycle
         cs%surf => surfs(i)
@@ -2511,9 +2516,11 @@ module exec_commands
         if ( (a2 > 0.d0) .and. (surfs(i)%alpha0 > 0.d0) ) f2 = a2 / surfs(i)%alpha0
         fn = -1.d0
         if ( (an > 0.d0) .and. (surfs(i)%alpha0 > 0.d0) ) fn = an / surfs(i)%alpha0
-        write(i_file,'(10es15.6,i7,6es15.6)') surfs(i)%psin, abs(surfs(i)%q), shear, shear_fd,    &
+        write(i_file,'(10es15.6,i7,11es15.6)') surfs(i)%psin, abs(surfs(i)%q), shear, shear_fd,   &
           surfs(i)%alpha0, surfs(i)%P0p, surfs(i)%P0p_var / max(abs(surfs(i)%P0p), 1.d-300),       &
-          surfs(i)%FFp_var, lam, 2.d0 * PI * real(k0) / real(cs%np), n_unst, a1, a2, f1, f2, an, fn
+          surfs(i)%FFp_var, lam, 2.d0 * PI * real(k0) / real(cs%np), n_unst, a1, a2, f1, f2, an, fn,&
+          surfs(i)%D_M, surfs(i)%peel_margin, surfs(i)%peel_term, surfs(i)%jpar_rec,              &
+          surfs(i)%jpar_jorek
       end do
       close(i_file)
 
@@ -2572,8 +2579,10 @@ module exec_commands
             cs%drive_only = .true.
             lam_c = ball_salpha_lambda(cs, shear, s_max * real(is) / real(nsa),                        &
               alpha_max * real(ia) / real(nsa))
-            write(i_file,'(4es15.6)') s_max * real(is) / real(nsa),                                   &
-              alpha_max * real(ia) / real(nsa), lam, lam_c
+            call ball_salpha_mercier(cs, shear, s_max * real(is) / real(nsa),                         &
+              alpha_max * real(ia) / real(nsa), dm_sa, pm_sa)
+            write(i_file,'(6es15.6)') s_max * real(is) / real(nsa),                                   &
+              alpha_max * real(ia) / real(nsa), lam, lam_c, dm_sa, pm_sa
           end do
           write(i_file,*)
         end do
