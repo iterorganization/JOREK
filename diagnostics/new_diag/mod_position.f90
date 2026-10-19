@@ -368,7 +368,8 @@ module mod_position
           pos   => pos_list%pos(j,i)
           pos%R = mapping%rre(i,j-1)
           pos%Z = mapping%zze(i,j-1)
-          pos%theta_star = 2.d0 * PI * real(j-1) / real(nTht-1) !######### check if nTht or nTht-1
+          ! --- determine_theta_mag returns nTht distinct points, spacing 2 pi / nTht (no repeated point)
+          pos%theta_star = 2.d0 * PI * real(j-1) / real(nTht)
           call find_RZ(node_list, element_list, pos%R, pos%Z, R_out, Z_out, pos%ielm, pos%s, pos%t,&
             ierr)
           pos%outside = ( ierr /= 0 )
@@ -415,7 +416,7 @@ module mod_position
       ! --- q/F from the straight field line Jacobian J = q R^2 / F: q = F |dV/dpsi| / (4 pi^2 <R^2>_theta*),
       do i = 1, nPsiN
         q_over_F(i) = abs(dV_dpsi(i)) / ( 4.d0 * PI**2 )                                           &
-                        / ( sum( (/ (pos_list%pos(j,i)%R**2, j=1,nTht-1) /) ) / real(nTht-1) )
+                        / ( sum( (/ (pos_list%pos(j,i)%R**2, j=1,nTht) /) ) / real(nTht) )
       end do
       ! --- d(q/F)/dpsi by finite differences between neighbouring flux surfaces
       ! --- maybe noisy because dV/dpsi is getting finite difference derivation again.

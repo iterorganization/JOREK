@@ -145,6 +145,8 @@ module mod_expression
     call add(exprs_all, 'gradP_R     ', 'Pressure gradient force (R component)                 ')
     call add(exprs_all, 'gradP_Z     ', 'Pressure gradient force (Z component)                 ')
     call add(exprs_all, 'gradP_phi   ', 'Pressure gradient force (phi component)               ')
+    call add(exprs_all, 'gradPi_R    ', 'Ion pressure gradient (R component)                   ')
+    call add(exprs_all, 'gradPi_Z    ', 'Ion pressure gradient (Z component)                   ')
     call add(exprs_all, 'gradP_B     ', 'Parallel pressure gradient (along B)                  ')
     call add(exprs_all, 'gradPdotCurv', 'grad p dot curvature                                  ')
     call add(exprs_all, 'curvat_R    ', 'curvature (= b . grad ( b )) in the R direction       ')
@@ -186,6 +188,12 @@ module mod_expression
     call add(exprs_all, 'BR          ', 'Magnetic Field Component Along R                      ')
     call add(exprs_all, 'BZ          ', 'Vertical Magnetic Field Component                     ')
     call add(exprs_all, 'Btheta      ', 'Poloidal Magnetic Field Component                     ')
+    call add(exprs_all, 'BR_R        ', 'dBR/dR (axisymmetric part only with only_n0)          ')
+    call add(exprs_all, 'BR_Z        ', 'dBR/dZ (axisymmetric part only with only_n0)          ')
+    call add(exprs_all, 'BZ_R        ', 'dBZ/dR (axisymmetric part only with only_n0)          ')
+    call add(exprs_all, 'BZ_Z        ', 'dBZ/dZ (axisymmetric part only with only_n0)          ')
+    call add(exprs_all, 'Btor_R      ', 'dBtor/dR (axisymmetric part only with only_n0)        ')
+    call add(exprs_all, 'Btor_Z      ', 'dBtor/dZ (axisymmetric part only with only_n0)        ')
     call add(exprs_all, 'A_R         ', 'Radial Component of Magnetic Vector Potential         ')
     call add(exprs_all, 'A_Z         ', 'Vertical Component of Magnetic Vector Potential       ')
     call add(exprs_all, 'A_3         ', 'Tor. Comp. of Magn. Vect. Pot. Multipled by R (==Psi) ')
@@ -204,6 +212,7 @@ module mod_expression
     call add(exprs_all, 'Vstar_i     ', 'Ion Diamagnetic Velocity                              ')
     call add(exprs_all, 'ki_neo      ', 'Neoclassical Heat Diffusivity                         ')
     call add(exprs_all, 'mu_neo      ', 'Neoclassical Friction Coefficient                     ')
+    call add(exprs_all, 'omegaStarPi ', 'Ion Diamagnetic frequency (2 tauIC F0 / rho dPidpsi)  ')
     call add(exprs_all, 'T_e         ', 'Electron temperature                                  ')
     call add(exprs_all, 'T_i         ', 'Ion temperature                                       ')
     call add(exprs_all, 'E_||        ', 'E_|| for RE acceleration                              ')
@@ -623,8 +632,8 @@ module mod_expression
     real*8 :: T0_corr, Ti0_corr, Te0_corr, r0_corr, rn0_corr
     real*8 :: T_or_Te, T_or_Te_corr, T_or_Te_0 
     real*8 :: FFprime_loc, Jpol, JpolR, JpolZ, Btot, Jpar, Jpar_ionsat, fact_jsat, Bnorm, Btan, Jtor
-    real*8 :: p_prime_loc
-    real*8 :: r_from_axis, B0_axis, q_cyl, alpha_cyl   ! for q_cyl, alpha_cyl
+    real*8 :: p_prime_loc, pi_prime_loc
+    real*8 :: r_from_axis, B0_axis, q_cyl, alpha_cyl, omegaStarPi   ! for q_cyl, alpha_cyl
     real*8 :: F_loc, q_loc, shear_loc, alpha_local, alpha_miller            ! for alpha_crit
     real*8 :: nmlR, nmlZ, theta_geo, VR, VZ, V_phi, Vpar_tot, VperpR, VperpZ
     real*8 :: hh, hh_s, hh_t, hh_ss, hh_tt, hh_st, hhz, hhz_p, hhz_pp, sz, vv(0:n_var), va(n_var), aux(20)
@@ -1316,8 +1325,10 @@ module mod_expression
           psi_abs  = sqrt(A30_R*A30_R + A30_Z * A30_Z)
           
           p_prime_loc = 0.d0
+          pi_prime_loc = 0.d0
           if (psi_abs > 1.d-6) then
             p_prime_loc = (A30_R*P0_R + A30_Z*P0_Z)/(psi_abs**2.d0)
+            pi_prime_loc = (A30_R*Pi0_R + A30_Z*Pi0_Z)/(psi_abs**2.d0)
           endif
           FFprime_loc = zj0 + (R**2.d0) * p_prime_loc
 
@@ -1345,8 +1356,10 @@ module mod_expression
           B_Z      = ( BR_Z + BZ_Z + Bp_Z ) / Btot
           
           p_prime_loc = 0.d0
+          pi_prime_loc = 0.d0
           if (psi_abs > 1.d-6) then
             p_prime_loc = (ps0_R*P0_R + ps0_Z*P0_Z)/(psi_abs**2.d0)
+            pi_prime_loc = (ps0_R*Pi0_R + ps0_Z*Pi0_Z)/(psi_abs**2.d0)
           endif
           FFprime_loc = zj0 + (R**2.d0) * p_prime_loc
 #endif
@@ -1506,6 +1519,7 @@ module mod_expression
           q_cyl    = 0.d0
           alpha_cyl= 0.d0
           r_from_axis = 0.d0
+          omegaStarPi = 0.d0
           
           if ( (psi_abs > 1.d-6) .and. (r0 > 1.d-6) .and. (abs(Btheta) > 1.d-6) ) then
             
@@ -1545,6 +1559,8 @@ module mod_expression
             alpha_cyl = - 2.d0 * eq%R_axis * q_cyl**2 / B0_axis**2 * p_prime_loc * psi_abs                &
                         * sign(1.d0, eq%psi_bnd - eq%psi_axis)
 
+            ! effect linearly depends on toroidal mode number
+            omegaStarPi = 2.d0 * tauIC_nominal * B0_axis * pi_prime_loc / r0
           end if
           
           if (NEO) then
@@ -1949,6 +1965,24 @@ module mod_expression
                 
               case ( 'Btheta' )
                 res = Btheta
+
+              case ( 'BR_R' )
+                res = BR_R
+
+              case ( 'BR_Z' )
+                res = BR_Z
+
+              case ( 'BZ_R' )
+                res = BZ_R
+
+              case ( 'BZ_Z' )
+                res = BZ_Z
+
+              case ( 'Btor_R' )
+                res = Bp_R
+
+              case ( 'Btor_Z' )
+                res = Bp_Z
 	        
               case ( 'A_R' )
                 res = AR0
@@ -1994,6 +2028,12 @@ module mod_expression
                 
               case ( 'gradP_Z' )
                 res = P0_Z / fact_mu_zero
+
+              case ( 'gradPi_R' )
+                res = Pi0_R / fact_mu_zero
+
+              case ( 'gradPi_Z' )
+                res = Pi0_Z / fact_mu_zero
  
               case ( 'gradP_phi' )
                 res = P0_p / BigR / fact_mu_zero
@@ -2003,7 +2043,11 @@ module mod_expression
  
               case ( 'gradPdotCurv' )
                 res = ( P0_R*Kappa_R + P0_Z*Kappa_Z + P0_p / BigR * Kappa_phi ) / fact_mu_zero
-      
+
+              case ( 'omegaStarPi' )
+                ! effect linearly depends on toroidal mode number
+                res = omegaStarPi / fact_time
+
               case ( 'curvat_R' )
                 res = Kappa_R
    
