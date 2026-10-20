@@ -10,11 +10,11 @@ One of the most common cases to run is a JET ELM.
 This page will explain the steps required to run this case successfully on a cluster.
 
 ## Setup
-First you will have to compile a working version of JOREK, using the instructions on [compiling](../compiling/getting_started/compiling). We will use model 303 in the rest of this tutorial.
+First you will have to compile a working version of JOREK, using the instructions on [compiling](../compiling/compilation_and_libraries/compiling.md). We will use model 303 in the rest of this tutorial.
 There are two different executables that we need to compile to run this simulation.
 The first is used to calculate the equilibria, and uses toroidal symmetry.
 The second has the right number of Fourier modes for this test case.
-These are [hard-coded_parameters](../compiling/getting_started/hard-coded_parameters) which must be set at compile time.
+These are [hard-coded parameters](../compiling/compilation_and_libraries/hard-coded_parameters.md) which must be set at compile time.
 
 Check your `Makefile.inc` to remove debugging flags and extra checks if the simulation takes too much time.
 ### Equilibrium executable
@@ -48,7 +48,7 @@ These are generated from an `eqdsk` file, using the program `eqdsk2jorek.f90`. B
 <img src="assets/jet/text16.png" width="300" alt="Description of image">
 
 The important differences between these files are highlighted below, but most of the content is identical.
-For a list of parameters and their meanings, see [Running JOREK](../compiling/getting_started/running).
+For a list of parameters and their meanings, see [Running JOREK](../compiling/running.md).
 ### Equilibrium
 Calculating the equilibrium is done by setting in the input file `in_jet_equil` the following parameters
 

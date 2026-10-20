@@ -394,11 +394,11 @@ contains
           call sim%fields%calc_NeTeTi(t, particle_tmp%i_elm, particle_tmp%st, particle_tmp%x(3),n_e=n_i, T_e=T_e, T_i=T_i, n_e_raw=n_e_raw, &
                             T_e_raw=T_e_raw, T_i_raw=T_i_raw, grad_T_i=grad_T_i)
           limits = (n_e_raw .le. 1e14) .or. (T_e_raw * K_BOLTZ / EL_CHG .le. 1.d0) .or. (T_i_raw * K_BOLTZ / EL_CHG .le. 1.d0) !ADAS limits
-          limits_coll = T_i_raw * K_BOLTZ / EL_CHG < 0.d0 !< limits for collisions
+          limits_coll = T_i_raw * K_BOLTZ / EL_CHG < 1.d0 !< limits for collisions
 #else
           call sim%fields%calc_NeTeTi(t, particle_tmp%i_elm, particle_tmp%st, particle_tmp%x(3), n_e=n_i, T_e=T_e, n_e_raw=n_e_raw, T_e_raw=T_e_raw, grad_T_e=grad_T_i)
           limits = (n_e_raw .le. 1e14) .or. (T_e_raw * K_BOLTZ / EL_CHG .le. 1.d0)
-          limits_coll = T_e_raw * K_BOLTZ / EL_CHG < 0.d0 !< limits for collisions
+          limits_coll = T_e_raw * K_BOLTZ / EL_CHG < 1.d0 !< limits for collisions
 #endif
 
         !> loop over impurities groups and calculate their contribution to electron density

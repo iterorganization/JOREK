@@ -126,11 +126,63 @@ Two strategies are available:
 - **Manual**: the user specifies `n_mode_families`, `modes_per_family(:)`, and
   `mode_families_modes(:,:)` explicitly.
 
+#### Overlapping Mode Families
+
+Manual families do not have to form a disjoint partition: the same toroidal
+mode can appear in more than one family. Couplings between all modes belonging
+to a family are retained in that family's preconditioner block, which can
+improve GMRES convergence when important inter-harmonic couplings would
+otherwise be discarded.
+
+When families overlap, their solutions contain contributions to the same rows
+of the global solution vector. JOREK combines these contributions using the
+factor assigned to each family in `weights_per_family`. The weights should be
+chosen consistently with the overlap; in the example below every mode belongs
+to two families, so every family has weight $0.5$:
+
+```fortran
+autodistribute_modes = .false.
+n_mode_families = 5
+
+modes_per_family = 1, 3, 4, 4, 2
+mode_families_modes(1,:) = 1
+mode_families_modes(2,:) = 1, 2, 3
+mode_families_modes(3,:) = 2, 3, 4, 5
+mode_families_modes(4,:) = 4, 5, 6, 7
+mode_families_modes(5,:) = 6, 7
+
+weights_per_family = 0.5, 0.5, 0.5, 0.5, 0.5
+```
+
+The values in `mode_families_modes` are the one-based `i_tor` mode indices used
+internally by JOREK. Increasing the number of modes per family retains more of
+the original matrix coupling, but also produces larger and more expensive
+blocks to factorise.
+
 MPI ranks are distributed among families in the same way:
 
 - **Automatic** (`autodistribute_ranks = .true.`): ranks are distributed as
   equally as possible across families.
 - **Manual**: specified via `ranks_per_family(:)`.
+
+Because families can have very different block sizes, an equal rank
+distribution may give poor load balance. A useful starting heuristic is to
+assign ranks approximately in proportion to the square of the number of modes
+in each family. For the five overlapping families above, one possible setup is:
+
+```fortran
+autodistribute_ranks = .false.
+ranks_per_family = 2, 8, 16, 16, 4
+```
+
+The total number of MPI ranks used for the run must equal the sum of
+`ranks_per_family`. The optimal distribution depends on the matrix structure,
+the direct solver, and the machine, so this initial allocation may require
+tuning.
+
+For further details, see [Holod et al., *Enhanced preconditioner for JOREK MHD
+solver*, Plasma Physics and Controlled Fusion **63**, 114002
+(2021)](https://iopscience.iop.org/article/10.1088/1361-6587/ac206b).
 
 <div style="display: flex; justify-content: space-evenly; align-items: flex-start; text-align: center;">
   
@@ -157,7 +209,8 @@ Each GMRES / BiCGSTAB preconditioner application performs the following steps:
    RHS.
 3. **Gather solution** — contributions from all families are reduced by
    `MPI_AllReduce` (sum) into the global solution vector; each family's rows are
-   weighted by `row_factor` (normally 1).
+   weighted by `row_factor` (normally 1, or set from `weights_per_family` for
+   manually defined families).
 
 ### Factorisation Reuse
 

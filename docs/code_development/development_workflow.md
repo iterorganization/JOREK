@@ -173,6 +173,12 @@ During the migration to GitHub, the history of commit hashes will change. Follow
      git push -u origin <branch-name>
 ```
 
+  - You might need to use the following command to make the branch track your fork
+
+```bash             
+     git branch feature/m600refluid  -u origin/feature/m600refluid
+```
+
    The old branch and the public repository share the same history, so the
    commits attach where they always were: nothing is rewritten and there are
    no conflicts to resolve. 

@@ -16,6 +16,7 @@ module mod_particle_puffing
   use phys_module, only: type_valve, valves, part_group_configs, type_puff_ctrl, n_puff_segment_max 
   use mod_particle_group_id, only: matching_part_config_indices, matching_sim_groups_indices
   use mod_particle_create, only: type_part_create_scheme
+  use mpi
   
   implicit none
 
@@ -42,6 +43,8 @@ module mod_particle_puffing
     integer              :: val_i_elm                          !< element index of puff_valve
     real*8               :: val_R, val_Z                       !< R, Z location of puff_valve
     real*8               :: val_s, val_t                       !< s, t location of puff_valve
+    real*8, dimension(:), allocatable :: times                 !< timepoints of puffrate (in s)
+    real*8, dimension(:), allocatable :: rates                 !< timepoints of puffrate (in s)
 
     !> Variables required for piecewise linear time dependent puffing control 
     integer              :: current_puff_seg = 0   
@@ -61,6 +64,9 @@ contains
 !> and set puffing settings based on these settings
 subroutine initialize_settings_from_puff_ctrl(sim, group_num, valve_num, new)
   use mod_particle_create, only: part_create_scheme
+  use profiles, only: readProf
+  use tr_module
+  use mpi_mod
   
   implicit none
 
@@ -69,8 +75,10 @@ subroutine initialize_settings_from_puff_ctrl(sim, group_num, valve_num, new)
   integer,                intent(in)     :: valve_num
   type(particle_puffing), intent(inout)  :: new
 
-  integer                                :: i, config_num
+  integer                                :: i, config_num, file_len, ierr
   character(len=1000)                    :: identifier
+
+  logical :: from_namelist, from_file
 
   !> variables for piecewise linear
   integer :: times_counter = 0 
@@ -87,47 +95,110 @@ subroutine initialize_settings_from_puff_ctrl(sim, group_num, valve_num, new)
   !> specific to piecewise linear puff_ctrl ----------------------------
 
   !> validity checks
-  do i=1, n_puff_segment_max
-    if (new%puff_ctrl%rates(i) > 0) rates_counter = rates_counter + 1
-    if (new%puff_ctrl%times(i) >= 0) then
-      times_counter = times_counter + 1
+  ! check whether namelist values are set
+  rates_counter = count(new%puff_ctrl%rates /= -1)
+  times_counter = count(new%puff_ctrl%times /= -1)
+  from_namelist = rates_counter > 0 .or. times_counter > 0
 
-      !> check that the set times are increaseing
+  ! check whether puff rate file is set
+  from_file = trim(new%puff_ctrl%from_file) /= "none"
+
+  !error if both are set simultaneously
+  if (from_namelist .and. from_file) then
+    if (sim%my_id == 0) write(*,"(A,I2,A,I2,A)") "ERROR: both namelist input (%rates and %times) and %from_file specified for part_group_configs(",config_num,")%puff_ctrl(",valve_num,"). Please use only 1 way to specify input puff rate over time"
+    stop
+  endif
+
+  !using namelist
+  if (from_namelist) then
+    if (rates_counter == 0) then
+      if (sim%my_id == 0) write(*,"(A,I2,A,I2,A)") "ERROR: you set %times but not %rates for part_group_configs(",config_num,")%puff_ctrl(",valve_num,")."
+      stop
+    endif
+
+    if (times_counter == 0) then
+      if (sim%my_id == 0) write(*,"(A,I2,A,I2,A)") "ERROR: you set %rates but not %times for part_group_configs(",config_num,")%puff_ctrl(",valve_num,")."
+      stop
+    endif
+
+    if (times_counter /= rates_counter) then
+      if (sim%my_id == 0) then
+        write(*,"(A,I2,A,I2,A)") "ERROR: Mismatch in part_group_configs(",config_num,")%puff_ctrl(",valve_num,"),"
+        write(*,*)               "  between number of entries of %times and %rates. "
+      endif
+      stop
+    endif
+
+    do i=1, times_counter
+      if (new%puff_ctrl%rates(i) < 0) then
+        if (sim%my_id == 0) write(*,"(A,I2,A,I2,A,I2,A)") "ERROR: part_group_configs(",config_num,")%puff_ctrl(",valve_num,")%rates(",i,") < 0."
+        stop
+      endif
+      if (new%puff_ctrl%times(i) < 0) then
+        if (sim%my_id == 0) write(*,"(A,I2,A,I2,A,I2,A)") "ERROR: part_group_configs(",config_num,")%puff_ctrl(",valve_num,")%times(",i,") < 0."
+        stop
+      endif
+
+      !> check that the set times are increasing
       if (i > 1) then
         if (new%puff_ctrl%times(i-1) >= new%puff_ctrl%times(i)) then
           if (sim%my_id == 0) write(*,"(A,I2,A,I2,A)") "ERROR: inputs in %times for part_group_config(",config_num,")%puff_ctrl(",valve_num,") must be strictly increasing"
           stop
         endif 
       endif
+    enddo
 
-    endif
-  enddo
+    allocate(new%times(times_counter))
+    new%times=new%puff_ctrl%times(1:times_counter)
+    allocate(new%rates(rates_counter))
+    new%rates=new%puff_ctrl%rates(1:rates_counter)
+  end if
 
-  if (rates_counter == 0) then
-    if (sim%my_id == 0) write(*,"(A,I2,A,I2,A)") "ERROR: No %rates set for part_group_config(",config_num,")%puff_ctrl(",valve_num,")."
-    stop
-  endif
+  !using puff rate from file
+  if (from_file) then
+    ! read and check on main mpi thread
+    if (sim%my_id==0) then
+      !loading file
+      call readProf(new%times,new%rates,file_len,new%puff_ctrl%from_file)
 
-  if (times_counter == 0) then
-    if (sim%my_id == 0) write(*,"(A,I2,A,I2,A)") "ERROR: No %times set for part_group_config(",config_num,")%puff_ctrl(",valve_num,")."
-    stop
-  endif
+      !sanity checks
+      do i=1, file_len
+        if (new%rates(i) < 0) then
+          write(*,"(A,I2,A,I2,3A,I5,A)") "ERROR: negative rate in part_group_configs(",config_num,")%puff_ctrl(",valve_num,')%from_file="',trim(new%puff_ctrl%from_file),'" (position ',i,")."
+          call MPI_Abort(MPI_COMM_WORLD, 51, IERR)
+        endif
+        if (new%times(i) < 0) then
+          write(*,"(A,I2,A,I2,3A,I5,A)") "ERROR: negative time in part_group_configs(",config_num,")%puff_ctrl(",valve_num,')%from_file="',trim(new%puff_ctrl%from_file),'" (position ',i,")."
+          call MPI_Abort(MPI_COMM_WORLD, 52, IERR)
+        endif
 
-  if (times_counter /= rates_counter) then
-    if (sim%my_id == 0) then
-      write(*,"(A,I2,A,I2,A)") "ERROR: Mismatch in part_group_config(",config_num,")%puff_ctrl(",valve_num,"),"
-      write(*,*)               "  between number of entries of %times and %rates. "
-    endif
-    stop
-  endif
+        !> check that the set times are increaseing
+        if (i > 1) then
+          if (new%times(i-1) >= new%times(i)) then
+            write(*,"(A,I2,A,I2,3A,I5,A)") "ERROR: puff rate time inputs in part_group_configs(",config_num,")%puff_ctrl(",valve_num,')%from_file="',trim(new%puff_ctrl%from_file),'" must be strictly increasing (this is violated at position ',i,")."
+            call MPI_Abort(MPI_COMM_WORLD, 53, IERR)
+          endif 
+        endif
+      enddo
+    end if
+
+    !broadcast to all other ranks
+    call MPI_BCAST(file_len,1,MPI_INTEGER,0,MPI_COMM_WORLD,ierr)
+    if ( sim%my_id /= 0 ) then
+      call tr_allocate(new%times,1,file_len,"new%times",CAT_UNKNOWN)
+      call tr_allocate(new%rates,1,file_len,"new%rates",CAT_UNKNOWN)
+    end if
+    call MPI_BCAST(new%times,file_len,MPI_DOUBLE_PRECISION,0,MPI_COMM_WORLD,ierr)
+    call MPI_BCAST(new%rates,file_len,MPI_DOUBLE_PRECISION,0,MPI_COMM_WORLD,ierr)
+    
+  end if
 
   !> determine the current puffing segment and the last puffing segment 
-  do i=1, n_puff_segment_max-1
-    !> find last puffing segment
-    if ((new%puff_ctrl%times(i) /= -1) .and. (new%puff_ctrl%times(i+1) == -1)) new%last_puff_seg = i
+  do i=1, size(new%times)
     !> find current puffing segment
-    if (sim%time > new%puff_ctrl%times(i) .and. (new%puff_ctrl%times(i) /= -1)) new%current_puff_seg = i
+    if (sim%time > new%times(i)) new%current_puff_seg = i
   enddo
+  new%last_puff_seg=size(new%times)
   ! -------------------------------------------------
 end subroutine
 
@@ -244,7 +315,7 @@ subroutine calc_puff_rate_linear(this, time, puff_rate_0, puff_rate_1, puff_rate
   ! do ... enddo just does the loop infinitely until exit is called
   do
     if (this%current_puff_seg /= this%last_puff_seg) then
-      if (time > this%puff_ctrl%times(this%current_puff_seg + 1)) then
+      if (time > this%times(this%current_puff_seg + 1)) then
         this%current_puff_seg = this%current_puff_seg + 1 
       else
         exit
@@ -256,27 +327,27 @@ subroutine calc_puff_rate_linear(this, time, puff_rate_0, puff_rate_1, puff_rate
 
   !> set the bounding values of the current puffing segment
   if (this%current_puff_seg == 0) then 
-    !> for t < puff_ctrl%times(1), we keep puff_rate constant at puff_ctrl%rates(1)
-    puff_rate_0 = this%puff_ctrl%rates(1)
-    puff_rate_1 = this%puff_ctrl%rates(1) 
+    !> for t < times(1), we keep puff_rate constant at rates(1)
+    puff_rate_0 = this%rates(1)
+    puff_rate_1 = this%rates(1) 
 
-    !> the puff_ctrl%times no longer matter in this case but (puff_ctrl%times_1 - puff_ctrl%times_0) has to be non zero 
-    puff_time_0 = this%puff_ctrl%times(1) 
-    puff_time_1 = this%puff_ctrl%times(1) + 1 
+    !> the times no longer matter in this case but (times_1 - times_0) has to be non zero 
+    puff_time_0 = this%times(1) 
+    puff_time_1 = this%times(1) + 1 
   else if (this%current_puff_seg == this%last_puff_seg) then
-    !> for t > puff_ctrl%times(last_puff_seg), we keep puff_rate constant at puff_ctrl%rates(last_puff_seg)
-    puff_rate_0 = this%puff_ctrl%rates(this%last_puff_seg)
-    puff_rate_1 = this%puff_ctrl%rates(this%last_puff_seg) 
+    !> for t > times(last_puff_seg), we keep puff_rate constant at rates(last_puff_seg)
+    puff_rate_0 = this%rates(this%last_puff_seg)
+    puff_rate_1 = this%rates(this%last_puff_seg) 
 
-    !> the puff_ctrl%times no longer matter in this case but (puff_ctrl%times_1 - puff_ctrl%times_0) has to be non zero 
-    puff_time_0 = this%puff_ctrl%times(this%last_puff_seg) 
-    puff_time_1 = this%puff_ctrl%times(this%last_puff_seg) + 1 
+    !> the times no longer matter in this case but (times_1 - times_0) has to be non zero 
+    puff_time_0 = this%times(this%last_puff_seg) 
+    puff_time_1 = this%times(this%last_puff_seg) + 1 
   else
-    !> in general, puff_ctrl%times and puff_ctrl%rates are the defined values bounding the segment
-    puff_rate_0 = this%puff_ctrl%rates(this%current_puff_seg)
-    puff_rate_1 = this%puff_ctrl%rates(this%current_puff_seg + 1)
-    puff_time_0 = this%puff_ctrl%times(this%current_puff_seg)
-    puff_time_1 = this%puff_ctrl%times(this%current_puff_seg + 1)
+    !> in general, times and rates are the defined values bounding the segment
+    puff_rate_0 = this%rates(this%current_puff_seg)
+    puff_rate_1 = this%rates(this%current_puff_seg + 1)
+    puff_time_0 = this%times(this%current_puff_seg)
+    puff_time_1 = this%times(this%current_puff_seg + 1)
   endif
 
   puff_rate = puff_rate_0 + (puff_rate_1 - puff_rate_0) / (puff_time_1 - puff_time_0) * (time - puff_time_0)
@@ -383,6 +454,11 @@ subroutine do_particle_puffing(this,sim, ev)
     if (trim(this%create_scheme%scheme) == "ratio") write(*,"(4X,A18, ' = ', G13.6)") "supers_ratio_puff ", this%puff_ctrl%supers_ratio_puff
     write(*,*) ""
   endif
+
+  if(puff_rate <= 0) then
+    if (sim%my_id .eq. 0) write(*,"(2X,A)") "puff_rate=0 so nothing to be done here. Returning"
+    return
+  end if
       
   !> Puffing loop ----------------------------------------
   puffed_this_step_local = 0

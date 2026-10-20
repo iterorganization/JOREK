@@ -45,6 +45,7 @@ integer           :: used_segs !< used for write out of puff ctrls
 integer           :: n_wall_actions, n_poly
 character(len=10) :: mode_num
 logical           :: short2
+logical           :: from_file !< whether a file has been specified for this input (used in puff ctrls)
 
 ! --- Text out format
 200 format(' ',79('*'))
@@ -475,6 +476,12 @@ write(*,'(1x,a)',advance='no') ' USE_DOMM            : '
     else
       write(*,CHAR_FMT) 'ZK_i_perp_file        ', trim(ZK_i_perp_file)
     end if
+    write(*,REAL_FMT) 'ZK_i_perp_pri          ', ZK_i_perp_pri(1:2)
+    write(*,REAL_FMT) 'ZK_i_perp_pri_z0       ', ZK_i_perp_pri_z0(1:2)
+    write(*,REAL_FMT) 'ZK_i_perp_pri_width    ', ZK_i_perp_pri_width(1:2)
+    write(*,REAL_FMT) 'ZK_e_perp_pri          ', ZK_e_perp_pri(1:2)
+    write(*,REAL_FMT) 'ZK_e_perp_pri_z0       ', ZK_e_perp_pri_z0(1:2)
+    write(*,REAL_FMT) 'ZK_e_perp_pri_width    ', ZK_e_perp_pri_width(1:2)
     write(*,REAL_FMT) 'heatsource_e           ', heatsource_e
     write(*,REAL_FMT) 'heatsource_e_psin      ', heatsource_e_psin
     write(*,REAL_FMT) 'heatsource_e_sig       ', heatsource_e_sig
@@ -511,6 +518,9 @@ write(*,'(1x,a)',advance='no') ' USE_DOMM            : '
     else
       write(*,CHAR_FMT) 'ZK_perp_file          ', trim(ZK_perp_file)
     end if
+    write(*,REAL_FMT) 'ZK_perp_pri            ', ZK_perp_pri(1:2)
+    write(*,REAL_FMT) 'ZK_perp_pri_z0         ', ZK_perp_pri_z0(1:2)
+    write(*,REAL_FMT) 'ZK_perp_pri_width      ', ZK_perp_pri_width(1:2)
     write(*,REAL_FMT) 'ZK_par                ', ZK_par
     write(*,REAL_FMT) 'ZK_par_max            ', ZK_par_max
     write(*,REAL_FMT) 'ZK_par_SpitzerHaerm (not input parameter; printed for reference in JOREK units)', ZK_par_SpitzerHaerm
@@ -528,6 +538,9 @@ write(*,'(1x,a)',advance='no') ' USE_DOMM            : '
   else
     write(*,CHAR_FMT) 'D_perp_file           ', trim(D_perp_file)
   end if
+  write(*,REAL_FMT) 'D_perp_pri              ', D_perp_pri(1:2)
+  write(*,REAL_FMT) 'D_perp_pri_z0           ', D_perp_pri_z0(1:2)
+  write(*,REAL_FMT) 'D_perp_pri_width        ', D_perp_pri_width(1:2)
 #ifdef WITH_Impurities
   write(*,REAL_FMT) 'D_par_imp               ', D_par_imp
   if ( .not. num_d_perp_imp ) then
@@ -549,6 +562,9 @@ write(*,'(1x,a)',advance='no') ' USE_DOMM            : '
   write(*,REAL_FMT) 'edgeparticlesource    ', edgeparticlesource
   write(*,REAL_FMT) 'edgeparticlesource_psin', edgeparticlesource_psin
   write(*,REAL_FMT) 'edgeparticlesource_sig', edgeparticlesource_sig
+  write(*,REAL_FMT) 'privparticlesource    ', privparticlesource
+  write(*,REAL_FMT) 'privparticlesource_z0 ', privparticlesource_z0
+  write(*,REAL_FMT) 'privparticlesource_width', privparticlesource_width
   write(*,REAL_FMT) 'particlesource_gauss  ', particlesource_gauss
   write(*,REAL_FMT) 'particlesource_gauss_psin', particlesource_gauss_psin
   write(*,REAL_FMT) 'particlesource_gauss_sig ', particlesource_gauss_sig
@@ -1123,8 +1139,9 @@ write(*,'(1x,a)',advance='no') ' USE_DOMM            : '
           write(*,*) "Puff ctrls: "
 
           do i=1, n_valves_max
-            used_segs = count(part_group_configs(group_num)%puff_ctrl(i)%rates > 0)
-            if (used_segs > 0) then
+            used_segs = count(part_group_configs(group_num)%puff_ctrl(i)%rates /= -1)
+            from_file = trim(part_group_configs(group_num)%puff_ctrl(i)%from_file) /= "none"
+            if (used_segs > 0 .or. from_file) then
               write(*,"(3X,A,' = ',100I12)")    'Puff valve            ', i
 
               !> config of the number of supers to create per event
@@ -1135,9 +1152,13 @@ write(*,'(1x,a)',advance='no') ' USE_DOMM            : '
               else
                 write(*,"(3X,A,' = ',99ES12.4)")    'supers_ratio_puff     ', part_group_configs(group_num)%puff_ctrl(i)%supers_ratio_puff
               endif
-
-              write(*,"(3X,A,' = ',99ES10.3)")  'rates                 ', part_group_configs(group_num)%puff_ctrl(i)%rates(1:used_segs)
-              write(*,"(3X,A,' = ',99ES10.3)")  'times                 ', part_group_configs(group_num)%puff_ctrl(i)%times(1:used_segs)
+              if(used_segs > 0) then
+                write(*,"(3X,A,' = ',99ES10.3)")  'rates                 ', part_group_configs(group_num)%puff_ctrl(i)%rates(1:used_segs)
+                write(*,"(3X,A,' = ',99ES10.3)")  'times                 ', part_group_configs(group_num)%puff_ctrl(i)%times(1:used_segs)
+              end if
+              if(from_file) then
+                write(*,"(3X,A,' = ',99A)")  'from_file             ', part_group_configs(group_num)%puff_ctrl(i)%from_file
+              end if
             endif
           enddo
         endif ! puffing

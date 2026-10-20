@@ -12,15 +12,14 @@ render_with_liquid: false
 - **[Frequently Asked Questions (FAQ)](faq.md)**
 - **[Contributing to the Docs](contributing.md)**
 
-### Compiling and Running
+### [Compiling and Running](compiling/cat_compiling.md)
 
-- **[Getting started](compiling/getting_started/learn_jorek.md)**
-  - [Tutorials](compiling/getting_started/tutorials.md)
-  - [Compile](compiling/getting_started/compiling.md) \| [Hard-Coded Parameters](compiling/getting_started/hard-coded_parameters.md) \| [Preprocessor Flags](compiling/getting_started/preprocessor.md)
-  - [Run](compiling/getting_started/running.md) \| [Leonardo-CPU](compiling/getting_started/leonardo-cpu.md) \| [Pitagora-CPU](compiling/getting_started/pitagora-cpu.md) \| [Pitagora-GPU](compiling/getting_started/pitagora-gpu.md) \| [IPP Garching](compiling/getting_started/run_at_ipp_garching.md) \| [ITER Cluster](compiling/getting_started/iter_cluster.md) \| [EUROfusion Gateway](compiling/getting_started/eurofusion_gateway.md) \| [TGCC-CEA](compiling/getting_started/tgcc-cea.md) \| [MacOS](compiling/getting_started/macos.md)
+- [Obtain the Source Code](compiling/get_jorek.md) \| [Compilation and Libraries](compiling/compilation_and_libraries.md) \| [Run](compiling/running.md)
+- **[HPC & PC Configurations](compiling/compilation_and_libraries/hpc_pc_configurations.md)**
+  - [Leonardo-CPU](compiling/compilation_and_libraries/hpc_pc_configurations/leonardo-cpu.md) \| [LUMI-CPU](compiling/compilation_and_libraries/hpc_pc_configurations/lumi-cpu.md) \| [Pitagora-CPU](compiling/compilation_and_libraries/hpc_pc_configurations/pitagora-cpu.md) \| [Pitagora-GPU](compiling/compilation_and_libraries/hpc_pc_configurations/pitagora-gpu.md) \| [IPP Garching](compiling/compilation_and_libraries/hpc_pc_configurations/run_at_ipp_garching.md) \| [ITER Cluster](compiling/compilation_and_libraries/hpc_pc_configurations/iter_cluster.md) \| [EUROfusion Gateway](compiling/compilation_and_libraries/hpc_pc_configurations/eurofusion_gateway.md) \| [TGCC-CEA](compiling/compilation_and_libraries/hpc_pc_configurations/tgcc-cea.md) \| [macOS](compiling/compilation_and_libraries/hpc_pc_configurations/macos.md)
 - **[List of Input Parameters](compiling/input.md)**
-- **[Diagnostics and Scripts](compiling/diagnostics.md)**
-  - [JOREK-IMAS](compiling/diagnostics/jorek-imas.md)
+- **[Diagnostics and post-processing](diagnostics/cat_diagnostics.md)**
+  - [Diagnostics and Scripts](diagnostics/diagnostics.md) \| [JOREK-IMAS](diagnostics/jorek-imas.md)
 
 ### Code Development
 
@@ -59,20 +58,20 @@ render_with_liquid: false
 - Get started with **[JOREK](howto/running_jorek_for_the_first_time.md)**, **[JOREK-STARWALL](howto/running_jorek-starwall_for_the_first_time.md)**, **[JOREK-CARIDDI](howto/running_jorek-cariddi_for_the_first_time.md)** and **[JOREK Diagnostics](howto/introduction_to_jorek_diagnostics.md)**
 - Set up a **[JOREK simulation grid](howto/wallgrid_tutorial.md)**
 - Convert EFIT equilibrium data into JOREK input with **[eqdsk2jorek](howto/eqdsk2jorek.md)**
-- Get **[D_perp and ZK_perp for stationary profiles](howto/diffusion_coef.md)**
-- Check **[energy conservation](howto/energy_conservation.md)**
-- Run with **[diamagnetic drift](howto/diamag.md)** and **[neoclassical effects](howto/neo.md)** and **[include diamagnetic drift in the viscosity term](howto/wdia.md)**
+- Get **[D_perp and ZK_perp for stationary profiles](howto/physics_options/plasma_functions_and_coefficients/diffusion_coef.md)**
+- Check **[energy conservation](diagnostics/energy_conservation.md)**
+- Run with **[diamagnetic drift](howto/physics_options/physical_terms/diamag.md)** and **[neoclassical effects](howto/physics_options/physical_terms/neo.md)** and **[include diamagnetic drift in the viscosity term](howto/physics_options/physical_terms/wdia.md)**
 - Run with **[Taylor-Galerkin Stabilization](howto/tgnum.md)** and **[correct negative densities / temperatures](howto/corr_neg.md)** (workaround)
-- Run with **[RMPs](howto/rmp.md)** (old boundary conditions, without STARWALL)
+- Run with **[RMPs](howto/physics_options/controllers_and_actuators/rmp.md)** (old boundary conditions, without STARWALL)
 - Calculate **B** outside and inside the JOREK grid (**[jorek2_fields_xyz](howto/jorek2_fields_xyz.md)**)
 - Calculate the **[total wall forces](howto/jorek2_wall_forces.md)** (needs JOREK-STARWALL)
-- Run including **[Ohmic heating](howto/ohmic_heating.md)**
-- Run with **[Sheath heat-flux BC](howto/sheath_heatflux_bc.md)**
+- Run including **[Ohmic heating](howto/physics_options/physical_terms/ohmic_heating.md)**
+- Run with **[Sheath heat-flux BC](howto/physics_options/boundary_conditions/sheath_heatflux_bc.md)**
 - Run an **[MGI simulation](howto/mgi_tutorial.md)** and an **[SPI simulation](howto/spi_tutorial.md)**
-- Set up **[Spitzer resistivity](howto/spitzer_resistivity.md)** and anisotropic heat diffusion
+- Set up **[Spitzer resistivity](howto/physics_options/plasma_functions_and_coefficients/spitzer_resistivity.md)** and anisotropic heat diffusion
 - Create an **[X-point plasma from a limiter plasma](howto/x-point_from_limiter.md)**
 - Run with **[mode groups in preconditioner](howto/mode_groups.md)**
-- **[Choose boundary conditions](howto/choose_boundary_conditions.md)**
+- **[Choose boundary conditions](howto/physics_options/boundary_conditions/choose_boundary_conditions.md)**
 - **[How to use shock capturing features](howto/shock_capturing.md)**
 - **[Run stellarator simulations](howto/stellarator_setup.md)**
 - **[Plot equation terms in VTK](howto/plot_rhs_terms.md)**
@@ -81,19 +80,18 @@ render_with_liquid: false
 - **[Assess fluid loads on 3D walls with field line tracing](howto/fluid_wall_load.md)**
 - **[Generate Poincaré plots with the particle tracker](howto/particles_poincare.md)**
 - **[Runaway electron physics in the particle tracker](howto/particles_runaways.md)**
-- **[Use the controller module](howto/using_controller_module.md)**
+- **[Use the controller module](howto/physics_options/controllers_and_actuators/using_controller_module.md)**
 - Run with **[Non-linear time-stepping (Newton iterations)](howto/inexact_newton_solver.md)**
 - **[Reconstruct how namelist input parameters were changed](howto/nml2h5.md)**
 - **[Show time in Paraview plots](howto/showing_time_in_paraview.md)**
 - **[Variable MultiScale (VMS) Stabilization in full MHD model 750](howto/vms.md)**
 - Compile and run the **[Particle Fast Camera](howto/particle_fast_camera.md)**
-- **[Compress the response matrices](howto/compress_response_matrices.md)** in the free-boundary and resistive wall extension
 - **[Run the stellarator model with the divertor region](howto/stellarator_with_divertor.md)**
 - **[Run with kinetic neutrals and impurities](howto/ncs_ics_tutorial.md)**
 - Run particle simulations with **[neutral neutral collisions](howto/neutral_neutral_collisions.md)**
-- Activate the **[inward pinch term in the density equation](howto/inward_pinch_term.md)**
-- **[Computing parallel electric field $E_{\\vert\\vert}$ in JOREK](howto/efield_in_jorek.md)**
-- **[Helicity conservation](howto/helicity_conservation.md)**
+- Activate the **[inward pinch term in the density equation](howto/physics_options/physical_terms/inward_pinch_term.md)**
+- **[Computing parallel electric field $E_{\\vert\\vert}$ in JOREK](physics/base_fluid_models/RMHD/expressions_and_derivations/efield_in_jorek.md)**
+- **[Helicity conservation](physics/base_fluid_models/RMHD/expressions_and_derivations/helicity_conservation.md)**
 
 ### Machines, Coordinates, Geometry, Synthetic Diagnostics, Reference Scenarios
 

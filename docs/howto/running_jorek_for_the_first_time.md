@@ -25,7 +25,7 @@ On most machines it is possible to load modules to make additional software avai
 module load intel ...
 ```
 
-For machines used regularly by our community, you can find the names of modules (and much more) here: [here](/docs/compiling/getting_started/systems.html).
+For machines used regularly by our community, you can find the names of modules (and much more) in [HPC & PC Configurations](../compiling/compilation_and_libraries/hpc_pc_configurations.md).
 
 If you add it to the `.bashrc` file, it will become active after you have logged out and back in again, you opened a new terminal, or you do `source ~/.bashrc` manually.
 
@@ -54,7 +54,7 @@ After cloning the repository now, you have a local copy of the JOREK source code
 
 These steps are described in more detail in the following. 
 
-First, you need to prepare the `Makefile.inc` configuration file that contains information regarding which compiler to use, where to find libraries (in case of a new computing system, you might need to compile some of the libraries yourself; this goes beyond this tutorial), etc.. This file needs to be adapted for the respective computing system you are using. For computing systems that are in frequent use by the community, you can find the files at [here](/docs/compiling/getting_started/systems.html). The `Makefile.inc` needs to be placed into the main folder of the repository you cloned, where you also find `jorek2_main.f90`.
+First, you need to prepare the `Makefile.inc` configuration file that contains information regarding which compiler to use, where to find libraries (in case of a new computing system, you might need to compile some of the libraries yourself; this goes beyond this tutorial), etc.. This file needs to be adapted for the respective computing system you are using. For computing systems that are in frequent use by the community, you can find the files under [HPC & PC Configurations](../compiling/compilation_and_libraries/hpc_pc_configurations.md). The `Makefile.inc` needs to be placed into the main folder of the repository you cloned, where you also find `jorek2_main.f90`.
 
 Before compiling the code, you need to set a few **hard-coded parameters**. The most important ones are:
 
@@ -198,7 +198,7 @@ We pipe the namelist input file `intear` into the code so it can read the case s
 
 Usually, production simulations are prepared as follows. You compile the code, prepare the JOREK input file, and set up a specific **batch job file**. In this file, you specify what should be executed exactly and on what hardware. You "submit" this job and the job scheduler will run it once the required hardware becomes available. This is the usual way of running simulations on large systems. Waiting times can depend a lot on the size of the job, the amount of resources you used already, on the size of the project you have on the system, and other parameters.
 
-For example jobscript files, see the [pages for different computing systems](/docs/compiling/getting_started/systems.html).
+For example jobscript files, see the [HPC & PC configuration pages](../compiling/compilation_and_libraries/hpc_pc_configurations.md).
 
 When you have your jobfile prepared, you can submit it as follows (for computing systems that use the [SLURM scheduler](https://slurm.schedmd.com/documentation.html)):
 

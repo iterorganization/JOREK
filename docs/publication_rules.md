@@ -18,8 +18,8 @@ render_with_liquid: false
   2. Most recent JOREK review article: "M Hoelzl, N Schwarz, GTA Huijsmans, FJ Artola,
      D Hu, G Su, E Nardon, N Isernia, P Rac, A Cathey, M Kong et al. Nuclear Fusion
      66, 116006 (2026)"
-  3. Relevant prior works you directly build upon (see [`CITATION.cff`](../CITATION.cff)
-     and the JOREK public website).
+  3. Relevant prior works you directly build upon (see [`CITATION.cff`](https://github.com/iterorganization/JOREK/blob/develop/docs/CITATION.cff))
+     and the JOREK public website.
 
 - **Preprints**: Send preprints (abstracts, slides, posters, manuscripts) to
   <jorek-preprint@jorek.eu> before submission to ensure community awareness and
@@ -31,6 +31,4 @@ render_with_liquid: false
 ---
 
 These rules are mandatory for all conference contributions and publications; see
-[GOVERNANCE.md](../GOVERNANCE.md) for how they fit into the community rules.
-
-Source: <https://lukethewalker.github.io/doc_repo/docs/publication_rules.html>
+[GOVERNANCE.md](GOVERNANCE.md) for how they fit into the community rules.

@@ -7,4 +7,6 @@ layout: default
 render_with_liquid: false
 ---
 
-*This page is a stub — content to be added.*
+# Mode Families in the Preconditioner
+
+See the [Mode Family Distribution section of the solver documentation](../numerics/solver.md#mode-family-distribution) for the available distribution strategies, overlapping families, weights, and MPI-rank allocation.
