@@ -467,8 +467,11 @@ module mod_expression
     
     ! --- Local variables
     integer :: i
+    logical :: l_short
     
-    if ( present(short) .and. (short) ) then
+    l_short = .false.
+    if ( present(short) ) l_short = short
+    if ( l_short ) then
       
       905 format(1x,a,',')
       do i = 1, expr_list%n_expr
@@ -667,8 +670,15 @@ module mod_expression
     real*8, allocatable :: P_imp(:)
     real*8  :: E_ion
     integer*8  :: ion_i, ion_k
+    logical :: use_aux
     
     ierr = 0
+
+    ! --- aux_node_list is a pointer that is only associated by programs that import it
+    use_aux = .false.
+    if ( export_aux_node_list ) then
+      if ( associated(aux_node_list) ) use_aux = allocated(aux_node_list%node)
+    end if
     
     ! --- Some sanity checks
     if ( expr_list%n_expr < 1 ) then
@@ -770,7 +780,7 @@ module mod_expression
         element  = pol_pos%element
         nodes(:) = pol_pos%nodes(:)
 
-        if(export_aux_node_list .and. allocated(aux_node_list%node)) then
+        if ( use_aux ) then
            aux_nodes(:) = aux_node_list%node(pol_pos%element%vertex(:))
         endif
         
@@ -855,7 +865,7 @@ module mod_expression
                 vv(1:n_var) = nodes(i)%values(i_tor,j,:)
                 va(:) = 0.d0
                 n_aux = 0
-                if (export_aux_node_list .and. allocated(aux_node_list%node)) then
+                if ( use_aux ) then
                   if (allocated(aux_nodes(i)%values)) then
                     n_aux = min(n_var, size(aux_nodes(i)%values, 3))
                     if (n_aux > 0) va(1:n_aux) = aux_nodes(i)%values(i_tor,j,1:n_aux)
