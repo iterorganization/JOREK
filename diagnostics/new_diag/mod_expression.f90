@@ -198,6 +198,7 @@ module mod_expression
     call add(exprs_all, 'A_Z         ', 'Vertical Component of Magnetic Vector Potential       ')
     call add(exprs_all, 'A_3         ', 'Tor. Comp. of Magn. Vect. Pot. Multipled by R (==Psi) ')
     call add(exprs_all, 'Er          ', 'Radial Electric Field                                 ')
+    call add(exprs_all, 'omega_ExB   ', 'ExB Angular Frequency (E.grad psi/|grad psi|^2)       ')
     call add(exprs_all, 'Vtheta_i    ', 'Ion Poloidal Velocity                                 ')
     call add(exprs_all, 'Mach_par    ', 'Parallel Mach Number                                  ')
     call add(exprs_all, 'Mach_pol    ', 'Poloidal Mach Number                                  ')
@@ -2059,7 +2060,11 @@ module mod_expression
 
               case ( 'Er' )
                 res = Er * fact_Er
-                
+
+              case ( 'omega_ExB' )                         ! E.grad(psi)/|grad(psi)|^2 = Er/(R*Btheta)
+                res = 0.d0
+                if (psi_abs > 1.d-6) res = Er * fact_Er / psi_abs
+
               case ( 'Vtheta_i' )
                 res = Vtheta / fact_time
                 
