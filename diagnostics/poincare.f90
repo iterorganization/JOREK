@@ -141,16 +141,8 @@ do while(finished .lt. nprt)
    select type (p => sim%groups(1)%particles)
    type is (particle_gc_relativistic)
 
-#ifdef __GFORTRAN__
-      !$omp parallel do default(shared) & !To avoid GNU compiler failure
-#else
       !$omp parallel do default(none) &
-#endif
-#ifdef __GFORTRAN__
-      !$omp shared(sim, tstep, norb, ndata, mileage) & !To avoid GNU compiler failure
-#else
-      !$omp shared(sim, tstep, norb, ndata, mileage, p) &
-#endif
+      !$omp shared(sim, tstep, norb, ndata, mileage) &
       !$omp shared(raxis, zaxis, ncross, nprt, rvals, zvals, phivals, psivals, milvals, nextslot, pncrid) &
       !$omp private(iprt, ifail, zprev, phiprev, xyz, xyz0) &
       !$omp reduction(+:finished)
@@ -177,16 +169,8 @@ do while(finished .lt. nprt)
       
    type is (particle_fieldline)
       
-#ifdef __GFORTRAN__
-      !$omp parallel do default(shared) & ! To avoid GNU compiler failure
-#else
       !$omp parallel do default(none) &
-#endif
-#ifdef __GFORTRAN__
       !$omp shared(sim, tstep, norb, ndata, mileage) &
-#else
-      !$omp shared(sim, tstep, norb, ndata, mileage, p) & ! To avoid GNU compiler failure
-#endif
       !$omp shared(raxis, zaxis, ncross, nprt, rvals, zvals, phivals, psivals, milvals, nextslot, pncrid) &
       !$omp private(iprt, ifail, zprev, phiprev) &
       !$omp reduction(+:finished)
