@@ -6,6 +6,40 @@
 
 For a documentation about the code, see jorek.eu/wiki
 
+
+=======================================================
+ Building with CMake (recommended)
+=======================================================
+
+Each supported machine is a CMake preset in CMakePresets.json. To list them:
+
+  cmake --list-presets
+
+Pick the preset for your machine (e.g. viper-intel, pitagora-intel; add
+-debug for a debug build). Each preset's "description" field states the exact
+`module load` line to run first.
+
+  # 1. load the modules listed in the preset's description
+  # 2. configure once
+  cmake --preset <preset>
+
+  # 3. build (build tree is build/<preset>/)
+  cmake --build build/<preset> -j 16                        # default: main solver
+  cmake --build build/<preset> --target jorek2_diagno -j 16 # a specific program
+  cmake --build build/<preset> --target help                # list all targets
+
+Every .f90 file with a `program` statement becomes a target named after the
+file; the built executables land in build/<preset>/. Set the model and options
+per preset in CMakePresets.json (JOREK_MODEL, JOREK_USE_*), not in Makefile.inc.
+
+
+=======================================================
+ Building with Makefile.inc (DEPRECATED)
+=======================================================
+
+NOTE: the Makefile.inc / `make` build below is deprecated. Prefer the CMake
+build above. The instructions are kept for reference only.
+
 to build jorek2:
 
 - edit the Makefile.inc file to match your environment

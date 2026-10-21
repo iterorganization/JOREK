@@ -1,0 +1,174 @@
+{
+  "version": 3,
+  "cmakeMinimumRequired": {
+    "major": 3,
+    "minor": 20,
+    "patch": 0
+  },
+  "configurePresets": [
+    {
+      "name": "base",
+      "hidden": true,
+      "binaryDir": "${sourceDir}/build/${presetName}",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "JOREK_MODEL": "model600"
+      }
+    },
+    {
+      "name": "pitagora-intel",
+      "inherits": "base",
+      "displayName": "Pitagora CPU - Intel oneAPI + MKL + STRUMPACK",
+      "description": "Requires: module load intel-oneapi-mpi intel-oneapi-compilers intel-oneapi-mkl/2024.0.0--intel-oneapi-mpi--2021.12.1 hdf5/1.14.3--intel-oneapi-mpi--2021.12.1--oneapi--2024.1.0 cmake",
+      "cacheVariables": {
+        "CMAKE_Fortran_COMPILER": "mpiifx",
+        "CMAKE_C_COMPILER": "mpiicx",
+        "CMAKE_CXX_COMPILER": "mpiicpx",
+        "CMAKE_Fortran_FLAGS": "-mcmodel=medium -march=skylake-avx512 -axCORE-AVX512",
+        "CMAKE_C_FLAGS": "-mcmodel=medium -march=skylake-avx512 -axCORE-AVX512",
+        "CMAKE_CXX_FLAGS": "-mcmodel=medium -march=skylake-avx512 -axCORE-AVX512",
+        "JOREK_USE_MKL": "ON",
+        "JOREK_USE_STRUMPACK": "ON",
+        "JOREK_USE_MUMPS": "OFF",
+        "JOREK_USE_PASTIX": "OFF",
+        "JOREK_USE_HDF5": "ON",
+        "JOREK_USE_FFTW": "ON",
+        "JOREK_USE_BLOCK": "ON",
+        "JOREK_LIB_DIR": "/pitagora_work/FUPA1_MHD/JOREK_LIBRARIES/libraries_recompile_amd",
+        "STRUMPACK_ROOT": "/pitagora_work/FUPA1_MHD/JOREK_LIBRARIES/libraries_recompile_amd/STRUMPACK/install",
+        "METIS_ROOT": "/pitagora_work/FUPA1_MHD/JOREK_LIBRARIES/libraries_recompile_amd/METIS/install",
+        "PARMETIS_ROOT": "/pitagora_work/FUPA1_MHD/JOREK_LIBRARIES/libraries_recompile_amd/ParMETIS/install",
+        "GKLIB_ROOT": "/pitagora_work/FUPA1_MHD/JOREK_LIBRARIES/libraries_recompile_amd/GKlib/install"
+      }
+    },
+    {
+      "name": "pitagora-intel-debug",
+      "inherits": "pitagora-intel",
+      "displayName": "Pitagora CPU - Intel oneAPI, debug build",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug"
+      }
+    },
+    {
+      "name": "viper-intel",
+      "inherits": "base",
+      "displayName": "Viper CPU - Intel oneAPI + MKL + STRUMPACK (AMD Genoa/Zen4)",
+      "description": "Requires: module purge && module load intel/2025.3 impi/2021.17 mkl/2025.3 hdf5-mpi/2.0.0 fftw-mpi/3.3.10 cmake",
+      "cacheVariables": {
+        "CMAKE_Fortran_COMPILER": "mpiifx",
+        "CMAKE_C_COMPILER": "mpiicx",
+        "CMAKE_CXX_COMPILER": "mpiicpx",
+        "CMAKE_Fortran_FLAGS": "-mcmodel=medium -march=znver4",
+        "CMAKE_C_FLAGS": "-mcmodel=medium -march=znver4",
+        "CMAKE_CXX_FLAGS": "-mcmodel=medium -march=znver4",
+        "JOREK_USE_MKL": "ON",
+        "JOREK_USE_STRUMPACK": "ON",
+        "JOREK_USE_MUMPS": "OFF",
+        "JOREK_USE_PASTIX": "OFF",
+        "JOREK_USE_HDF5": "ON",
+        "JOREK_USE_FFTW": "ON",
+        "JOREK_USE_BLOCK": "ON",
+        "JOREK_LIB_DIR": "/u/edocarr/libs/intel_25_03/",
+        "STRUMPACK_ROOT": "/u/edocarr/libs/intel_25_03/STRUMPACK/install",
+        "METIS_ROOT": "/u/edocarr/libs/intel_25_03/METIS/install",
+        "PARMETIS_ROOT": "/u/edocarr/libs/intel_25_03/ParMETIS/install",
+        "GKLIB_ROOT": "/u/edocarr/libs/intel_25_03/GKlib/install"
+      }
+    },
+    {
+      "name": "viper-intel-debug",
+      "inherits": "viper-intel",
+      "displayName": "Viper CPU - Intel oneAPI, debug build",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug"
+      }
+    },
+    {
+      "name": "tok-intel",
+      "inherits": "base",
+      "displayName": "TOK CPU - Intel oneAPI + MKL + STRUMPACK (IPP Garching)",
+      "description": "Requires: module purge && module load intel/2025.1 impi/2021.15 mkl fftw-mpi hdf5-mpi cmake",
+      "cacheVariables": {
+        "CMAKE_Fortran_COMPILER": "mpiifx",
+        "CMAKE_C_COMPILER": "mpiicx",
+        "CMAKE_CXX_COMPILER": "mpiicpx",
+        "CMAKE_Fortran_FLAGS": "-mcmodel=medium -march=native",
+        "CMAKE_C_FLAGS": "-mcmodel=medium -march=native",
+        "CMAKE_CXX_FLAGS": "-mcmodel=medium -march=native",
+        "JOREK_USE_MKL": "ON",
+        "JOREK_USE_STRUMPACK": "ON",
+        "JOREK_USE_MUMPS": "OFF",
+        "JOREK_USE_PASTIX": "OFF",
+        "JOREK_USE_HDF5": "ON",
+        "JOREK_USE_FFTW": "ON",
+        "JOREK_USE_BLOCK": "ON",
+        "JOREK_LIB_DIR": "/tokp/work/mhoelzl/bin-of-ihol/intel",
+        "STRUMPACK_ROOT": "/tokp/work/mhoelzl/bin-of-ihol/intel/STRUMPACK-7.1.3/install",
+        "METIS_ROOT": "/tokp/work/mhoelzl/bin-of-ihol/intel/metis_git/install",
+        "PARMETIS_ROOT": "/tokp/work/mhoelzl/bin-of-ihol/intel/ParMETIS_git/install",
+        "GKLIB_ROOT": "/tokp/work/mhoelzl/bin-of-ihol/intel/GKlib_git/install"
+      }
+    },
+    {
+      "name": "tok-intel-debug",
+      "inherits": "tok-intel",
+      "displayName": "TOK CPU - Intel oneAPI, debug build",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug"
+      }
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "pitagora-intel",
+      "configurePreset": "pitagora-intel",
+      "jobs": 16
+    },
+    {
+      "name": "pitagora-intel-most",
+      "configurePreset": "pitagora-intel",
+      "displayName": "Main solver plus the regression-tested diagnostics",
+      "targets": ["most"],
+      "jobs": 16
+    },
+    {
+      "name": "pitagora-intel-debug",
+      "configurePreset": "pitagora-intel-debug",
+      "jobs": 16
+    },
+    {
+      "name": "viper-intel",
+      "configurePreset": "viper-intel",
+      "jobs": 16
+    },
+    {
+      "name": "viper-intel-most",
+      "configurePreset": "viper-intel",
+      "displayName": "Main solver plus the regression-tested diagnostics",
+      "targets": ["most"],
+      "jobs": 16
+    },
+    {
+      "name": "viper-intel-debug",
+      "configurePreset": "viper-intel-debug",
+      "jobs": 16
+    },
+    {
+      "name": "tok-intel",
+      "configurePreset": "tok-intel",
+      "jobs": 16
+    },
+    {
+      "name": "tok-intel-most",
+      "configurePreset": "tok-intel",
+      "displayName": "Main solver plus the regression-tested diagnostics",
+      "targets": ["most"],
+      "jobs": 16
+    },
+    {
+      "name": "tok-intel-debug",
+      "configurePreset": "tok-intel-debug",
+      "jobs": 16
+    }
+  ]
+}

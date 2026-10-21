@@ -1,5 +1,5 @@
 """
-Append vacuum field from mgrid_w7x.nc to gvec2jorek.dat (USE_EXT_FIELD must be set to 1).
+Append vacuum field from mgrid_w7x.nc to gvec2jorek.dat (use_ext_field must be .true.).
 
 Pipeline:
   1. Read existing gvec2jorek.dat -> grid geometry R(s,theta,phi), Z(s,theta,phi)
