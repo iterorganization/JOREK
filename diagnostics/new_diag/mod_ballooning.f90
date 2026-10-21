@@ -180,6 +180,7 @@ contains
       psi_ZZ, gpsi, nR, nZ, tR, tZ, F, F_R, F_Z, Bdott, nu_l, qabs, S, nHn, tHt, h, KR, Kphi, KZ,    &
       a0(3), Bv(3), gv(3), Kv(3), axB(3), gxB(3), dq_over_F_dpsi, dphi
     integer :: i, j, jp, jm, iex, n_flip, k, nmaxs
+    logical :: rev, rev0
     real*8  :: ffp(0:np-1)
     ! --- Mercier / peeling
     real*8  :: dlt(0:np-1), jb(0:np-1), nHnu(0:np-1), kcu(0:np-1), nRu(0:np-1), sgth(0:np-1),     &
@@ -278,12 +279,16 @@ contains
         ! --- Unit tangent in the direction of increasing theta*
         tR     = - nZ
         tZ     =   nR
-        if ( tR * (pol_pos_list%pos(jp,i)%R - pol_pos_list%pos(jm,i)%R)                             &
-           + tZ * (pol_pos_list%pos(jp,i)%Z - pol_pos_list%pos(jm,i)%Z) < 0.d0 ) then
+        rev = ( tR * (pol_pos_list%pos(jp,i)%R - pol_pos_list%pos(jm,i)%R)                          &
+              + tZ * (pol_pos_list%pos(jp,i)%Z - pol_pos_list%pos(jm,i)%Z) < 0.d0 )
+        if ( rev ) then
           tR = - tR
           tZ = - tZ
-          if ( j > 0 ) n_flip = n_flip + 1
         end if
+        ! --- Either orientation is fine (depends on the signs of psi and of the fields); only a change
+        ! --- of orientation along the surface indicates a problem
+        if ( j == 0 ) rev0 = rev
+        if ( rev .neqv. rev0 ) n_flip = n_flip + 1
         nHn = nR*nR*psi_RR + 2.d0*nR*nZ*psi_RZ + nZ*nZ*psi_ZZ
         tHt = tR*tR*psi_RR + 2.d0*tR*tZ*psi_RZ + tZ*tZ*psi_ZZ
 
