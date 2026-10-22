@@ -54,6 +54,7 @@ module mod_position
     real*8             :: dV_dpsi = 0.d0 !< Derivative of the volume with respect to psi (for flux surfaces)
     real*8             :: q_over_F = 0.d0     !< q/F = |dV/dpsi| / (4 pi^2 <R^2>_theta*) (for flux surfaces)
     real*8             :: dq_over_F_dpsi = 0.d0 !< Derivative of q_over_F with respect to psi (for flux surfaces)
+    real*8             :: phi_tor_over_F = 0.d0 !< Int_axis^psi (q/F) |dpsi| (toroidal flux / (2 pi F), flux surfaces)
     real*8             :: length     !< Length along a line (for line)
     ! --- Quantities related to boundary elements
     real*8             :: bnd_normal(2) = 0.d0 !< Normal vector to the computational boundary (pointing outside)
@@ -229,7 +230,7 @@ module mod_position
     integer :: i, j, k, nsub_loc, inode, iv
     real*8, allocatable :: surface(:) !< Poloidal surface inside flux surface (for r_minor)
     real*8, allocatable :: volume(:), dV_dpsi(:), psi_surf(:)
-    real*8, allocatable :: q_over_F(:), dq_over_F_dpsi(:)
+    real*8, allocatable :: q_over_F(:), dq_over_F_dpsi(:), phi_tor_over_F(:)
     integer :: jm
    
     ierr = 0
@@ -358,7 +359,7 @@ module mod_position
       allocate(surface(nPsiN))
       surface(:) = 0.d0
       allocate(volume(nPsiN), dV_dpsi(nPsiN), psi_surf(nPsiN))
-      allocate(q_over_F(nPsiN), dq_over_F_dpsi(nPsiN))
+      allocate(q_over_F(nPsiN), dq_over_F_dpsi(nPsiN), phi_tor_over_F(nPsiN))
       volume(:)     = 0.d0
       call alloc_pol_pos(pos_list, (/nTht,nPsiN/))
       pos_list%full_turn = .true.
@@ -432,6 +433,17 @@ module mod_position
         end if
       end do
       
+      ! --- Toroidal flux / (2 pi F) = Int_axis^psi (q/F) |dpsi| (trapezoidal; q/F of the innermost surface
+      ! --- taken up to the axis, so accurate if the innermost surface is close to the axis)
+      do i = 1, nPsiN
+        if ( i == 1 ) then
+          phi_tor_over_F(i) = q_over_F(1) * abs( psi_surf(1) - eq%psi_axis )
+        else
+          phi_tor_over_F(i) = phi_tor_over_F(i-1)                                                    &
+                            + 0.5d0 * ( q_over_F(i) + q_over_F(i-1) ) * abs( psi_surf(i) - psi_surf(i-1) )
+        end if
+      end do
+
       ! --- Fill in r_minor
       do j = 1, nTht
         do i = 1, nPsiN
@@ -440,11 +452,12 @@ module mod_position
           pos_list%pos(j,i)%dV_dpsi = dV_dpsi(i)
           pos_list%pos(j,i)%q_over_F       = q_over_F(i)
           pos_list%pos(j,i)%dq_over_F_dpsi = dq_over_F_dpsi(i)
+          pos_list%pos(j,i)%phi_tor_over_F = phi_tor_over_F(i)
         end do
       end do
       
       call cleanup_mapping(mapping)
-      deallocate(surface, volume, dV_dpsi, psi_surf, q_over_F, dq_over_F_dpsi)
+      deallocate(surface, volume, dV_dpsi, psi_surf, q_over_F, dq_over_F_dpsi, phi_tor_over_F)
       
     ! --- Several (closed) flux surfaces.
     else if ( present(nPsiN) .and. present(nTht) ) then
