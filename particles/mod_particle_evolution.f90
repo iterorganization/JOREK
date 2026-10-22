@@ -649,7 +649,7 @@ contains
           n_lost_ion = n_lost_ion
           p_lost_ion = p_lost_ion + ionize_energy
           p_lost_plt = p_lost_plt + radiation_energy
-          p_lost_cx  = p_lost_cx + cx_source * cx_energy
+          p_lost_cx  = p_lost_cx + cx_energy
 
           !> Calculate the projection of the ion source in real-time
           call basisfunctions(particle_tmp%st(1), particle_tmp%st(2), HH, HH_s, HH_t)
