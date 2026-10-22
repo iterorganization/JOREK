@@ -10,18 +10,15 @@ implicit none
 integer, intent(in)                        :: my_id
 type (type_node_list), intent(inout)       :: node_list
 
-integer                                    :: n_variables
 type (type_node)                           :: anode
 integer                                    :: i, ierr, position, bufsize, IDBL_EXT, INT_EXT, ILOG_EXT
 character, allocatable                     :: buffer(:)
-
-if (my_id .eq. 0) n_variables = size(node_list%node(1)%values, 3)
 
 call MPI_PACK_SIZE(1,MPI_DOUBLE_PRECISION,MPI_COMM_WORLD,IDBL_EXT,ierr)
 call MPI_PACK_SIZE(1,MPI_INTEGER,MPI_COMM_WORLD,INT_EXT,ierr)
 call MPI_PACK_SIZE(1,MPI_LOGICAL,MPI_COMM_WORLD,ILOG_EXT,ierr)
 
-call MPI_BCAST(n_variables,1,MPI_INTEGER,0,MPI_COMM_WORLD,ierr)
+call MPI_BCAST(node_list%n_values,1,MPI_INTEGER,0,MPI_COMM_WORLD,ierr)
 call MPI_BCAST(node_list%n_nodes,1,MPI_INTEGER,0,MPI_COMM_WORLD,ierr)
 call MPI_BCAST(node_list%n_dof,1,MPI_INTEGER,0,MPI_COMM_WORLD,ierr)
 
@@ -31,21 +28,21 @@ call MPI_BCAST(node_list%n_dof,1,MPI_INTEGER,0,MPI_COMM_WORLD,ierr)
 ! For model183: r_tor_eq(n_degrees) + b_field(n_coord_tor*n_degrees*(n_dim+1)) + b_vac_field(n_coord_tor*n_degrees*(n_dim+1)) + j_source(n_tor*n_degrees)
 ! Buffer formula: n_coord_tor*n_degrees*(n_dim + 2*(n_dim+1)) + ... accounts for x(n_dim) + b_vac_field + ONE of (b_field or chi_correction)
 ! For model183 with USE_EXT_FIELD we now also pack b_field, so add +1*(n_dim+1) = 3*(n_dim+1) total
-bufsize = node_list%n_nodes * ((n_coord_tor*n_degrees*(n_dim+3*(n_dim+1)+1) + 2*n_tor*n_degrees*n_variables + n_tor*n_degrees + 2 + 2*n_degrees)*IDBL_EXT + (n_degrees + 1+3+1+1)*INT_EXT + (2)*ILOG_EXT)
+bufsize = node_list%n_nodes * ((n_coord_tor*n_degrees*(n_dim+3*(n_dim+1)+1) + 2*n_tor*n_degrees*node_list%n_values + n_tor*n_degrees + 2 + 2*n_degrees)*IDBL_EXT + (n_degrees + 1+3+1+1)*INT_EXT + (2)*ILOG_EXT)
 #else
 ! USE_DOMM: model180 packs j_field+b_field+b_vac_field = 3*(n_dim+1), model183 only b_vac_field = 1*(n_dim+1)
 ! Use 3*(n_dim+1) to cover worst case (model180). Slight overallocation for model183 is harmless.
-bufsize = node_list%n_nodes * ((n_coord_tor*n_degrees*(n_dim+3*(n_dim+1)) + 2*n_tor*n_degrees*n_variables + n_tor*n_degrees + 2 + 2*n_degrees)*IDBL_EXT + (n_degrees + 1+3+1+1)*INT_EXT + (2)*ILOG_EXT)
+bufsize = node_list%n_nodes * ((n_coord_tor*n_degrees*(n_dim+3*(n_dim+1)) + 2*n_tor*n_degrees*node_list%n_values + n_tor*n_degrees + 2 + 2*n_degrees)*IDBL_EXT + (n_degrees + 1+3+1+1)*INT_EXT + (2)*ILOG_EXT)
 #endif
 #elif fullmhd
-bufsize = node_list%n_nodes * ((n_coord_tor*n_degrees*n_dim + 2*n_tor*n_degrees*n_variables+2*n_degrees+2)*IDBL_EXT + (n_degrees +1+3+1+1)*INT_EXT + (2)*ILOG_EXT)
+bufsize = node_list%n_nodes * ((n_coord_tor*n_degrees*n_dim + 2*n_tor*n_degrees*node_list%n_values+2*n_degrees+2)*IDBL_EXT + (n_degrees +1+3+1+1)*INT_EXT + (2)*ILOG_EXT)
 #elif altcs                          
-bufsize = node_list%n_nodes * ((n_coord_tor*n_degrees*n_dim + 2*n_tor*n_degrees*n_variables+2*n_degrees+2)*IDBL_EXT + (n_degrees +1+3+1+1)*INT_EXT + (2)*ILOG_EXT)
+bufsize = node_list%n_nodes * ((n_coord_tor*n_degrees*n_dim + 2*n_tor*n_degrees*node_list%n_values+2*n_degrees+2)*IDBL_EXT + (n_degrees +1+3+1+1)*INT_EXT + (2)*ILOG_EXT)
 #else                                
-bufsize = node_list%n_nodes * ((n_coord_tor*n_degrees*n_dim + 2*n_tor*n_degrees*n_variables+2)*IDBL_EXT + (n_degrees + 1+3+1+1)*INT_EXT + (2)*ILOG_EXT)
+bufsize = node_list%n_nodes * ((n_coord_tor*n_degrees*n_dim + 2*n_tor*n_degrees*node_list%n_values+2)*IDBL_EXT + (n_degrees + 1+3+1+1)*INT_EXT + (2)*ILOG_EXT)
 #endif
 
-call init_node(anode, n_variables)
+call init_node(anode, node_list%n_values)
 allocate(buffer(bufsize))
 call tr_register_mem(bufsize,"bcastn_buffer")
 
@@ -58,8 +55,8 @@ if (my_id .eq. 0) then
     call make_deep_copy_node(node_list%node(i), anode)
 
     call MPI_PACK(anode%x              ,n_coord_tor*n_degrees*n_dim      ,MPI_DOUBLE_PRECISION,buffer,bufsize,position,MPI_COMM_WORLD,ierr)
-    call MPI_PACK(anode%values         ,n_tor*n_degrees*n_variables,MPI_DOUBLE_PRECISION,buffer,bufsize,position,MPI_COMM_WORLD,ierr)
-    call MPI_PACK(anode%deltas         ,n_tor*n_degrees*n_variables,MPI_DOUBLE_PRECISION,buffer,bufsize,position,MPI_COMM_WORLD,ierr)
+    call MPI_PACK(anode%values         ,n_tor*n_degrees*node_list%n_values,MPI_DOUBLE_PRECISION,buffer,bufsize,position,MPI_COMM_WORLD,ierr)
+    call MPI_PACK(anode%deltas         ,n_tor*n_degrees*node_list%n_values,MPI_DOUBLE_PRECISION,buffer,bufsize,position,MPI_COMM_WORLD,ierr)
 #ifdef STELLARATOR_MODEL
     call MPI_PACK(anode%r_tor_eq       ,n_degrees,MPI_DOUBLE_PRECISION,buffer,bufsize,position,MPI_COMM_WORLD,ierr)
 #if JOREK_MODEL == 180
@@ -105,14 +102,14 @@ call MPI_BCAST(buffer,bufsize,MPI_PACKED,0,MPI_COMM_WORLD,ierr)
 
 if (my_id .ne. 0) then
 
-    if (.not. allocated(node_list%node)) call init_node_list(node_list, node_list%n_nodes, node_list%n_dof, n_variables)
+    if (.not. allocated(node_list%node)) call init_node_list(node_list, node_list%n_nodes, node_list%n_dof, node_list%n_values)
 
   position = 0
   do i=1,node_list%n_nodes
 
     call MPI_UNPACK(buffer,bufsize,position,anode%x              ,n_coord_tor*n_degrees*n_dim      ,MPI_DOUBLE_PRECISION,MPI_COMM_WORLD,ierr)
-    call MPI_UNPACK(buffer,bufsize,position,anode%values         ,n_tor*n_degrees*n_variables,MPI_DOUBLE_PRECISION,MPI_COMM_WORLD,ierr)
-    call MPI_UNPACK(buffer,bufsize,position,anode%deltas         ,n_tor*n_degrees*n_variables,MPI_DOUBLE_PRECISION,MPI_COMM_WORLD,ierr)
+    call MPI_UNPACK(buffer,bufsize,position,anode%values         ,n_tor*n_degrees*node_list%n_values,MPI_DOUBLE_PRECISION,MPI_COMM_WORLD,ierr)
+    call MPI_UNPACK(buffer,bufsize,position,anode%deltas         ,n_tor*n_degrees*node_list%n_values,MPI_DOUBLE_PRECISION,MPI_COMM_WORLD,ierr)
 #ifdef STELLARATOR_MODEL
     call MPI_UNPACK(buffer,bufsize,position,anode%r_tor_eq       ,n_degrees                        ,MPI_DOUBLE_PRECISION,MPI_COMM_WORLD,ierr)
 #if JOREK_MODEL == 180

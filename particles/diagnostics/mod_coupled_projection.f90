@@ -91,6 +91,7 @@ contains
     end if
 
     ! reinitialise the storage node_list to ensure all projections fit
+    this%node_list%n_values = n_rhs_f+n_rhs
     do i=1, this%node_list%n_nodes
       call init_node(this%node_list%node(i), n_rhs_f+n_rhs)
     enddo

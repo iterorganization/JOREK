@@ -119,7 +119,7 @@ module mod_newton_solver
 !> Save values and deltas to temporary storage
   subroutine node_list_save(node_list, store_value, store_delta)
     use data_structure, only: type_node_list
-    use phys_module,    only: n_var, n_tor
+    use phys_module,    only: n_var, n_tor, var_index
     implicit none
 
     class(type_node_list)         :: node_list
@@ -135,8 +135,8 @@ module mod_newton_solver
       do ivar = 1, n_var
         do itor = 1, n_tor
           do ideg = 1, n_deg
-            store_value(inode,ivar,itor,ideg) = node_list%node(inode)%values(itor,ideg,ivar)
-            store_delta(inode,ivar,itor,ideg) = node_list%node(inode)%deltas(itor,ideg,ivar)
+            store_value(inode,ivar,itor,ideg) = node_list%node(inode)%values(itor,ideg,var_index(ivar))
+            store_delta(inode,ivar,itor,ideg) = node_list%node(inode)%deltas(itor,ideg,var_index(ivar))
           enddo
         enddo
       enddo
@@ -148,7 +148,7 @@ module mod_newton_solver
 !> Restore values and deltas from temporary storage
   subroutine node_list_restore(node_list, store_value, store_delta)
     use data_structure, only: type_node_list
-    use phys_module,    only: n_var, n_tor
+    use phys_module,    only: n_var, n_tor, var_index
     implicit none
 
     class(type_node_list)     :: node_list
@@ -162,8 +162,8 @@ module mod_newton_solver
       do ivar = 1, n_var
         do itor = 1, n_tor
           do ideg = 1, n_deg
-            node_list%node(inode)%values(itor,ideg,ivar) = store_value(inode,ivar,itor,ideg)
-            node_list%node(inode)%deltas(itor,ideg,ivar) = store_delta(inode,ivar,itor,ideg)
+            node_list%node(inode)%values(itor,ideg,var_index(ivar)) = store_value(inode,ivar,itor,ideg)
+            node_list%node(inode)%deltas(itor,ideg,var_index(ivar)) = store_delta(inode,ivar,itor,ideg)
           enddo
         enddo
       enddo
