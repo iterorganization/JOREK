@@ -54,7 +54,15 @@ program jorek2_postproc
   call set_setting('nsub_vtk',        '4',     ierr, 'number of element subdivisions for vtk plots       ')
   call set_setting('vtk_phi_value',   '0',     ierr, 'phi value at which the 2D vtk is computed          ')
   call set_setting('only_itor',      '-1',     ierr, 'select a single toroidal harmonic for calculations ')
-  call set_setting('exclude_n0',      'false', ierr, 'when true, excludes the axisymmetric part(n = 0)   ') 
+  call set_setting('exclude_n0',      'false', ierr, 'when true, excludes the axisymmetric part(n = 0)   ')
+  call set_setting('ball_ntht',       '512',   ierr, 'ballooning: points per poloidal turn in theta*     ')
+  call set_setting('ball_nturns',     '10',    ierr, 'ballooning: field line extends +-2pi*nturns        ')
+  call set_setting('ball_ntheta0',    '1',     ierr, 'ballooning: number of ballooning angles theta0     ')
+  call set_setting('ball_psin_min',   '0.02',  ierr, 'ballooning: innermost flux surface (Psi_N)        ')
+  call set_setting('ball_psin_max',   '0.98',  ierr, 'ballooning: outermost flux surface (Psi_N)        ')
+  call set_setting('ball_alpha_max',  '6.0',   ierr, 'ballooning: largest alpha in the marginal scan    ')
+  call set_setting('ball_s_max',      '3.0',   ierr, 'ballooning: largest shear in s-alpha scans        ')
+  call set_setting('ball_nsalpha',    '40',    ierr, 'ballooning: grid points per axis in s-alpha scans ')
   
   ! --- Print getting started information
   call specific_help('getting_started')

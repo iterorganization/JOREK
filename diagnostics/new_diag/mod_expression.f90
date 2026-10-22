@@ -114,6 +114,13 @@ module mod_expression
     call add(exprs_all, 'theta_star  ', 'Poloidal Straight Field Line Angle (for flux surfaces)')
     call add(exprs_all, 'length      ', 'Length Along Poloidal Line (for poloidal lines)       ')
     call add(exprs_all, 'r_minor     ', 'Minor Radius From A = r_minor^2 pi (for flux surfaces)')
+    call add(exprs_all, 'q_cyl       ', 'Cylindrical safety factor r|B_phi|/(R B_theta)        ')
+    call add(exprs_all, 'q_volume    ', 'Safety factor F |dV/dpsi|/(4pi^2 <R^2>) (average only)')
+    call add(exprs_all, 'Phi_tor     ', 'Enclosed toroidal flux 2 pi Int q dpsi (average only) ')
+    call add(exprs_all, 'alpha_cyl   ', 'Normalised pressure gradient, cylindrical (with q_cyl)')
+    call add(exprs_all, 'alpha_miller', 'Normalised pressure gradient, Miller (average only)   ')
+    call add(exprs_all, 'alpha_crit  ', 'Ballooning limit, s-alpha estimate 0.6s (average only)')
+    call add(exprs_all, 'alpha_local ', 'Local ballooning drive 2q^2R^2 kappa.grad(p)/B^2      ')
     call add(exprs_all, 'x           ', 'Cartesian Coordinate x                                ')
     call add(exprs_all, 'y           ', 'Cartesian Coordinate y                                ')
     call add(exprs_all, 'z           ', 'Cartesian Coordinate z (== Cylindrical Z)             ')
@@ -139,6 +146,8 @@ module mod_expression
     call add(exprs_all, 'gradP_R     ', 'Pressure gradient force (R component)                 ')
     call add(exprs_all, 'gradP_Z     ', 'Pressure gradient force (Z component)                 ')
     call add(exprs_all, 'gradP_phi   ', 'Pressure gradient force (phi component)               ')
+    call add(exprs_all, 'gradPi_R    ', 'Ion pressure gradient (R component)                   ')
+    call add(exprs_all, 'gradPi_Z    ', 'Ion pressure gradient (Z component)                   ')
     call add(exprs_all, 'gradP_B     ', 'Parallel pressure gradient (along B)                  ')
     call add(exprs_all, 'gradPdotCurv', 'grad p dot curvature                                  ')
     call add(exprs_all, 'curvat_R    ', 'curvature (= b . grad ( b )) in the R direction       ')
@@ -180,10 +189,17 @@ module mod_expression
     call add(exprs_all, 'BR          ', 'Magnetic Field Component Along R                      ')
     call add(exprs_all, 'BZ          ', 'Vertical Magnetic Field Component                     ')
     call add(exprs_all, 'Btheta      ', 'Poloidal Magnetic Field Component                     ')
+    call add(exprs_all, 'BR_R        ', 'dBR/dR (axisymmetric part only with only_n0)          ')
+    call add(exprs_all, 'BR_Z        ', 'dBR/dZ (axisymmetric part only with only_n0)          ')
+    call add(exprs_all, 'BZ_R        ', 'dBZ/dR (axisymmetric part only with only_n0)          ')
+    call add(exprs_all, 'BZ_Z        ', 'dBZ/dZ (axisymmetric part only with only_n0)          ')
+    call add(exprs_all, 'Btor_R      ', 'dBtor/dR (axisymmetric part only with only_n0)        ')
+    call add(exprs_all, 'Btor_Z      ', 'dBtor/dZ (axisymmetric part only with only_n0)        ')
     call add(exprs_all, 'A_R         ', 'Radial Component of Magnetic Vector Potential         ')
     call add(exprs_all, 'A_Z         ', 'Vertical Component of Magnetic Vector Potential       ')
     call add(exprs_all, 'A_3         ', 'Tor. Comp. of Magn. Vect. Pot. Multipled by R (==Psi) ')
     call add(exprs_all, 'Er          ', 'Radial Electric Field                                 ')
+    call add(exprs_all, 'omega_ExB   ', 'ExB Angular Frequency (E.grad psi/|grad psi|^2)       ')
     call add(exprs_all, 'Vtheta_i    ', 'Ion Poloidal Velocity                                 ')
     call add(exprs_all, 'Mach_par    ', 'Parallel Mach Number                                  ')
     call add(exprs_all, 'Mach_pol    ', 'Poloidal Mach Number                                  ')
@@ -198,6 +214,7 @@ module mod_expression
     call add(exprs_all, 'Vstar_i     ', 'Ion Diamagnetic Velocity                              ')
     call add(exprs_all, 'ki_neo      ', 'Neoclassical Heat Diffusivity                         ')
     call add(exprs_all, 'mu_neo      ', 'Neoclassical Friction Coefficient                     ')
+    call add(exprs_all, 'omegaStarPi ', 'Ion Diamagnetic frequency (2 tauIC F0 / rho dPidpsi)  ')
     call add(exprs_all, 'T_e         ', 'Electron temperature                                  ')
     call add(exprs_all, 'T_i         ', 'Ion temperature                                       ')
     call add(exprs_all, 'E_||        ', 'E_|| for RE acceleration                              ')
@@ -617,7 +634,9 @@ module mod_expression
     real*8 :: T0_corr, Ti0_corr, Te0_corr, r0_corr, rn0_corr
     real*8 :: T_or_Te, T_or_Te_corr, T_or_Te_0 
     real*8 :: FFprime_loc, Jpol, JpolR, JpolZ, Btot, Jpar, Jpar_ionsat, fact_jsat, Bnorm, Btan, Jtor
-    real*8 :: p_prime_loc
+    real*8 :: p_prime_loc, pi_prime_loc
+    real*8 :: r_from_axis, B0_axis, q_cyl, alpha_cyl, omegaStarPi   ! for q_cyl, alpha_cyl
+    real*8 :: F_loc, q_loc, shear_loc, alpha_local, alpha_miller            ! for alpha_crit
     real*8 :: nmlR, nmlZ, theta_geo, VR, VZ, V_phi, Vpar_tot, VperpR, VperpZ
     real*8 :: hh, hh_s, hh_t, hh_ss, hh_tt, hh_st, hhz, hhz_p, hhz_pp, sz, vv(0:n_var), va(n_var), aux(20)
     real*8 :: delta_g(n_var), delta_s(n_var), delta_t(n_var)
@@ -1308,8 +1327,10 @@ module mod_expression
           psi_abs  = sqrt(A30_R*A30_R + A30_Z * A30_Z)
           
           p_prime_loc = 0.d0
+          pi_prime_loc = 0.d0
           if (psi_abs > 1.d-6) then
             p_prime_loc = (A30_R*P0_R + A30_Z*P0_Z)/(psi_abs**2.d0)
+            pi_prime_loc = (A30_R*Pi0_R + A30_Z*Pi0_Z)/(psi_abs**2.d0)
           endif
           FFprime_loc = zj0 + (R**2.d0) * p_prime_loc
 
@@ -1337,8 +1358,10 @@ module mod_expression
           B_Z      = ( BR_Z + BZ_Z + Bp_Z ) / Btot
           
           p_prime_loc = 0.d0
+          pi_prime_loc = 0.d0
           if (psi_abs > 1.d-6) then
             p_prime_loc = (ps0_R*P0_R + ps0_Z*P0_Z)/(psi_abs**2.d0)
+            pi_prime_loc = (ps0_R*Pi0_R + ps0_Z*Pi0_Z)/(psi_abs**2.d0)
           endif
           FFprime_loc = zj0 + (R**2.d0) * p_prime_loc
 #endif
@@ -1350,6 +1373,22 @@ module mod_expression
           Kappa_R    = ( Btot*BR*BR_R - BR*BR*B_R   - BZ*BR*B_Z   + Btot*BZ*BR_Z - Btot*Btor**2/BigR ) / Btot**3.
           Kappa_Z    = ( Btot*BR*BZ_R - BR*BZ*B_R   - BZ*BZ*B_Z   + Btot*BZ*BZ_Z                     ) / Btot**3.
           Kappa_phi  = ( Btot*BR*Bp_R - BR*Btor*B_R - BZ*Btor*B_Z + Btot*BZ*Bp_Z + Btot*Btor*BR/BigR ) / Btot**3.
+
+          F_loc = abs(BigR * Btor)
+          q_loc = F_loc * pol_pos%q_over_F
+          shear_loc    = 0.d0
+          alpha_miller = 0.d0
+          if ( (pol_pos%volume > 0.d0) .and. (q_loc > 0.d0) .and. (pol_pos%dV_dpsi /= 0.d0) ) then
+            ! Magnetic shear: s = (2V/q) dq/dV
+            shear_loc = 2.d0 * pol_pos%volume / q_loc * F_loc * pol_pos%dq_over_F_dpsi / pol_pos%dV_dpsi
+            ! --- alpha = -2 / (2 pi)^2 dV/dpsi r_minor dp/dpsi 
+            ! where r_minor = sqrt(A / pi) = sqrt (V / (2 pi^2 R0)) 
+            ! Miller et al. Phys. Plasmas 5, 973–978 (1998)
+            alpha_miller = - 2.d0 / (2.d0 * PI)**2 * pol_pos%dV_dpsi * pol_pos%r_minor * p_prime_loc
+          end if
+          ! Local alpha with curvature (ballooning drive):
+          ! alpha_local = 2 q^2 R^2 (kappa.grad(p)) / B^2 
+          alpha_local = 2.d0 * q_loc**2 * BigR**2 * ( P0_R*Kappa_R + P0_Z*Kappa_Z + P0_p / BigR * Kappa_phi ) / BB2
 
           Jtor        = -zj0/BigR
           Jpol        = FFprime_loc * Btheta     / F0     !Jpol = F' Bpol
@@ -1479,6 +1518,10 @@ module mod_expression
           V_ExB    = 0.d0 
           Vstar_e  = 0.d0
           Vstar_i  = 0.d0
+          q_cyl    = 0.d0
+          alpha_cyl= 0.d0
+          r_from_axis = 0.d0
+          omegaStarPi = 0.d0
           
           if ( (psi_abs > 1.d-6) .and. (r0 > 1.d-6) .and. (abs(Btheta) > 1.d-6) ) then
             
@@ -1508,6 +1551,18 @@ module mod_expression
             Vstar_e  = +1./Btheta * (  2.d0*tauIC/r0 * (Ti0_R*r0 + r0_R*Ti0) * ps0_R  +            &
               2.d0*tauIC/r0 * (Ti0_Z*r0 + r0_Z*Ti0) * ps0_Z )
             ! ### Warning : in jorek_model=400, Vstar_i .ne. -Vstar_e since T_i .ne. T_e
+
+            r_from_axis = sqrt( (R - eq%R_axis)**2 + (Z - eq%Z_axis)**2 )
+            q_cyl = r_from_axis * abs(Btor) / (BigR * Btheta)
+            B0_axis = abs(BigR * Btor) / eq%R_axis
+            ! alpha = -2 R0 q_cyl^2 / B0^2 dp/dr
+            ! dp_dr = p_prime_loc*psi_abs ; normal to the flux surface, pointing outwards for either
+            !         sign convention of psi (psi increasing or decreasing from the axis to the boundary)
+            alpha_cyl = - 2.d0 * eq%R_axis * q_cyl**2 / B0_axis**2 * p_prime_loc * psi_abs                &
+                        * sign(1.d0, eq%psi_bnd - eq%psi_axis)
+
+            ! effect linearly depends on toroidal mode number
+            omegaStarPi = 2.d0 * tauIC_nominal * B0_axis * pi_prime_loc / r0
           end if
           
           if (NEO) then
@@ -1730,6 +1785,35 @@ module mod_expression
               case ( 'r_minor' )
                 res = pol_pos%r_minor
                 
+              case ( 'q_cyl' )
+                res = q_cyl
+
+              case ( 'q_volume' )
+                ! --- Safety factor from the volume: q = F |dV/dpsi| / (4 pi^2 <R^2>_theta*), straight field
+                !     line Jacobian J = q R^2 / F, <.>_theta* plain average over theta*.
+                !     Needs flux-surface positions (only command average).
+                res = q_loc
+
+              case ( 'Phi_tor' )
+                !     Needs flux-surface positions (only command average).
+                res = 2.d0 * PI * F_loc * pol_pos%phi_tor_over_F
+
+              case ( 'alpha_cyl' )
+                res = alpha_cyl
+                
+              case ( 'alpha_miller' )
+                ! --- Needs flux-surface positions (only command average).
+                res = alpha_miller
+                
+              case ( 'alpha_crit' )
+                ! --- First stability boundary of ideal ballooning modes in the s-alpha model
+                !      ~ 0.6 s  ---  rough estimate (moderate to large s; no second stability). 
+                !     Needs flux-surface positions (command average).
+                res = 0.6d0 * shear_loc
+                
+              case ( 'alpha_local' )
+                res = alpha_local
+                
               case ( 'xjac' )
                 res = xjac
                 
@@ -1887,6 +1971,24 @@ module mod_expression
                 
               case ( 'Btheta' )
                 res = Btheta
+
+              case ( 'BR_R' )
+                res = BR_R
+
+              case ( 'BR_Z' )
+                res = BR_Z
+
+              case ( 'BZ_R' )
+                res = BZ_R
+
+              case ( 'BZ_Z' )
+                res = BZ_Z
+
+              case ( 'Btor_R' )
+                res = Bp_R
+
+              case ( 'Btor_Z' )
+                res = Bp_Z
 	        
               case ( 'A_R' )
                 res = AR0
@@ -1932,6 +2034,12 @@ module mod_expression
                 
               case ( 'gradP_Z' )
                 res = P0_Z / fact_mu_zero
+
+              case ( 'gradPi_R' )
+                res = Pi0_R / fact_mu_zero
+
+              case ( 'gradPi_Z' )
+                res = Pi0_Z / fact_mu_zero
  
               case ( 'gradP_phi' )
                 res = P0_p / BigR / fact_mu_zero
@@ -1941,7 +2049,11 @@ module mod_expression
  
               case ( 'gradPdotCurv' )
                 res = ( P0_R*Kappa_R + P0_Z*Kappa_Z + P0_p / BigR * Kappa_phi ) / fact_mu_zero
-      
+
+              case ( 'omegaStarPi' )
+                ! effect linearly depends on toroidal mode number
+                res = omegaStarPi / fact_time
+
               case ( 'curvat_R' )
                 res = Kappa_R
    
@@ -1953,7 +2065,11 @@ module mod_expression
 
               case ( 'Er' )
                 res = Er * fact_Er
-                
+
+              case ( 'omega_ExB' )                         ! E.grad(psi)/|grad(psi)|^2 = Er/(R*Btheta)
+                res = 0.d0
+                if (psi_abs > 1.d-6) res = Er * fact_Er / psi_abs
+
               case ( 'Vtheta_i' )
                 res = Vtheta / fact_time
                 
