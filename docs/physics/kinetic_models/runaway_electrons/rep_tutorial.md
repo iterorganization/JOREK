@@ -29,7 +29,7 @@ Apart from the jorek_restart.h5, an part_restart.h5 file is required by any simu
  part_group_configs(1)%type                        = 'particle_kinetic_relativistic'
  part_group_configs(1)%n_particles                 = 1e6    ! number of super particles
  part_group_configs(1)%mass                        = 0.000548579870184805     
- part_group_configs(1)%num_re                      = 1.175403e16      ! number of physical REs, doesn't work if initialized according to current
+ part_group_configs(1)%n_particles_total           = 1.175403e16      ! number of physical REs, doesn't work if initialized according to current
  part_group_configs(1)%use_kin_recombination       = .false.
 
 ! Projecting (particle field -> MHD) smoothing

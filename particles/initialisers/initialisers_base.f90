@@ -6,9 +6,10 @@ module initialisers_base
   use mod_particle_types
   use constants
   use mod_interp
+  use mod_rej_f
   implicit none
   private
-  public initialise_particles, no_transform, adjust_particle_weights
+  public initialise_particles, adjust_particle_weights
   public set_velocity_from_T, domain_bounding_box, initialise_particles_H_mu_psi
   public initialise_particles_H_mu_psi_phiplanes
   public set_particle_weights_canonical_maxwellian, normalize_with_projection
@@ -26,13 +27,6 @@ module initialisers_base
       integer, intent(inout) :: ielm_out
       integer, intent(out)   :: ifail
     end subroutine find_RZ
-    function rej_f(n, P, gradP)
-      implicit none
-      integer, intent(in) :: n
-      real*8, dimension(n), intent(in) :: P
-      real*8, dimension(3,n), intent(in) :: gradP
-      real*4 :: rej_f
-    end function rej_f
     function real_f(n_x,x,st,time,i_elm,fields,x_min,x_max,&
     n_real_param,real_param,n_int_param,int_param)
       use mod_fields, only: fields_base
@@ -89,7 +83,7 @@ contains
 !> variables after collecting with transform, within Rbound, Zbound and Phibound
 !> if present. See [[test_rejection_sampling]] for examples.
 subroutine initialise_particles(particles, node_list, element_list, &
-  rng, variables, transform, f, Rbound, Zbound, Phibound, &
+  rng, space_pdf, Rbound, Zbound, Phibound, &
   rng_n_streams_round_off_in)
   use mpi
   use mod_sampling
@@ -101,32 +95,26 @@ subroutine initialise_particles(particles, node_list, element_list, &
   class(particle_base), dimension(:), intent(inout) :: particles
   type(type_node_list), intent(in)                  :: node_list
   type(type_element_list), intent(in)               :: element_list
-  class(type_rng), intent(in)                       :: rng !< What type of random number generator to use. Is re-seeded in the subroutine.
-  integer, dimension(:), intent(in), optional       :: variables !< Which variables from JOREK to use. If absent, sample uniformly.
-  real*8, external, optional                        :: transform !< Merge variables into a single criterium between 0 and 1 for rej.  sampling
-  !< Special values: 0 = 1, -1 = R, -2 = Z, -3 = Phi. Must be in ascending order!
-  real*8, intent(in), optional                      :: f !< Weighting factor: f=0 indicates uniform weights, f=1 indicates uniform distribution
-  !< (particle weight proportional to transform(P) at that point.) If omitted take f=0.
-  real*8, dimension(2), intent(in), optional        :: Rbound, Zbound, Phibound !< Between which coordinates to sample (RZPhi).
-  !< if omitted, determine automatically from node_list
+  class(type_rng), intent(in)                       :: rng       !< What type of random number generator to use. Is re-seeded in the subroutine.
+  type(spatial_pdf), intent(in), optional           :: space_pdf
+  real*8, dimension(2), intent(in), optional        :: Rbound, Zbound, Phibound   !< Between which coordinates to sample (RZPhi).
+                                                                                  !< if omitted, determine automatically from node_list
   logical, intent(in), optional                     :: rng_n_streams_round_off_in !< round-off the rng n_streams at 2**ceil
 
   ! Internal variables
   real*8  :: R, Z, phi, s, t, DUMMY_REAL
   real*8  :: Rbox(2), Zbox(2), Phibox(2)
-  integer :: i, j, k, ifail
+  integer :: i, j, ifail
   real*8  :: ran(7)
   integer :: i_elm
   real*8  :: t0, t1, ostart, oend
   integer :: seq, n_streams, n_threads, i_thread
-  integer :: n_geom, n_mhd
   integer :: my_id, n_mpi
   integer :: seed
-  logical :: rng_n_streams_round_off
-  real*8, dimension(:), allocatable :: P
+  logical :: rng_n_streams_round_off, use_rej
   class(type_rng), allocatable, dimension(:) :: rngs ! The RNGs for all the threads
-  integer, dimension(:), allocatable :: i_to_find
-  logical, dimension(:), allocatable :: not_found
+  integer, dimension(:), allocatable         :: i_to_find
+  logical, dimension(:), allocatable         :: not_found
 
   ostart = 0.d0
   oend   = 0.d0
@@ -135,19 +123,12 @@ subroutine initialise_particles(particles, node_list, element_list, &
   call MPI_COMM_SIZE(MPI_COMM_WORLD, n_mpi, ifail)
   rng_n_streams_round_off = .false.
   if(present(rng_n_streams_round_off_in)) rng_n_streams_round_off = rng_n_streams_round_off_in
-  if (present(variables)) then
-    if (.not. present(transform)) then
-      write(*,*) "ERROR: if variables are present in set_particle_position_rejection_sampling transform must also be present"
-      call MPI_ABORT(MPI_COMM_WORLD, 10, ifail)
-    end if
-    ! Get the number of mhd variables to use
-    allocate(P(size(variables,1)))
-    n_mhd = count(variables .gt. 0)
-    n_geom = size(variables, 1) - n_mhd
-  else
-    n_mhd = 0
-    n_geom = 0
-  end if
+
+  use_rej = .false.
+  if (present(space_pdf)) then
+    call check_spatial_pdf(space_pdf, "initialise_particles")
+    use_rej = associated(space_pdf%f)
+  endif
 
   ! Setup bounding boxes
   call domain_bounding_box(node_list, element_list, Rbox(1), Rbox(2), Zbox(1), Zbox(2))
@@ -215,9 +196,9 @@ subroutine initialise_particles(particles, node_list, element_list, &
 #else
     !$omp parallel default(none) &
 #endif
-    !$omp   shared(particles, node_list, element_list, Rbox, Zbox, PhiBox, variables, &
-    !$omp          rngs, n_threads, n_streams, seed, my_id, n_mhd, n_geom, i_to_find, not_found) &
-    !$omp   private(j, i, R, Z, phi, i_elm, s, t, ifail, seq, ran, i_thread, P, DUMMY_REAL)
+    !$omp   shared(particles, node_list, element_list, Rbox, Zbox, PhiBox, space_pdf, use_rej, &
+    !$omp          rngs, n_threads, n_streams, seed, my_id, i_to_find, not_found) &
+    !$omp   private(j, i, R, Z, phi, i_elm, s, t, ifail, seq, ran, i_thread, DUMMY_REAL)
     i_thread = 0
 !$  i_thread=omp_get_thread_num()
     !$omp do schedule(static)
@@ -229,42 +210,18 @@ subroutine initialise_particles(particles, node_list, element_list, &
 
       call find_RZ(node_list,element_list,R,Z,DUMMY_REAL,DUMMY_REAL,i_elm,s,t,ifail)
       if (ifail .eq. 0) then
-        if (present(variables)) then
-          ! Select the mhd variables requested
-          if (n_mhd .ge. 1) then
-            call interp_0(node_list,element_list,i_elm,variables(n_geom+1:n_geom+n_mhd),n_mhd,s,t,phi,P(n_geom+1:n_geom+n_mhd))
-          end if
-          do k=1,n_geom
-            select case (variables(k))
-              case (0);  P(k) = 1.d0
-              case (-1); P(k) = R
-              case (-2); P(k) = Z
-              case (-3); P(k) = phi
-            end select
-          end do
-
-          if (present(transform)) then
-            if (ran(4) .lt. transform(p)) then
-              particles(j)%x = [R, Z, phi]
-              particles(j)%i_elm = i_elm
-              particles(j)%st = [s, t]
-              select type (pa => particles(j))
-                type is (particle_kinetic_leapfrog)
-                  pa%v = ran(5:7) ! save other components of this point for velocity init in a later routine
-              end select
-              not_found(i) = .false.
-            end if
-          end if
-        else
-          particles(j)%x = [r, z, phi]
-          particles(j)%i_elm = i_elm
-          particles(j)%st = [s, t]
-          select type (pa => particles(j))
-            type is (particle_kinetic_leapfrog)
-              pa%v = ran(5:7) ! save other components of this point for velocity init in a later routine
-          end select
-          not_found(i) = .false.
+      !> Reject this position if it fails the spatial pdf
+        if (use_rej) then
+          if (ran(4) .ge. eval_rej_f(node_list, element_list, i_elm, s, t, phi, R, Z, space_pdf)) cycle
         end if
+        particles(j)%x     = [R, z, phi]
+        particles(j)%i_elm = i_elm
+        particles(j)%st    = [s, t]
+        select type(pa => particles(j))
+          type is (particle_kinetic_leapfrog)
+            pa%v = ran(5:7) !> Save other components of this point for velocity init in a later routine
+        endselect
+        not_found(i) = .false.
       end if
     enddo
     !$omp end do
@@ -600,7 +557,7 @@ end function rejection_funct_gpdf
 !> Set Psi_transform to transform from [0,1] to your desired range
 subroutine initialise_particles_H_mu_psi(particles, fields, rng_base, mass, T_maxwell, &
   Theta_transform, Psi_transform, alpha, E_max, include_vpar, uniform_space, &
-  uniform_space_rej_f, uniform_space_rej_vars, cor, charge, rng_n_streams_round_off_in)
+  space_pdf, cor, charge, rng_n_streams_round_off_in)
   use mod_rng
   use mod_fields
   use mod_random_seed
@@ -624,10 +581,8 @@ subroutine initialise_particles_H_mu_psi(particles, fields, rng_base, mass, T_ma
   real*8,                intent(in), optional       :: E_max !< If alpha=1 we select particles from a block-distribution, up to E_max
   logical,               intent(in), optional       :: include_vpar !< Initialize particles with local parallel velocity
   logical,               intent(in), optional       :: uniform_space !< Do not
-  !< use {psi,theta}_transform if present but use rejection sampling in RZ
-  procedure(rej_f),                  optional       :: uniform_space_rej_f !< Merge variables into a single criterium between 0 and 1 for rej.  sampling
-  !< Special values: 0 = 1, -1 = R, -2 = Z, -3 = Phi. Must be in ascending order!
-  integer, dimension(:), intent(in), optional       :: uniform_space_rej_vars !< Variables to use for uniform_space_rej_f
+  !< use {psi,theta}_transform if present bute rejection sampling in RZ
+  type(spatial_pdf),     intent(in), optional       :: space_pdf !< spatial pdf to reject against when uniform_space is set. If absent the RZ sampling is uniform
   type(coronal),         intent(in), optional       :: cor !< Coronal equilibrium datatype for this particle. If unset, do not alter q
   integer,               intent(in), optional       :: charge !< Use this if cor is not present
   real*8,                intent(in), optional       :: T_Maxwell !< constant Maxwellian temperature [eV]
@@ -648,12 +603,10 @@ subroutine initialise_particles_H_mu_psi(particles, fields, rng_base, mass, T_ma
   real*8, dimension(1)                :: P, P_s, P_t, P_phi
 #endif
   
-  real*8, dimension(:), allocatable   :: P2
-  real*8, dimension(:,:), allocatable :: grad_P2
-  real*8  :: R_s, R_t, Z_s, Z_t, R_i, Z_i, xjac
+  real*8  :: R_s, R_t, Z_s, Z_t
   real*8  :: s, t, u_init_max, temp, u
   real*8  :: psi_axis, R_axis, Z_axis, s_axis, t_axis
-  integer :: i_elm, i, j, k, ifail, my_id, n_mpi, ierr, n_mhd, n_geom
+  integer :: i_elm, i, j, ifail, my_id, n_mpi, ierr
   real*8, dimension(fields%element_list%n_elements,2)    :: psi_minmax_list
   real*8, allocatable, dimension(:,:)             :: rans
   class(particle_base), dimension(:), allocatable :: particles_tmp
@@ -662,7 +615,7 @@ subroutine initialise_particles_H_mu_psi(particles, fields, rng_base, mass, T_ma
   real*8  :: Rbox(2), Zbox(2), DUMMY_R, DUMMY_Z
   integer :: blocksize, prev_blocksize, particles_to_do_local, particles_done_local
   integer :: to_find, n_tries_now, n_found
-  logical :: all_done, init_uniform_space, my_include_vpar, rng_n_streams_round_off
+  logical :: all_done, init_uniform_space, my_include_vpar, rng_n_streams_round_off, use_rej
   real*8  :: my_alpha
 
   rng_n_streams_round_off = .false.
@@ -682,25 +635,11 @@ subroutine initialise_particles_H_mu_psi(particles, fields, rng_base, mass, T_ma
     my_include_vpar = .false.
   end if
 
-  if (present(uniform_space_rej_f)) then
-
-    if (.not. present(uniform_space_rej_vars)) then
-      write(*,*) "ERROR: if sampling function f is present variables must be given"
-      call MPI_ABORT(MPI_COMM_WORLD, 10, ifail)
-    end if
-
-    ! Get the number of mhd variables to use
-    allocate(P2(size(uniform_space_rej_vars,1)))
-
-    n_mhd  = count(uniform_space_rej_vars .gt. 0)
-    n_geom = size(uniform_space_rej_vars, 1) - n_mhd
-
-    allocate(grad_P2(3,size(uniform_space_rej_vars,1)))
-
-  else
-    n_mhd = 0
-    n_geom = 0
-  end if
+  use_rej = .false.
+  if (present(space_pdf)) then
+    call check_spatial_pdf(space_pdf, "initialise_particles_H_mu_psi")
+    use_rej = associated(space_pdf%f)
+  endif
 
   if (present(alpha)) then
     write(*,*) "alpha not implemented yet"
@@ -806,10 +745,10 @@ subroutine initialise_particles_H_mu_psi(particles, fields, rng_base, mass, T_ma
     !$omp parallel do default(none) &
     !$omp   shared(particles_tmp, psimax, psimin, found, F0, cor, mass, charge, T_Maxwell, &
     !$omp          fields, psi_minmax_list, rans, R_axis, Z_axis, blocksize, &
-    !$omp          my_include_vpar, central_density, init_uniform_space, Rbox, Zbox, uniform_space_rej_vars, n_geom, n_mhd) &
+    !$omp          my_include_vpar, central_density, init_uniform_space, Rbox, Zbox, space_pdf, use_rej) &
 #endif
-    !$omp   private(i, psi, theta, phi, i_elm, s, t, R, Z, R_s, R_t, Z_s, Z_t, P2, &
-    !$omp           R_i, Z_i, xjac, grad_P2, u, particle_kinetic_tmp, v2, v_par,   &
+    !$omp   private(i, psi, theta, phi, i_elm, s, t, R, Z, R_s, R_t, Z_s, Z_t, &
+    !$omp           u, particle_kinetic_tmp, v2, v_par,                        &
 #ifdef fullmhd
     !$omp           A3, AR, AZ, A3_R, A3_Z, AR_Z, AR_p, AZ_R, AZ_P, Fprof,          &
 #endif
@@ -823,44 +762,9 @@ subroutine initialise_particles_H_mu_psi(particles, fields, rng_base, mass, T_ma
         call transform_uniform_cylindrical([ran(3),ran(4),ran(5)], Rbox, Zbox, [0.d0,TWOPI], R, Z, phi)
         call find_RZ(fields%node_list, fields%element_list,R,Z,DUMMY_R,DUMMY_Z,i_elm,s,t,ifail)
 
-        if (present(uniform_space_rej_f) .and. i_elm .gt. 0) then
-
-          do k=1,n_geom
-            select case (uniform_space_rej_vars(k))
-              case (0);  P2(k) = 1.d0;
-              case (-1); P2(k) = R;
-              case (-2); P2(k) = Z;
-              case (-3); P2(k) = phi;
-            end select
-          end do
-
-          do k=1,n_geom
-            select case (uniform_space_rej_vars(k))
-              case (0);  grad_P2(:,k) = 0.d0; ! 0
-              case (-1); grad_P2(:,k) = [1.d0,0.d0,0.d0]; ! R
-              case (-2); grad_P2(:,k) = [0.d0,1.d0,0.d0]; ! Z
-              case (-3); grad_P2(:,k) = [0.d0,0.d0,1.d0]; ! phi
-            end select
-          end do
-
-          if (n_mhd .ge. 1) then
-
-            call interp_PRZ(fields%node_list, fields%element_list,i_elm,                        &
-              uniform_space_rej_vars(n_geom+1:n_geom+n_mhd),n_mhd,s,t,phi,        &
-              P2(n_geom+1:n_geom+n_mhd), grad_P2(1,n_geom+1:n_geom+n_mhd),        &
-              grad_P2(2,n_geom+1:n_geom+n_mhd), grad_P2(3,n_geom+1:n_geom+n_mhd), &
-              R_i, R_s, R_t, Z_i, Z_s, Z_t)
-
-            xjac = R_s*Z_t - R_t*Z_s
-
-            do k=1,n_mhd
-              grad_P2(1:2,n_geom+k) = [Z_t * grad_P2(1,n_geom+k) - Z_s * grad_P2(2,n_geom+k), &
-                -R_t * grad_P2(1,n_geom+k) + R_s * grad_P2(2,n_geom+k)]/xjac
-            end do
-
-          end if
-
-          if (uniform_space_rej_f(size(uniform_space_rej_vars), P2, grad_P2) .lt. ran(7)) i_elm = 0
+        !> Reject this position if it fails the spatial pdf
+        if (use_rej .and. i_elm .gt. 0) then
+          if (eval_rej_f(fields%node_list, fields%element_list, i_elm, s, t, phi, R, Z, space_pdf) .lt. ran(7)) i_elm = 0
         end if
 
       else
@@ -1038,7 +942,7 @@ end subroutine initialise_particles_H_mu_psi
 !! multiple marker particles per guiding centre particle.
 subroutine initialise_particles_H_mu_psi_phiplanes(particles, fields, rng_base, mass, T_maxwell, &
   Theta_transform, Psi_transform, alpha, E_max, include_vpar, uniform_space, &
-  uniform_space_rej_f, uniform_space_rej_vars, cor, charge, n_phi_planes_in, &
+  space_pdf, cor, charge, n_phi_planes_in, &
   n_gyro_orbit_in, rng_n_streams_round_off_in)
   use mod_rng
   use mod_fields
@@ -1064,9 +968,7 @@ subroutine initialise_particles_H_mu_psi_phiplanes(particles, fields, rng_base, 
   logical,               intent(in), optional       :: include_vpar !< Initialize particles with local parallel velocity
   logical,               intent(in), optional       :: uniform_space !< Do not
   !< use {psi,theta}_transform if present bute rejection sampling in RZ
-  procedure(rej_f),                  optional       :: uniform_space_rej_f !< Merge variables into a single criterium between 0 and 1 for rej.  sampling
-  !< Special values: 0 = 1, -1 = R, -2 = Z, - Phi. Must be in ascending order!
-  integer, dimension(:), intent(in), optional       :: uniform_space_rej_vars !< Variables to use for uniform_space_rej_f
+  type(spatial_pdf),     intent(in), optional       :: space_pdf !< spatial pdf to reject against when uniform_space is set. if absent the RZ sampling is uniform
   type(coronal),         intent(in), optional       :: cor !< Coronal equilibrium datatype for this particle. If unset, do not alter q
   integer,               intent(in), optional       :: charge !< Use this if cor is not present
   real*8,                intent(in), optional       :: T_Maxwell !< constant Maxwellian temperature [eV]
@@ -1088,12 +990,10 @@ subroutine initialise_particles_H_mu_psi_phiplanes(particles, fields, rng_base, 
 #else 
   real*8, dimension(1)                :: P, P_s, P_t, P_phi
 #endif
-  real*8, dimension(:), allocatable   :: P2
-  real*8, dimension(:,:), allocatable :: grad_P2
-  real*8  :: R_s, R_t, Z_s, Z_t, R_i, Z_i, xjac
+  real*8  :: R_s, R_t, Z_s, Z_t
   real*8  :: s, t, u_init_max, temp, u, v2, v_par
   real*8  :: psi_axis, R_axis, Z_axis, s_axis, t_axis
-  integer :: i_elm, i, j, k, ifail, my_id, n_mpi, ierr, n_mhd, n_geom
+  integer :: i_elm, i, j, ifail, my_id, n_mpi, ierr
   real*8, dimension(fields%element_list%n_elements,2)    :: psi_minmax_list
   real*8, allocatable, dimension(:,:)             :: rans
   class(particle_base), dimension(:), allocatable :: particles_tmp
@@ -1103,7 +1003,7 @@ subroutine initialise_particles_H_mu_psi_phiplanes(particles, fields, rng_base, 
   integer :: blocksize, prev_blocksize, particles_to_do_local, particles_done_local, blocksize_tmp
   integer :: to_find, n_tries_now, n_found
   logical :: all_done, init_uniform_space, my_include_vpar
-  logical :: init_phiplanes, init_gyro_orbit, rng_n_streams_round_off
+  logical :: init_phiplanes, init_gyro_orbit, rng_n_streams_round_off, use_rej
   real*8  :: my_alpha
   integer :: n_phi_planes,i_phi_planes, n_gyro_orbit, i_gyro_temp, i_gyro_orbit
 
@@ -1143,24 +1043,11 @@ subroutine initialise_particles_H_mu_psi_phiplanes(particles, fields, rng_base, 
     n_gyro_orbit=1 !In this case, the loops aren't there
   endif
 
-  if (present(uniform_space_rej_f)) then
-    if (.not. present(uniform_space_rej_vars)) then
-      write(*,*) "ERROR: if sampling function f is present variables must be given"
-      call MPI_ABORT(MPI_COMM_WORLD, 10, ifail)
-    end if
-
-    ! Get the number of mhd variables to use
-    allocate(P2(size(uniform_space_rej_vars,1)))
-
-    n_mhd  = count(uniform_space_rej_vars .gt. 0)
-    n_geom = size(uniform_space_rej_vars, 1) - n_mhd
-
-    allocate(grad_P2(3,size(uniform_space_rej_vars,1)))
-
-  else
-    n_mhd = 0
-    n_geom = 0
-  end if
+ use_rej = .false.
+ if (present(space_pdf)) then
+  call check_spatial_pdf(space_pdf, "initialise_particles_H_mu_psi_phiplanes")
+  use_rej = associated(space_pdf%f)
+ endif
 
   if (present(alpha)) then
     write(*,*) "alpha not implemented yet"
@@ -1275,10 +1162,10 @@ subroutine initialise_particles_H_mu_psi_phiplanes(particles, fields, rng_base, 
     !$omp parallel do default(none) &
     !$omp   shared(particles_tmp, psimax, psimin, found, F0, cor, mass, charge, T_Maxwell, &
     !$omp          fields, psi_minmax_list, rans, R_axis, Z_axis, blocksize, init_phiplanes,init_gyro_orbit, n_gyro_orbit,blocksize_tmp,&
-    !$omp          my_include_vpar, central_density, init_uniform_space, Rbox, Zbox, uniform_space_rej_vars, n_geom, n_mhd,n_phi_planes,my_id) &
+    !$omp          my_include_vpar, central_density, init_uniform_space, Rbox, Zbox, space_pdf, use_rej, n_phi_planes,my_id) &
 #endif
-    !$omp   private(i, psi, theta, phi, i_elm, s, t, R, Z, R_s, R_t, Z_s, Z_t, P2, &
-    !$omp           R_i, Z_i, xjac, grad_P2, u, particle_kinetic_tmp, v2, v_par,   &
+    !$omp   private(i, psi, theta, phi, i_elm, s, t, R, Z, R_s, R_t, Z_s, Z_t, &
+    !$omp           u, particle_kinetic_tmp, v2, v_par,                        &
 #ifdef fullmhd
     !$omp          A3, AR, AZ, A3_R, A3_Z, AR_Z, AR_p, AZ_R, AZ_P, Fprof, &
 #endif
@@ -1300,44 +1187,9 @@ subroutine initialise_particles_H_mu_psi_phiplanes(particles, fields, rng_base, 
 
         call find_RZ(fields%node_list, fields%element_list,R,Z,DUMMY_R,DUMMY_Z,i_elm,s,t,ifail)
 
-        if (present(uniform_space_rej_f) .and. i_elm .gt. 0) then
-
-          do k=1,n_geom
-            select case (uniform_space_rej_vars(k))
-              case (0);  P2(k) = 1.d0;
-              case (-1); P2(k) = R;
-              case (-2); P2(k) = Z;
-              case (-3); P2(k) = phi;
-            end select
-          end do
-
-          do k=1,n_geom
-            select case (uniform_space_rej_vars(k))
-              case (0);  grad_P2(:,k) = 0.d0; ! 0
-              case (-1); grad_P2(:,k) = [1.d0,0.d0,0.d0]; ! R
-              case (-2); grad_P2(:,k) = [0.d0,1.d0,0.d0]; ! Z
-              case (-3); grad_P2(:,k) = [0.d0,0.d0,1.d0]; ! phi
-            end select
-          end do
-
-          if (n_mhd .ge. 1) then
-
-            call interp_PRZ(fields%node_list, fields%element_list,i_elm,                        &
-              uniform_space_rej_vars(n_geom+1:n_geom+n_mhd),n_mhd,s,t,phi,        &
-              P2(n_geom+1:n_geom+n_mhd), grad_P2(1,n_geom+1:n_geom+n_mhd),        &
-              grad_P2(2,n_geom+1:n_geom+n_mhd), grad_P2(3,n_geom+1:n_geom+n_mhd), &
-              R_i, R_s, R_t, Z_i, Z_s, Z_t)
-
-            xjac = R_s*Z_t - R_t*Z_s
-
-            do k=1,n_mhd
-              grad_P2(1:2,n_geom+k) = [Z_t * grad_P2(1,n_geom+k) - Z_s * grad_P2(2,n_geom+k), &
-                -R_t * grad_P2(1,n_geom+k) + R_s * grad_P2(2,n_geom+k)]/xjac
-            end do
-
-          end if
-
-          if (uniform_space_rej_f(size(uniform_space_rej_vars), P2, grad_P2) .lt. ran(7)) i_elm = 0
+        !> reject this position if it fails the spatial pdf
+        if (use_rej .and. i_elm .gt. 0) then
+          if (eval_rej_f(fields%node_list, fields%element_list, i_elm, s, t, phi, R, Z, space_pdf) .lt. ran(7)) i_elm = 0
         end if
 
       else
@@ -1761,19 +1613,6 @@ subroutine domain_bounding_box(node_list, element_list, Rmin, Rmax, Zmin, Zmax)
     Zmax = max(Zmax, el_Zmax)
   enddo
 end subroutine domain_bounding_box
-
-
-!> Dummy function to use when no transform is desired. Copies the first parameter
-!> into the output or sets out to 1.
-pure function no_transform(in) result(out)
-  real*8, dimension(:), intent(in) :: in
-  real*8 :: out
-  if (size(in,1) .gt. 0) then
-    out = in(1)
-  else
-    out = 1.d0
-  end if
-end function no_transform
 
 
 !> Adjust weights on all particles to have the correct number of atoms in total

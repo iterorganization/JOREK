@@ -15,7 +15,7 @@ use phys_module, only: xpoint, xcase
 use mod_sobseq_rng, only: sobseq_rng
 use mod_random_seed, only: random_seed
 use constants, only: TWOPI
-use mod_initialise_particles, only: domain_bounding_box
+use initialisers_base, only: domain_bounding_box
 use mod_math_operators, only: cross_product
 use domains
 use equil_info, only:find_xpoint
