@@ -94,6 +94,7 @@ namelist /in1/  tstep, nstep, tstep_n, nstep_n,                     &
                 particlesource, heatsource, tauIC,                  &
                 produce_live_data, gmres, gmres_max_iter,           &
                 iter_precon, gmres_4, gmres_m, gmres_tol,           &
+                gmres_right_prec,                                   &
                 max_steps_noUpdate,                                 &
                 keep_n0_const, linear_run, export_for_nemec,        &
                 output_bnd_elements,                                &

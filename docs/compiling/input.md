@@ -503,8 +503,9 @@ render_with_liquid: false
 | **iter_precon** | 10 | whenever the number of gmres iterations exceeds iter_precon, the preconditioning matrix is updated | x | x | x | x | x | x | x | x |
 | **max_steps_noUpdate** | 10000000 | whenever the steps without preconditioning matrix update exceeds max_steps_noUpdate, the preconditioning matrix is updated | x | x | x | x | x | x | x | x |
 | **gmres_m** | 20 | gmres restart parameter (dimension) | x | x | x | x | x | x | x | x |
-| **gmres_4** | 1.d3 | see gmres manual (error ratio between preconditioned and non-preconditioned error) | x | x | x | x | x | x | x | x |
+| **gmres_4** | 1.d3 | Unused by the current GMRES driver; still read so that existing input files remain valid | x | x | x | x | x | x | x | x |
 | **gmres_tol** | 1.d-8 | the tolerance for the gmres iterations to be seen as converged | x | x | x | x | x | x | x | x |
+| **gmres_right_prec** | .true. | GMRES preconditioning side: right (.true., minimises the true residual) or left (.false.) | x | x | x | x | x | x | x | x |
 | **tgnum** | 0. | Coefficients for Taylor Galerkin stabilization for each equation separately | x | x | x |  |  |  |  |  |
 | **tgnum_psi** | 0. | Same as previous line, but avoiding equation indexing for model families |  |  |  | x |  |  |  |  |
 | **tgnum_u** | 0. |  |  |  |  | x |  |  |  |  |

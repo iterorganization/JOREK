@@ -50,29 +50,109 @@ When `gmres = .true.`, a Krylov iterative method is used, preconditioned by the
 
 ### GMRES
 
-Left-preconditioned restarted GMRES is implemented in `solvers/mod_gmres.f90`. (A more modern implementation avaliable in selected branches is implemented in `solvers/mod_gmres2.f90`).
+Restarted GMRES is implemented in `solvers/mod_gmres2.f90`.
 
-The algorithm applies the preconditioner $M^{-1}$ to both the initial residual
-and to each new Krylov vector.  Orthogonalisation is performed by a
-Gram–Schmidt variant (classical or modified, with or without
-re-orthogonalisation, controlled at compile time).  Givens rotations maintain
-the upper Hessenberg in triangular form in-place.  After each restart the
-solution is updated as $x \leftarrow x + V y$, where $y$ minimises the
-preconditioned residual over the current Krylov subspace.
+#### Preconditioning side
+
+The preconditioner $M$ can be applied from either side, selected at run time
+with `gmres_right_prec`:
+
+| `gmres_right_prec` | System solved | Residual minimised and tested |
+|---|---|---|
+| `.true.` (default) | $A M^{-1} y = b$, with $x = M^{-1} y$ | $\lVert b - Ax \rVert$, the **true** residual |
+| `.false.` | $M^{-1} A x = M^{-1} b$ | $\lVert M^{-1}(b - Ax) \rVert$, the preconditioned residual |
+
+Right preconditioning is the default because GMRES then minimises, and tests
+for convergence, the true residual $r = b - Ax$ in the plain Euclidean norm.
+Under left preconditioning it works with $M^{-1}r$ instead. Since
+$\|r\| \le \|M\|\,\|M^{-1}r\|$, a small preconditioned residual only implies a
+small true residual when $\|M\|$ is moderate, and the weighting by $M^{-1}$
+changes whenever $M$ does. In JOREK $M$ changes often: the factorisation is
+deliberately reused over several time steps (see
+[Factorisation Reuse](#factorisation-reuse)), so its quality varies from step
+to step.
+
+The choice of side does not make GMRES faster in principle.
+$AM^{-1} = M\,(M^{-1}A)\,M^{-1}$, so both preconditioned matrices have the
+same eigenvalues; iteration counts differ only through non-normality and the
+different norm being minimised.
+
+#### Algorithm
+
+The Arnoldi vectors are orthogonalised by Gram–Schmidt. The variant is chosen
+by logical flags hard-coded at the top of `gmres2_driver` (`GSC`, `GSM`,
+`GSCI`, `GSMI`). The default, `GSCI`, is classical Gram–Schmidt with
+re-orthogonalisation: the projection is repeated, up to three times, as long
+as a pass shrinks the vector's norm by more than a factor of two. Givens
+rotations keep the upper Hessenberg matrix in triangular form in place.
+
+If the new Arnoldi vector almost vanishes after orthogonalisation, i.e.
+$h_{j+1,j} \le 10^{-14}\,\|w_j\|$ where $w_j$ is the vector before
+orthogonalisation, the Krylov subspace is numerically invariant and the
+restart cycle ends (a *breakdown*). Normally this is a *happy* breakdown: the
+small least-squares problem is then solved exactly, the residual estimate
+becomes zero, and the solve is reported as converged. It is reported as a
+failure only if the entire rotated column vanishes, which makes the
+triangular factor singular.
+
+At the end of each cycle of $k$ iterations the solution is updated as
+
+$$x \leftarrow x + M^{-1} V_k\, y_k \quad \text{(right)}, \qquad
+x \leftarrow x + V_k\, y_k \quad \text{(left)},$$
+
+where $V_k = [v_1, \dots, v_k]$ holds the Arnoldi vectors and $y_k$ minimises
+the residual over the current Krylov subspace. For right preconditioning the
+vectors $z_j = M^{-1} v_j$ are stored during the cycle, so the update needs no
+further preconditioner solve. This costs `gmres_m` extra stored vectors,
+roughly doubling the Krylov memory (the basis itself holds `gmres_m`+1).
+Because the update uses the stored $z_j$ instead of applying $M^{-1}$ again,
+this is the *flexible* GMRES form: it remains correct even if the
+preconditioner changes from one iteration to the next.
+
+#### Convergence
+
+The iteration does not start from zero. Before calling GMRES,
+`solve_sparse_system` applies the preconditioner to the right-hand side, so
+the initial guess is $x_0 = M^{-1} b$, with residual $r_0 = b - A x_0$.
+
+Let $\rho_k$ be the residual norm that GMRES tracks, and $\beta$ the matching
+norm of the right-hand side:
+
+| | $\rho_k$ | $\beta$ |
+|---|---|---|
+| right | $\lVert b - A x_k \rVert$ | $\lVert b \rVert$ |
+| left | $\lVert M^{-1}(b - A x_k) \rVert$ | $\lVert M^{-1} b \rVert$ |
 
 Convergence is declared when
 
-$$\frac{\|r_k\|}{\|r_0\|} < \texttt{gmres_tol}$$
+$$\rho_k \le \max\left(\texttt{gmres_tol}\cdot\rho_0,\ \varepsilon\,\beta\right),
+\qquad \varepsilon = 10^{-14}.$$
 
-or when the absolute residual drops below a secondary threshold.
+The target is fixed at the first iteration and is not reset by restarts.
+Within a cycle, $\rho_k$ is the estimate given by the Givens rotations, which
+equals the true value in exact arithmetic; at every restart it is recomputed
+from $b - Ax$.
+
+The floor stops a very small `gmres_tol` from iterating on round-off until
+`gmres_max_iter`. It is a heuristic, not a guarantee: the smallest residual
+GMRES can reach in double precision is of order
+$u\,(\|A\|\,\|x\| + \|b\|)$, $u \approx 1.1\times10^{-16}$, which for an
+ill-conditioned system can exceed $\varepsilon\,\|b\|$.
+
+`gmres2_driver` returns a `converged` flag, which `solvers/mod_sparse.f90`
+passes on as `solver%step_success`. The flag is false when `gmres_max_iter`
+iterations are reached without meeting the target, or on a breakdown that is
+not a happy one. Each iteration prints $\rho_k$, $\rho_k/\rho_0$
+(`res/res0`) and $\rho_k/\beta$ (`res/rhs`).
 
 Key input parameters:
 
 | Parameter | Default | Description |
 |---|---|---|
-| `gmres_m` | 40 | Restart dimension |
-| `gmres_max_iter` | 400 | Maximum number of outer (restarted) iterations |
-| `gmres_tol` | — | Relative residual tolerance |
+| `gmres_m` | 20 | Restart length: Arnoldi vectors per cycle (capped at `gmres_max_iter`) |
+| `gmres_max_iter` | 200 | Maximum **total** number of iterations, counted across restarts |
+| `gmres_tol` | 1.d-8 | Tolerance on $\rho_k$ relative to $\rho_0$ (see the floor above) |
+| `gmres_right_prec` | .true. | Right (`.true.`) or left (`.false.`) preconditioning |
 
 ### BiCGSTAB
 
@@ -83,18 +163,23 @@ for the search direction, once for the stabilizer), which is more expensive per
 step than GMRES but avoids restarting costs.  Enable it at compile time with the
 `USE_BICGSTAB` preprocessor flag.
 
-> <b><font color="red">Hint:</font></b> Use of BiSCSTAB is generally not recommended.
+> <b><font color="red">Hint:</font></b> Use of BiCGSTAB is generally not recommended.
 
 ---
 
 ## Preconditioner
 
 **Preconditioning** is essential in solving linear systems using iterative methods. The matrices resulting from the MHD formulations in JOREK are highly ill-conditioned and iterative methods do not converge without a proper preconditioner.  
-We choose a preconditioner$M$ such that we solve the modified left preconditioned system
+Instead of $Ax = b$, GMRES solves one of two preconditioned systems, the right-preconditioned
 
-$$M^{-1}A x = M^{-1}b,$$
+$$A M^{-1} y = b, \qquad x = M^{-1} y,$$
 
-where $M$ is "cheap" to invert and $M^{-1}A$ is a reasonably good approximation of the identity.
+or the left-preconditioned
+
+$$M^{-1}A x = M^{-1}b.$$
+
+$M$ is chosen so that systems with $M$ are cheap to solve, and so that $AM^{-1}$ (or $M^{-1}A$) is close to the identity. `gmres_right_prec` selects the side; see [GMRES](#gmres) above.
+
 There exist many "standard" techniques that can be applied to general systems without considering the original problem. These, of course, have the benefit of being "plug-and-play" and work reasonably well for a wide range of problems. When going into very ill-conditioned problems we find most of these approaches to have little to no effect. These cases require more advanced study to create tailored preconditioners to obtain good convergence.
 
 The _block harmonic_ preconditioner in JOREK exploits the **toroidal Fourier structure** of
@@ -106,10 +191,11 @@ The preconditioner is set up and applied by
 
 ### Concept
 
-For a purely axisymmetric geometry, toroidal harmonics decouple completely: the
-mode-$n$ rows of the system matrix have no coupling to mode-$m \ne n$ columns.
-JOREK's matrix does contain inter-harmonic coupling terms (from inter-harmonic coupling terms in the system),
-but in many cases the dominant, physics-relevant coupling is intra-harmonic.  The
+For a problem linearised about an axisymmetric equilibrium, toroidal
+harmonics decouple completely: the mode-$n$ rows of the system matrix have no
+coupling to mode-$m \ne n$ columns. Nonlinear terms and non-axisymmetric
+geometry (e.g. stellarators) do couple harmonics, but in many cases the
+dominant coupling is still within a harmonic.  The
 preconditioner $M$ is therefore built by **grouping the toroidal modes into
 families** and assembling one block-diagonal preconditioner matrix per family
 that retains all intra-family coupling while discarding the inter-family terms.
@@ -214,15 +300,18 @@ Each GMRES / BiCGSTAB preconditioner application performs the following steps:
 
 ### Factorisation Reuse
 
-Refactoring the preconditioner at every time step is expensive. Thus, we can reuse the factorized preconditioner matrices over multiple timesteps, where they still provide a good approximation of the linear system.  JOREK reuses the existing factorisation (the `solve_only` path) when:
+Refactoring the preconditioner at every time step is expensive. Thus, we can reuse the factorized preconditioner matrices over multiple timesteps, where they still provide a good approximation of the linear system.  After the first time step, JOREK reuses the existing factorisation (the
+`solve_only` path) when both
 
 $$\texttt{iter_gmres} + \texttt{iter_prev} \le 2 \times \texttt{iter_precon}
 \quad \text{and} \quad
 \texttt{n_since_update} < \texttt{max_steps_noUpdate}$$
 
-where `iter_precon` and `max_steps_noUpdate` are input parameters.  When
-neither condition is satisfied, the preconditioner matrix is reassembled and
-refactorised.
+hold, i.e. the last two solves averaged at most `iter_precon` GMRES iterations
+and the factorisation is younger than `max_steps_noUpdate` steps (both are
+input parameters). If either condition fails, the preconditioner matrix is
+reassembled and refactorised. Within a Newton loop the preconditioner is never
+updated after the first Newton iteration.
 
 ### Preconditioner Matrix Assembly
 
