@@ -247,14 +247,14 @@ end if
 ! This requires domm_file to provide dcoef array. Without it, dcoef=0 causes NaN in field calculations.
 if (.not. domm .and. my_id .eq. 0) then
   write(*,*) '**************************************************************************'
-  write(*,*) 'WARNING: Compiled with USE_DOMM=1 (Dommaschk-only vacuum field)'
+  write(*,*) 'WARNING: Compiled with use_domm=.true. (Dommaschk-only vacuum field)'
   write(*,*) '         but domm_file="', trim(domm_file), '"'
   write(*,*) '         Vacuum field will be ZERO (dcoef array uninitialized)!'
   write(*,*) '         This will cause NaN in field line tracing and Poincare plots.'
   write(*,*) ''
   write(*,*) 'SOLUTION: Either:'
   write(*,*) '  1. Provide domm_file with Dommaschk coefficients in namelist'
-  write(*,*) '  2. Recompile with USE_DOMM=0 to use GVEC import + FE correction'
+  write(*,*) '  2. Recompile with use_domm=.false. (util/config.sh) to use GVEC import + FE correction'
   write(*,*) '**************************************************************************'
   stop
 end if
