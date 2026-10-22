@@ -137,6 +137,16 @@ module exec_commands
           call ballooning(command, first_step, ierr)
         case ( 'boundary_quantities' )
           call boundary_quantities(command, first_step, ierr)
+        case ( 'export_helena' )
+          call check_step_imported(ierr)
+#ifdef fullmhd
+          write(*,*) 'Warning: Export to helena is not adapted for full MHD'
+#else
+          if ( ierr == 0 ) call export_helena(node_list, element_list, bnd_elm_list)
+#endif
+        case ( 'export_nemec' )
+          call check_step_imported(ierr)
+          if ( ierr == 0 ) call export_nemec(node_list, element_list, xpoint, xcase)
         case ( 'zeroD_quantities' )
           call zeroD_quantities(command, first_step, ierr) 
         case ( 'average_h5' )
@@ -252,6 +262,7 @@ module exec_commands
           'rectangle', 'rectangular_torus', 'energy_spectrum', 'average_h5', 'I_halo_TPF',         &
           'spi-state', 'shards', 'zeroD_quantities', 'boundary_quantities', 'find_q_surface',      &
           'pol_contour_integrals', 'midplane2d', 'expressions_four', 'RHS_terms_vtk', 'ballooning', &
+          'export_helena', 'export_nemec',                                                          &
           'ballooning_eigfun', 'ballooning_salpha')
           call add_to_command_queue(command, ierr)
         case ( 'help' )
@@ -1763,11 +1774,23 @@ module exec_commands
     character(len=1024) :: filename, comment
     type(t_pol_pos_list), save :: pol_pos_list
     type(t_tor_pos_list), save :: tor_pos_list
+    type(t_expr_list)   :: el      ! selected expressions (+ unity for the flux-surface average)
+    logical             :: fav     ! flux-surface average <f> (weight dl/B_p) instead of theta* average
     
     ierr = 0
     
     ! --- Some checks
-    call check_args(command%n_args,ierr,0);  if ( ierr /= 0 ) return
+    call check_args(command%n_args,ierr,0,1);  if ( ierr /= 0 ) return
+    fav = .false.
+    if ( present(flux_av) ) fav = flux_av
+    if ( command%n_args == 1 ) then
+      if ( trim(command%args(1)) /= 'flux_av' ) then
+        write(*,*) 'ERROR: the only argument of average is flux_av'
+        ierr = 1
+        return
+      end if
+      fav = .true.
+    end if
     call check_step_imported(ierr);          if ( ierr /= 0 ) return
     call check_exprs_selected(ierr);         if ( ierr /= 0 ) return
     
@@ -1781,26 +1804,26 @@ module exec_commands
     
     write(filename,'(4a)') trim(DIR), 'exprs_averaged',                                                  &
       trim(step_range_string(loop_min_step,loop_max_step)), '.dat'
+    if ( fav ) write(filename,'(4a)') trim(DIR), 'exprs_flux_averaged',                                &
+      trim(step_range_string(loop_min_step,loop_max_step)), '.dat'
     
     ! ### is nTht and nphi really chosen well???
     pol_pos_list = pol_pos(node_list, element_list, ES, nPsiN=npts, nTht=max(150,6*n_plane),                &
       nsmallsteps=nsmall, nmaxsteps=nmaxstep, deltaphi=deltaphi, PsiNmax=PsiNmax, PsiNmin=PsiNmin )
     tor_pos_list = tor_pos(nphi=max(n_plane,2))
 
-    if (present(flux_av)) then
-      call add(expr_list, 'unity       ', 'Just unity, used to get R^2 average                   ')
-    endif
+    ! --- The theta* average weights with dl/(R^2 B_p); <f> = <R^2 f>_theta* / <R^2>_theta* (weight dl/B_p)
+    el = expr_list
+    if ( fav ) call add(el, 'unity       ', 'Just unity, used to get R^2 average                   ')
 
-    call eval_expr(ES, units, expr_list, pol_pos_list, tor_pos_list, result, ierr, flux_av)
-    call apply_four_filter(result, simple_filter(m=0,n=0), expr_list%n_coord, ierr)
+    call eval_expr(ES, units, el, pol_pos_list, tor_pos_list, result, ierr, fav)
+    call apply_four_filter(result, simple_filter(m=0,n=0), el%n_coord, ierr)
     call reduce_result_to_1d(ierr, result, res1d, i1=1, i2=1)
 
-    if (present(flux_av)) then 
-      if (flux_av) then
-        do i_exp=1, expr_list%n_expr
-          res1d(:,i_exp) = res1d(:,i_exp) / res1d(:,expr_list%n_expr)  ! Need to normalize for flux average
-        enddo
-      endif      
+    if ( fav ) then
+      do i_exp = 1, el%n_expr          ! (unity, the last column, is normalised last)
+        res1d(:,i_exp) = res1d(:,i_exp) / res1d(:,el%n_expr)  ! Need to normalize for flux average
+      enddo
     endif
     
     if (present(res1d_tmp)) then
@@ -1809,7 +1832,7 @@ module exec_commands
     else
       write(comment,'(a,i6.6)') 'time step #', index_now
     
-      call write_ascii_1d(ierr, ES, expr_list, res1d, FORM_TABLE, header=.true.,                     &
+      call write_ascii_1d(ierr, ES, el, res1d, FORM_TABLE, header=.true.,                            &
         filename=trim(filename), append=(.not.first_step), blanks=.true., comment=trim(comment))
     endif
     
