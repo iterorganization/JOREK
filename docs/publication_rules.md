@@ -26,7 +26,9 @@ render_with_liquid: false
   compliance verification.
 
 - The JOREK logo is available for use in posters and slides in different formats
-  and versions.
+  and versions (see the [JOREK logo](jorek_logo.md) page).
+
+  <img src="assets/jorek_logo/JOREK_logo.png" alt="The JOREK logo" width="300">
 
 ---
 
