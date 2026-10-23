@@ -301,6 +301,7 @@ module mod_expression
     call add(exprs_all_int, 'Ohmic_out   ', 'Ohmic heating (outside LCFS)                          ')
     call add(exprs_all_int, 'Rad_tot     ', 'Total impurity radiation power (incl. backgr. imp)    ')
     call add(exprs_all_int, 'Rad_bg_tot  ', 'Background impurity radiation power                   ')
+    call add(exprs_all_int, 'Rad_brem_tot', 'Deuterium continuum radiation power (recomb. + brems.)')
     call add(exprs_all_int, 'P_vn        ', 'Boundary flux of outgoing pressure                    ')
     call add(exprs_all_int, 'qn_par      ', 'Boundary flux of the parallel thermal conduction      ')
     call add(exprs_all_int, 'qn_perp     ', 'Boundary flux of the perpendicular thermal conduction ')
