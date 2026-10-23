@@ -33,8 +33,8 @@ call MPI_BCAST(node_list%n_dof,1,MPI_INTEGER,0,MPI_COMM_WORLD,ierr)
 ! For model183 with USE_EXT_FIELD we now also pack b_field, so add +1*(n_dim+1) = 3*(n_dim+1) total
 bufsize = node_list%n_nodes * ((n_coord_tor*n_degrees*(n_dim+3*(n_dim+1)+1) + 2*n_tor*n_degrees*n_variables + n_tor*n_degrees + 2 + 2*n_degrees)*IDBL_EXT + (n_degrees + 1+3+1+1)*INT_EXT + (2)*ILOG_EXT)
 #else
-! USE_DOMM: model180 packs j_field+b_field+b_vac_field = 3*(n_dim+1), model183 only b_vac_field = 1*(n_dim+1)
-! Use 3*(n_dim+1) to cover worst case (model180). Slight overallocation for model183 is harmless.
+! USE_DOMM (W7-A): model180 packs j_field+b_field = 2*(n_dim+1), no b_vac_field (not used under USE_DOMM).
+! Bufsize uses 3*(n_dim+1) - slight overallocation is harmless and avoids underflow.
 bufsize = node_list%n_nodes * ((n_coord_tor*n_degrees*(n_dim+3*(n_dim+1)) + 2*n_tor*n_degrees*n_variables + n_tor*n_degrees + 2 + 2*n_degrees)*IDBL_EXT + (n_degrees + 1+3+1+1)*INT_EXT + (2)*ILOG_EXT)
 #endif
 #elif fullmhd
