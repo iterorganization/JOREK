@@ -293,7 +293,7 @@ subroutine read_gvec_import(node_list, element_list, file_name, is_test, ierr)
 #ifdef USE_EXT_FIELD
   read(in_gvec, '(A)', iostat=ierr)
   if (ierr /= 0) then
-    write(*,*) 'ERROR: USE_EXT_FIELD=1 but gvec2jorek.dat does not contain B_vac blocks.'
+    write(*,*) 'ERROR: use_ext_field=.true. but gvec2jorek.dat does not contain B_vac blocks.'
     write(*,*) 'Regenerate gvec2jorek.dat with a GVEC version that exports B_vac_R/Z/phi.'
     stop
   end if

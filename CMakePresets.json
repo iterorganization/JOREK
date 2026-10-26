@@ -1,0 +1,52 @@
+{
+  "version": 4,
+  "cmakeMinimumRequired": {
+    "major": 3,
+    "minor": 21,
+    "patch": 0
+  },
+  "configurePresets": [
+    {
+      "name": "base",
+      "hidden": true,
+      "binaryDir": "${sourceDir}/build/${presetName}",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "JOREK_MODEL": "model600"
+      }
+    },
+    {
+      "name": "debug",
+      "hidden": true,
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug"
+      }
+    },
+    {
+      "name": "intel-oneapi",
+      "hidden": true,
+      "inherits": "base",
+      "description": "Intel oneAPI + MKL + STRUMPACK. A machine preset sets JOREK_LIBDIR in its environment; the library roots default to <JOREK_LIBDIR>/<lib>/install.",
+      "cacheVariables": {
+        "CMAKE_Fortran_COMPILER": "mpiifx",
+        "CMAKE_C_COMPILER": "mpiicx",
+        "CMAKE_CXX_COMPILER": "mpiicpx",
+        "CMAKE_Fortran_FLAGS": "-mcmodel=medium",
+        "CMAKE_C_FLAGS": "-mcmodel=medium",
+        "CMAKE_CXX_FLAGS": "-mcmodel=medium",
+        "JOREK_USE_MKL": "ON",
+        "JOREK_USE_STRUMPACK": "ON",
+        "JOREK_USE_MUMPS": "OFF",
+        "JOREK_USE_PASTIX": "OFF",
+        "JOREK_USE_HDF5": "ON",
+        "JOREK_USE_FFTW": "ON",
+        "JOREK_USE_BLOCK": "ON",
+        "JOREK_LIB_DIR": "$env{JOREK_LIBDIR}",
+        "STRUMPACK_ROOT": "$env{JOREK_LIBDIR}/STRUMPACK/install",
+        "METIS_ROOT": "$env{JOREK_LIBDIR}/METIS/install",
+        "PARMETIS_ROOT": "$env{JOREK_LIBDIR}/ParMETIS/install",
+        "GKLIB_ROOT": "$env{JOREK_LIBDIR}/GKlib/install"
+      }
+    }
+  ]
+}

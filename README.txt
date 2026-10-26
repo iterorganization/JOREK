@@ -6,6 +6,51 @@
 
 For a documentation about the code, see jorek.eu/wiki
 
+
+=======================================================
+ Building with CMake (recommended)
+=======================================================
+
+CMakePresets.json only holds generic hidden presets (base, debug,
+intel-oneapi). Machine presets are local: copy cmake/presets/example.json to
+cmake/presets/<machine>.json (ignored by git), set JOREK_LIBDIR in its
+"environment" once and the module line in its "description". It includes
+CMakePresets.json itself so it can inherit intel-oneapi. Include it from a
+CMakeUserPresets.json (also ignored) in the source root:
+
+  {
+    "version": 4,
+    "include": ["cmake/presets/<machine>.json"]
+  }
+
+The library roots default to $env{JOREK_LIBDIR}/<lib>/install; override only
+the ones laid out differently. To list the presets:
+
+  cmake --list-presets
+
+Pick the preset for your machine (add -debug for a debug build).
+
+  # 1. load the modules listed in the preset's description
+  # 2. configure once
+  cmake --preset <preset>
+
+  # 3. build (build tree is build/<preset>/)
+  cmake --build build/<preset> -j 16                        # default: main solver
+  cmake --build build/<preset> --target jorek2_diagno -j 16 # a specific program
+  cmake --build build/<preset> --target help                # list all targets
+
+Every .f90 file with a `program` statement becomes a target named after the
+file; the built executables land in build/<preset>/. Set the model and options
+per preset (JOREK_MODEL, JOREK_USE_*), not in Makefile.inc.
+
+
+=======================================================
+ Building with Makefile.inc (DEPRECATED)
+=======================================================
+
+NOTE: the Makefile.inc / `make` build below is deprecated. Prefer the CMake
+build above. The instructions are kept for reference only.
+
 to build jorek2:
 
 - edit the Makefile.inc file to match your environment
