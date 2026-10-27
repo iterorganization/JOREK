@@ -73,8 +73,9 @@ contains
     use mod_solve_sparse_projection, only: solve_sparse_projection_system
     use mod_particle_sim, only: particle_sim
     use mod_parameters, only: n_tor, n_vertex_max, n_degrees
-    use phys_module, only: n_aux_var
+    use phys_module, only: n_aux_var, treat_axis
     use data_structure, only: init_node
+    use mod_axis_treatment, only: transform_projection_rhs_for_axis_element, new_to_old_dofs_on_the_axis
 
     use mpi_mod
     use mod_event
@@ -89,6 +90,7 @@ contains
     integer :: in, i_elm, i, j, k, i_var, i_start, i_tor
     integer :: index_large_i, inode, index
     real*8  :: t0, t1, ostart, oend, mmm(3), mmm2(3)
+    real*8  :: rhs_elm(n_degrees,n_vertex_max,n_tor), y_node(n_degrees,n_tor+1), old_dofs(4)
     real*8,  allocatable :: my_rhs(:,:), y_tmp(:)
     integer, allocatable :: recv_counts(:), recv_disp(:)
     integer :: n_rhs, n_rhs_f, i_rhs, n_tor_local, i_tor_local, n_loc_n
@@ -146,6 +148,9 @@ contains
           
       do i_elm=1,this%element_list%n_elements
 
+        rhs_elm = this%rhs(:, :, i_elm, :, i_rhs)
+        if (treat_axis) call transform_projection_rhs_for_axis_element(this%node_list, this%element_list%element(i_elm), i_elm, rhs_elm, n_tor)
+
         do i=1,n_vertex_max
 
           inode = this%element_list%element(i_elm)%vertex(i)
@@ -154,15 +159,15 @@ contains
 
             index_large_i = 2 * (this%node_list%node(inode)%index(j)-1) + 1 + i_start ! base index in the main matrix + rhs index
 
-            my_rhs(index_large_i,1)   = my_rhs(index_large_i,1)   + this%rhs(j, i, i_elm, 1, i_rhs) !/ this%rhs_gather_time
+            my_rhs(index_large_i,1)   = my_rhs(index_large_i,1)   + rhs_elm(j, i, 1) !/ this%rhs_gather_time
             my_rhs(index_large_i+1,1) = 0.d0
 
             do in=2, n_tor, 2
 
               index_n = in / 2 + 1
 
-              my_rhs(index_large_i,  index_n) = my_rhs(index_large_i,  index_n) + this%rhs(j, i, i_elm, in,   i_rhs) !/ this%rhs_gather_time
-              my_rhs(index_large_i+1,index_n) = my_rhs(index_large_i+1,index_n) + this%rhs(j, i, i_elm, in+1, i_rhs) !/ this%rhs_gather_time
+              my_rhs(index_large_i,  index_n) = my_rhs(index_large_i,  index_n) + rhs_elm(j, i, in) !/ this%rhs_gather_time
+              my_rhs(index_large_i+1,index_n) = my_rhs(index_large_i+1,index_n) + rhs_elm(j, i, in+1) !/ this%rhs_gather_time
 
             enddo
           enddo
@@ -181,6 +186,9 @@ contains
       i_start =  this%rhs_vec%n * (n_rhs + i_rhs - 1)
       
       do i_elm=1,this%element_list%n_elements
+
+        rhs_elm = this%rhs_f(:, :, i_elm, :, i_rhs)
+        if (treat_axis) call transform_projection_rhs_for_axis_element(this%node_list, this%element_list%element(i_elm), i_elm, rhs_elm, n_tor)
           
         do i=1,n_vertex_max
         
@@ -190,15 +198,15 @@ contains
 
             index_large_i = 2*(this%node_list%node(inode)%index(j)-1) + 1 + i_start ! base index in the main matrix + rhs index
 
-            my_rhs(index_large_i,1)   = my_rhs(index_large_i,1)   + this%rhs_f(j, i, i_elm, 1, i_rhs)
+            my_rhs(index_large_i,1)   = my_rhs(index_large_i,1)   + rhs_elm(j, i, 1)
             my_rhs(index_large_i+1,1) = 0.
 
             do in=2, n_tor, 2
 
               index_n = in / 2 + 1
           
-              my_rhs(index_large_i,  index_n) = my_rhs(index_large_i,  index_n) + this%rhs_f(j, i, i_elm, in,   i_rhs)
-              my_rhs(index_large_i+1,index_n) = my_rhs(index_large_i+1,index_n) + this%rhs_f(j, i, i_elm, in+1, i_rhs)
+              my_rhs(index_large_i,  index_n) = my_rhs(index_large_i,  index_n) + rhs_elm(j, i, in)
+              my_rhs(index_large_i+1,index_n) = my_rhs(index_large_i+1,index_n) + rhs_elm(j, i, in+1)
               
             enddo
       
@@ -273,37 +281,60 @@ contains
         
         do i=1,this%node_list%n_nodes
 
+          ! y_node(:,1:2): n=0 (and zonal/dummy) equation, y_node(:,i_tor+1:i_tor+2): harmonics i_tor, i_tor+1
+          offset = 2*this%n_dof * this%rhs_vec%nrhs
+
           do k=1,n_degrees
-        
+
             index = this%node_list%node(i)%index(k)
 
             i_glob1 = 2*(index-1) + 1 + 2*this%n_dof*(i_var-1)
 
-            if (this%do_zonal) then
-              this%node_list%node(i)%deltas(1,k,i_var) = y_tmp(i_glob1) + y_tmp(i_glob1+1) - this%node_list%node(i)%values(1,k, i_var)
-              this%node_list%node(i)%deltas(1,k,2)     = y_tmp(i_glob1+1)                  - this%node_list%node(i)%values(1,k,     2)
-              
-              this%node_list%node(i)%values(1,k,i_var) = y_tmp(i_glob1) + y_tmp(i_glob1+1)
-              this%node_list%node(i)%values(1,k,2)     = y_tmp(i_glob1+1)
-            else
-              this%node_list%node(i)%deltas(1,k,i_var) = y_tmp(i_glob1) - this%node_list%node(i)%values(1,   k, i_var)
-              this%node_list%node(i)%values(1,k,i_var) = y_tmp(i_glob1)
-            endif
+            y_node(k,1) = y_tmp(i_glob1)
+            y_node(k,2) = y_tmp(i_glob1+1)
 
-            offset = 2*this%n_dof * this%rhs_vec%nrhs
-            
             do i_tor=2,n_tor,2
 
               i_glob2 = 2*(index-1) + 1 + offset + 2*this%n_dof*(i_var-1) + (i_tor-2)*this%n_dof * this%rhs_vec%nrhs
 
-              this%node_list%node(i)%deltas(i_tor,  k,i_var) = y_tmp(i_glob2)   - this%node_list%node(i)%values(i_tor,   k, i_var)
-              this%node_list%node(i)%deltas(i_tor+1,k,i_var) = y_tmp(i_glob2+1) - this%node_list%node(i)%values(i_tor+1, k, i_var)
+              y_node(k,i_tor+1) = y_tmp(i_glob2)
+              y_node(k,i_tor+2) = y_tmp(i_glob2+1)
 
-              this%node_list%node(i)%values(i_tor,  k,i_var) = y_tmp(i_glob2)   
-              this%node_list%node(i)%values(i_tor+1,k,i_var) = y_tmp(i_glob2+1)
-            
             end do
-          
+
+          enddo    ! order
+
+          ! The axis nodes share the new dofs, transform them back to the old ones of this node
+          if (treat_axis .and. this%node_list%node(i)%axis_node) then
+            do i_tor=1,n_tor+1
+              call new_to_old_dofs_on_the_axis(this%node_list, i, y_node(1:4,i_tor), old_dofs)
+              y_node(1:4,i_tor) = old_dofs
+            enddo
+          endif
+
+          do k=1,n_degrees
+
+            if (this%do_zonal) then
+              this%node_list%node(i)%deltas(1,k,i_var) = y_node(k,1) + y_node(k,2) - this%node_list%node(i)%values(1,k, i_var)
+              this%node_list%node(i)%deltas(1,k,2)     = y_node(k,2)               - this%node_list%node(i)%values(1,k,     2)
+
+              this%node_list%node(i)%values(1,k,i_var) = y_node(k,1) + y_node(k,2)
+              this%node_list%node(i)%values(1,k,2)     = y_node(k,2)
+            else
+              this%node_list%node(i)%deltas(1,k,i_var) = y_node(k,1) - this%node_list%node(i)%values(1,   k, i_var)
+              this%node_list%node(i)%values(1,k,i_var) = y_node(k,1)
+            endif
+
+            do i_tor=2,n_tor,2
+
+              this%node_list%node(i)%deltas(i_tor,  k,i_var) = y_node(k,i_tor+1) - this%node_list%node(i)%values(i_tor,   k, i_var)
+              this%node_list%node(i)%deltas(i_tor+1,k,i_var) = y_node(k,i_tor+2) - this%node_list%node(i)%values(i_tor+1, k, i_var)
+
+              this%node_list%node(i)%values(i_tor,  k,i_var) = y_node(k,i_tor+1)
+              this%node_list%node(i)%values(i_tor+1,k,i_var) = y_node(k,i_tor+2)
+
+            end do
+
           enddo    ! order
           
           ! Check for NaNs in the projection
@@ -353,8 +384,9 @@ contains
                               this_mpi_comm_world, this_mpi_comm_n, this_mpi_comm_master,  &
                               a_mat, filter, filter_hyper, filter_parallel,            &
                               skip_factorisation, apply_dirichlet_condition_in)
-  use phys_module, only : F0, TWOPI, mode, fix_axis_nodes
+  use phys_module, only : F0, TWOPI, mode, fix_axis_nodes, treat_axis
   use data_structure
+  use mod_axis_treatment, only: transform_elm_for_axis_element
   use basis_at_gaussian
   use mod_basisfunctions
   use mpi_mod
@@ -415,6 +447,7 @@ contains
       if (node_list%node(i)%boundary .eq. 9) nz_bnd = nz_bnd + 8
     enddo
   endif
+  if (treat_axis .and. .not. fix_axis_nodes) nz_bnd = nz_bnd + 2*count(node_list%node(1:node_list%n_nodes)%axis_node)
 
   ! Only perform the construction of the matrix on the host
   if (my_id_n .eq. 0) then
@@ -444,8 +477,8 @@ contains
     !$omp parallel do default(none) &
     !$omp shared(element_list, node_list, n_tor_local, i_tor_local,                       &
     !$omp        H, H_s, H_t, H_ss, H_st, H_tt, Hz, Hz_p, a_mat, wgauss2,                 &
-    !$omp        filter, filter_hyper, filter_parallel, F0, fix_axis_nodes, my_id_master) &
-    !$omp private(ELM, i_elm, element, i, j, k, l, ms, mt, in, im, mp,           &
+    !$omp        filter, filter_hyper, filter_parallel, F0, fix_axis_nodes, treat_axis, my_id_master) &
+    !$omp private(ELM, i_elm, element, i, j, k, l, ms, mt, in, im, mp,                     &
     !$omp         x_g, x_s, x_t, x_ss, x_st, x_tt,                                      &
     !$omp         y_g, y_s, y_t, y_ss, y_st, y_tt,                                      &
     !$omp         psi_g, psi_s, psi_t, psi_ss, psi_tt, psi_st,                          &
@@ -613,6 +646,11 @@ contains
         enddo
       enddo
 
+      ! Transform basis functions for the axis nodes, as for the fluid matrix
+      if (treat_axis .and. any(nodes(:)%axis_node)) then
+        call transform_elm_for_axis_element(nodes, i_elm, ELM, (/ 1 /), 1, (/ 1, 2 /), 2)
+      endif
+
       ! Save contribution of this element in MUMPS format
       do i=1,n_vertex_max
 
@@ -717,6 +755,21 @@ contains
 
     endif
 
+    ! The fourth dof shared by the axis nodes (d^2/dRdZ) is not used, penalise it as for the fluid matrix
+    if (treat_axis .and. .not. fix_axis_nodes) then
+      do i=1,node_list%n_nodes
+        if (node_list%node(i)%axis_node) then
+          do k=1,2
+            index1 = node_list%node(i)%index(4)
+            ilarge = ilarge + 1
+            a_mat%irn(ilarge) = 2*(index1-1) + k
+            a_mat%jcn(ilarge) = 2*(index1-1) + k
+            a_mat%val(ilarge) = 1.d12
+          enddo
+        endif
+      enddo
+    endif
+
     nz_AA = ilarge
 
     a_mat%ng  = n_AA
@@ -737,8 +790,9 @@ contains
                                   filter, filter_hyper, filter_parallel,                       &
                                   integral_weights, skip_factorisation, do_zonal,              &
                                   apply_dirichlet_condition_in)
-  use phys_module, only : F0, TWOPI, fix_axis_nodes
+  use phys_module, only : F0, TWOPI, fix_axis_nodes, treat_axis
   use data_structure
+  use mod_axis_treatment, only: transform_elm_for_axis_element, transform_rhs_for_axis_element
   use basis_at_gaussian
   use mod_basisfunctions
   use mpi_mod
@@ -761,6 +815,7 @@ contains
   type (type_node)         :: nodes(n_vertex_max)
 
   real*8, allocatable      :: ELM(:,:)
+  real*8     :: RHS_axis(n_degrees,n_vertex_max)
   real*8     :: wgauss2(n_gauss)
   real*8, dimension(n_gauss,n_gauss) :: x_g,   x_s,   x_t,   x_ss,   x_tt,   x_st
   real*8, dimension(n_gauss,n_gauss) :: y_g,   y_s,   y_t,   y_ss,   y_tt,   y_st
@@ -808,6 +863,7 @@ contains
       if (node_list%node(i)%boundary .eq. 9) nz_bnd = nz_bnd + 8
     enddo
   endif
+  if (treat_axis .and. .not. fix_axis_nodes) nz_bnd = nz_bnd + 2*count(node_list%node(1:node_list%n_nodes)%axis_node)
 
   ! Only perform the construction of the matrix on the host
   if (my_id_n .eq. 0) then
@@ -849,8 +905,8 @@ contains
     !$omp        apply_dirichlet_condition, zonal_factor, apply_zonal,                    &
     !$omp        H, H_s, H_t, H_ss, H_st, H_tt, Hz, Hz_p, a_mat, wgauss2,                 &
     !$omp        filter_n0, filter_hyper_n0, filter_parallel_n0, integral_weights, F0,    &
-    !$omp        fix_axis_nodes, my_id_master)                                            &
-    !$omp private(ELM, i_elm, element, i, j, k, l, ms, mt, in, im, mp,                    &
+    !$omp        fix_axis_nodes, treat_axis, my_id_master)                                &
+    !$omp private(ELM, RHS_axis, i_elm, element, i, j, k, l, ms, mt, in, im, mp,                    &
     !$omp         x_g, x_s, x_t, x_ss, x_st, x_tt,                                        &
     !$omp         y_g, y_s, y_t, y_ss, y_st, y_tt,                                        &
     !$omp         psi_g, psi_s, psi_t, psi_ss, psi_tt, psi_st,                            &
@@ -1036,6 +1092,14 @@ contains
         enddo
       enddo
 
+      ! Transform basis functions for the axis nodes, as for the fluid matrix, together with the integral weights
+      if (treat_axis .and. any(nodes(:)%axis_node)) then
+        call transform_elm_for_axis_element(nodes, i_elm, ELM, (/ 1, 2 /), 2, (/ 1 /), 1)
+        RHS_axis = transpose(basisfunction_volume)
+        call transform_rhs_for_axis_element(nodes, i_elm, RHS_axis, (/ 1 /), 1, (/ 1 /), 1)
+        basisfunction_volume = transpose(RHS_axis)
+      endif
+
       ! Save contribution of this element in MUMPS format
       do i=1,n_vertex_max
 
@@ -1141,6 +1205,21 @@ contains
         endif
       enddo
 
+    endif
+
+    ! The fourth dof shared by the axis nodes (d^2/dRdZ) is not used, penalise it as for the fluid matrix
+    if (treat_axis .and. .not. fix_axis_nodes) then
+      do i=1,node_list%n_nodes
+        if (node_list%node(i)%axis_node) then
+          do k=1,2
+            index1 = node_list%node(i)%index(4)
+            ilarge = ilarge + 1
+            a_mat%irn(ilarge) = 2*(index1-1) + k
+            a_mat%jcn(ilarge) = 2*(index1-1) + k
+            a_mat%val(ilarge) = 1.d12
+          enddo
+        endif
+      enddo
     endif
 
     nz_AA = ilarge
