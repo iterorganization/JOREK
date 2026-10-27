@@ -172,14 +172,15 @@ ifeq (model750, $(MODEL))
 endif
 
 CGDEP= generate_code                         # Pre-compute analytic expressions from mod_equations for performance
-USE_DOMM ?= 1
-ifeq ($(USE_DOMM), 1)
-  DEFINES := $(DEFINES) -DUSE_DOMM              # Use Dommaschk potentials, without FE correction of n.B on boundary 
+# Models without a use_domm setting keep the previous default (on)
+ifneq (.false., $(shell ./util/config.sh -p use_domm))
+  DEFINES := $(DEFINES) -DUSE_DOMM              # Use Dommaschk potentials, without FE correction of n.B on boundary
 endif
-USE_EXT_FIELD ?= 0
-ifeq ($(USE_EXT_FIELD), 1)
-  ifeq ($(USE_DOMM), 0)                         # Should only be set if USE_DOMM=0
+ifeq (.true., $(shell ./util/config.sh -p use_ext_field))
+  ifeq (.false., $(shell ./util/config.sh -p use_domm))
     DEFINES := $(DEFINES) -DUSE_EXT_FIELD       # Use external magnetic field from gvec2jorek file
+  else
+    $(error use_ext_field=.true. requires use_domm=.false.)
   endif
 endif
 ifeq (model180, $(MODEL))

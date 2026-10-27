@@ -23,11 +23,11 @@ Minimal context for this page:
 2. Run model 180 to build a consistent restart state (`jorek000000.h5`, `jorek000001.h5`).
 3. Use `jorek000001.h5` as `jorek_restart.h5` for model 183.
 
-`USE_EXT_FIELD` controls where the vacuum field used by stellarator boundary diagnostics/BCs comes from:
-1. `USE_EXT_FIELD=0`: use the chi-based pathway (no explicit `B_vac_*` arrays required in `gvec2jorek.dat`).
-2. `USE_EXT_FIELD=1`: use explicit vacuum-field arrays (`B_vac_R`, `B_vac_Z`, `B_vac_phi` and derivatives) in `gvec2jorek.dat`.
+`use_ext_field` (set with `./util/config.sh use_ext_field=.true. use_domm=.false.`) controls where the vacuum field used by stellarator boundary diagnostics/BCs comes from:
+1. `use_ext_field=.false.`: use the chi-based pathway (no explicit `B_vac_*` arrays required in `gvec2jorek.dat`).
+2. `use_ext_field=.true.`: use explicit vacuum-field arrays (`B_vac_R`, `B_vac_Z`, `B_vac_phi` and derivatives) in `gvec2jorek.dat`.
 
-For W7-X divertor workflows where coil-field topology at the boundary is required, this page assumes `USE_EXT_FIELD=1` and a `gvec2jorek.dat` that already contains `B_vac_*` blocks.
+For W7-X divertor workflows where coil-field topology at the boundary is required, this page assumes `use_ext_field=.true.` and a `gvec2jorek.dat` that already contains `B_vac_*` blocks.
 
 To realistically capture divertor physics, **sheath boundary conditions** (SBC) are necessary to capture the dynamics close to the first wall when open magnetic field intersect the boundary. The well-established main physics formulae, already implemented in the JOREK tokamak model and in other divertor physics codes, state that for flux surfaces intersecting boundaries with angle $\alpha$, we have (where $\alpha_0$ can bet set to e.g. 5 deg):
 
@@ -101,7 +101,7 @@ The vacuum field is added by sampling the W7-X mgrid coil field on the JOREK flu
 4. Fourier transform in phi
 5. Write `B_vac_R/Z/phi` (+ `_s`, `_t`, `_st`) to gvec2jorek.dat
 
-Remember that the mgrid file and `EXTCUR` values must correspond to the same magnetic configuration used to generate the target equilibrium (otherwise imported vacuum topology is inconsistent). Also, `USE_EXT_FIELD=1` is necessary in the jorek model 180 / 183 compilation to include the vacuum field.
+Remember that the mgrid file and `EXTCUR` values must correspond to the same magnetic configuration used to generate the target equilibrium (otherwise imported vacuum topology is inconsistent). Also, `use_ext_field=.true.` is necessary in the jorek model 180 / 183 compilation to include the vacuum field.
 
 #### Harmonic mapping
 
