@@ -14,6 +14,7 @@ from .model600 import (
     FIELDS,
     density_equation_rho,
     impurity_density_equation_rhoimp,
+    neutral_density_equation_rhon,
     electron_energy_equation_Te,
     ion_energy_equation_Ti,
     total_energy_equation_T,
@@ -36,14 +37,14 @@ from .fortran_source import parse_fortran_expression
 from .symbols import FieldRole, FieldValue, TestFunction, coefficient
 
 
-ROWS = ("psi", "u", "zj", "w", "rho", "vpar", "rhoimp", "ti", "te", "t")
+ROWS = ("psi", "u", "zj", "w", "rho", "vpar", "rhoimp", "rhon", "ti", "te", "t")
 FIELD_NAMES = {
     field: name
     for field, name in zip(FIELDS, ("psi", "u", "zj", "w", "rho", "T", "vpar", "Ti", "Te", "rhon", "rhoimp"))
 }
 ASSIGNMENT_RE = re.compile(
     r"(?P<lhs>(?:rhs_ij(?:_k)?|amat(?:_n|_k|_kn|_nn)?)\s*\(\s*"
-    r"var_(?P<row>psi|u|zj|w|rho|rhoimp|vpar|Ti|Te|T)\b[^=]*?\))\s*=\s*(?P<rhs>.*)$",
+    r"var_(?P<row>psi|u|zj|w|rho|rhoimp|rhon|vpar|Ti|Te|T)\b[^=]*?\))\s*=\s*(?P<rhs>.*)$",
     re.I,
 )
 
@@ -374,6 +375,15 @@ def _generated_pools(
                 fields=FIELDS, timestep=timestep, theta=theta, zeta=zeta
             ),
             previous_names={"rhoimp": "delta_g(mp,var_rhoimp,ms,mt)"},
+        )
+    if "rhon" in rows:
+        equation = neutral_density_equation_rhon(with_TiTe=bool(with_tite))
+        _add_linearized(
+            pools, "rhon",
+            equation.linearize(
+                fields=FIELDS, timestep=timestep, theta=theta, zeta=zeta
+            ),
+            previous_names={"rhon": "delta_g(mp,var_rhon,ms,mt)"},
         )
     # The ion and electron energy equations exist only in the two-temperature
     # branch of the element routine.

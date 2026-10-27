@@ -25,7 +25,7 @@
 #   util/equation_codegen/run_test.sh              # check the current tree
 #   util/equation_codegen/run_test.sh --update      # rewrite the reference
 #                                                    # after an intended change
-#   util/equation_codegen/run_test.sh --parallel    # check the 10 rows as
+#   util/equation_codegen/run_test.sh --parallel    # check the 11 rows as
 #                                                    # separate background
 #                                                    # processes (one per
 #                                                    # equation), for a CI
@@ -38,7 +38,7 @@
 
 set -u
 
-ROWS="psi u rho vpar Ti Te T rhoimp zj w "
+ROWS="psi u rho vpar Ti Te T rhoimp rhon zj w "
 
 TESTNAME="equation_codegen"
 STARTDIR=$(readlink -f "$(dirname "$0")")
@@ -130,6 +130,13 @@ for arg in "$@"; do
         args+=("$arg")
     fi
 done
+
+# --- The weak-form documentation is generated from model600.py; fail early if
+#     it has not been re-rendered after a change to the equations.
+if ! $PYTHON examples/model600_docs.py check; then
+    echo "Test '${TESTNAME}' FAILED."
+    exit 1
+fi
 
 if [ "$parallel" = "yes" ]; then
     for arg in "${args[@]:-}"; do
