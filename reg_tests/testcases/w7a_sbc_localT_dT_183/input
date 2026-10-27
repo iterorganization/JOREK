@@ -1,0 +1,66 @@
+&in1
+
+ restart = .t.
+ regrid  = .f.
+ refinement=.false.
+ tstep   = 1.
+ nstep   = 100
+
+ nout = 10
+
+! rst_hdf5 = 1    ! = 0 ; restart from binary files
+!                 ! = 1 ; restart from HDF5 files
+
+ freeboundary = .f.
+ keep_current_prof = .t.
+ init_current_prof = .t.
+ time_evol_scheme = "implicit Euler"
+ fix_axis_nodes = .t.
+ bc_natural_open = .t.
+ vpar_sbc_strength    = 10.0d0
+ vpar_sbc_alpha0      = 5.d0
+ vpar_sbc_smooth_sign = .t.
+ sbc_use_local_T      = .true.   ! or .false. in the sibling test case
+
+ eta_T_dependent = .f.
+ visco_T_dependent = .f.
+ zkpar_T_dependent = .f.
+
+ F0    = 4.72593206453746
+
+ n_flux   = 20
+ n_tht    = 24
+
+ eta   = 1.d-7
+ visco = 1.d-8
+
+ eta_num = 1.d-14
+ visco_num = 2.5d-15
+
+ D_par  = 0.d0
+ D_perp = 1.d-7
+
+ ZK_par  = 1.d-5
+ ZK_perp = 1.d-7
+
+ domm_file = "dc_W7A_unst_10kPa"
+
+ heatsource     = 1.d-7
+ particlesource = 1.d-7
+
+ T_0 = 1.256636999999971E-002
+
+ rho_0 = 1.
+ rho_1 = 1.
+ rho_coef(1)  =  0.0
+ rho_coef(2)  =  0.0
+ rho_coef(3)  =  0.0
+ rho_coef(4)  =  1.d0
+ rho_coef(5)  =  5.d0
+
+ iter_precon = 22
+! gmres_m = 20
+! gmres_4 = 1.d0
+ gmres_max_iter = 400
+ gmres_tol = 1.d-9
+/
