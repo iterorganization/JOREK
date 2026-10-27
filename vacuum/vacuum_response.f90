@@ -750,6 +750,12 @@ module vacuum_response
     ! --- Import normalization
     sr%a_ee%loc_mat(:,:) = sr%a_ee%loc_mat(:,:) * 2.d0*PI
     sr%a_ye%loc_mat(:,:) = sr%a_ye%loc_mat(:,:) * 2.d0*PI
+    ! --- Stellarator CARIDDI response: the boundary term of the stellarator weak form
+    !     enters with the opposite sign of the tokamak term that the shared code applies
+    !     (-response_m_e), so the sign of a_ee is flipped here once on import.
+#ifdef STELLARATOR_MODEL
+    if ( CARIDDI_mode ) sr%a_ee%loc_mat(:,:) = -sr%a_ee%loc_mat(:,:)
+#endif
     if ( vacuum_debug .and. (my_id==0) ) write(*,*) 'Applied import normalization.'
 
     ! --- Compute ideal-wall and no-wall response matrices.
