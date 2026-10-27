@@ -385,6 +385,7 @@ module vacuum_response
     integer           :: num_read_elements, n_step_read, step_read
     integer(KIND=8)   :: local_num_elements, num_read_elements_const, i, i_ind, j_ind
     integer           :: read_start, read_len
+    real*8            :: dummy_buf   ! placeholder for ranks owning an empty slice
 
     if  (.not. ( (present(loc_start) .eqv.  present(loc_len))  .and.  (present(loc_start) .eqv. present(loc_row))) ) then
       write(*,*) 'If you want to read a matrix partially you have to specify loc_start, loc_len, loc_row'
@@ -475,13 +476,27 @@ module vacuum_response
     i_ind=1
     j_ind=1
 
+    ! A task can own no part of the matrix if it is smaller than the number of
+    ! tasks (e.g. the 1x1 s_ww_inv of a no-wall CARIDDI response). Such a task
+    ! must not touch its empty loc_mat, but must still join the collective read.
     do i = 1, n_step_read
-      call MPI_File_read_all(filehandle, float2d%loc_mat(i_ind, j_ind),num_read_elements, &
-        MPI_DOUBLE_PRECISION, status, ierr)
+      if (local_num_elements > 0) then
+        call MPI_File_read_all(filehandle, float2d%loc_mat(i_ind, j_ind),num_read_elements, &
+          MPI_DOUBLE_PRECISION, status, ierr)
+      else
+        call MPI_File_read_all(filehandle, dummy_buf, 0, &
+          MPI_DOUBLE_PRECISION, status, ierr)
+      end if
 
-      ! Calculation of starting indices of each slice in local array     
-      j_ind = int(num_read_elements,8)*i/loc_sizes(1) + 1
-      i_ind = int(num_read_elements,8)*i-int((j_ind-1),8)*int(loc_sizes(1),8) + 1
+      ! Calculation of starting indices of each slice in local array
+      ! (skipped for a task with no rows to avoid division by zero)
+      if (loc_sizes(1) > 0) then
+        j_ind = int(num_read_elements,8)*i/loc_sizes(1) + 1
+        i_ind = int(num_read_elements,8)*i-int((j_ind-1),8)*int(loc_sizes(1),8) + 1
+      else
+        j_ind = 1
+        i_ind = 1
+      end if
 
       ! If number of reading step is not eaqual for each MPI task.         
       if (num_read_elements_const*int((i+1),8)>local_num_elements) then
@@ -2919,6 +2934,10 @@ module vacuum_response
       if ( .not. allocated(response_d_b) ) allocate( response_d_b(n_wall_curr) )
       if ( .not. allocated(response_d_c) ) allocate( response_d_c(n_wall_curr) )
       if ( .not. allocated(response_m_h) ) allocate( response_m_h(n_dof_starwall, n_dof_starwall) )
+      ! m_e and m_j are otherwise only allocated in the resistive-wall branch below,
+      ! but the ideal-wall branch also writes to them.
+      if ( .not. allocated(response_m_e) ) allocate( response_m_e(n_dof_starwall, n_dof_starwall) )
+      if ( .not. allocated(response_m_j) ) allocate( response_m_j(n_dof_starwall, n_dof_starwall) )
 
       if( .not. allocated (response_m_a%loc_mat) ) &
             call  alloc_distr(my_id, response_m_a, (/n_wall_curr, n_dof_starwall/), .false.)
