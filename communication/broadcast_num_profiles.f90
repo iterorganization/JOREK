@@ -147,6 +147,19 @@ if ( num_Phi ) then
   call MPI_BCAST(num_Phi_y3,num_Phi_len,MPI_DOUBLE_PRECISION,0,MPI_COMM_WORLD,ierr)
 end if
 
+if ( num_nimp_bg ) then
+  call MPI_BCAST(num_nimp_bg_len,1,MPI_INTEGER,0,MPI_COMM_WORLD,ierr) 
+  if ( my_id /= 0 ) then
+     call tr_allocate(num_nimp_bg_x,1,num_nimp_bg_len,"num_nimp_bg_x",CAT_UNKNOWN)
+     call tr_allocate(num_nimp_bg_prof1,1,num_nimp_bg_len,"num_nimp_bg_prof1",CAT_UNKNOWN)
+     call tr_allocate(num_nimp_bg_prof2,1,num_nimp_bg_len,"num_nimp_bg_prof2",CAT_UNKNOWN)
+  end if
+  call MPI_BCAST(num_nimp_bg_x,num_nimp_bg_len,MPI_DOUBLE_PRECISION,0,MPI_COMM_WORLD,ierr)
+  call MPI_BCAST(num_nimp_bg_prof1,num_nimp_bg_len,MPI_DOUBLE_PRECISION,0,MPI_COMM_WORLD,ierr)
+  call MPI_BCAST(num_nimp_bg_prof2,num_nimp_bg_len,MPI_DOUBLE_PRECISION,0,MPI_COMM_WORLD,ierr)
+end if
+
+
 if ( num_ffprime ) then
   call MPI_BCAST(num_ffprime_len,1,MPI_INTEGER,0,MPI_COMM_WORLD,ierr)
   if ( my_id /= 0 ) then

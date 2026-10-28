@@ -52,7 +52,9 @@ module mod_impurity
           case('Be')
             adas_suffix = '96_be'
           case('N')
-            adas_suffix = '96_n'	  
+            adas_suffix = '96_n'
+          case('Ni')
+            adas_suffix = '89_ni'          
           case default
             write(*,*) "Unrecognized species", trim(imp_type(i)), ", terminating."
             adas_suffix = 'none'
@@ -83,6 +85,56 @@ module mod_impurity
     if (nstep .gt. 0) call tr_allocate(xtime_E_ion_power,1,nstep,"xtime_E_ion_power")
 
   end subroutine init_imp_adas
+
+  pure real*8 function nimp_bg_density(i_imp, Psi_N)
+
+    use phys_module
+
+    implicit none
+
+    integer, intent(in) :: i_imp        !< Index of impurity
+    real*8, intent(in)  :: Psi_N        !< Psi_N coordinate to sample
+    real*8              :: rho_imp      !< Impurity density
+    real*8              :: aux1, aux2
+    integer             :: left, mid, right
+    real*8              :: leftvalue, rightvalue
+
+    if  ( .not. num_nimp_bg .or. nimp_bg_profile_type(i_imp) == 0 ) then
+      ! Previous behavior, uniform density
+      nimp_bg_density = nimp_bg(i_imp)
+    else
+      ! New non uniform from numerical profile
+      left  = 1
+      right = num_nimp_bg_len
+      do
+        if ( right == left + 1 ) exit
+        mid = (left + right) / 2
+        if ( num_nimp_bg_x(mid) >= Psi_N ) then
+          right = mid
+        else
+          left = mid
+        end if
+      end do
+      aux1 = (Psi_N - num_nimp_bg_x(left)) / (num_nimp_bg_x(right) - num_nimp_bg_x(left))
+      aux2 = (1. - aux1)
+
+      if ( nimp_bg_profile_type(i_imp) == 1 ) then
+        leftvalue = num_nimp_bg_prof1(left)
+        rightvalue = num_nimp_bg_prof1(right)
+      else if ( nimp_bg_profile_type(i_imp) == 2 ) then
+        leftvalue = num_nimp_bg_prof2(left)
+        rightvalue = num_nimp_bg_prof2(right)
+      else
+        ! Unknown profile type, fall back to uniform
+        leftvalue = 1.d0
+        rightvalue = 1.d0
+      end if
+      
+      ! Convert from normalized [0, 1] density to m^-3
+      nimp_bg_density = (leftvalue * aux2 + rightvalue * aux1) * nimp_bg(i_imp)
+    end if
+
+  end function nimp_bg_density
 
   subroutine radiation_function(ad,cor, density, temperature, Lrad, dLrad_dTe, dLrad_dNe)
 

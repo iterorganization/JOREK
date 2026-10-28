@@ -23,7 +23,7 @@ module mod_expression
   use mod_basisfunctions
   use mod_bootstrap_functions
   use mod_poloidal_currents
-  use mod_impurity, only: radiation_function, radiation_function_linear
+  use mod_impurity, only: radiation_function, radiation_function_linear, nimp_bg_density
   use mod_atomic_coeff_deuterium, only : atomic_coeff_deuterium
   use mod_plasma_functions
 
@@ -238,14 +238,14 @@ module mod_expression
 #if JOREK_MODEL >= 303
     call add(exprs_all, 'J_bootstrap ', 'Bootstrap Current                                     ')
 #endif
-#if (defined WITH_Neutrals) || (defined WITH_Impurities)
     call add(exprs_all, 'radiation   ', 'Radiation terms for bolometry diagnostic              ')
+#if (defined WITH_Neutrals) || (defined WITH_Impurities)
     call add(exprs_all, 'radiation_bg', 'Radiation terms from background impurities for bolometry diagnostic ')
 #endif
-#if (defined WITH_Neutrals) && (!defined WITH_Impurities)
     call add(exprs_all, 'brem        ', 'Brem terms for bolometry diagnostic                   ')
-    call add(exprs_all, 'line_rad    ', 'D neutral line radiation                              ')
     call add(exprs_all, 'bg_imp_rad  ', 'Background impurity radiation                          ')
+#if (defined WITH_Neutrals) && (!defined WITH_Impurities)
+    call add(exprs_all, 'line_rad    ', 'D neutral line radiation                              ')
 #endif
     ! --- List of volume and boundary integrals
     call add(exprs_all_int, 'Time        ', 'Time                                                  ')
@@ -301,6 +301,7 @@ module mod_expression
     call add(exprs_all_int, 'Ohmic_out   ', 'Ohmic heating (outside LCFS)                          ')
     call add(exprs_all_int, 'Rad_tot     ', 'Total impurity radiation power (incl. backgr. imp)    ')
     call add(exprs_all_int, 'Rad_bg_tot  ', 'Background impurity radiation power                   ')
+    call add(exprs_all_int, 'Rad_brem_tot', 'Deuterium continuum radiation power (recomb. + brems.)')
     call add(exprs_all_int, 'P_vn        ', 'Boundary flux of outgoing pressure                    ')
     call add(exprs_all_int, 'qn_par      ', 'Boundary flux of the parallel thermal conduction      ')
     call add(exprs_all_int, 'qn_perp     ', 'Boundary flux of the perpendicular thermal conduction ')
@@ -635,14 +636,12 @@ module mod_expression
     real*8  :: rimp0, rimp0_s, rimp0_t, rimp0_ss, rimp0_tt, rimp0_st, rimp0_p, rimp0_pp, rimp0_R, rimp0_Z
     real*8  :: flux_av_fact
 
-#if (defined WITH_Neutrals) || (defined WITH_Impurities)
     real*8  :: Te_corr_eV, Te_eV
     real*8  :: LradDrays_T, LradDcont_T, LradDcont_corr, Sion_T, Srec_T
     real*8  :: dLradDrays_dT, dLradDcont_dT, dLradDcont_dT_corr, dSion_dT, dSrec_dT
     real*8  :: ne_SI, ne_JOREK                              ! Electron density used in radiation rate
     real*8  :: Lrad_imp, r_imp_bg, frad_bg
     integer :: i_imp
-#endif
 #if (defined WITH_Neutrals) && (!defined WITH_Impurities)
     real*8  :: Arad_bg, Brad_bg, Crad_bg
 #endif
@@ -1542,6 +1541,49 @@ module mod_expression
           J_boot = 0.d0
 #endif
 
+#if (!defined WITH_Neutrals) && (!defined WITH_Impurities)
+          ! Match the no-neutrals/no-impurities radiation calculation in mod_integrals3D.
+#ifdef WITH_TiTe
+          call atomic_coeff_deuterium(Te0, Sion_T, dSion_dT, Srec_T, dSrec_dT, &
+               LradDcont_T, dLradDcont_dT, LradDcont_corr, dLradDcont_dT_corr, &
+               LradDrays_T, dLradDrays_dT, r0, 0.d0, .true.)
+#else
+          call atomic_coeff_deuterium(0.5d0*T0, Sion_T, dSion_dT, Srec_T, dSrec_dT, &
+               LradDcont_T, dLradDcont_dT, LradDcont_corr, dLradDcont_dT_corr, &
+               LradDrays_T, dLradDrays_dT, r0, 0.d0, .true.)
+#endif
+          LradDrays_T = 0.d0
+          ne_SI = corr_neg_dens(r0) * 1.d20 * central_density
+#ifdef WITH_TiTe
+          Te_corr_eV = Te0_corr / (EL_CHG * MU_ZERO * central_density * 1.d20)
+          Te_eV      = Te0      / (EL_CHG * MU_ZERO * central_density * 1.d20)
+#else
+          Te_corr_eV = 0.5d0 * T0_corr / (EL_CHG * MU_ZERO * central_density * 1.d20)
+          Te_eV      = 0.5d0 * T0      / (EL_CHG * MU_ZERO * central_density * 1.d20)
+#endif
+    !--------------------------------------------------------
+    ! --- Radiation from background impurity for WITH_Neutrals=WithImpurities=.fals.e
+    !--------------------------------------------------------
+          frad_bg = 0.d0
+          if (use_imp_adas) then
+            do i_imp = 1, n_adas
+              Lrad_imp = 0.d0
+              if (ne_SI > ne_SI_min .and. Te_eV > Te_eV_min .and. &
+                  nimp_bg_density(i_imp, psi_norm) > 0.d0) then
+                if (units == SI_UNITS) then
+                  call radiation_function_linear(imp_adas(i_imp), imp_cor(i_imp), &
+                       log10(ne_SI), log10(Te_corr_eV*EL_CHG/K_BOLTZ), .false., Lrad_imp)
+                  frad_bg = frad_bg + nimp_bg_density(i_imp, psi_norm) * Lrad_imp
+                else if (units == JOREK_UNITS) then
+                  call radiation_function_linear(imp_adas(i_imp), imp_cor(i_imp), &
+                       log10(ne_SI), log10(Te_corr_eV*EL_CHG/K_BOLTZ), .true., Lrad_imp)
+                  r_imp_bg = nimp_bg_density(i_imp, psi_norm) / (1.d20 * central_density)
+                  frad_bg = frad_bg + r_imp_bg * Lrad_imp
+                endif
+              endif
+            enddo
+          endif
+#endif
 #if (defined WITH_Neutrals) && (!defined WITH_Impurities)
 
    Te_corr_eV = Te0_corr/(EL_CHG*MU_ZERO*central_density * 1.d20)
@@ -1558,13 +1600,13 @@ module mod_expression
       ne_SI = corr_neg_dens(r0) * 1.d20 * central_density !electron density (SI)    
       frad_bg = 0.
       do i_imp = 1, n_adas
-        r_imp_bg = nimp_bg(i_imp) / (1.d20 * central_density)  ! Background impurity density in JU
+        r_imp_bg = nimp_bg_density(i_imp, psi_norm) / (1.d20 * central_density)  ! Background impurity density in JU
         if (ne_SI > ne_SI_min .and. Te_eV > Te_eV_min .and. r_imp_bg > 0) then
           Lrad_imp = 0.0
           if ( units == SI_UNITS ) then
             call radiation_function_linear(imp_adas(i_imp),imp_cor(i_imp),log10(ne_SI),   &
                                            log10(Te_corr_eV*EL_CHG/K_BOLTZ),.false.,Lrad_imp)
-            frad_bg = frad_bg + nimp_bg(i_imp) * Lrad_imp
+            frad_bg = frad_bg + nimp_bg_density(i_imp, psi_norm) * Lrad_imp
           else if ( units == JOREK_UNITS ) then
             call radiation_function_linear(imp_adas(i_imp),imp_cor(i_imp),log10(ne_SI),   &
                                            log10(Te_corr_eV*EL_CHG/K_BOLTZ),.true.,Lrad_imp)
@@ -2110,9 +2152,8 @@ module mod_expression
               case ( 'J_bootstrap' )
                 res = J_boot / R / fact_mu_zero
 
-#if (defined WITH_Neutrals) && (!defined WITH_Impurities)
               case ( 'radiation' ) !< outputs radiation power (i.e. what a bolometer would measure), rather than the radiative cooling
-
+#if (defined WITH_Neutrals) && (!defined WITH_Impurities)
                 if (rn0 .lt. 0.d0) then
                   res = r0 * r0 * LradDcont_T * fact_rad &
                        + r0 * fact_ne * frad_bg ! Conversion of units for frad_bg already done above for WITH_Neutrals 
@@ -2122,23 +2163,27 @@ module mod_expression
                        + r0 * fact_ne * frad_bg
                 endif
 
+#elif defined WITH_Impurities
+                res = (r0_corr + beta_imp*rimp0_corr) * (rimp0_corr * Lrad + frad_bg) * fact_rad
+#elif (!defined WITH_Neutrals) && (!defined WITH_Impurities)
+                res = r0 * r0 * LradDcont_T * fact_rad + r0 * fact_ne * frad_bg
+#endif
               case ( 'brem' ) !< outputs radiation power (i.e. what a bolometer would measure), rather than the radiative cooling
                 res = r0 * r0 * LradDcont_T * fact_rad
-
-              case ('line_rad')
-                res = r0 * max(rn0,0.d0) * LradDrays_T * fact_rad
-
               case ('bg_imp_rad')
+#ifdef WITH_Impurities
+                res = (r0_corr + beta_imp*rimp0_corr) * frad_bg * fact_rad !same as radiation_bg for WITH_Impurities
+#else
                 res = r0 * fact_ne * frad_bg
 #endif
 #ifdef WITH_Impurities
-              case ( 'radiation' )
-                res = (r0_corr + beta_imp*rimp0_corr) * (rimp0_corr * Lrad + frad_bg) * fact_rad
-
               case ( 'radiation_bg' )
                 res = (r0_corr + beta_imp*rimp0_corr) * frad_bg * fact_rad
 #endif
-
+#if (defined WITH_Neutrals) && (!defined WITH_Impurities)
+              case ('line_rad')
+                res = r0 * max(rn0,0.d0) * LradDrays_T * fact_rad
+#endif
               case default
                 write(*,*) 'ERROR in '//trim(THIS_ROUTINE_NAME)//': Illegal expression ("' //      &
                   trim(expr_list%expr(iexpr)%name) // '")'

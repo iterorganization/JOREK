@@ -1148,6 +1148,7 @@ module mod_jorek2IMAS
     use phys_module, only : F0, central_density, sqrt_mu0_rho0, &
                            sqrt_mu0_over_rho0, central_mass, imp_type, &
                            gamma, index_main_imp
+    use mod_impurity, only : nimp_bg_density
     implicit none
 
     ! --- External parameters
@@ -1314,13 +1315,21 @@ module mod_jorek2IMAS
    end do
    
 
+   ! --- Locate the Psi_N column to sample the background impurity density profiles
+   i_psi = 0
+   do i_exp = 1, expr_avg_list%n_expr
+     if (expr_avg_list%expr(i_exp)%name == 'Psi_N') i_psi = i_exp
+   end do
+
    index = 1 ! 1 is main impurity
    do i = 1, n_adas
      index = 1 + index
      if (i == index_main_imp) cycle
      if (nimp_bg(i)>1.d-16) then
        allocate( plasma_profiles_ids%profiles_1d(i_slice)%ion(index)%density(n_grid) )
-       plasma_profiles_ids%profiles_1d(i_slice)%ion(index)%density(:) = nimp_bg(i) ! nimp_bg is given as 1/m^3
+       do j = 1, n_grid
+        plasma_profiles_ids%profiles_1d(i_slice)%ion(index)%density(j) = nimp_bg_density(i, avg(j,i_psi)) ! given as 1/m^3
+       end do
        allocate( plasma_profiles_ids%profiles_1d(i_slice)%ion(index)%element(1) )
        call get_element_atomic_numbers(imp_type(i), a_imp, z_imp )
        plasma_profiles_ids%profiles_1d(i_slice)%ion(index)%element(1)%a   = a_imp

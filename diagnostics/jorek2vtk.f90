@@ -18,7 +18,7 @@ use mod_plasma_functions
 use mod_vtk
 use mod_interp
 use mod_poloidal_currents
-use mod_impurity, only: init_imp_adas, radiation_function, radiation_function_linear
+use mod_impurity, only: init_imp_adas, radiation_function, radiation_function_linear, nimp_bg_density
 use mod_atomic_coeff_deuterium, only : atomic_coeff_deuterium
 use mod_openadas , only : read_adf11
 use mod_atomic_coeff_deuterium, only : ad_deuterium , atomic_coeff_deuterium
@@ -1500,7 +1500,7 @@ enddo  ! n_elements
       if (use_imp_adas) then  ! use open adas by default
         frad_bg = 0. 
         do i_imp =1, n_adas
-          r_imp_bg = nimp_bg(i_imp) / (1.d20 * central_density)  ! Background impurity density in JU 
+          r_imp_bg = nimp_bg_density(i_imp, psi_norm) / (1.d20 * central_density)  ! Background impurity density in JU 
           if (ne_SI > ne_SI_min .and. Te_eV > Te_eV_min .and. r_imp_bg > 0) then
             Lrad_imp = 0.0
             call radiation_function_linear(imp_adas(i_imp),imp_cor(i_imp),log10(ne_SI),    & 
@@ -1664,7 +1664,7 @@ enddo  ! n_elements
 
      frad_bg = 0.
      do i_imp =1, n_adas
-       r_imp_bg = nimp_bg(i_imp) / (1.d20 * central_density)  ! Background impurity density in JU     
+       r_imp_bg = nimp_bg_density(i_imp, psi_norm) / (1.d20 * central_density)  ! Background impurity density in JU     
        if (ne_SI > ne_SI_min .and. Te_eV > Te_eV_min .and. r_imp_bg > 0) then
          Lrad_imp = 0.0
          call radiation_function_linear(imp_adas(i_imp),imp_cor(i_imp),log10(ne_SI),    & 
@@ -1905,15 +1905,15 @@ if (SI_units) then
         ! Use radiation coefficients from ADAS
         frad_bg = 0. 
         do i_imp =1, n_adas  
-          if (ne_SI > ne_SI_min .and. Te_eV > Te_eV_min .and. nimp_bg(i_imp) > 0) then
+          if (ne_SI > ne_SI_min .and. Te_eV > Te_eV_min .and. nimp_bg_density(i_imp, psi_norm) > 0) then
             Lrad_imp = 0.0
             call radiation_function_linear(imp_adas(i_imp),imp_cor(i_imp),log10(ne_SI),    & 
                                            log10(Te_corr_eV*EL_CHG/K_BOLTZ),.false.,Lrad_imp) 
           else     
             Lrad_imp = 0.
           end if
-          scalars(i,iibg(i_imp)) = 1.d20 * r0_tmp * nimp_bg(i_imp) * Lrad_imp 
-          frad_bg = frad_bg + nimp_bg(i_imp) * Lrad_imp
+          scalars(i,iibg(i_imp)) = 1.d20 * r0_tmp * nimp_bg_density(i_imp, psi_norm) * Lrad_imp 
+          frad_bg = frad_bg + nimp_bg_density(i_imp, psi_norm) * Lrad_imp
         end do
       else
         if ( trim(imp_type(1)) == 'Ar' ) then ! Hard-coded fitting exists for argon
