@@ -97,6 +97,7 @@ subroutine setup_solvers(this, sim)
   use vacuum_equilibrium,   only: import_external_fields
   use mod_startup_teardown, only: sanity_checks
   use mod_log_params,       only: log_parameters
+  use mod_exchange_indices, only: exchange_indices
 
   implicit none
 
@@ -147,6 +148,12 @@ subroutine setup_solvers(this, sim)
 
   ! Warn on doing stupid stuff
   call sanity_checks(sim%my_id, sim%n_mpi, 7, 7) ! #### the 7, 7 is just a dummy that needs to be removed later on; the sanity_checks should anyway not be part of setup_solvers in the end (to be addressed in a separate pull request) @TODO
+
+  ! --- Exchange node indices so that the free boundary rows are spread over all MPI tasks,
+  !     as jorek2_main does after reading a restart file. Every task holds the same node_list
+  !     here, so all tasks build the same exchange table. Restart files are still written
+  !     in the natural order (see the export_restart calls in do_jorek_timestep).
+  if ( freeboundary .and. freeb_change_indices ) call exchange_indices(sim%fields%node_list, sim%my_id, sim%n_mpi, .false.)
 
   ! Initialise the boundary element and node list
   if (sim%my_id .eq. 0) then
@@ -272,6 +279,7 @@ subroutine do_jorek_timestep(this, sim, ev)
   use mod_fields_linear
   use mod_expression,          only: exprs_all_int, init_expr
   use mod_integrals3D
+  use mod_exchange_indices,    only: exchange_indices
 
 #if (defined WITH_Neutrals) && (!defined WITH_Impurities)
   use mod_neutral_source
@@ -517,8 +525,10 @@ subroutine do_jorek_timestep(this, sim, ev)
   
   ! --- Write a restart file every nout timesteps
   if ( (sim%my_id == 0) .and. (mod(index_now,nout) == 0) ) then
+    if ( freeboundary .and. freeb_change_indices ) call exchange_indices(sim%fields%node_list, sim%my_id, sim%n_mpi, .true.)
     write(fileout,rst_file_ind_fmt(1)) 'jorek',index_now
     call export_restart(sim%fields%node_list, sim%fields%element_list, fileout, aux_node_list)
+    if ( freeboundary .and. freeb_change_indices ) call exchange_indices(sim%fields%node_list, sim%my_id, sim%n_mpi, .false.)
   endif
   
   ! --- Exit the code if NaNs are detected.
@@ -546,7 +556,9 @@ subroutine do_jorek_timestep(this, sim, ev)
 
   ! Write a restart file on code exit
   if (sim%stop_now .and. sim%my_id .eq. 0) then
+    if ( freeboundary .and. freeb_change_indices ) call exchange_indices(sim%fields%node_list, sim%my_id, sim%n_mpi, .true.)
     call export_restart(sim%fields%node_list, sim%fields%element_list, 'jorek_restart', aux_node_list)
+    if ( freeboundary .and. freeb_change_indices ) call exchange_indices(sim%fields%node_list, sim%my_id, sim%n_mpi, .false.)
   end if
 
   select type (fields => sim%fields)
