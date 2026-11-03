@@ -233,13 +233,25 @@ subroutine preset_parameters
   
   maintain_profiles = .false.
   ZK_perp(1:5)   = (/ 1.d-5, 0.d0, 0.d0, 99.d0, 99.d0 /)
+  ZK_perp_pri        = (/ 0.d0,  0.d0  /)
+  ZK_perp_pri_z0     = (/ 99.d0, 99.d0 /)
+  ZK_perp_pri_width  = (/ 1.d-1, 1.d-1 /)
   ZK_i_perp(1:5) = (/ 1.d-5, 0.d0, 0.d0, 99.d0, 99.d0 /)
   ZK_e_perp(1:5) = (/ 1.d-5, 0.d0, 0.d0, 99.d0, 99.d0 /)
+  ZK_i_perp_pri        = (/ 0.d0,  0.d0  /)
+  ZK_i_perp_pri_z0     = (/ 99.d0, 99.d0 /)
+  ZK_i_perp_pri_width  = (/ 1.d-1, 1.d-1 /)
+  ZK_e_perp_pri        = (/ 0.d0,  0.d0  /)
+  ZK_e_perp_pri_z0     = (/ 99.d0, 99.d0 /)
+  ZK_e_perp_pri_width  = (/ 1.d-1, 1.d-1 /)
   ZK_par       = 1.d0
   ZK_i_par     = 1.d0
   ZK_e_par     = 1.d0
   ZK_par_max   = 1.d20
   D_perp(1:5)  = (/ 1.d-5, 0.d0, 0.d0, 99.d0, 99.d0 /)
+  D_perp_pri        = (/ 0.d0,  0.d0  /)
+  D_perp_pri_z0     = (/ 99.d0, 99.d0 /)
+  D_perp_pri_width  = (/ 1.d-1, 1.d-1 /)
   D_par        = 0.d0
   V_pinch_gauss = 0.d0
   V_pinch_psin  = 0.d0
@@ -348,6 +360,9 @@ subroutine preset_parameters
   edgeparticlesource      = 0.d0
   edgeparticlesource_psin = 0.98
   edgeparticlesource_sig  = 0.01
+  privparticlesource        = 0.d0
+  privparticlesource_z0     = 99.00
+  privparticlesource_width  = 0.01
   heatsource_gauss          = 0.d0
   heatsource_gauss_e        = 0.d0
   heatsource_gauss_i        = 0.d0
