@@ -3,7 +3,7 @@
 !> More details about the implementation and verification can be found in: L. Puel et al 2026 NF 10.1088/1741-4326/ae2d70
 !> The present parameters are used for the study of the baseline H-mode 15 MA ITER case presented in: L. Puel et al 2026 NF 10.1088/1741-4326/aea175
 !> It represents a good start to study other cases.
-!> See the related documentation in the wiki for details
+!> See the related documentation in the wiki for details 
 
 module testccoll_helpers_hottail
   use particle_tracer
