@@ -250,11 +250,11 @@ subroutine calc_EBpsiU(fields, time, i_elm, st, phi, E, B, psi, U, E_par_norm)
     if ( with_TiTe ) then
         T_or_Te = Te_0
     else
-        T_or_Te = T_0
+        T_or_Te = T_0/2.
     end if
     !> compute the resistivity
     call resistivity(eta, Te_Ju, Te_Ju, T_max_eta, T_or_Te, Z_eff, lnA, eta_Spitz_Ju)
-    eta_Spitz = eta_Spitz_Ju * SQRT(mu_zero/ (central_mass * central_density * 1.0d20 * (1.0073*ATOMIC_MASS_UNIT)))
+    eta_Spitz = eta_Spitz_Ju * SQRT(mu_zero/ (central_mass * central_density * 1.0d20 * ATOMIC_MASS_UNIT))
 
     !> compute the toroidal current density
     call fields%interp_PRZ(time, i_elm, [var_zj], 1, st(1), st(2), phi, P, P_s, P_t, P_phi, P_time, R, R_s, R_t, Z, Z_s, Z_t)  
@@ -1586,11 +1586,11 @@ subroutine calc_EBNormBGradBCurlbDbdt(fields,time,i_elm,st,phi,E,b, &
     if ( with_TiTe ) then
         T_or_Te = Te_0
     else
-        T_or_Te = T_0
+        T_or_Te = T_0/2.
     end if
     !> compute the resistivity
     call resistivity(eta, Te_Ju, Te_Ju, T_max_eta, T_or_Te, Z_eff, lnA, eta_Spitz_Ju)
-    eta_Spitz = eta_Spitz_Ju * SQRT(mu_zero/ (central_mass * central_density * 1.0d20 * (1.0073*ATOMIC_MASS_UNIT)))
+    eta_Spitz = eta_Spitz_Ju * SQRT(mu_zero/ (central_mass * central_density * 1.0d20 * ATOMIC_MASS_UNIT))
 
     !> compute the toroidal current density 
     call fields%interp_PRZ(time, i_elm, [var_zj], 1, st(1), st(2), phi, P, P_s, P_t, P_phi, P_time, R, R_s, R_t, Z, Z_s, Z_t)  ! i_v = 3 --> zj
