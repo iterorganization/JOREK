@@ -792,7 +792,8 @@ function gc_to_relativistic_kinetic(node_list,element_list,in,time,mass,chi,B) r
   endif
  
   !> transform the momentum in cartesian coodinates
-  out%p = vector_cylindrical_to_cartesian(out%x(3),out%p)
+  ! Momentum was constructed in the GC basis; retain its physical Cartesian direction.
+  out%p = vector_cylindrical_to_cartesian(in%x(3),out%p)
 end function gc_to_relativistic_kinetic
 
 !---------------------------------------------------------------------------

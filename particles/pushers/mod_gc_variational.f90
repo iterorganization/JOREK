@@ -60,8 +60,8 @@ end
 
 subroutine convert_leapfrog_to_gc_vpar(node_list, element_list, particle_in, B, mass, particle_out)
   use data_structure
-  use mod_math_operators, only: cross_product
-  use mod_find_rz_nearby
+  use mod_pusher_tools, only: particle_position_to_gc
+  use, intrinsic :: ieee_arithmetic, only: ieee_is_finite
   implicit none
 
   type(type_node_list), intent(in)            :: node_list
@@ -71,24 +71,32 @@ subroutine convert_leapfrog_to_gc_vpar(node_list, element_list, particle_in, B, 
   real*8, intent(in)                          :: mass !< Mass of the particle [amu]
   type(particle_gc_vpar)                      :: particle_out
   real*8  :: B_hat(3), B_norm, v_par, v2
-  integer :: ifail
 
   call copy_particle_base(particle_in, particle_out)
 
   particle_out%q      = particle_in%q
   particle_out%weight = particle_in%weight
 
+  particle_out%vpar = 0.d0
+  particle_out%mu = 0.d0
+  if (.not. all(ieee_is_finite(B)) .or. .not. all(ieee_is_finite(particle_in%v)) .or. &
+      .not. ieee_is_finite(mass) .or. mass <= 0.d0) then
+    particle_out%i_elm = 0
+    return
+  endif
   B_norm = norm2(B)
+  if (.not. ieee_is_finite(B_norm) .or. B_norm <= 0.d0) then
+    particle_out%i_elm = 0
+    return
+  endif
   B_hat  = B/B_norm
   v_par  = dot_product(particle_in%v,B_hat)
   v2     = dot_product(particle_in%v,particle_in%v)
 
-  ! Calculate GC position
-  if (particle_out%q .ne. 0) then
-    particle_out%x = particle_in%x + (mass*ATOMIC_MASS_UNIT*cross_product(particle_in%v,B_hat))/(particle_in%q*EL_CHG*B_norm)
-  else
-    particle_out%x = particle_in%x
-  end if
+  ! Inverse displacement uses B and velocity in the kinetic position's basis.
+  call particle_position_to_gc(node_list,element_list,particle_in%x,particle_in%st, &
+      particle_in%i_elm,mass*particle_in%v,particle_in%q,B_hat,B_norm, &
+      particle_out%x,particle_out%st,particle_out%i_elm)
 
   ! Calculate velocity-related variables
   particle_out%vpar  = v_par
@@ -96,9 +104,6 @@ subroutine convert_leapfrog_to_gc_vpar(node_list, element_list, particle_in, B, 
   ! v_perp, but don't do it for now.
   particle_out%mu = 0.5d0 * (v2 - v_par**2) / B_norm
 
-  ! Calculate new st and i_elm
-  call find_RZ_nearby(node_list, element_list, particle_in%x(1), particle_in%x(2), particle_in%st(1), particle_in%st(2), particle_in%i_elm, &
-                      particle_out%x(1), particle_out%x(2), particle_out%st(1), particle_out%st(2), particle_out%i_elm, ifail)
 end
 
 subroutine copy_particle_gc_Qin(particle_in,particle_out)
@@ -164,8 +169,10 @@ end
 subroutine convert_gc_vpar_to_kinetic(node_list, element_list, particle_in, B, mass, n_phases, particle_out, my_ifail)
   use constants
   use data_structure
-  use mod_pusher_tools, only: get_orthonormals
-  use mod_math_operators, only: cross_product
+  use mod_pusher_tools, only: get_orthonormals, larmor_displacement, cylindrical_displacement, &
+      GC_GEOMETRY_INVALID
+  use mod_coordinate_transforms, only: vector_rotation
+  use, intrinsic :: ieee_arithmetic, only: ieee_is_finite
   use mod_find_rz_nearby
   implicit none
 
@@ -179,12 +186,17 @@ subroutine convert_gc_vpar_to_kinetic(node_list, element_list, particle_in, B, m
   integer, intent(out) :: my_ifail
 
   real*8  :: B_norm, v_perp, v_par, B_hat(3), e1(3), e2(3), chi, chi_start
+  real*8 :: rho(3), delta_phi, velocity_at_gc(3)
   integer :: i, ifail
 
   ifail = 0
   my_ifail = 0
 
-  if (n_phases .lt. 0) return
+  if (n_phases < 0) return
+  if (size(particle_out) < max(1,n_phases)) then
+    my_ifail = GC_GEOMETRY_INVALID
+    return
+  endif
 
   if (n_phases .eq. 0) then             ! return a kinetic particle at gyro-centre
     particle_out(1)%x      = particle_in%x
@@ -196,7 +208,23 @@ subroutine convert_gc_vpar_to_kinetic(node_list, element_list, particle_in, B, m
   endif
 
 
+  ! Consume the same draw as the original normal path, before validating data.
+  call random_number(chi_start)
+  chi_start = chi_start * TWOPI
+  do i=1,n_phases
+    particle_out(i)%x = particle_in%x
+    particle_out(i)%st = particle_in%st
+    particle_out(i)%i_elm = 0
+    particle_out(i)%q = particle_in%q
+    particle_out(i)%weight = particle_in%weight
+    particle_out(i)%v = 0.d0
+  enddo
+  my_ifail = GC_GEOMETRY_INVALID
+  if (.not. all(ieee_is_finite(B)) .or. .not. ieee_is_finite(mass)) return
+  if (.not. ieee_is_finite(particle_in%mu) .or. .not. ieee_is_finite(particle_in%vpar)) return
+  if (.not. ieee_is_finite(chi_start) .or. mass <= 0.d0 .or. particle_in%mu < 0.d0) return
   B_norm = sqrt(dot_product(B,B))
+  if (.not. ieee_is_finite(B_norm) .or. B_norm <= 0.d0) return
   B_hat  = B/B_norm
 
   v_perp = sqrt(2.d0 * particle_in%mu * B_norm) ! [m/s]
@@ -204,10 +232,7 @@ subroutine convert_gc_vpar_to_kinetic(node_list, element_list, particle_in, B, m
   ! Define chi as the angle of the velocity vector with b x r
   call get_orthonormals(B_hat, e1, e2)
 
-  call random_number(chi_start)
- ! chi_start = 0.d0
-
-  chi_start = chi_start * TWOPI ! replace with pcg32
+  my_ifail = 0
 
   do i = 1, n_phases
     
@@ -218,23 +243,24 @@ subroutine convert_gc_vpar_to_kinetic(node_list, element_list, particle_in, B, m
     particle_out(i)%q      = particle_in%q
     particle_out(i)%weight = particle_in%weight
 
-    if (particle_in%q .ne. 0) then
-
-      !CHECK for phi! gyro orbit should be in the plane perpendicular to B
-      particle_out(i)%x = particle_in%x - (mass*ATOMIC_MASS_UNIT*cross_product(particle_out(i)%v,B_hat))/(real(particle_in%q,8)*EL_CHG*B_norm)
-
+    velocity_at_gc = particle_out(i)%v
+    call larmor_displacement(mass*velocity_at_gc,particle_in%q,B_hat,B_norm,rho,ifail)
+    if (ifail == 0) call cylindrical_displacement(particle_in%x,rho,particle_out(i)%x,delta_phi,ifail)
+    if (ifail /= 0) then
+      my_ifail = GC_GEOMETRY_INVALID
+      particle_out(i)%i_elm = 0
+      cycle
+    endif
+    particle_out(i)%v = vector_rotation(velocity_at_gc,-delta_phi)
+    if (particle_in%q /= 0) then
       call find_RZ_nearby(node_list, element_list, &
-             particle_in%x(1),     particle_in%x(2),     particle_in%st(1),     particle_in%st(2),     particle_in%i_elm, &
-             particle_out(i)%x(1), particle_out(i)%x(2), particle_out(i)%st(1), particle_out(i)%st(2), particle_out(i)%i_elm, ifail)
-  
-      if (ifail .ne. 0) my_ifail = ifail
+          particle_in%x(1),particle_in%x(2),particle_in%st(1),particle_in%st(2),particle_in%i_elm, &
+          particle_out(i)%x(1),particle_out(i)%x(2),particle_out(i)%st(1),particle_out(i)%st(2), &
+          particle_out(i)%i_elm,ifail)
+      if (ifail /= 0 .and. my_ifail /= GC_GEOMETRY_INVALID) my_ifail = ifail
     else
-
-      particle_out(i)%x     = particle_in%x
-      particle_out(i)%st    = particle_in%st
       particle_out(i)%i_elm = particle_in%i_elm
-
-    end if
+    endif
 
   enddo
 
