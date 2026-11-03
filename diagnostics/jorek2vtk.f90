@@ -35,6 +35,7 @@ type (type_bnd_node_list),    pointer :: bnd_node_list
 
 integer               :: nnoel, nnos, nel, nsub, inode, ielm, n_scalars, n_vectors
 real*4,allocatable    :: currdens(:), xyz (:,:), scalars(:,:), vectors(:,:,:)
+real*8,allocatable    :: psi_norm_node(:)  ! per-node psi_norm needed for background radiation, cannot use scalars since psi_norm is not always defined.
 real*4                :: time_vtk
 integer,allocatable   :: ien (:,:)
 integer, parameter    :: ivtk = 22 ! an arbitrary unit number for the VTK output file
@@ -502,6 +503,7 @@ call init_chi_basis
 
 nnos = nsub*nsub*element_list%n_elements
 allocate(currdens(nnos),xyz(3,nnos),scalars(nnos,1:n_scalars),vectors(nnos,3,1:n_vectors))
+allocate(psi_norm_node(nnos))
 currdens = 0.
 
 nnoel = 4
@@ -1060,6 +1062,7 @@ do i=1,element_list%n_elements
           endif ! grad_psi
         endif ! include_fluxes
 
+        psi_norm_node(inode) = psi_norm  ! store per node for later background-radiation loops
         if (include_psi_norm) then
           scalars(inode,i_psin) = psi_norm
         endif
@@ -1367,6 +1370,7 @@ do i=1,element_list%n_elements
           vectors(inode,:, i_vec_Jpol) =  (/ Jpol_R, Jpol_Z, 0.d0 /)
         endif
         
+        psi_norm_node(inode) = psi_norm  ! store per node for later background-radiation loops
         if (include_psi_norm) then
            scalars(inode,i_psin) = psi_norm
         endif
@@ -1500,7 +1504,7 @@ enddo  ! n_elements
       if (use_imp_adas) then  ! use open adas by default
         frad_bg = 0. 
         do i_imp =1, n_adas
-          r_imp_bg = nimp_bg_density(i_imp, psi_norm) / (1.d20 * central_density)  ! Background impurity density in JU 
+          r_imp_bg = nimp_bg_density(i_imp, psi_norm_node(i)) / (1.d20 * central_density)  ! Background impurity density in JU 
           if (ne_SI > ne_SI_min .and. Te_eV > Te_eV_min .and. r_imp_bg > 0) then
             Lrad_imp = 0.0
             call radiation_function_linear(imp_adas(i_imp),imp_cor(i_imp),log10(ne_SI),    & 
@@ -1664,7 +1668,7 @@ enddo  ! n_elements
 
      frad_bg = 0.
      do i_imp =1, n_adas
-       r_imp_bg = nimp_bg_density(i_imp, psi_norm) / (1.d20 * central_density)  ! Background impurity density in JU     
+       r_imp_bg = nimp_bg_density(i_imp, psi_norm_node(i)) / (1.d20 * central_density)  ! Background impurity density in JU     
        if (ne_SI > ne_SI_min .and. Te_eV > Te_eV_min .and. r_imp_bg > 0) then
          Lrad_imp = 0.0
          call radiation_function_linear(imp_adas(i_imp),imp_cor(i_imp),log10(ne_SI),    & 
@@ -1905,15 +1909,15 @@ if (SI_units) then
         ! Use radiation coefficients from ADAS
         frad_bg = 0. 
         do i_imp =1, n_adas  
-          if (ne_SI > ne_SI_min .and. Te_eV > Te_eV_min .and. nimp_bg_density(i_imp, psi_norm) > 0) then
+          if (ne_SI > ne_SI_min .and. Te_eV > Te_eV_min .and. nimp_bg_density(i_imp, psi_norm_node(i)) > 0) then
             Lrad_imp = 0.0
             call radiation_function_linear(imp_adas(i_imp),imp_cor(i_imp),log10(ne_SI),    & 
                                            log10(Te_corr_eV*EL_CHG/K_BOLTZ),.false.,Lrad_imp) 
           else     
             Lrad_imp = 0.
           end if
-          scalars(i,iibg(i_imp)) = 1.d20 * r0_tmp * nimp_bg_density(i_imp, psi_norm) * Lrad_imp 
-          frad_bg = frad_bg + nimp_bg_density(i_imp, psi_norm) * Lrad_imp
+          scalars(i,iibg(i_imp)) = 1.d20 * r0_tmp * nimp_bg_density(i_imp, psi_norm_node(i)) * Lrad_imp 
+          frad_bg = frad_bg + nimp_bg_density(i_imp, psi_norm_node(i)) * Lrad_imp
         end do
       else
         if ( trim(imp_type(1)) == 'Ar' ) then ! Hard-coded fitting exists for argon
