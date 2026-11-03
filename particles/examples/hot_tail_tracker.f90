@@ -771,7 +771,7 @@ program hot_tail_track
   use mod_kinetic_relativistic
   use mod_project_particles
   use mod_impurity, only: init_imp_adas
-  use testccoll_helpers
+  use testccoll_helpers_hottail
   use, intrinsic :: ieee_arithmetic
   use constants
   use mod_bessel, only : bessel_k2exp
