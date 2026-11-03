@@ -305,7 +305,7 @@ function last_file_before_time(time) result(file_number)
     t_upper = get_jorek_hdf5_time('jorek'//num_s//'.h5')*t_norm
     i_guess = nint((time-t_lower)/(t_upper-t_lower)*real(i_upper - i_lower)) + i_lower
 
-    do i=1,10000
+    do i=1,20
       if (i_guess .le. 1 .or. i_guess .gt. n) then
         if (my_id .eq. 0) write(*,*) "ERROR: requested time out of range"
         exit

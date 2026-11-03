@@ -858,7 +858,7 @@ type(ccoll_data) :: dat
 !<<<< INPUT : Simulation options >>>>!
 dt_marker     = 10.e-9           !< Marker time step [s]
 duration      = 3.0e-3           !< How long markers are traced [s]
-nprt          = 300           !< Number of markers
+nprt          = 30000            !< Number of markers
 time_startsim = 2.0e-3           !< Time to start simulation (not accounted if restart particles)
 nstep_write = 100                !< Number of writting time step for diagnostic (no counting the t=0 one)
 nstep_reweight = 100             !< Number of reweighting steps using the russian roulette method
