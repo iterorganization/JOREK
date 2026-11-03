@@ -505,7 +505,7 @@ contains
 
     !> compute required fields at GC position
     if(i_elm_new .gt. 0) then
-       if (int_parameters(1) .eq. 0) then
+       if (int_parameters(3) .eq. 0) then
          E_par_norm = .FALSE.
        else 
          E_par_norm = .TRUE.
