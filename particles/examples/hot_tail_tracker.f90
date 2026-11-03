@@ -858,7 +858,7 @@ type(ccoll_data) :: dat
 !<<<< INPUT : Simulation options >>>>!
 dt_marker     = 10.e-9           !< Marker time step [s]
 duration      = 3.0e-3           !< How long markers are traced [s]
-nprt          = 30000            !< Number of markers
+nprt          = 300           !< Number of markers
 time_startsim = 2.0e-3           !< Time to start simulation (not accounted if restart particles)
 nstep_write = 100                !< Number of writting time step for diagnostic (no counting the t=0 one)
 nstep_reweight = 100             !< Number of reweighting steps using the russian roulette method
@@ -1479,6 +1479,9 @@ call sim%finalize
 
 contains
 
+! Functions bellow are used for the rejection-sampling initialization of markers
+
+! Function to assign weights to an uniform distribution of markers to reproduce a Maxwell-Jüttner distribution
 function weight_MJ(nx,x,st,time,i_elm,fields,x_min,x_max,&
   n_real_param,real_param,n_int_param,int_param) result(weight)
     use constants,  only: PI, SPEED_OF_LIGHT, K_BOLTZ, ATOMIC_MASS_UNIT
@@ -1554,6 +1557,7 @@ function weight_MJ(nx,x,st,time,i_elm,fields,x_min,x_max,&
     end if
 end function weight_MJ
 
+! Function to draw uniformly markers in phase space
 function pdf_uniform(nx,x,st,time,i_elm,fields,x_min,x_max,&
   n_real_param,real_param,n_int_param,int_param)
     use constants,  only: PI
@@ -1600,6 +1604,7 @@ function pdf_uniform(nx,x,st,time,i_elm,fields,x_min,x_max,&
    end if
 end function pdf_uniform
 
+! Maximum value of the function pdf_uniform
 function sup_pdf_uniform(nx,x_min,x_max,n_real_param,real_param,&
 n_int_param,int_param) result(sup_pdf)
    use constants,  only: PI
@@ -1619,6 +1624,7 @@ n_int_param,int_param) result(sup_pdf)
    (cos(x_min(5))-cos(x_max(5)))*PI)
 end function sup_pdf_uniform
 
+! Maximum value of the function gdf_uniform_sampler
 function sup_gdf_uniform_phase(nx,x_min,x_max,n_real_param,real_param,&
 n_int_param,int_param) result(sup_gdf)
    use constants,  only: PI
@@ -1638,6 +1644,7 @@ n_int_param,int_param) result(sup_gdf)
    (cos(x_min(5))-cos(x_max(5)))*PI)
 end function sup_gdf_uniform_phase
 
+! Function to sample uniformly markers in phase space (see the rejection-sampling method)
 subroutine gdf_uniform_sampler(nx,x,st,time,i_elm,fields,&
 x_min,x_max,n_real_param,real_param,n_int_param,int_param)
    use mod_fields, only: fields_base
@@ -1680,6 +1687,7 @@ x_min,x_max,n_real_param,real_param,n_int_param,int_param)
    st(2) = t_found
 end subroutine gdf_uniform_sampler
 
+! Constant function as sup_pdf_uniform for the sampler
 function gdf_uniform_phase(nx,x,st,time,i_elm,fields,x_min,x_max,&
 n_real_param,real_param,n_int_param,int_param) result(gdf)
    use constants,  only: PI
@@ -1702,6 +1710,7 @@ n_real_param,real_param,n_int_param,int_param) result(gdf)
    (cos(x_min(5))-cos(x_max(5)))*PI)
 end function gdf_uniform_phase
 
+! Assign p_|| and the charge
 subroutine spherical_p_cartesian_q_to_relativistic_gc(p_inout,&
 n_x,x,time,fields,n_real_param,real_param,n_int_param,int_param)
    use mod_particle_types,        only: particle_base
