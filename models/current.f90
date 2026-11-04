@@ -65,7 +65,7 @@ zjz   = zFFprime - R*R * (zn * dT_dpsi + dn_dpsi * zT)
 !     by the wide tanh(Z) cutoffs), and the eta*(j-j0) drive is stiffest where the plasma is
 !     cold. Masks in psi_N towards the SOL and, more sharply than the profile routines, in Z
 !     beyond the X-point(s) towards the private flux region.
-if (keep_current_prof_confined) then
+if (.not. keep_current_prof_open) then
   mask = 0.5d0 * (1.d0 - tanh((psi_n - keep_current_psin_cutoff)/keep_current_psin_sig))
   if (xpoint2) then
     if (xcase2 .ne. UPPER_XPOINT) & ! mask below the lower X-point
