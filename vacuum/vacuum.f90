@@ -171,7 +171,7 @@ module vacuum
   type(t_coil_curr_input), target :: pf_coils(MAX_COILS)      ! see [[jorek-starwall-faqs|jorek_starwall_FAQs]]
   type(t_coil_curr_time_trace)    :: coil_curr_time_trace(4*MAX_COILS)
   real*8 :: vert_FB_amp(MAX_COILS) = 0.d0 !< Tune direction and magnitude of vert feedback for each poloidal field coil ([[jorek-starwall-faqs|eq_FAQs]])
-  real*8 :: rad_FB_amp(MAX_COILS) = 0.d0  !< Tune direction and magnitude of vert feedback for each poloidal field coil ([[jorek-starwall-faqs|eq_FAQs]])
+  real*8 :: rad_FB_amp(MAX_COILS) = 0.d0  !< Tune direction and magnitude of radial feedback for each poloidal field coil ([[jorek-starwall-faqs|eq_FAQs]])
   
   ! --- Parameters for the feedback on the vertical position during timestepping (VFB), see ([[freebnd_tools|documentation]])
   character(len=256)  :: axis_pos_file = 'none'
@@ -184,10 +184,10 @@ module vacuum
   end type t_axis_position_ts
   real*8                        :: start_PFB_ts                  !< start time of active Position FeedBack during simulation ([JOREK units])
   real*8                        :: vert_FB_amp_ts(MAX_COILS)     !< Amplitude and sign of vert feedback for each coil ([[jorek-starwall-faqs|eq_FAQs]])
-  real*8                        :: rad_FB_amp_ts(MAX_COILS)      !< Amplitude and sign of vert feedback for each coil ([[jorek-starwall-faqs|eq_FAQs]])
+  real*8                        :: rad_FB_amp_ts(MAX_COILS)      !< Amplitude and sign of radial feedback for each coil ([[jorek-starwall-faqs|eq_FAQs]])
   real*8                        :: I_coils_max(MAX_COILS)        !< Current limit of each coil ([Ampere])
   real*8                        :: vert_FB_gain(3)               !< Gain parameters for vertical feedback controller
-  real*8                        :: rad_FB_gain(3)                !< Gain parameters for vertical feedback controller
+  real*8                        :: rad_FB_gain(3)                !< Gain parameters for radial feedback controller
   real*8                        :: pos_FB_tact                   !< Time interval between two controller actions ([JOREK units])
   real*8                        :: dZ_axis_integral              !< Integrated values of Z_axis-Z_reference for controller
   real*8                        :: dR_axis_integral              !< Integrated values of Z_axis-Z_reference for controller
