@@ -461,7 +461,7 @@ Tie_min_neg = 0.5*T_min_neg
 !$omp          eta_ohmic, central_mass, R2curr_tmp, Zcurr_tmp, ksi_ion,                                       &
 !$omp          local_mom_par_int, local_mom_par_ext, local_mom_par_tot,                                       &
 !$omp          use_ncs, use_ics, local_Nion, local_Nrec, local_Prec, local_Prb, local_Prb_cooling,            &
-!$omp          local_aux_mom_par_int,local_aux_mom_par_ext,local_aux_mom_par_tot, n_aux_var,                  &
+!$omp          local_aux_mom_par_int,local_aux_mom_par_ext,local_aux_mom_par_tot, n_aux_var, bloating_factor, &
 !$omp          rho_idx_kin, mom_par_idx_kin,                                                                  &
 !$omp          local_pn_e, local_pn_i, local_pn,                                                              &
 #ifdef WITH_TiTe
@@ -567,7 +567,7 @@ omp_tid      = 0
 !$omp                local_aux_mom_par_int,local_aux_mom_par_ext,local_aux_mom_par_tot,       &
 !$omp                local_mom_par_int, local_mom_par_ext, local_mom_par_tot,                        &
 !$omp                heli_tot, mag_wk_tot, vpar_disp_tot, thm_wk_tot, area1, mag_src_tot,H_impl_int,H_impl_ext, &
-!$omp                fric_disp_tot, R2curr_tmp, Zcurr_tmp, C_intern_3d, C_ext_3d, vprp_disp_tot)
+!$omp                fric_disp_tot, R2curr_tmp, Zcurr_tmp, C_intern_3d, C_ext_3d, vprp_disp_tot, bloating_factor)
 
 do ife = ife_min, ife_max
   element = element_list%element(ife)

@@ -38,7 +38,7 @@ function initial_run () {
 
 # --- Carry out the test case
 function restart_run () {
-  ${codedir}/util/setinput.sh input restart=.t. nstep=1 tstep=0.3 nout=1  time_evol_scheme="Crank-Nicholson"  || exit 1
+  ${codedir}/util/setinput.sh input restart=.t. nstep=1 tstep=0.3 nout=1  time_evol_scheme='"Crank-Nicholson"'  || exit 1
   $MPIRUN $mpitasks ./jorek_model${jorekmodel}_1 < input | tee logfile                                           || exit 1
 }
 

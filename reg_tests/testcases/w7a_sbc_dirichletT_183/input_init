@@ -1,0 +1,43 @@
+&in1
+
+ restart = .f.
+ regrid  = .f.
+ refinement=.false.
+ tstep   = 1.
+ nstep   = 1
+
+ nout = 1
+
+! rst_hdf5 = 1    ! = 0 ; restart from binary files
+!                 ! = 1 ; restart from HDF5 files
+
+ freeboundary = .f.
+ gvec_grid_import = .true.
+ keep_current_prof = .f.
+ fix_axis_nodes = .t.
+ bc_natural_open = .t.
+
+ F0    = 4.72593206453746
+
+ n_flux   = 20
+ n_tht    = 24
+
+ m_pol_bc = 36
+
+ domm_file = "dc_W7A_unst_10kPa"
+
+ rho_0 = 1.
+ rho_1 = 1.
+ rho_coef(1)  =  0.0
+ rho_coef(2)  =  0.0
+ rho_coef(3)  =  0.0
+ rho_coef(4)  =  1.d0
+ rho_coef(5)  =  5.d0
+
+ !gmres = .f.
+ iter_precon = 22
+! gmres_m = 20
+! gmres_4 = 1.d0
+ gmres_max_iter = 200
+ gmres_tol = 1.d-8
+/
