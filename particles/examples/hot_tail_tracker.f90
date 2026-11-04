@@ -5,7 +5,7 @@
 !> It represents a good start to study other cases.
 !> See the related documentation in the wiki for details
 
-module testccoll_helpers
+module testccoll_helpers_hot_tail
   use particle_tracer
   use mod_particle_io
   use mod_particle_diagnostics
@@ -752,7 +752,7 @@ subroutine recycle_lost(particles, fields, nprt, iprt, time, mass, p_cutoff,  &
   end select
 end subroutine recycle_lost
 
-end module testccoll_helpers
+end module testccoll_helpers_hot_tail
 
 !############################################################################################
 !#############################         SIMULATION LOOP        ###############################
@@ -771,7 +771,7 @@ program hot_tail_track
   use mod_kinetic_relativistic
   use mod_project_particles
   use mod_impurity, only: init_imp_adas
-  use testccoll_helpers
+  use testccoll_helpers_hot_tail
   use, intrinsic :: ieee_arithmetic
   use constants
   use mod_bessel, only : bessel_k2exp
