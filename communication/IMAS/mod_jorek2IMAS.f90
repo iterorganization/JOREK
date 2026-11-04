@@ -1568,7 +1568,9 @@ module mod_jorek2IMAS
     equilibrium_ids%vacuum_toroidal_field%b0(i_slice) = F0/R_geo * fact_Ip
     
     ! --- Fill global quantities (call mod_integrals3D)
+    equilibrium_ids%time_slice(i_slice)%global_quantities%psi_boundary      = ES%Psi_bnd  * fact_psi
     equilibrium_ids%time_slice(i_slice)%global_quantities%psi_magnetic_axis = ES%Psi_axis * fact_psi
+
     equilibrium_ids%time_slice(i_slice)%global_quantities%magnetic_axis%r = ES%R_axis
     equilibrium_ids%time_slice(i_slice)%global_quantities%magnetic_axis%z = ES%Z_axis
     
