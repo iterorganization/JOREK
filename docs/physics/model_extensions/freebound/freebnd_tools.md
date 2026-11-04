@@ -82,8 +82,8 @@ The controller is only activated if the amplification factors are specified and 
 | vert_FB_gain(1:3)               | $K_p, K_D, K_I$ gains for vertical feedback   | [1.e0,1.e0,1.e0] (case dependent)  |                 
 | rad_FB_gain(1:3)                | $K_p, K_D, K_I$ gains for radial feedback     | [1.e0,1.e0,1.e0] (case dependent)  |                 
 | start_PFB_ts [t<sub>JOREK</sub>]| start time of position feedback               | -                                  |
-| vert_FB_amp_ts                  | gain amplification factor for individual coils| >0 for upper, <0 for lower coils   |
-| rad_FB_amp_ts                   | gain amplification factor for individual coils| =0 for no control an radial control| 
+| vert_FB_amp_ts                  | gain amplification factor for individual coils (vertical)| >0 for upper, <0 for lower coils   |
+| rad_FB_amp_ts                   | gain amplification factor for individual coils (radial)| =0 for no radial control on the coil |
 | I_coils_max [A]                 | maximum allowed current in the PF coil        | case specific                      |
 | pos_FB_tact [t<sub>JOREK</sub>] | Apply PFB only periodically                   | optional                           |
 | axis_pos_file                   | input file for time dependent axis position   |   -                                |

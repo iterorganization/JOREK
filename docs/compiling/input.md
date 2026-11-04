@@ -572,8 +572,8 @@ render_with_liquid: false
 | **current_ref** | 1.d22 | Target total plasma current Ip for the feedback (FB) [[jorek-starwall-faqs\|fbnd_eq_FAQs]] | x | x | x | x | x | x | x | x |
 | **FB_Ip_position** | 0.2 | Amplification factor for Ip feedback (see [[jorek-starwall-faqs\|fbnd_eq_FAQs]]) | x | x | x | x | x | x | x | x |
 | **FB_Ip_integral** | 0.01 | Amplification factor for Ip feedback (see [[jorek-starwall-faqs\|fbnd_eq_FAQs]]) | x | x | x | x | x | x | x | x |
-| **Z_axis_ref** | 1.d22 | Target magnetic axis vertical position (see [[jorek-starwall-faqs\|fbnd_eq_FAQs]]) | x | x | x | x | x | x | x | x |
-| **R_axis_ref** | -99. | Optional target magnetic axis radial position (see [[jorek-starwall-faqs\|fbnd_eq_FAQs]]) |  |  | x | x | x | x | x | x |
+| **Z_axis_ref** | 1.d22 | Target magnetic axis vertical position (see [[jorek-starwall-faqs\|fbnd_eq_FAQs]]); also constant reference for the vertical position feedback during timestepping if no axis_pos_file is given | x | x | x | x | x | x | x | x |
+| **R_axis_ref** | -99. | Optional target magnetic axis radial position (see [[jorek-starwall-faqs\|fbnd_eq_FAQs]]); also constant reference for the radial position feedback during timestepping if no axis_pos_file is given |  |  | x | x | x | x | x | x |
 | **FB_Zaxis_position** | 1. | Amplification factor for Zaxis feedback (see [[jorek-starwall-faqs\|fbnd_eq_FAQs]]) | x | x | x | x | x | x | x | x |
 | **FB_Zaxis_derivative** | 0. | Amplification factor for Zaxis feedback (see [[jorek-starwall-faqs\|fbnd_eq_FAQs]]) | x | x | x | x | x | x | x | x |
 | **FB_Zaxis_integral** | 0. | Amplification factor for Zaxis feedback (see [[jorek-starwall-faqs\|fbnd_eq_FAQs]]) | x | x | x | x | x | x | x | x |
@@ -587,11 +587,13 @@ render_with_liquid: false
 | **voltage_coils** |  | not ready yet (see [[jorek-starwall-faqs\|jorek_starwall_FAQs]]) | x | x | x | x | x | x | x | x |
 | **pf_coils** | 0 | see [[jorek-starwall-faqs\|jorek_starwall_FAQs]] | x | x | x | x | x | x | x | x |
 | **vert_FB_amp** |  | Tune direction and magnitude of vert feedback for each poloidal field coil ([[jorek-starwall-faqs\|eq_FAQs]]) | x | x | x | x | x | x | x | x |
-| **rad_FB_amp** |  | Tune direction and magnitude of vert feedback for each poloidal field coil ([[jorek-starwall-faqs\|eq_FAQs]]) |  |  | x | x | x | x | x | x |
-| **vert_pos_file** |  |  | x | x | x | x | x |  |  |  |
-| **start_VFB_ts** | 0. | start time of active VFB during simulation ([JOREK units]) | x | x | x | x | x |  |  |  |
+| **rad_FB_amp** |  | Tune direction and magnitude of radial feedback for each poloidal field coil ([[jorek-starwall-faqs\|eq_FAQs]]) |  |  | x | x | x | x | x | x |
+| **axis_pos_file** |  | File with time trace of the target axis position (3 columns: time [JOREK units], R_axis [m], Z_axis [m]) | x | x | x | x | x |  |  |  |
+| **start_PFB_ts** | 0. | start time of active Position FeedBack during simulation ([JOREK units]) | x | x | x | x | x |  |  |  |
 | **vert_FB_amp_ts** | 0. | Amplitude and sign of vert feedback for each coil ([[jorek-starwall-faqs\|eq_FAQs]]);amplification factor (of PF coil) | x | x | x | x | x |  |  |  |
+| **rad_FB_amp_ts** | 0. | Amplitude and sign of radial feedback for each coil ([[jorek-starwall-faqs\|eq_FAQs]]);amplification factor (of PF coil) | x | x | x | x | x |  |  |  |
 | **I_coils_max** | 1.d99 | Current limit of each coil ([Ampere]);Maximum absolute value for coils | x | x | x | x | x |  |  |  |
-| **vert_FB_gain** | 0. | Gain parameters for vertical feedback controller;Proportional, derivative, integral gain of VFB controller | x | x | x | x | x |  |  |  |
-| **vert_FB_tact** | 1.d-9 | Time interval between two controller actions ([JOREK units]);Tact of VFB controller | x | x | x | x | x |  |  |  |
+| **vert_FB_gain** | 0. | Gain parameters for vertical position feedback controller;Proportional, derivative, integral gain of vertical PFB controller | x | x | x | x | x |  |  |  |
+| **rad_FB_gain** | 0. | Gain parameters for radial position feedback controller;Proportional, derivative, integral gain of radial PFB controller | x | x | x | x | x |  |  |  |
+| **pos_FB_tact** | 1.d-9 | Time interval between two position controller actions ([JOREK units]);Tact of PFB controller | x | x | x | x | x |  |  |  |
 {: .params-table}
