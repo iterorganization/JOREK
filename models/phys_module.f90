@@ -286,6 +286,9 @@ module phys_module
   real*8  :: edgeparticlesource            !< Edge particle source amplitude
   real*8  :: edgeparticlesource_psin       !< Position around which the edge particle source is located
   real*8  :: edgeparticlesource_sig        !< Width over which edge particle source extends
+  real*8  :: privparticlesource(2)         !< Private particle source amplitude
+  real*8  :: privparticlesource_z0(2)      !< Z location at which the priv particle source is located
+  real*8  :: privparticlesource_width(2)   !< Width (m) of privparticlesource. + values for (1)/(2) mean below/above privparticlesource_z0(1)/(2)
   real*8  :: neutral_line_source(10)       !< neutral inflow source
   real*8  :: neutral_line_R_start(10)      !< neutral inflow source (starting point of line source)
   real*8  :: neutral_line_Z_start(10)      !< neutral inflow source
@@ -629,6 +632,9 @@ module phys_module
   
   !> @name Analytical heat, particle and neutral particles diffusivity parameters
   real*8  :: D_perp(10)    = 0.d0 !< Coefficients for perpendicular particle diffusion profile
+  real*8  :: D_perp_pri(2)        !< Perpendicular particle diffusion below/above the LOWER/UPPER x-point
+  real*8  :: D_perp_pri_z0(2)     !< Z location for D_perp_pri tanh to act
+  real*8  :: D_perp_pri_width(2)  !< Width (in m) of D_perp_pri. + values for (1)/(2) mean below/above D_perp_pri_z0(1)/(2)
   real*8  :: D_par                !< Parallel particle diffusion (usually not useful)
   real*8  :: V_pinch_gauss = 0.d0 !< Amplitude of Gaussian inward pinch velocity profile for background fluid (rho only).
                                   !< Profile: V_pinch_gauss * exp(-(psin - V_pinch_psin)^2 / V_pinch_sig^2).
@@ -638,6 +644,9 @@ module phys_module
   real*8  :: D_perp_imp(10)= 0.d0 !< Coefficients for perpendicular imp particle diffusion profile
   real*8  :: D_par_imp            !< Parallel impurity particle diffusion (usually not useful)
   real*8  :: ZK_perp(10)   = 0.d0 !< Coefficients for perpendicular heat diffusion profile
+  real*8  :: ZK_perp_pri(2)       !< Perpendicular heat diffusion below/above the LOWER/UPPER x-point
+  real*8  :: ZK_perp_pri_z0(2)    !< Z location for ZK_perp_pri tanh to act
+  real*8  :: ZK_perp_pri_width(2) !< Width (in m) of ZK_perp_pri. + values for (1)/(2) mean below/above ZK_perp_pri_z0(1)/(2)
   real*8  :: ZK_par               !< Parallel heat diffusion value in the plasma center
   real*8  :: ZK_par_max           !< Do not use larger parallel heat diffusion values for numerical reasons
   real*8  :: T_min_ZKpar          !< Do not use smaller parallel heat diffusion values below this MHD temperature (Ti+Te); JOREK units
@@ -646,6 +655,12 @@ module phys_module
   real*8  :: ZK_par_SpitzerHaerm  !< Spitzer-Haerm parallel heat diffusion value in the plasma center (assuming a Z=1 plasma with Te=Ti)
   real*8  :: ZK_i_perp(10) = 0.d0 !< Coefficients for perpendicular ion heat diffusion profile
   real*8  :: ZK_e_perp(10) = 0.d0 !< Coefficients for perpendicular electron heat diffusion profile
+  real*8  :: ZK_i_perp_pri(2)      !< Perpendicular ion heat diffusion below/above the LOWER/UPPER x-point
+  real*8  :: ZK_i_perp_pri_z0(2)   !< Z location for ZK_i_perp_pri tanh to act
+  real*8  :: ZK_i_perp_pri_width(2)!< Width (in m) of ZK_i_perp_pri. + values for (1)/(2) mean below/above ZK_i_perp_pri_z0(1)/(2)
+  real*8  :: ZK_e_perp_pri(2)      !< Perpendicular electron heat diffusion below/above the LOWER/UPPER x-point
+  real*8  :: ZK_e_perp_pri_z0(2)   !< Z location for ZK_e_perp_pri tanh to act
+  real*8  :: ZK_e_perp_pri_width(2)!< Width (in m) of ZK_e_perp_pri. + values for (1)/(2) mean below/above ZK_e_perp_pri_z0(1)/(2)
   real*8  :: ZK_i_par             !< Ion parallel heat diffusion coefficient in the plasma center
   real*8  :: ZK_e_par             !< Electron parallel heat diffusion coefficient in the plasma center
   real*8  :: ZK_i_par_SpitzerHaerm!< Spitzer-Haerm ion parallel heat diffusion value in the plasma center (assuming a Z=1 plasma)
@@ -907,6 +922,10 @@ module phys_module
 
   !> @name Flag to determine whether or not we keep current source term  
   logical             :: keep_current_prof !< Artificial current source to approximately keep the initial current profile, i.e., \f$\eta(j-j0)\f$?
+  logical             :: keep_current_prof_open !< Allow the keep_current_prof source to the open field line region region via smooth tanh masks (suppressed in SOL and private flux region)
+  real*8              :: keep_current_psin_cutoff   !< Center of the tanh mask in psi_N for keep_current_prof_open
+  real*8              :: keep_current_psin_sig      !< Width of the tanh mask in psi_N for keep_current_prof_open
+  real*8              :: keep_current_z_sig         !< Width of the tanh mask in Z beyond the X-point(s) for keep_current_prof_open (masks the private flux region where psi_N < 1)
   logical             :: init_current_prof !< Initialize the current source from the current profile present
   logical             :: current_prof_initialized !< Flag that is automatically set to true once the current source has been initialized to prevent accidental reinitialization when restarting
   

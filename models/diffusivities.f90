@@ -3,11 +3,17 @@ module diffusivities
 
   use constants  
   use mod_parameters,  only: jorek_model
-  use phys_module, only: num_d_perp, D_perp, num_d_perp_x, num_d_perp_y, num_d_perp_len,           &
-                         num_zk_perp, num_zk_e_perp, num_zk_i_perp, ZK_perp, ZK_e_perp, ZK_i_perp, num_zk_perp_x, num_zk_perp_y, num_zk_perp_len,      &
-                         num_zk_e_perp_x, num_zk_i_perp_x, num_zk_e_perp_y, num_zk_i_perp_y, num_zk_e_perp_len, num_zk_i_perp_len,     &
-       xpoint, xcase, rho_0, rho_coef, T_coef, Ti_coef, Te_coef, V_pinch_gauss, V_pinch_psin, V_pinch_sig, &
-       num_v_pinch, num_v_pinch_x, num_v_pinch_y, num_v_pinch_len
+  use phys_module, only: num_d_perp,  D_perp,  D_perp_pri,  D_perp_pri_z0, D_perp_pri_width,                        &
+                         num_d_perp_x, num_d_perp_y, num_d_perp_len,                                                &
+                         num_zk_perp, ZK_perp, ZK_perp_pri, ZK_perp_pri_z0, ZK_perp_pri_width,                      &
+                         num_zk_perp_x, num_zk_perp_y, num_zk_perp_len,                                             &
+                         num_zk_i_perp, ZK_i_perp, ZK_i_perp_pri, ZK_i_perp_pri_z0, ZK_i_perp_pri_width,            &
+                         num_zk_i_perp_x, num_zk_i_perp_y, num_zk_i_perp_len,                                       &
+                         num_zk_e_perp, ZK_e_perp, ZK_e_perp_pri, ZK_e_perp_pri_z0, ZK_e_perp_pri_width,            &
+                         num_zk_e_perp_x, num_zk_e_perp_y, num_zk_e_perp_len,                                       &
+                         num_v_pinch, V_pinch_gauss, V_pinch_psin, V_pinch_sig,                                     &
+                         num_v_pinch_x, num_v_pinch_y, num_v_pinch_len,                                             &
+                         xpoint, xcase, rho_0, rho_coef, T_coef, Ti_coef, Te_coef
   use profiles,    only: interpolProf
     
   implicit none
@@ -22,21 +28,25 @@ module diffusivities
     module procedure get_dperp2
     module procedure get_dperp3
     module procedure get_dperp4
+    module procedure get_dperp5
   end interface get_dperp
   
   interface get_zkperp
     module procedure get_zkperp1
     module procedure get_zkperp2
+    module procedure get_zkperp3
   end interface get_zkperp
   
   interface get_zk_iperp
     module procedure get_zk_iperp1
     module procedure get_zk_iperp2
+    module procedure get_zk_iperp3
   end interface get_zk_iperp
     
   interface get_zk_eperp
     module procedure get_zk_eperp1
     module procedure get_zk_eperp2
+    module procedure get_zk_eperp3
   end interface get_zk_eperp
   
   contains
@@ -107,7 +117,46 @@ module diffusivities
     get_dperp4 = interpolProf(num_d_prof_x, num_d_prof_y, num_d_prof_len, psin)
     
   end function get_dperp4
+  
+  !> Determine perpendicular particle diffusivity, D_perp, as a function of Psi_N and Z
+  real*8 function get_dperp5(psin, Z)
+#if _OPENMP >= 201511
+    !$omp declare simd
+#endif
+    implicit none
+    
+    real*8, intent(in) :: psin, Z
+    
+    if ( num_d_perp ) then
+      
+      get_dperp5 = interpolProf(num_d_perp_x, num_d_perp_y, num_d_perp_len, psin)
+      
+    else
+      
+      get_dperp5 = D_perp(1) * ( (1.d0-D_perp(2)) +                                                 &
+        D_perp(2)*(0.5d0 - 0.5d0*tanh((psin-D_perp(5))/D_perp(4))) )
+      
+      if ( jorek_model >= 300 ) then
+        
+        get_dperp5 = get_dperp5 + D_perp(6)*D_perp(2) *                                              &
+          ((0.5d0 - 0.5d0*tanh((-psin+D_perp(5)+D_perp(3)) /D_perp(4))))
+        
+      end if
+      
+    end if
 
+    if ( D_perp_pri_z0(1) .ne. 99.d0 ) then
+      get_dperp5 = get_dperp5 + D_perp_pri(1) * 0.5d0*(1.d0 -                                             &
+                           tanh( (Z-D_perp_pri_z0(1)) / D_perp_pri_width(1) ))
+    end if
+    
+    if ( D_perp_pri_z0(2) .ne. 99.d0 ) then
+      get_dperp5 = get_dperp5 + D_perp_pri(2) * 0.5d0*(1.d0 +                                             &
+                           tanh( (Z-D_perp_pri_z0(2)) / D_perp_pri_width(2) ))
+    end if
+    
+  end function get_dperp5  
+  
   !> Determine perpendicular heat diffusivity, ZK_perp, as a function of Psi_N
   real*8 function get_zkperp1(psin)
 #if _OPENMP >= 201511
@@ -137,7 +186,135 @@ module diffusivities
     end if
     
   end function get_zkperp1
-	
+
+
+  !> Determine perpendicular heat diffusivity, ZK_perp, as a function of Psi_N and Z
+  real*8 function get_zkperp3(psin, Z)
+#if _OPENMP >= 201511
+    !$omp declare simd
+#endif
+    implicit none
+    
+    real*8, intent(in)  :: psin, Z
+    
+    
+    if ( num_zk_perp ) then
+      
+      get_zkperp3 = interpolProf(num_zk_perp_x, num_zk_perp_y, num_zk_perp_len, psin)
+      
+    else
+      
+      get_zkperp3 = ZK_perp(1) * ( (1.d0-ZK_perp(2)) +                                              &
+        ZK_perp(2) *(0.5d0 - 0.5d0*tanh((psin-ZK_perp(5))/ZK_perp(4))) )
+      
+      if ( jorek_model >= 300 ) then
+        
+        get_zkperp3 = get_zkperp3 + ZK_perp(6)*ZK_perp(2) *                                          &
+          ((0.5d0 - 0.5d0*tanh((-psin+ZK_perp(5)+ZK_perp(3)) /ZK_perp(4))))
+        
+      end if
+      
+    end if
+
+    if ( ZK_perp_pri_z0(1) .ne. 99.d0 ) then
+      get_zkperp3 = get_zkperp3 + ZK_perp_pri(1) * 0.5d0*(1.d0-                                              &
+                           tanh( (Z-ZK_perp_pri_z0(1)) / ZK_perp_pri_width(1) ))
+    end if
+ 
+    if ( ZK_perp_pri_z0(2) .ne. 99.d0 ) then
+      get_zkperp3 = get_zkperp3 + ZK_perp_pri(2) * 0.5d0*(1.d0 +                                             &
+                           tanh( (Z-ZK_perp_pri_z0(2)) / ZK_perp_pri_width(2) ))
+    end if
+  
+    
+  end function get_zkperp3
+
+
+  !> Determine perpendicular ion heat diffusivity, ZK_perp, as a function of Psi_N and Z
+  real*8 function get_zk_iperp3(psin, Z)
+#if _OPENMP >= 201511
+    !$omp declare simd
+#endif
+    implicit none
+    
+    real*8, intent(in)  :: psin, Z
+    
+    
+    if ( num_zk_i_perp ) then
+      
+      get_zk_iperp3 = interpolProf(num_zk_i_perp_x, num_zk_i_perp_y, num_zk_i_perp_len, psin)
+      
+    else
+      
+      get_zk_iperp3 = ZK_i_perp(1) * ( (1.d0-ZK_i_perp(2)) +                                              &
+        ZK_i_perp(2) *(0.5d0 - 0.5d0*tanh((psin-ZK_i_perp(5))/ZK_i_perp(4))) )
+      
+      if ( jorek_model >= 300 ) then
+        
+        get_zk_iperp3 = get_zk_iperp3 + ZK_i_perp(6)*ZK_i_perp(2) *                                          &
+          ((0.5d0 - 0.5d0*tanh((-psin+ZK_i_perp(5)+ZK_i_perp(3)) /ZK_i_perp(4))))
+        
+      end if
+      
+    end if
+
+    if ( ZK_i_perp_pri_z0(1) .ne. 99.d0 ) then
+      get_zk_iperp3 = get_zk_iperp3 + ZK_i_perp_pri(1) * 0.5d0*(1.d0 -                                             &
+                           tanh( (Z-ZK_i_perp_pri_z0(1)) / ZK_i_perp_pri_width(1) ))
+    end if
+ 
+    if ( ZK_i_perp_pri_z0(2) .ne. 99.d0 ) then
+      get_zk_iperp3 = get_zk_iperp3 + ZK_i_perp_pri(2) * 0.5d0*(1.d0 +                                             &
+                           tanh( (Z-ZK_i_perp_pri_z0(2)) / ZK_i_perp_pri_width(2) ))
+    end if
+  
+    
+  end function get_zk_iperp3
+
+
+
+  !> Determine perpendicular electron heat diffusivity, ZK_e_perp, as a function of Psi_N and Z
+  real*8 function get_zk_eperp3(psin, Z)
+#if _OPENMP >= 201511
+    !$omp declare simd
+#endif
+    implicit none
+    
+    real*8, intent(in)  :: psin, Z
+    
+    
+    if ( num_zk_e_perp ) then
+      
+      get_zk_eperp3 = interpolProf(num_zk_e_perp_x, num_zk_e_perp_y, num_zk_e_perp_len, psin)
+      
+    else
+      
+      get_zk_eperp3 = ZK_e_perp(1) * ( (1.d0-ZK_e_perp(2)) +                                              &
+        ZK_e_perp(2) *(0.5d0 - 0.5d0*tanh((psin-ZK_e_perp(5))/ZK_e_perp(4))) )
+      
+      if ( jorek_model >= 300 ) then
+        
+        get_zk_eperp3 = get_zk_eperp3 + ZK_e_perp(6)*ZK_e_perp(2) *                                          &
+          ((0.5d0 - 0.5d0*tanh((-psin+ZK_e_perp(5)+ZK_e_perp(3)) /ZK_e_perp(4))))
+        
+      end if
+      
+    end if
+
+    if ( ZK_e_perp_pri_z0(1) .ne. 99.d0 ) then
+      get_zk_eperp3 = get_zk_eperp3 + ZK_e_perp_pri(1) * 0.5d0*(1.d0 -                                             &
+                           tanh( (Z-ZK_e_perp_pri_z0(1)) / ZK_e_perp_pri_width(1) ))
+    end if
+ 
+    if ( ZK_e_perp_pri_z0(2) .ne. 99.d0 ) then
+      get_zk_eperp3 = get_zk_eperp3 + ZK_e_perp_pri(2) * 0.5d0*(1.d0 +                                             &
+                           tanh( (Z-ZK_e_perp_pri_z0(2)) / ZK_e_perp_pri_width(2) ))
+    end if
+  
+    
+  end function get_zk_eperp3
+
+
    !> Determine perpendicular heat diffusivity, ZK_perp, as a function of Psi_N, for ions
   real*8 function get_zk_iperp1(psin)
     
