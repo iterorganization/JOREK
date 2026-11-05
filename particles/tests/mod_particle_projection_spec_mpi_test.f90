@@ -345,7 +345,7 @@ apply_dirichlet_in,write_particle_in,n_fields_write_in)
   use mpi_mod
   use data_structure
   use mod_rng,                           only: type_rng
-  use mod_initialise_particles,          only: initialise_particles
+  use initialisers_base,                 only: initialise_particles
   use mod_particle_sim,                  only: particle_sim
   use mod_project_particles,             only: projection,new_projection, write_particle_distribution_to_h5
   use mod_rhs_projections,               only: proj_f
@@ -438,7 +438,7 @@ n_tor_local_in,i_tor_local_in,smoothing_in,apply_dirichlet_in)
   use constants,                         only: TWOPI
   use data_structure,                    only: type_node_list,type_element_list
   use mod_rng,                           only: type_rng
-  use mod_initialise_particles,          only: initialise_particles
+  use initialisers_base,                 only: initialise_particles
   use mod_particle_sim,                  only: particle_sim
   use mod_project_particles,             only: projection, new_projection, sample_rhs
   use mod_rhs_projections,               only: proj_f

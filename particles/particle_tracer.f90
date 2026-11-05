@@ -5,6 +5,7 @@ use mod_particle_sim
 use mod_particle_types
 use mod_event
 use mod_initialise_particles
+use initialisers_base
 
 ! IO
 use mod_io_actions

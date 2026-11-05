@@ -113,9 +113,9 @@
  part_group_configs(1)%type            = 'particle_kinetic_relativistic'
  part_group_configs(1)%n_particles     = 1e2
  part_group_configs(1)%mass            = 0.000548579870184805
- part_group_configs(1)%init_function   = 'basic'
+ part_group_configs(1)%init_function   = 're_gaussian'
  part_group_configs(1)%init_pdf        = 'RZ'
- part_group_configs(1)%num_re          = 1.175403e17
+ part_group_configs(1)%n_particles_total = 1.175403e17
  part_group_configs(1)%re_energy       = 9.8e4
  part_group_configs(1)%re_std_energy   = 5e2
  part_group_configs(1)%re_pitch        = -1
