@@ -223,6 +223,10 @@ real*8                   :: s_j, t_j, R_j, Rs_j, Rt_j, Rst_j, Rss_j, Rtt_j, Z_j,
 real*8                   :: pos1(2), pos2(2)
 integer, dimension(:), allocatable :: i_nearby
 real*8 :: t0, t1, t2
+logical :: flag_verbose
+
+! if true, verbose activated 
+flag_verbose = .TRUE.
 
 call cpu_time(t0)
 
@@ -314,7 +318,9 @@ enddo
 !$omp end parallel
 call cpu_time(t2)
 
-write(*,'(A,e12.4)') 'neighbours cpu_time, init tree      : ',t1-t0 
-write(*,'(A,e12.4)') 'neighbours cpu_time, init neighbours: ',t2-t1 
+if (flag_verbose) then
+  write(*,'(A,e12.4)') 'neighbours cpu_time, init tree      : ',t1-t0 
+  write(*,'(A,e12.4)') 'neighbours cpu_time, init neighbours: ',t2-t1 
+end if
 end subroutine update_neighbours
 end module mod_neighbours

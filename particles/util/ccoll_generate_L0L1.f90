@@ -10,12 +10,12 @@ program ccoll_generate_L0L1
   logical :: storage_file_on_disk
   character(20), parameter :: storage_file='ccolldata'
 
-   real*8, parameter  :: uminxp  = -3.D0
+   real*8, parameter  :: uminxp  = -4.D0
    real*8, parameter  :: umaxxp  = 2.D0
-   real*8, parameter  :: thminxp = -3.D0
+   real*8, parameter  :: thminxp = -5.D0
    real*8, parameter  :: thmaxxp = -1.D0 
-   integer, parameter :: nu      = 401
-   integer, parameter :: nth     = 201
+   integer, parameter :: nu      = 1001
+   integer, parameter :: nth     = 801
 
    ! Initialize the look-up tables
   print*,''
