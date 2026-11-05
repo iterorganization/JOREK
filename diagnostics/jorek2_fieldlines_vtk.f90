@@ -93,17 +93,8 @@ allocate(element_neighbours(4,element_list%n_elements))
 
 element_neighbours = 0
 
-do i=1,element_list%n_elements
-
-  do j=i+1,element_list%n_elements
-
-    if (neighbours(node_list, element_list%element(i),element_list%element(j),iside_i,iside_j)) then
-      element_neighbours(iside_i,i) = j
-      element_neighbours(iside_j,j) = i
-    endif
-
-  enddo
-enddo
+! --- Neighbour search is O(N) with a bounding-box grid (see build_element_neighbours in mod_neighbours)
+call build_element_neighbours(node_list, element_list, element_neighbours)
 
 !-------- possibilities
 ! - total length of traced field line (connection length)
