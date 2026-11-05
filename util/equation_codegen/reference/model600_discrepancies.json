@@ -1,0 +1,1780 @@
+{
+ "format_version": 1,
+ "source": "models/model600/mod_elt_matrix_fft.f90",
+ "source_sha256": "818669d3c431dda9826288de719f5f85171125c7a4c8adaf01b3373c626db7aa",
+ "block_count": 59,
+ "source_only_lines": 361,
+ "generated_only_lines": 894,
+ "blocks": {
+  "Single-temperature (T) model | amat(var_psi,var_rhoimp) | #0": {
+   "findings": [
+    2
+   ],
+   "source_only": [],
+   "generated_only": [
+    "-F0**2*v*rhoimp*T0_s*theta*tstep*alpha_e_bis*ps0_t*tauIC/(F0**2*r0_corr + ps0_x**2*r0_corr + ps0_y**2*r0_corr)",
+    "-F0**2*v*rhoimp_s*T0*theta*tstep*alpha_e*ps0_t*tauIC/(F0**2*r0_corr + ps0_x**2*r0_corr + ps0_y**2*r0_corr)",
+    "-F0**3*v*rhoimp*T0_p*xjac*theta*tstep*alpha_e_bis*tauIC/(BigR*F0**2*r0_corr + BigR*ps0_x**2*r0_corr + BigR*ps0_y**2*r0_corr)",
+    "F0**2*v*rhoimp*T0_t*theta*tstep*alpha_e_bis*ps0_s*tauIC/(F0**2*r0_corr + ps0_x**2*r0_corr + ps0_y**2*r0_corr)",
+    "F0**2*v*rhoimp_t*T0*theta*tstep*alpha_e*ps0_s*tauIC/(F0**2*r0_corr + ps0_x**2*r0_corr + ps0_y**2*r0_corr)"
+   ]
+  },
+  "Single-temperature (T) model | amat(var_psi,var_t) | #0": {
+   "findings": [
+    2
+   ],
+   "source_only": [],
+   "generated_only": [
+    "-F0**2*v*rhoimp0*T*T0_s*theta*tstep*alpha_e_tri*ps0_t*tauIC/(2*F0**2*r0_corr + 2*ps0_x**2*r0_corr + 2*ps0_y**2*r0_corr)",
+    "-F0**2*v*rhoimp0*T_s*theta*tstep*alpha_e_bis*ps0_t*tauIC/(F0**2*r0_corr + ps0_x**2*r0_corr + ps0_y**2*r0_corr)",
+    "-F0**2*v*rhoimp0_s*T*theta*tstep*alpha_e_bis*ps0_t*tauIC/(F0**2*r0_corr + ps0_x**2*r0_corr + ps0_y**2*r0_corr)",
+    "-F0**3*v*rhoimp0*T*T0_p*xjac*theta*tstep*alpha_e_tri*tauIC/(2*BigR*F0**2*r0_corr + 2*BigR*ps0_x**2*r0_corr + 2*BigR*ps0_y**2*r0_corr)",
+    "-F0**3*v*rhoimp0_p*T*xjac*theta*tstep*alpha_e_bis*tauIC/(BigR*F0**2*r0_corr + BigR*ps0_x**2*r0_corr + BigR*ps0_y**2*r0_corr)",
+    "F0**2*v*rhoimp0*T*T0_t*theta*tstep*alpha_e_tri*ps0_s*tauIC/(2*F0**2*r0_corr + 2*ps0_x**2*r0_corr + 2*ps0_y**2*r0_corr)",
+    "F0**2*v*rhoimp0*T_t*theta*tstep*alpha_e_bis*ps0_s*tauIC/(F0**2*r0_corr + ps0_x**2*r0_corr + ps0_y**2*r0_corr)",
+    "F0**2*v*rhoimp0_t*T*theta*tstep*alpha_e_bis*ps0_s*tauIC/(F0**2*r0_corr + ps0_x**2*r0_corr + ps0_y**2*r0_corr)"
+   ]
+  },
+  "Single-temperature (T) model | amat(var_rho,var_psi) | #0": {
+   "findings": [
+    4
+   ],
+   "source_only": [],
+   "generated_only": [
+    "-BigR*v_x*psi_x*xjac*theta*tstep*V_prof_pinch*ps0_x**2*r0/(ps0_x**2*sqrt(ps0_x**2 + ps0_y**2) + ps0_y**2*sqrt(ps0_x**2 + ps0_y**2))",
+    "-BigR*v_x*psi_y*xjac*theta*tstep*V_prof_pinch*ps0_x*ps0_y*r0/(ps0_x**2*sqrt(ps0_x**2 + ps0_y**2) + ps0_y**2*sqrt(ps0_x**2 + ps0_y**2))",
+    "-BigR*v_y*psi_x*xjac*theta*tstep*V_prof_pinch*ps0_x*ps0_y*r0/(ps0_x**2*sqrt(ps0_x**2 + ps0_y**2) + ps0_y**2*sqrt(ps0_x**2 + ps0_y**2))",
+    "-BigR*v_y*psi_y*xjac*theta*tstep*V_prof_pinch*ps0_y**2*r0/(ps0_x**2*sqrt(ps0_x**2 + ps0_y**2) + ps0_y**2*sqrt(ps0_x**2 + ps0_y**2))",
+    "BigR*v_x*psi_x*xjac*theta*tstep*V_prof_pinch*r0/(sqrt(ps0_x**2 + ps0_y**2))",
+    "BigR*v_y*psi_y*xjac*theta*tstep*V_prof_pinch*r0/(sqrt(ps0_x**2 + ps0_y**2))"
+   ]
+  },
+  "Single-temperature (T) model | amat(var_rho,var_rhoimp) | #0": {
+   "findings": [
+    1
+   ],
+   "source_only": [],
+   "generated_only": [
+    "-2*BigR*v*rhoimp*T0_y*xjac*theta*tstep*alpha_i*tauIC",
+    "-2*BigR*v*rhoimp_y*T0*xjac*theta*tstep*alpha_i*tauIC"
+   ]
+  },
+  "Single-temperature (T) model | amat(var_rho,var_t) | #0": {
+   "findings": [
+    1,
+    5
+   ],
+   "source_only": [],
+   "generated_only": [
+    "-2*BigR*v*rhoimp0*T_y*xjac*theta*tstep*alpha_i*tauIC",
+    "-2*BigR*v*rhoimp0_y*T*xjac*theta*tstep*alpha_i*tauIC",
+    "-BigR*v*rhoimp0**2*T*xjac*theta*tstep*Srec_T*dalpha_e_dT",
+    "-BigR*v*rhoimp0*rhon0*T*xjac*theta*tstep*Sion_T*dalpha_e_dT",
+    "BigR*v*rhoimp0*T*xjac*theta*tstep*Srec_T*dalpha_e_dT*r0"
+   ]
+  },
+  "Single-temperature (T) model | amat(var_t,var_psi) | #0": {
+   "findings": [
+    12
+   ],
+   "source_only": [],
+   "generated_only": [
+    "-v*vpar0**2*psi_x*xjac*theta*tstep*GAMMA*aux_rho0*ps0_x/BigR",
+    "-v*vpar0**2*psi_y*xjac*theta*tstep*GAMMA*aux_rho0*ps0_y/BigR",
+    "v*vpar0**2*psi_x*xjac*theta*tstep*aux_rho0*ps0_x/BigR",
+    "v*vpar0**2*psi_y*xjac*theta*tstep*aux_rho0*ps0_y/BigR"
+   ]
+  },
+  "Single-temperature (T) model | amat(var_t,var_rho) | #0": {
+   "findings": [
+    11
+   ],
+   "source_only": [
+    "-1/4*BigR**2*v_x*u0_x*u0_y*rho*T0_y*xjac*theta*tstep**2*tgnum_T",
+    "-1/4*BigR**2*v_x*u0_x*u0_y*rho_y*T0*xjac*theta*tstep**2*tgnum_T",
+    "-1/4*BigR**2*v_y*u0_x*u0_y*rho*T0_x*xjac*theta*tstep**2*tgnum_T",
+    "-1/4*BigR**2*v_y*u0_x*u0_y*rho_x*T0*xjac*theta*tstep**2*tgnum_T",
+    "1/4*BigR**2*v_x*u0_y**2*rho*T0_x*xjac*theta*tstep**2*tgnum_T",
+    "1/4*BigR**2*v_x*u0_y**2*rho_x*T0*xjac*theta*tstep**2*tgnum_T",
+    "1/4*BigR**2*v_y*u0_x**2*rho*T0_y*xjac*theta*tstep**2*tgnum_T",
+    "1/4*BigR**2*v_y*u0_x**2*rho_y*T0*xjac*theta*tstep**2*tgnum_T"
+   ],
+   "generated_only": [
+    "-1/4*BigR**3*v_x*u0_x*u0_y*rho*T0_y*xjac*theta*tstep**2*tgnum_T",
+    "-1/4*BigR**3*v_x*u0_x*u0_y*rho_y*T0*xjac*theta*tstep**2*tgnum_T",
+    "-1/4*BigR**3*v_y*u0_x*u0_y*rho*T0_x*xjac*theta*tstep**2*tgnum_T",
+    "-1/4*BigR**3*v_y*u0_x*u0_y*rho_x*T0*xjac*theta*tstep**2*tgnum_T",
+    "1/4*BigR**3*v_x*u0_y**2*rho*T0_x*xjac*theta*tstep**2*tgnum_T",
+    "1/4*BigR**3*v_x*u0_y**2*rho_x*T0*xjac*theta*tstep**2*tgnum_T",
+    "1/4*BigR**3*v_y*u0_x**2*rho*T0_y*xjac*theta*tstep**2*tgnum_T",
+    "1/4*BigR**3*v_y*u0_x**2*rho_y*T0*xjac*theta*tstep**2*tgnum_T"
+   ]
+  },
+  "Single-temperature (T) model | amat(var_t,var_rhoimp) | #0": {
+   "findings": [
+    11,
+    15
+   ],
+   "source_only": [
+    "-1/8*BigR**2*v_x*u0_x*u0_y*rhoimp*T0_y*xjac*theta*tstep**2*alpha_e_bis*tgnum_T",
+    "-1/8*BigR**2*v_x*u0_x*u0_y*rhoimp*T0_y*xjac*theta*tstep**2*alpha_i*tgnum_T",
+    "-1/8*BigR**2*v_x*u0_x*u0_y*rhoimp_y*T0*xjac*theta*tstep**2*alpha_e*tgnum_T",
+    "-1/8*BigR**2*v_x*u0_x*u0_y*rhoimp_y*T0*xjac*theta*tstep**2*alpha_i*tgnum_T",
+    "-1/8*BigR**2*v_y*u0_x*u0_y*rhoimp*T0_x*xjac*theta*tstep**2*alpha_e_bis*tgnum_T",
+    "-1/8*BigR**2*v_y*u0_x*u0_y*rhoimp*T0_x*xjac*theta*tstep**2*alpha_i*tgnum_T",
+    "-1/8*BigR**2*v_y*u0_x*u0_y*rhoimp_x*T0*xjac*theta*tstep**2*alpha_e*tgnum_T",
+    "-1/8*BigR**2*v_y*u0_x*u0_y*rhoimp_x*T0*xjac*theta*tstep**2*alpha_i*tgnum_T",
+    "1/8*BigR**2*v_x*u0_y**2*rhoimp*T0_x*xjac*theta*tstep**2*alpha_e_bis*tgnum_T",
+    "1/8*BigR**2*v_x*u0_y**2*rhoimp*T0_x*xjac*theta*tstep**2*alpha_i*tgnum_T",
+    "1/8*BigR**2*v_x*u0_y**2*rhoimp_x*T0*xjac*theta*tstep**2*alpha_e*tgnum_T",
+    "1/8*BigR**2*v_x*u0_y**2*rhoimp_x*T0*xjac*theta*tstep**2*alpha_i*tgnum_T",
+    "1/8*BigR**2*v_y*u0_x**2*rhoimp*T0_y*xjac*theta*tstep**2*alpha_e_bis*tgnum_T",
+    "1/8*BigR**2*v_y*u0_x**2*rhoimp*T0_y*xjac*theta*tstep**2*alpha_i*tgnum_T",
+    "1/8*BigR**2*v_y*u0_x**2*rhoimp_y*T0*xjac*theta*tstep**2*alpha_e*tgnum_T",
+    "1/8*BigR**2*v_y*u0_x**2*rhoimp_y*T0*xjac*theta*tstep**2*alpha_i*tgnum_T"
+   ],
+   "generated_only": [
+    "-1/2*BigR**3*v*u0_x**2*rhoimp*rhon0*xjac*theta*tstep*GAMMA*Sion_T*alpha_e",
+    "-1/2*BigR**3*v*u0_y**2*rhoimp*rhon0*xjac*theta*tstep*GAMMA*Sion_T*alpha_e",
+    "-1/2*F0**2*v*vpar0**2*rhoimp*rhon0*xjac*theta*tstep*GAMMA*Sion_T*alpha_e/BigR",
+    "-1/2*v*vpar0**2*rhoimp*rhon0*xjac*theta*tstep*GAMMA*Sion_T*alpha_e*ps0_x**2/BigR",
+    "-1/2*v*vpar0**2*rhoimp*rhon0*xjac*theta*tstep*GAMMA*Sion_T*alpha_e*ps0_y**2/BigR",
+    "-1/8*BigR**3*v_x*u0_x*u0_y*rhoimp*T0_y*xjac*theta*tstep**2*alpha_e_bis*tgnum_T",
+    "-1/8*BigR**3*v_x*u0_x*u0_y*rhoimp*T0_y*xjac*theta*tstep**2*alpha_i*tgnum_T",
+    "-1/8*BigR**3*v_x*u0_x*u0_y*rhoimp_y*T0*xjac*theta*tstep**2*alpha_e*tgnum_T",
+    "-1/8*BigR**3*v_x*u0_x*u0_y*rhoimp_y*T0*xjac*theta*tstep**2*alpha_i*tgnum_T",
+    "-1/8*BigR**3*v_y*u0_x*u0_y*rhoimp*T0_x*xjac*theta*tstep**2*alpha_e_bis*tgnum_T",
+    "-1/8*BigR**3*v_y*u0_x*u0_y*rhoimp*T0_x*xjac*theta*tstep**2*alpha_i*tgnum_T",
+    "-1/8*BigR**3*v_y*u0_x*u0_y*rhoimp_x*T0*xjac*theta*tstep**2*alpha_e*tgnum_T",
+    "-1/8*BigR**3*v_y*u0_x*u0_y*rhoimp_x*T0*xjac*theta*tstep**2*alpha_i*tgnum_T",
+    "-2*BigR*v*rhoimp*rhoimp0_corr*xjac*theta*tstep*LradDcont_corr*alpha_e",
+    "-BigR*v*rhoimp*xjac*theta*tstep*LradDcont_corr*r0_corr",
+    "1/2*BigR**3*v*u0_x**2*rhoimp*rhon0*xjac*theta*tstep*Sion_T*alpha_e",
+    "1/2*BigR**3*v*u0_y**2*rhoimp*rhon0*xjac*theta*tstep*Sion_T*alpha_e",
+    "1/2*F0**2*v*vpar0**2*rhoimp*rhon0*xjac*theta*tstep*Sion_T*alpha_e/BigR",
+    "1/2*v*vpar0**2*rhoimp*rhon0*xjac*theta*tstep*Sion_T*alpha_e*ps0_x**2/BigR",
+    "1/2*v*vpar0**2*rhoimp*rhon0*xjac*theta*tstep*Sion_T*alpha_e*ps0_y**2/BigR",
+    "1/8*BigR**3*v_x*u0_y**2*rhoimp*T0_x*xjac*theta*tstep**2*alpha_e_bis*tgnum_T",
+    "1/8*BigR**3*v_x*u0_y**2*rhoimp*T0_x*xjac*theta*tstep**2*alpha_i*tgnum_T",
+    "1/8*BigR**3*v_x*u0_y**2*rhoimp_x*T0*xjac*theta*tstep**2*alpha_e*tgnum_T",
+    "1/8*BigR**3*v_x*u0_y**2*rhoimp_x*T0*xjac*theta*tstep**2*alpha_i*tgnum_T",
+    "1/8*BigR**3*v_y*u0_x**2*rhoimp*T0_y*xjac*theta*tstep**2*alpha_e_bis*tgnum_T",
+    "1/8*BigR**3*v_y*u0_x**2*rhoimp*T0_y*xjac*theta*tstep**2*alpha_i*tgnum_T",
+    "1/8*BigR**3*v_y*u0_x**2*rhoimp_y*T0*xjac*theta*tstep**2*alpha_e*tgnum_T",
+    "1/8*BigR**3*v_y*u0_x**2*rhoimp_y*T0*xjac*theta*tstep**2*alpha_i*tgnum_T",
+    "BigR*v*rhoimp*rhon0*xjac*theta*tstep*Sion_T*alpha_e*ksi_ion_norm",
+    "BigR*v*rhoimp*rhon0_corr*xjac*theta*tstep*LradDrays_T*alpha_e",
+    "BigR*v*rhoimp*xjac*theta*tstep*LradDcont_corr*alpha_e*r0_corr"
+   ]
+  },
+  "Single-temperature (T) model | amat(var_t,var_t) | #0": {
+   "findings": [
+    11,
+    13,
+    15
+   ],
+   "source_only": [
+    "-1/16*BigR**2*v_x*u0_x*u0_y*rhoimp0*T*T0_y*xjac*theta*tstep**2*alpha_e_tri*tgnum_T",
+    "-1/16*BigR**2*v_y*u0_x*u0_y*rhoimp0*T*T0_x*xjac*theta*tstep**2*alpha_e_tri*tgnum_T",
+    "-1/4*BigR**2*v_x*u0_x*u0_y*T*xjac*theta*tstep**2*r0_y*tgnum_T",
+    "-1/4*BigR**2*v_x*u0_x*u0_y*T_y*xjac*theta*tstep**2*r0*tgnum_T",
+    "-1/4*BigR**2*v_y*u0_x*u0_y*T*xjac*theta*tstep**2*r0_x*tgnum_T",
+    "-1/4*BigR**2*v_y*u0_x*u0_y*T_x*xjac*theta*tstep**2*r0*tgnum_T",
+    "-1/8*BigR**2*v_x*u0_x*u0_y*rhoimp0*T_y*xjac*theta*tstep**2*alpha_e_bis*tgnum_T",
+    "-1/8*BigR**2*v_x*u0_x*u0_y*rhoimp0*T_y*xjac*theta*tstep**2*alpha_i*tgnum_T",
+    "-1/8*BigR**2*v_x*u0_x*u0_y*rhoimp0_y*T*xjac*theta*tstep**2*alpha_e_bis*tgnum_T",
+    "-1/8*BigR**2*v_x*u0_x*u0_y*rhoimp0_y*T*xjac*theta*tstep**2*alpha_i*tgnum_T",
+    "-1/8*BigR**2*v_y*u0_x*u0_y*rhoimp0*T_x*xjac*theta*tstep**2*alpha_e_bis*tgnum_T",
+    "-1/8*BigR**2*v_y*u0_x*u0_y*rhoimp0*T_x*xjac*theta*tstep**2*alpha_i*tgnum_T",
+    "-1/8*BigR**2*v_y*u0_x*u0_y*rhoimp0_x*T*xjac*theta*tstep**2*alpha_e_bis*tgnum_T",
+    "-1/8*BigR**2*v_y*u0_x*u0_y*rhoimp0_x*T*xjac*theta*tstep**2*alpha_i*tgnum_T",
+    "-BigR*v_x*rhoimp0_x*T*xjac*tstep*D_par_imp_sc_num*dE_ion_dT*ps0_y**2*tau_sc/(F0**2 + ps0_x**2 + ps0_y**2)",
+    "-BigR*v_x*rhoimp0_x*T*xjac*tstep*D_par_local_imp*dE_ion_dT*ps0_y**2/(F0**2 + ps0_x**2 + ps0_y**2)",
+    "-BigR*v_x*rhoimp0_x*T*xjac*tstep*D_prof_imp*GAMMA*dE_ion_dT*ps0_y**2/(F0**2 + ps0_x**2 + ps0_y**2)",
+    "-BigR*v_x*rhoimp0_x*T*xjac*tstep*D_prof_imp*dE_ion_dT",
+    "-BigR*v_x*rhoimp0_y*T*xjac*tstep*D_par_imp_sc_num*GAMMA*dE_ion_dT*ps0_x*ps0_y*tau_sc/(F0**2 + ps0_x**2 + ps0_y**2)",
+    "-BigR*v_x*rhoimp0_y*T*xjac*tstep*D_par_local_imp*GAMMA*dE_ion_dT*ps0_x*ps0_y/(F0**2 + ps0_x**2 + ps0_y**2)",
+    "-BigR*v_x*rhoimp0_y*T*xjac*tstep*D_prof_imp*dE_ion_dT*ps0_x*ps0_y/(F0**2 + ps0_x**2 + ps0_y**2)",
+    "-BigR*v_y*rhoimp0_x*T*xjac*tstep*D_par_imp_sc_num*GAMMA*dE_ion_dT*ps0_x*ps0_y*tau_sc/(F0**2 + ps0_x**2 + ps0_y**2)",
+    "-BigR*v_y*rhoimp0_x*T*xjac*tstep*D_par_local_imp*GAMMA*dE_ion_dT*ps0_x*ps0_y/(F0**2 + ps0_x**2 + ps0_y**2)",
+    "-BigR*v_y*rhoimp0_x*T*xjac*tstep*D_prof_imp*dE_ion_dT*ps0_x*ps0_y/(F0**2 + ps0_x**2 + ps0_y**2)",
+    "-BigR*v_y*rhoimp0_y*T*xjac*tstep*D_par_imp_sc_num*dE_ion_dT*ps0_x**2*tau_sc/(F0**2 + ps0_x**2 + ps0_y**2)",
+    "-BigR*v_y*rhoimp0_y*T*xjac*tstep*D_par_local_imp*dE_ion_dT*ps0_x**2/(F0**2 + ps0_x**2 + ps0_y**2)",
+    "-BigR*v_y*rhoimp0_y*T*xjac*tstep*D_prof_imp*GAMMA*dE_ion_dT*ps0_x**2/(F0**2 + ps0_x**2 + ps0_y**2)",
+    "-BigR*v_y*rhoimp0_y*T*xjac*tstep*D_prof_imp*dE_ion_dT",
+    "-F0*v_x*rhoimp0_p*T*xjac*tstep*D_par_imp_sc_num*dE_ion_dT*ps0_y*tau_sc/(F0**2 + ps0_x**2 + ps0_y**2)",
+    "-F0*v_x*rhoimp0_p*T*xjac*tstep*D_par_local_imp*dE_ion_dT*ps0_y/(F0**2 + ps0_x**2 + ps0_y**2)",
+    "-F0*v_x*rhoimp0_p*T*xjac*tstep*D_prof_imp*GAMMA*dE_ion_dT*ps0_y/(F0**2 + ps0_x**2 + ps0_y**2)",
+    "-F0*v_y*rhoimp0_p*T*xjac*tstep*D_par_imp_sc_num*GAMMA*dE_ion_dT*ps0_x*tau_sc/(F0**2 + ps0_x**2 + ps0_y**2)",
+    "-F0*v_y*rhoimp0_p*T*xjac*tstep*D_par_local_imp*GAMMA*dE_ion_dT*ps0_x/(F0**2 + ps0_x**2 + ps0_y**2)",
+    "-F0*v_y*rhoimp0_p*T*xjac*tstep*D_prof_imp*dE_ion_dT*ps0_x/(F0**2 + ps0_x**2 + ps0_y**2)",
+    "1/16*BigR**2*v_x*u0_y**2*rhoimp0*T*T0_x*xjac*theta*tstep**2*alpha_e_tri*tgnum_T",
+    "1/16*BigR**2*v_y*u0_x**2*rhoimp0*T*T0_y*xjac*theta*tstep**2*alpha_e_tri*tgnum_T",
+    "1/4*BigR**2*v_x*u0_y**2*T*xjac*theta*tstep**2*r0_x*tgnum_T",
+    "1/4*BigR**2*v_x*u0_y**2*T_x*xjac*theta*tstep**2*r0*tgnum_T",
+    "1/4*BigR**2*v_y*u0_x**2*T*xjac*theta*tstep**2*r0_y*tgnum_T",
+    "1/4*BigR**2*v_y*u0_x**2*T_y*xjac*theta*tstep**2*r0*tgnum_T",
+    "1/8*BigR**2*v_x*u0_y**2*rhoimp0*T_x*xjac*theta*tstep**2*alpha_e_bis*tgnum_T",
+    "1/8*BigR**2*v_x*u0_y**2*rhoimp0*T_x*xjac*theta*tstep**2*alpha_i*tgnum_T",
+    "1/8*BigR**2*v_x*u0_y**2*rhoimp0_x*T*xjac*theta*tstep**2*alpha_e_bis*tgnum_T",
+    "1/8*BigR**2*v_x*u0_y**2*rhoimp0_x*T*xjac*theta*tstep**2*alpha_i*tgnum_T",
+    "1/8*BigR**2*v_y*u0_x**2*rhoimp0*T_y*xjac*theta*tstep**2*alpha_e_bis*tgnum_T",
+    "1/8*BigR**2*v_y*u0_x**2*rhoimp0*T_y*xjac*theta*tstep**2*alpha_i*tgnum_T",
+    "1/8*BigR**2*v_y*u0_x**2*rhoimp0_y*T*xjac*theta*tstep**2*alpha_e_bis*tgnum_T",
+    "1/8*BigR**2*v_y*u0_x**2*rhoimp0_y*T*xjac*theta*tstep**2*alpha_i*tgnum_T",
+    "BigR*v_x*rhoimp0_x*T*xjac*tstep*D_par_imp_sc_num*GAMMA*dE_ion_dT*ps0_y**2*tau_sc/(F0**2 + ps0_x**2 + ps0_y**2)",
+    "BigR*v_x*rhoimp0_x*T*xjac*tstep*D_par_local_imp*GAMMA*dE_ion_dT*ps0_y**2/(F0**2 + ps0_x**2 + ps0_y**2)",
+    "BigR*v_x*rhoimp0_x*T*xjac*tstep*D_prof_imp*GAMMA*dE_ion_dT",
+    "BigR*v_x*rhoimp0_x*T*xjac*tstep*D_prof_imp*dE_ion_dT*ps0_y**2/(F0**2 + ps0_x**2 + ps0_y**2)",
+    "BigR*v_x*rhoimp0_y*T*xjac*tstep*D_par_imp_sc_num*dE_ion_dT*ps0_x*ps0_y*tau_sc/(F0**2 + ps0_x**2 + ps0_y**2)",
+    "BigR*v_x*rhoimp0_y*T*xjac*tstep*D_par_local_imp*dE_ion_dT*ps0_x*ps0_y/(F0**2 + ps0_x**2 + ps0_y**2)",
+    "BigR*v_x*rhoimp0_y*T*xjac*tstep*D_prof_imp*GAMMA*dE_ion_dT*ps0_x*ps0_y/(F0**2 + ps0_x**2 + ps0_y**2)",
+    "BigR*v_y*rhoimp0_x*T*xjac*tstep*D_par_imp_sc_num*dE_ion_dT*ps0_x*ps0_y*tau_sc/(F0**2 + ps0_x**2 + ps0_y**2)",
+    "BigR*v_y*rhoimp0_x*T*xjac*tstep*D_par_local_imp*dE_ion_dT*ps0_x*ps0_y/(F0**2 + ps0_x**2 + ps0_y**2)",
+    "BigR*v_y*rhoimp0_x*T*xjac*tstep*D_prof_imp*GAMMA*dE_ion_dT*ps0_x*ps0_y/(F0**2 + ps0_x**2 + ps0_y**2)",
+    "BigR*v_y*rhoimp0_y*T*xjac*tstep*D_par_imp_sc_num*GAMMA*dE_ion_dT*ps0_x**2*tau_sc/(F0**2 + ps0_x**2 + ps0_y**2)",
+    "BigR*v_y*rhoimp0_y*T*xjac*tstep*D_par_local_imp*GAMMA*dE_ion_dT*ps0_x**2/(F0**2 + ps0_x**2 + ps0_y**2)",
+    "BigR*v_y*rhoimp0_y*T*xjac*tstep*D_prof_imp*GAMMA*dE_ion_dT",
+    "BigR*v_y*rhoimp0_y*T*xjac*tstep*D_prof_imp*dE_ion_dT*ps0_x**2/(F0**2 + ps0_x**2 + ps0_y**2)",
+    "F0*v_x*rhoimp0_p*T*xjac*tstep*D_par_imp_sc_num*GAMMA*dE_ion_dT*ps0_y*tau_sc/(F0**2 + ps0_x**2 + ps0_y**2)",
+    "F0*v_x*rhoimp0_p*T*xjac*tstep*D_par_local_imp*GAMMA*dE_ion_dT*ps0_y/(F0**2 + ps0_x**2 + ps0_y**2)",
+    "F0*v_x*rhoimp0_p*T*xjac*tstep*D_prof_imp*dE_ion_dT*ps0_y/(F0**2 + ps0_x**2 + ps0_y**2)",
+    "F0*v_y*rhoimp0_p*T*xjac*tstep*D_par_imp_sc_num*dE_ion_dT*ps0_x*tau_sc/(F0**2 + ps0_x**2 + ps0_y**2)",
+    "F0*v_y*rhoimp0_p*T*xjac*tstep*D_par_local_imp*dE_ion_dT*ps0_x/(F0**2 + ps0_x**2 + ps0_y**2)",
+    "F0*v_y*rhoimp0_p*T*xjac*tstep*D_prof_imp*GAMMA*dE_ion_dT*ps0_x/(F0**2 + ps0_x**2 + ps0_y**2)"
+   ],
+   "generated_only": [
+    "-1/16*BigR**3*v_x*u0_x*u0_y*rhoimp0*T*T0_y*xjac*theta*tstep**2*alpha_e_tri*tgnum_T",
+    "-1/16*BigR**3*v_y*u0_x*u0_y*rhoimp0*T*T0_x*xjac*theta*tstep**2*alpha_e_tri*tgnum_T",
+    "-1/2*BigR**3*v*u0_x**2*rhoimp0*rhon0*T*xjac*theta*tstep*GAMMA*Sion_T*dalpha_e_dT",
+    "-1/2*BigR**3*v*u0_y**2*rhoimp0*rhon0*T*xjac*theta*tstep*GAMMA*Sion_T*dalpha_e_dT",
+    "-1/2*F0**2*v*vpar0**2*rhoimp0*rhon0*T*xjac*theta*tstep*GAMMA*Sion_T*dalpha_e_dT/BigR",
+    "-1/2*v*vpar0**2*rhoimp0*rhon0*T*xjac*theta*tstep*GAMMA*Sion_T*dalpha_e_dT*ps0_x**2/BigR",
+    "-1/2*v*vpar0**2*rhoimp0*rhon0*T*xjac*theta*tstep*GAMMA*Sion_T*dalpha_e_dT*ps0_y**2/BigR",
+    "-1/4*BigR**3*v_x*u0_x*u0_y*T*xjac*theta*tstep**2*r0_y*tgnum_T",
+    "-1/4*BigR**3*v_x*u0_x*u0_y*T_y*xjac*theta*tstep**2*r0*tgnum_T",
+    "-1/4*BigR**3*v_y*u0_x*u0_y*T*xjac*theta*tstep**2*r0_x*tgnum_T",
+    "-1/4*BigR**3*v_y*u0_x*u0_y*T_x*xjac*theta*tstep**2*r0*tgnum_T",
+    "-1/8*BigR**3*v_x*u0_x*u0_y*rhoimp0*T_y*xjac*theta*tstep**2*alpha_e_bis*tgnum_T",
+    "-1/8*BigR**3*v_x*u0_x*u0_y*rhoimp0*T_y*xjac*theta*tstep**2*alpha_i*tgnum_T",
+    "-1/8*BigR**3*v_x*u0_x*u0_y*rhoimp0_y*T*xjac*theta*tstep**2*alpha_e_bis*tgnum_T",
+    "-1/8*BigR**3*v_x*u0_x*u0_y*rhoimp0_y*T*xjac*theta*tstep**2*alpha_i*tgnum_T",
+    "-1/8*BigR**3*v_y*u0_x*u0_y*rhoimp0*T_x*xjac*theta*tstep**2*alpha_e_bis*tgnum_T",
+    "-1/8*BigR**3*v_y*u0_x*u0_y*rhoimp0*T_x*xjac*theta*tstep**2*alpha_i*tgnum_T",
+    "-1/8*BigR**3*v_y*u0_x*u0_y*rhoimp0_x*T*xjac*theta*tstep**2*alpha_e_bis*tgnum_T",
+    "-1/8*BigR**3*v_y*u0_x*u0_y*rhoimp0_x*T*xjac*theta*tstep**2*alpha_i*tgnum_T",
+    "-2*BigR*v*u0_y*rhoimp0*T*xjac*theta*tstep*GAMMA*dE_ion_dT",
+    "-BigR**2*v*u0_s*rhoimp0_t*T*theta*tstep*dE_ion_dT",
+    "-BigR**2*v*u0_t*rhoimp0_s*T*theta*tstep*GAMMA*dE_ion_dT",
+    "-BigR*v_x*rhoimp0_x*T*xjac*theta*tstep*D_par_imp_sc_num*dE_ion_dT*ps0_y**2*tau_sc/(F0**2 + ps0_x**2 + ps0_y**2)",
+    "-BigR*v_x*rhoimp0_x*T*xjac*theta*tstep*D_par_local_imp*dE_ion_dT*ps0_y**2/(F0**2 + ps0_x**2 + ps0_y**2)",
+    "-BigR*v_x*rhoimp0_x*T*xjac*theta*tstep*D_prof_imp*GAMMA*dE_ion_dT*ps0_y**2/(F0**2 + ps0_x**2 + ps0_y**2)",
+    "-BigR*v_x*rhoimp0_x*T*xjac*theta*tstep*D_prof_imp*dE_ion_dT",
+    "-BigR*v_x*rhoimp0_y*T*xjac*theta*tstep*D_par_imp_sc_num*GAMMA*dE_ion_dT*ps0_x*ps0_y*tau_sc/(F0**2 + ps0_x**2 + ps0_y**2)",
+    "-BigR*v_x*rhoimp0_y*T*xjac*theta*tstep*D_par_local_imp*GAMMA*dE_ion_dT*ps0_x*ps0_y/(F0**2 + ps0_x**2 + ps0_y**2)",
+    "-BigR*v_x*rhoimp0_y*T*xjac*theta*tstep*D_prof_imp*dE_ion_dT*ps0_x*ps0_y/(F0**2 + ps0_x**2 + ps0_y**2)",
+    "-BigR*v_y*rhoimp0_x*T*xjac*theta*tstep*D_par_imp_sc_num*GAMMA*dE_ion_dT*ps0_x*ps0_y*tau_sc/(F0**2 + ps0_x**2 + ps0_y**2)",
+    "-BigR*v_y*rhoimp0_x*T*xjac*theta*tstep*D_par_local_imp*GAMMA*dE_ion_dT*ps0_x*ps0_y/(F0**2 + ps0_x**2 + ps0_y**2)",
+    "-BigR*v_y*rhoimp0_x*T*xjac*theta*tstep*D_prof_imp*dE_ion_dT*ps0_x*ps0_y/(F0**2 + ps0_x**2 + ps0_y**2)",
+    "-BigR*v_y*rhoimp0_y*T*xjac*theta*tstep*D_par_imp_sc_num*dE_ion_dT*ps0_x**2*tau_sc/(F0**2 + ps0_x**2 + ps0_y**2)",
+    "-BigR*v_y*rhoimp0_y*T*xjac*theta*tstep*D_par_local_imp*dE_ion_dT*ps0_x**2/(F0**2 + ps0_x**2 + ps0_y**2)",
+    "-BigR*v_y*rhoimp0_y*T*xjac*theta*tstep*D_prof_imp*GAMMA*dE_ion_dT*ps0_x**2/(F0**2 + ps0_x**2 + ps0_y**2)",
+    "-BigR*v_y*rhoimp0_y*T*xjac*theta*tstep*D_prof_imp*dE_ion_dT",
+    "-F0*v*vpar0*rhoimp0_p*T*xjac*theta*tstep*dE_ion_dT/BigR",
+    "-F0*v*vpar0_p*rhoimp0*T*xjac*theta*tstep*dE_ion_dT/BigR",
+    "-F0*v_x*rhoimp0_p*T*xjac*theta*tstep*D_par_imp_sc_num*dE_ion_dT*ps0_y*tau_sc/(F0**2 + ps0_x**2 + ps0_y**2)",
+    "-F0*v_x*rhoimp0_p*T*xjac*theta*tstep*D_par_local_imp*dE_ion_dT*ps0_y/(F0**2 + ps0_x**2 + ps0_y**2)",
+    "-F0*v_x*rhoimp0_p*T*xjac*theta*tstep*D_prof_imp*GAMMA*dE_ion_dT*ps0_y/(F0**2 + ps0_x**2 + ps0_y**2)",
+    "-F0*v_y*rhoimp0_p*T*xjac*theta*tstep*D_par_imp_sc_num*GAMMA*dE_ion_dT*ps0_x*tau_sc/(F0**2 + ps0_x**2 + ps0_y**2)",
+    "-F0*v_y*rhoimp0_p*T*xjac*theta*tstep*D_par_local_imp*GAMMA*dE_ion_dT*ps0_x/(F0**2 + ps0_x**2 + ps0_y**2)",
+    "-F0*v_y*rhoimp0_p*T*xjac*theta*tstep*D_prof_imp*dE_ion_dT*ps0_x/(F0**2 + ps0_x**2 + ps0_y**2)",
+    "-v*vpar0*rhoimp0_s*T*theta*tstep*dE_ion_dT*ps0_t",
+    "-v*vpar0*rhoimp0_t*T*theta*tstep*GAMMA*dE_ion_dT*ps0_s",
+    "-v*vpar0_s*rhoimp0*T*theta*tstep*dE_ion_dT*ps0_t",
+    "-v*vpar0_t*rhoimp0*T*theta*tstep*GAMMA*dE_ion_dT*ps0_s",
+    "1/16*BigR**3*v_x*u0_y**2*rhoimp0*T*T0_x*xjac*theta*tstep**2*alpha_e_tri*tgnum_T",
+    "1/16*BigR**3*v_y*u0_x**2*rhoimp0*T*T0_y*xjac*theta*tstep**2*alpha_e_tri*tgnum_T",
+    "1/2*BigR**3*v*u0_x**2*rhoimp0*rhon0*T*xjac*theta*tstep*Sion_T*dalpha_e_dT",
+    "1/2*BigR**3*v*u0_y**2*rhoimp0*rhon0*T*xjac*theta*tstep*Sion_T*dalpha_e_dT",
+    "1/2*F0**2*v*vpar0**2*rhoimp0*rhon0*T*xjac*theta*tstep*Sion_T*dalpha_e_dT/BigR",
+    "1/2*v*vpar0**2*rhoimp0*rhon0*T*xjac*theta*tstep*Sion_T*dalpha_e_dT*ps0_x**2/BigR",
+    "1/2*v*vpar0**2*rhoimp0*rhon0*T*xjac*theta*tstep*Sion_T*dalpha_e_dT*ps0_y**2/BigR",
+    "1/4*BigR**3*v_x*u0_y**2*T*xjac*theta*tstep**2*r0_x*tgnum_T",
+    "1/4*BigR**3*v_x*u0_y**2*T_x*xjac*theta*tstep**2*r0*tgnum_T",
+    "1/4*BigR**3*v_y*u0_x**2*T*xjac*theta*tstep**2*r0_y*tgnum_T",
+    "1/4*BigR**3*v_y*u0_x**2*T_y*xjac*theta*tstep**2*r0*tgnum_T",
+    "1/8*BigR**3*v_x*u0_y**2*rhoimp0*T_x*xjac*theta*tstep**2*alpha_e_bis*tgnum_T",
+    "1/8*BigR**3*v_x*u0_y**2*rhoimp0*T_x*xjac*theta*tstep**2*alpha_i*tgnum_T",
+    "1/8*BigR**3*v_x*u0_y**2*rhoimp0_x*T*xjac*theta*tstep**2*alpha_e_bis*tgnum_T",
+    "1/8*BigR**3*v_x*u0_y**2*rhoimp0_x*T*xjac*theta*tstep**2*alpha_i*tgnum_T",
+    "1/8*BigR**3*v_y*u0_x**2*rhoimp0*T_y*xjac*theta*tstep**2*alpha_e_bis*tgnum_T",
+    "1/8*BigR**3*v_y*u0_x**2*rhoimp0*T_y*xjac*theta*tstep**2*alpha_i*tgnum_T",
+    "1/8*BigR**3*v_y*u0_x**2*rhoimp0_y*T*xjac*theta*tstep**2*alpha_e_bis*tgnum_T",
+    "1/8*BigR**3*v_y*u0_x**2*rhoimp0_y*T*xjac*theta*tstep**2*alpha_i*tgnum_T",
+    "2*BigR*v*u0_y*rhoimp0*T*xjac*theta*tstep*dE_ion_dT",
+    "BigR**2*v*u0_s*rhoimp0_t*T*theta*tstep*GAMMA*dE_ion_dT",
+    "BigR**2*v*u0_t*rhoimp0_s*T*theta*tstep*dE_ion_dT",
+    "BigR*v_x*rhoimp0_x*T*xjac*theta*tstep*D_par_imp_sc_num*GAMMA*dE_ion_dT*ps0_y**2*tau_sc/(F0**2 + ps0_x**2 + ps0_y**2)",
+    "BigR*v_x*rhoimp0_x*T*xjac*theta*tstep*D_par_local_imp*GAMMA*dE_ion_dT*ps0_y**2/(F0**2 + ps0_x**2 + ps0_y**2)",
+    "BigR*v_x*rhoimp0_x*T*xjac*theta*tstep*D_prof_imp*GAMMA*dE_ion_dT",
+    "BigR*v_x*rhoimp0_x*T*xjac*theta*tstep*D_prof_imp*dE_ion_dT*ps0_y**2/(F0**2 + ps0_x**2 + ps0_y**2)",
+    "BigR*v_x*rhoimp0_y*T*xjac*theta*tstep*D_par_imp_sc_num*dE_ion_dT*ps0_x*ps0_y*tau_sc/(F0**2 + ps0_x**2 + ps0_y**2)",
+    "BigR*v_x*rhoimp0_y*T*xjac*theta*tstep*D_par_local_imp*dE_ion_dT*ps0_x*ps0_y/(F0**2 + ps0_x**2 + ps0_y**2)",
+    "BigR*v_x*rhoimp0_y*T*xjac*theta*tstep*D_prof_imp*GAMMA*dE_ion_dT*ps0_x*ps0_y/(F0**2 + ps0_x**2 + ps0_y**2)",
+    "BigR*v_y*rhoimp0_x*T*xjac*theta*tstep*D_par_imp_sc_num*dE_ion_dT*ps0_x*ps0_y*tau_sc/(F0**2 + ps0_x**2 + ps0_y**2)",
+    "BigR*v_y*rhoimp0_x*T*xjac*theta*tstep*D_par_local_imp*dE_ion_dT*ps0_x*ps0_y/(F0**2 + ps0_x**2 + ps0_y**2)",
+    "BigR*v_y*rhoimp0_x*T*xjac*theta*tstep*D_prof_imp*GAMMA*dE_ion_dT*ps0_x*ps0_y/(F0**2 + ps0_x**2 + ps0_y**2)",
+    "BigR*v_y*rhoimp0_y*T*xjac*theta*tstep*D_par_imp_sc_num*GAMMA*dE_ion_dT*ps0_x**2*tau_sc/(F0**2 + ps0_x**2 + ps0_y**2)",
+    "BigR*v_y*rhoimp0_y*T*xjac*theta*tstep*D_par_local_imp*GAMMA*dE_ion_dT*ps0_x**2/(F0**2 + ps0_x**2 + ps0_y**2)",
+    "BigR*v_y*rhoimp0_y*T*xjac*theta*tstep*D_prof_imp*GAMMA*dE_ion_dT",
+    "BigR*v_y*rhoimp0_y*T*xjac*theta*tstep*D_prof_imp*dE_ion_dT*ps0_x**2/(F0**2 + ps0_x**2 + ps0_y**2)",
+    "F0*v*vpar0*rhoimp0_p*T*xjac*theta*tstep*GAMMA*dE_ion_dT/BigR",
+    "F0*v*vpar0_p*rhoimp0*T*xjac*theta*tstep*GAMMA*dE_ion_dT/BigR",
+    "F0*v_x*rhoimp0_p*T*xjac*theta*tstep*D_par_imp_sc_num*GAMMA*dE_ion_dT*ps0_y*tau_sc/(F0**2 + ps0_x**2 + ps0_y**2)",
+    "F0*v_x*rhoimp0_p*T*xjac*theta*tstep*D_par_local_imp*GAMMA*dE_ion_dT*ps0_y/(F0**2 + ps0_x**2 + ps0_y**2)",
+    "F0*v_x*rhoimp0_p*T*xjac*theta*tstep*D_prof_imp*dE_ion_dT*ps0_y/(F0**2 + ps0_x**2 + ps0_y**2)",
+    "F0*v_y*rhoimp0_p*T*xjac*theta*tstep*D_par_imp_sc_num*dE_ion_dT*ps0_x*tau_sc/(F0**2 + ps0_x**2 + ps0_y**2)",
+    "F0*v_y*rhoimp0_p*T*xjac*theta*tstep*D_par_local_imp*dE_ion_dT*ps0_x/(F0**2 + ps0_x**2 + ps0_y**2)",
+    "F0*v_y*rhoimp0_p*T*xjac*theta*tstep*D_prof_imp*GAMMA*dE_ion_dT*ps0_x/(F0**2 + ps0_x**2 + ps0_y**2)",
+    "v*vpar0*rhoimp0_s*T*theta*tstep*GAMMA*dE_ion_dT*ps0_t",
+    "v*vpar0*rhoimp0_t*T*theta*tstep*dE_ion_dT*ps0_s",
+    "v*vpar0_s*rhoimp0*T*theta*tstep*GAMMA*dE_ion_dT*ps0_t",
+    "v*vpar0_t*rhoimp0*T*theta*tstep*dE_ion_dT*ps0_s"
+   ]
+  },
+  "Single-temperature (T) model | amat(var_t,var_u) | #0": {
+   "findings": [
+    11
+   ],
+   "source_only": [
+    "-1/4*BigR**2*v_x*u0_x*u_y*T0*xjac*theta*tstep**2*r0_y*tgnum_T",
+    "-1/4*BigR**2*v_x*u0_x*u_y*T0_y*xjac*theta*tstep**2*r0*tgnum_T",
+    "-1/4*BigR**2*v_x*u0_y*u_x*T0*xjac*theta*tstep**2*r0_y*tgnum_T",
+    "-1/4*BigR**2*v_x*u0_y*u_x*T0_y*xjac*theta*tstep**2*r0*tgnum_T",
+    "-1/4*BigR**2*v_y*u0_x*u_y*T0*xjac*theta*tstep**2*r0_x*tgnum_T",
+    "-1/4*BigR**2*v_y*u0_x*u_y*T0_x*xjac*theta*tstep**2*r0*tgnum_T",
+    "-1/4*BigR**2*v_y*u0_y*u_x*T0*xjac*theta*tstep**2*r0_x*tgnum_T",
+    "-1/4*BigR**2*v_y*u0_y*u_x*T0_x*xjac*theta*tstep**2*r0*tgnum_T",
+    "-1/8*BigR**2*v_x*u0_x*u_y*rhoimp0*T0_y*xjac*theta*tstep**2*alpha_e_bis*tgnum_T",
+    "-1/8*BigR**2*v_x*u0_x*u_y*rhoimp0*T0_y*xjac*theta*tstep**2*alpha_i*tgnum_T",
+    "-1/8*BigR**2*v_x*u0_x*u_y*rhoimp0_y*T0*xjac*theta*tstep**2*alpha_e*tgnum_T",
+    "-1/8*BigR**2*v_x*u0_x*u_y*rhoimp0_y*T0*xjac*theta*tstep**2*alpha_i*tgnum_T",
+    "-1/8*BigR**2*v_x*u0_y*u_x*rhoimp0*T0_y*xjac*theta*tstep**2*alpha_e_bis*tgnum_T",
+    "-1/8*BigR**2*v_x*u0_y*u_x*rhoimp0*T0_y*xjac*theta*tstep**2*alpha_i*tgnum_T",
+    "-1/8*BigR**2*v_x*u0_y*u_x*rhoimp0_y*T0*xjac*theta*tstep**2*alpha_e*tgnum_T",
+    "-1/8*BigR**2*v_x*u0_y*u_x*rhoimp0_y*T0*xjac*theta*tstep**2*alpha_i*tgnum_T",
+    "-1/8*BigR**2*v_y*u0_x*u_y*rhoimp0*T0_x*xjac*theta*tstep**2*alpha_e_bis*tgnum_T",
+    "-1/8*BigR**2*v_y*u0_x*u_y*rhoimp0*T0_x*xjac*theta*tstep**2*alpha_i*tgnum_T",
+    "-1/8*BigR**2*v_y*u0_x*u_y*rhoimp0_x*T0*xjac*theta*tstep**2*alpha_e*tgnum_T",
+    "-1/8*BigR**2*v_y*u0_x*u_y*rhoimp0_x*T0*xjac*theta*tstep**2*alpha_i*tgnum_T",
+    "-1/8*BigR**2*v_y*u0_y*u_x*rhoimp0*T0_x*xjac*theta*tstep**2*alpha_e_bis*tgnum_T",
+    "-1/8*BigR**2*v_y*u0_y*u_x*rhoimp0*T0_x*xjac*theta*tstep**2*alpha_i*tgnum_T",
+    "-1/8*BigR**2*v_y*u0_y*u_x*rhoimp0_x*T0*xjac*theta*tstep**2*alpha_e*tgnum_T",
+    "-1/8*BigR**2*v_y*u0_y*u_x*rhoimp0_x*T0*xjac*theta*tstep**2*alpha_i*tgnum_T",
+    "1/2*BigR**2*v_x*u0_y*u_y*T0*xjac*theta*tstep**2*r0_x*tgnum_T",
+    "1/2*BigR**2*v_x*u0_y*u_y*T0_x*xjac*theta*tstep**2*r0*tgnum_T",
+    "1/2*BigR**2*v_y*u0_x*u_x*T0*xjac*theta*tstep**2*r0_y*tgnum_T",
+    "1/2*BigR**2*v_y*u0_x*u_x*T0_y*xjac*theta*tstep**2*r0*tgnum_T",
+    "1/4*BigR**2*v_x*u0_y*u_y*rhoimp0*T0_x*xjac*theta*tstep**2*alpha_e_bis*tgnum_T",
+    "1/4*BigR**2*v_x*u0_y*u_y*rhoimp0*T0_x*xjac*theta*tstep**2*alpha_i*tgnum_T",
+    "1/4*BigR**2*v_x*u0_y*u_y*rhoimp0_x*T0*xjac*theta*tstep**2*alpha_e*tgnum_T",
+    "1/4*BigR**2*v_x*u0_y*u_y*rhoimp0_x*T0*xjac*theta*tstep**2*alpha_i*tgnum_T",
+    "1/4*BigR**2*v_y*u0_x*u_x*rhoimp0*T0_y*xjac*theta*tstep**2*alpha_e_bis*tgnum_T",
+    "1/4*BigR**2*v_y*u0_x*u_x*rhoimp0*T0_y*xjac*theta*tstep**2*alpha_i*tgnum_T",
+    "1/4*BigR**2*v_y*u0_x*u_x*rhoimp0_y*T0*xjac*theta*tstep**2*alpha_e*tgnum_T",
+    "1/4*BigR**2*v_y*u0_x*u_x*rhoimp0_y*T0*xjac*theta*tstep**2*alpha_i*tgnum_T"
+   ],
+   "generated_only": [
+    "-1/4*BigR**3*v_x*u0_x*u_y*T0*xjac*theta*tstep**2*r0_y*tgnum_T",
+    "-1/4*BigR**3*v_x*u0_x*u_y*T0_y*xjac*theta*tstep**2*r0*tgnum_T",
+    "-1/4*BigR**3*v_x*u0_y*u_x*T0*xjac*theta*tstep**2*r0_y*tgnum_T",
+    "-1/4*BigR**3*v_x*u0_y*u_x*T0_y*xjac*theta*tstep**2*r0*tgnum_T",
+    "-1/4*BigR**3*v_y*u0_x*u_y*T0*xjac*theta*tstep**2*r0_x*tgnum_T",
+    "-1/4*BigR**3*v_y*u0_x*u_y*T0_x*xjac*theta*tstep**2*r0*tgnum_T",
+    "-1/4*BigR**3*v_y*u0_y*u_x*T0*xjac*theta*tstep**2*r0_x*tgnum_T",
+    "-1/4*BigR**3*v_y*u0_y*u_x*T0_x*xjac*theta*tstep**2*r0*tgnum_T",
+    "-1/8*BigR**3*v_x*u0_x*u_y*rhoimp0*T0_y*xjac*theta*tstep**2*alpha_e_bis*tgnum_T",
+    "-1/8*BigR**3*v_x*u0_x*u_y*rhoimp0*T0_y*xjac*theta*tstep**2*alpha_i*tgnum_T",
+    "-1/8*BigR**3*v_x*u0_x*u_y*rhoimp0_y*T0*xjac*theta*tstep**2*alpha_e*tgnum_T",
+    "-1/8*BigR**3*v_x*u0_x*u_y*rhoimp0_y*T0*xjac*theta*tstep**2*alpha_i*tgnum_T",
+    "-1/8*BigR**3*v_x*u0_y*u_x*rhoimp0*T0_y*xjac*theta*tstep**2*alpha_e_bis*tgnum_T",
+    "-1/8*BigR**3*v_x*u0_y*u_x*rhoimp0*T0_y*xjac*theta*tstep**2*alpha_i*tgnum_T",
+    "-1/8*BigR**3*v_x*u0_y*u_x*rhoimp0_y*T0*xjac*theta*tstep**2*alpha_e*tgnum_T",
+    "-1/8*BigR**3*v_x*u0_y*u_x*rhoimp0_y*T0*xjac*theta*tstep**2*alpha_i*tgnum_T",
+    "-1/8*BigR**3*v_y*u0_x*u_y*rhoimp0*T0_x*xjac*theta*tstep**2*alpha_e_bis*tgnum_T",
+    "-1/8*BigR**3*v_y*u0_x*u_y*rhoimp0*T0_x*xjac*theta*tstep**2*alpha_i*tgnum_T",
+    "-1/8*BigR**3*v_y*u0_x*u_y*rhoimp0_x*T0*xjac*theta*tstep**2*alpha_e*tgnum_T",
+    "-1/8*BigR**3*v_y*u0_x*u_y*rhoimp0_x*T0*xjac*theta*tstep**2*alpha_i*tgnum_T",
+    "-1/8*BigR**3*v_y*u0_y*u_x*rhoimp0*T0_x*xjac*theta*tstep**2*alpha_e_bis*tgnum_T",
+    "-1/8*BigR**3*v_y*u0_y*u_x*rhoimp0*T0_x*xjac*theta*tstep**2*alpha_i*tgnum_T",
+    "-1/8*BigR**3*v_y*u0_y*u_x*rhoimp0_x*T0*xjac*theta*tstep**2*alpha_e*tgnum_T",
+    "-1/8*BigR**3*v_y*u0_y*u_x*rhoimp0_x*T0*xjac*theta*tstep**2*alpha_i*tgnum_T",
+    "1/2*BigR**3*v_x*u0_y*u_y*T0*xjac*theta*tstep**2*r0_x*tgnum_T",
+    "1/2*BigR**3*v_x*u0_y*u_y*T0_x*xjac*theta*tstep**2*r0*tgnum_T",
+    "1/2*BigR**3*v_y*u0_x*u_x*T0*xjac*theta*tstep**2*r0_y*tgnum_T",
+    "1/2*BigR**3*v_y*u0_x*u_x*T0_y*xjac*theta*tstep**2*r0*tgnum_T",
+    "1/4*BigR**3*v_x*u0_y*u_y*rhoimp0*T0_x*xjac*theta*tstep**2*alpha_e_bis*tgnum_T",
+    "1/4*BigR**3*v_x*u0_y*u_y*rhoimp0*T0_x*xjac*theta*tstep**2*alpha_i*tgnum_T",
+    "1/4*BigR**3*v_x*u0_y*u_y*rhoimp0_x*T0*xjac*theta*tstep**2*alpha_e*tgnum_T",
+    "1/4*BigR**3*v_x*u0_y*u_y*rhoimp0_x*T0*xjac*theta*tstep**2*alpha_i*tgnum_T",
+    "1/4*BigR**3*v_y*u0_x*u_x*rhoimp0*T0_y*xjac*theta*tstep**2*alpha_e_bis*tgnum_T",
+    "1/4*BigR**3*v_y*u0_x*u_x*rhoimp0*T0_y*xjac*theta*tstep**2*alpha_i*tgnum_T",
+    "1/4*BigR**3*v_y*u0_x*u_x*rhoimp0_y*T0*xjac*theta*tstep**2*alpha_e*tgnum_T",
+    "1/4*BigR**3*v_y*u0_x*u_x*rhoimp0_y*T0*xjac*theta*tstep**2*alpha_i*tgnum_T"
+   ]
+  },
+  "Single-temperature (T) model | amat(var_u,var_rhoimp) | #0": {
+   "findings": [
+    1
+   ],
+   "source_only": [],
+   "generated_only": [
+    "-2*BigR**4*v*u0_xy*rhoimp_y*T0_y*xjac*theta*tstep*alpha_i*tauIC",
+    "-BigR**4*v*u0_xx*rhoimp*T0_xy*xjac*theta*tstep*alpha_i*tauIC",
+    "-BigR**4*v*u0_xx*rhoimp_x*T0_y*xjac*theta*tstep*alpha_i*tauIC",
+    "-BigR**4*v*u0_xx*rhoimp_xy*T0*xjac*theta*tstep*alpha_i*tauIC",
+    "-BigR**4*v*u0_xx*rhoimp_y*T0_x*xjac*theta*tstep*alpha_i*tauIC",
+    "-BigR**4*v*u0_xy*rhoimp*T0_yy*xjac*theta*tstep*alpha_i*tauIC",
+    "-BigR**4*v*u0_xy*rhoimp_yy*T0*xjac*theta*tstep*alpha_i*tauIC",
+    "-BigR**4*v*w0_s*rhoimp*T0_t*theta*tstep*alpha_i*tauIC",
+    "-BigR**4*v*w0_s*rhoimp_t*T0*theta*tstep*alpha_i*tauIC",
+    "2*BigR**4*v*u0_xy*rhoimp_x*T0_x*xjac*theta*tstep*alpha_i*tauIC",
+    "BigR**3*v_x*u0_x*rhoimp*T0_y*xjac*theta*tstep*alpha_i*tauIC",
+    "BigR**3*v_x*u0_x*rhoimp_y*T0*xjac*theta*tstep*alpha_i*tauIC",
+    "BigR**3*v_y*u0_y*rhoimp*T0_y*xjac*theta*tstep*alpha_i*tauIC",
+    "BigR**3*v_y*u0_y*rhoimp_y*T0*xjac*theta*tstep*alpha_i*tauIC",
+    "BigR**4*v*u0_xy*rhoimp*T0_xx*xjac*theta*tstep*alpha_i*tauIC",
+    "BigR**4*v*u0_xy*rhoimp_xx*T0*xjac*theta*tstep*alpha_i*tauIC",
+    "BigR**4*v*u0_yy*rhoimp*T0_xy*xjac*theta*tstep*alpha_i*tauIC",
+    "BigR**4*v*u0_yy*rhoimp_x*T0_y*xjac*theta*tstep*alpha_i*tauIC",
+    "BigR**4*v*u0_yy*rhoimp_xy*T0*xjac*theta*tstep*alpha_i*tauIC",
+    "BigR**4*v*u0_yy*rhoimp_y*T0_x*xjac*theta*tstep*alpha_i*tauIC",
+    "BigR**4*v*w0_t*rhoimp*T0_s*theta*tstep*alpha_i*tauIC",
+    "BigR**4*v*w0_t*rhoimp_s*T0*theta*tstep*alpha_i*tauIC"
+   ]
+  },
+  "Single-temperature (T) model | amat(var_u,var_t) | #0": {
+   "findings": [
+    1,
+    3
+   ],
+   "source_only": [
+    "-2*BigR*v_xx*visco_T*xjac*theta*tstep*W_dia_T",
+    "-2*BigR*v_yy*visco_T*xjac*theta*tstep*W_dia_T",
+    "-2*v_x*visco_T*xjac*theta*tstep*W_dia_T",
+    "-BigR*v_x*T0_x*xjac*theta*tstep*W_dia_T*dvisco_dT",
+    "-BigR*v_x*T_x*xjac*theta*tstep*W_dia*dvisco_dT",
+    "-BigR*v_y*T0_y*xjac*theta*tstep*W_dia_T*dvisco_dT",
+    "-BigR*v_y*T_y*xjac*theta*tstep*W_dia*dvisco_dT"
+   ],
+   "generated_only": [
+    "-1/2*BigR*v_x*T0_x*xjac*theta*tstep*W_dia_T*dvisco_dT",
+    "-1/2*BigR*v_x*T_x*xjac*theta*tstep*W_dia*dvisco_dT",
+    "-1/2*BigR*v_y*T0_y*xjac*theta*tstep*W_dia_T*dvisco_dT",
+    "-1/2*BigR*v_y*T_y*xjac*theta*tstep*W_dia*dvisco_dT",
+    "-2*BigR**4*v*u0_xy*rhoimp0_y*T_y*xjac*theta*tstep*alpha_i*tauIC",
+    "-BigR**4*v*u0_xx*rhoimp0*T_xy*xjac*theta*tstep*alpha_i*tauIC",
+    "-BigR**4*v*u0_xx*rhoimp0_x*T_y*xjac*theta*tstep*alpha_i*tauIC",
+    "-BigR**4*v*u0_xx*rhoimp0_xy*T*xjac*theta*tstep*alpha_i*tauIC",
+    "-BigR**4*v*u0_xx*rhoimp0_y*T_x*xjac*theta*tstep*alpha_i*tauIC",
+    "-BigR**4*v*u0_xy*rhoimp0*T_yy*xjac*theta*tstep*alpha_i*tauIC",
+    "-BigR**4*v*u0_xy*rhoimp0_yy*T*xjac*theta*tstep*alpha_i*tauIC",
+    "-BigR**4*v*w0_s*rhoimp0*T_t*theta*tstep*alpha_i*tauIC",
+    "-BigR**4*v*w0_s*rhoimp0_t*T*theta*tstep*alpha_i*tauIC",
+    "-BigR*v_xx*visco_T*xjac*theta*tstep*W_dia_T",
+    "-BigR*v_yy*visco_T*xjac*theta*tstep*W_dia_T",
+    "-v_x*visco_T*xjac*theta*tstep*W_dia_T",
+    "2*BigR**4*v*u0_xy*rhoimp0_x*T_x*xjac*theta*tstep*alpha_i*tauIC",
+    "BigR**3*v_x*u0_x*rhoimp0*T_y*xjac*theta*tstep*alpha_i*tauIC",
+    "BigR**3*v_x*u0_x*rhoimp0_y*T*xjac*theta*tstep*alpha_i*tauIC",
+    "BigR**3*v_y*u0_y*rhoimp0*T_y*xjac*theta*tstep*alpha_i*tauIC",
+    "BigR**3*v_y*u0_y*rhoimp0_y*T*xjac*theta*tstep*alpha_i*tauIC",
+    "BigR**4*v*u0_xy*rhoimp0*T_xx*xjac*theta*tstep*alpha_i*tauIC",
+    "BigR**4*v*u0_xy*rhoimp0_xx*T*xjac*theta*tstep*alpha_i*tauIC",
+    "BigR**4*v*u0_yy*rhoimp0*T_xy*xjac*theta*tstep*alpha_i*tauIC",
+    "BigR**4*v*u0_yy*rhoimp0_x*T_y*xjac*theta*tstep*alpha_i*tauIC",
+    "BigR**4*v*u0_yy*rhoimp0_xy*T*xjac*theta*tstep*alpha_i*tauIC",
+    "BigR**4*v*u0_yy*rhoimp0_y*T_x*xjac*theta*tstep*alpha_i*tauIC",
+    "BigR**4*v*w0_t*rhoimp0*T_s*theta*tstep*alpha_i*tauIC",
+    "BigR**4*v*w0_t*rhoimp0_s*T*theta*tstep*alpha_i*tauIC"
+   ]
+  },
+  "Single-temperature (T) model | amat(var_vpar,var_psi) | #0": {
+   "findings": [
+    4,
+    6,
+    7
+   ],
+   "source_only": [
+    "v*vpar0*psi_x*xjac*ps0_x*r0_corr/BigR",
+    "v*vpar0*psi_x*xjac*zeta*ps0_x*r0_corr/BigR",
+    "v*vpar0*psi_y*xjac*ps0_y*r0_corr/BigR",
+    "v*vpar0*psi_y*xjac*zeta*ps0_y*r0_corr/BigR"
+   ],
+   "generated_only": [
+    "-1/2*F0**2*v*vpar0**2*vpar0_p*psi_x*xjac*theta*tstep**2*fact_conservative_u*ps0_x*r0_p*tgnum_vpar/(BigR**5)",
+    "-1/2*F0**2*v*vpar0**2*vpar0_p*psi_y*xjac*theta*tstep**2*fact_conservative_u*ps0_y*r0_p*tgnum_vpar/(BigR**5)",
+    "-1/2*F0*v*vpar0**2*vpar0_p*psi_x*theta*tstep**2*fact_conservative_u*ps0_t*ps0_x*r0_s*tgnum_vpar/(BigR**4)",
+    "-1/2*F0*v*vpar0**2*vpar0_p*psi_x*theta*tstep**2*ps0_s*ps0_x*r0_t*tgnum_vpar/(BigR**4)",
+    "-1/2*F0*v*vpar0**2*vpar0_p*psi_y*theta*tstep**2*fact_conservative_u*ps0_t*ps0_y*r0_s*tgnum_vpar/(BigR**4)",
+    "-1/2*F0*v*vpar0**2*vpar0_p*psi_y*theta*tstep**2*ps0_s*ps0_y*r0_t*tgnum_vpar/(BigR**4)",
+    "-1/2*F0*v*vpar0**2*vpar0_s*psi_x*theta*tstep**2*fact_conservative_u*ps0_t*ps0_x*r0_p*tgnum_vpar/(BigR**4)",
+    "-1/2*F0*v*vpar0**2*vpar0_s*psi_y*theta*tstep**2*fact_conservative_u*ps0_t*ps0_y*r0_p*tgnum_vpar/(BigR**4)",
+    "-1/2*F0*v*vpar0**2*vpar0_t*psi_x*theta*tstep**2*ps0_s*ps0_x*r0_p*tgnum_vpar/(BigR**4)",
+    "-1/2*F0*v*vpar0**2*vpar0_t*psi_y*theta*tstep**2*ps0_s*ps0_y*r0_p*tgnum_vpar/(BigR**4)",
+    "-1/2*F0*v_t*vpar0**2*vpar0_p*psi_x*theta*tstep**2*ps0_s*ps0_x*r0*tgnum_vpar/(BigR**4)",
+    "-1/2*F0*v_t*vpar0**2*vpar0_p*psi_y*theta*tstep**2*ps0_s*ps0_y*r0*tgnum_vpar/(BigR**4)",
+    "-1/2*F0*v_t*vpar0**3*psi_x*theta*tstep**2*fact_conservative_u*ps0_s*ps0_x*r0_p*tgnum_vpar/(BigR**4)",
+    "-1/2*F0*v_t*vpar0**3*psi_y*theta*tstep**2*fact_conservative_u*ps0_s*ps0_y*r0_p*tgnum_vpar/(BigR**4)",
+    "-1/2*v*vpar0**2*vpar0_s*psi_x*theta*tstep**2*fact_conservative_u*ps0_t**2*ps0_x*r0_s*tgnum_vpar/(BigR**3)/xjac",
+    "-1/2*v*vpar0**2*vpar0_s*psi_x*theta*tstep**2*ps0_s*ps0_t*ps0_x*r0_t*tgnum_vpar/(BigR**3)/xjac",
+    "-1/2*v*vpar0**2*vpar0_s*psi_y*theta*tstep**2*fact_conservative_u*ps0_t**2*ps0_y*r0_s*tgnum_vpar/(BigR**3)/xjac",
+    "-1/2*v*vpar0**2*vpar0_s*psi_y*theta*tstep**2*ps0_s*ps0_t*ps0_y*r0_t*tgnum_vpar/(BigR**3)/xjac",
+    "-1/2*v*vpar0**2*vpar0_t*psi_x*theta*tstep**2*fact_conservative_u*ps0_s**2*ps0_x*r0_t*tgnum_vpar/(BigR**3)/xjac",
+    "-1/2*v*vpar0**2*vpar0_t*psi_x*theta*tstep**2*ps0_s*ps0_t*ps0_x*r0_s*tgnum_vpar/(BigR**3)/xjac",
+    "-1/2*v*vpar0**2*vpar0_t*psi_y*theta*tstep**2*fact_conservative_u*ps0_s**2*ps0_y*r0_t*tgnum_vpar/(BigR**3)/xjac",
+    "-1/2*v*vpar0**2*vpar0_t*psi_y*theta*tstep**2*ps0_s*ps0_t*ps0_y*r0_s*tgnum_vpar/(BigR**3)/xjac",
+    "-1/2*v_s*vpar0**2*vpar0_t*psi_x*theta*tstep**2*ps0_s*ps0_t*ps0_x*r0*tgnum_vpar/(BigR**3)/xjac",
+    "-1/2*v_s*vpar0**2*vpar0_t*psi_y*theta*tstep**2*ps0_s*ps0_t*ps0_y*r0*tgnum_vpar/(BigR**3)/xjac",
+    "-1/2*v_s*vpar0**3*psi_x*theta*tstep**2*fact_conservative_u*ps0_s*ps0_t*ps0_x*r0_t*tgnum_vpar/(BigR**3)/xjac",
+    "-1/2*v_s*vpar0**3*psi_y*theta*tstep**2*fact_conservative_u*ps0_s*ps0_t*ps0_y*r0_t*tgnum_vpar/(BigR**3)/xjac",
+    "-1/2*v_t*vpar0**2*vpar0_s*psi_x*theta*tstep**2*ps0_s*ps0_t*ps0_x*r0*tgnum_vpar/(BigR**3)/xjac",
+    "-1/2*v_t*vpar0**2*vpar0_s*psi_y*theta*tstep**2*ps0_s*ps0_t*ps0_y*r0*tgnum_vpar/(BigR**3)/xjac",
+    "-1/2*v_t*vpar0**3*psi_x*theta*tstep**2*fact_conservative_u*ps0_s*ps0_t*ps0_x*r0_s*tgnum_vpar/(BigR**3)/xjac",
+    "-1/2*v_t*vpar0**3*psi_y*theta*tstep**2*fact_conservative_u*ps0_s*ps0_t*ps0_y*r0_s*tgnum_vpar/(BigR**3)/xjac",
+    "-1/4*F0**3*v*vpar0**2*vpar0_p*psi_s*theta*tstep**2*r0_t*tgnum_vpar/(BigR**4)",
+    "-1/4*F0**3*v*vpar0**2*vpar0_p*psi_t*theta*tstep**2*fact_conservative_u*r0_s*tgnum_vpar/(BigR**4)",
+    "-1/4*F0**3*v*vpar0**2*vpar0_s*psi_t*theta*tstep**2*fact_conservative_u*r0_p*tgnum_vpar/(BigR**4)",
+    "-1/4*F0**3*v*vpar0**2*vpar0_t*psi_s*theta*tstep**2*r0_p*tgnum_vpar/(BigR**4)",
+    "-1/4*F0**3*v_t*vpar0**2*vpar0_p*psi_s*theta*tstep**2*r0*tgnum_vpar/(BigR**4)",
+    "-1/4*F0**3*v_t*vpar0**3*psi_s*theta*tstep**2*fact_conservative_u*r0_p*tgnum_vpar/(BigR**4)",
+    "-1/4*F0*v*vpar0**2*vpar0_p*psi_s*theta*tstep**2*ps0_x**2*r0_t*tgnum_vpar/(BigR**4)",
+    "-1/4*F0*v*vpar0**2*vpar0_p*psi_s*theta*tstep**2*ps0_y**2*r0_t*tgnum_vpar/(BigR**4)",
+    "-1/4*F0*v*vpar0**2*vpar0_p*psi_t*theta*tstep**2*fact_conservative_u*ps0_x**2*r0_s*tgnum_vpar/(BigR**4)",
+    "-1/4*F0*v*vpar0**2*vpar0_p*psi_t*theta*tstep**2*fact_conservative_u*ps0_y**2*r0_s*tgnum_vpar/(BigR**4)",
+    "-1/4*F0*v*vpar0**2*vpar0_s*psi_t*theta*tstep**2*fact_conservative_u*ps0_x**2*r0_p*tgnum_vpar/(BigR**4)",
+    "-1/4*F0*v*vpar0**2*vpar0_s*psi_t*theta*tstep**2*fact_conservative_u*ps0_y**2*r0_p*tgnum_vpar/(BigR**4)",
+    "-1/4*F0*v*vpar0**2*vpar0_t*psi_s*theta*tstep**2*ps0_x**2*r0_p*tgnum_vpar/(BigR**4)",
+    "-1/4*F0*v*vpar0**2*vpar0_t*psi_s*theta*tstep**2*ps0_y**2*r0_p*tgnum_vpar/(BigR**4)",
+    "-1/4*F0*v_t*vpar0**2*vpar0_p*psi_s*theta*tstep**2*ps0_x**2*r0*tgnum_vpar/(BigR**4)",
+    "-1/4*F0*v_t*vpar0**2*vpar0_p*psi_s*theta*tstep**2*ps0_y**2*r0*tgnum_vpar/(BigR**4)",
+    "-1/4*F0*v_t*vpar0**3*psi_s*theta*tstep**2*fact_conservative_u*ps0_x**2*r0_p*tgnum_vpar/(BigR**4)",
+    "-1/4*F0*v_t*vpar0**3*psi_s*theta*tstep**2*fact_conservative_u*ps0_y**2*r0_p*tgnum_vpar/(BigR**4)",
+    "-BigR*v*vpar0_x*psi_x*xjac*theta*tstep*V_prof_pinch*r0/(sqrt(ps0_x**2 + ps0_y**2))",
+    "-BigR*v*vpar0_y*psi_y*xjac*theta*tstep*V_prof_pinch*r0/(sqrt(ps0_x**2 + ps0_y**2))",
+    "1/2*F0**2*v*vpar0**2*vpar0_p*psi_x*xjac*theta*tstep**2*ps0_x*r0_p*tgnum_vpar/(BigR**5)",
+    "1/2*F0**2*v*vpar0**2*vpar0_p*psi_y*xjac*theta*tstep**2*ps0_y*r0_p*tgnum_vpar/(BigR**5)",
+    "1/2*F0*v*vpar0**2*vpar0_p*psi_x*theta*tstep**2*fact_conservative_u*ps0_s*ps0_x*r0_t*tgnum_vpar/(BigR**4)",
+    "1/2*F0*v*vpar0**2*vpar0_p*psi_x*theta*tstep**2*ps0_t*ps0_x*r0_s*tgnum_vpar/(BigR**4)",
+    "1/2*F0*v*vpar0**2*vpar0_p*psi_y*theta*tstep**2*fact_conservative_u*ps0_s*ps0_y*r0_t*tgnum_vpar/(BigR**4)",
+    "1/2*F0*v*vpar0**2*vpar0_p*psi_y*theta*tstep**2*ps0_t*ps0_y*r0_s*tgnum_vpar/(BigR**4)",
+    "1/2*F0*v*vpar0**2*vpar0_s*psi_x*theta*tstep**2*ps0_t*ps0_x*r0_p*tgnum_vpar/(BigR**4)",
+    "1/2*F0*v*vpar0**2*vpar0_s*psi_y*theta*tstep**2*ps0_t*ps0_y*r0_p*tgnum_vpar/(BigR**4)",
+    "1/2*F0*v*vpar0**2*vpar0_t*psi_x*theta*tstep**2*fact_conservative_u*ps0_s*ps0_x*r0_p*tgnum_vpar/(BigR**4)",
+    "1/2*F0*v*vpar0**2*vpar0_t*psi_y*theta*tstep**2*fact_conservative_u*ps0_s*ps0_y*r0_p*tgnum_vpar/(BigR**4)",
+    "1/2*F0*v_s*vpar0**2*vpar0_p*psi_x*theta*tstep**2*ps0_t*ps0_x*r0*tgnum_vpar/(BigR**4)",
+    "1/2*F0*v_s*vpar0**2*vpar0_p*psi_y*theta*tstep**2*ps0_t*ps0_y*r0*tgnum_vpar/(BigR**4)",
+    "1/2*F0*v_s*vpar0**3*psi_x*theta*tstep**2*fact_conservative_u*ps0_t*ps0_x*r0_p*tgnum_vpar/(BigR**4)",
+    "1/2*F0*v_s*vpar0**3*psi_y*theta*tstep**2*fact_conservative_u*ps0_t*ps0_y*r0_p*tgnum_vpar/(BigR**4)",
+    "1/2*v*vpar0**2*vpar0_s*psi_x*theta*tstep**2*fact_conservative_u*ps0_s*ps0_t*ps0_x*r0_t*tgnum_vpar/(BigR**3)/xjac",
+    "1/2*v*vpar0**2*vpar0_s*psi_x*theta*tstep**2*ps0_t**2*ps0_x*r0_s*tgnum_vpar/(BigR**3)/xjac",
+    "1/2*v*vpar0**2*vpar0_s*psi_y*theta*tstep**2*fact_conservative_u*ps0_s*ps0_t*ps0_y*r0_t*tgnum_vpar/(BigR**3)/xjac",
+    "1/2*v*vpar0**2*vpar0_s*psi_y*theta*tstep**2*ps0_t**2*ps0_y*r0_s*tgnum_vpar/(BigR**3)/xjac",
+    "1/2*v*vpar0**2*vpar0_t*psi_x*theta*tstep**2*fact_conservative_u*ps0_s*ps0_t*ps0_x*r0_s*tgnum_vpar/(BigR**3)/xjac",
+    "1/2*v*vpar0**2*vpar0_t*psi_x*theta*tstep**2*ps0_s**2*ps0_x*r0_t*tgnum_vpar/(BigR**3)/xjac",
+    "1/2*v*vpar0**2*vpar0_t*psi_y*theta*tstep**2*fact_conservative_u*ps0_s*ps0_t*ps0_y*r0_s*tgnum_vpar/(BigR**3)/xjac",
+    "1/2*v*vpar0**2*vpar0_t*psi_y*theta*tstep**2*ps0_s**2*ps0_y*r0_t*tgnum_vpar/(BigR**3)/xjac",
+    "1/2*v_s*vpar0**2*vpar0_s*psi_x*theta*tstep**2*ps0_t**2*ps0_x*r0*tgnum_vpar/(BigR**3)/xjac",
+    "1/2*v_s*vpar0**2*vpar0_s*psi_y*theta*tstep**2*ps0_t**2*ps0_y*r0*tgnum_vpar/(BigR**3)/xjac",
+    "1/2*v_s*vpar0**3*psi_x*theta*tstep**2*fact_conservative_u*ps0_t**2*ps0_x*r0_s*tgnum_vpar/(BigR**3)/xjac",
+    "1/2*v_s*vpar0**3*psi_y*theta*tstep**2*fact_conservative_u*ps0_t**2*ps0_y*r0_s*tgnum_vpar/(BigR**3)/xjac",
+    "1/2*v_t*vpar0**2*vpar0_t*psi_x*theta*tstep**2*ps0_s**2*ps0_x*r0*tgnum_vpar/(BigR**3)/xjac",
+    "1/2*v_t*vpar0**2*vpar0_t*psi_y*theta*tstep**2*ps0_s**2*ps0_y*r0*tgnum_vpar/(BigR**3)/xjac",
+    "1/2*v_t*vpar0**3*psi_x*theta*tstep**2*fact_conservative_u*ps0_s**2*ps0_x*r0_t*tgnum_vpar/(BigR**3)/xjac",
+    "1/2*v_t*vpar0**3*psi_y*theta*tstep**2*fact_conservative_u*ps0_s**2*ps0_y*r0_t*tgnum_vpar/(BigR**3)/xjac",
+    "1/4*F0**3*v*vpar0**2*vpar0_p*psi_s*theta*tstep**2*fact_conservative_u*r0_t*tgnum_vpar/(BigR**4)",
+    "1/4*F0**3*v*vpar0**2*vpar0_p*psi_t*theta*tstep**2*r0_s*tgnum_vpar/(BigR**4)",
+    "1/4*F0**3*v*vpar0**2*vpar0_s*psi_t*theta*tstep**2*r0_p*tgnum_vpar/(BigR**4)",
+    "1/4*F0**3*v*vpar0**2*vpar0_t*psi_s*theta*tstep**2*fact_conservative_u*r0_p*tgnum_vpar/(BigR**4)",
+    "1/4*F0**3*v_s*vpar0**2*vpar0_p*psi_t*theta*tstep**2*r0*tgnum_vpar/(BigR**4)",
+    "1/4*F0**3*v_s*vpar0**3*psi_t*theta*tstep**2*fact_conservative_u*r0_p*tgnum_vpar/(BigR**4)",
+    "1/4*F0*v*vpar0**2*vpar0_p*psi_s*theta*tstep**2*fact_conservative_u*ps0_x**2*r0_t*tgnum_vpar/(BigR**4)",
+    "1/4*F0*v*vpar0**2*vpar0_p*psi_s*theta*tstep**2*fact_conservative_u*ps0_y**2*r0_t*tgnum_vpar/(BigR**4)",
+    "1/4*F0*v*vpar0**2*vpar0_p*psi_t*theta*tstep**2*ps0_x**2*r0_s*tgnum_vpar/(BigR**4)",
+    "1/4*F0*v*vpar0**2*vpar0_p*psi_t*theta*tstep**2*ps0_y**2*r0_s*tgnum_vpar/(BigR**4)",
+    "1/4*F0*v*vpar0**2*vpar0_s*psi_t*theta*tstep**2*ps0_x**2*r0_p*tgnum_vpar/(BigR**4)",
+    "1/4*F0*v*vpar0**2*vpar0_s*psi_t*theta*tstep**2*ps0_y**2*r0_p*tgnum_vpar/(BigR**4)",
+    "1/4*F0*v*vpar0**2*vpar0_t*psi_s*theta*tstep**2*fact_conservative_u*ps0_x**2*r0_p*tgnum_vpar/(BigR**4)",
+    "1/4*F0*v*vpar0**2*vpar0_t*psi_s*theta*tstep**2*fact_conservative_u*ps0_y**2*r0_p*tgnum_vpar/(BigR**4)",
+    "1/4*F0*v_s*vpar0**2*vpar0_p*psi_t*theta*tstep**2*ps0_x**2*r0*tgnum_vpar/(BigR**4)",
+    "1/4*F0*v_s*vpar0**2*vpar0_p*psi_t*theta*tstep**2*ps0_y**2*r0*tgnum_vpar/(BigR**4)",
+    "1/4*F0*v_s*vpar0**3*psi_t*theta*tstep**2*fact_conservative_u*ps0_x**2*r0_p*tgnum_vpar/(BigR**4)",
+    "1/4*F0*v_s*vpar0**3*psi_t*theta*tstep**2*fact_conservative_u*ps0_y**2*r0_p*tgnum_vpar/(BigR**4)",
+    "2*v*vpar0*psi_x*xjac*fact_conservative_u*ps0_x*r0/BigR",
+    "2*v*vpar0*psi_x*xjac*ps0_x*r0_corr/BigR",
+    "2*v*vpar0*psi_x*xjac*zeta*fact_conservative_u*ps0_x*r0/BigR",
+    "2*v*vpar0*psi_x*xjac*zeta*ps0_x*r0_corr/BigR",
+    "2*v*vpar0*psi_y*xjac*fact_conservative_u*ps0_y*r0/BigR",
+    "2*v*vpar0*psi_y*xjac*ps0_y*r0_corr/BigR",
+    "2*v*vpar0*psi_y*xjac*zeta*fact_conservative_u*ps0_y*r0/BigR",
+    "2*v*vpar0*psi_y*xjac*zeta*ps0_y*r0_corr/BigR",
+    "BigR*v*vpar0_x*psi_x*xjac*theta*tstep*V_prof_pinch*ps0_x**2*r0/(ps0_x**2*sqrt(ps0_x**2 + ps0_y**2) + ps0_y**2*sqrt(ps0_x**2 + ps0_y**2))",
+    "BigR*v*vpar0_x*psi_y*xjac*theta*tstep*V_prof_pinch*ps0_x*ps0_y*r0/(ps0_x**2*sqrt(ps0_x**2 + ps0_y**2) + ps0_y**2*sqrt(ps0_x**2 + ps0_y**2))",
+    "BigR*v*vpar0_y*psi_x*xjac*theta*tstep*V_prof_pinch*ps0_x*ps0_y*r0/(ps0_x**2*sqrt(ps0_x**2 + ps0_y**2) + ps0_y**2*sqrt(ps0_x**2 + ps0_y**2))",
+    "BigR*v*vpar0_y*psi_y*xjac*theta*tstep*V_prof_pinch*ps0_y**2*r0/(ps0_x**2*sqrt(ps0_x**2 + ps0_y**2) + ps0_y**2*sqrt(ps0_x**2 + ps0_y**2))"
+   ]
+  },
+  "Single-temperature (T) model | amat(var_vpar,var_rho) | #0": {
+   "findings": [
+    6,
+    9
+   ],
+   "source_only": [
+    "BigR*v*vpar0_x*rho*xjac*theta*tstep*V_prof_pinch*ps0_x/(sqrt(ps0_x**2 + ps0_y**2))",
+    "BigR*v*vpar0_y*rho*xjac*theta*tstep*V_prof_pinch*ps0_y/(sqrt(ps0_x**2 + ps0_y**2))"
+   ],
+   "generated_only": [
+    "-BigR*v*vpar0_x*rho*xjac*theta*tstep*V_prof_pinch*ps0_x/(sqrt(ps0_x**2 + ps0_y**2))",
+    "-BigR*v*vpar0_y*rho*xjac*theta*tstep*V_prof_pinch*ps0_y/(sqrt(ps0_x**2 + ps0_y**2))",
+    "v*vpar0*rho*xjac*fact_conservative_u*ps0_x**2/BigR",
+    "v*vpar0*rho*xjac*fact_conservative_u*ps0_y**2/BigR",
+    "v*vpar0*rho*xjac*zeta*fact_conservative_u*ps0_x**2/BigR",
+    "v*vpar0*rho*xjac*zeta*fact_conservative_u*ps0_y**2/BigR"
+   ]
+  },
+  "Single-temperature (T) model | amat(var_vpar,var_vpar) | #0": {
+   "findings": [
+    6,
+    9
+   ],
+   "source_only": [
+    "BigR*v*vpar_x*xjac*theta*tstep*V_prof_pinch*ps0_x*r0/(sqrt(ps0_x**2 + ps0_y**2))",
+    "BigR*v*vpar_y*xjac*theta*tstep*V_prof_pinch*ps0_y*r0/(sqrt(ps0_x**2 + ps0_y**2))"
+   ],
+   "generated_only": [
+    "-BigR*v*vpar_x*xjac*theta*tstep*V_prof_pinch*ps0_x*r0/(sqrt(ps0_x**2 + ps0_y**2))",
+    "-BigR*v*vpar_y*xjac*theta*tstep*V_prof_pinch*ps0_y*r0/(sqrt(ps0_x**2 + ps0_y**2))",
+    "v*vpar*xjac*ps0_x**2*r0_corr/BigR",
+    "v*vpar*xjac*ps0_y**2*r0_corr/BigR",
+    "v*vpar*xjac*zeta*ps0_x**2*r0_corr/BigR",
+    "v*vpar*xjac*zeta*ps0_y**2*r0_corr/BigR"
+   ]
+  },
+  "Single-temperature (T) model | amat_k(var_t,var_psi) | #0": {
+   "findings": [
+    14
+   ],
+   "source_only": [
+    "-1/8*F0*v_p*vpar0**2*psi_x*rhoimp0*T0_y*xjac*theta*tstep**2*alpha_e*tgnum_T/(BigR**2)",
+    "1/8*F0*v_p*vpar0**2*psi_y*rhoimp0*T0_x*xjac*theta*tstep**2*alpha_e*tgnum_T/(BigR**2)"
+   ],
+   "generated_only": [
+    "-1/8*F0*v_p*vpar0**2*psi_x*rhoimp0*T0_y*xjac*theta*tstep**2*alpha_e_bis*tgnum_T/(BigR**2)",
+    "1/8*F0*v_p*vpar0**2*psi_y*rhoimp0*T0_x*xjac*theta*tstep**2*alpha_e_bis*tgnum_T/(BigR**2)"
+   ]
+  },
+  "Single-temperature (T) model | amat_k(var_t,var_rho) | #0": {
+   "findings": [
+    12
+   ],
+   "source_only": [],
+   "generated_only": [
+    "-F0**2*v_p*rho*T0_p*xjac*theta*tstep*dZK_prof_drho/(BigR*F0**2 + BigR*ps0_x**2 + BigR*ps0_y**2)",
+    "-F0*v_p*rho*T0_x*xjac*theta*tstep*dZK_prof_drho*ps0_y/(F0**2 + ps0_x**2 + ps0_y**2)",
+    "F0*v_p*rho*T0_y*xjac*theta*tstep*dZK_prof_drho*ps0_x/(F0**2 + ps0_x**2 + ps0_y**2)",
+    "v_p*rho*T0_p*xjac*theta*tstep*dZK_prof_drho/BigR"
+   ]
+  },
+  "Single-temperature (T) model | amat_k(var_t,var_t) | #0": {
+   "findings": [
+    13
+   ],
+   "source_only": [
+    "-F0**2*v_p*rhoimp0_p*T*xjac*tstep*D_par_imp_sc_num*dE_ion_dT*tau_sc/(BigR*F0**2 + BigR*ps0_x**2 + BigR*ps0_y**2)",
+    "-F0**2*v_p*rhoimp0_p*T*xjac*tstep*D_par_local_imp*dE_ion_dT/(BigR*F0**2 + BigR*ps0_x**2 + BigR*ps0_y**2)",
+    "-F0**2*v_p*rhoimp0_p*T*xjac*tstep*D_prof_imp*GAMMA*dE_ion_dT/(BigR*F0**2 + BigR*ps0_x**2 + BigR*ps0_y**2)",
+    "-F0*v_p*rhoimp0_x*T*xjac*tstep*D_par_imp_sc_num*dE_ion_dT*ps0_y*tau_sc/(F0**2 + ps0_x**2 + ps0_y**2)",
+    "-F0*v_p*rhoimp0_x*T*xjac*tstep*D_par_local_imp*dE_ion_dT*ps0_y/(F0**2 + ps0_x**2 + ps0_y**2)",
+    "-F0*v_p*rhoimp0_x*T*xjac*tstep*D_prof_imp*GAMMA*dE_ion_dT*ps0_y/(F0**2 + ps0_x**2 + ps0_y**2)",
+    "-F0*v_p*rhoimp0_y*T*xjac*tstep*D_par_imp_sc_num*GAMMA*dE_ion_dT*ps0_x*tau_sc/(F0**2 + ps0_x**2 + ps0_y**2)",
+    "-F0*v_p*rhoimp0_y*T*xjac*tstep*D_par_local_imp*GAMMA*dE_ion_dT*ps0_x/(F0**2 + ps0_x**2 + ps0_y**2)",
+    "-F0*v_p*rhoimp0_y*T*xjac*tstep*D_prof_imp*dE_ion_dT*ps0_x/(F0**2 + ps0_x**2 + ps0_y**2)",
+    "-v_p*rhoimp0_p*T*xjac*tstep*D_prof_imp*dE_ion_dT/BigR",
+    "F0**2*v_p*rhoimp0_p*T*xjac*tstep*D_par_imp_sc_num*GAMMA*dE_ion_dT*tau_sc/(BigR*F0**2 + BigR*ps0_x**2 + BigR*ps0_y**2)",
+    "F0**2*v_p*rhoimp0_p*T*xjac*tstep*D_par_local_imp*GAMMA*dE_ion_dT/(BigR*F0**2 + BigR*ps0_x**2 + BigR*ps0_y**2)",
+    "F0**2*v_p*rhoimp0_p*T*xjac*tstep*D_prof_imp*dE_ion_dT/(BigR*F0**2 + BigR*ps0_x**2 + BigR*ps0_y**2)",
+    "F0*v_p*rhoimp0_x*T*xjac*tstep*D_par_imp_sc_num*GAMMA*dE_ion_dT*ps0_y*tau_sc/(F0**2 + ps0_x**2 + ps0_y**2)",
+    "F0*v_p*rhoimp0_x*T*xjac*tstep*D_par_local_imp*GAMMA*dE_ion_dT*ps0_y/(F0**2 + ps0_x**2 + ps0_y**2)",
+    "F0*v_p*rhoimp0_x*T*xjac*tstep*D_prof_imp*dE_ion_dT*ps0_y/(F0**2 + ps0_x**2 + ps0_y**2)",
+    "F0*v_p*rhoimp0_y*T*xjac*tstep*D_par_imp_sc_num*dE_ion_dT*ps0_x*tau_sc/(F0**2 + ps0_x**2 + ps0_y**2)",
+    "F0*v_p*rhoimp0_y*T*xjac*tstep*D_par_local_imp*dE_ion_dT*ps0_x/(F0**2 + ps0_x**2 + ps0_y**2)",
+    "F0*v_p*rhoimp0_y*T*xjac*tstep*D_prof_imp*GAMMA*dE_ion_dT*ps0_x/(F0**2 + ps0_x**2 + ps0_y**2)",
+    "v_p*rhoimp0_p*T*xjac*tstep*D_prof_imp*GAMMA*dE_ion_dT/BigR"
+   ],
+   "generated_only": [
+    "-F0**2*v_p*rhoimp0_p*T*xjac*theta*tstep*D_par_imp_sc_num*dE_ion_dT*tau_sc/(BigR*F0**2 + BigR*ps0_x**2 + BigR*ps0_y**2)",
+    "-F0**2*v_p*rhoimp0_p*T*xjac*theta*tstep*D_par_local_imp*dE_ion_dT/(BigR*F0**2 + BigR*ps0_x**2 + BigR*ps0_y**2)",
+    "-F0**2*v_p*rhoimp0_p*T*xjac*theta*tstep*D_prof_imp*GAMMA*dE_ion_dT/(BigR*F0**2 + BigR*ps0_x**2 + BigR*ps0_y**2)",
+    "-F0*v_p*rhoimp0_x*T*xjac*theta*tstep*D_par_imp_sc_num*dE_ion_dT*ps0_y*tau_sc/(F0**2 + ps0_x**2 + ps0_y**2)",
+    "-F0*v_p*rhoimp0_x*T*xjac*theta*tstep*D_par_local_imp*dE_ion_dT*ps0_y/(F0**2 + ps0_x**2 + ps0_y**2)",
+    "-F0*v_p*rhoimp0_x*T*xjac*theta*tstep*D_prof_imp*GAMMA*dE_ion_dT*ps0_y/(F0**2 + ps0_x**2 + ps0_y**2)",
+    "-F0*v_p*rhoimp0_y*T*xjac*theta*tstep*D_par_imp_sc_num*GAMMA*dE_ion_dT*ps0_x*tau_sc/(F0**2 + ps0_x**2 + ps0_y**2)",
+    "-F0*v_p*rhoimp0_y*T*xjac*theta*tstep*D_par_local_imp*GAMMA*dE_ion_dT*ps0_x/(F0**2 + ps0_x**2 + ps0_y**2)",
+    "-F0*v_p*rhoimp0_y*T*xjac*theta*tstep*D_prof_imp*dE_ion_dT*ps0_x/(F0**2 + ps0_x**2 + ps0_y**2)",
+    "-v_p*rhoimp0_p*T*xjac*theta*tstep*D_prof_imp*dE_ion_dT/BigR",
+    "F0**2*v_p*rhoimp0_p*T*xjac*theta*tstep*D_par_imp_sc_num*GAMMA*dE_ion_dT*tau_sc/(BigR*F0**2 + BigR*ps0_x**2 + BigR*ps0_y**2)",
+    "F0**2*v_p*rhoimp0_p*T*xjac*theta*tstep*D_par_local_imp*GAMMA*dE_ion_dT/(BigR*F0**2 + BigR*ps0_x**2 + BigR*ps0_y**2)",
+    "F0**2*v_p*rhoimp0_p*T*xjac*theta*tstep*D_prof_imp*dE_ion_dT/(BigR*F0**2 + BigR*ps0_x**2 + BigR*ps0_y**2)",
+    "F0*v_p*rhoimp0_x*T*xjac*theta*tstep*D_par_imp_sc_num*GAMMA*dE_ion_dT*ps0_y*tau_sc/(F0**2 + ps0_x**2 + ps0_y**2)",
+    "F0*v_p*rhoimp0_x*T*xjac*theta*tstep*D_par_local_imp*GAMMA*dE_ion_dT*ps0_y/(F0**2 + ps0_x**2 + ps0_y**2)",
+    "F0*v_p*rhoimp0_x*T*xjac*theta*tstep*D_prof_imp*dE_ion_dT*ps0_y/(F0**2 + ps0_x**2 + ps0_y**2)",
+    "F0*v_p*rhoimp0_y*T*xjac*theta*tstep*D_par_imp_sc_num*dE_ion_dT*ps0_x*tau_sc/(F0**2 + ps0_x**2 + ps0_y**2)",
+    "F0*v_p*rhoimp0_y*T*xjac*theta*tstep*D_par_local_imp*dE_ion_dT*ps0_x/(F0**2 + ps0_x**2 + ps0_y**2)",
+    "F0*v_p*rhoimp0_y*T*xjac*theta*tstep*D_prof_imp*GAMMA*dE_ion_dT*ps0_x/(F0**2 + ps0_x**2 + ps0_y**2)",
+    "v_p*rhoimp0_p*T*xjac*theta*tstep*D_prof_imp*GAMMA*dE_ion_dT/BigR"
+   ]
+  },
+  "Single-temperature (T) model | amat_k(var_vpar,var_psi) | #0": {
+   "findings": [
+    7
+   ],
+   "source_only": [],
+   "generated_only": [
+    "-1/2*F0*v_p*vpar0**2*vpar0_t*psi_x*theta*tstep**2*ps0_s*ps0_x*r0*tgnum_vpar/(BigR**4)",
+    "-1/2*F0*v_p*vpar0**2*vpar0_t*psi_y*theta*tstep**2*ps0_s*ps0_y*r0*tgnum_vpar/(BigR**4)",
+    "-1/2*F0*v_p*vpar0**3*psi_x*theta*tstep**2*fact_conservative_u*ps0_s*ps0_x*r0_t*tgnum_vpar/(BigR**4)",
+    "-1/2*F0*v_p*vpar0**3*psi_y*theta*tstep**2*fact_conservative_u*ps0_s*ps0_y*r0_t*tgnum_vpar/(BigR**4)",
+    "-1/4*F0**3*v_p*vpar0**2*vpar0_t*psi_s*theta*tstep**2*r0*tgnum_vpar/(BigR**4)",
+    "-1/4*F0**3*v_p*vpar0**3*psi_s*theta*tstep**2*fact_conservative_u*r0_t*tgnum_vpar/(BigR**4)",
+    "-1/4*F0*v_p*vpar0**2*vpar0_t*psi_s*theta*tstep**2*ps0_x**2*r0*tgnum_vpar/(BigR**4)",
+    "-1/4*F0*v_p*vpar0**2*vpar0_t*psi_s*theta*tstep**2*ps0_y**2*r0*tgnum_vpar/(BigR**4)",
+    "-1/4*F0*v_p*vpar0**3*psi_s*theta*tstep**2*fact_conservative_u*ps0_x**2*r0_t*tgnum_vpar/(BigR**4)",
+    "-1/4*F0*v_p*vpar0**3*psi_s*theta*tstep**2*fact_conservative_u*ps0_y**2*r0_t*tgnum_vpar/(BigR**4)",
+    "1/2*F0**2*v_p*vpar0**2*vpar0_p*psi_x*xjac*theta*tstep**2*ps0_x*r0*tgnum_vpar/(BigR**5)",
+    "1/2*F0**2*v_p*vpar0**2*vpar0_p*psi_y*xjac*theta*tstep**2*ps0_y*r0*tgnum_vpar/(BigR**5)",
+    "1/2*F0**2*v_p*vpar0**3*psi_x*xjac*theta*tstep**2*fact_conservative_u*ps0_x*r0_p*tgnum_vpar/(BigR**5)",
+    "1/2*F0**2*v_p*vpar0**3*psi_y*xjac*theta*tstep**2*fact_conservative_u*ps0_y*r0_p*tgnum_vpar/(BigR**5)",
+    "1/2*F0*v_p*vpar0**2*vpar0_s*psi_x*theta*tstep**2*ps0_t*ps0_x*r0*tgnum_vpar/(BigR**4)",
+    "1/2*F0*v_p*vpar0**2*vpar0_s*psi_y*theta*tstep**2*ps0_t*ps0_y*r0*tgnum_vpar/(BigR**4)",
+    "1/2*F0*v_p*vpar0**3*psi_x*theta*tstep**2*fact_conservative_u*ps0_t*ps0_x*r0_s*tgnum_vpar/(BigR**4)",
+    "1/2*F0*v_p*vpar0**3*psi_y*theta*tstep**2*fact_conservative_u*ps0_t*ps0_y*r0_s*tgnum_vpar/(BigR**4)",
+    "1/4*F0**3*v_p*vpar0**2*vpar0_s*psi_t*theta*tstep**2*r0*tgnum_vpar/(BigR**4)",
+    "1/4*F0**3*v_p*vpar0**3*psi_t*theta*tstep**2*fact_conservative_u*r0_s*tgnum_vpar/(BigR**4)",
+    "1/4*F0*v_p*vpar0**2*vpar0_s*psi_t*theta*tstep**2*ps0_x**2*r0*tgnum_vpar/(BigR**4)",
+    "1/4*F0*v_p*vpar0**2*vpar0_s*psi_t*theta*tstep**2*ps0_y**2*r0*tgnum_vpar/(BigR**4)",
+    "1/4*F0*v_p*vpar0**3*psi_t*theta*tstep**2*fact_conservative_u*ps0_x**2*r0_s*tgnum_vpar/(BigR**4)",
+    "1/4*F0*v_p*vpar0**3*psi_t*theta*tstep**2*fact_conservative_u*ps0_y**2*r0_s*tgnum_vpar/(BigR**4)"
+   ]
+  },
+  "Single-temperature (T) model | amat_kn(var_vpar,var_vpar) | #0": {
+   "findings": [
+    8
+   ],
+   "source_only": [],
+   "generated_only": [
+    "F0**4*v_p*visco_par_par*vpar_p*xjac*theta*tstep/(BigR**3*F0**2 + BigR**3*ps0_x**2 + BigR**3*ps0_y**2)"
+   ]
+  },
+  "Single-temperature (T) model | amat_n(var_psi,var_rhoimp) | #0": {
+   "findings": [
+    2
+   ],
+   "source_only": [],
+   "generated_only": [
+    "-F0**3*v*rhoimp_p*T0*xjac*theta*tstep*alpha_e*tauIC/(BigR*F0**2*r0_corr + BigR*ps0_x**2*r0_corr + BigR*ps0_y**2*r0_corr)"
+   ]
+  },
+  "Single-temperature (T) model | amat_n(var_psi,var_t) | #0": {
+   "findings": [
+    2
+   ],
+   "source_only": [],
+   "generated_only": [
+    "-F0**3*v*rhoimp0*T_p*xjac*theta*tstep*alpha_e_bis*tauIC/(BigR*F0**2*r0_corr + BigR*ps0_x**2*r0_corr + BigR*ps0_y**2*r0_corr)"
+   ]
+  },
+  "Single-temperature (T) model | amat_n(var_t,var_vpar) | #0": {
+   "findings": [
+    17
+   ],
+   "source_only": [],
+   "generated_only": [
+    "1/2*F0*v*vpar_p*rhoimp0*T0*xjac*theta*tstep*GAMMA*alpha_e/BigR",
+    "1/2*F0*v*vpar_p*rhoimp0*T0*xjac*theta*tstep*GAMMA*alpha_i/BigR"
+   ]
+  },
+  "Single-temperature (T) model | amat_n(var_vpar,var_vpar) | #0": {
+   "findings": [
+    8
+   ],
+   "source_only": [],
+   "generated_only": [
+    "-F0**3*v_y*visco_par_par*vpar_p*xjac*theta*tstep*ps0_x/(BigR**2*F0**2 + BigR**2*ps0_x**2 + BigR**2*ps0_y**2)",
+    "F0**3*v_x*visco_par_par*vpar_p*xjac*theta*tstep*ps0_y/(BigR**2*F0**2 + BigR**2*ps0_x**2 + BigR**2*ps0_y**2)"
+   ]
+  },
+  "Single-temperature (T) model | rhs_ij(var_t) | #0": {
+   "findings": [
+    16
+   ],
+   "source_only": [
+    "-1/2*v*vpar0*rhon0*T0_s*tstep*alpha_e_bis*ps0_t",
+    "-1/2*v*vpar0*rhon0*T0_s*tstep*alpha_i*ps0_t",
+    "1/2*v*vpar0*rhon0*T0_t*tstep*alpha_e_bis*ps0_s",
+    "1/2*v*vpar0*rhon0*T0_t*tstep*alpha_i*ps0_s"
+   ],
+   "generated_only": [
+    "-1/2*v*vpar0*rhoimp0*T0_s*tstep*alpha_e_bis*ps0_t",
+    "-1/2*v*vpar0*rhoimp0*T0_s*tstep*alpha_i*ps0_t",
+    "1/2*v*vpar0*rhoimp0*T0_t*tstep*alpha_e_bis*ps0_s",
+    "1/2*v*vpar0*rhoimp0*T0_t*tstep*alpha_i*ps0_s"
+   ]
+  },
+  "Single-temperature (T) model | rhs_ij(var_vpar) | #0": {
+   "findings": [
+    6
+   ],
+   "source_only": [
+    "v*vpar0*xjac*zeta*delta_ps_x*ps0_x*r0_corr/BigR",
+    "v*vpar0*xjac*zeta*delta_ps_y*ps0_y*r0_corr/BigR"
+   ],
+   "generated_only": [
+    "2*v*vpar0*xjac*zeta*delta_ps_x*fact_conservative_u*ps0_x*r0/BigR",
+    "2*v*vpar0*xjac*zeta*delta_ps_x*ps0_x*r0_corr/BigR",
+    "2*v*vpar0*xjac*zeta*delta_ps_y*fact_conservative_u*ps0_y*r0/BigR",
+    "2*v*vpar0*xjac*zeta*delta_ps_y*ps0_y*r0_corr/BigR",
+    "v*vpar0*xjac*zeta*delta_rho_g*fact_conservative_u*ps0_x**2/BigR",
+    "v*vpar0*xjac*zeta*delta_rho_g*fact_conservative_u*ps0_y**2/BigR",
+    "v*xjac*zeta*delta_vpar*ps0_x**2*r0_corr/BigR",
+    "v*xjac*zeta*delta_vpar*ps0_y**2*r0_corr/BigR"
+   ]
+  },
+  "Single-temperature (T) model | rhs_ij_k(var_rhoimp) | #0": {
+   "findings": [
+    10
+   ],
+   "source_only": [],
+   "generated_only": [
+    "-F0**2*v_p*rhoimp0_p*xjac*tstep*D_par_imp_sc_num*tau_sc/(BigR*F0**2 + BigR*ps0_x**2 + BigR*ps0_y**2)",
+    "-F0*v_p*rhoimp0_x*xjac*tstep*D_par_imp_sc_num*ps0_y*tau_sc/(F0**2 + ps0_x**2 + ps0_y**2)",
+    "F0*v_p*rhoimp0_y*xjac*tstep*D_par_imp_sc_num*ps0_x*tau_sc/(F0**2 + ps0_x**2 + ps0_y**2)"
+   ]
+  },
+  "Two-temperature (Ti/Te) model | amat(var_psi,var_rhoimp) | #0": {
+   "findings": [
+    2
+   ],
+   "source_only": [],
+   "generated_only": [
+    "-2*F0**2*v*rhoimp*Te0_s*theta*tstep*alpha_e_bis*ps0_t*tauIC/(F0**2*r0_corr + ps0_x**2*r0_corr + ps0_y**2*r0_corr)",
+    "-2*F0**2*v*rhoimp_s*Te0*theta*tstep*alpha_e*ps0_t*tauIC/(F0**2*r0_corr + ps0_x**2*r0_corr + ps0_y**2*r0_corr)",
+    "-2*F0**3*v*rhoimp*Te0_p*xjac*theta*tstep*alpha_e_bis*tauIC/(BigR*F0**2*r0_corr + BigR*ps0_x**2*r0_corr + BigR*ps0_y**2*r0_corr)",
+    "2*F0**2*v*rhoimp*Te0_t*theta*tstep*alpha_e_bis*ps0_s*tauIC/(F0**2*r0_corr + ps0_x**2*r0_corr + ps0_y**2*r0_corr)",
+    "2*F0**2*v*rhoimp_t*Te0*theta*tstep*alpha_e*ps0_s*tauIC/(F0**2*r0_corr + ps0_x**2*r0_corr + ps0_y**2*r0_corr)"
+   ]
+  },
+  "Two-temperature (Ti/Te) model | amat(var_psi,var_te) | #0": {
+   "findings": [
+    2
+   ],
+   "source_only": [],
+   "generated_only": [
+    "-2*F0**2*v*rhoimp0*Te*Te0_s*theta*tstep*alpha_e_tri*ps0_t*tauIC/(F0**2*r0_corr + ps0_x**2*r0_corr + ps0_y**2*r0_corr)",
+    "-2*F0**2*v*rhoimp0*Te_s*theta*tstep*alpha_e_bis*ps0_t*tauIC/(F0**2*r0_corr + ps0_x**2*r0_corr + ps0_y**2*r0_corr)",
+    "-2*F0**2*v*rhoimp0_s*Te*theta*tstep*alpha_e_bis*ps0_t*tauIC/(F0**2*r0_corr + ps0_x**2*r0_corr + ps0_y**2*r0_corr)",
+    "-2*F0**3*v*rhoimp0*Te*Te0_p*xjac*theta*tstep*alpha_e_tri*tauIC/(BigR*F0**2*r0_corr + BigR*ps0_x**2*r0_corr + BigR*ps0_y**2*r0_corr)",
+    "-2*F0**3*v*rhoimp0_p*Te*xjac*theta*tstep*alpha_e_bis*tauIC/(BigR*F0**2*r0_corr + BigR*ps0_x**2*r0_corr + BigR*ps0_y**2*r0_corr)",
+    "2*F0**2*v*rhoimp0*Te*Te0_t*theta*tstep*alpha_e_tri*ps0_s*tauIC/(F0**2*r0_corr + ps0_x**2*r0_corr + ps0_y**2*r0_corr)",
+    "2*F0**2*v*rhoimp0*Te_t*theta*tstep*alpha_e_bis*ps0_s*tauIC/(F0**2*r0_corr + ps0_x**2*r0_corr + ps0_y**2*r0_corr)",
+    "2*F0**2*v*rhoimp0_t*Te*theta*tstep*alpha_e_bis*ps0_s*tauIC/(F0**2*r0_corr + ps0_x**2*r0_corr + ps0_y**2*r0_corr)"
+   ]
+  },
+  "Two-temperature (Ti/Te) model | amat(var_rho,var_psi) | #0": {
+   "findings": [
+    4
+   ],
+   "source_only": [],
+   "generated_only": [
+    "-BigR*v_x*psi_x*xjac*theta*tstep*V_prof_pinch*ps0_x**2*r0/(ps0_x**2*sqrt(ps0_x**2 + ps0_y**2) + ps0_y**2*sqrt(ps0_x**2 + ps0_y**2))",
+    "-BigR*v_x*psi_y*xjac*theta*tstep*V_prof_pinch*ps0_x*ps0_y*r0/(ps0_x**2*sqrt(ps0_x**2 + ps0_y**2) + ps0_y**2*sqrt(ps0_x**2 + ps0_y**2))",
+    "-BigR*v_y*psi_x*xjac*theta*tstep*V_prof_pinch*ps0_x*ps0_y*r0/(ps0_x**2*sqrt(ps0_x**2 + ps0_y**2) + ps0_y**2*sqrt(ps0_x**2 + ps0_y**2))",
+    "-BigR*v_y*psi_y*xjac*theta*tstep*V_prof_pinch*ps0_y**2*r0/(ps0_x**2*sqrt(ps0_x**2 + ps0_y**2) + ps0_y**2*sqrt(ps0_x**2 + ps0_y**2))",
+    "BigR*v_x*psi_x*xjac*theta*tstep*V_prof_pinch*r0/(sqrt(ps0_x**2 + ps0_y**2))",
+    "BigR*v_y*psi_y*xjac*theta*tstep*V_prof_pinch*r0/(sqrt(ps0_x**2 + ps0_y**2))"
+   ]
+  },
+  "Two-temperature (Ti/Te) model | amat(var_rho,var_rhoimp) | #0": {
+   "findings": [
+    1
+   ],
+   "source_only": [],
+   "generated_only": [
+    "-4*BigR*v*rhoimp*Ti0_y*xjac*theta*tstep*alpha_i*tauIC",
+    "-4*BigR*v*rhoimp_y*Ti0*xjac*theta*tstep*alpha_i*tauIC"
+   ]
+  },
+  "Two-temperature (Ti/Te) model | amat(var_rho,var_te) | #0": {
+   "findings": [
+    5
+   ],
+   "source_only": [],
+   "generated_only": [
+    "-BigR*v*rhoimp0**2*Te*xjac*theta*tstep*Srec_T*dalpha_e_dT",
+    "-BigR*v*rhoimp0*rhon0*Te*xjac*theta*tstep*Sion_T*dalpha_e_dT",
+    "BigR*v*rhoimp0*Te*xjac*theta*tstep*Srec_T*dalpha_e_dT*r0"
+   ]
+  },
+  "Two-temperature (Ti/Te) model | amat(var_rho,var_ti) | #0": {
+   "findings": [
+    1
+   ],
+   "source_only": [],
+   "generated_only": [
+    "-4*BigR*v*rhoimp0*Ti_y*xjac*theta*tstep*alpha_i*tauIC",
+    "-4*BigR*v*rhoimp0_y*Ti*xjac*theta*tstep*alpha_i*tauIC"
+   ]
+  },
+  "Two-temperature (Ti/Te) model | amat(var_te,var_rho) | #0": {
+   "findings": [
+    11
+   ],
+   "source_only": [
+    "-1/4*BigR**2*v_x*u0_x*u0_y*rho*Te0_y*xjac*theta*tstep**2*tgnum_Te",
+    "-1/4*BigR**2*v_x*u0_x*u0_y*rho_y*Te0*xjac*theta*tstep**2*tgnum_Te",
+    "-1/4*BigR**2*v_y*u0_x*u0_y*rho*Te0_x*xjac*theta*tstep**2*tgnum_Te",
+    "-1/4*BigR**2*v_y*u0_x*u0_y*rho_x*Te0*xjac*theta*tstep**2*tgnum_Te",
+    "1/4*BigR**2*v_x*u0_y**2*rho*Te0_x*xjac*theta*tstep**2*tgnum_Te",
+    "1/4*BigR**2*v_x*u0_y**2*rho_x*Te0*xjac*theta*tstep**2*tgnum_Te",
+    "1/4*BigR**2*v_y*u0_x**2*rho*Te0_y*xjac*theta*tstep**2*tgnum_Te",
+    "1/4*BigR**2*v_y*u0_x**2*rho_y*Te0*xjac*theta*tstep**2*tgnum_Te"
+   ],
+   "generated_only": [
+    "-1/4*BigR**3*v_x*u0_x*u0_y*rho*Te0_y*xjac*theta*tstep**2*tgnum_Te",
+    "-1/4*BigR**3*v_x*u0_x*u0_y*rho_y*Te0*xjac*theta*tstep**2*tgnum_Te",
+    "-1/4*BigR**3*v_y*u0_x*u0_y*rho*Te0_x*xjac*theta*tstep**2*tgnum_Te",
+    "-1/4*BigR**3*v_y*u0_x*u0_y*rho_x*Te0*xjac*theta*tstep**2*tgnum_Te",
+    "1/4*BigR**3*v_x*u0_y**2*rho*Te0_x*xjac*theta*tstep**2*tgnum_Te",
+    "1/4*BigR**3*v_x*u0_y**2*rho_x*Te0*xjac*theta*tstep**2*tgnum_Te",
+    "1/4*BigR**3*v_y*u0_x**2*rho*Te0_y*xjac*theta*tstep**2*tgnum_Te",
+    "1/4*BigR**3*v_y*u0_x**2*rho_y*Te0*xjac*theta*tstep**2*tgnum_Te"
+   ]
+  },
+  "Two-temperature (Ti/Te) model | amat(var_te,var_rhoimp) | #0": {
+   "findings": [
+    11,
+    15
+   ],
+   "source_only": [
+    "-1/4*BigR**2*v_x*u0_x*u0_y*rhoimp*Te0_y*xjac*theta*tstep**2*alpha_e_bis*tgnum_Te",
+    "-1/4*BigR**2*v_x*u0_x*u0_y*rhoimp_y*Te0*xjac*theta*tstep**2*alpha_e*tgnum_Te",
+    "-1/4*BigR**2*v_y*u0_x*u0_y*rhoimp*Te0_x*xjac*theta*tstep**2*alpha_e_bis*tgnum_Te",
+    "-1/4*BigR**2*v_y*u0_x*u0_y*rhoimp_x*Te0*xjac*theta*tstep**2*alpha_e*tgnum_Te",
+    "1/4*BigR**2*v_x*u0_y**2*rhoimp*Te0_x*xjac*theta*tstep**2*alpha_e_bis*tgnum_Te",
+    "1/4*BigR**2*v_x*u0_y**2*rhoimp_x*Te0*xjac*theta*tstep**2*alpha_e*tgnum_Te",
+    "1/4*BigR**2*v_y*u0_x**2*rhoimp*Te0_y*xjac*theta*tstep**2*alpha_e_bis*tgnum_Te",
+    "1/4*BigR**2*v_y*u0_x**2*rhoimp_y*Te0*xjac*theta*tstep**2*alpha_e*tgnum_Te"
+   ],
+   "generated_only": [
+    "-1/4*BigR**3*v_x*u0_x*u0_y*rhoimp*Te0_y*xjac*theta*tstep**2*alpha_e_bis*tgnum_Te",
+    "-1/4*BigR**3*v_x*u0_x*u0_y*rhoimp_y*Te0*xjac*theta*tstep**2*alpha_e*tgnum_Te",
+    "-1/4*BigR**3*v_y*u0_x*u0_y*rhoimp*Te0_x*xjac*theta*tstep**2*alpha_e_bis*tgnum_Te",
+    "-1/4*BigR**3*v_y*u0_x*u0_y*rhoimp_x*Te0*xjac*theta*tstep**2*alpha_e*tgnum_Te",
+    "-2*BigR*v*rhoimp*rhoimp0_corr*xjac*theta*tstep*LradDcont_corr*alpha_e",
+    "-BigR*v*rhoimp*xjac*theta*tstep*LradDcont_corr*r0_corr",
+    "1/4*BigR**3*v_x*u0_y**2*rhoimp*Te0_x*xjac*theta*tstep**2*alpha_e_bis*tgnum_Te",
+    "1/4*BigR**3*v_x*u0_y**2*rhoimp_x*Te0*xjac*theta*tstep**2*alpha_e*tgnum_Te",
+    "1/4*BigR**3*v_y*u0_x**2*rhoimp*Te0_y*xjac*theta*tstep**2*alpha_e_bis*tgnum_Te",
+    "1/4*BigR**3*v_y*u0_x**2*rhoimp_y*Te0*xjac*theta*tstep**2*alpha_e*tgnum_Te",
+    "BigR*v*rhoimp*rhon0*xjac*theta*tstep*Sion_T*alpha_e*ksi_ion_norm",
+    "BigR*v*rhoimp*rhon0_corr*xjac*theta*tstep*LradDrays_T*alpha_e",
+    "BigR*v*rhoimp*xjac*theta*tstep*LradDcont_corr*alpha_e*r0_corr"
+   ]
+  },
+  "Two-temperature (Ti/Te) model | amat(var_te,var_rhon) | #0": {
+   "findings": [
+    15
+   ],
+   "source_only": [
+    "BigR*v*rhoimp0*rhon*xjac*theta*tstep*LradDrays_T*alpha_e",
+    "BigR*v*rhon*xjac*theta*tstep*LradDrays_T*r0"
+   ],
+   "generated_only": [
+    "BigR*v*rhoimp0_corr*rhon*xjac*theta*tstep*LradDrays_T*alpha_e",
+    "BigR*v*rhon*xjac*theta*tstep*LradDrays_T*r0_corr"
+   ]
+  },
+  "Two-temperature (Ti/Te) model | amat(var_te,var_te) | #0": {
+   "findings": [
+    11,
+    13,
+    14,
+    15
+   ],
+   "source_only": [
+    "-1/4*BigR**2*v_x*u0_x*u0_y*Te*xjac*theta*tstep**2*r0_y*tgnum_Te",
+    "-1/4*BigR**2*v_x*u0_x*u0_y*Te_y*xjac*theta*tstep**2*r0*tgnum_Te",
+    "-1/4*BigR**2*v_x*u0_x*u0_y*rhoimp0*Te*Te0_y*xjac*theta*tstep**2*alpha_e_tri*tgnum_Te",
+    "-1/4*BigR**2*v_x*u0_x*u0_y*rhoimp0*Te_y*xjac*theta*tstep**2*alpha_e_bis*tgnum_Te",
+    "-1/4*BigR**2*v_x*u0_x*u0_y*rhoimp0_y*Te*xjac*theta*tstep**2*alpha_e_bis*tgnum_Te",
+    "-1/4*BigR**2*v_y*u0_x*u0_y*Te*xjac*theta*tstep**2*r0_x*tgnum_Te",
+    "-1/4*BigR**2*v_y*u0_x*u0_y*Te_x*xjac*theta*tstep**2*r0*tgnum_Te",
+    "-1/4*BigR**2*v_y*u0_x*u0_y*rhoimp0*Te*Te0_x*xjac*theta*tstep**2*alpha_e_tri*tgnum_Te",
+    "-1/4*BigR**2*v_y*u0_x*u0_y*rhoimp0*Te_x*xjac*theta*tstep**2*alpha_e_bis*tgnum_Te",
+    "-1/4*BigR**2*v_y*u0_x*u0_y*rhoimp0_x*Te*xjac*theta*tstep**2*alpha_e_bis*tgnum_Te",
+    "-1/4*F0*v_y*vpar0**2*rhoimp0_p*Te*xjac*theta*tstep**2*alpha_e*ps0_x*tgnum_Te/(BigR**2)",
+    "-BigR*v_x*rhoimp0_x*Te*xjac*tstep*D_par_imp_sc_num*dE_ion_dT*ps0_y**2*tau_sc/(F0**2 + ps0_x**2 + ps0_y**2)",
+    "-BigR*v_x*rhoimp0_x*Te*xjac*tstep*D_par_local_imp*dE_ion_dT*ps0_y**2/(F0**2 + ps0_x**2 + ps0_y**2)",
+    "-BigR*v_x*rhoimp0_x*Te*xjac*tstep*D_prof_imp*GAMMA*dE_ion_dT*ps0_y**2/(F0**2 + ps0_x**2 + ps0_y**2)",
+    "-BigR*v_x*rhoimp0_x*Te*xjac*tstep*D_prof_imp*dE_ion_dT",
+    "-BigR*v_x*rhoimp0_y*Te*xjac*tstep*D_par_imp_sc_num*GAMMA*dE_ion_dT*ps0_x*ps0_y*tau_sc/(F0**2 + ps0_x**2 + ps0_y**2)",
+    "-BigR*v_x*rhoimp0_y*Te*xjac*tstep*D_par_local_imp*GAMMA*dE_ion_dT*ps0_x*ps0_y/(F0**2 + ps0_x**2 + ps0_y**2)",
+    "-BigR*v_x*rhoimp0_y*Te*xjac*tstep*D_prof_imp*dE_ion_dT*ps0_x*ps0_y/(F0**2 + ps0_x**2 + ps0_y**2)",
+    "-BigR*v_y*rhoimp0_x*Te*xjac*tstep*D_par_imp_sc_num*GAMMA*dE_ion_dT*ps0_x*ps0_y*tau_sc/(F0**2 + ps0_x**2 + ps0_y**2)",
+    "-BigR*v_y*rhoimp0_x*Te*xjac*tstep*D_par_local_imp*GAMMA*dE_ion_dT*ps0_x*ps0_y/(F0**2 + ps0_x**2 + ps0_y**2)",
+    "-BigR*v_y*rhoimp0_x*Te*xjac*tstep*D_prof_imp*dE_ion_dT*ps0_x*ps0_y/(F0**2 + ps0_x**2 + ps0_y**2)",
+    "-BigR*v_y*rhoimp0_y*Te*xjac*tstep*D_par_imp_sc_num*dE_ion_dT*ps0_x**2*tau_sc/(F0**2 + ps0_x**2 + ps0_y**2)",
+    "-BigR*v_y*rhoimp0_y*Te*xjac*tstep*D_par_local_imp*dE_ion_dT*ps0_x**2/(F0**2 + ps0_x**2 + ps0_y**2)",
+    "-BigR*v_y*rhoimp0_y*Te*xjac*tstep*D_prof_imp*GAMMA*dE_ion_dT*ps0_x**2/(F0**2 + ps0_x**2 + ps0_y**2)",
+    "-BigR*v_y*rhoimp0_y*Te*xjac*tstep*D_prof_imp*dE_ion_dT",
+    "-F0*v_x*rhoimp0_p*Te*xjac*tstep*D_par_imp_sc_num*dE_ion_dT*ps0_y*tau_sc/(F0**2 + ps0_x**2 + ps0_y**2)",
+    "-F0*v_x*rhoimp0_p*Te*xjac*tstep*D_par_local_imp*dE_ion_dT*ps0_y/(F0**2 + ps0_x**2 + ps0_y**2)",
+    "-F0*v_x*rhoimp0_p*Te*xjac*tstep*D_prof_imp*GAMMA*dE_ion_dT*ps0_y/(F0**2 + ps0_x**2 + ps0_y**2)",
+    "-F0*v_y*rhoimp0_p*Te*xjac*tstep*D_par_imp_sc_num*GAMMA*dE_ion_dT*ps0_x*tau_sc/(F0**2 + ps0_x**2 + ps0_y**2)",
+    "-F0*v_y*rhoimp0_p*Te*xjac*tstep*D_par_local_imp*GAMMA*dE_ion_dT*ps0_x/(F0**2 + ps0_x**2 + ps0_y**2)",
+    "-F0*v_y*rhoimp0_p*Te*xjac*tstep*D_prof_imp*dE_ion_dT*ps0_x/(F0**2 + ps0_x**2 + ps0_y**2)",
+    "1/4*BigR**2*v_x*u0_y**2*Te*xjac*theta*tstep**2*r0_x*tgnum_Te",
+    "1/4*BigR**2*v_x*u0_y**2*Te_x*xjac*theta*tstep**2*r0*tgnum_Te",
+    "1/4*BigR**2*v_x*u0_y**2*rhoimp0*Te*Te0_x*xjac*theta*tstep**2*alpha_e_tri*tgnum_Te",
+    "1/4*BigR**2*v_x*u0_y**2*rhoimp0*Te_x*xjac*theta*tstep**2*alpha_e_bis*tgnum_Te",
+    "1/4*BigR**2*v_x*u0_y**2*rhoimp0_x*Te*xjac*theta*tstep**2*alpha_e_bis*tgnum_Te",
+    "1/4*BigR**2*v_y*u0_x**2*Te*xjac*theta*tstep**2*r0_y*tgnum_Te",
+    "1/4*BigR**2*v_y*u0_x**2*Te_y*xjac*theta*tstep**2*r0*tgnum_Te",
+    "1/4*BigR**2*v_y*u0_x**2*rhoimp0*Te*Te0_y*xjac*theta*tstep**2*alpha_e_tri*tgnum_Te",
+    "1/4*BigR**2*v_y*u0_x**2*rhoimp0*Te_y*xjac*theta*tstep**2*alpha_e_bis*tgnum_Te",
+    "1/4*BigR**2*v_y*u0_x**2*rhoimp0_y*Te*xjac*theta*tstep**2*alpha_e_bis*tgnum_Te",
+    "1/4*F0*v_x*vpar0**2*rhoimp0_p*Te*xjac*theta*tstep**2*alpha_e*ps0_y*tgnum_Te/(BigR**2)",
+    "BigR*v_x*rhoimp0_x*Te*xjac*tstep*D_par_imp_sc_num*GAMMA*dE_ion_dT*ps0_y**2*tau_sc/(F0**2 + ps0_x**2 + ps0_y**2)",
+    "BigR*v_x*rhoimp0_x*Te*xjac*tstep*D_par_local_imp*GAMMA*dE_ion_dT*ps0_y**2/(F0**2 + ps0_x**2 + ps0_y**2)",
+    "BigR*v_x*rhoimp0_x*Te*xjac*tstep*D_prof_imp*GAMMA*dE_ion_dT",
+    "BigR*v_x*rhoimp0_x*Te*xjac*tstep*D_prof_imp*dE_ion_dT*ps0_y**2/(F0**2 + ps0_x**2 + ps0_y**2)",
+    "BigR*v_x*rhoimp0_y*Te*xjac*tstep*D_par_imp_sc_num*dE_ion_dT*ps0_x*ps0_y*tau_sc/(F0**2 + ps0_x**2 + ps0_y**2)",
+    "BigR*v_x*rhoimp0_y*Te*xjac*tstep*D_par_local_imp*dE_ion_dT*ps0_x*ps0_y/(F0**2 + ps0_x**2 + ps0_y**2)",
+    "BigR*v_x*rhoimp0_y*Te*xjac*tstep*D_prof_imp*GAMMA*dE_ion_dT*ps0_x*ps0_y/(F0**2 + ps0_x**2 + ps0_y**2)",
+    "BigR*v_y*rhoimp0_x*Te*xjac*tstep*D_par_imp_sc_num*dE_ion_dT*ps0_x*ps0_y*tau_sc/(F0**2 + ps0_x**2 + ps0_y**2)",
+    "BigR*v_y*rhoimp0_x*Te*xjac*tstep*D_par_local_imp*dE_ion_dT*ps0_x*ps0_y/(F0**2 + ps0_x**2 + ps0_y**2)",
+    "BigR*v_y*rhoimp0_x*Te*xjac*tstep*D_prof_imp*GAMMA*dE_ion_dT*ps0_x*ps0_y/(F0**2 + ps0_x**2 + ps0_y**2)",
+    "BigR*v_y*rhoimp0_y*Te*xjac*tstep*D_par_imp_sc_num*GAMMA*dE_ion_dT*ps0_x**2*tau_sc/(F0**2 + ps0_x**2 + ps0_y**2)",
+    "BigR*v_y*rhoimp0_y*Te*xjac*tstep*D_par_local_imp*GAMMA*dE_ion_dT*ps0_x**2/(F0**2 + ps0_x**2 + ps0_y**2)",
+    "BigR*v_y*rhoimp0_y*Te*xjac*tstep*D_prof_imp*GAMMA*dE_ion_dT",
+    "BigR*v_y*rhoimp0_y*Te*xjac*tstep*D_prof_imp*dE_ion_dT*ps0_x**2/(F0**2 + ps0_x**2 + ps0_y**2)",
+    "F0*v_x*rhoimp0_p*Te*xjac*tstep*D_par_imp_sc_num*GAMMA*dE_ion_dT*ps0_y*tau_sc/(F0**2 + ps0_x**2 + ps0_y**2)",
+    "F0*v_x*rhoimp0_p*Te*xjac*tstep*D_par_local_imp*GAMMA*dE_ion_dT*ps0_y/(F0**2 + ps0_x**2 + ps0_y**2)",
+    "F0*v_x*rhoimp0_p*Te*xjac*tstep*D_prof_imp*dE_ion_dT*ps0_y/(F0**2 + ps0_x**2 + ps0_y**2)",
+    "F0*v_y*rhoimp0_p*Te*xjac*tstep*D_par_imp_sc_num*dE_ion_dT*ps0_x*tau_sc/(F0**2 + ps0_x**2 + ps0_y**2)",
+    "F0*v_y*rhoimp0_p*Te*xjac*tstep*D_par_local_imp*dE_ion_dT*ps0_x/(F0**2 + ps0_x**2 + ps0_y**2)",
+    "F0*v_y*rhoimp0_p*Te*xjac*tstep*D_prof_imp*GAMMA*dE_ion_dT*ps0_x/(F0**2 + ps0_x**2 + ps0_y**2)"
+   ],
+   "generated_only": [
+    "-1/4*BigR**3*v_x*u0_x*u0_y*Te*xjac*theta*tstep**2*r0_y*tgnum_Te",
+    "-1/4*BigR**3*v_x*u0_x*u0_y*Te_y*xjac*theta*tstep**2*r0*tgnum_Te",
+    "-1/4*BigR**3*v_x*u0_x*u0_y*rhoimp0*Te*Te0_y*xjac*theta*tstep**2*alpha_e_tri*tgnum_Te",
+    "-1/4*BigR**3*v_x*u0_x*u0_y*rhoimp0*Te_y*xjac*theta*tstep**2*alpha_e_bis*tgnum_Te",
+    "-1/4*BigR**3*v_x*u0_x*u0_y*rhoimp0_y*Te*xjac*theta*tstep**2*alpha_e_bis*tgnum_Te",
+    "-1/4*BigR**3*v_y*u0_x*u0_y*Te*xjac*theta*tstep**2*r0_x*tgnum_Te",
+    "-1/4*BigR**3*v_y*u0_x*u0_y*Te_x*xjac*theta*tstep**2*r0*tgnum_Te",
+    "-1/4*BigR**3*v_y*u0_x*u0_y*rhoimp0*Te*Te0_x*xjac*theta*tstep**2*alpha_e_tri*tgnum_Te",
+    "-1/4*BigR**3*v_y*u0_x*u0_y*rhoimp0*Te_x*xjac*theta*tstep**2*alpha_e_bis*tgnum_Te",
+    "-1/4*BigR**3*v_y*u0_x*u0_y*rhoimp0_x*Te*xjac*theta*tstep**2*alpha_e_bis*tgnum_Te",
+    "-1/4*F0*v_y*vpar0**2*rhoimp0_p*Te*xjac*theta*tstep**2*alpha_e_bis*ps0_x*tgnum_Te/(BigR**2)",
+    "-2*BigR*v*u0_y*rhoimp0*Te*xjac*theta*tstep*GAMMA*dE_ion_dT",
+    "-BigR**2*v*u0_s*rhoimp0_t*Te*theta*tstep*dE_ion_dT",
+    "-BigR**2*v*u0_t*rhoimp0_s*Te*theta*tstep*GAMMA*dE_ion_dT",
+    "-BigR*v_x*rhoimp0_x*Te*xjac*theta*tstep*D_par_imp_sc_num*dE_ion_dT*ps0_y**2*tau_sc/(F0**2 + ps0_x**2 + ps0_y**2)",
+    "-BigR*v_x*rhoimp0_x*Te*xjac*theta*tstep*D_par_local_imp*dE_ion_dT*ps0_y**2/(F0**2 + ps0_x**2 + ps0_y**2)",
+    "-BigR*v_x*rhoimp0_x*Te*xjac*theta*tstep*D_prof_imp*GAMMA*dE_ion_dT*ps0_y**2/(F0**2 + ps0_x**2 + ps0_y**2)",
+    "-BigR*v_x*rhoimp0_x*Te*xjac*theta*tstep*D_prof_imp*dE_ion_dT",
+    "-BigR*v_x*rhoimp0_y*Te*xjac*theta*tstep*D_par_imp_sc_num*GAMMA*dE_ion_dT*ps0_x*ps0_y*tau_sc/(F0**2 + ps0_x**2 + ps0_y**2)",
+    "-BigR*v_x*rhoimp0_y*Te*xjac*theta*tstep*D_par_local_imp*GAMMA*dE_ion_dT*ps0_x*ps0_y/(F0**2 + ps0_x**2 + ps0_y**2)",
+    "-BigR*v_x*rhoimp0_y*Te*xjac*theta*tstep*D_prof_imp*dE_ion_dT*ps0_x*ps0_y/(F0**2 + ps0_x**2 + ps0_y**2)",
+    "-BigR*v_y*rhoimp0_x*Te*xjac*theta*tstep*D_par_imp_sc_num*GAMMA*dE_ion_dT*ps0_x*ps0_y*tau_sc/(F0**2 + ps0_x**2 + ps0_y**2)",
+    "-BigR*v_y*rhoimp0_x*Te*xjac*theta*tstep*D_par_local_imp*GAMMA*dE_ion_dT*ps0_x*ps0_y/(F0**2 + ps0_x**2 + ps0_y**2)",
+    "-BigR*v_y*rhoimp0_x*Te*xjac*theta*tstep*D_prof_imp*dE_ion_dT*ps0_x*ps0_y/(F0**2 + ps0_x**2 + ps0_y**2)",
+    "-BigR*v_y*rhoimp0_y*Te*xjac*theta*tstep*D_par_imp_sc_num*dE_ion_dT*ps0_x**2*tau_sc/(F0**2 + ps0_x**2 + ps0_y**2)",
+    "-BigR*v_y*rhoimp0_y*Te*xjac*theta*tstep*D_par_local_imp*dE_ion_dT*ps0_x**2/(F0**2 + ps0_x**2 + ps0_y**2)",
+    "-BigR*v_y*rhoimp0_y*Te*xjac*theta*tstep*D_prof_imp*GAMMA*dE_ion_dT*ps0_x**2/(F0**2 + ps0_x**2 + ps0_y**2)",
+    "-BigR*v_y*rhoimp0_y*Te*xjac*theta*tstep*D_prof_imp*dE_ion_dT",
+    "-F0*v*vpar0*rhoimp0_p*Te*xjac*theta*tstep*dE_ion_dT/BigR",
+    "-F0*v*vpar0_p*rhoimp0*Te*xjac*theta*tstep*dE_ion_dT/BigR",
+    "-F0*v_x*rhoimp0_p*Te*xjac*theta*tstep*D_par_imp_sc_num*dE_ion_dT*ps0_y*tau_sc/(F0**2 + ps0_x**2 + ps0_y**2)",
+    "-F0*v_x*rhoimp0_p*Te*xjac*theta*tstep*D_par_local_imp*dE_ion_dT*ps0_y/(F0**2 + ps0_x**2 + ps0_y**2)",
+    "-F0*v_x*rhoimp0_p*Te*xjac*theta*tstep*D_prof_imp*GAMMA*dE_ion_dT*ps0_y/(F0**2 + ps0_x**2 + ps0_y**2)",
+    "-F0*v_y*rhoimp0_p*Te*xjac*theta*tstep*D_par_imp_sc_num*GAMMA*dE_ion_dT*ps0_x*tau_sc/(F0**2 + ps0_x**2 + ps0_y**2)",
+    "-F0*v_y*rhoimp0_p*Te*xjac*theta*tstep*D_par_local_imp*GAMMA*dE_ion_dT*ps0_x/(F0**2 + ps0_x**2 + ps0_y**2)",
+    "-F0*v_y*rhoimp0_p*Te*xjac*theta*tstep*D_prof_imp*dE_ion_dT*ps0_x/(F0**2 + ps0_x**2 + ps0_y**2)",
+    "-v*vpar0*rhoimp0_s*Te*theta*tstep*dE_ion_dT*ps0_t",
+    "-v*vpar0*rhoimp0_t*Te*theta*tstep*GAMMA*dE_ion_dT*ps0_s",
+    "-v*vpar0_s*rhoimp0*Te*theta*tstep*dE_ion_dT*ps0_t",
+    "-v*vpar0_t*rhoimp0*Te*theta*tstep*GAMMA*dE_ion_dT*ps0_s",
+    "1/4*BigR**3*v_x*u0_y**2*Te*xjac*theta*tstep**2*r0_x*tgnum_Te",
+    "1/4*BigR**3*v_x*u0_y**2*Te_x*xjac*theta*tstep**2*r0*tgnum_Te",
+    "1/4*BigR**3*v_x*u0_y**2*rhoimp0*Te*Te0_x*xjac*theta*tstep**2*alpha_e_tri*tgnum_Te",
+    "1/4*BigR**3*v_x*u0_y**2*rhoimp0*Te_x*xjac*theta*tstep**2*alpha_e_bis*tgnum_Te",
+    "1/4*BigR**3*v_x*u0_y**2*rhoimp0_x*Te*xjac*theta*tstep**2*alpha_e_bis*tgnum_Te",
+    "1/4*BigR**3*v_y*u0_x**2*Te*xjac*theta*tstep**2*r0_y*tgnum_Te",
+    "1/4*BigR**3*v_y*u0_x**2*Te_y*xjac*theta*tstep**2*r0*tgnum_Te",
+    "1/4*BigR**3*v_y*u0_x**2*rhoimp0*Te*Te0_y*xjac*theta*tstep**2*alpha_e_tri*tgnum_Te",
+    "1/4*BigR**3*v_y*u0_x**2*rhoimp0*Te_y*xjac*theta*tstep**2*alpha_e_bis*tgnum_Te",
+    "1/4*BigR**3*v_y*u0_x**2*rhoimp0_y*Te*xjac*theta*tstep**2*alpha_e_bis*tgnum_Te",
+    "1/4*F0*v_x*vpar0**2*rhoimp0_p*Te*xjac*theta*tstep**2*alpha_e_bis*ps0_y*tgnum_Te/(BigR**2)",
+    "2*BigR*v*u0_y*rhoimp0*Te*xjac*theta*tstep*dE_ion_dT",
+    "BigR**2*v*u0_s*rhoimp0_t*Te*theta*tstep*GAMMA*dE_ion_dT",
+    "BigR**2*v*u0_t*rhoimp0_s*Te*theta*tstep*dE_ion_dT",
+    "BigR*v_x*rhoimp0_x*Te*xjac*theta*tstep*D_par_imp_sc_num*GAMMA*dE_ion_dT*ps0_y**2*tau_sc/(F0**2 + ps0_x**2 + ps0_y**2)",
+    "BigR*v_x*rhoimp0_x*Te*xjac*theta*tstep*D_par_local_imp*GAMMA*dE_ion_dT*ps0_y**2/(F0**2 + ps0_x**2 + ps0_y**2)",
+    "BigR*v_x*rhoimp0_x*Te*xjac*theta*tstep*D_prof_imp*GAMMA*dE_ion_dT",
+    "BigR*v_x*rhoimp0_x*Te*xjac*theta*tstep*D_prof_imp*dE_ion_dT*ps0_y**2/(F0**2 + ps0_x**2 + ps0_y**2)",
+    "BigR*v_x*rhoimp0_y*Te*xjac*theta*tstep*D_par_imp_sc_num*dE_ion_dT*ps0_x*ps0_y*tau_sc/(F0**2 + ps0_x**2 + ps0_y**2)",
+    "BigR*v_x*rhoimp0_y*Te*xjac*theta*tstep*D_par_local_imp*dE_ion_dT*ps0_x*ps0_y/(F0**2 + ps0_x**2 + ps0_y**2)",
+    "BigR*v_x*rhoimp0_y*Te*xjac*theta*tstep*D_prof_imp*GAMMA*dE_ion_dT*ps0_x*ps0_y/(F0**2 + ps0_x**2 + ps0_y**2)",
+    "BigR*v_y*rhoimp0_x*Te*xjac*theta*tstep*D_par_imp_sc_num*dE_ion_dT*ps0_x*ps0_y*tau_sc/(F0**2 + ps0_x**2 + ps0_y**2)",
+    "BigR*v_y*rhoimp0_x*Te*xjac*theta*tstep*D_par_local_imp*dE_ion_dT*ps0_x*ps0_y/(F0**2 + ps0_x**2 + ps0_y**2)",
+    "BigR*v_y*rhoimp0_x*Te*xjac*theta*tstep*D_prof_imp*GAMMA*dE_ion_dT*ps0_x*ps0_y/(F0**2 + ps0_x**2 + ps0_y**2)",
+    "BigR*v_y*rhoimp0_y*Te*xjac*theta*tstep*D_par_imp_sc_num*GAMMA*dE_ion_dT*ps0_x**2*tau_sc/(F0**2 + ps0_x**2 + ps0_y**2)",
+    "BigR*v_y*rhoimp0_y*Te*xjac*theta*tstep*D_par_local_imp*GAMMA*dE_ion_dT*ps0_x**2/(F0**2 + ps0_x**2 + ps0_y**2)",
+    "BigR*v_y*rhoimp0_y*Te*xjac*theta*tstep*D_prof_imp*GAMMA*dE_ion_dT",
+    "BigR*v_y*rhoimp0_y*Te*xjac*theta*tstep*D_prof_imp*dE_ion_dT*ps0_x**2/(F0**2 + ps0_x**2 + ps0_y**2)",
+    "F0*v*vpar0*rhoimp0_p*Te*xjac*theta*tstep*GAMMA*dE_ion_dT/BigR",
+    "F0*v*vpar0_p*rhoimp0*Te*xjac*theta*tstep*GAMMA*dE_ion_dT/BigR",
+    "F0*v_x*rhoimp0_p*Te*xjac*theta*tstep*D_par_imp_sc_num*GAMMA*dE_ion_dT*ps0_y*tau_sc/(F0**2 + ps0_x**2 + ps0_y**2)",
+    "F0*v_x*rhoimp0_p*Te*xjac*theta*tstep*D_par_local_imp*GAMMA*dE_ion_dT*ps0_y/(F0**2 + ps0_x**2 + ps0_y**2)",
+    "F0*v_x*rhoimp0_p*Te*xjac*theta*tstep*D_prof_imp*dE_ion_dT*ps0_y/(F0**2 + ps0_x**2 + ps0_y**2)",
+    "F0*v_y*rhoimp0_p*Te*xjac*theta*tstep*D_par_imp_sc_num*dE_ion_dT*ps0_x*tau_sc/(F0**2 + ps0_x**2 + ps0_y**2)",
+    "F0*v_y*rhoimp0_p*Te*xjac*theta*tstep*D_par_local_imp*dE_ion_dT*ps0_x/(F0**2 + ps0_x**2 + ps0_y**2)",
+    "F0*v_y*rhoimp0_p*Te*xjac*theta*tstep*D_prof_imp*GAMMA*dE_ion_dT*ps0_x/(F0**2 + ps0_x**2 + ps0_y**2)",
+    "v*vpar0*rhoimp0_s*Te*theta*tstep*GAMMA*dE_ion_dT*ps0_t",
+    "v*vpar0*rhoimp0_t*Te*theta*tstep*dE_ion_dT*ps0_s",
+    "v*vpar0_s*rhoimp0*Te*theta*tstep*GAMMA*dE_ion_dT*ps0_t",
+    "v*vpar0_t*rhoimp0*Te*theta*tstep*dE_ion_dT*ps0_s"
+   ]
+  },
+  "Two-temperature (Ti/Te) model | amat(var_te,var_u) | #0": {
+   "findings": [
+    11
+   ],
+   "source_only": [
+    "-1/4*BigR**2*v_x*u0_x*u_y*Te0*xjac*theta*tstep**2*r0_y*tgnum_Te",
+    "-1/4*BigR**2*v_x*u0_x*u_y*Te0_y*xjac*theta*tstep**2*r0*tgnum_Te",
+    "-1/4*BigR**2*v_x*u0_x*u_y*rhoimp0*Te0_y*xjac*theta*tstep**2*alpha_e_bis*tgnum_Te",
+    "-1/4*BigR**2*v_x*u0_x*u_y*rhoimp0_y*Te0*xjac*theta*tstep**2*alpha_e*tgnum_Te",
+    "-1/4*BigR**2*v_x*u0_y*u_x*Te0*xjac*theta*tstep**2*r0_y*tgnum_Te",
+    "-1/4*BigR**2*v_x*u0_y*u_x*Te0_y*xjac*theta*tstep**2*r0*tgnum_Te",
+    "-1/4*BigR**2*v_x*u0_y*u_x*rhoimp0*Te0_y*xjac*theta*tstep**2*alpha_e_bis*tgnum_Te",
+    "-1/4*BigR**2*v_x*u0_y*u_x*rhoimp0_y*Te0*xjac*theta*tstep**2*alpha_e*tgnum_Te",
+    "-1/4*BigR**2*v_y*u0_x*u_y*Te0*xjac*theta*tstep**2*r0_x*tgnum_Te",
+    "-1/4*BigR**2*v_y*u0_x*u_y*Te0_x*xjac*theta*tstep**2*r0*tgnum_Te",
+    "-1/4*BigR**2*v_y*u0_x*u_y*rhoimp0*Te0_x*xjac*theta*tstep**2*alpha_e_bis*tgnum_Te",
+    "-1/4*BigR**2*v_y*u0_x*u_y*rhoimp0_x*Te0*xjac*theta*tstep**2*alpha_e*tgnum_Te",
+    "-1/4*BigR**2*v_y*u0_y*u_x*Te0*xjac*theta*tstep**2*r0_x*tgnum_Te",
+    "-1/4*BigR**2*v_y*u0_y*u_x*Te0_x*xjac*theta*tstep**2*r0*tgnum_Te",
+    "-1/4*BigR**2*v_y*u0_y*u_x*rhoimp0*Te0_x*xjac*theta*tstep**2*alpha_e_bis*tgnum_Te",
+    "-1/4*BigR**2*v_y*u0_y*u_x*rhoimp0_x*Te0*xjac*theta*tstep**2*alpha_e*tgnum_Te",
+    "1/2*BigR**2*v_x*u0_y*u_y*Te0*xjac*theta*tstep**2*r0_x*tgnum_Te",
+    "1/2*BigR**2*v_x*u0_y*u_y*Te0_x*xjac*theta*tstep**2*r0*tgnum_Te",
+    "1/2*BigR**2*v_x*u0_y*u_y*rhoimp0*Te0_x*xjac*theta*tstep**2*alpha_e_bis*tgnum_Te",
+    "1/2*BigR**2*v_x*u0_y*u_y*rhoimp0_x*Te0*xjac*theta*tstep**2*alpha_e*tgnum_Te",
+    "1/2*BigR**2*v_y*u0_x*u_x*Te0*xjac*theta*tstep**2*r0_y*tgnum_Te",
+    "1/2*BigR**2*v_y*u0_x*u_x*Te0_y*xjac*theta*tstep**2*r0*tgnum_Te",
+    "1/2*BigR**2*v_y*u0_x*u_x*rhoimp0*Te0_y*xjac*theta*tstep**2*alpha_e_bis*tgnum_Te",
+    "1/2*BigR**2*v_y*u0_x*u_x*rhoimp0_y*Te0*xjac*theta*tstep**2*alpha_e*tgnum_Te"
+   ],
+   "generated_only": [
+    "-1/4*BigR**3*v_x*u0_x*u_y*Te0*xjac*theta*tstep**2*r0_y*tgnum_Te",
+    "-1/4*BigR**3*v_x*u0_x*u_y*Te0_y*xjac*theta*tstep**2*r0*tgnum_Te",
+    "-1/4*BigR**3*v_x*u0_x*u_y*rhoimp0*Te0_y*xjac*theta*tstep**2*alpha_e_bis*tgnum_Te",
+    "-1/4*BigR**3*v_x*u0_x*u_y*rhoimp0_y*Te0*xjac*theta*tstep**2*alpha_e*tgnum_Te",
+    "-1/4*BigR**3*v_x*u0_y*u_x*Te0*xjac*theta*tstep**2*r0_y*tgnum_Te",
+    "-1/4*BigR**3*v_x*u0_y*u_x*Te0_y*xjac*theta*tstep**2*r0*tgnum_Te",
+    "-1/4*BigR**3*v_x*u0_y*u_x*rhoimp0*Te0_y*xjac*theta*tstep**2*alpha_e_bis*tgnum_Te",
+    "-1/4*BigR**3*v_x*u0_y*u_x*rhoimp0_y*Te0*xjac*theta*tstep**2*alpha_e*tgnum_Te",
+    "-1/4*BigR**3*v_y*u0_x*u_y*Te0*xjac*theta*tstep**2*r0_x*tgnum_Te",
+    "-1/4*BigR**3*v_y*u0_x*u_y*Te0_x*xjac*theta*tstep**2*r0*tgnum_Te",
+    "-1/4*BigR**3*v_y*u0_x*u_y*rhoimp0*Te0_x*xjac*theta*tstep**2*alpha_e_bis*tgnum_Te",
+    "-1/4*BigR**3*v_y*u0_x*u_y*rhoimp0_x*Te0*xjac*theta*tstep**2*alpha_e*tgnum_Te",
+    "-1/4*BigR**3*v_y*u0_y*u_x*Te0*xjac*theta*tstep**2*r0_x*tgnum_Te",
+    "-1/4*BigR**3*v_y*u0_y*u_x*Te0_x*xjac*theta*tstep**2*r0*tgnum_Te",
+    "-1/4*BigR**3*v_y*u0_y*u_x*rhoimp0*Te0_x*xjac*theta*tstep**2*alpha_e_bis*tgnum_Te",
+    "-1/4*BigR**3*v_y*u0_y*u_x*rhoimp0_x*Te0*xjac*theta*tstep**2*alpha_e*tgnum_Te",
+    "1/2*BigR**3*v_x*u0_y*u_y*Te0*xjac*theta*tstep**2*r0_x*tgnum_Te",
+    "1/2*BigR**3*v_x*u0_y*u_y*Te0_x*xjac*theta*tstep**2*r0*tgnum_Te",
+    "1/2*BigR**3*v_x*u0_y*u_y*rhoimp0*Te0_x*xjac*theta*tstep**2*alpha_e_bis*tgnum_Te",
+    "1/2*BigR**3*v_x*u0_y*u_y*rhoimp0_x*Te0*xjac*theta*tstep**2*alpha_e*tgnum_Te",
+    "1/2*BigR**3*v_y*u0_x*u_x*Te0*xjac*theta*tstep**2*r0_y*tgnum_Te",
+    "1/2*BigR**3*v_y*u0_x*u_x*Te0_y*xjac*theta*tstep**2*r0*tgnum_Te",
+    "1/2*BigR**3*v_y*u0_x*u_x*rhoimp0*Te0_y*xjac*theta*tstep**2*alpha_e_bis*tgnum_Te",
+    "1/2*BigR**3*v_y*u0_x*u_x*rhoimp0_y*Te0*xjac*theta*tstep**2*alpha_e*tgnum_Te"
+   ]
+  },
+  "Two-temperature (Ti/Te) model | amat(var_ti,var_psi) | #0": {
+   "findings": [
+    12
+   ],
+   "source_only": [],
+   "generated_only": [
+    "-v*vpar0**2*psi_x*xjac*theta*tstep*GAMMA*aux_rho0*ps0_x/BigR",
+    "-v*vpar0**2*psi_y*xjac*theta*tstep*GAMMA*aux_rho0*ps0_y/BigR",
+    "v*vpar0**2*psi_x*xjac*theta*tstep*aux_rho0*ps0_x/BigR",
+    "v*vpar0**2*psi_y*xjac*theta*tstep*aux_rho0*ps0_y/BigR"
+   ]
+  },
+  "Two-temperature (Ti/Te) model | amat(var_ti,var_rho) | #0": {
+   "findings": [
+    11
+   ],
+   "source_only": [
+    "-1/4*BigR**2*v_x*u0_x*u0_y*rho*Ti0_y*xjac*theta*tstep**2*tgnum_Ti",
+    "-1/4*BigR**2*v_x*u0_x*u0_y*rho_y*Ti0*xjac*theta*tstep**2*tgnum_Ti",
+    "-1/4*BigR**2*v_y*u0_x*u0_y*rho*Ti0_x*xjac*theta*tstep**2*tgnum_Ti",
+    "-1/4*BigR**2*v_y*u0_x*u0_y*rho_x*Ti0*xjac*theta*tstep**2*tgnum_Ti",
+    "1/4*BigR**2*v_x*u0_y**2*rho*Ti0_x*xjac*theta*tstep**2*tgnum_Ti",
+    "1/4*BigR**2*v_x*u0_y**2*rho_x*Ti0*xjac*theta*tstep**2*tgnum_Ti",
+    "1/4*BigR**2*v_y*u0_x**2*rho*Ti0_y*xjac*theta*tstep**2*tgnum_Ti",
+    "1/4*BigR**2*v_y*u0_x**2*rho_y*Ti0*xjac*theta*tstep**2*tgnum_Ti"
+   ],
+   "generated_only": [
+    "-1/4*BigR**3*v_x*u0_x*u0_y*rho*Ti0_y*xjac*theta*tstep**2*tgnum_Ti",
+    "-1/4*BigR**3*v_x*u0_x*u0_y*rho_y*Ti0*xjac*theta*tstep**2*tgnum_Ti",
+    "-1/4*BigR**3*v_y*u0_x*u0_y*rho*Ti0_x*xjac*theta*tstep**2*tgnum_Ti",
+    "-1/4*BigR**3*v_y*u0_x*u0_y*rho_x*Ti0*xjac*theta*tstep**2*tgnum_Ti",
+    "1/4*BigR**3*v_x*u0_y**2*rho*Ti0_x*xjac*theta*tstep**2*tgnum_Ti",
+    "1/4*BigR**3*v_x*u0_y**2*rho_x*Ti0*xjac*theta*tstep**2*tgnum_Ti",
+    "1/4*BigR**3*v_y*u0_x**2*rho*Ti0_y*xjac*theta*tstep**2*tgnum_Ti",
+    "1/4*BigR**3*v_y*u0_x**2*rho_y*Ti0*xjac*theta*tstep**2*tgnum_Ti"
+   ]
+  },
+  "Two-temperature (Ti/Te) model | amat(var_ti,var_rhoimp) | #0": {
+   "findings": [
+    11
+   ],
+   "source_only": [
+    "-1/4*BigR**2*v_x*u0_x*u0_y*rhoimp*Ti0_y*xjac*theta*tstep**2*alpha_i*tgnum_Ti",
+    "-1/4*BigR**2*v_x*u0_x*u0_y*rhoimp_y*Ti0*xjac*theta*tstep**2*alpha_i*tgnum_Ti",
+    "-1/4*BigR**2*v_y*u0_x*u0_y*rhoimp*Ti0_x*xjac*theta*tstep**2*alpha_i*tgnum_Ti",
+    "-1/4*BigR**2*v_y*u0_x*u0_y*rhoimp_x*Ti0*xjac*theta*tstep**2*alpha_i*tgnum_Ti",
+    "1/4*BigR**2*v_x*u0_y**2*rhoimp*Ti0_x*xjac*theta*tstep**2*alpha_i*tgnum_Ti",
+    "1/4*BigR**2*v_x*u0_y**2*rhoimp_x*Ti0*xjac*theta*tstep**2*alpha_i*tgnum_Ti",
+    "1/4*BigR**2*v_y*u0_x**2*rhoimp*Ti0_y*xjac*theta*tstep**2*alpha_i*tgnum_Ti",
+    "1/4*BigR**2*v_y*u0_x**2*rhoimp_y*Ti0*xjac*theta*tstep**2*alpha_i*tgnum_Ti"
+   ],
+   "generated_only": [
+    "-1/4*BigR**3*v_x*u0_x*u0_y*rhoimp*Ti0_y*xjac*theta*tstep**2*alpha_i*tgnum_Ti",
+    "-1/4*BigR**3*v_x*u0_x*u0_y*rhoimp_y*Ti0*xjac*theta*tstep**2*alpha_i*tgnum_Ti",
+    "-1/4*BigR**3*v_y*u0_x*u0_y*rhoimp*Ti0_x*xjac*theta*tstep**2*alpha_i*tgnum_Ti",
+    "-1/4*BigR**3*v_y*u0_x*u0_y*rhoimp_x*Ti0*xjac*theta*tstep**2*alpha_i*tgnum_Ti",
+    "1/4*BigR**3*v_x*u0_y**2*rhoimp*Ti0_x*xjac*theta*tstep**2*alpha_i*tgnum_Ti",
+    "1/4*BigR**3*v_x*u0_y**2*rhoimp_x*Ti0*xjac*theta*tstep**2*alpha_i*tgnum_Ti",
+    "1/4*BigR**3*v_y*u0_x**2*rhoimp*Ti0_y*xjac*theta*tstep**2*alpha_i*tgnum_Ti",
+    "1/4*BigR**3*v_y*u0_x**2*rhoimp_y*Ti0*xjac*theta*tstep**2*alpha_i*tgnum_Ti"
+   ]
+  },
+  "Two-temperature (Ti/Te) model | amat(var_ti,var_te) | #0": {
+   "findings": [
+    12
+   ],
+   "source_only": [],
+   "generated_only": [
+    "BigR*v*Te*Ti0*xjac*theta*tstep*dSrec_dT*r0_corr**2"
+   ]
+  },
+  "Two-temperature (Ti/Te) model | amat(var_ti,var_ti) | #0": {
+   "findings": [
+    11
+   ],
+   "source_only": [
+    "-1/4*BigR**2*v_x*u0_x*u0_y*Ti*xjac*theta*tstep**2*r0_y*tgnum_Ti",
+    "-1/4*BigR**2*v_x*u0_x*u0_y*Ti_y*xjac*theta*tstep**2*r0*tgnum_Ti",
+    "-1/4*BigR**2*v_x*u0_x*u0_y*rhoimp0*Ti_y*xjac*theta*tstep**2*alpha_i*tgnum_Ti",
+    "-1/4*BigR**2*v_x*u0_x*u0_y*rhoimp0_y*Ti*xjac*theta*tstep**2*alpha_i*tgnum_Ti",
+    "-1/4*BigR**2*v_y*u0_x*u0_y*Ti*xjac*theta*tstep**2*r0_x*tgnum_Ti",
+    "-1/4*BigR**2*v_y*u0_x*u0_y*Ti_x*xjac*theta*tstep**2*r0*tgnum_Ti",
+    "-1/4*BigR**2*v_y*u0_x*u0_y*rhoimp0*Ti_x*xjac*theta*tstep**2*alpha_i*tgnum_Ti",
+    "-1/4*BigR**2*v_y*u0_x*u0_y*rhoimp0_x*Ti*xjac*theta*tstep**2*alpha_i*tgnum_Ti",
+    "1/4*BigR**2*v_x*u0_y**2*Ti*xjac*theta*tstep**2*r0_x*tgnum_Ti",
+    "1/4*BigR**2*v_x*u0_y**2*Ti_x*xjac*theta*tstep**2*r0*tgnum_Ti",
+    "1/4*BigR**2*v_x*u0_y**2*rhoimp0*Ti_x*xjac*theta*tstep**2*alpha_i*tgnum_Ti",
+    "1/4*BigR**2*v_x*u0_y**2*rhoimp0_x*Ti*xjac*theta*tstep**2*alpha_i*tgnum_Ti",
+    "1/4*BigR**2*v_y*u0_x**2*Ti*xjac*theta*tstep**2*r0_y*tgnum_Ti",
+    "1/4*BigR**2*v_y*u0_x**2*Ti_y*xjac*theta*tstep**2*r0*tgnum_Ti",
+    "1/4*BigR**2*v_y*u0_x**2*rhoimp0*Ti_y*xjac*theta*tstep**2*alpha_i*tgnum_Ti",
+    "1/4*BigR**2*v_y*u0_x**2*rhoimp0_y*Ti*xjac*theta*tstep**2*alpha_i*tgnum_Ti"
+   ],
+   "generated_only": [
+    "-1/4*BigR**3*v_x*u0_x*u0_y*Ti*xjac*theta*tstep**2*r0_y*tgnum_Ti",
+    "-1/4*BigR**3*v_x*u0_x*u0_y*Ti_y*xjac*theta*tstep**2*r0*tgnum_Ti",
+    "-1/4*BigR**3*v_x*u0_x*u0_y*rhoimp0*Ti_y*xjac*theta*tstep**2*alpha_i*tgnum_Ti",
+    "-1/4*BigR**3*v_x*u0_x*u0_y*rhoimp0_y*Ti*xjac*theta*tstep**2*alpha_i*tgnum_Ti",
+    "-1/4*BigR**3*v_y*u0_x*u0_y*Ti*xjac*theta*tstep**2*r0_x*tgnum_Ti",
+    "-1/4*BigR**3*v_y*u0_x*u0_y*Ti_x*xjac*theta*tstep**2*r0*tgnum_Ti",
+    "-1/4*BigR**3*v_y*u0_x*u0_y*rhoimp0*Ti_x*xjac*theta*tstep**2*alpha_i*tgnum_Ti",
+    "-1/4*BigR**3*v_y*u0_x*u0_y*rhoimp0_x*Ti*xjac*theta*tstep**2*alpha_i*tgnum_Ti",
+    "1/4*BigR**3*v_x*u0_y**2*Ti*xjac*theta*tstep**2*r0_x*tgnum_Ti",
+    "1/4*BigR**3*v_x*u0_y**2*Ti_x*xjac*theta*tstep**2*r0*tgnum_Ti",
+    "1/4*BigR**3*v_x*u0_y**2*rhoimp0*Ti_x*xjac*theta*tstep**2*alpha_i*tgnum_Ti",
+    "1/4*BigR**3*v_x*u0_y**2*rhoimp0_x*Ti*xjac*theta*tstep**2*alpha_i*tgnum_Ti",
+    "1/4*BigR**3*v_y*u0_x**2*Ti*xjac*theta*tstep**2*r0_y*tgnum_Ti",
+    "1/4*BigR**3*v_y*u0_x**2*Ti_y*xjac*theta*tstep**2*r0*tgnum_Ti",
+    "1/4*BigR**3*v_y*u0_x**2*rhoimp0*Ti_y*xjac*theta*tstep**2*alpha_i*tgnum_Ti",
+    "1/4*BigR**3*v_y*u0_x**2*rhoimp0_y*Ti*xjac*theta*tstep**2*alpha_i*tgnum_Ti"
+   ]
+  },
+  "Two-temperature (Ti/Te) model | amat(var_ti,var_u) | #0": {
+   "findings": [
+    11
+   ],
+   "source_only": [
+    "-1/4*BigR**2*v_x*u0_x*u_y*Ti0*xjac*theta*tstep**2*r0_y*tgnum_Ti",
+    "-1/4*BigR**2*v_x*u0_x*u_y*Ti0_y*xjac*theta*tstep**2*r0*tgnum_Ti",
+    "-1/4*BigR**2*v_x*u0_x*u_y*rhoimp0*Ti0_y*xjac*theta*tstep**2*alpha_i*tgnum_Ti",
+    "-1/4*BigR**2*v_x*u0_x*u_y*rhoimp0_y*Ti0*xjac*theta*tstep**2*alpha_i*tgnum_Ti",
+    "-1/4*BigR**2*v_x*u0_y*u_x*Ti0*xjac*theta*tstep**2*r0_y*tgnum_Ti",
+    "-1/4*BigR**2*v_x*u0_y*u_x*Ti0_y*xjac*theta*tstep**2*r0*tgnum_Ti",
+    "-1/4*BigR**2*v_x*u0_y*u_x*rhoimp0*Ti0_y*xjac*theta*tstep**2*alpha_i*tgnum_Ti",
+    "-1/4*BigR**2*v_x*u0_y*u_x*rhoimp0_y*Ti0*xjac*theta*tstep**2*alpha_i*tgnum_Ti",
+    "-1/4*BigR**2*v_y*u0_x*u_y*Ti0*xjac*theta*tstep**2*r0_x*tgnum_Ti",
+    "-1/4*BigR**2*v_y*u0_x*u_y*Ti0_x*xjac*theta*tstep**2*r0*tgnum_Ti",
+    "-1/4*BigR**2*v_y*u0_x*u_y*rhoimp0*Ti0_x*xjac*theta*tstep**2*alpha_i*tgnum_Ti",
+    "-1/4*BigR**2*v_y*u0_x*u_y*rhoimp0_x*Ti0*xjac*theta*tstep**2*alpha_i*tgnum_Ti",
+    "-1/4*BigR**2*v_y*u0_y*u_x*Ti0*xjac*theta*tstep**2*r0_x*tgnum_Ti",
+    "-1/4*BigR**2*v_y*u0_y*u_x*Ti0_x*xjac*theta*tstep**2*r0*tgnum_Ti",
+    "-1/4*BigR**2*v_y*u0_y*u_x*rhoimp0*Ti0_x*xjac*theta*tstep**2*alpha_i*tgnum_Ti",
+    "-1/4*BigR**2*v_y*u0_y*u_x*rhoimp0_x*Ti0*xjac*theta*tstep**2*alpha_i*tgnum_Ti",
+    "1/2*BigR**2*v_x*u0_y*u_y*Ti0*xjac*theta*tstep**2*r0_x*tgnum_Ti",
+    "1/2*BigR**2*v_x*u0_y*u_y*Ti0_x*xjac*theta*tstep**2*r0*tgnum_Ti",
+    "1/2*BigR**2*v_x*u0_y*u_y*rhoimp0*Ti0_x*xjac*theta*tstep**2*alpha_i*tgnum_Ti",
+    "1/2*BigR**2*v_x*u0_y*u_y*rhoimp0_x*Ti0*xjac*theta*tstep**2*alpha_i*tgnum_Ti",
+    "1/2*BigR**2*v_y*u0_x*u_x*Ti0*xjac*theta*tstep**2*r0_y*tgnum_Ti",
+    "1/2*BigR**2*v_y*u0_x*u_x*Ti0_y*xjac*theta*tstep**2*r0*tgnum_Ti",
+    "1/2*BigR**2*v_y*u0_x*u_x*rhoimp0*Ti0_y*xjac*theta*tstep**2*alpha_i*tgnum_Ti",
+    "1/2*BigR**2*v_y*u0_x*u_x*rhoimp0_y*Ti0*xjac*theta*tstep**2*alpha_i*tgnum_Ti"
+   ],
+   "generated_only": [
+    "-1/4*BigR**3*v_x*u0_x*u_y*Ti0*xjac*theta*tstep**2*r0_y*tgnum_Ti",
+    "-1/4*BigR**3*v_x*u0_x*u_y*Ti0_y*xjac*theta*tstep**2*r0*tgnum_Ti",
+    "-1/4*BigR**3*v_x*u0_x*u_y*rhoimp0*Ti0_y*xjac*theta*tstep**2*alpha_i*tgnum_Ti",
+    "-1/4*BigR**3*v_x*u0_x*u_y*rhoimp0_y*Ti0*xjac*theta*tstep**2*alpha_i*tgnum_Ti",
+    "-1/4*BigR**3*v_x*u0_y*u_x*Ti0*xjac*theta*tstep**2*r0_y*tgnum_Ti",
+    "-1/4*BigR**3*v_x*u0_y*u_x*Ti0_y*xjac*theta*tstep**2*r0*tgnum_Ti",
+    "-1/4*BigR**3*v_x*u0_y*u_x*rhoimp0*Ti0_y*xjac*theta*tstep**2*alpha_i*tgnum_Ti",
+    "-1/4*BigR**3*v_x*u0_y*u_x*rhoimp0_y*Ti0*xjac*theta*tstep**2*alpha_i*tgnum_Ti",
+    "-1/4*BigR**3*v_y*u0_x*u_y*Ti0*xjac*theta*tstep**2*r0_x*tgnum_Ti",
+    "-1/4*BigR**3*v_y*u0_x*u_y*Ti0_x*xjac*theta*tstep**2*r0*tgnum_Ti",
+    "-1/4*BigR**3*v_y*u0_x*u_y*rhoimp0*Ti0_x*xjac*theta*tstep**2*alpha_i*tgnum_Ti",
+    "-1/4*BigR**3*v_y*u0_x*u_y*rhoimp0_x*Ti0*xjac*theta*tstep**2*alpha_i*tgnum_Ti",
+    "-1/4*BigR**3*v_y*u0_y*u_x*Ti0*xjac*theta*tstep**2*r0_x*tgnum_Ti",
+    "-1/4*BigR**3*v_y*u0_y*u_x*Ti0_x*xjac*theta*tstep**2*r0*tgnum_Ti",
+    "-1/4*BigR**3*v_y*u0_y*u_x*rhoimp0*Ti0_x*xjac*theta*tstep**2*alpha_i*tgnum_Ti",
+    "-1/4*BigR**3*v_y*u0_y*u_x*rhoimp0_x*Ti0*xjac*theta*tstep**2*alpha_i*tgnum_Ti",
+    "1/2*BigR**3*v_x*u0_y*u_y*Ti0*xjac*theta*tstep**2*r0_x*tgnum_Ti",
+    "1/2*BigR**3*v_x*u0_y*u_y*Ti0_x*xjac*theta*tstep**2*r0*tgnum_Ti",
+    "1/2*BigR**3*v_x*u0_y*u_y*rhoimp0*Ti0_x*xjac*theta*tstep**2*alpha_i*tgnum_Ti",
+    "1/2*BigR**3*v_x*u0_y*u_y*rhoimp0_x*Ti0*xjac*theta*tstep**2*alpha_i*tgnum_Ti",
+    "1/2*BigR**3*v_y*u0_x*u_x*Ti0*xjac*theta*tstep**2*r0_y*tgnum_Ti",
+    "1/2*BigR**3*v_y*u0_x*u_x*Ti0_y*xjac*theta*tstep**2*r0*tgnum_Ti",
+    "1/2*BigR**3*v_y*u0_x*u_x*rhoimp0*Ti0_y*xjac*theta*tstep**2*alpha_i*tgnum_Ti",
+    "1/2*BigR**3*v_y*u0_x*u_x*rhoimp0_y*Ti0*xjac*theta*tstep**2*alpha_i*tgnum_Ti"
+   ]
+  },
+  "Two-temperature (Ti/Te) model | amat(var_u,var_rhoimp) | #0": {
+   "findings": [
+    1
+   ],
+   "source_only": [],
+   "generated_only": [
+    "-2*BigR**4*v*u0_xx*rhoimp*Ti0_xy*xjac*theta*tstep*alpha_i*tauIC",
+    "-2*BigR**4*v*u0_xx*rhoimp_x*Ti0_y*xjac*theta*tstep*alpha_i*tauIC",
+    "-2*BigR**4*v*u0_xx*rhoimp_xy*Ti0*xjac*theta*tstep*alpha_i*tauIC",
+    "-2*BigR**4*v*u0_xx*rhoimp_y*Ti0_x*xjac*theta*tstep*alpha_i*tauIC",
+    "-2*BigR**4*v*u0_xy*rhoimp*Ti0_yy*xjac*theta*tstep*alpha_i*tauIC",
+    "-2*BigR**4*v*u0_xy*rhoimp_yy*Ti0*xjac*theta*tstep*alpha_i*tauIC",
+    "-2*BigR**4*v*w0_s*rhoimp*Ti0_t*theta*tstep*alpha_i*tauIC",
+    "-2*BigR**4*v*w0_s*rhoimp_t*Ti0*theta*tstep*alpha_i*tauIC",
+    "-4*BigR**4*v*u0_xy*rhoimp_y*Ti0_y*xjac*theta*tstep*alpha_i*tauIC",
+    "2*BigR**3*v_x*u0_x*rhoimp*Ti0_y*xjac*theta*tstep*alpha_i*tauIC",
+    "2*BigR**3*v_x*u0_x*rhoimp_y*Ti0*xjac*theta*tstep*alpha_i*tauIC",
+    "2*BigR**3*v_y*u0_y*rhoimp*Ti0_y*xjac*theta*tstep*alpha_i*tauIC",
+    "2*BigR**3*v_y*u0_y*rhoimp_y*Ti0*xjac*theta*tstep*alpha_i*tauIC",
+    "2*BigR**4*v*u0_xy*rhoimp*Ti0_xx*xjac*theta*tstep*alpha_i*tauIC",
+    "2*BigR**4*v*u0_xy*rhoimp_xx*Ti0*xjac*theta*tstep*alpha_i*tauIC",
+    "2*BigR**4*v*u0_yy*rhoimp*Ti0_xy*xjac*theta*tstep*alpha_i*tauIC",
+    "2*BigR**4*v*u0_yy*rhoimp_x*Ti0_y*xjac*theta*tstep*alpha_i*tauIC",
+    "2*BigR**4*v*u0_yy*rhoimp_xy*Ti0*xjac*theta*tstep*alpha_i*tauIC",
+    "2*BigR**4*v*u0_yy*rhoimp_y*Ti0_x*xjac*theta*tstep*alpha_i*tauIC",
+    "2*BigR**4*v*w0_t*rhoimp*Ti0_s*theta*tstep*alpha_i*tauIC",
+    "2*BigR**4*v*w0_t*rhoimp_s*Ti0*theta*tstep*alpha_i*tauIC",
+    "4*BigR**4*v*u0_xy*rhoimp_x*Ti0_x*xjac*theta*tstep*alpha_i*tauIC"
+   ]
+  },
+  "Two-temperature (Ti/Te) model | amat(var_u,var_ti) | #0": {
+   "findings": [
+    1
+   ],
+   "source_only": [],
+   "generated_only": [
+    "-2*BigR**4*v*u0_xx*rhoimp0*Ti_xy*xjac*theta*tstep*alpha_i*tauIC",
+    "-2*BigR**4*v*u0_xx*rhoimp0_x*Ti_y*xjac*theta*tstep*alpha_i*tauIC",
+    "-2*BigR**4*v*u0_xx*rhoimp0_xy*Ti*xjac*theta*tstep*alpha_i*tauIC",
+    "-2*BigR**4*v*u0_xx*rhoimp0_y*Ti_x*xjac*theta*tstep*alpha_i*tauIC",
+    "-2*BigR**4*v*u0_xy*rhoimp0*Ti_yy*xjac*theta*tstep*alpha_i*tauIC",
+    "-2*BigR**4*v*u0_xy*rhoimp0_yy*Ti*xjac*theta*tstep*alpha_i*tauIC",
+    "-2*BigR**4*v*w0_s*rhoimp0*Ti_t*theta*tstep*alpha_i*tauIC",
+    "-2*BigR**4*v*w0_s*rhoimp0_t*Ti*theta*tstep*alpha_i*tauIC",
+    "-4*BigR**4*v*u0_xy*rhoimp0_y*Ti_y*xjac*theta*tstep*alpha_i*tauIC",
+    "2*BigR**3*v_x*u0_x*rhoimp0*Ti_y*xjac*theta*tstep*alpha_i*tauIC",
+    "2*BigR**3*v_x*u0_x*rhoimp0_y*Ti*xjac*theta*tstep*alpha_i*tauIC",
+    "2*BigR**3*v_y*u0_y*rhoimp0*Ti_y*xjac*theta*tstep*alpha_i*tauIC",
+    "2*BigR**3*v_y*u0_y*rhoimp0_y*Ti*xjac*theta*tstep*alpha_i*tauIC",
+    "2*BigR**4*v*u0_xy*rhoimp0*Ti_xx*xjac*theta*tstep*alpha_i*tauIC",
+    "2*BigR**4*v*u0_xy*rhoimp0_xx*Ti*xjac*theta*tstep*alpha_i*tauIC",
+    "2*BigR**4*v*u0_yy*rhoimp0*Ti_xy*xjac*theta*tstep*alpha_i*tauIC",
+    "2*BigR**4*v*u0_yy*rhoimp0_x*Ti_y*xjac*theta*tstep*alpha_i*tauIC",
+    "2*BigR**4*v*u0_yy*rhoimp0_xy*Ti*xjac*theta*tstep*alpha_i*tauIC",
+    "2*BigR**4*v*u0_yy*rhoimp0_y*Ti_x*xjac*theta*tstep*alpha_i*tauIC",
+    "2*BigR**4*v*w0_t*rhoimp0*Ti_s*theta*tstep*alpha_i*tauIC",
+    "2*BigR**4*v*w0_t*rhoimp0_s*Ti*theta*tstep*alpha_i*tauIC",
+    "4*BigR**4*v*u0_xy*rhoimp0_x*Ti_x*xjac*theta*tstep*alpha_i*tauIC"
+   ]
+  },
+  "Two-temperature (Ti/Te) model | amat(var_vpar,var_psi) | #0": {
+   "findings": [
+    4,
+    6,
+    7
+   ],
+   "source_only": [
+    "v*vpar0*psi_x*xjac*ps0_x*r0_corr/BigR",
+    "v*vpar0*psi_x*xjac*zeta*ps0_x*r0_corr/BigR",
+    "v*vpar0*psi_y*xjac*ps0_y*r0_corr/BigR",
+    "v*vpar0*psi_y*xjac*zeta*ps0_y*r0_corr/BigR"
+   ],
+   "generated_only": [
+    "-1/2*F0**2*v*vpar0**2*vpar0_p*psi_x*xjac*theta*tstep**2*fact_conservative_u*ps0_x*r0_p*tgnum_vpar/(BigR**5)",
+    "-1/2*F0**2*v*vpar0**2*vpar0_p*psi_y*xjac*theta*tstep**2*fact_conservative_u*ps0_y*r0_p*tgnum_vpar/(BigR**5)",
+    "-1/2*F0*v*vpar0**2*vpar0_p*psi_x*theta*tstep**2*fact_conservative_u*ps0_t*ps0_x*r0_s*tgnum_vpar/(BigR**4)",
+    "-1/2*F0*v*vpar0**2*vpar0_p*psi_x*theta*tstep**2*ps0_s*ps0_x*r0_t*tgnum_vpar/(BigR**4)",
+    "-1/2*F0*v*vpar0**2*vpar0_p*psi_y*theta*tstep**2*fact_conservative_u*ps0_t*ps0_y*r0_s*tgnum_vpar/(BigR**4)",
+    "-1/2*F0*v*vpar0**2*vpar0_p*psi_y*theta*tstep**2*ps0_s*ps0_y*r0_t*tgnum_vpar/(BigR**4)",
+    "-1/2*F0*v*vpar0**2*vpar0_s*psi_x*theta*tstep**2*fact_conservative_u*ps0_t*ps0_x*r0_p*tgnum_vpar/(BigR**4)",
+    "-1/2*F0*v*vpar0**2*vpar0_s*psi_y*theta*tstep**2*fact_conservative_u*ps0_t*ps0_y*r0_p*tgnum_vpar/(BigR**4)",
+    "-1/2*F0*v*vpar0**2*vpar0_t*psi_x*theta*tstep**2*ps0_s*ps0_x*r0_p*tgnum_vpar/(BigR**4)",
+    "-1/2*F0*v*vpar0**2*vpar0_t*psi_y*theta*tstep**2*ps0_s*ps0_y*r0_p*tgnum_vpar/(BigR**4)",
+    "-1/2*F0*v_t*vpar0**2*vpar0_p*psi_x*theta*tstep**2*ps0_s*ps0_x*r0*tgnum_vpar/(BigR**4)",
+    "-1/2*F0*v_t*vpar0**2*vpar0_p*psi_y*theta*tstep**2*ps0_s*ps0_y*r0*tgnum_vpar/(BigR**4)",
+    "-1/2*F0*v_t*vpar0**3*psi_x*theta*tstep**2*fact_conservative_u*ps0_s*ps0_x*r0_p*tgnum_vpar/(BigR**4)",
+    "-1/2*F0*v_t*vpar0**3*psi_y*theta*tstep**2*fact_conservative_u*ps0_s*ps0_y*r0_p*tgnum_vpar/(BigR**4)",
+    "-1/2*v*vpar0**2*vpar0_s*psi_x*theta*tstep**2*fact_conservative_u*ps0_t**2*ps0_x*r0_s*tgnum_vpar/(BigR**3)/xjac",
+    "-1/2*v*vpar0**2*vpar0_s*psi_x*theta*tstep**2*ps0_s*ps0_t*ps0_x*r0_t*tgnum_vpar/(BigR**3)/xjac",
+    "-1/2*v*vpar0**2*vpar0_s*psi_y*theta*tstep**2*fact_conservative_u*ps0_t**2*ps0_y*r0_s*tgnum_vpar/(BigR**3)/xjac",
+    "-1/2*v*vpar0**2*vpar0_s*psi_y*theta*tstep**2*ps0_s*ps0_t*ps0_y*r0_t*tgnum_vpar/(BigR**3)/xjac",
+    "-1/2*v*vpar0**2*vpar0_t*psi_x*theta*tstep**2*fact_conservative_u*ps0_s**2*ps0_x*r0_t*tgnum_vpar/(BigR**3)/xjac",
+    "-1/2*v*vpar0**2*vpar0_t*psi_x*theta*tstep**2*ps0_s*ps0_t*ps0_x*r0_s*tgnum_vpar/(BigR**3)/xjac",
+    "-1/2*v*vpar0**2*vpar0_t*psi_y*theta*tstep**2*fact_conservative_u*ps0_s**2*ps0_y*r0_t*tgnum_vpar/(BigR**3)/xjac",
+    "-1/2*v*vpar0**2*vpar0_t*psi_y*theta*tstep**2*ps0_s*ps0_t*ps0_y*r0_s*tgnum_vpar/(BigR**3)/xjac",
+    "-1/2*v_s*vpar0**2*vpar0_t*psi_x*theta*tstep**2*ps0_s*ps0_t*ps0_x*r0*tgnum_vpar/(BigR**3)/xjac",
+    "-1/2*v_s*vpar0**2*vpar0_t*psi_y*theta*tstep**2*ps0_s*ps0_t*ps0_y*r0*tgnum_vpar/(BigR**3)/xjac",
+    "-1/2*v_s*vpar0**3*psi_x*theta*tstep**2*fact_conservative_u*ps0_s*ps0_t*ps0_x*r0_t*tgnum_vpar/(BigR**3)/xjac",
+    "-1/2*v_s*vpar0**3*psi_y*theta*tstep**2*fact_conservative_u*ps0_s*ps0_t*ps0_y*r0_t*tgnum_vpar/(BigR**3)/xjac",
+    "-1/2*v_t*vpar0**2*vpar0_s*psi_x*theta*tstep**2*ps0_s*ps0_t*ps0_x*r0*tgnum_vpar/(BigR**3)/xjac",
+    "-1/2*v_t*vpar0**2*vpar0_s*psi_y*theta*tstep**2*ps0_s*ps0_t*ps0_y*r0*tgnum_vpar/(BigR**3)/xjac",
+    "-1/2*v_t*vpar0**3*psi_x*theta*tstep**2*fact_conservative_u*ps0_s*ps0_t*ps0_x*r0_s*tgnum_vpar/(BigR**3)/xjac",
+    "-1/2*v_t*vpar0**3*psi_y*theta*tstep**2*fact_conservative_u*ps0_s*ps0_t*ps0_y*r0_s*tgnum_vpar/(BigR**3)/xjac",
+    "-1/4*F0**3*v*vpar0**2*vpar0_p*psi_s*theta*tstep**2*r0_t*tgnum_vpar/(BigR**4)",
+    "-1/4*F0**3*v*vpar0**2*vpar0_p*psi_t*theta*tstep**2*fact_conservative_u*r0_s*tgnum_vpar/(BigR**4)",
+    "-1/4*F0**3*v*vpar0**2*vpar0_s*psi_t*theta*tstep**2*fact_conservative_u*r0_p*tgnum_vpar/(BigR**4)",
+    "-1/4*F0**3*v*vpar0**2*vpar0_t*psi_s*theta*tstep**2*r0_p*tgnum_vpar/(BigR**4)",
+    "-1/4*F0**3*v_t*vpar0**2*vpar0_p*psi_s*theta*tstep**2*r0*tgnum_vpar/(BigR**4)",
+    "-1/4*F0**3*v_t*vpar0**3*psi_s*theta*tstep**2*fact_conservative_u*r0_p*tgnum_vpar/(BigR**4)",
+    "-1/4*F0*v*vpar0**2*vpar0_p*psi_s*theta*tstep**2*ps0_x**2*r0_t*tgnum_vpar/(BigR**4)",
+    "-1/4*F0*v*vpar0**2*vpar0_p*psi_s*theta*tstep**2*ps0_y**2*r0_t*tgnum_vpar/(BigR**4)",
+    "-1/4*F0*v*vpar0**2*vpar0_p*psi_t*theta*tstep**2*fact_conservative_u*ps0_x**2*r0_s*tgnum_vpar/(BigR**4)",
+    "-1/4*F0*v*vpar0**2*vpar0_p*psi_t*theta*tstep**2*fact_conservative_u*ps0_y**2*r0_s*tgnum_vpar/(BigR**4)",
+    "-1/4*F0*v*vpar0**2*vpar0_s*psi_t*theta*tstep**2*fact_conservative_u*ps0_x**2*r0_p*tgnum_vpar/(BigR**4)",
+    "-1/4*F0*v*vpar0**2*vpar0_s*psi_t*theta*tstep**2*fact_conservative_u*ps0_y**2*r0_p*tgnum_vpar/(BigR**4)",
+    "-1/4*F0*v*vpar0**2*vpar0_t*psi_s*theta*tstep**2*ps0_x**2*r0_p*tgnum_vpar/(BigR**4)",
+    "-1/4*F0*v*vpar0**2*vpar0_t*psi_s*theta*tstep**2*ps0_y**2*r0_p*tgnum_vpar/(BigR**4)",
+    "-1/4*F0*v_t*vpar0**2*vpar0_p*psi_s*theta*tstep**2*ps0_x**2*r0*tgnum_vpar/(BigR**4)",
+    "-1/4*F0*v_t*vpar0**2*vpar0_p*psi_s*theta*tstep**2*ps0_y**2*r0*tgnum_vpar/(BigR**4)",
+    "-1/4*F0*v_t*vpar0**3*psi_s*theta*tstep**2*fact_conservative_u*ps0_x**2*r0_p*tgnum_vpar/(BigR**4)",
+    "-1/4*F0*v_t*vpar0**3*psi_s*theta*tstep**2*fact_conservative_u*ps0_y**2*r0_p*tgnum_vpar/(BigR**4)",
+    "-BigR*v*vpar0_x*psi_x*xjac*theta*tstep*V_prof_pinch*r0/(sqrt(ps0_x**2 + ps0_y**2))",
+    "-BigR*v*vpar0_y*psi_y*xjac*theta*tstep*V_prof_pinch*r0/(sqrt(ps0_x**2 + ps0_y**2))",
+    "1/2*F0**2*v*vpar0**2*vpar0_p*psi_x*xjac*theta*tstep**2*ps0_x*r0_p*tgnum_vpar/(BigR**5)",
+    "1/2*F0**2*v*vpar0**2*vpar0_p*psi_y*xjac*theta*tstep**2*ps0_y*r0_p*tgnum_vpar/(BigR**5)",
+    "1/2*F0*v*vpar0**2*vpar0_p*psi_x*theta*tstep**2*fact_conservative_u*ps0_s*ps0_x*r0_t*tgnum_vpar/(BigR**4)",
+    "1/2*F0*v*vpar0**2*vpar0_p*psi_x*theta*tstep**2*ps0_t*ps0_x*r0_s*tgnum_vpar/(BigR**4)",
+    "1/2*F0*v*vpar0**2*vpar0_p*psi_y*theta*tstep**2*fact_conservative_u*ps0_s*ps0_y*r0_t*tgnum_vpar/(BigR**4)",
+    "1/2*F0*v*vpar0**2*vpar0_p*psi_y*theta*tstep**2*ps0_t*ps0_y*r0_s*tgnum_vpar/(BigR**4)",
+    "1/2*F0*v*vpar0**2*vpar0_s*psi_x*theta*tstep**2*ps0_t*ps0_x*r0_p*tgnum_vpar/(BigR**4)",
+    "1/2*F0*v*vpar0**2*vpar0_s*psi_y*theta*tstep**2*ps0_t*ps0_y*r0_p*tgnum_vpar/(BigR**4)",
+    "1/2*F0*v*vpar0**2*vpar0_t*psi_x*theta*tstep**2*fact_conservative_u*ps0_s*ps0_x*r0_p*tgnum_vpar/(BigR**4)",
+    "1/2*F0*v*vpar0**2*vpar0_t*psi_y*theta*tstep**2*fact_conservative_u*ps0_s*ps0_y*r0_p*tgnum_vpar/(BigR**4)",
+    "1/2*F0*v_s*vpar0**2*vpar0_p*psi_x*theta*tstep**2*ps0_t*ps0_x*r0*tgnum_vpar/(BigR**4)",
+    "1/2*F0*v_s*vpar0**2*vpar0_p*psi_y*theta*tstep**2*ps0_t*ps0_y*r0*tgnum_vpar/(BigR**4)",
+    "1/2*F0*v_s*vpar0**3*psi_x*theta*tstep**2*fact_conservative_u*ps0_t*ps0_x*r0_p*tgnum_vpar/(BigR**4)",
+    "1/2*F0*v_s*vpar0**3*psi_y*theta*tstep**2*fact_conservative_u*ps0_t*ps0_y*r0_p*tgnum_vpar/(BigR**4)",
+    "1/2*v*vpar0**2*vpar0_s*psi_x*theta*tstep**2*fact_conservative_u*ps0_s*ps0_t*ps0_x*r0_t*tgnum_vpar/(BigR**3)/xjac",
+    "1/2*v*vpar0**2*vpar0_s*psi_x*theta*tstep**2*ps0_t**2*ps0_x*r0_s*tgnum_vpar/(BigR**3)/xjac",
+    "1/2*v*vpar0**2*vpar0_s*psi_y*theta*tstep**2*fact_conservative_u*ps0_s*ps0_t*ps0_y*r0_t*tgnum_vpar/(BigR**3)/xjac",
+    "1/2*v*vpar0**2*vpar0_s*psi_y*theta*tstep**2*ps0_t**2*ps0_y*r0_s*tgnum_vpar/(BigR**3)/xjac",
+    "1/2*v*vpar0**2*vpar0_t*psi_x*theta*tstep**2*fact_conservative_u*ps0_s*ps0_t*ps0_x*r0_s*tgnum_vpar/(BigR**3)/xjac",
+    "1/2*v*vpar0**2*vpar0_t*psi_x*theta*tstep**2*ps0_s**2*ps0_x*r0_t*tgnum_vpar/(BigR**3)/xjac",
+    "1/2*v*vpar0**2*vpar0_t*psi_y*theta*tstep**2*fact_conservative_u*ps0_s*ps0_t*ps0_y*r0_s*tgnum_vpar/(BigR**3)/xjac",
+    "1/2*v*vpar0**2*vpar0_t*psi_y*theta*tstep**2*ps0_s**2*ps0_y*r0_t*tgnum_vpar/(BigR**3)/xjac",
+    "1/2*v_s*vpar0**2*vpar0_s*psi_x*theta*tstep**2*ps0_t**2*ps0_x*r0*tgnum_vpar/(BigR**3)/xjac",
+    "1/2*v_s*vpar0**2*vpar0_s*psi_y*theta*tstep**2*ps0_t**2*ps0_y*r0*tgnum_vpar/(BigR**3)/xjac",
+    "1/2*v_s*vpar0**3*psi_x*theta*tstep**2*fact_conservative_u*ps0_t**2*ps0_x*r0_s*tgnum_vpar/(BigR**3)/xjac",
+    "1/2*v_s*vpar0**3*psi_y*theta*tstep**2*fact_conservative_u*ps0_t**2*ps0_y*r0_s*tgnum_vpar/(BigR**3)/xjac",
+    "1/2*v_t*vpar0**2*vpar0_t*psi_x*theta*tstep**2*ps0_s**2*ps0_x*r0*tgnum_vpar/(BigR**3)/xjac",
+    "1/2*v_t*vpar0**2*vpar0_t*psi_y*theta*tstep**2*ps0_s**2*ps0_y*r0*tgnum_vpar/(BigR**3)/xjac",
+    "1/2*v_t*vpar0**3*psi_x*theta*tstep**2*fact_conservative_u*ps0_s**2*ps0_x*r0_t*tgnum_vpar/(BigR**3)/xjac",
+    "1/2*v_t*vpar0**3*psi_y*theta*tstep**2*fact_conservative_u*ps0_s**2*ps0_y*r0_t*tgnum_vpar/(BigR**3)/xjac",
+    "1/4*F0**3*v*vpar0**2*vpar0_p*psi_s*theta*tstep**2*fact_conservative_u*r0_t*tgnum_vpar/(BigR**4)",
+    "1/4*F0**3*v*vpar0**2*vpar0_p*psi_t*theta*tstep**2*r0_s*tgnum_vpar/(BigR**4)",
+    "1/4*F0**3*v*vpar0**2*vpar0_s*psi_t*theta*tstep**2*r0_p*tgnum_vpar/(BigR**4)",
+    "1/4*F0**3*v*vpar0**2*vpar0_t*psi_s*theta*tstep**2*fact_conservative_u*r0_p*tgnum_vpar/(BigR**4)",
+    "1/4*F0**3*v_s*vpar0**2*vpar0_p*psi_t*theta*tstep**2*r0*tgnum_vpar/(BigR**4)",
+    "1/4*F0**3*v_s*vpar0**3*psi_t*theta*tstep**2*fact_conservative_u*r0_p*tgnum_vpar/(BigR**4)",
+    "1/4*F0*v*vpar0**2*vpar0_p*psi_s*theta*tstep**2*fact_conservative_u*ps0_x**2*r0_t*tgnum_vpar/(BigR**4)",
+    "1/4*F0*v*vpar0**2*vpar0_p*psi_s*theta*tstep**2*fact_conservative_u*ps0_y**2*r0_t*tgnum_vpar/(BigR**4)",
+    "1/4*F0*v*vpar0**2*vpar0_p*psi_t*theta*tstep**2*ps0_x**2*r0_s*tgnum_vpar/(BigR**4)",
+    "1/4*F0*v*vpar0**2*vpar0_p*psi_t*theta*tstep**2*ps0_y**2*r0_s*tgnum_vpar/(BigR**4)",
+    "1/4*F0*v*vpar0**2*vpar0_s*psi_t*theta*tstep**2*ps0_x**2*r0_p*tgnum_vpar/(BigR**4)",
+    "1/4*F0*v*vpar0**2*vpar0_s*psi_t*theta*tstep**2*ps0_y**2*r0_p*tgnum_vpar/(BigR**4)",
+    "1/4*F0*v*vpar0**2*vpar0_t*psi_s*theta*tstep**2*fact_conservative_u*ps0_x**2*r0_p*tgnum_vpar/(BigR**4)",
+    "1/4*F0*v*vpar0**2*vpar0_t*psi_s*theta*tstep**2*fact_conservative_u*ps0_y**2*r0_p*tgnum_vpar/(BigR**4)",
+    "1/4*F0*v_s*vpar0**2*vpar0_p*psi_t*theta*tstep**2*ps0_x**2*r0*tgnum_vpar/(BigR**4)",
+    "1/4*F0*v_s*vpar0**2*vpar0_p*psi_t*theta*tstep**2*ps0_y**2*r0*tgnum_vpar/(BigR**4)",
+    "1/4*F0*v_s*vpar0**3*psi_t*theta*tstep**2*fact_conservative_u*ps0_x**2*r0_p*tgnum_vpar/(BigR**4)",
+    "1/4*F0*v_s*vpar0**3*psi_t*theta*tstep**2*fact_conservative_u*ps0_y**2*r0_p*tgnum_vpar/(BigR**4)",
+    "2*v*vpar0*psi_x*xjac*fact_conservative_u*ps0_x*r0/BigR",
+    "2*v*vpar0*psi_x*xjac*ps0_x*r0_corr/BigR",
+    "2*v*vpar0*psi_x*xjac*zeta*fact_conservative_u*ps0_x*r0/BigR",
+    "2*v*vpar0*psi_x*xjac*zeta*ps0_x*r0_corr/BigR",
+    "2*v*vpar0*psi_y*xjac*fact_conservative_u*ps0_y*r0/BigR",
+    "2*v*vpar0*psi_y*xjac*ps0_y*r0_corr/BigR",
+    "2*v*vpar0*psi_y*xjac*zeta*fact_conservative_u*ps0_y*r0/BigR",
+    "2*v*vpar0*psi_y*xjac*zeta*ps0_y*r0_corr/BigR",
+    "BigR*v*vpar0_x*psi_x*xjac*theta*tstep*V_prof_pinch*ps0_x**2*r0/(ps0_x**2*sqrt(ps0_x**2 + ps0_y**2) + ps0_y**2*sqrt(ps0_x**2 + ps0_y**2))",
+    "BigR*v*vpar0_x*psi_y*xjac*theta*tstep*V_prof_pinch*ps0_x*ps0_y*r0/(ps0_x**2*sqrt(ps0_x**2 + ps0_y**2) + ps0_y**2*sqrt(ps0_x**2 + ps0_y**2))",
+    "BigR*v*vpar0_y*psi_x*xjac*theta*tstep*V_prof_pinch*ps0_x*ps0_y*r0/(ps0_x**2*sqrt(ps0_x**2 + ps0_y**2) + ps0_y**2*sqrt(ps0_x**2 + ps0_y**2))",
+    "BigR*v*vpar0_y*psi_y*xjac*theta*tstep*V_prof_pinch*ps0_y**2*r0/(ps0_x**2*sqrt(ps0_x**2 + ps0_y**2) + ps0_y**2*sqrt(ps0_x**2 + ps0_y**2))"
+   ]
+  },
+  "Two-temperature (Ti/Te) model | amat(var_vpar,var_rho) | #0": {
+   "findings": [
+    6,
+    9
+   ],
+   "source_only": [
+    "BigR*v*vpar0_x*rho*xjac*theta*tstep*V_prof_pinch*ps0_x/(sqrt(ps0_x**2 + ps0_y**2))",
+    "BigR*v*vpar0_y*rho*xjac*theta*tstep*V_prof_pinch*ps0_y/(sqrt(ps0_x**2 + ps0_y**2))"
+   ],
+   "generated_only": [
+    "-BigR*v*vpar0_x*rho*xjac*theta*tstep*V_prof_pinch*ps0_x/(sqrt(ps0_x**2 + ps0_y**2))",
+    "-BigR*v*vpar0_y*rho*xjac*theta*tstep*V_prof_pinch*ps0_y/(sqrt(ps0_x**2 + ps0_y**2))",
+    "v*vpar0*rho*xjac*fact_conservative_u*ps0_x**2/BigR",
+    "v*vpar0*rho*xjac*fact_conservative_u*ps0_y**2/BigR",
+    "v*vpar0*rho*xjac*zeta*fact_conservative_u*ps0_x**2/BigR",
+    "v*vpar0*rho*xjac*zeta*fact_conservative_u*ps0_y**2/BigR"
+   ]
+  },
+  "Two-temperature (Ti/Te) model | amat(var_vpar,var_vpar) | #0": {
+   "findings": [
+    6,
+    9
+   ],
+   "source_only": [
+    "BigR*v*vpar_x*xjac*theta*tstep*V_prof_pinch*ps0_x*r0/(sqrt(ps0_x**2 + ps0_y**2))",
+    "BigR*v*vpar_y*xjac*theta*tstep*V_prof_pinch*ps0_y*r0/(sqrt(ps0_x**2 + ps0_y**2))"
+   ],
+   "generated_only": [
+    "-BigR*v*vpar_x*xjac*theta*tstep*V_prof_pinch*ps0_x*r0/(sqrt(ps0_x**2 + ps0_y**2))",
+    "-BigR*v*vpar_y*xjac*theta*tstep*V_prof_pinch*ps0_y*r0/(sqrt(ps0_x**2 + ps0_y**2))",
+    "v*vpar*xjac*ps0_x**2*r0_corr/BigR",
+    "v*vpar*xjac*ps0_y**2*r0_corr/BigR",
+    "v*vpar*xjac*zeta*ps0_x**2*r0_corr/BigR",
+    "v*vpar*xjac*zeta*ps0_y**2*r0_corr/BigR"
+   ]
+  },
+  "Two-temperature (Ti/Te) model | amat_k(var_te,var_rho) | #0": {
+   "findings": [
+    12
+   ],
+   "source_only": [],
+   "generated_only": [
+    "-F0**2*v_p*rho*Te0_p*xjac*theta*tstep*dZKe_prof_drho/(BigR*F0**2 + BigR*ps0_x**2 + BigR*ps0_y**2)",
+    "-F0*v_p*rho*Te0_x*xjac*theta*tstep*dZKe_prof_drho*ps0_y/(F0**2 + ps0_x**2 + ps0_y**2)",
+    "F0*v_p*rho*Te0_y*xjac*theta*tstep*dZKe_prof_drho*ps0_x/(F0**2 + ps0_x**2 + ps0_y**2)",
+    "v_p*rho*Te0_p*xjac*theta*tstep*dZKe_prof_drho/BigR"
+   ]
+  },
+  "Two-temperature (Ti/Te) model | amat_k(var_te,var_te) | #0": {
+   "findings": [
+    13
+   ],
+   "source_only": [
+    "-F0**2*v_p*rhoimp0_p*Te*xjac*tstep*D_par_imp_sc_num*dE_ion_dT*tau_sc/(BigR*F0**2 + BigR*ps0_x**2 + BigR*ps0_y**2)",
+    "-F0**2*v_p*rhoimp0_p*Te*xjac*tstep*D_par_local_imp*dE_ion_dT/(BigR*F0**2 + BigR*ps0_x**2 + BigR*ps0_y**2)",
+    "-F0**2*v_p*rhoimp0_p*Te*xjac*tstep*D_prof_imp*GAMMA*dE_ion_dT/(BigR*F0**2 + BigR*ps0_x**2 + BigR*ps0_y**2)",
+    "-F0*v_p*rhoimp0_x*Te*xjac*tstep*D_par_imp_sc_num*dE_ion_dT*ps0_y*tau_sc/(F0**2 + ps0_x**2 + ps0_y**2)",
+    "-F0*v_p*rhoimp0_x*Te*xjac*tstep*D_par_local_imp*dE_ion_dT*ps0_y/(F0**2 + ps0_x**2 + ps0_y**2)",
+    "-F0*v_p*rhoimp0_x*Te*xjac*tstep*D_prof_imp*GAMMA*dE_ion_dT*ps0_y/(F0**2 + ps0_x**2 + ps0_y**2)",
+    "-F0*v_p*rhoimp0_y*Te*xjac*tstep*D_par_imp_sc_num*GAMMA*dE_ion_dT*ps0_x*tau_sc/(F0**2 + ps0_x**2 + ps0_y**2)",
+    "-F0*v_p*rhoimp0_y*Te*xjac*tstep*D_par_local_imp*GAMMA*dE_ion_dT*ps0_x/(F0**2 + ps0_x**2 + ps0_y**2)",
+    "-F0*v_p*rhoimp0_y*Te*xjac*tstep*D_prof_imp*dE_ion_dT*ps0_x/(F0**2 + ps0_x**2 + ps0_y**2)",
+    "-v_p*rhoimp0_p*Te*xjac*tstep*D_prof_imp*dE_ion_dT/BigR",
+    "F0**2*v_p*rhoimp0_p*Te*xjac*tstep*D_par_imp_sc_num*GAMMA*dE_ion_dT*tau_sc/(BigR*F0**2 + BigR*ps0_x**2 + BigR*ps0_y**2)",
+    "F0**2*v_p*rhoimp0_p*Te*xjac*tstep*D_par_local_imp*GAMMA*dE_ion_dT/(BigR*F0**2 + BigR*ps0_x**2 + BigR*ps0_y**2)",
+    "F0**2*v_p*rhoimp0_p*Te*xjac*tstep*D_prof_imp*dE_ion_dT/(BigR*F0**2 + BigR*ps0_x**2 + BigR*ps0_y**2)",
+    "F0*v_p*rhoimp0_x*Te*xjac*tstep*D_par_imp_sc_num*GAMMA*dE_ion_dT*ps0_y*tau_sc/(F0**2 + ps0_x**2 + ps0_y**2)",
+    "F0*v_p*rhoimp0_x*Te*xjac*tstep*D_par_local_imp*GAMMA*dE_ion_dT*ps0_y/(F0**2 + ps0_x**2 + ps0_y**2)",
+    "F0*v_p*rhoimp0_x*Te*xjac*tstep*D_prof_imp*dE_ion_dT*ps0_y/(F0**2 + ps0_x**2 + ps0_y**2)",
+    "F0*v_p*rhoimp0_y*Te*xjac*tstep*D_par_imp_sc_num*dE_ion_dT*ps0_x*tau_sc/(F0**2 + ps0_x**2 + ps0_y**2)",
+    "F0*v_p*rhoimp0_y*Te*xjac*tstep*D_par_local_imp*dE_ion_dT*ps0_x/(F0**2 + ps0_x**2 + ps0_y**2)",
+    "F0*v_p*rhoimp0_y*Te*xjac*tstep*D_prof_imp*GAMMA*dE_ion_dT*ps0_x/(F0**2 + ps0_x**2 + ps0_y**2)",
+    "v_p*rhoimp0_p*Te*xjac*tstep*D_prof_imp*GAMMA*dE_ion_dT/BigR"
+   ],
+   "generated_only": [
+    "-F0**2*v_p*rhoimp0_p*Te*xjac*theta*tstep*D_par_imp_sc_num*dE_ion_dT*tau_sc/(BigR*F0**2 + BigR*ps0_x**2 + BigR*ps0_y**2)",
+    "-F0**2*v_p*rhoimp0_p*Te*xjac*theta*tstep*D_par_local_imp*dE_ion_dT/(BigR*F0**2 + BigR*ps0_x**2 + BigR*ps0_y**2)",
+    "-F0**2*v_p*rhoimp0_p*Te*xjac*theta*tstep*D_prof_imp*GAMMA*dE_ion_dT/(BigR*F0**2 + BigR*ps0_x**2 + BigR*ps0_y**2)",
+    "-F0*v_p*rhoimp0_x*Te*xjac*theta*tstep*D_par_imp_sc_num*dE_ion_dT*ps0_y*tau_sc/(F0**2 + ps0_x**2 + ps0_y**2)",
+    "-F0*v_p*rhoimp0_x*Te*xjac*theta*tstep*D_par_local_imp*dE_ion_dT*ps0_y/(F0**2 + ps0_x**2 + ps0_y**2)",
+    "-F0*v_p*rhoimp0_x*Te*xjac*theta*tstep*D_prof_imp*GAMMA*dE_ion_dT*ps0_y/(F0**2 + ps0_x**2 + ps0_y**2)",
+    "-F0*v_p*rhoimp0_y*Te*xjac*theta*tstep*D_par_imp_sc_num*GAMMA*dE_ion_dT*ps0_x*tau_sc/(F0**2 + ps0_x**2 + ps0_y**2)",
+    "-F0*v_p*rhoimp0_y*Te*xjac*theta*tstep*D_par_local_imp*GAMMA*dE_ion_dT*ps0_x/(F0**2 + ps0_x**2 + ps0_y**2)",
+    "-F0*v_p*rhoimp0_y*Te*xjac*theta*tstep*D_prof_imp*dE_ion_dT*ps0_x/(F0**2 + ps0_x**2 + ps0_y**2)",
+    "-v_p*rhoimp0_p*Te*xjac*theta*tstep*D_prof_imp*dE_ion_dT/BigR",
+    "F0**2*v_p*rhoimp0_p*Te*xjac*theta*tstep*D_par_imp_sc_num*GAMMA*dE_ion_dT*tau_sc/(BigR*F0**2 + BigR*ps0_x**2 + BigR*ps0_y**2)",
+    "F0**2*v_p*rhoimp0_p*Te*xjac*theta*tstep*D_par_local_imp*GAMMA*dE_ion_dT/(BigR*F0**2 + BigR*ps0_x**2 + BigR*ps0_y**2)",
+    "F0**2*v_p*rhoimp0_p*Te*xjac*theta*tstep*D_prof_imp*dE_ion_dT/(BigR*F0**2 + BigR*ps0_x**2 + BigR*ps0_y**2)",
+    "F0*v_p*rhoimp0_x*Te*xjac*theta*tstep*D_par_imp_sc_num*GAMMA*dE_ion_dT*ps0_y*tau_sc/(F0**2 + ps0_x**2 + ps0_y**2)",
+    "F0*v_p*rhoimp0_x*Te*xjac*theta*tstep*D_par_local_imp*GAMMA*dE_ion_dT*ps0_y/(F0**2 + ps0_x**2 + ps0_y**2)",
+    "F0*v_p*rhoimp0_x*Te*xjac*theta*tstep*D_prof_imp*dE_ion_dT*ps0_y/(F0**2 + ps0_x**2 + ps0_y**2)",
+    "F0*v_p*rhoimp0_y*Te*xjac*theta*tstep*D_par_imp_sc_num*dE_ion_dT*ps0_x*tau_sc/(F0**2 + ps0_x**2 + ps0_y**2)",
+    "F0*v_p*rhoimp0_y*Te*xjac*theta*tstep*D_par_local_imp*dE_ion_dT*ps0_x/(F0**2 + ps0_x**2 + ps0_y**2)",
+    "F0*v_p*rhoimp0_y*Te*xjac*theta*tstep*D_prof_imp*GAMMA*dE_ion_dT*ps0_x/(F0**2 + ps0_x**2 + ps0_y**2)",
+    "v_p*rhoimp0_p*Te*xjac*theta*tstep*D_prof_imp*GAMMA*dE_ion_dT/BigR"
+   ]
+  },
+  "Two-temperature (Ti/Te) model | amat_k(var_ti,var_rho) | #0": {
+   "findings": [
+    12
+   ],
+   "source_only": [],
+   "generated_only": [
+    "-F0**2*v_p*rho*Ti0_p*xjac*theta*tstep*dZKi_prof_drho/(BigR*F0**2 + BigR*ps0_x**2 + BigR*ps0_y**2)",
+    "-F0*v_p*rho*Ti0_x*xjac*theta*tstep*dZKi_prof_drho*ps0_y/(F0**2 + ps0_x**2 + ps0_y**2)",
+    "F0*v_p*rho*Ti0_y*xjac*theta*tstep*dZKi_prof_drho*ps0_x/(F0**2 + ps0_x**2 + ps0_y**2)",
+    "v_p*rho*Ti0_p*xjac*theta*tstep*dZKi_prof_drho/BigR"
+   ]
+  },
+  "Two-temperature (Ti/Te) model | amat_k(var_vpar,var_psi) | #0": {
+   "findings": [
+    7
+   ],
+   "source_only": [],
+   "generated_only": [
+    "-1/2*F0*v_p*vpar0**2*vpar0_t*psi_x*theta*tstep**2*ps0_s*ps0_x*r0*tgnum_vpar/(BigR**4)",
+    "-1/2*F0*v_p*vpar0**2*vpar0_t*psi_y*theta*tstep**2*ps0_s*ps0_y*r0*tgnum_vpar/(BigR**4)",
+    "-1/2*F0*v_p*vpar0**3*psi_x*theta*tstep**2*fact_conservative_u*ps0_s*ps0_x*r0_t*tgnum_vpar/(BigR**4)",
+    "-1/2*F0*v_p*vpar0**3*psi_y*theta*tstep**2*fact_conservative_u*ps0_s*ps0_y*r0_t*tgnum_vpar/(BigR**4)",
+    "-1/4*F0**3*v_p*vpar0**2*vpar0_t*psi_s*theta*tstep**2*r0*tgnum_vpar/(BigR**4)",
+    "-1/4*F0**3*v_p*vpar0**3*psi_s*theta*tstep**2*fact_conservative_u*r0_t*tgnum_vpar/(BigR**4)",
+    "-1/4*F0*v_p*vpar0**2*vpar0_t*psi_s*theta*tstep**2*ps0_x**2*r0*tgnum_vpar/(BigR**4)",
+    "-1/4*F0*v_p*vpar0**2*vpar0_t*psi_s*theta*tstep**2*ps0_y**2*r0*tgnum_vpar/(BigR**4)",
+    "-1/4*F0*v_p*vpar0**3*psi_s*theta*tstep**2*fact_conservative_u*ps0_x**2*r0_t*tgnum_vpar/(BigR**4)",
+    "-1/4*F0*v_p*vpar0**3*psi_s*theta*tstep**2*fact_conservative_u*ps0_y**2*r0_t*tgnum_vpar/(BigR**4)",
+    "1/2*F0**2*v_p*vpar0**2*vpar0_p*psi_x*xjac*theta*tstep**2*ps0_x*r0*tgnum_vpar/(BigR**5)",
+    "1/2*F0**2*v_p*vpar0**2*vpar0_p*psi_y*xjac*theta*tstep**2*ps0_y*r0*tgnum_vpar/(BigR**5)",
+    "1/2*F0**2*v_p*vpar0**3*psi_x*xjac*theta*tstep**2*fact_conservative_u*ps0_x*r0_p*tgnum_vpar/(BigR**5)",
+    "1/2*F0**2*v_p*vpar0**3*psi_y*xjac*theta*tstep**2*fact_conservative_u*ps0_y*r0_p*tgnum_vpar/(BigR**5)",
+    "1/2*F0*v_p*vpar0**2*vpar0_s*psi_x*theta*tstep**2*ps0_t*ps0_x*r0*tgnum_vpar/(BigR**4)",
+    "1/2*F0*v_p*vpar0**2*vpar0_s*psi_y*theta*tstep**2*ps0_t*ps0_y*r0*tgnum_vpar/(BigR**4)",
+    "1/2*F0*v_p*vpar0**3*psi_x*theta*tstep**2*fact_conservative_u*ps0_t*ps0_x*r0_s*tgnum_vpar/(BigR**4)",
+    "1/2*F0*v_p*vpar0**3*psi_y*theta*tstep**2*fact_conservative_u*ps0_t*ps0_y*r0_s*tgnum_vpar/(BigR**4)",
+    "1/4*F0**3*v_p*vpar0**2*vpar0_s*psi_t*theta*tstep**2*r0*tgnum_vpar/(BigR**4)",
+    "1/4*F0**3*v_p*vpar0**3*psi_t*theta*tstep**2*fact_conservative_u*r0_s*tgnum_vpar/(BigR**4)",
+    "1/4*F0*v_p*vpar0**2*vpar0_s*psi_t*theta*tstep**2*ps0_x**2*r0*tgnum_vpar/(BigR**4)",
+    "1/4*F0*v_p*vpar0**2*vpar0_s*psi_t*theta*tstep**2*ps0_y**2*r0*tgnum_vpar/(BigR**4)",
+    "1/4*F0*v_p*vpar0**3*psi_t*theta*tstep**2*fact_conservative_u*ps0_x**2*r0_s*tgnum_vpar/(BigR**4)",
+    "1/4*F0*v_p*vpar0**3*psi_t*theta*tstep**2*fact_conservative_u*ps0_y**2*r0_s*tgnum_vpar/(BigR**4)"
+   ]
+  },
+  "Two-temperature (Ti/Te) model | amat_kn(var_vpar,var_vpar) | #0": {
+   "findings": [
+    8
+   ],
+   "source_only": [],
+   "generated_only": [
+    "F0**4*v_p*visco_par_par*vpar_p*xjac*theta*tstep/(BigR**3*F0**2 + BigR**3*ps0_x**2 + BigR**3*ps0_y**2)"
+   ]
+  },
+  "Two-temperature (Ti/Te) model | amat_n(var_psi,var_rhoimp) | #0": {
+   "findings": [
+    2
+   ],
+   "source_only": [],
+   "generated_only": [
+    "-2*F0**3*v*rhoimp_p*Te0*xjac*theta*tstep*alpha_e*tauIC/(BigR*F0**2*r0_corr + BigR*ps0_x**2*r0_corr + BigR*ps0_y**2*r0_corr)"
+   ]
+  },
+  "Two-temperature (Ti/Te) model | amat_n(var_psi,var_te) | #0": {
+   "findings": [
+    2
+   ],
+   "source_only": [],
+   "generated_only": [
+    "-2*F0**3*v*rhoimp0*Te_p*xjac*theta*tstep*alpha_e_bis*tauIC/(BigR*F0**2*r0_corr + BigR*ps0_x**2*r0_corr + BigR*ps0_y**2*r0_corr)"
+   ]
+  },
+  "Two-temperature (Ti/Te) model | amat_n(var_vpar,var_vpar) | #0": {
+   "findings": [
+    8
+   ],
+   "source_only": [],
+   "generated_only": [
+    "-F0**3*v_y*visco_par_par*vpar_p*xjac*theta*tstep*ps0_x/(BigR**2*F0**2 + BigR**2*ps0_x**2 + BigR**2*ps0_y**2)",
+    "F0**3*v_x*visco_par_par*vpar_p*xjac*theta*tstep*ps0_y/(BigR**2*F0**2 + BigR**2*ps0_x**2 + BigR**2*ps0_y**2)"
+   ]
+  },
+  "Two-temperature (Ti/Te) model | rhs_ij(var_vpar) | #0": {
+   "findings": [
+    6
+   ],
+   "source_only": [
+    "v*vpar0*xjac*zeta*delta_ps_x*ps0_x*r0_corr/BigR",
+    "v*vpar0*xjac*zeta*delta_ps_y*ps0_y*r0_corr/BigR"
+   ],
+   "generated_only": [
+    "2*v*vpar0*xjac*zeta*delta_ps_x*fact_conservative_u*ps0_x*r0/BigR",
+    "2*v*vpar0*xjac*zeta*delta_ps_x*ps0_x*r0_corr/BigR",
+    "2*v*vpar0*xjac*zeta*delta_ps_y*fact_conservative_u*ps0_y*r0/BigR",
+    "2*v*vpar0*xjac*zeta*delta_ps_y*ps0_y*r0_corr/BigR",
+    "v*vpar0*xjac*zeta*delta_rho_g*fact_conservative_u*ps0_x**2/BigR",
+    "v*vpar0*xjac*zeta*delta_rho_g*fact_conservative_u*ps0_y**2/BigR",
+    "v*xjac*zeta*delta_vpar*ps0_x**2*r0_corr/BigR",
+    "v*xjac*zeta*delta_vpar*ps0_y**2*r0_corr/BigR"
+   ]
+  },
+  "Two-temperature (Ti/Te) model | rhs_ij_k(var_rhoimp) | #0": {
+   "findings": [
+    10
+   ],
+   "source_only": [],
+   "generated_only": [
+    "-F0**2*v_p*rhoimp0_p*xjac*tstep*D_par_imp_sc_num*tau_sc/(BigR*F0**2 + BigR*ps0_x**2 + BigR*ps0_y**2)",
+    "-F0*v_p*rhoimp0_x*xjac*tstep*D_par_imp_sc_num*ps0_y*tau_sc/(F0**2 + ps0_x**2 + ps0_y**2)",
+    "F0*v_p*rhoimp0_y*xjac*tstep*D_par_imp_sc_num*ps0_x*tau_sc/(F0**2 + ps0_x**2 + ps0_y**2)"
+   ]
+  }
+ }
+}

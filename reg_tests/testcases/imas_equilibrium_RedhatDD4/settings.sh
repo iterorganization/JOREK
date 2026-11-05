@@ -1,6 +1,6 @@
 # --- General settings
 jorekmodel="600"
-options="with_vpar=.true. with_TiTe=.false. with_neutrals=.false. with_impurities=.false. with_refluid=.false."
+options="with_vpar=.true. with_TiTe=.false. with_neutrals=.false. with_impurities=.false. with_refluid=.false. with_rho=.true."
 description="Exports restart file to IMAS, then reads it from IMAS to create a JOREK input file and compares it with a reference."
 mpitasks=1
 binaries="jorek2_IDS" 
@@ -34,7 +34,7 @@ function restart_run () {
    cp jorek_restart.h5 jorek00000.h5
    sed -i "s/run_number_replace/$run_number/" imas.nml
   ./jorek2_IDS < input0                                                              || exit 1
-  python imas2jorek.py -d ${database} -p 111111 -r $run_number -dd 4 -tk inxflow     || exit 1
+  python imas2jorek.py -d ${database} -p 111111 -r $run_number -tk inxflow     || exit 1
   if [ -d ~/public/imasdb/${database}/4/111111/${run_number}/ ]; then
       rm -rf ~/public/imasdb/${database}/4/111111/${run_number}                      || exit 1
       rm "IMAS_RUN_OUT" "IMAS_DB_OUT"
