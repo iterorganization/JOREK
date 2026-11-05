@@ -240,9 +240,9 @@ real*8, dimension(DIM1, DIM2, DIM2) :: ELM_pnn
 real*8, dimension(n_gauss,n_gauss)    :: x_g, x_s, x_t, x_ss, x_st, x_tt
 real*8, dimension(n_gauss,n_gauss)    :: y_g, y_s, y_t, y_ss, y_st, y_tt
 
-real*8, dimension(n_plane,n_var,n_gauss,n_gauss) :: eq_g, eq_s, eq_t, eq_p, eq_ss, eq_st, eq_tt
-real*8, dimension(n_plane,n_var,n_gauss,n_gauss) :: eq_spp, eq_tpp
-real*8, dimension(n_plane,n_var,n_gauss,n_gauss) :: delta_g, delta_s, delta_t
+real*8, dimension(n_plane,n_eq_var,n_gauss,n_gauss) :: eq_g, eq_s, eq_t, eq_p, eq_ss, eq_st, eq_tt
+real*8, dimension(n_plane,n_eq_var,n_gauss,n_gauss) :: eq_spp, eq_tpp
+real*8, dimension(n_plane,n_eq_var,n_gauss,n_gauss) :: delta_g, delta_s, delta_t
 real*8, dimension(n_plane,n_aux_var,n_gauss,n_gauss) :: eq_aux_g, eq_aux_s, eq_aux_t, eq_aux_p ! make allocatable?
 
 real*8, dimension(n_tor,n_plane) :: HHZ, HHZ_p, HHZ_pp
@@ -395,7 +395,7 @@ do i=1,n_vertex_max
 
     do ms=1, n_gauss
       do mt=1, n_gauss
-        do k=1,n_var
+        do k=1,n_eq_var
 
           do in=1,n_tor
             do mp=1,n_plane

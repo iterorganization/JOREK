@@ -146,7 +146,11 @@ module mod_sparse
 #ifdef USE_STRUMPACK
         if ((solver%library.eq.strumpack).and.(solver%spss%analyzed)) call spk_delete_factors(solver%spss%sscp)
 #endif
+#ifdef DIRECT_CONSTRUCTION
+        call update_pc_mat(solver%pc,mhd_sim)
+#else
         call update_pc_mat(solver%pc,a_mat,mhd_sim)
+#endif
       endif
 
       call update_pc_rhs(solver%pc,rhs_vec)

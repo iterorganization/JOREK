@@ -45,10 +45,10 @@ real*8, dimension(DIM1, DIM2, DIM2), intent(inout) :: ELM_kn
 real*8, dimension(DIM1, DIM2),       intent(inout) :: RHS_p
 real*8, dimension(DIM1, DIM2),       intent(inout) :: RHS_k
 
-real*8, dimension(n_plane,n_var,n_gauss,n_gauss), intent(inout) :: eq_g, eq_s, eq_t
-real*8, dimension(n_plane,n_var,n_gauss,n_gauss), intent(inout) :: eq_p
-real*8, dimension(n_plane,n_var,n_gauss,n_gauss), intent(inout) :: eq_ss, eq_st, eq_tt
-real*8, dimension(n_plane,n_var,n_gauss,n_gauss), intent(inout) :: delta_g, delta_s, delta_t
+real*8, dimension(n_plane,n_eq_var,n_gauss,n_gauss), intent(inout) :: eq_g, eq_s, eq_t
+real*8, dimension(n_plane,n_eq_var,n_gauss,n_gauss), intent(inout) :: eq_p
+real*8, dimension(n_plane,n_eq_var,n_gauss,n_gauss), intent(inout) :: eq_ss, eq_st, eq_tt
+real*8, dimension(n_plane,n_eq_var,n_gauss,n_gauss), intent(inout) :: delta_g, delta_s, delta_t
 
 ! --- Variables outside the OMP loop
 integer    :: n_tor_start, n_tor_end, n_tor_local
@@ -324,7 +324,7 @@ real*8, dimension(n_var,n_var)   :: amat, Pjac, Qjac_p, Qjac_k, Qjac_n, Qjac_kn
 ! --- Ohmic heating, for details please see:
 ! https://www.jorek.eu/wiki/doku.php?id=ohmic_heating
 real*8, dimension(DIM1, DIM2, DIM2), intent(inout) :: ELM_pnn
-real*8, dimension(n_plane,n_var,n_gauss,n_gauss) :: eq_pp, eq_sp, eq_tp
+real*8, dimension(n_plane,n_eq_var,n_gauss,n_gauss) :: eq_pp, eq_sp, eq_tp
 real*8, dimension(n_var,n_var)   :: Qjac_pnn
 real*8     :: AR0_Rp, AR0_Zp, AR0_sp, AR0_tp
 real*8     :: AZ0_Rp, AZ0_Zp, AZ0_sp, AZ0_tp
@@ -453,7 +453,7 @@ do i=1,n_vertex_max
     do ms=1, n_gauss
       do mt=1, n_gauss
 
-        do k=1,n_var
+        do k=1,n_eq_var
 
           do in=1,n_tor
             do mp=1,n_plane

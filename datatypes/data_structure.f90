@@ -52,6 +52,7 @@ end type type_node
   type type_node_list                                                        !< type definition of a list of nodes
     integer                                       :: n_nodes                 !< the number of nodes in the list
     integer                                       :: n_dof                   !< the total number of degrees of freedom
+    integer                                       :: n_values                !< the number of fields stored at each node
     type (type_node), dimension(:), allocatable   :: node                    !< an allocatable list of nodes
     
   end type type_node_list
@@ -245,6 +246,7 @@ contains
 
     node_list%n_nodes = n_nodes
     node_list%n_dof = n_dof
+    node_list%n_values = n_values
     
     if (allocated(node_list%node)) call dealloc_node_list(node_list)
     allocate(node_list%node(n_nodes))
@@ -297,6 +299,10 @@ contains
     type(type_node_list), intent(inout)   :: node_list_copied_to
     integer                               :: i
 
+    node_list_copied_to%n_nodes = node_list_to_copy%n_nodes
+    node_list_copied_to%n_dof = node_list_to_copy%n_dof
+    node_list_copied_to%n_values = node_list_to_copy%n_values
+
     do i=1, node_list_to_copy%n_nodes
       call make_deep_copy_node(node_list_to_copy%node(i), node_list_copied_to%node(i))
     enddo
@@ -346,20 +352,20 @@ contains
           thread_struct(i)%ELM     = 0.d0
           thread_struct(i)%RHS     = 0.d0
           thread_struct(i)%synch_buff     = 0.d0
-          call tr_allocate(thread_struct(i)%eq_g   ,1,n_plane,1,n_var,1,n_gauss,1,n_gauss,"eq_g",CAT_MATELEM)
-          call tr_allocate(thread_struct(i)%eq_s   ,1,n_plane,1,n_var,1,n_gauss,1,n_gauss,"eq_s",CAT_MATELEM)
-          call tr_allocate(thread_struct(i)%eq_t   ,1,n_plane,1,n_var,1,n_gauss,1,n_gauss,"eq_t",CAT_MATELEM)
-          call tr_allocate(thread_struct(i)%eq_p   ,1,n_plane,1,n_var,1,n_gauss,1,n_gauss,"eq_p",CAT_MATELEM)
-          call tr_allocate(thread_struct(i)%eq_ss  ,1,n_plane,1,n_var,1,n_gauss,1,n_gauss,"eq_ss",CAT_MATELEM)
-          call tr_allocate(thread_struct(i)%eq_st  ,1,n_plane,1,n_var,1,n_gauss,1,n_gauss,"eq_st",CAT_MATELEM)
-          call tr_allocate(thread_struct(i)%eq_tt  ,1,n_plane,1,n_var,1,n_gauss,1,n_gauss,"eq_tt",CAT_MATELEM)
-          call tr_allocate(thread_struct(i)%eq_pp  ,1,n_plane,1,n_var,1,n_gauss,1,n_gauss,"eq_pp",CAT_MATELEM) 
-          call tr_allocate(thread_struct(i)%eq_sp  ,1,n_plane,1,n_var,1,n_gauss,1,n_gauss,"eq_sp",CAT_MATELEM) 
-          call tr_allocate(thread_struct(i)%eq_tp  ,1,n_plane,1,n_var,1,n_gauss,1,n_gauss,"eq_tp",CAT_MATELEM) 
-          call tr_allocate(thread_struct(i)%delta_g,1,n_plane,1,n_var,1,n_gauss,1,n_gauss,"delta_g",CAT_MATELEM) 
-          call tr_allocate(thread_struct(i)%delta_s,1,n_plane,1,n_var,1,n_gauss,1,n_gauss,"delta_s",CAT_MATELEM)
-          call tr_allocate(thread_struct(i)%delta_t,1,n_plane,1,n_var,1,n_gauss,1,n_gauss,"delta_t",CAT_MATELEM)
-          call tr_allocate(thread_struct(i)%delta_p,1,n_plane,1,n_var,1,n_gauss,1,n_gauss,"delta_p",CAT_MATELEM)
+          call tr_allocate(thread_struct(i)%eq_g   ,1,n_plane,1,n_eq_var,1,n_gauss,1,n_gauss,"eq_g",CAT_MATELEM)
+          call tr_allocate(thread_struct(i)%eq_s   ,1,n_plane,1,n_eq_var,1,n_gauss,1,n_gauss,"eq_s",CAT_MATELEM)
+          call tr_allocate(thread_struct(i)%eq_t   ,1,n_plane,1,n_eq_var,1,n_gauss,1,n_gauss,"eq_t",CAT_MATELEM)
+          call tr_allocate(thread_struct(i)%eq_p   ,1,n_plane,1,n_eq_var,1,n_gauss,1,n_gauss,"eq_p",CAT_MATELEM)
+          call tr_allocate(thread_struct(i)%eq_ss  ,1,n_plane,1,n_eq_var,1,n_gauss,1,n_gauss,"eq_ss",CAT_MATELEM)
+          call tr_allocate(thread_struct(i)%eq_st  ,1,n_plane,1,n_eq_var,1,n_gauss,1,n_gauss,"eq_st",CAT_MATELEM)
+          call tr_allocate(thread_struct(i)%eq_tt  ,1,n_plane,1,n_eq_var,1,n_gauss,1,n_gauss,"eq_tt",CAT_MATELEM)
+          call tr_allocate(thread_struct(i)%eq_pp  ,1,n_plane,1,n_eq_var,1,n_gauss,1,n_gauss,"eq_pp",CAT_MATELEM)
+          call tr_allocate(thread_struct(i)%eq_sp  ,1,n_plane,1,n_eq_var,1,n_gauss,1,n_gauss,"eq_sp",CAT_MATELEM)
+          call tr_allocate(thread_struct(i)%eq_tp  ,1,n_plane,1,n_eq_var,1,n_gauss,1,n_gauss,"eq_tp",CAT_MATELEM)
+          call tr_allocate(thread_struct(i)%delta_g,1,n_plane,1,n_eq_var,1,n_gauss,1,n_gauss,"delta_g",CAT_MATELEM)
+          call tr_allocate(thread_struct(i)%delta_s,1,n_plane,1,n_eq_var,1,n_gauss,1,n_gauss,"delta_s",CAT_MATELEM)
+          call tr_allocate(thread_struct(i)%delta_t,1,n_plane,1,n_eq_var,1,n_gauss,1,n_gauss,"delta_t",CAT_MATELEM)
+          call tr_allocate(thread_struct(i)%delta_p,1,n_plane,1,n_eq_var,1,n_gauss,1,n_gauss,"delta_p",CAT_MATELEM)
           thread_struct(i)%eq_g    = 0.d0
           thread_struct(i)%eq_s    = 0.d0
           thread_struct(i)%eq_t    = 0.d0
@@ -421,5 +427,3 @@ contains
   end subroutine del_thread_buffers
 
 end module data_structure
-
-
