@@ -692,7 +692,8 @@ contains
          out%st,out%i_elm)
     endif
     !> transform the momenta to cartesian coordinates
-    out%p = vector_cylindrical_to_cartesian(out%x(3),out%p)
+    ! Momentum was constructed in the GC basis; retain its physical Cartesian direction.
+    out%p = vector_cylindrical_to_cartesian(in%x(3),out%p)
   end function relativistic_gc_to_relativistic_kinetic 
 
   !> This procedure transforms a particle_gc_relativistic into a particle_gc
