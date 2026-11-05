@@ -1,7 +1,8 @@
 !> Export the equilibrium for the NEMEC code.
 !!
 !! - iota-for-nemec contains the inverse q-profile versus the normalized toroidal flux
-!! - pres-for-nemec contains the pressure profile versus the normalized toroidal flux
+!! - pres-for-nemec contains the pressure profile versus the normalized toroidal flux 
+!!   (flux-surface average of the instantaneous pressure)
 !! - namelist-for-nemec contains some input parameters required for the NEMEC run
 !! - lcms-for-descur contains a representation of the last closed magnetic surface which needs to
 !!   be Fourier-expanded by the DESCUR code for NEMEC
@@ -9,8 +10,9 @@ subroutine export_nemec(node_list, element_list, xpoint, xcase)
   
   use constants
   use data_structure
-  use mod_interp, only: interp_RZ
+  use mod_interp, only: interp, interp_RZ
   use equil_info
+  use phys_module, only: with_TiTe, var_T, var_Ti, var_Te, var_rho
   
   implicit none
   
@@ -21,9 +23,11 @@ subroutine export_nemec(node_list, element_list, xpoint, xcase)
   integer,                      intent(in) :: xcase
   
   ! --- Local variables
-  real*8 :: pressure, psi_i, Phi_edge
-  real*8 :: dens, dn_dpsi, dn_dz, dn_dpsi2, dn_dz2, dn_dpsi_dz, dn_dpsi3, dn_dpsi_dz2, dn_dpsi2_dz
-  real*8 :: temp, dT_dpsi, dT_dz, dT_dpsi2, dT_dz2, dT_dpsi_dz, dT_dpsi3, dT_dpsi_dz2, dT_dpsi2_dz
+  real*8 :: pressure, Phi_edge, sum_dl, dl, rho, temp, temp_i, dum(5), R_s, R_t, Z_s, Z_t
+  integer :: ig
+  real*8  :: xgs(4), wgs(4)     ! Gauss points between (-1,1), as in export_helena
+  data xgs /-0.861136311594053, -0.339981043584856, 0.339981043584856,  0.861136311594053 /
+  data wgs / 0.347854845137454,  0.652145154862546, 0.652145154862546,  0.347854845137454 /
   type (type_surface_list) :: surface_list
   integer :: i, i_elm_xpoint(2), i_elm_axis, ifail
   real*8  :: R_xpoint(2), Z_xpoint(2), s_xpoint(2), t_xpoint(2), psi_xpoint(2), psi_bnd
@@ -89,12 +93,38 @@ subroutine export_nemec(node_list, element_list, xpoint, xcase)
   write(42,*) 'npresu'
   write(42,*) surface_list%n_psi
   do i = 1, surface_list%n_psi
-    psi_i = surface_list%psi_values(i)
-    call density(xpoint, xcase, 0.d0, (/-99.d0,-99.d0/), psi_i, psi_axis, psi_bnd, dens, dn_dpsi, dn_dz, dn_dpsi2,   &
-      dn_dz2, dn_dpsi_dz, dn_dpsi3, dn_dpsi_dz2, dn_dpsi2_dz)
-    call temperature(xpoint, xcase, 0.d0, (/-99.d0,-99.d0/), psi_i, psi_axis, psi_bnd, temp, dT_dpsi, dT_dz,         &
-      dT_dpsi2, dT_dz2, dT_dpsi_dz, dT_dpsi3, dT_dpsi_dz2, dT_dpsi2_dz)
-    pressure = dens * temp / MU_ZERO
+    ! --- Flux-surface average of the actual pressure rho*T (n=0 harmonic), as in export_helena
+    pressure = 0.d0
+    sum_dl   = 0.d0
+    do k = 1, surface_list%flux_surfaces(i)%n_pieces
+      i_elm = surface_list%flux_surfaces(i)%elm(k)
+      do ig = 1, 4
+        call CUB1D(surface_list%flux_surfaces(i)%s(1,k), surface_list%flux_surfaces(i)%s(2,k),         &
+          surface_list%flux_surfaces(i)%s(3,k), surface_list%flux_surfaces(i)%s(4,k), xgs(ig), ri, dri)
+        call CUB1D(surface_list%flux_surfaces(i)%t(1,k), surface_list%flux_surfaces(i)%t(2,k),         &
+          surface_list%flux_surfaces(i)%t(3,k), surface_list%flux_surfaces(i)%t(4,k), xgs(ig), si, dsi)
+        call interp_RZ(node_list, element_list, i_elm, ri, si, R, R_s, R_t, Z, Z_s, Z_t)
+        ! --- Skip segments in the private flux region (beyond the x-point)
+        if ( xpoint ) then
+          if ( (xcase /= UPPER_XPOINT) .and. (Z < Z_xpoint(1)) ) cycle
+          if ( (xcase /= LOWER_XPOINT) .and. (Z > Z_xpoint(2)) ) cycle
+        end if
+        rho = 1.d0                                         ! models without density variable
+        if ( var_rho > 0 ) call interp(node_list, element_list, i_elm, var_rho, 1, ri, si, rho, dum(1),  &
+          dum(2), dum(3), dum(4), dum(5))
+        if ( with_TiTe ) then
+          call interp(node_list, element_list, i_elm, var_Ti, 1, ri, si, temp_i, dum(1), dum(2), dum(3), dum(4), dum(5))
+          call interp(node_list, element_list, i_elm, var_Te, 1, ri, si, temp, dum(1), dum(2), dum(3), dum(4), dum(5))
+          temp = temp + temp_i
+        else
+          call interp(node_list, element_list, i_elm, var_T, 1, ri, si, temp, dum(1), dum(2), dum(3), dum(4), dum(5))
+        end if
+        dl       = wgs(ig) * sqrt( (R_s*dri + R_t*dsi)**2 + (Z_s*dri + Z_t*dsi)**2 )
+        pressure = pressure + rho * temp * dl
+        sum_dl   = sum_dl + dl
+      end do
+    end do
+    pressure = pressure / max(sum_dl, 1.d-99) / MU_ZERO
     write(42,*) PhiN(i), pressure
   end do
   close(42)

@@ -10,6 +10,7 @@ module exec_commands
   use mod_boundary
   use basis_at_gaussian
   use mod_new_diag
+  use mod_ballooning
   use domains
   use parse_commands
   use settings
@@ -130,10 +131,22 @@ module exec_commands
       end if
       
       select case ( trim(command%args(0)) )
-        case ( 'average' )           
+        case ( 'average' )
           call average(command, first_step, ierr)
-        case ( 'boundary_quantities' )           
+        case ( 'ballooning', 'ballooning_eigfun', 'ballooning_salpha', 'ballooning_benchmark' )
+          call ballooning(command, first_step, ierr)
+        case ( 'boundary_quantities' )
           call boundary_quantities(command, first_step, ierr)
+        case ( 'export_helena' )
+          call check_step_imported(ierr)
+#ifdef fullmhd
+          write(*,*) 'Warning: Export to helena is not adapted for full MHD'
+#else
+          if ( ierr == 0 ) call export_helena(node_list, element_list, bnd_elm_list)
+#endif
+        case ( 'export_nemec' )
+          call check_step_imported(ierr)
+          if ( ierr == 0 ) call export_nemec(node_list, element_list, xpoint, xcase)
         case ( 'zeroD_quantities' )
           call zeroD_quantities(command, first_step, ierr) 
         case ( 'average_h5' )
@@ -248,7 +261,9 @@ module exec_commands
           'gourdon', 'jorek-units', 'jnorm_bnd_curr', 'si-units', 'grid', 'grid_diagnostics',      &
           'rectangle', 'rectangular_torus', 'energy_spectrum', 'average_h5', 'I_halo_TPF',         &
           'spi-state', 'shards', 'zeroD_quantities', 'boundary_quantities', 'find_q_surface',      &
-          'pol_contour_integrals', 'midplane2d', 'expressions_four', 'RHS_terms_vtk')
+          'pol_contour_integrals', 'midplane2d', 'expressions_four', 'RHS_terms_vtk', 'ballooning', &
+          'export_helena', 'export_nemec',                                                          &
+          'ballooning_eigfun', 'ballooning_salpha')
           call add_to_command_queue(command, ierr)
         case ( 'help' )
           call help(command, ierr)
@@ -1759,11 +1774,23 @@ module exec_commands
     character(len=1024) :: filename, comment
     type(t_pol_pos_list), save :: pol_pos_list
     type(t_tor_pos_list), save :: tor_pos_list
+    type(t_expr_list)   :: el      ! selected expressions (+ unity for the flux-surface average)
+    logical             :: fav     ! flux-surface average <f> (weight dl/B_p) instead of theta* average
     
     ierr = 0
     
     ! --- Some checks
-    call check_args(command%n_args,ierr,0);  if ( ierr /= 0 ) return
+    call check_args(command%n_args,ierr,0,1);  if ( ierr /= 0 ) return
+    fav = .false.
+    if ( present(flux_av) ) fav = flux_av
+    if ( command%n_args == 1 ) then
+      if ( trim(command%args(1)) /= 'flux_av' ) then
+        write(*,*) 'ERROR: the only argument of average is flux_av'
+        ierr = 1
+        return
+      end if
+      fav = .true.
+    end if
     call check_step_imported(ierr);          if ( ierr /= 0 ) return
     call check_exprs_selected(ierr);         if ( ierr /= 0 ) return
     
@@ -1777,26 +1804,26 @@ module exec_commands
     
     write(filename,'(4a)') trim(DIR), 'exprs_averaged',                                                  &
       trim(step_range_string(loop_min_step,loop_max_step)), '.dat'
+    if ( fav ) write(filename,'(4a)') trim(DIR), 'exprs_flux_averaged',                                &
+      trim(step_range_string(loop_min_step,loop_max_step)), '.dat'
     
     ! ### is nTht and nphi really chosen well???
     pol_pos_list = pol_pos(node_list, element_list, ES, nPsiN=npts, nTht=max(150,6*n_plane),                &
       nsmallsteps=nsmall, nmaxsteps=nmaxstep, deltaphi=deltaphi, PsiNmax=PsiNmax, PsiNmin=PsiNmin )
     tor_pos_list = tor_pos(nphi=max(n_plane,2))
 
-    if (present(flux_av)) then
-      call add(expr_list, 'unity       ', 'Just unity, used to get R^2 average                   ')
-    endif
+    ! --- The theta* average weights with dl/(R^2 B_p); <f> = <R^2 f>_theta* / <R^2>_theta* (weight dl/B_p)
+    el = expr_list
+    if ( fav ) call add(el, 'unity       ', 'Just unity, used to get R^2 average                   ')
 
-    call eval_expr(ES, units, expr_list, pol_pos_list, tor_pos_list, result, ierr, flux_av)
-    call apply_four_filter(result, simple_filter(m=0,n=0), expr_list%n_coord, ierr)
+    call eval_expr(ES, units, el, pol_pos_list, tor_pos_list, result, ierr, fav)
+    call apply_four_filter(result, simple_filter(m=0,n=0), el%n_coord, ierr)
     call reduce_result_to_1d(ierr, result, res1d, i1=1, i2=1)
 
-    if (present(flux_av)) then 
-      if (flux_av) then
-        do i_exp=1, expr_list%n_expr
-          res1d(:,i_exp) = res1d(:,i_exp) / res1d(:,expr_list%n_expr)  ! Need to normalize for flux average
-        enddo
-      endif      
+    if ( fav ) then
+      do i_exp = 1, el%n_expr          ! (unity, the last column, is normalised last)
+        res1d(:,i_exp) = res1d(:,i_exp) / res1d(:,el%n_expr)  ! Need to normalize for flux average
+      enddo
     endif
     
     if (present(res1d_tmp)) then
@@ -1805,7 +1832,7 @@ module exec_commands
     else
       write(comment,'(a,i6.6)') 'time step #', index_now
     
-      call write_ascii_1d(ierr, ES, expr_list, res1d, FORM_TABLE, header=.true.,                     &
+      call write_ascii_1d(ierr, ES, el, res1d, FORM_TABLE, header=.true.,                            &
         filename=trim(filename), append=(.not.first_step), blanks=.true., comment=trim(comment))
     endif
     
@@ -2385,8 +2412,217 @@ module exec_commands
     if ( allocated(surface_list%flux_surfaces) ) deallocate(surface_list%flux_surfaces)
     if ( allocated(q)                          ) deallocate(q)
     if ( allocated(rad)                        ) deallocate(rad)
-    
+
   end subroutine qprofile
+
+
+
+
+
+  !> Infinite-n ideal ballooning stability of the n=0 part of the state (see mod_ballooning).
+  !!   ballooning               profile of stability, growth rate and marginal alpha
+  !!   ballooning_eigfun psin   eigenfunction and coefficients along the field line on one surface
+  !!   ballooning_salpha psin   largest eigenvalue on an (s, alpha) grid for one surface
+  !!   ballooning_benchmark     s-alpha model test against Forest, lecture 26 (no state needed)
+  subroutine ballooning(command, first_step, ierr)
+
+    ! --- Routine parameters
+    type(type_command), intent(in)  :: command     !< Command to be executed
+    logical,            intent(in)  :: first_step  !< First time step of a for loop?
+    integer,            intent(out) :: ierr        !< Error flag
+
+    ! --- Local variables
+    type(t_ball_surface), allocatable, target :: surfs(:)
+    type(t_ball_case)   :: cs
+    character(len=1024) :: filename, status, access
+    character(len=32)   :: cmd
+    integer :: nsurf, nsmall, nmaxstep, n_unst, k0, i_file, i, is, ia, nsa
+    real*8  :: psin_min, psin_max, alpha_max, s_max, deltaphi, psin, lam, a1, a2, shear, shear_fd, &
+      dpsin, f1, f2, an, a2n, fn, lam_c, dm_sa, pm_sa
+    real*8, allocatable :: theta(:), X(:), g(:), c(:), w(:), nu(:)
+
+    ierr = 0
+    cmd  = trim(command%args(0))
+
+    cs%np      = get_int_setting('ball_ntht', ierr)
+    cs%nturns  = get_int_setting('ball_nturns', ierr)
+    cs%ntheta0 = get_int_setting('ball_ntheta0', ierr)
+    alpha_max  = get_float_setting('ball_alpha_max', ierr)
+    s_max      = get_float_setting('ball_s_max', ierr)
+    nsa        = get_int_setting('ball_nsalpha', ierr)
+
+    ! --- s-alpha benchmark (Forest, Classic Problems in MHD, lecture 26, Eq. 26.86)
+    if ( cmd == 'ballooning_benchmark' ) then
+      call check_args(command%n_args,ierr,0);  if ( ierr /= 0 ) return
+      cs%analytic = .true.
+      cs%s_an     = 0.6d0
+      call ball_evaluate(cs, 1.2d0, n_unst, lam, k0, .true.)
+      write(*,'(a,f10.6,a)') ' s-alpha benchmark s=0.6, alpha=1.2: lambda_max =', lam,               &
+        '   (lecture 26: 0.231)'
+      write(filename,'(2a)') trim(DIR), 'ballooning_salpha_benchmark.dat'
+      open(newunit=i_file, file=trim(filename), status='replace', action='write')
+      write(i_file,'(a,f10.6)') '# s-alpha model, lambda_max(s=0.6, alpha=1.2) = ', lam
+      write(i_file,'(a,3i6)') '# ball_ntht, ball_nturns, ball_ntheta0 = ', cs%np, cs%nturns, cs%ntheta0
+      write(i_file,'(a)') '# s  alpha_crit_1  alpha_crit_2   (-1: no transition below ball_alpha_max)'
+      do is = 1, nsa
+        cs%s_an = s_max * real(is) / real(nsa)
+        call ball_alpha_crit(cs, alpha_max, nint(alpha_max*20.d0), a1, a2)
+        write(i_file,'(3es16.8)') cs%s_an, a1, a2
+      end do
+      close(i_file)
+      write(*,*) 'Marginal curve written to ', trim(filename)
+      return
+    end if
+
+    call check_step_imported(ierr);          if ( ierr /= 0 ) return
+
+    nsmall   = get_int_setting('nsmallsteps', ierr)
+    nmaxstep = get_int_setting('nmaxsteps', ierr)
+    deltaphi = get_float_setting('deltaphi', ierr)
+
+    select case ( cmd )
+
+    case ( 'ballooning' )
+      call check_args(command%n_args,ierr,0);  if ( ierr /= 0 ) return
+      nsurf    = get_int_setting('surfaces', ierr)
+      psin_min = get_float_setting('ball_psin_min', ierr)
+      psin_max = get_float_setting('ball_psin_max', ierr)
+      call ball_surfaces_from_state(node_list, element_list, ES, nsurf, psin_min, psin_max, cs%np,   &
+        nsmall, nmaxstep, deltaphi, surfs, ierr)
+      if ( ierr /= 0 ) return
+
+      write(filename,'(4a)') trim(DIR), 'ballooning', trim(step_range_string(loop_min_step,          &
+        loop_max_step)), '.dat'
+      if ( first_step ) then
+        status = 'replace'
+        access = 'sequential'
+      else
+        status = 'old'
+        access = 'append'
+      end if
+      open(newunit=i_file, file=trim(filename), status=trim(status), access=trim(access),           &
+        action='write')
+      if ( .not. first_step ) write(i_file,*)
+      write(i_file,'(a,i6.6,a,es14.6)') '# time step #', index_now, '   t_now =', t_now
+      write(i_file,'(a,3i6)') '# ball_ntht, ball_nturns, ball_ntheta0 = ', cs%np, cs%nturns,         &
+        cs%ntheta0
+      write(i_file,'(a)') '# lambda = gamma^2 (JOREK units), > 0 unstable; theta0 in rad of theta*; '&
+        //'alpha_crit = -1: no transition below ball_alpha_max'
+      write(i_file,'(a)') '# f_marg = alpha_crit / alpha_miller: factor on dp/dpsi (at fixed shear) to '&
+        //'reach marginal stability; -1 if alpha_crit = -1'
+      write(i_file,'(a)') '# alpha_crit_1/2, f_marg_1/2: self-consistent scan (local shear follows dp/dpsi);'&
+        //' alpha_crit_naive, f_marg_naive: naive scan (only the curvature drive is scaled)'
+      write(i_file,'(a)') '# rel_var_dP0, rel_var_FFp: poloidal variation of dP0/dpsi and of FF'''  &
+        //' = -Delta*psi - R^2 dP0/dpsi on the surface (0 for a Grad-Shafranov equilibrium)'
+      write(i_file,'(a)') '# D_Mercier: Mercier coefficient (< 1/4 stable); peel_margin = sqrt(1-4 D_M) - 1 '&
+        //'- peel_term (> 0: peeling necessary condition satisfied if this surface were the edge; '   &
+        //'Connor et al. 1998); jpar_rec: <mu0 J.B/B> from the toroidal current + Grad-Shafranov '    &
+        //'(> 0 along the plasma current); jpar_jorek: <Jpar> of jorek2_postproc (n=0), for comparison'
+      write(i_file,'(a)') '#      Psi_N              q          shear       shear_fd   alpha_miller'  &
+        //'       dP0_dpsi    rel_var_dP0    rel_var_FFp         lambda         theta0 n_unst'     &
+        //'   alpha_crit_1   alpha_crit_2       f_marg_1       f_marg_2 alpha_crit_naive   f_marg_naive'&
+        //'      D_Mercier    peel_margin      peel_term       jpar_rec     jpar_jorek'
+      do i = 1, nsurf
+        if ( .not. surfs(i)%valid ) cycle
+        cs%surf => surfs(i)
+        cs%shear_factor = 1.d0
+        call ball_evaluate(cs, surfs(i)%alpha0, n_unst, lam, k0, .true.)
+        call ball_alpha_crit(cs, alpha_max, nint(alpha_max*20.d0), a1, a2)
+        cs%drive_only = .true.
+        call ball_alpha_crit(cs, alpha_max, nint(alpha_max*20.d0), an, a2n)
+        cs%drive_only = .false.
+        shear    = 2.d0 * surfs(i)%volume * surfs(i)%dq_dpsi    / surfs(i)%q / surfs(i)%dV_dpsi
+        shear_fd = 2.d0 * surfs(i)%volume * surfs(i)%dq_dpsi_fd / surfs(i)%q / surfs(i)%dV_dpsi
+        f1 = -1.d0
+        f2 = -1.d0
+        if ( (a1 > 0.d0) .and. (surfs(i)%alpha0 > 0.d0) ) f1 = a1 / surfs(i)%alpha0
+        if ( (a2 > 0.d0) .and. (surfs(i)%alpha0 > 0.d0) ) f2 = a2 / surfs(i)%alpha0
+        fn = -1.d0
+        if ( (an > 0.d0) .and. (surfs(i)%alpha0 > 0.d0) ) fn = an / surfs(i)%alpha0
+        write(i_file,'(10es15.6,i7,11es15.6)') surfs(i)%psin, abs(surfs(i)%q), shear, shear_fd,   &
+          surfs(i)%alpha0, surfs(i)%P0p, surfs(i)%P0p_var / max(abs(surfs(i)%P0p), 1.d-300),       &
+          surfs(i)%FFp_var, lam, 2.d0 * PI * real(k0) / real(cs%np), n_unst, a1, a2, f1, f2, an, fn,&
+          surfs(i)%D_M, surfs(i)%peel_margin, surfs(i)%peel_term, surfs(i)%jpar_rec,              &
+          surfs(i)%jpar_jorek
+      end do
+      close(i_file)
+
+    case ( 'ballooning_eigfun', 'ballooning_salpha' )
+      call check_args(command%n_args,ierr,1);  if ( ierr /= 0 ) return
+      psin  = to_float(command%args(1), ierr); if ( ierr /= 0 ) return
+      ! --- Three neighbouring surfaces (needed for dV/dpsi and r_minor), the middle one is used
+      dpsin = 0.002d0
+      call ball_surfaces_from_state(node_list, element_list, ES, 3, psin-dpsin, psin+dpsin, cs%np,   &
+        nsmall, nmaxstep, deltaphi, surfs, ierr)
+      if ( ierr /= 0 ) return
+      if ( .not. surfs(2)%valid ) then
+        write(*,*) 'ERROR: invalid flux surface for ballooning at Psi_N =', psin
+        ierr = 1
+        return
+      end if
+      cs%surf => surfs(2)
+      shear = 2.d0 * surfs(2)%volume * surfs(2)%dq_dpsi / surfs(2)%q / surfs(2)%dV_dpsi
+
+      if ( cmd == 'ballooning_eigfun' ) then
+        call ball_evaluate(cs, surfs(2)%alpha0, n_unst, lam, k0, .true.)
+        call ball_eigenfunction(cs, surfs(2)%alpha0, k0, lam, theta, X, g, c, w, nu)
+        write(filename,'(2a,i6.6,a)') trim(DIR), 'ballooning_eigfun_s', index_now, '.dat'
+        open(newunit=i_file, file=trim(filename), status='replace', action='write')
+        write(i_file,'(a,f10.6,a,es14.6,a,es14.6,a,es14.6)') '# Psi_N =', surfs(2)%psin, '  q =',   &
+          abs(surfs(2)%q), '  shear =', shear, '  alpha_miller =', surfs(2)%alpha0
+        write(i_file,'(a,es14.6,a,f10.6,a,i4)') '# lambda =', lam, '  theta0 =',                     &
+          2.d0 * PI * real(k0) / real(cs%np), '  n_unstable =', n_unst
+        write(i_file,'(a)') '#          theta              X         nu_psi              g'           &
+          //'              c              w'
+        do i = lbound(X,1), ubound(X,1)
+          write(i_file,'(6es15.6)') theta(i), X(i), nu(i), g(i), c(i), w(i)
+        end do
+        close(i_file)
+      else
+        ! --- One map with both scans: self-consistent (local shear follows dp/dpsi) and naive
+        ! --- (only the curvature drive scaled)
+        write(filename,'(2a,i6.6,3a)') trim(DIR), 'ballooning_salpha_s', index_now, '_psin',           &
+          trim(real2str(surfs(2)%psin)), '.dat'
+        open(newunit=i_file, file=trim(filename), status='replace', action='write')
+        write(i_file,'(a,f10.6,a,es14.6,a,es14.6,a,es14.6)') '# Psi_N =', surfs(2)%psin, '  q =',     &
+          abs(surfs(2)%q), '  shear =', shear, '  alpha_miller =', surfs(2)%alpha0
+        write(i_file,'(a)') '# lambda: self-consistent scan (local shear follows dp/dpsi, Grad-Shafranov '&
+          //'variation of dp/dpsi and FF''); lambda_naive: only the curvature drive scaled (local '     &
+          //'shear of the actual state kept); lambda > 0: unstable'
+        write(i_file,'(a)') '# D_Mercier, peel_margin: Mercier coefficient (< 1/4 stable) and peeling margin '&
+          //'(> 0: necessary condition satisfied if this surface were the edge) of the same varied '   &
+          //'local equilibrium as lambda'
+        write(i_file,'(a)') '#          shear          alpha         lambda   lambda_naive      D_Mercier'  &
+          //'    peel_margin'
+        do is = 1, nsa
+          do ia = 1, nsa
+            cs%drive_only = .false.
+            lam = ball_salpha_lambda(cs, shear, s_max * real(is) / real(nsa),                          &
+              alpha_max * real(ia) / real(nsa))
+            cs%drive_only = .true.
+            lam_c = ball_salpha_lambda(cs, shear, s_max * real(is) / real(nsa),                        &
+              alpha_max * real(ia) / real(nsa))
+            call ball_salpha_mercier(cs, shear, s_max * real(is) / real(nsa),                         &
+              alpha_max * real(ia) / real(nsa), dm_sa, pm_sa)
+            write(i_file,'(6es15.6)') s_max * real(is) / real(nsa),                                   &
+              alpha_max * real(ia) / real(nsa), lam, lam_c, dm_sa, pm_sa
+          end do
+          write(i_file,*)
+        end do
+        close(i_file)
+        cs%drive_only = .false.
+      end if
+
+    end select
+
+    if ( allocated(surfs) ) then
+      do i = 1, size(surfs)
+        call ball_cleanup_surface(surfs(i))
+      end do
+      deallocate(surfs)
+    end if
+
+  end subroutine ballooning
 
 
 
