@@ -1,0 +1,238 @@
+name: Remind on stale pull requests
+
+on:
+  schedule:
+    # Runs every Monday at 09:00 UTC.
+    - cron: "0 9 * * 1"
+
+  # Allows you to run it manually from the Actions UI.
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+
+jobs:
+  stale-pr:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check for stale pull requests
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          OWNER: ${{ github.repository_owner }}
+          REPO: ${{ github.event.repository.name }}
+          STALE_DAYS: 28
+          REMINDER_MARKER: "<!-- stale-pr-reminder -->"
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          now=$(date -u +%s)
+          stale_seconds=$((STALE_DAYS * 24 * 60 * 60))
+
+          echo "Checking open pull requests in ${OWNER}/${REPO}"
+          echo "Stale threshold: ${STALE_DAYS} days"
+
+          # Get all open PRs.
+          prs=$(gh api \
+            --paginate \
+            -H "Accept: application/vnd.github+json" \
+            "/repos/${OWNER}/${REPO}/pulls?state=open&per_page=100")
+
+          echo "${prs}" | jq -c '.[]' | while read -r pr; do
+            number=$(echo "${pr}" | jq -r '.number')
+            title=$(echo "${pr}" | jq -r '.title')
+            created_at=$(echo "${pr}" | jq -r '.created_at')
+
+            echo ""
+            echo "----------------------------------------"
+            echo "PR #${number}: ${title}"
+
+            # Start with the PR creation time. If there has never been
+            # a commit/comment/review, this is the effective activity time.
+            latest_activity="${created_at}"
+
+            # ------------------------------------------------------------
+            # 1. Commits
+            # ------------------------------------------------------------
+            #
+            # The PR commits endpoint returns commits associated with the PR.
+            # We use the commit timestamp rather than the PR's updated_at.
+            commits=$(gh api \
+              --paginate \
+              -H "Accept: application/vnd.github+json" \
+              "/repos/${OWNER}/${REPO}/pulls/${number}/commits?per_page=100")
+
+            latest_commit=$(
+              echo "${commits}" |
+                jq -r '
+                  [
+                    .[] |
+                    (.commit.committer.date // .commit.author.date)
+                  ] |
+                  map(select(. != null)) |
+                  max // empty
+                '
+            )
+
+            if [[ -n "${latest_commit}" && "${latest_commit}" > "${latest_activity}" ]]; then
+              latest_activity="${latest_commit}"
+            fi
+
+            # ------------------------------------------------------------
+            # 2. Normal PR conversation comments
+            # ------------------------------------------------------------
+            #
+            # These are comments in the PR conversation, not comments
+            # attached to a specific line of the diff.
+            comments=$(gh api \
+              --paginate \
+              -H "Accept: application/vnd.github+json" \
+              "/repos/${OWNER}/${REPO}/issues/${number}/comments?per_page=100")
+
+            latest_comment=$(
+              echo "${comments}" |
+                jq -r '
+                  [
+                    .[] |
+                    (.created_at // empty)
+                  ] |
+                  map(select(. != null)) |
+                  max // empty
+                '
+            )
+
+            if [[ -n "${latest_comment}" && "${latest_comment}" > "${latest_activity}" ]]; then
+              latest_activity="${latest_comment}"
+            fi
+
+            # ------------------------------------------------------------
+            # 3. Submitted reviews
+            # ------------------------------------------------------------
+            #
+            # A submitted review counts as activity regardless of whether
+            # it was APPROVED, CHANGES_REQUESTED, or COMMENTED.
+            reviews=$(gh api \
+              --paginate \
+              -H "Accept: application/vnd.github+json" \
+              "/repos/${OWNER}/${REPO}/pulls/${number}/reviews?per_page=100")
+
+            latest_review=$(
+              echo "${reviews}" |
+                jq -r '
+                  [
+                    .[] |
+                    (.submitted_at // empty)
+                  ] |
+                  map(select(. != null)) |
+                  max // empty
+                '
+            )
+
+            if [[ -n "${latest_review}" && "${latest_review}" > "${latest_activity}" ]]; then
+              latest_activity="${latest_review}"
+            fi
+
+            # ------------------------------------------------------------
+            # 4. Review comments on the diff
+            # ------------------------------------------------------------
+            #
+            # These are comments attached to specific lines/files in the
+            # pull request diff.
+            review_comments=$(gh api \
+              --paginate \
+              -H "Accept: application/vnd.github+json" \
+              "/repos/${OWNER}/${REPO}/pulls/${number}/comments?per_page=100")
+
+            latest_review_comment=$(
+              echo "${review_comments}" |
+                jq -r '
+                  [
+                    .[] |
+                    (.created_at // empty)
+                  ] |
+                  map(select(. != null)) |
+                  max // empty
+                '
+            )
+
+            if [[ -n "${latest_review_comment}" && "${latest_review_comment}" > "${latest_activity}" ]]; then
+              latest_activity="${latest_review_comment}"
+            fi
+
+            # ------------------------------------------------------------
+            # Calculate inactivity
+            # ------------------------------------------------------------
+
+            latest_activity_epoch=$(date -d "${latest_activity}" +%s)
+            inactive_seconds=$((now - latest_activity_epoch))
+            inactive_days=$((inactive_seconds / 86400))
+
+            echo "Latest activity: ${latest_activity}"
+            echo "Inactive for: ${inactive_days} days"
+
+            if (( inactive_seconds < stale_seconds )); then
+              echo "PR is not stale."
+              continue
+            fi
+
+            echo "PR is stale."
+
+            # ------------------------------------------------------------
+            # Avoid duplicate reminders
+            # ------------------------------------------------------------
+            #
+            # We look for a previous bot comment containing the marker.
+            # If one exists, we don't post another reminder.
+            #
+            # When new activity happens, the activity timestamp becomes
+            # newer than the previous reminder, so we can safely allow
+            # another reminder after the PR becomes stale again.
+            previous_reminder=$(
+              echo "${comments}" |
+                jq -r --arg marker "${REMINDER_MARKER}" '
+                  [
+                    .[] |
+                    select(
+                      (.body // "") | contains($marker)
+                    ) |
+                    .created_at
+                  ] |
+                  map(select(. != null)) |
+                  max // empty
+                '
+            )
+
+            if [[ -n "${previous_reminder}" ]]; then
+              previous_reminder_epoch=$(date -d "${previous_reminder}" +%s)
+
+              if (( previous_reminder_epoch >= latest_activity_epoch )); then
+                echo "A reminder already exists for this period."
+                continue
+              fi
+            fi
+
+            # ------------------------------------------------------------
+            # Post reminder
+            # ------------------------------------------------------------
+
+            body="${REMINDER_MARKER}
+            👋 This pull request has had no commits, comments, or reviews for at least 4 weeks.
+
+            If this PR is still active, please provide an update or continue the work.
+
+            _This is an automated reminder._
+            
+            If this is a draft, don't forget to mark it as ready for review and add reviewers when it can be merged."
+
+            echo "Posting stale reminder..."
+
+            gh api \
+              --method POST \
+              -H "Accept: application/vnd.github+json" \
+              "/repos/${OWNER}/${REPO}/issues/${number}/comments" \
+              -f body="${body}"
+
+            echo "Reminder posted."

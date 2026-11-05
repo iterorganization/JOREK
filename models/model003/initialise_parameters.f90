@@ -172,8 +172,9 @@ namelist /in1/  tstep, nstep, tstep_n, nstep_n,                     &
                 voltage_coils, vert_FB_amp, find_pf_coil_currents,  &
                 delta_psi_GS, newton_GS_fixbnd, newton_GS_freebnd,  &
                 pastix_maxthrd, eta_ohmic, centralize_harm_mat,     &
-                vert_FB_amp_ts, vert_FB_gain, vert_pos_file,        & 
-                vert_FB_tact, start_VFB_ts, I_coils_max, rad_FB_amp,&
+                vert_FB_amp_ts, vert_FB_gain, axis_pos_file,        & 
+                rad_FB_amp_ts, rad_FB_gain,                         &
+                pos_FB_tact, start_PFB_ts, I_coils_max, rad_FB_amp, &
                 autodistribute_modes, modes_per_family,             &
                 mode_families_modes, n_mode_families,               &
                 weights_per_family, autodistribute_ranks,           &
