@@ -50,8 +50,9 @@ contains
     use mod_solve_sparse_projection, only: solve_sparse_projection_system
     use mod_particle_sim, only: particle_sim
     use mod_parameters, only: n_tor, n_vertex_max, n_degrees
-    use phys_module, only: n_aux_var
+    use phys_module, only: n_aux_var, treat_axis
     use data_structure, only: init_node
+    use mod_axis_treatment, only: transform_projection_rhs_for_axis_element, new_to_old_dofs_on_the_axis
 
     use mpi_mod
     use mod_event
@@ -66,6 +67,7 @@ contains
     integer :: in, i_elm, i, j, k, i_var, i_start, i_tor
     integer :: index_large_i, inode, index
     real*8  :: t0, t1, ostart, oend, mmm(3), mmm2(3)
+    real*8  :: rhs_elm(n_degrees,n_vertex_max,n_tor), y_node(n_degrees), old_dofs(4)
     integer, allocatable :: recv_counts(:), recv_disp(:)
     integer :: n_rhs, n_rhs_f, i_rhs
     integer :: in_local, in_global, index_n, id_master_in_world
@@ -112,12 +114,14 @@ contains
     do i_rhs=1,n_rhs
       i_start =  this%rhs_vec%n * (i_rhs-1)
       do i_elm=1,this%element_list%n_elements
+        rhs_elm = this%rhs(:, :, i_elm, :, i_rhs)
+        if (treat_axis) call transform_projection_rhs_for_axis_element(this%node_list, this%element_list%element(i_elm), i_elm, rhs_elm, n_tor)
         do i=1,n_vertex_max
           inode = this%element_list%element(i_elm)%vertex(i)
           do j=1,n_degrees
             do in=1, n_tor
               index_large_i = n_tor * (this%node_list%node(inode)%index(j)-1) + in + i_start ! base index in the main matrix + rhs index
-              this%rhs_vec%val(index_large_i) = this%rhs_vec%val(index_large_i) + this%rhs(j, i, i_elm, in, i_rhs)
+              this%rhs_vec%val(index_large_i) = this%rhs_vec%val(index_large_i) + rhs_elm(j, i, in)
             enddo
           enddo
         enddo
@@ -128,12 +132,14 @@ contains
       ! Fill projection function part
       i_start =  this%rhs_vec%n * (n_rhs + i_rhs - 1)
       do i_elm=1,this%element_list%n_elements 
+        rhs_elm = this%rhs_f(:, :, i_elm, :, i_rhs)
+        if (treat_axis) call transform_projection_rhs_for_axis_element(this%node_list, this%element_list%element(i_elm), i_elm, rhs_elm, n_tor)
         do i=1,n_vertex_max
           inode = this%element_list%element(i_elm)%vertex(i)
           do j=1,n_degrees
             do in=1, n_tor
             index_large_i = n_tor * (this%node_list%node(inode)%index(j)-1) + in + i_start ! base index in the main matrix + rhs index
-            this%rhs_vec%val(index_large_i) = this%rhs_vec%val(index_large_i) + this%rhs_f(j, i, i_elm, in, i_rhs)
+            this%rhs_vec%val(index_large_i) = this%rhs_vec%val(index_large_i) + rhs_elm(j, i, in)
             enddo
           enddo
         enddo
@@ -167,16 +173,25 @@ contains
         
         do i=1,this%node_list%n_nodes
 
-          do k=1,n_degrees
-        
-            index = this%node_list%node(i)%index(k)
-            
-            do i_tor=1,n_tor
-              this%node_list%node(i)%deltas(i_tor, k, i_var) = this%rhs_vec%val(n_tor*(index - 1) + i_tor + this%rhs_vec%n * (i_var - 1)) - this%node_list%node(i)%values(i_tor, k, i_var)
-              this%node_list%node(i)%values(i_tor, k, i_var) = this%rhs_vec%val(n_tor*(index - 1) + i_tor + this%rhs_vec%n * (i_var - 1))
-            end do
-          
-          enddo    ! order
+          do i_tor=1,n_tor
+
+            do k=1,n_degrees
+              index = this%node_list%node(i)%index(k)
+              y_node(k) = this%rhs_vec%val(n_tor*(index - 1) + i_tor + this%rhs_vec%n * (i_var - 1))
+            enddo
+
+            ! The axis nodes share the new dofs, transform them back to the old ones of this node
+            if (treat_axis .and. this%node_list%node(i)%axis_node) then
+              call new_to_old_dofs_on_the_axis(this%node_list, i, y_node(1:4), old_dofs)
+              y_node(1:4) = old_dofs
+            endif
+
+            do k=1,n_degrees
+              this%node_list%node(i)%deltas(i_tor, k, i_var) = y_node(k) - this%node_list%node(i)%values(i_tor, k, i_var)
+              this%node_list%node(i)%values(i_tor, k, i_var) = y_node(k)
+            enddo    ! order
+
+          end do
           
           ! Check for NaNs in the projection
           if (any(ieee_is_nan(this%node_list%node(i)%values(:,:,i_var))) .or. any(ieee_is_nan(this%node_list%node(i)%deltas(:,:,i_var)))) then
@@ -216,7 +231,8 @@ contains
   use data_structure, only: type_element, type_element_list, type_node, type_node_list, make_deep_copy_node, dealloc_node
   use mod_sparse_matrix, only: type_SP_MATRIX
   use mod_parameters, only: n_tor, n_vertex_max, n_degrees, n_coord_tor, n_plane
-  use phys_module, only : F0, TWOPI, fix_axis_nodes, mode, n_tor_fft_thresh
+  use phys_module, only : F0, TWOPI, fix_axis_nodes, treat_axis, mode, n_tor_fft_thresh
+  use mod_axis_treatment, only: transform_elm_for_axis_element
   use iso_c_binding
 
   use mpi_mod
@@ -241,6 +257,7 @@ contains
   type (type_node)         :: nodes(n_vertex_max)
 
   real*8, allocatable      :: ELM(:,:)
+  integer    :: i_harm(n_tor)
   real*8     :: wgauss2(n_gauss)
   real*8, dimension(n_plane,n_gauss,n_gauss) :: x_g,   x_s,   x_t,   x_ss,   x_tt,   x_st
   real*8, dimension(n_plane,n_gauss,n_gauss) :: y_g,   y_s,   y_t,   y_ss,   y_tt,   y_st
@@ -286,6 +303,7 @@ contains
       if (node_list%node(i)%boundary .eq. 9) nz_bnd = nz_bnd + 8
     enddo
   endif
+  if (treat_axis .and. .not. fix_axis_nodes) nz_bnd = nz_bnd + n_tor*count(node_list%node(1:node_list%n_nodes)%axis_node)
 
   ! n_tor // n_coord_tor
 
@@ -307,6 +325,8 @@ contains
     ! thing https://groups.google.com/forum/#!topic/comp.lang.fortran/VKhoAm8m9KE
     wgauss2 = wgauss
 
+    i_harm = (/ (in, in=1,n_tor) /)
+
     write(*,*) "Starting matrix construction with: ", element_list%n_elements, " elements"
     if (use_fft) then
         write(*,*) "Using FFT-accelerated path."
@@ -327,8 +347,9 @@ contains
     !$omp parallel do default(none) &
     !$omp shared(element_list, node_list,                                                 &
     !$omp        H, H_s, H_t, H_ss, H_st, H_tt, Hz, Hz_p, HZ_coord, a_mat, wgauss2, mode, &
-    !$omp        filter, filter_hyper, filter_parallel, F0, fix_axis_nodes, use_fft, fftw_plan) &
-    !$omp private(ELM, i_elm, element, i, j, k, l, ms, mt, in, im, mp,                    &
+    !$omp        filter, filter_hyper, filter_parallel, F0, fix_axis_nodes, use_fft, fftw_plan,  &
+    !$omp        treat_axis, i_harm)                                                      &
+    !$omp private(ELM, i_elm, element, i, j, k, l, ms, mt, in, im, mp,                              &
     !$omp         x_g, x_s, x_t, x_ss, x_st, x_tt,                                        &
     !$omp         y_g, y_s, y_t, y_ss, y_st, y_tt,                                        &
     !$omp         psi_g, psi_s, psi_t, psi_ss, psi_tt, psi_st,                            &
@@ -583,6 +604,11 @@ contains
         if (filter_parallel .gt. 0.d0) deallocate(ELM_term2)
       endif
 
+      ! Transform basis functions for the axis nodes, as for the fluid matrix
+      if (treat_axis .and. any(nodes(:)%axis_node)) then
+        call transform_elm_for_axis_element(nodes, i_elm, ELM, (/ 1 /), 1, i_harm, n_tor)
+      endif
+
       ! Save contribution of this element in MUMPS format
       do i=1,n_vertex_max
 
@@ -680,6 +706,21 @@ contains
         endif
       enddo
 
+    endif
+
+    ! The fourth dof shared by the axis nodes (d^2/dRdZ) is not used, penalise it as for the fluid matrix
+    if (treat_axis .and. .not. fix_axis_nodes) then
+      do i=1,node_list%n_nodes
+        if (node_list%node(i)%axis_node) then
+          do in=1,n_tor
+            index1 = node_list%node(i)%index(4)
+            ilarge = ilarge + 1
+            a_mat%irn(ilarge) = n_tor*(index1-1) + in
+            a_mat%jcn(ilarge) = n_tor*(index1-1) + in
+            a_mat%val(ilarge) = 1.d12
+          enddo
+        endif
+      enddo
     endif
 
     nz_AA = ilarge
