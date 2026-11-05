@@ -125,6 +125,9 @@ module mod_expression
     call add(exprs_all, 'u           ', 'Velocity Stream Function                              ')
     call add(exprs_all, 'Phi         ', 'Electric Potential Phi                                ')
     call add(exprs_all, 'qpar_tot    ', 'Total parallel heat-flux (conduc + convec + kin)      ')
+    call add(exprs_all, 'qpar_e      ', 'Electron parallel heat-flux (conduction + enthalpy)   ')
+    call add(exprs_all, 'qpar_i      ', 'Ion parallel heat-flux (conduction + enthalpy + kin)  ')
+    call add(exprs_all, 'partF_par   ', 'Ambipolar main-plasma particle flux parallel to B    ')
     call add(exprs_all, 'zj          ', 'Toroidal Current Density Multiplied by 1/R            ')
     call add(exprs_all, 'currdens    ', 'Physical Toroidal Current Density (== zj/R)           ')
     call add(exprs_all, 'JR          ', 'Physical current density (R component)                ')
@@ -625,8 +628,8 @@ module mod_expression
     real*8  ::  ZKpar_flux, ZKipar_flux, ZKepar_flux, ZKpar_flux_norm, ZKipar_flux_norm, ZKepar_flux_norm,   &
                 ZKperp_flux_norm, ZKiperp_flux_norm, ZKeperp_flux_norm,                                      &
                 pres_flux_par, kin_flux_par, pres_flux_par_norm, kin_flux_par_norm,                          &
-                pres_flux_tot_norm, kin_flux_tot_norm, Dpar_flux_norm, Dperp_flux_norm, neut_part_flux_norm, &
-                partF_cnv_par_norm, partF_cnv_tot_norm, ExB_norm 
+                pres_flux_tot_norm, kin_flux_tot_norm, Dpar_flux, Dpar_flux_norm, Dperp_flux_norm,            &
+                neut_part_flux_norm, partF_cnv_par, partF_cnv_par_norm, partF_cnv_tot_norm, ExB_norm
     
     ! --- Normalization factors
     real*8  :: rho_norm, fact_time, fact_mu_zero, fact_ne, fact_rho, fact_T, fact_vpar,            &
@@ -1452,11 +1455,13 @@ module mod_expression
           end if
 
    
-          Dpar_flux_norm   = - D_par  * (BR*r0_R + BZ*T0_Z + Btor*T0_p/R) * Bnorm / BB2
-          Dperp_flux_norm  = - D_prof * ( r0_R*nmlR + T0_Z*nmlZ)                       &                              
-                             + D_prof * (BR*r0_R + BZ*T0_Z + Btor*T0_p/R) * Bnorm / BB2 
+          Dpar_flux        = - D_par * (BR*r0_R + BZ*r0_Z + Btor*r0_p/R) / Btot
+          Dpar_flux_norm   = Dpar_flux * Bnorm / Btot
+          Dperp_flux_norm  = - D_prof * ( r0_R*nmlR + r0_Z*nmlZ)                       &                              
+                             + D_prof * (BR*r0_R + BZ*r0_Z + Btor*r0_p/R) * Bnorm / BB2 
     
-          partF_cnv_par_norm =   r0 * Vpar_tot * Bnorm / Btot                           !  p v_par·n
+          partF_cnv_par      =   r0 * Vpar_tot                                           !  n v_par
+          partF_cnv_par_norm =   partF_cnv_par * Bnorm / Btot                            !  n v_par·n
           partF_cnv_tot_norm =   r0 * ( VR * nmlR + VZ * nmlZ )                         !  n v·n
     
 #if (defined WITH_Neutrals) && (!defined WITH_Impurities)
@@ -1759,6 +1764,15 @@ module mod_expression
 
               case ( 'qpar_tot' )
                 res = (ZKpar_flux + kin_flux_par + pres_flux_par) * fact_flux
+
+              case ( 'qpar_e' )
+                res = (ZKepar_flux + gamma/(gamma-1.d0) * Pe0 * Vpar_tot) * fact_flux
+
+              case ( 'qpar_i' )
+                res = (ZKipar_flux + gamma/(gamma-1.d0) * Pi0 * Vpar_tot + kin_flux_par) * fact_flux
+
+              case ( 'partF_par' )
+                res = (Dpar_flux + partF_cnv_par) * fact_ne / fact_time
  
               case ( 'zj' )
                 res = zj0 / fact_mu_zero
