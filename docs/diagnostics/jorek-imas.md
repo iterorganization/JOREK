@@ -59,7 +59,17 @@ python imas2jorek.py \
     --time TIME
 ```
 
-Display all arguments and defaults, including the storage backend, Data Dictionary major version, IDS occurrence, and tokamak used to construct the boundary, with:
+With IMAS-Python 2, a URI is preferred and can point directly to a local HDF5 entry or another supported backend:
+
+```bash
+python imas2jorek.py \
+    --uri 'imas:hdf5?path=/path/to/imas/data' \
+    --time TIME
+```
+
+`--uri` takes precedence over `--user`, `--database`, `--pulse`, `--run`, and `--backend`. By default, the script detects the stored DD version from the entry metadata and reopens the entry with that version. Use `--dd-version` only to request an explicit target version; cross-major-version conversion may require additional Access Layer configuration.
+
+Display all arguments and defaults, including the storage backend, Data Dictionary version, IDS occurrence, and tokamak used to construct the boundary, with:
 
 ```bash
 python imas2jorek.py -h
@@ -71,6 +81,8 @@ After `imas2jorek.py` finishes, it produces:
 
 - `jorek_namelist`, containing the poloidal-flux boundary conditions and coil currents.
 - `jorek_density`, `jorek_temperature`, and `jorek_ffprime`, containing the profiles.
+
+The `pf_active` IDS is optional. If the selected occurrence is empty, the script reports a warning and generates the input without imported coil currents.
 
 ## Exporting JOREK Data to IMAS
 
@@ -106,6 +118,10 @@ In the simulation directory containing the restart files, create `imas.nml`. The
 &imas_params
 
   ! --- Where is this simulation going to be stored?
+  URI         = ''                  ! optional complete URI; takes precedence over the fields below
+                                    ! For example: 'imas:hdf5?path=./imas_data' stores the IDSs in a
+                                    ! separate folder below the directory from which jorek2_IDS is run.
+                                    ! With a path URI, user/database/shot/run are not used for locating data.
   user        = 'artolaj'           ! your username
   database    = 'test_database'     ! your local database, if it does not exist it will create a new one
   shot_number = 111111              ! choose a shot or reference number
@@ -124,6 +140,9 @@ In the simulation directory containing the restart files, create `imas.nml`. The
   export_equilibrium      = .false.
   export_summary          = .false.
   export_disruption       = .false.
+  ! Optional summary/disruption metadata; leave at -999 to keep the nodes empty.
+  summary_disruption_type = -999              ! 1 = major, 2 = VDE
+  summary_disruption_vertical_displacement = -999  ! 1 = upwards, 0 = no displacement, -1 = downwards
   export_wall             = .false.    ! --- Needs free-boundary mode
   export_pf_passive       = .false.    ! --- Needs free-boundary mode
   export_pf_active        = .false.    ! --- Needs free-boundary mode
@@ -171,33 +190,35 @@ The IDSs and variables that can currently be filled are listed below.
 ### `summary`
 
 ```text
-summary_ids.ids_properties.homogeneous_time
-summary_ids.ids_properties.comment
-summary_ids.time
-summary_ids.global_quantities.r0.value
-summary_ids.global_quantities.b0.value
-summary_ids.global_quantities.beta_pol.value
-summary_ids.global_quantities.beta_tor.value
-summary_ids.global_quantities.beta_tor_norm.value
-summary_ids.global_quantities.ip.value
-summary_ids.global_quantities.li_3.value
-summary_ids.global_quantities.volume.value
-summary_ids.global_quantities.q_95.value
-summary_ids.global_quantities.energy_thermal.value
-summary_ids.global_quantities.energy_b_field_pol.value
-summary_ids.global_quantities.power_ohm.value
-summary_ids.global_quantities.power_radiated.value
-summary_ids.heating_current_drive.power_additional.value
-summary_ids.local.magnetic_axis.position.r
-summary_ids.local.magnetic_axis.position.z
-summary_ids.local.magnetic_axis.position.psi
-summary_ids.boundary.type.value
-summary_ids.boundary.minor_radius.value
-summary_ids.boundary.elongation.value
-summary_ids.boundary.triangularity_upper.value
-summary_ids.boundary.triangularity_lower.value
-summary_ids.boundary.geometric_axis_r.value
-summary_ids.boundary.geometric_axis_z.value
+summary.ids_properties.homogeneous_time
+summary.ids_properties.comment
+summary.time
+summary.global_quantities.r0.value
+summary.global_quantities.b0.value
+summary.global_quantities.beta_pol.value
+summary.global_quantities.beta_tor.value
+summary.global_quantities.beta_tor_norm.value
+summary.global_quantities.ip.value
+summary.global_quantities.li_3.value
+summary.global_quantities.volume.value
+summary.global_quantities.q_95.value
+summary.global_quantities.energy_thermal.value
+summary.global_quantities.energy_b_field_pol.value
+summary.global_quantities.power_ohm.value
+summary.global_quantities.power_radiated.value
+summary.heating_current_drive.power_additional.value
+summary.local.magnetic_axis.position.r
+summary.local.magnetic_axis.position.z
+summary.local.magnetic_axis.position.psi
+summary.boundary.type.value
+summary.boundary.minor_radius.value
+summary.boundary.elongation.value
+summary.boundary.triangularity_upper.value
+summary.boundary.triangularity_lower.value
+summary.boundary.geometric_axis_r.value
+summary.boundary.geometric_axis_z.value
+summary.disruption.type.index                  # if configured
+summary.disruption.vertical_displacement.value # if configured
 ```
 
 ### `plasma_profiles` (occurrence 0)
@@ -205,58 +226,64 @@ summary_ids.boundary.geometric_axis_z.value
 Provides poloidal-flux-averaged profiles using the $n=0$ poloidal flux.
 
 ```text
-plasma_profiles_ids.profiles_1d.grid.psi_magnetic_axis
-plasma_profiles_ids.profiles_1d.grid.psi_boundary
-plasma_profiles_ids.profiles_1d.grid.rho_pol_norm
-plasma_profiles_ids.profiles_1d.grid.psi
+plasma_profiles.ids_properties.homogeneous_time
+plasma_profiles.time
+plasma_profiles.profiles_1d.grid.psi_magnetic_axis
+plasma_profiles.profiles_1d.grid.psi_boundary
+plasma_profiles.profiles_1d.grid.rho_pol_norm
+plasma_profiles.profiles_1d.grid.psi
 
-plasma_profiles_ids.profiles_1d.t_i_average
-plasma_profiles_ids.profiles_1d.electrons.temperature
-plasma_profiles_ids.profiles_1d.electrons.density
-plasma_profiles_ids.profiles_1d.pressure_thermal
-plasma_profiles_ids.profiles_1d.phi_potential
-plasma_profiles_ids.profiles_1d.conductivity_parallel
-plasma_profiles_ids.profiles_1d.j_total
-plasma_profiles_ids.profiles_1d.e_field.parallel
-plasma_profiles_ids.profiles_1d.e_field.radial
-plasma_profiles_ids.profiles_1d.ion.velocity.parallel
-plasma_profiles_ids.profiles_1d.ion.velocity.poloidal
-plasma_profiles_ids.profiles_1d.ion.velocity.diamagnetic
-plasma_profiles_ids.profiles_1d.zeff
-plasma_profiles_ids.profiles_1d.ion.density
-plasma_profiles_ids.profiles_1d.ion.element.a
-plasma_profiles_ids.profiles_1d.neutral.density
-plasma_profiles_ids.profiles_1d.neutral.element.a
-plasma_profiles_ids.profiles_1d.ion.element.z_n
-plasma_profiles_ids.profiles_1d.q
-plasma_profiles_ids.profiles_1d.grid.rho_tor_norm
+plasma_profiles.profiles_1d.t_i_average
+plasma_profiles.profiles_1d.electrons.temperature
+plasma_profiles.profiles_1d.electrons.density
+plasma_profiles.profiles_1d.pressure_thermal
+plasma_profiles.profiles_1d.phi_potential
+plasma_profiles.profiles_1d.conductivity_parallel
+plasma_profiles.profiles_1d.j_total
+plasma_profiles.profiles_1d.e_field.parallel
+plasma_profiles.profiles_1d.e_field.radial
+plasma_profiles.profiles_1d.ion.velocity.parallel
+plasma_profiles.profiles_1d.ion.velocity.poloidal
+plasma_profiles.profiles_1d.ion.velocity.diamagnetic
+plasma_profiles.profiles_1d.zeff
+plasma_profiles.profiles_1d.ion.density
+plasma_profiles.profiles_1d.ion.element.a
+plasma_profiles.profiles_1d.neutral.density
+plasma_profiles.profiles_1d.neutral.element.a
+plasma_profiles.profiles_1d.ion.element.z_n
+plasma_profiles.profiles_1d.q
+plasma_profiles.profiles_1d.grid.rho_tor_norm
 ```
 
 ### `plasma_profiles` (occurrence 1)
 
 Contains high-precision raw JOREK variables. This IDS can be used to calculate current density and magnetic field accurately. It also contains electron and ion temperatures, mass density, electrostatic potential, and toroidal vorticity. Finite-element and Fourier-series coefficients are stored in GGD format and can be visualized with [IMAS-ParaView](https://github.com/iterorganization/IMAS-ParaView).
 
+The listed GGD quantities depend on the variables present in the JOREK
+restart file; `mass_density` requires `with_rho`.
+
 ```text
-plasma_profiles_ids.ids_properties.homogeneous_time
-plasma_profiles_ids.time
+plasma_profiles.ids_properties.homogeneous_time
+plasma_profiles.time
 
-plasma_profiles_ids.ggd.time
-plasma_profiles_ids.ggd.psi
-plasma_profiles_ids.ggd.phi_potential
-plasma_profiles_ids.ggd.r_j_total_phi
-plasma_profiles_ids.ggd.vorticity_over_r
-plasma_profiles_ids.ggd.mass_density
-plasma_profiles_ids.ggd.electrons.temperature
-plasma_profiles_ids.ggd.t_i_average
-plasma_profiles_ids.ggd.velocity_parallel_over_b_field
-plasma_profiles_ids.ggd.ion.element.a
-plasma_profiles_ids.ggd.ion.element.z_n
-plasma_profiles_ids.ggd.ion.density
-plasma_profiles_ids.ggd.neutral.element.a
-plasma_profiles_ids.ggd.neutral.element.z_n
-plasma_profiles_ids.ggd.neutral.density
+plasma_profiles.ggd.time
+plasma_profiles.ggd.psi
+plasma_profiles.ggd.phi_potential
+plasma_profiles.ggd.r_j_total_phi
+plasma_profiles.ggd.vorticity_over_r
+plasma_profiles.ggd.mass_density
+plasma_profiles.ggd.electrons.temperature
+plasma_profiles.ggd.t_i_average
+plasma_profiles.ggd.velocity_parallel_over_b_field
+plasma_profiles.ggd.ion.element.a
+plasma_profiles.ggd.ion.element.z_n
+plasma_profiles.ggd.ion.density
+plasma_profiles.ggd.neutral.element.a
+plasma_profiles.ggd.neutral.element.z_n
+plasma_profiles.ggd.neutral.density
 
-##Grid
+## GGD grid
+plasma_profiles.grid_ggd[0].time
 plasma_profiles.grid_ggd[0].identifier.description
 plasma_profiles.grid_ggd[0].identifier.name
 plasma_profiles.grid_ggd[0].identifier.index
@@ -284,11 +311,12 @@ plasma_profiles.grid_ggd[0].space[1].objects_per_dimension[0].object[:].geometry
 Contains the $B_R$ and $B_Z$ magnetic-field components on a rectangular grid extending beyond the JOREK grid. It is available only for full free-boundary simulations with `export_field_extension = .true.`. The $(R,Z)$ space is a regular two-dimensional grid containing values at its nodes rather than Bézier coefficients, while the toroidal direction retains its Fourier representation. This occurrence is intended for field-line-tracing codes such as SMITER.
 
 ```text
-plasma_profiles_ids.ids_properties.homogeneous_time
-plasma_profiles_ids.time
-plasma_profiles_ids.ggd.b_field
+plasma_profiles.ids_properties.homogeneous_time
+plasma_profiles.time
+plasma_profiles.ggd.b_field
 
-##Grid
+## GGD grid
+plasma_profiles.grid_ggd[0].time
 plasma_profiles.grid_ggd[0].identifier.description
 plasma_profiles.grid_ggd[0].identifier.name
 plasma_profiles.grid_ggd[0].identifier.index
@@ -319,40 +347,53 @@ The `wall` IDS contains two wall descriptions:
 These quantities can be visualized with [IMAS-ParaView](https://github.com/iterorganization/IMAS-ParaView).
 
 ```text
-wall_ids.ids_properties.homogeneous_time
-wall_ids.time
+wall.ids_properties.homogeneous_time
+wall.time
 
 # Vacuum vessel inner layer
-wall_ids.description_ggd[0].ggd[:].j_total
-wall_ids.description_ggd[0].ggd[:].resistivity
+wall.description_ggd[0].ggd[:].j_total
+wall.description_ggd[0].ggd[:].resistivity
+wall.description_ggd[0].ggd[:].time
+wall.description_ggd[0].ggd[:].j_total.r
+wall.description_ggd[0].ggd[:].j_total.z
+wall.description_ggd[0].ggd[:].j_total.phi
 
 # First wall surface
-wall_ids.description_ggd[1].ggd[:].j_total
-wall_ids.description_ggd[1].ggd[:].power_density
-wall_ids.description_ggd[1].ggd[:].psi
+wall.description_ggd[1].ggd[:].j_total
+wall.description_ggd[1].ggd[:].power_density
+wall.description_ggd[1].ggd[:].psi
+wall.description_ggd[1].ggd[:].time
+wall.description_ggd[1].ggd[:].power_density.values
+wall.description_ggd[1].ggd[:].psi.values
+wall.description_ggd[1].ggd[:].j_total.r
+wall.description_ggd[1].ggd[:].j_total.z
+wall.description_ggd[1].ggd[:].j_total.phi
 
 # Grid
-wall_ids.description_ggd[:].type.index
-wall_ids.description_ggd[:].grid_ggd[0]identifier.index
-wall_ids.description_ggd[:].grid_ggd[0]identifier.description
-wall_ids.description_ggd[:].grid_ggd[0]grid_subset[0].identifier.index
-wall_ids.description_ggd[:].grid_ggd[0]grid_subset[0].dimension
-wall_ids.description_ggd[:].grid_ggd[0]space[0].identifier.index
-wall_ids.description_ggd[:].grid_ggd[0]space[0].geometry_type.index
-wall_ids.description_ggd[:].grid_ggd[0]space[0].coordinates_type
-wall_ids.description_ggd[:].grid_ggd[0]space[0].objects_per_dimension[0].geometry_content.index
-wall_ids.description_ggd[:].grid_ggd[0]space[0].objects_per_dimension[0].object[:].geometry
-wall_ids.description_ggd[:].grid_ggd[0]space[0].objects_per_dimension[2].object[:].nodes
+wall.description_ggd[:].type.index
+wall.description_ggd[:].grid_ggd[0].identifier.index
+wall.description_ggd[:].grid_ggd[0].identifier.description
+wall.description_ggd[:].grid_ggd[0].time
+wall.description_ggd[:].grid_ggd[0].grid_subset[0].identifier.index
+wall.description_ggd[:].grid_ggd[0].grid_subset[0].dimension
+wall.description_ggd[:].grid_ggd[0].space[0].identifier.index
+wall.description_ggd[:].grid_ggd[0].space[0].geometry_type.index
+wall.description_ggd[:].grid_ggd[0].space[0].coordinates_type
+wall.description_ggd[:].grid_ggd[0].space[0].objects_per_dimension[0].geometry_content.index
+wall.description_ggd[:].grid_ggd[0].space[0].objects_per_dimension[0].object[:].geometry
+wall.description_ggd[:].grid_ggd[0].space[0].objects_per_dimension[2].object[:].nodes
 
-wall_ids.description_ggd[:].thickness[0].grid_subset[0].grid_index
-wall_ids.description_ggd[:].thickness[0].grid_subset[0].grid_subset_index
-wall_ids.description_ggd[:].thickness[0].grid_subset[0].values
+wall.description_ggd[:].thickness[0].grid_subset[0].grid_index
+wall.description_ggd[:].thickness[0].grid_subset[0].grid_subset_index
+wall.description_ggd[:].thickness[0].grid_subset[0].values
+wall.description_ggd[:].thickness[0].time
 
-wall_ids.description_ggd[:].component[0].type[0].grid_index
-wall_ids.description_ggd[:].component[0].type[0].grid_subset_index
-wall_ids.description_ggd[:].component[0].type[0].identifier.index
-wall_ids.description_ggd[:].component[0].type[0].identifier.name
-wall_ids.description_ggd[:].component[0].type[0].identifier.description
+wall.description_ggd[:].component[0].type[0].grid_index
+wall.description_ggd[:].component[0].type[0].grid_subset_index
+wall.description_ggd[:].component[0].type[0].identifier.index
+wall.description_ggd[:].component[0].type[0].identifier.name
+wall.description_ggd[:].component[0].type[0].identifier.description
+wall.description_ggd[:].component[0].time
 ```
 
 ### `pf_passive`
@@ -371,6 +412,7 @@ pf_passive.loop.element.geometry.rectangle.z
 pf_passive.loop.element.geometry.rectangle.width
 pf_passive.loop.element.geometry.rectangle.height
 pf_passive.loop.current
+pf_passive.loop.time
 ```
 
 ### `pf_active`
@@ -387,19 +429,40 @@ pf_active.coil.element.geometry.rectangle.z
 pf_active.coil.element.geometry.rectangle.width
 pf_active.coil.element.geometry.rectangle.height
 pf_active.coil.current.data
+pf_active.coil.current.time
+```
+
+### `plasma_transport`
+
+```text
+plasma_transport.ids_properties.homogeneous_time
+plasma_transport.time
+plasma_transport.grid_ggd
+plasma_transport.model.ggd.time
+plasma_transport.model.ggd.electrons.energy.flux_parallel.values
+plasma_transport.model.ggd.electrons.energy.flux_parallel.grid_index
+plasma_transport.model.ggd.electrons.energy.flux_parallel.grid_subset_index
+plasma_transport.model.ggd.total_ion_energy.flux_parallel.values
+plasma_transport.model.ggd.total_ion_energy.flux_parallel.grid_index
+plasma_transport.model.ggd.total_ion_energy.flux_parallel.grid_subset_index
+plasma_transport.model.ggd.ion.element.a
+plasma_transport.model.ggd.ion.element.z_n
+plasma_transport.model.ggd.ion.particles.flux_parallel.values
+plasma_transport.model.ggd.ion.particles.flux_parallel.grid_index
+plasma_transport.model.ggd.ion.particles.flux_parallel.grid_subset_index
 ```
 
 ### `disruption`
 
 ```text
-disruption_ids.ids_properties.homogeneous_time
-disruption_ids.time
-disruption_ids.global_quantities.current_halo_pol
-disruption_ids.global_quantities.current_halo_phi
-disruption_ids.global_quantities.power_ohm
-disruption_ids.global_quantities.power_ohm_halo
-disruption_ids.global_quantities.power_parallel_halo
-disruption_ids.global_quantities.power_radiated_electrons_impurities
+disruption.ids_properties.homogeneous_time
+disruption.time
+disruption.global_quantities.current_halo_pol
+disruption.global_quantities.current_halo_phi
+disruption.global_quantities.power_ohm
+disruption.global_quantities.power_ohm_halo
+disruption.global_quantities.power_parallel_halo
+disruption.global_quantities.power_radiated_electrons_impurities
 ```
 
 ### `spi`
@@ -413,93 +476,107 @@ spi.injector.pellet.core.species.z_n
 spi.injector.pellet.core.species.density
 spi.injector.velocity_mass_centre_fragments_r
 spi.injector.velocity_mass_centre_fragments_z
-spi.injector.velocity_mass_centre_fragments_tor
+spi.injector.velocity_mass_centre_fragments_phi
 spi.injector.fragment.position.r
 spi.injector.fragment.position.z
 spi.injector.fragment.position.phi
 spi.injector.fragment.velocity_r
 spi.injector.fragment.velocity_z
-spi.injector.fragment.velocity_tor
+spi.injector.fragment.velocity_phi
 spi.injector.fragment.volume
 ```
 
 ### `equilibrium`
 
 ```text
-equilibrium_ids.ids_properties.homogeneous_time
-equilibrium_ids.time
+equilibrium.ids_properties.homogeneous_time
+equilibrium.time
 
-equilibrium_ids.time_slice.profiles_1d.psi
-equilibrium_ids.time_slice.profiles_1d.pressure
-equilibrium_ids.time_slice.profiles_1d.dpressure_dpsi
-equilibrium_ids.time_slice.profiles_1d.f_df_dpsi
-equilibrium_ids.time_slice.profiles_1d.j_parallel
-equilibrium_ids.time_slice.profiles_1d.q
-equilibrium_ids.time_slice.profiles_1d.rho_tor_norm
+equilibrium.time_slice.profiles_1d.psi
+equilibrium.time_slice.profiles_1d.pressure
+equilibrium.time_slice.profiles_1d.dpressure_dpsi
+equilibrium.time_slice.profiles_1d.f_df_dpsi
+equilibrium.time_slice.profiles_1d.j_parallel
+equilibrium.time_slice.profiles_1d.q
+equilibrium.time_slice.profiles_1d.rho_tor_norm
 
-equilibrium_ids.vacuum_toroidal_field.r0
-equilibrium_ids.vacuum_toroidal_field.b0
+equilibrium.vacuum_toroidal_field.r0
+equilibrium.vacuum_toroidal_field.b0
 
-equilibrium_ids.time_slice.global_quantities.psi_axis
-equilibrium_ids.time_slice.global_quantities.psi_boundary
-equilibrium_ids.time_slice.global_quantities.magnetic_axis.r
-equilibrium_ids.time_slice.global_quantities.magnetic_axis.z
-equilibrium_ids.time_slice.global_quantities.beta_pol
-equilibrium_ids.time_slice.global_quantities.beta_tor
-equilibrium_ids.time_slice.global_quantities.beta_tor_norm
-equilibrium_ids.time_slice.global_quantities.ip
-equilibrium_ids.time_slice.global_quantities.li_3
-equilibrium_ids.time_slice.global_quantities.volume
-equilibrium_ids.time_slice.global_quantities.area
-equilibrium_ids.time_slice.global_quantities.current_centre.r
-equilibrium_ids.time_slice.global_quantities.current_centre.z
-equilibrium_ids.time_slice.global_quantities.q_axis
-equilibrium_ids.time_slice.global_quantities.q_95
-equilibrium_ids.time_slice.global_quantities.energy_mhd
-equilibrium_ids.time_slice.boundary.type
-equilibrium_ids.time_slice.boundary.psi
-equilibrium_ids.time_slice.boundary.minor_radius
-equilibrium_ids.time_slice.boundary.elongation
-equilibrium_ids.time_slice.boundary.triangularity_upper
-equilibrium_ids.time_slice.boundary.triangularity_lower
-equilibrium_ids.time_slice.boundary.geometric_axis.r
-equilibrium_ids.time_slice.boundary.geometric_axis.z
-equilibrium_ids.time_slice.boundary.closest_wall_point.r
-equilibrium_ids.time_slice.boundary.closest_wall_point.z
-equilibrium_ids.time_slice.boundary.closest_wall_point.distance
-equilibrium_ids.time_slice.contour_tree.node.critical_type
-equilibrium_ids.time_slice.contour_tree.node.r
-equilibrium_ids.time_slice.contour_tree.node.z
-equilibrium_ids.time_slice.contour_tree.node.psi
+equilibrium.time_slice.global_quantities.psi_magnetic_axis
+equilibrium.time_slice.global_quantities.magnetic_axis.r
+equilibrium.time_slice.global_quantities.magnetic_axis.z
+equilibrium.time_slice.global_quantities.beta_pol
+equilibrium.time_slice.global_quantities.beta_tor
+equilibrium.time_slice.global_quantities.beta_tor_norm
+equilibrium.time_slice.global_quantities.ip
+equilibrium.time_slice.global_quantities.li_3
+equilibrium.time_slice.global_quantities.volume
+equilibrium.time_slice.global_quantities.area
+equilibrium.time_slice.global_quantities.current_centre.r
+equilibrium.time_slice.global_quantities.current_centre.z
+equilibrium.time_slice.global_quantities.q_axis
+equilibrium.time_slice.global_quantities.q_95
+equilibrium.time_slice.global_quantities.energy_mhd
+equilibrium.time_slice.boundary.type
+equilibrium.time_slice.boundary.psi
+equilibrium.time_slice.boundary.minor_radius
+equilibrium.time_slice.boundary.elongation
+equilibrium.time_slice.boundary.triangularity_upper
+equilibrium.time_slice.boundary.triangularity_lower
+equilibrium.time_slice.boundary.geometric_axis.r
+equilibrium.time_slice.boundary.geometric_axis.z
+equilibrium.time_slice.boundary.closest_wall_point.r
+equilibrium.time_slice.boundary.closest_wall_point.z
+equilibrium.time_slice.boundary.closest_wall_point.distance
+equilibrium.time_slice.contour_tree.node.critical_type
+equilibrium.time_slice.contour_tree.node.r
+equilibrium.time_slice.contour_tree.node.z
+equilibrium.time_slice.contour_tree.node.psi
 
-equilibrium_ids.time_slice.boundary.outline.r
-equilibrium_ids.time_slice.boundary.outline.z
+equilibrium.time_slice.boundary.outline.r
+equilibrium.time_slice.boundary.outline.z
 
-equilibrium_ids.time_slice.profiles_2d.type.index
-equilibrium_ids.time_slice.profiles_2d.grid_type.index
-equilibrium_ids.time_slice.profiles_2d.grid.dim1
-equilibrium_ids.time_slice.profiles_2d.grid.dim2
-equilibrium_ids.time_slice.profiles_2d.r
-equilibrium_ids.time_slice.profiles_2d.z
-equilibrium_ids.time_slice.profiles_2d.psi         #extended to vacuum if using export_field_extension
-equilibrium_ids.time_slice.profiles_2d.j_phi
-equilibrium_ids.time_slice.profiles_2d.b_field_r   #extended to vacuum if using export_field_extension
-equilibrium_ids.time_slice.profiles_2d.b_field_z   #extended to vacuum if using export_field_extension
-equilibrium_ids.time_slice.profiles_2d.b_field_phi
+equilibrium.time_slice.profiles_2d.type.index
+equilibrium.time_slice.profiles_2d.grid_type.index
+equilibrium.time_slice.profiles_2d.grid.dim1
+equilibrium.time_slice.profiles_2d.grid.dim2
+equilibrium.time_slice.profiles_2d.r
+equilibrium.time_slice.profiles_2d.z
+equilibrium.time_slice.profiles_2d.psi         # overwritten by vacuum extension if enabled
+equilibrium.time_slice.profiles_2d.j_phi
+equilibrium.time_slice.profiles_2d.b_field_r   # overwritten by vacuum extension if enabled
+equilibrium.time_slice.profiles_2d.b_field_z   # overwritten by vacuum extension if enabled
+equilibrium.time_slice.profiles_2d.b_field_phi
 ```
 
 ### `radiation`
 
-Available only for SPI simulations using markers.
+The marker branch uses a GGD representation. The non-marker branch writes
+flux-averaged 1D radiation profiles.
 
 ```text
-The GGD structures are identical to those of plasma_profiles/1, otherwise
+radiation.time
+radiation.ids_properties.homogeneous_time
+radiation.process.identifier.name
+radiation.process.identifier.description
+radiation.process.identifier.index
 
-radiation_ids.time
-radiation_ids.process.ggd.time
+# Marker branch
+radiation.grid_ggd
+radiation.process.ggd.time
+radiation.process.ggd.ion.name
+radiation.process.ggd.ion.emissivity.grid_index
+radiation.process.ggd.ion.emissivity.grid_subset_index
+radiation.process.ggd.ion.emissivity.values
+radiation.process.ggd.ion.emissivity.coefficients
 
-radiation_ids.process.identifier.name
-radiation_ids.process.identifier%description
-radiation_ids.process.identifier%index
-radiation.process[0].ggd.ion[0].emissivity.coefficients
+# Non-marker branch
+radiation.process.profiles_1d.time
+radiation.process.profiles_1d.grid.psi_magnetic_axis
+radiation.process.profiles_1d.grid.psi_boundary
+radiation.process.profiles_1d.grid.rho_pol_norm
+radiation.process.profiles_1d.grid.psi
+radiation.process.profiles_1d.grid.rho_tor_norm
+radiation.process.profiles_1d.emissivity_ion_total
 ```
