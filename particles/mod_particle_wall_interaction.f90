@@ -65,6 +65,7 @@ module mod_particle_wall_interaction
   use equil_info, only:find_xpoint
   use mod_particle_create, only: part_create_scheme, type_part_create_scheme, create_scheme_is_set
   use mod_edge_elements, only: edge_elements, type_cdf_data
+  use mpi
   !$ use omp_lib 
   
   implicit none
@@ -1683,22 +1684,32 @@ end function fluid_sputtering_yield
 !> Assume that the impact angle of all particles is 0
 subroutine project_sputter_vars_on_edge(this, sim)
   use mod_atomic_elements, only: atomic_weights
-  use phys_module, only: central_mass, xpoint, xcase, min_sheath_angle, gamma
+  use phys_module, only: central_mass, xpoint, xcase, min_sheath_angle, gamma, n_vertex_max, bcs, D_par, central_density
+  use data_structure, only: type_node
+  use diffusivities, only: get_dperp
+  use equil_info, only: get_psi_n
+  use constants, only: MU_ZERO, ATOMIC_MASS_UNIT
   
   type(wall_action),  intent(inout) :: this
   type(particle_sim), intent(in)    :: sim
+
+  type(type_node) :: node
   
-  integer :: q, i, i_patch, Z
-  real*8 :: vector_normal(3), cos_alpha, mass_ion, c_s, Gamma_d
-  real*8 :: T_i, T_e, n_e, yield, vpar
-  real*8, dimension(3) :: E, B, B_hat
-  real*8 :: m, psi, U
+  integer :: q, i, i_patch
+  real*8 :: vector_normal(3), cos_alpha, mass_ion, c_s, Gamma_d, Gamma_convective
+  real*8 :: T_i, T_e, n_e, n_e_corr, yield, vpar, grad_par_n_e
+  real*8, dimension(3) :: E, B, B_hat, grad_n_e
+  real*8 :: psi, U, psi_norm
+  real*8 :: D_par_si, D_perp_si, D_norm !< normalisation for diffusivity: D_si = D_jor * D_norm
   real*8 :: c_angle !< min_sheath_angle but then in radians, same as in mod_boundary_matrix_open
 
   real*8 :: psi_axis, R_axis, Z_axis, s_axis, t_axis, psi_xpoint(2), psi_limit, R_xpoint(2), Z_xpoint(2), s_xpoint(2), t_xpoint(2)
-  integer :: i_elm_axis, ifail, i_elm_xpoint(2)
+  integer :: i_elm_axis, ifail, i_elm_xpoint(2), ierr
+  integer :: n_dirichlet_BC_nodes, n_sheath_BC_nodes, n_grad0_BC_nodes, inode, inodes(n_vertex_max)
 
   c_angle = min_sheath_angle * PI/180.d0
+
+  D_norm = 1.d0/(sqrt(MU_ZERO*central_mass*central_density*1.d20*ATOMIC_MASS_UNIT))
 
   ! projection diagnostic
   ! Preparation (force my_id to 1 to suppress message)
@@ -1733,21 +1744,25 @@ subroutine project_sputter_vars_on_edge(this, sim)
 #else
     !$omp parallel do default(none) &
     !$omp shared(this, sim, gamma, &
-    !$omp i_patch, central_mass, psi_axis, psi_limit, c_angle) &
+    !$omp i_patch, central_mass, psi_axis, psi_limit, c_angle, bcs, D_par, D_norm) &
 #endif
-    !$omp private(i, n_e, T_e, vpar, E, B, psi, U, vector_normal, B_hat, cos_alpha, q, T_i, mass_ion, c_s, m, Gamma_d, &
-    !$omp         yield, Z) schedule(static)
+    !$omp private(i, n_e, n_e_corr, T_e, vpar, grad_n_e, E, B, psi, U, psi_norm, vector_normal, B_hat, cos_alpha, grad_par_n_e, q, T_i, mass_ion, c_s, Gamma_d, &
+    !$omp         Gamma_convective, yield, inodes, inode, node, n_dirichlet_BC_nodes, n_sheath_BC_nodes, n_grad0_BC_nodes, &
+    !$omp         D_par_si, D_perp_si, ierr) schedule(static)
     do i = 1, size(this%fluid_yield_integral%patch(i_patch)%xyz, 2) !< over all nodes
-      call sim%fields%calc_NeTevpar(sim%time, this%fluid_yield_integral%patch(i_patch)%i_elm_jorek_edge(i), this%fluid_yield_integral%patch(i_patch)%st(:,i), &
-        real(this%fluid_yield_integral%patch(i_patch)%xyz(3,i), 8), n_e, T_e, vpar)
+      call sim%fields%calc_NeTeTi(sim%time, this%fluid_yield_integral%patch(i_patch)%i_elm_jorek_edge(i), this%fluid_yield_integral%patch(i_patch)%st(:,i), &
+        real(this%fluid_yield_integral%patch(i_patch)%xyz(3,i), 8), n_e_corr, T_e, T_i, n_e_raw=n_e, grad_raw_n_e=grad_n_e)
+
+      call sim%fields%calc_vpar(sim%time, this%fluid_yield_integral%patch(i_patch)%i_elm_jorek_edge(i), this%fluid_yield_integral%patch(i_patch)%st(:,i), &
+        real(this%fluid_yield_integral%patch(i_patch)%xyz(3,i), 8), vpar)
       
       call sim%fields%calc_EBpsiU(sim%time, this%fluid_yield_integral%patch(i_patch)%i_elm_jorek_edge(i), &
            this%fluid_yield_integral%patch(i_patch)%st(:,i), &
            real(this%fluid_yield_integral%patch(i_patch)%xyz(3,i), 8), &
            E, B, psi, U)
       
-      !> normal vector calculation
-      vector_normal = wall_normal_vector(sim%fields%node_list, sim%fields%element_list, &
+      !> normal vector calculation (wall_normal_vector gives inward pointing normal, so vector_normal is outward pointing)
+      vector_normal = - wall_normal_vector(sim%fields%node_list, sim%fields%element_list, &
           this%fluid_yield_integral%patch(i_patch)%i_elm_jorek_edge(i), &
           this%fluid_yield_integral%patch(i_patch)%st(1,i), &
           this%fluid_yield_integral%patch(i_patch)%st(2,i))
@@ -1755,20 +1770,55 @@ subroutine project_sputter_vars_on_edge(this, sim)
       !alpha = acos( dot_product(vector_normal,NORM2(B,dim=1))) !< acos is in radians
       ! the flux is given by the velocity along B dot n
       B_hat = B/norm2(B)
-      cos_alpha = abs(dot_product(vector_normal,B_hat))
+      cos_alpha = dot_product(vector_normal,B_hat)
+
+      !convective flux to the wall
+      Gamma_convective = n_e * vpar * norm2(B) * cos_alpha
         
       q = 1 ! for calculation of sound speed
-      T_i = T_e !< not made for model 400 [K]
       mass_ion = central_mass* ATOMIC_MASS_UNIT !< now we use only the deuterium soundspeed
       ! c_s = sqrt((k_boltz/mass_ion)*(T_e + gamma * T_i)) ! m/s !< gamma *(Te+Ti) in model303 and 307
       c_s = sqrt((k_boltz/mass_ion)*(gamma * (T_i+T_e))) !< IF model =303 / 307
       !<TODO: test c_s is vpar0, as this should account for all models
-      
-      Z = this%fluid_Z
-      m = atomic_weights(Z) * ATOMIC_MASS_UNIT
-      
-      Gamma_d = n_e * abs(vpar) * norm2(B) * cos_alpha + n_e * c_s * c_angle
+            
+      ! logic to find which boundary condition we should be applying on the particle side to match the fluid side
+      inodes = sim%fields%element_list%element(this%fluid_yield_integral%patch(i_patch)%i_elm_jorek_edge(i))%vertex
+      n_dirichlet_BC_nodes=0; n_sheath_BC_nodes=0; n_grad0_BC_nodes=0;
+      do inode=1,n_vertex_max
+        node = sim%fields%node_list%node(inodes(inode))
+        if(node%boundary > 0 .and. node%boundary < 20) then
+          if(bcs(node%boundary)%dirichlet%rho) then
+            n_dirichlet_BC_nodes = n_dirichlet_BC_nodes + 1
+          else if(bcs(node%boundary)%natural%rho) then
+            n_sheath_BC_nodes    = n_sheath_BC_nodes    + 1
+          else
+            n_grad0_BC_nodes     = n_grad0_BC_nodes     + 1
+          end if
+        end if
+      enddo
 
+      Gamma_d = 0
+
+      ! calculating the particle flux to the wall
+      if (n_sheath_BC_nodes > 0) then ! apply sheath BC -> loss is only convective + c_angle term
+        Gamma_d = Gamma_convective + n_e * c_s * c_angle
+      else if (n_dirichlet_BC_nodes > 0) then ! apply dirichlet BC -> no c_angle term, but diffusive and convective terms are present
+        psi_norm = get_psi_n(psi,z=real(this%fluid_yield_integral%patch(i_patch)%xyz(2,i),8))
+        D_par_si = D_par * D_norm
+        D_perp_si = get_dperp(psi_norm) * D_norm
+        grad_par_n_e=dot_product(b_hat, grad_n_e)
+        
+        Gamma_d = Gamma_convective - ((D_par_si - D_perp_si)*grad_par_n_e*cos_alpha + D_perp_si*dot_product(grad_n_e,vector_normal))
+        
+      else if (n_grad0_BC_nodes > 0) then !no BC applied -> grad rho . n = 0, so only loss is convective
+        Gamma_d = Gamma_convective
+      else
+        !$omp critical
+        write(*,*) "ERROR: in mod_particle_wall_interaction, it should be impossible to end up in this place in the if, else if tree"
+        !$omp end critical
+        call MPI_Abort(MPI_COMM_WORLD, 32, ierr)
+      end if
+      
       ! Assume an impact angle of 0!
       ! need the abs here because we cheat using negative numbers to indicate D, T
       ! cap ionisation level to 4
@@ -1942,7 +1992,9 @@ subroutine particle_projection_diagnostic(this, sim, particle, E, sputtering_yie
   !> find in which patch the particle is lost
   i_patch = elm_in_patch(particle%i_elm, this%fluid_yield_integral)
   if (i_patch < 0) then
+    !$omp critical
     write(*,"(A,I8,5es15.5)") "ERROR: in particle_self_reflection elm_in_patch, particle lost to somewhere unknown i_elm,s,t,R,Z,phi",particle%i_elm,particle%st,particle%x
+    !$omp end critical
     return
   end if
 
