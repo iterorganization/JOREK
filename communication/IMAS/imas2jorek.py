@@ -1,12 +1,12 @@
-import imas, os, copy 
+import atexit
+
+import imas
 import numpy as np
-from imas import imasdef
+from imas.util import get_data_dictionary_version
 import argparse
 import getpass
 from scipy import interpolate
 from scipy.interpolate import griddata
-import matplotlib.pyplot as plt
-
 
 # --- Routine to find index with nearest float value in an array
 def find_nearest(arr, target_value):
@@ -151,8 +151,24 @@ def build_JOREK_boundary(tokamak_name):
   return r_bnd, z_bnd, r0, z0
 
 
+def parse_dd_version(version):
+  """Return the major and minor components of an IMAS DD version."""
+  try:
+    components = tuple(int(value) for value in version.split('.'))
+  except ValueError as error:
+    raise argparse.ArgumentTypeError(
+        "DD version must use the form MAJOR[.MINOR[.PATCH]]"
+    ) from error
+
+  if not components:
+    raise argparse.ArgumentTypeError("DD version cannot be empty")
+
+  return components + (0,) * (2 - len(components))
+
+
 print(" ")
 print(" Example of usage: ")
+print("    python imas2jorek.py --uri 'imas:hdf5?path=/path/to/imas/data' -t 54.5")
 print("    python imas2jorek.py -u public -d ITER -p 105033 -r 1 -t 54.5")
 print(" ")
 print(" To see options and default values do: ")
@@ -162,21 +178,64 @@ print(" ")
 # Import shot
 parser = argparse.ArgumentParser(description="Create a JOREK input file from an equilibrium IDS in a given IMAS database",
                                  formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+parser.add_argument("--uri", type=str, default=None,
+                    help="IMAS data-entry URI. When set, it takes precedence over backend/database/pulse/run/user")
 parser.add_argument("-p", "--pulse", type=int, default=1, help="Pulse number")
 parser.add_argument("-r", "--run", type=int, default=7, help="Run number")
 parser.add_argument("-u", "--user", type=str, default=getpass.getuser(),
                     help="Location of ~$USER/public/imasdb")
 parser.add_argument("-d", "--database", type=str, default="test_db", help="Database name under public/imasdb/")
-parser.add_argument("-dd", "--data_dictionary", type=int, default=3, help="data dictionary major version")
+parser.add_argument("-dd", "--dd-version", "--data_dictionary", dest="dd_version", type=str, default=None,
+                    help="Optional Data Dictionary version override; by default use the DBEntry version")
 parser.add_argument("-o", "--occurrence", type=int, default=0, help="Occurrence number")
 parser.add_argument("-tk", "--tokamak", type=str, default="ITER", help="Name of the tokamak (to construct R,Z boundary)")
-parser.add_argument("-f", "--backend", type=int, default=imasdef.HDF5_BACKEND,
+parser.add_argument("-f", "--backend", type=int, default=imas.ids_defs.HDF5_BACKEND,
                     help="Database format: 12=MDSPLUS, 13=HDF5")
 parser.add_argument("-t", "--time", type=float, default=-1, help="The requested time in seconds")
 args = parser.parse_args()
 
+entry_options = {} if args.dd_version is None else {"dd_version": args.dd_version}
+if args.uri:
+  entry = imas.DBEntry(args.uri, "r", **entry_options)
+  entry_description = args.uri
+else:
+  entry = imas.DBEntry(args.backend, args.database, args.pulse, args.run, args.user,
+                        **entry_options)
+  entry.open()
+  entry_description = "legacy entry: user=%s, database=%s, pulse=%s, run=%s" % (
+      args.user, args.database, args.pulse, args.run)
+
+atexit.register(lambda: entry.close())
+print("Reading IMAS entry: %s" % entry_description)
+
+# Detect the DD version stored in the entry before doing normal reads. Reading
+# this metadata with autoconvert=False works even when the stored and default
+# DD versions have different major versions.
+if args.dd_version is None:
+  stored_version_ids = entry.get("equilibrium", occurrence=args.occurrence,
+                                 lazy=True, autoconvert=False)
+  dd_version_string = get_data_dictionary_version(stored_version_ids)
+
+  # Reopen with the on-disk version so the generated IDS structure matches the
+  # data, including entries stored with DD 3.x while DD 4.x is installed.
+  if dd_version_string != entry.dd_version:
+    entry.close()
+    if args.uri:
+      entry = imas.DBEntry(args.uri, "r", dd_version=dd_version_string)
+    else:
+      entry = imas.DBEntry(args.backend, args.database, args.pulse, args.run, args.user,
+                           dd_version=dd_version_string)
+      entry.open()
+else:
+  # --dd-version is an explicit target-version override.
+  dd_version_string = entry.dd_version
+
+dd_version = parse_dd_version(dd_version_string)
+dd_major = dd_version[0]
+print("Using Data Dictionary version: %s" % dd_version_string)
+
 # cocos factors
-if (args.data_dictionary <=3):
+if (dd_major <=3):
   cocos_psi  =  1.0/(2*np.pi)       # Transform to COCOS convention 11 --> 8
 else:
   cocos_psi  =  -1.0/(2*np.pi)      # Transform to COCOS convention 17 --> 8
@@ -185,30 +244,36 @@ cocos_curr = -1.0
 cocos_Bphi = -1.0
 it=0
 
-input = imas.DBEntry(args.backend, args.database, args.pulse, args.run, args.user, data_version = str(args.data_dictionary))
-input.open()
-
-time = input.partial_get("equilibrium",'time')
-equilibrium   = input.get_slice("equilibrium",args.time, imas.imasdef.CLOSEST_INTERP)
-pf_active     = input.get_slice("pf_active",  args.time, imas.imasdef.CLOSEST_INTERP)
+time = np.asarray(entry.get("equilibrium", occurrence=args.occurrence, lazy=True).time)
+equilibrium = entry.get_slice("equilibrium", args.time, imas.ids_defs.CLOSEST_INTERP,
+                              occurrence=args.occurrence)
+try:
+  pf_active = entry.get_slice("pf_active", args.time, imas.ids_defs.CLOSEST_INTERP,
+                              occurrence=args.occurrence)
+except Exception as error:
+  print("Warning: pf_active occurrence %d is unavailable; no coil currents will be imported (%s)" %
+        (args.occurrence, error))
+  pf_active = None
 # Use plasma_profiles if available
-if args.data_dictionary>3:
+if dd_major > 3:
   use_core_prof  = False
-  profiles = input.get_slice("plasma_profiles", args.time, imas.imasdef.CLOSEST_INTERP)
   try:
-    profiles.validate()
-    if len(profiles.profiles_1d[it].electrons.temperature)==0:
-      print(len(profiles.profiles_1d[it].electrons.temperature))
+    profiles = entry.get_slice("plasma_profiles", args.time, imas.ids_defs.CLOSEST_INTERP,
+                               occurrence=args.occurrence)
+    if (len(profiles.profiles_1d) == 0 or
+        len(profiles.profiles_1d[it].electrons.temperature) == 0):
       use_core_prof = True
     else:
       print('Use plasma_profiles')
-  except:
+  except Exception as error:
+    print('Could not read usable plasma_profiles (%s)' % error)
     use_core_prof = True
 else:
   use_core_prof = True
 if (use_core_prof):
   print('Use core_profiles')
-  profiles = input.get_slice("core_profiles", args.time, imas.imasdef.CLOSEST_INTERP)
+  profiles = entry.get_slice("core_profiles", args.time, imas.ids_defs.CLOSEST_INTERP,
+                             occurrence=args.occurrence)
     
 # Find out array index of the requested time
 tc   = equilibrium.time[0]
@@ -231,7 +296,7 @@ AMU      = 1.660539040e-27
 e_ch     = 1.6021766e-19
 
 # Read 0D parameters
-if args.data_dictionary<4:
+if dd_major < 4:
   a_min      = equilibrium.time_slice[it].boundary_separatrix.minor_radius
 else:
   a_min      = equilibrium.time_slice[it].boundary.minor_radius
@@ -239,11 +304,15 @@ else:
 eps          = a_min / R_geo
 B_geo        = equilibrium.vacuum_toroidal_field.r0 * equilibrium.vacuum_toroidal_field.b0[0] / R_geo * cocos_Bphi
 xip          = equilibrium.time_slice[it].global_quantities.ip           * cocos_curr
-psi_axis     = equilibrium.time_slice[it].global_quantities.psi_axis     * cocos_psi
-psi_boundary = equilibrium.time_slice[it].global_quantities.psi_boundary * cocos_psi
+if dd_version >= (4, 1):
+  psi_axis     = equilibrium.time_slice[it].global_quantities.psi_magnetic_axis * cocos_psi
+  psi_boundary = equilibrium.time_slice[it].boundary.psi                        * cocos_psi
+else:
+  psi_axis     = equilibrium.time_slice[it].global_quantities.psi_axis     * cocos_psi
+  psi_boundary = equilibrium.time_slice[it].global_quantities.psi_boundary * cocos_psi
 beta_p       = equilibrium.time_slice[it].global_quantities.beta_pol                
 beta_tor     = equilibrium.time_slice[it].global_quantities.beta_tor
-if args.data_dictionary<4:
+if dd_major < 4:
   beta_normal  = equilibrium.time_slice[it].global_quantities.beta_normal
 else:
   beta_normal  = equilibrium.time_slice[it].global_quantities.beta_tor_norm
@@ -304,8 +373,8 @@ R_2d   = equilibrium.time_slice[it].profiles_2d[0].r
 Z_2d   = equilibrium.time_slice[it].profiles_2d[0].z
 psi_2d = equilibrium.time_slice[it].profiles_2d[0].psi  * cocos_psi
 
-# Read PF coil currents
-coils  = pf_active.coil
+# Read PF coil currents when the optional pf_active IDS is available
+coils  = [] if pf_active is None else pf_active.coil
 
 # Get poloidal flux at the JOREK boundary
 Ra = R_2d.flatten()
@@ -367,8 +436,11 @@ namelist = open('jorek_namelist', 'w')
   
 namelist.write( "***********************************************\n")
 namelist.write( "* namelist from imas2jorek.py                 *\n")
-namelist.write("* pulse %06i        run %02i          *\n"%(args.pulse,args.run))
-namelist.write("* database %s user %s*\n"%(args.database,args.user))
+if args.uri:
+  namelist.write("* URI %s\n" % args.uri)
+else:
+  namelist.write("* pulse %06i        run %02i          *\n"%(args.pulse,args.run))
+  namelist.write("* database %s user %s*\n"%(args.database,args.user))
 namelist.write("* time %.6f                           \n*" %tc)
 namelist.write( "***********************************************\n")
 
@@ -483,11 +555,3 @@ for i in range(0, len(R_bnd)):
 
 namelist.write( "/"+"\n")
 namelist.close()
-
-
-#fig = plt.figure()
-#ax = fig.add_subplot(111)
-#ax.plot(R_bnd,Z_bnd)
-#cax = ax.pcolor(R_2d,Z_2d,psi_2d, cmap='rainbow')
-#cbar = fig.colorbar(cax)
-#plt.show()
