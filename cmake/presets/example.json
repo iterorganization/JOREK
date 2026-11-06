@@ -1,0 +1,44 @@
+{
+  "version": 4,
+  "include": ["../../CMakePresets.json"],
+  "configurePresets": [
+    {
+      "name": "mymachine-intel",
+      "inherits": "intel-oneapi",
+      "displayName": "My machine - Intel oneAPI + MKL + STRUMPACK",
+      "description": "Requires: module load <compiler> <mpi> <mkl> <hdf5> <fftw> cmake",
+      "environment": {
+        "JOREK_LIBDIR": "/path/to/jorek/libraries"
+      },
+      "cacheVariables": {
+        "CMAKE_Fortran_FLAGS": "-mcmodel=medium -march=native",
+        "CMAKE_C_FLAGS": "-mcmodel=medium -march=native",
+        "CMAKE_CXX_FLAGS": "-mcmodel=medium -march=native"
+      }
+    },
+    {
+      "name": "mymachine-intel-debug",
+      "inherits": ["debug", "mymachine-intel"],
+      "displayName": "My machine - Intel oneAPI, debug build"
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "mymachine-intel",
+      "configurePreset": "mymachine-intel",
+      "jobs": 16
+    },
+    {
+      "name": "mymachine-intel-most",
+      "configurePreset": "mymachine-intel",
+      "displayName": "Main solver plus the regression-tested diagnostics",
+      "targets": ["most"],
+      "jobs": 16
+    },
+    {
+      "name": "mymachine-intel-debug",
+      "configurePreset": "mymachine-intel-debug",
+      "jobs": 16
+    }
+  ]
+}

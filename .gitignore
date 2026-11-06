@@ -1,3 +1,11 @@
+# CMake
+/build/
+CMakeUserPresets.json
+/cmake/presets/*.json
+!/cmake/presets/example.json
+/CMakeCache.txt
+/CMakeFiles/
+
 *.bck
 *.o
 *.mod

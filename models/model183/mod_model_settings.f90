@@ -5,14 +5,16 @@ module mod_model_settings
 
   logical, parameter :: with_rho        = .true.
   logical, parameter :: with_vpar       = .false.
-  logical, parameter :: with_TiTe       = .false. 
+  logical, parameter :: with_TiTe       = .false.
+  logical, parameter :: use_domm       = .true.   !< Dommaschk-only vacuum field (no FE correction of n.B on the boundary)
+  logical, parameter :: use_ext_field = .false.  !< vacuum field from gvec2jorek file; requires use_domm=.false.
 
 ! ##################################################################################################
 ! ####  @USERS: This file should not be modified ###################################################
 ! ##################################################################################################
 
   ! The following line is needed by ./util/config.sh:
-  ! #SETTINGS# with_vpar with_TiTe
+  ! #SETTINGS# with_vpar with_TiTe use_domm use_ext_field
 
   ! JOREK stellarator reduced MHD model time evolution model: 
   !    See https://www.jorek.eu/wiki/doku.php?id=stellarator_setup
