@@ -38,7 +38,8 @@ module mod_rej_f
     public :: spatial_pdf_from_name
     public :: check_spatial_pdf
     public :: eval_rej_f
-    public :: itpa_tae_pdf, RZ_pdf, analytical_pdf, current_pdf
+
+    private :: itpa_tae_pdf, RZ_pdf, analytical_pdf, current_pdf
 
     ! =============================================================================
     ! Interface
