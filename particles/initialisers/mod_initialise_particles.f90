@@ -50,9 +50,15 @@ module mod_initialise_particles
       j = matching_part_config_indices(i) ! get the matching part_group_config index
 
       select case(trim(part_group_configs(j)%coupling_scheme))
-      case('ics', 'ncs', 'non')
+      case('ics', 'ncs')
         if (sim%my_id == 0) then
           write(*,*) "Particle initialisation skipped for ics/ncs, particles are born elsewhere"
+        endif
+      case('non')
+        if (sim%my_id == 0) then
+          write(*,*) "WARNING : 'non' coupling scheme is not fully implemented/tested in JOREK"
+          write(*,*) "          initialisation is skipped here, please modify subroutine"
+          write(*,*) "          initialise_particles_for_sim if necessary."
         endif
       case default
         if (sim%my_id == 0) then
