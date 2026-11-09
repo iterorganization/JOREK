@@ -186,7 +186,7 @@ subroutine check_compatibility_epf(group_num)
   !> Check initialisation parameters
   if (trim(part_group_configs(group_num)%init_function) .eq. 'experimental') then
     if (part_group_configs(group_num)%n_phi_planes .eq. 0) then
-      write(*,*) "ERROR: Maxwell initialisation chosen, but n_phi_planes = 0"
+      write(*,*) "ERROR: Experimental initialisation chosen, but n_phi_planes = 0"
       write(*,*) "  needs to be at least 1, please set part_group_configs()%n_phi_planes"
       call MPI_ABORT(MPI_COMM_WORLD, 1, ierr)
     endif

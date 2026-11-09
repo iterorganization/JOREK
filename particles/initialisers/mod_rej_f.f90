@@ -1,7 +1,7 @@
-!> Module defining abstract interfaces and implemtation for 
+!> Module defining abstract interfaces and implementation for
 !> real space rejection functions used during particle initialisation.
 !>
-!> A rejection funciton (rej_f) maps field values at a sample point to
+!> A rejection function (rej_f) maps field values at a sample point to
 !> an acceptance probability in [0,1]. The spatial_pdf derived type bundles 
 !> a procedure pointer with the variable list it expects, so both pieces of
 !> information always travel together
@@ -204,7 +204,7 @@ module mod_rej_f
     end subroutine calibrate_current_pdf
 
     !> Check that a spatial_pdf satisfies the invariants the samplers rely on.
-    !> Does nothing for an inavtive pdf (f => null(), ie init_pdf = 'none')
+    !> Does nothing for an inactive pdf (f => null(), ie init_pdf = 'none')
     subroutine check_spatial_pdf(pdf, caller)
         type(spatial_pdf), intent(in) :: pdf
         character(len=*),  intent(in) :: caller !> name to quote in error message
@@ -218,7 +218,7 @@ module mod_rej_f
             call MPI_ABORT(MPI_COMM_WORLD, 1, ierr)
         endif
 
-        !> Ascendinf order puts the geometric entries (<= 0) first, which is how
+        !> Ascending order puts the geometric entries (<= 0) first, which is how
         !> the samplers split vars(:) into geometric and JOREK variables
         if (any(pdf%vars(2:) < pdf%vars(:size(pdf%vars)-1))) then
             write(*,*) "ERROR (", caller, "): spatial_pdf vars(:) must be in ascending order, got ", pdf%vars
