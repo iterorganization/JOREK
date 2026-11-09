@@ -169,22 +169,19 @@ module mod_rej_f
         type(type_element_list), intent(in) :: element_list
  
         !> internal vars
-        real*8  :: zj_lo, zj_hi, R_lo, R_hi, e_lo, e_hi
+        real*8  :: zj_lo, zj_hi, R_lo, R_hi
         integer :: i_elm, my_id, ierr
 
         zj_lo = 1.d10; zj_hi = -1.d10
         R_lo  = 1.d10; R_hi  = -1.d10
         
         do i_elm = 1, element_list%n_elements
-            call find_variable_minmax(node_list, element_list, i_elm, var_zj, e_lo, e_hi)
-            zj_lo = min(zj_lo, e_lo); zj_hi = max(zj_hi, e_hi)
-            call find_variable_minmax(node_list, element_list, i_elm, -1, e_lo, e_hi)
-            R_lo  = min(R_lo, e_lo);  R_hi  = max(R_hi, e_hi)
-        enddo
+            call find_variable_minmax(node_list, element_list, i_elm, var_zj, zj_lo, zj_hi)
+            call find_variable_minmax(node_list, element_list, i_elm, -1,     R_lo,  R_hi)
 
-        !> R>0 on any grid, so j_tor/R is extremal at an R endpoint;
-        jzmin = min(zj_lo/R_lo, zj_lo/R_hi)
-        jzmax = max(zj_hi/R_lo, zj_hi/R_hi)
+            jzmin = min(jzmin, zj_lo/R_lo, zj_lo/R_hi)
+            jzmax = max(jzmax, zj_hi/R_lo, zj_hi/R_hi)
+        enddo
 
         call MPI_COMM_RANK(MPI_COMM_WORLD, my_id, ierr)
 
@@ -198,7 +195,6 @@ module mod_rej_f
         endif
 
         if (my_id == 0) then
-            write(*,'(A,2ES12.3)') "  j_tor    range : ", zj_lo, zj_hi
             write(*,'(A,2Es12.3)') "  j_tor/R  range : ", jzmin, jzmax
         endif
     end subroutine calibrate_current_pdf
