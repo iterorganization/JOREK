@@ -243,7 +243,8 @@ end function kinetic_leapfrog_to_kinetic
 !> Which can easily be adjusted to obtain the gc position from a kinetic position and velocity.
 function kinetic_to_gc(node_list, element_list, in, B, mass) result(out)
   use data_structure
-  use mod_math_operators, only: cross_product
+  use mod_pusher_tools, only: particle_position_to_gc
+  use, intrinsic :: ieee_arithmetic, only: ieee_is_finite
   use mod_find_rz_nearby
   type(type_node_list), intent(in)            :: node_list
   type(type_element_list), intent(in)         :: element_list
@@ -258,16 +259,23 @@ function kinetic_to_gc(node_list, element_list, in, B, mass) result(out)
   out = in
   out%q      = in%q
 
+  out%E = 0.d0
+  out%mu = 0.d0
+  if (.not. all(ieee_is_finite(B)) .or. .not. all(ieee_is_finite(in%v)) .or. &
+      .not. ieee_is_finite(mass) .or. mass <= 0.d0) then
+    out%i_elm = 0
+    return
+  endif
   B_norm = norm2(B)
+  if (.not. ieee_is_finite(B_norm) .or. B_norm <= 0.d0) then
+    out%i_elm = 0
+    return
+  endif
   B_hat = B/B_norm
   v_par = dot_product(in%v,B_hat)
   v2    = dot_product(in%v,in%v)
-  ! Calculate GC position
-  if (out%q .ne. 0) then
-    out%x = in%x + (mass*ATOMIC_MASS_UNIT*cross_product(in%v,B_hat))/(in%q*EL_CHG*B_norm)
-  else
-    out%x = in%x
-  end if
+  call particle_position_to_gc(node_list,element_list,in%x,in%st,in%i_elm,mass*in%v,in%q, &
+      B_hat,B_norm,out%x,out%st,out%i_elm)
 
   ! Calculate velocity-related variables
   out%E  = mass * ATOMIC_MASS_UNIT * 0.5d0 * v2 / EL_CHG ! [eV]
@@ -276,9 +284,6 @@ function kinetic_to_gc(node_list, element_list, in, B, mass) result(out)
   out%mu = sign(mass * ATOMIC_MASS_UNIT * 0.5d0 * (v2 - v_par**2)&
       /B_norm/EL_CHG, v_par) ! [eV/T]
 
-  ! Calculate new st and i_elm
-  call find_RZ_nearby(node_list, element_list, in%x(1), in%x(2), in%st(1), in%st(2), in%i_elm, &
-      out%x(1), out%x(2), out%st(1), out%st(2), out%i_elm, ifail)
 end function kinetic_to_gc
 
 !> Take a particle_gc and get the kinetic particle.
@@ -288,8 +293,9 @@ end function kinetic_to_gc
 function gc_to_kinetic(node_list, element_list, in, chi, B, mass) result(out)
   use constants
   use data_structure
-  use mod_pusher_tools, only: get_orthonormals
-  use mod_math_operators, only: cross_product
+  use mod_pusher_tools, only: get_orthonormals, larmor_displacement, cylindrical_displacement
+  use mod_coordinate_transforms, only: vector_rotation
+  use, intrinsic :: ieee_arithmetic, only: ieee_is_finite
   use mod_find_rz_nearby
   type(type_node_list), intent(in)    :: node_list
   type(type_element_list), intent(in) :: element_list
@@ -299,12 +305,22 @@ function gc_to_kinetic(node_list, element_list, in, chi, B, mass) result(out)
   real*8, intent(in) :: B(3) !< Magnetic field at GC position [T]
   real*8, intent(in) :: mass !< Mass of the particle [amu]
   real*8 :: B_norm, v_perp, v_par, B_hat(3), e1(3), e2(3)
+  real*8 :: rho(3), delta_phi
   integer :: ifail
 
   out = in
   out%q      = in%q
 
+  out%v = 0.d0
+  if (.not. all(ieee_is_finite(B)) .or. .not. ieee_is_finite(mass) .or. mass <= 0.d0) then
+    out%i_elm = 0
+    return
+  endif
   B_norm = norm2(B)
+  if (.not. ieee_is_finite(B_norm) .or. B_norm <= 0.d0) then
+    out%i_elm = 0
+    return
+  endif
   B_hat  = B/B_norm
   ! mu [eV/T] * B_norm [T] * EL_CHG [C] = E [J]
   v_perp = sqrt(2.d0*abs(in%mu*B_norm*EL_CHG)/(mass*ATOMIC_MASS_UNIT)) ! [m/s]
@@ -314,11 +330,13 @@ function gc_to_kinetic(node_list, element_list, in, chi, B, mass) result(out)
   call get_orthonormals(B_hat, e1, e2)
   out%v  = v_par * B_hat + v_perp * (cos(chi) * e1 + sin(chi) * e2)
 
-  if (out%q .ne. 0) then
-    out%x = in%x - (mass*ATOMIC_MASS_UNIT*cross_product(out%v,B_hat))/(real(out%q,8)*EL_CHG*B_norm)
-  else
-    out%x = in%x
-  end if
+  call larmor_displacement(mass*out%v,out%q,B_hat,B_norm,rho,ifail)
+  if (ifail == 0) call cylindrical_displacement(in%x,rho,out%x,delta_phi,ifail)
+  if (ifail /= 0) then
+    out%i_elm = 0
+    return
+  endif
+  out%v = vector_rotation(out%v,-delta_phi)
 
   ! Calculate new st and i_elm
   call find_RZ_nearby(node_list, element_list, in%x(1), in%x(2), in%st(1), in%st(2), in%i_elm, &
