@@ -302,7 +302,7 @@ do ife = ife_min, ife_max
 #ifdef WITH_TiTe
         T0      = eq_g(mp,var_Ti,ms,mt)
         T0_corr = corr_neg_temp1(T0)
-        Te0     = corr_neg_temp1(eq_g(mp,var_Te,ms,mt))
+        Te0     = corr_neg_temp1(eq_g(mp,var_Te,ms,mt)*2.d0) / 2.d0
 #else
         T0      = eq_g(mp,var_T,ms,mt)
         T0_corr = corr_neg_temp1(T0)
