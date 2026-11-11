@@ -80,6 +80,10 @@ tgnum_vpar = coefficient("tgnum_vpar")
 aux_mom_par0 = coefficient("aux_mom_par0")
 dV_dpsi_source = coefficient("dV_dpsi_source")
 Dn_perp_num = coefficient("Dn_perp_num")
+Dn0x = coefficient("Dn0x")
+Dn0y = coefficient("Dn0y")
+Dn0p = coefficient("Dn0p")
+source_neutral_drift = coefficient("source_neutral_drift")
 tgnum_rhoimp = coefficient("tgnum_rhoimp")
 heat_source_i = coefficient("heat_source_i")
 ZK_i_perp_num_psin = coefficient("ZK_i_perp_num_psin")
@@ -354,6 +358,10 @@ def _rho_hat(value=rho):
 def _B2(flux):
     """Total magnetic field squared (B^2)"""
     return (F0**2 + grad(flux)[0]**2 + grad(flux)[1]**2) / R**2
+
+def _B2_pol(flux):
+    """Poloidal magnetic field squared (Bpol^2)"""
+    return (grad(flux)[0]**2 + grad(flux)[1]**2) / R**2
 
 def _B_dot_grad(value, flux=psi, *, st_form=False):
     """Return B.grad(value). st_form computes the Poiss bracket in st coordinates"""
@@ -722,10 +730,11 @@ def parallel_velocity_equation_vpar(*, with_TiTe=False, st_form=True):
     )
 
     # Time derivative
-    # The parallel momentum density is rho*v_par*B**2. The element routinefreezes the density correction in the tangent..
+    # The B \cdot d (rho vpar B)
     A = v * (
-        corr_neg_dens(freeze(rho)) * vpar * bb2
-        + fact_conservative_u * rho * freeze(vpar) * bb2
+        + corr_neg_dens(freeze(rho)) * vpar * _B2(freeze(psi))
+        + corr_neg_dens(freeze(rho)) * freeze(vpar) * _B2_pol(psi) * sp.Rational(1, 2)
+        + fact_conservative_u * rho * freeze(vpar) * _B2(freeze(psi))
     ) * dV
 
     # The RHS and others
@@ -797,6 +806,40 @@ def impurity_density_equation_rhoimp(*, with_TiTe=False):
     ) * dV
     
     return EvolutionEquation("model600_impurity_density", v, A, B)
+
+def neutral_density_equation_rhon(*, with_TiTe=False):
+    """Model-600 fluid-neutral density equation (``var_rhon``)."""
+
+    v = test_function("v")
+    T_or_Te = Te if with_TiTe else T
+    ne = rho + alpha_e_state(T_or_Te) * rhoimp
+    rho_main = rho - rhoimp
+    dV = R * xjac
+
+    # Time derivative
+    A = v * rhon * dV
+
+    # Other terms and RHS
+    B = (
+        # anisotropic diffusion
+        - (Dn0x * dR(v) * dR(rhon) + Dn0y * dZ(v) * dZ(rhon))
+        - Dn0p * dphi(v) * dphi(rhon) / R**2
+
+        # convection/compression with the plasma flow
+        + delta_n_convection * v * (_u_convection(rhon) + _parallel_convection(rhon))
+
+        # ionization and recombination with the main/impurity ions
+        - v * ne * rhon * Sion_rate(T_or_Te)
+        + v * ne * rho_main * Srec_rate(T_or_Te)
+
+        # neutral source
+        + v * source_neutral_drift
+
+        # numerical stabilization
+        - Dn_perp_num * laplacian(v) * laplacian(rhon)
+    ) * dV
+
+    return EvolutionEquation("model600_neutral_density", v, A, B)
 
 def ion_energy_equation_Ti(*, st_form=True):
     """Model-600 ion energy equation (``var_Ti``).
