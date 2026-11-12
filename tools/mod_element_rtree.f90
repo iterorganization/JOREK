@@ -704,9 +704,15 @@ subroutine elements_containing_point(R, Z, phi, i_elms)
   real(C_DOUBLE), dimension(ND) :: min_bb, max_bb
   integer(C_INT) :: num_elements
   integer(C_int), dimension(:), allocatable :: i_nearby_C
+  logical :: flag_verbose
+
+  ! if true, verbose activated 
+  flag_verbose = .FALSE.
 
   if (R .ne. R .or. Z .ne. Z .or. phi .ne. phi) then
-    write(*,*) "Warning: NaN supplied for R or Z in elements_containing_point, returning 0 elements"
+    if (flag_verbose) then
+      write(*,*) "Warning: NaN supplied for R or Z in elements_containing_point, returning 0 elements"
+    end if
     allocate(i_elms(0))
     return
   end if
