@@ -93,6 +93,7 @@ namelist /in1/  tstep, nstep, tstep_n, nstep_n,                     &
                 particlesource_gauss_psin, particlesource_gauss_sig,&
                 produce_live_data, gmres, gmres_max_iter,           &
                 gmres_m, gmres_4, gmres_tol, iter_precon,           &
+                gmres_right_prec,                                   &
                 tgnum,  pastix_pivot, max_steps_noUpdate,           &
                 keep_n0_const, linear_run, export_for_nemec,        &
                 RMP_on, RMP_har_cos,RMP_har_sin,                    &

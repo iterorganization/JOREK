@@ -48,6 +48,7 @@ module mod_sparse
     integer(kind=int_all)    :: i
     logical                  :: verbose = .false.
     integer                  :: tag = -1   !< tag for log file output
+    logical                  :: converged  !< iterative solver reached the requested tolerance
     character(len=10)        :: fname
 
 
@@ -184,8 +185,10 @@ module mod_sparse
 
 #ifdef USE_BICGSTAB
       call bicgstab_driver(a_mat, rhs_vec, sol_vec, solver)
+      converged = (solver%iter_gmres .lt. solver%iter_max)
 #else
-      call gmres2_driver(a_mat=a_mat,b=rhs_vec%val,x=sol_vec%val,n=sol_vec%n, solver=solver)
+      call gmres2_driver(a_mat=a_mat,b=rhs_vec%val,x=sol_vec%val,n=sol_vec%n, solver=solver, &
+                         converged=converged)
 #endif
 
       call clck_time_barrier(t1)
@@ -194,7 +197,7 @@ module mod_sparse
 
       if (verbose) write(*,'(A32,I5)') 'Number of iterations: ', solver%iter_gmres
 
-      solver%step_success = (solver%iter_gmres .lt. solver%iter_max)
+      solver%step_success = converged
 
     endif
 
