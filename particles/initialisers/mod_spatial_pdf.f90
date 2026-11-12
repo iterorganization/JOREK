@@ -17,7 +17,7 @@
 !> so a function must be paired with the vars array it was written for. 
 !> Use spatial_pdf_from_name() to get a correctly-paired spatial_pdf.
 
-module mod_rej_f
+module mod_spatial_pdf
     use equil_info       ! (R_axis,Z_axis), etc..
     use mod_model_settings
     use mpi
@@ -135,7 +135,7 @@ module mod_rej_f
             !> NOTE : var_zj = 0 in fullMHD (j_tor is not a stored variable)
             !> This rej_f is only valid for models where var_zj > 0 (e.g. model600)
             if (var_zj == 0) then
-                write(*,*) "ERROR (mod_rej_f): 'current' spatial PDF requires model"
+                write(*,*) "ERROR (mod_spatial_pdf): 'current' spatial PDF requires model"
                 write(*,*) "  with var_zj > 0. j_tor is not a stored variable in this model"
                 call MPI_ABORT(MPI_COMM_WORLD, 1, ierr)
             endif
@@ -151,7 +151,7 @@ module mod_rej_f
             !> no rej_f should be passed to initialiser, sampling will be uniform in space
 
         case default
-            write(*,*) "ERROR (mod_rej_f): Unknown spatial PDF name '", trim(name), "'"
+            write(*,*) "ERROR (mod_spatial_pdf): Unknown spatial PDF name '", trim(name), "'"
             write(*,*) "      Valid names: 'itpa_tae', 'RZ', 'analytical', "
             write(*,*) "                   'current', 'none'"
             call MPI_ABORT(MPI_COMM_WORLD, 1, ierr)
@@ -188,7 +188,7 @@ module mod_rej_f
 
         if (jzmax .le. jzmin) then
             if (my_id == 0) then
-                write(*,*) "ERROR (mod_rej_f): 'current' spatial PDF found no spread in j_tor/R"
+                write(*,*) "ERROR (mod_spatial_pdf): 'current' spatial PDF found no spread in j_tor/R"
                 write(*,*) " j_tor range ", zj_lo, zj_hi
                 write(*,*) " R     range ", R_lo, R_hi
             endif
@@ -226,7 +226,7 @@ module mod_rej_f
     !> Evaluate the variables a spatial rejection function needs at one sample point.
     !>
     !> Fills P(:), and gradP(:,:) when needs_grad, in the order given by variables(:),
-    !> following the index convenction documented in mod_rej_f:
+    !> following the index convenction documented in mod_spatial_pdf:
     !>     >0: JOREK variable number
     !>      0: constant 1, -1: R, -2: Z, -3: Phi
     !> variables(:) must be sorted ascending, so the n_geom non-positive entries
@@ -375,4 +375,4 @@ module mod_rej_f
         f = real((P(2)/P(1) - jzmin) / (jzmax - jzmin), 4)
         f = min(max(f, 0.0e0), 1.0e0)
     end function current_pdf
-end module mod_rej_f
+end module mod_spatial_pdf

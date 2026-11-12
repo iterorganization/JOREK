@@ -4,8 +4,8 @@
 program seed_particles
 use particle_tracer
 use mod_particle_io
-use mod_rej_f
-use initialisers_base
+use mod_spatial_pdf
+use mod_initialiser_functions
 implicit none
 
 type(event) :: fieldreader

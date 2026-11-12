@@ -4,8 +4,8 @@ use constants
 use mod_particle_sim
 use mod_particle_types
 use mod_event
-use mod_initialise_particles
-use initialisers_base
+use mod_particle_group_init
+use mod_initialiser_functions
 
 ! IO
 use mod_io_actions

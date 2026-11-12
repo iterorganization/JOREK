@@ -7,7 +7,7 @@
 !> init_function  -> 1st dispatch, choses global initialiser. 
 !>                   Could be only phase-space (e.g. maxwell) or both real and phase-space (e.g. experimental)
 !> init_pdf       -> 2nd dispatch. Ignored if init_function includes real-space init (e.g. experimental)
-!>                   Optional real-space distribution function. Implemented via rejection sampling (see mod_rej_f).
+!>                   Optional real-space distribution function. Implemented via rejection sampling (see mod_spatial_pdf).
 !> particle_type  -> Determines valid init_functions
 !>
 !> Valid init_functions:
@@ -20,11 +20,11 @@
 !>                     real-space dist is implicit in file, init_pdf is ignored. Only valid for particle_kinetic_leapfrog
 !>
 !>  Any other init_function produces an explicit error at initialisation time.
-module mod_initialise_particles
-  use mod_rej_f
+module mod_particle_group_init
+  use mod_spatial_pdf
   use mod_particle_sim
   use mod_particle_types
-  use initialisers_base
+  use mod_initialiser_functions
   use mod_import_experimental_dist
   use phys_module, only: part_group_configs, type_part_group_config, n_part_groups
   use mod_particle_group_id, only: matching_part_config_indices
@@ -109,7 +109,7 @@ module mod_initialise_particles
     class default
       if (sim%my_id .eq. 0) then
         write(*,*) "ERROR : particle type may not be compatible with chosen init_function"
-        write(*,*) "        see subroutine initialise_group in mod_initialise_particles to change behaviour"
+        write(*,*) "        see subroutine initialise_group in mod_particle_group_init to change behaviour"
       endif
       call MPI_ABORT(MPI_COMM_WORLD, 1, ierr)
     end select
@@ -193,4 +193,4 @@ module mod_initialise_particles
 
   end subroutine initialise_group
 
-end module mod_initialise_particles
+end module mod_particle_group_init

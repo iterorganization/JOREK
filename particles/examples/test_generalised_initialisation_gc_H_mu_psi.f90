@@ -1,7 +1,7 @@
 program test_generalised_initialisation_gc_H_mu_psi
 !> the program is for comparing the generic initialisation method 
-!> contained in mod_initialise_particles and the case specific 
-!> initialize_particles_H_mu_psi implemented in mod_initialise_particles
+!> contained in mod_particle_group_init and the case specific 
+!> initialize_particles_H_mu_psi implemented in mod_particle_group_init
 use constants, only: TWOPI,PI,ATOMIC_MASS_UNIT,EL_CHG
 use particle_tracer
 use mod_interp

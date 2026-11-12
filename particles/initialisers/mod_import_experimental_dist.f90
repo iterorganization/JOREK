@@ -4,7 +4,7 @@ module mod_import_experimental_dist
   use mod_fields
   use mod_boris
   use mod_pcg32_rng
-  use initialisers_base
+  use mod_initialiser_functions
   use data_structure
   use mod_particle_types
   use constants

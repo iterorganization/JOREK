@@ -1,12 +1,12 @@
 !> Module containing the base functionality for the initialization of particles in 
 !> configuration space (6D) by rejection sampling
-module initialisers_base
+module mod_initialiser_functions
   use mod_rng
   use data_structure
   use mod_particle_types
   use constants
   use mod_interp
-  use mod_rej_f
+  use mod_spatial_pdf
   implicit none
   private
   public initialise_particles, adjust_particle_weights
@@ -1884,4 +1884,4 @@ subroutine set_velocity_from_T(particles, mass, node_list, element_list, cor, v_
     end select
   end do
 end subroutine set_velocity_from_T
-end module initialisers_base
+end module mod_initialiser_functions
