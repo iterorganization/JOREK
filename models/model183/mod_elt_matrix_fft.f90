@@ -97,8 +97,8 @@ real*8, dimension(n_plane,n_gauss,n_gauss) :: current_source, particle_source
 real*8, dimension(n_plane,n_gauss,n_gauss) :: heat_source, heat_source_i, heat_source_e
 real*8, dimension(n_gauss, n_gauss)        :: s_norm
 
-real*8, dimension(n_plane,n_var,n_gauss,n_gauss) :: eq_g, eq_s, eq_t, eq_p, eq_ss, eq_st, eq_tt, eq_pp, eq_sp, eq_tp
-real*8, dimension(n_plane,n_var,n_gauss,n_gauss) :: delta_g, delta_s, delta_t, delta_p
+real*8, dimension(n_plane,n_eq_var,n_gauss,n_gauss) :: eq_g, eq_s, eq_t, eq_p, eq_ss, eq_st, eq_tt, eq_pp, eq_sp, eq_tp
+real*8, dimension(n_plane,n_eq_var,n_gauss,n_gauss) :: delta_g, delta_s, delta_t, delta_p
 
 real*8, dimension(:,:,:,:,:), pointer :: eq
 real*8, dimension(n_var)              :: eq_px, eq_py
@@ -190,7 +190,7 @@ do i=1,n_vertex_max
             y_pp(mp,ms,mt) = y_pp(mp,ms,mt) + nodes(i)%x(in,j,2)*element%size(i,j)*H(i,j,ms,mt)   *HZ_coord_pp(in,mp)
           end do
  
-          do k=1,n_var
+          do k=1,n_eq_var
             do in=1,n_tor
               eq_g(mp,k,ms,mt) = eq_g(mp,k,ms,mt) + nodes(i)%values(in,j,k) * element%size(i,j) * H(i,j,ms,mt)  * HZ(in,mp)
               eq_s(mp,k,ms,mt) = eq_s(mp,k,ms,mt) + nodes(i)%values(in,j,k) * element%size(i,j) * H_s(i,j,ms,mt)* HZ(in,mp)
