@@ -290,8 +290,8 @@ do ms=1, n_gauss
     endif
 
     T0_corr  = corr_neg_temp1(T0)
-    Ti0_corr = corr_neg_temp1(Ti0)
-    Te0_corr = corr_neg_temp1(Te0)
+    Ti0_corr = corr_neg_temp1(Ti0*2.d0)/2.d0
+    Te0_corr = corr_neg_temp1(Te0*2.d0)/2.d0
     r0_corr  = corr_neg_dens(r0)
 
     if (with_TiTe) then
