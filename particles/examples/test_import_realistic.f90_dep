@@ -65,7 +65,7 @@ program test_import_realistic
   sim%groups(1)%mass = atomic_weights(-2) !< atomic mass units
   allocate(particle_kinetic_leapfrog::sim%groups(1)%particles(n_particles_local))
 
-  call import_particles(sim%groups(1)%particles,sim%fields,"experimental_dist.h5",pcg32_rng(),sim%groups(1)%mass,4,0.999d0)
+  call initialise_particles_experimental(sim%groups(1)%particles,sim%fields,"experimental_dist.h5",pcg32_rng(),sim%groups(1)%mass,4,0.999d0)
 
   select type (p => sim%groups(1)%particles)
     type is (particle_kinetic_leapfrog)

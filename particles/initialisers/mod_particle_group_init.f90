@@ -136,7 +136,7 @@ module mod_particle_group_init
 
     !> EPs : experimental distribution - f(R,Z,energy,pitch), expects a .h5 file - see mod_import_experimental_dist
     case ('experimental')
-      if (sim%my_id == 0) write(*,*) "  Sampler: import_particles - experimental distribution from 'experimental_dist.h5' file"
+      if (sim%my_id == 0) write(*,*) "  Sampler: initialise_particles_experimental - experimental distribution from 'experimental_dist.h5' file"
 
       !> check for existence of experimental_dist.h5 file
       inquire(file="experimental_dist.h5", exist=exists)
@@ -145,7 +145,7 @@ module mod_particle_group_init
         call MPI_ABORT(MPI_COMM_WORLD, 1, ierr)
       endif
 
-      call import_particles(sim%groups(group_num)%particles, sim%fields, &
+      call initialise_particles_experimental(sim%groups(group_num)%particles, sim%fields, &
         "experimental_dist.h5", pcg32_rng(), sim%groups(group_num)%mass, &
         n_phi_planes_in=config%n_phi_planes, fraction_phi_planes=1.d0)
 

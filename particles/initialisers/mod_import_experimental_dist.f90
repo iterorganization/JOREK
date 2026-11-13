@@ -14,7 +14,7 @@ module mod_import_experimental_dist
   use hdf5
   implicit none
   private
-  public import_particles, calculate_B
+  public initialise_particles_experimental, calculate_B
 
 contains
 
@@ -29,7 +29,7 @@ contains
 !                            the particles are copied with increasing phi (and thus provide no toroidal harmonics).
 !                            Noise in harmonics follows n0*sqrt(1-fraction_phi_planes) dependence (n0 noise with this 0.d0)
 ! For documentation of the HDF5 file: https://www.jorek.eu/wiki/doku.php?id=experimental_fast_particle
-subroutine import_particles(particles,fields,filename, rng_base,mass, n_phi_planes_in,fraction_phi_planes)
+subroutine initialise_particles_experimental(particles,fields,filename, rng_base,mass, n_phi_planes_in,fraction_phi_planes)
   use mpi
   use mod_sampling
   use mod_random_seed
@@ -229,13 +229,13 @@ subroutine import_particles(particles,fields,filename, rng_base,mass, n_phi_plan
     ! Allocate temporary particle storage.
     select type (particles)
       type is (particle_kinetic)
-        write(*,*) "ERROR: particle_kinetic not supported yet for import_particles"
+        write(*,*) "ERROR: particle_kinetic not supported yet for initialise_particles_experimental"
       type is (particle_kinetic_leapfrog)
         allocate(particle_kinetic_leapfrog::particles_tmp(blocksize))
       type is (particle_gc)
         allocate(particle_gc::particles_tmp(blocksize))
       class default
-        write(*,*) "ERROR: particle type not supported yet for import_particles"
+        write(*,*) "ERROR: particle type not supported yet for initialise_particles_experimental"
         call exit(1)
     end select
     allocate(found(blocksize))
@@ -346,7 +346,7 @@ subroutine import_particles(particles,fields,filename, rng_base,mass, n_phi_plan
   deallocate(E1D)
   deallocate(Pitch1D)
 
-end subroutine import_particles
+end subroutine initialise_particles_experimental
 
 pure function FourD_linear_interp(F0_norm,starts,spacings,values) result(value_out)
   real*8, dimension(:,:,:,:), intent(in) :: F0_norm
