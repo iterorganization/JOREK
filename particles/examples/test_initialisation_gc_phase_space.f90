@@ -1,7 +1,7 @@
 program test_initialisation_gc_phase_space
 !> program used for testing the initialisation method: 
 !> initialise_particles_in_phase_space 
-!> contained in mod_initialise_particles using the
+!> contained in mod_particle_group_init using the
 !> relativistic guiding center model.
 !> The idea is to provide a reject_uniform function
 !> which reject a uniformly distributed random sample

@@ -4,9 +4,12 @@
 program seed_particles
 use particle_tracer
 use mod_particle_io
+use mod_spatial_pdf
+use mod_initialiser_functions
 implicit none
 
 type(event) :: fieldreader
+type(spatial_pdf) :: space_pdf
 integer :: i, j
 
 ! Start up MPI, jorek
@@ -16,6 +19,10 @@ call sim%initialize(num_groups=1)
 fieldreader = event(read_jorek_fields_interp_linear(basename='jorek', i=-1))
 call with(sim, fieldreader)
 
+! Set up spatial pdf type
+space_pdf%f    => f_psi_inside
+space_pdf%vars =  [1]
+
 ! Set up particles
 sim%groups(:)%Z    = -2 
 sim%groups(:)%mass = 2.d0 !< atomic mass units
@@ -23,19 +30,19 @@ do i=1,1
   allocate(particle_kinetic_leapfrog::sim%groups(i)%particles(2000))
   ! For every particle accept or reject it with probability f_psi_inside(psi)
   ! this function below overwrites the whole particle set
-  call initialise_particles_H_mu_psi(sim%groups(i)%particles, &
+  call initialise_particles_maxwell(sim%groups(i)%particles, &
       sim%fields, pcg32_rng(), &
       sim%groups(i)%mass, &
-      uniform_space=.true., uniform_space_rej_f=f_psi_inside, &
-      uniform_space_rej_vars=[1], charge=1)
+      uniform_space=.true., space_pdf=space_pdf, charge=1)
   sim%groups(i)%particles(:)%weight = 1.0
 end do
 
 call write_simulation_hdf5(sim, 'part_restart.h5')
 contains
 pure function f_psi_inside(n, P, grad_P) result(f)
-  integer, intent(in) :: n
-  real*8, intent(in) :: P(n), grad_P(3,n)
+  integer,                intent(in) :: n
+  real*8, dimension(n),   intent(in) :: P
+  real*8, dimension(3,n), intent(in) :: grad_P
   real*4 :: f
   f = 5e-3
   if (P(1) .lt. -0.26 .and. P(1) .gt. -0.35) f = 1e0
