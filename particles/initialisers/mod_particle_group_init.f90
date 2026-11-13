@@ -123,12 +123,12 @@ module mod_particle_group_init
     !> EPs : Maxwellian distribution
     case ('maxwell')
       if (sim%my_id == 0) then
-        write(*,*) "  Sampler: initialise_particles_H_mu_psi_phiplanes"
+        write(*,*) "  Sampler: initialise_particles_maxwell_phiplanes"
         write(*, '(A,ES12.3,A)') "  T_maxwell    : ", config%T_maxwell, " [eV]"
         write(*, '(A,I0)')       "  n_phi_planes : ", config%n_phi_planes
       endif
 
-      call initialise_particles_H_mu_psi_phiplanes(               &
+      call initialise_particles_maxwell_phiplanes(               &
         sim%groups(group_num)%particles, sim%fields, pcg32_rng(), &
         sim%groups(group_num)%mass, uniform_space=.true.,         & 
         space_pdf=space_pdf, charge=1,                            &
@@ -158,7 +158,7 @@ module mod_particle_group_init
         write(*,'(A,ES12.3)')   "  Pitch  : ", config%re_pitch
       endif
 
-      call initialise_re_gaussian(sim, group_num, pcg32_rng(), &
+      call initialise_particles_re_gaussian(sim, group_num, pcg32_rng(), &
         space_pdf, config%re_energy, config%re_pitch, config%re_std_energy)
 
     !> Unknown init functions

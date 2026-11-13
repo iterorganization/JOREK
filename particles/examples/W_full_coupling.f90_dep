@@ -159,9 +159,9 @@ else
 	allocate(particle_kinetic_leapfrog::sim%groups(1)%particles(n_particles_local))
 
 	!>initialise particles here if needed
-	! call initialise_particles_H_mu_psi 
+	! call initialise_particles_maxwell 
 	! call adjust weights
-	call initialise_particles_H_mu_psi(sim%groups(1)%particles, &
+	call initialise_particles_maxwell(sim%groups(1)%particles, &
 	sim%fields, sobseq_rng(), &
 	sim%groups(1)%mass, &
 	uniform_space=.true., uniform_space_rej_f=f_psi_normal_inside,uniform_space_rej_vars=[1], cor=cor)

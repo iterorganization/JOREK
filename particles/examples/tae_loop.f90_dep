@@ -110,7 +110,7 @@ if (.not. restart_particles) then
   !< Maxwellian distribution is initialised from the bulk plasma, but later the velocities should be rescaled
   !< to math the desired E_hot, so that v_hot = sqrt(E_hot/E_bulk)*v_bulk with E_hot taken on axis
 
-  call initialise_particles_H_mu_psi(sim%groups(1)%particles, sim%fields, pcg32_rng(),sim%groups(1)%mass, &
+  call initialise_particles_maxwell(sim%groups(1)%particles, sim%fields, pcg32_rng(),sim%groups(1)%mass, &
                                      uniform_space=.true., uniform_space_rej_f=f_toroidal_flux, &
                                      uniform_space_rej_vars=[1], charge = 1, T_maxwell = 4d5)
 

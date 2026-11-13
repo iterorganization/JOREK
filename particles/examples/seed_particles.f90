@@ -30,7 +30,7 @@ do i=1,1
   allocate(particle_kinetic_leapfrog::sim%groups(i)%particles(2000))
   ! For every particle accept or reject it with probability f_psi_inside(psi)
   ! this function below overwrites the whole particle set
-  call initialise_particles_H_mu_psi(sim%groups(i)%particles, &
+  call initialise_particles_maxwell(sim%groups(i)%particles, &
       sim%fields, pcg32_rng(), &
       sim%groups(i)%mass, &
       uniform_space=.true., space_pdf=space_pdf, charge=1)

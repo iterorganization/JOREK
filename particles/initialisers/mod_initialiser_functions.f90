@@ -10,10 +10,10 @@ module mod_initialiser_functions
   implicit none
   private
   public initialise_particles, adjust_particle_weights
-  public set_velocity_from_T, domain_bounding_box, initialise_particles_H_mu_psi
-  public initialise_particles_H_mu_psi_phiplanes
+  public set_velocity_from_T, domain_bounding_box, initialise_particles_maxwell
+  public initialise_particles_maxwell_phiplanes
   public set_particle_weights_canonical_maxwellian, normalize_with_projection
-  public initialise_re_gaussian
+  public initialise_particles_re_gaussian
   public weigh_with_interp_f
   public normalize_with_projection_at_gc
   public real_f,real_arr_inout_s,part_inout_s,initialise_particles_in_phase_space
@@ -431,7 +431,7 @@ subroutine initialise_particles_in_phase_space(n_variables, particles, fields, r
     do ii=1,n_particles
       i_elm = 0; st = -1.d0; weight = 0d0;
       !> loop until the particle is not valid, it can slow down the code
-      !> but before trying a manual load balacing has done in initialise_particles_H_mu_psi
+      !> but before trying a manual load balacing has done in initialise_particles_maxwell
       !> let's check how the openMP dynamic scheduling performs using different chunksize
       do while(rejection_funct_gpdf(n_variables,variables(1:n_variables),st,time,i_elm,weight,&
         variables(n_variables+1),phase_bounds(:,1),phase_bounds(:,2),fields,pdf,gdf,&
@@ -556,7 +556,7 @@ end function rejection_funct_gpdf
 
 !> Initialise particle positions in E, mu, (psi, theta|R, Z), phi, gamma (gyrophase) space.
 !> Set Psi_transform to transform from [0,1] to your desired range
-subroutine initialise_particles_H_mu_psi(particles, fields, rng_base, mass, T_maxwell, &
+subroutine initialise_particles_maxwell(particles, fields, rng_base, mass, T_maxwell, &
   Theta_transform, Psi_transform, alpha, E_max, include_vpar, uniform_space, &
   space_pdf, cor, charge, rng_n_streams_round_off_in)
   use mod_rng
@@ -638,7 +638,7 @@ subroutine initialise_particles_H_mu_psi(particles, fields, rng_base, mass, T_ma
 
   use_rej = .false.
   if (present(space_pdf)) then
-    call check_spatial_pdf(space_pdf, "initialise_particles_H_mu_psi")
+    call check_spatial_pdf(space_pdf, "initialise_particles_maxwell")
     use_rej = associated(space_pdf%f)
   endif
 
@@ -936,12 +936,12 @@ subroutine initialise_particles_H_mu_psi(particles, fields, rng_base, mass, T_ma
       1, MPI_LOGICAL, MPI_LAND, MPI_COMM_WORLD, ierr)
 
   end do
-end subroutine initialise_particles_H_mu_psi
+end subroutine initialise_particles_maxwell
 
 !> Subroutine for initialising particles in  mu, (psi, theta|R, Z), phi, gamma (gyrophase) space.
 !! Optionally either only at a uniformly distributed n_phi_planes_in set of planes or with
 !! multiple marker particles per guiding centre particle.
-subroutine initialise_particles_H_mu_psi_phiplanes(particles, fields, rng_base, mass, T_maxwell, &
+subroutine initialise_particles_maxwell_phiplanes(particles, fields, rng_base, mass, T_maxwell, &
   Theta_transform, Psi_transform, alpha, E_max, include_vpar, uniform_space, &
   space_pdf, cor, charge, n_phi_planes_in, &
   n_gyro_orbit_in, rng_n_streams_round_off_in)
@@ -1046,7 +1046,7 @@ subroutine initialise_particles_H_mu_psi_phiplanes(particles, fields, rng_base, 
 
  use_rej = .false.
  if (present(space_pdf)) then
-  call check_spatial_pdf(space_pdf, "initialise_particles_H_mu_psi_phiplanes")
+  call check_spatial_pdf(space_pdf, "initialise_particles_maxwell_phiplanes")
   use_rej = associated(space_pdf%f)
  endif
 
@@ -1379,13 +1379,13 @@ subroutine initialise_particles_H_mu_psi_phiplanes(particles, fields, rng_base, 
       1, MPI_LOGICAL, MPI_LAND, MPI_COMM_WORLD, ierr)
   end do
 
-end subroutine initialise_particles_H_mu_psi_phiplanes
+end subroutine initialise_particles_maxwell_phiplanes
 
 
 !> Subroutine for initialising kinetic_relativistic particles in real and phase space
 !> Energy is either single valued, or a gaussian around energy with spread std_energy
 !> distribution in pitch angle is a delta function around pitch
-subroutine initialise_re_gaussian(sim, group_num, rng, space_pdf, energy, pitch, std_energy)
+subroutine initialise_particles_re_gaussian(sim, group_num, rng, space_pdf, energy, pitch, std_energy)
   use phys_module,               only: tstep_particles, CENTRAL_DENSITY, CENTRAL_MASS
   use mod_sampling,              only: boxmueller_transform
   use mod_pusher_tools,          only: get_orthonormals
@@ -1470,7 +1470,7 @@ subroutine initialise_re_gaussian(sim, group_num, rng, space_pdf, energy, pitch,
   deallocate(p_par)
   deallocate(p_perp)
 
-end subroutine initialise_re_gaussian
+end subroutine initialise_particles_re_gaussian
 
 !> Calculate the particle weights according to the canonical maxwellian distribution function
 !> (no electric fields):

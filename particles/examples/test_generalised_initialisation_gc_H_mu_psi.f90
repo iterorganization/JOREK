@@ -125,7 +125,7 @@ write(*,*) "Test H_mu_psi initialisation generic vs original, initialise particl
 call allocate_particle_list(particle_type,n_particles,sim%groups(1)%particles)
 particle_writer = event(write_action(filename=trim(original_h_mu_psi_filename)))
 call system_clock(t3)
-call initialise_particles_H_mu_psi(sim%groups(1)%particles, sim%fields,rng_pcg32,mass,&
+call initialise_particles_maxwell(sim%groups(1)%particles, sim%fields,rng_pcg32,mass,&
 include_vpar=include_vpar.eq.1, charge=int(Chargebound(1)))
 call system_clock(t4)
 call with(sim,particle_writer)
@@ -299,7 +299,7 @@ n_int_param,int_param) result(sup_gdf)
   sup_gdf = 1d0
 end function sup_gdf_psi_H_mu
 
-!> The test code is used for emulating the initialise_particles_H_mu_psi
+!> The test code is used for emulating the initialise_particles_maxwell
 !> method using the initialise_particles_in_phase_space method
 !> for guiding centers
 !> inputs:

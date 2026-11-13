@@ -41,7 +41,7 @@ sim%groups(:)%mass = 183.84 !< atomic mass units
 do i=1,size(sim%groups,1)
   allocate(particle_kinetic_leapfrog::sim%groups(i)%particles(100))
   ! For every particle accept or reject it with probability f_psi_inside(psi)
-  call initialise_particles_H_mu_psi(sim%groups(i)%particles, &
+  call initialise_particles_maxwell(sim%groups(i)%particles, &
       sim%fields, sobseq_rng(), &
       sim%groups(i)%mass, &
       uniform_space=.true., uniform_space_rej_f=f_psi_inside, &
