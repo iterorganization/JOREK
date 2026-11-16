@@ -2422,9 +2422,9 @@ module vacuum_response
     integer                   :: i, i1, i2, ierr
     real*8, allocatable       :: potentials_real_0(:)
     real*8, save, allocatable :: delta_Icoils_0(:)
-    real*8, save              :: t_last=-1e3, Z_p = 1.d10
+    real*8, save              :: t_last=-1e3, Z_p = 1.d10, R_p = 1.d10
     logical, save             :: initialized=.false.
-    real*8                    :: z_ref_inter, Z_n
+    real*8                    :: z_ref_inter, Z_n, R_n, r_ref_inter, rad_FB(3)
     if( my_id == 0 ) write(*,*) ' Imposing PF coil currents with a current source term '
 
     ! --- Calculate the difference between the input file coil currents and the ones coming from the restart file
@@ -2447,27 +2447,44 @@ module vacuum_response
 
     ! -- During timestepping apply vertical feedback by the PF coils which were activated
     ! Add the feedback current to the difference from the restart file
-    if (.not. allocated(vert_FB_response) .and. index_start+nstep>0) then
-      allocate(vert_FB_response(index_start+nstep,4))
-      vert_FB_response = 0.d0
-    endif
-    z_ref_inter = interpolProf(Z_axis_ref_ts%time, Z_axis_ref_ts%position ,  Z_axis_ref_ts%len, t_now)
-    vert_FB_response(index_now,4) = z_ref_inter
-    if ( t_now>start_VFB_ts .and. sum( abs(vert_FB_amp_ts(1:n_pf_coils)) )>1.e-6 .and. sr%i_tor(1) ==  1 ) then
+    if (.not. allocated(pos_FB_response) .and. index_start+nstep>0) then
+      allocate(pos_FB_response(index_start+nstep,8))
+      pos_FB_response = 0.d0
+   endif
+   r_ref_inter = interpolProf(axis_position_ts%time, axis_position_ts%R ,  axis_position_ts%len, t_now)
+   z_ref_inter = interpolProf(axis_position_ts%time, axis_position_ts%Z ,  axis_position_ts%len, t_now)
+   pos_FB_response(index_now,7) = z_ref_inter
+   pos_FB_response(index_now,8) = r_ref_inter
+   if ( t_now>start_PFB_ts .and. sum( abs(vert_FB_amp_ts(1:n_pf_coils)) )>1.e-6 .and. sr%i_tor(1) ==  1 ) then
       Z_n = ES%Z_axis
       if ( Z_p > 1.d9 ) Z_p = Z_n
       dZ_axis_integral = dZ_axis_integral + ( Z_n - z_ref_inter )*tstep
-      if ( (t_now-t_last)>vert_FB_tact ) then 
-        if (my_id==0) write(*,*) 'Vertical feedback active'
-        t_last = t_now
-        vert_FB_response(index_now,1:3) =  &
-            (/  1.d3  * vert_FB_gain(1)* (Z_n - z_ref_inter), &
-                1.d5  * vert_FB_gain(2)* (Z_n - Z_p )/ tstep, &
-                1.d-3 * vert_FB_gain(3)* dZ_axis_integral /)
-        delta_Icoils_0(1:n_pf_coils) = delta_Icoils_0(1:n_pf_coils) +  sum(vert_FB_response(index_now,1:3))*vert_FB_amp_ts(1:n_pf_coils)
+      if ( (t_now-t_last)>pos_FB_tact  ) then 
+         if (my_id==0) write(*,*) 'Vertical feedback active'
+         t_last = t_now
+         pos_FB_response(index_now,1:3) =  &
+              (/  1.d3  * vert_FB_gain(1)* (Z_n - z_ref_inter), &
+              1.d5  * vert_FB_gain(2)* (Z_n - Z_p )/ tstep, &
+              1.d-3 * vert_FB_gain(3)* dZ_axis_integral /)
+         delta_Icoils_0(1:n_pf_coils) = delta_Icoils_0(1:n_pf_coils) +  sum(pos_FB_response(index_now,1:3))*vert_FB_amp_ts(1:n_pf_coils)
       endif
       Z_p = Z_n
-    endif
+   endif
+   if ( t_now>start_PFB_ts .and. sum( abs(rad_FB_amp_ts(1:n_pf_coils)) )>1.e-6 .and. sr%i_tor(1) ==  1 ) then
+      R_n = ES%R_axis
+      if ( R_p > 1.d9 ) R_p = R_n
+      dR_axis_integral = dR_axis_integral + ( R_n - r_ref_inter )*tstep
+      rad_FB =  &
+           (/  1.d3  * rad_FB_gain(1)* (R_n - r_ref_inter), &
+           1.d5  * rad_FB_gain(2)* (R_n - R_p )/ tstep, &
+           1.d-3 * rad_FB_gain(3)* dR_axis_integral /)
+      pos_FB_response(index_now,4:6) = rad_FB
+
+      delta_Icoils_0(1:n_pf_coils) = delta_Icoils_0(1:n_pf_coils) +  sum(rad_FB)*rad_FB_amp_ts(1:n_pf_coils)
+      R_p=R_n
+    end if
+
+      
 
     
 
