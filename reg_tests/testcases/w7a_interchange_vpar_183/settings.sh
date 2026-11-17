@@ -7,18 +7,17 @@ binaries="jorek_model${jorekmodel}_1"
 binaries_initial="jorek_model${jorek_equilibrium_model}_1"
 requiredfiles="input input_init gvec2jorek.dat"
 extra_remote_files="gvec2jorek.dat"
-compilopt_test="USE_DOMM=0"
 
 # --- Compile the code for the test case
 function compile_jorek () {
   if [ "$initialrun" == "yes" ]; then
-    ./util/config.sh model=$jorek_equilibrium_model n_tor=5 n_coord_tor=29 l_pol_domm=0 n_plane=128 n_period=5 n_coord_period=5 with_TiTe=.false. with_vpar=.true. || exit 1
-    make $compilopt $compilopt_test $debugoptions jorek_model${jorek_equilibrium_model}                                                        || exit 1
+    ./util/config.sh model=$jorek_equilibrium_model n_tor=5 n_coord_tor=29 l_pol_domm=0 n_plane=128 n_period=5 n_coord_period=5 with_TiTe=.false. with_vpar=.true. use_domm=.false. || exit 1
+    make $compilopt $debugoptions jorek_model${jorek_equilibrium_model}                                                        || exit 1
     mv jorek_model${jorek_equilibrium_model} jorek_model${jorek_equilibrium_model}_1                                           || exit 1
     make cleanall                                                                                                              || exit 1
   fi
-  ./util/config.sh model=$jorekmodel n_tor=5 n_coord_tor=29 l_pol_domm=0 n_plane=32 n_period=5 n_coord_period=5 with_TiTe=.false. with_vpar=.true.  || exit 1
-  make $compilopt $compilopt_test $debugoptions jorek_model${jorekmodel}                                                                       || exit 1
+  ./util/config.sh model=$jorekmodel n_tor=5 n_coord_tor=29 l_pol_domm=0 n_plane=32 n_period=5 n_coord_period=5 with_TiTe=.false. with_vpar=.true. use_domm=.false.  || exit 1
+  make $compilopt $debugoptions jorek_model${jorekmodel}                                                                       || exit 1
   mv jorek_model${jorekmodel} jorek_model${jorekmodel}_1                                                                       || exit 1
 }
 
