@@ -471,6 +471,10 @@ module equil_info
   logical :: found_upper, found_lower
   real*8,  allocatable :: grad_psi(:,:,:)
   logical, allocatable :: include_pt_lw(:,:,:), include_pt_up(:,:,:)
+  logical :: flag_verbose
+
+  ! if true, verbose activated 
+  flag_verbose = .TRUE.
 
   if (my_id .eq. 0) then
     write(*,*) '*********************************'
@@ -688,15 +692,19 @@ module equil_info
     if (present(far_axis_xpoint)) then
       if (sqrt((R_axis0-R_xpoint(1))**2 + (Z_xpoint(1)-Z_axis0)**2) .lt. fac_axis_xpoint*r_margin) then
         far_axis_xpoint(1) = .false.              ! If d_{xpoint to axis}<fac_axis_xpoint*r_margin, lower xpoint is not at a proper position
-        write(*,*) 'WARNING: lower X-point might have vanished'
+        if (flag_verbose) then
+          write(*,*) 'WARNING: lower X-point might have vanished'
+        end if
       endif   
     endif
 
-    if (my_id .eq. 0) then
-      write(*,'(A,i6,4f14.8)') ' Lower X-point : ',i_elm_xpoint(1),R_xpoint(1),Z_xpoint(1),psi_xpoint(1),sqrt(ps_x**2+ps_y**2)
-    endif
-    
-    if (.not. found_lower)         write(*,*) 'WARNING: lower X-point not properly found after ', xpoint_search_tries, ' attempts'
+    if (flag_verbose) then
+      if (my_id .eq. 0) then
+        write(*,'(A,i6,4f14.8)') ' Lower X-point : ',i_elm_xpoint(1),R_xpoint(1),Z_xpoint(1),psi_xpoint(1),sqrt(ps_x**2+ps_y**2)
+      endif
+
+      if (.not. found_lower)         write(*,*) 'WARNING: lower X-point not properly found after ', xpoint_search_tries, ' attempts'
+    end if 
     
   endif
 
@@ -721,16 +729,20 @@ module equil_info
     if (present(far_axis_xpoint)) then
       if (sqrt((R_axis0-R_xpoint(2))**2 + (Z_xpoint(2)-Z_axis0)**2) .lt. fac_axis_xpoint*r_margin)  then 
           far_axis_xpoint(2) = .false.         ! If d_{xpoint to axis}<fac_axis_xpoint*r_margin, upper xpoint is not at a proper position
-    write(*,*) 'WARNING: upper X-point might have vanished'
+        if (flag_verbose) then
+          write(*,*) 'WARNING: upper X-point might have vanished'
+        end if
       endif              
     endif
-
-    if (my_id .eq. 0) then
-      write(*,'(A,i6,4f14.8)') ' Upper X-point : ',i_elm_xpoint(2),R_xpoint(2),Z_xpoint(2),psi_xpoint(2),sqrt(ps_x**2+ps_y**2)
-    endif
+    
+    if (flag_verbose) then
+      if (my_id .eq. 0) then
+        write(*,'(A,i6,4f14.8)') ' Upper X-point : ',i_elm_xpoint(2),R_xpoint(2),Z_xpoint(2),psi_xpoint(2),sqrt(ps_x**2+ps_y**2)
+      endif
       
-    if (.not. found_upper)         write(*,*) 'WARNING: upper X-point not properly found after ', xpoint_search_tries, ' attempts'
-
+      if (.not. found_upper)         write(*,*) 'WARNING: upper X-point not properly found after ', xpoint_search_tries, ' attempts'
+    end if
+    
   endif
 
 
