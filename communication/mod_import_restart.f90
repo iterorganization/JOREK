@@ -972,6 +972,7 @@ subroutine import_hdf5_restart(node_list, element_list, filename, format_rst, er
   use pellet_module
   use vacuum, only: import_HDF5_restart_vacuum, current_FB_fact
   use mod_element_rtree, only: populate_element_rtree
+  use mpi_mod
 #ifdef USE_HDF5
   use hdf5
   use hdf5_io_module
@@ -990,6 +991,8 @@ subroutine import_hdf5_restart(node_list, element_list, filename, format_rst, er
   logical, optional,            intent(in)              :: no_perturbations ! don't initialize new harmonics
   logical, optional,            intent(in)              :: use_3D_rtree ! whether to use 3D rtree for element search (if false, use 2D rtree)
   
+  integer                                               :: ierr ! MPI error code
+
   ! --- Perturbation-Import variables
   type (type_node_list)   , pointer	:: node_list_perturbation
   type (type_element_list), pointer	:: element_list_perturbation
@@ -1307,6 +1310,7 @@ subroutine import_hdf5_restart(node_list, element_list, filename, format_rst, er
   if (use_defensive_checks) then
     if ((abs(Ti_0_hdf5 - Ti_0) .gt. 1.d-16) .or. (abs(Te_0_hdf5 - Te_0) .gt. 1.d-16)) then
       write(*,*) "Error: Value of Ti_0 or Te_0 in restart file and namelist are inconsistent: ", Ti_0_hdf5, Ti_0, Te_0_hdf5, Te_0
+      call MPI_Abort(MPI_COMM_WORLD, 4, ierr)
       stop
     endif
   else
@@ -1317,6 +1321,7 @@ subroutine import_hdf5_restart(node_list, element_list, filename, format_rst, er
   if (use_defensive_checks) then
     if (abs(T_0_hdf5 - T_0) .gt. 1.d-16) then
       write(*,*) "Error: Value of T_0 in restart file and namelist are inconsistent: ", T_0_hdf5, T_0
+      call MPI_Abort(MPI_COMM_WORLD, 4, ierr)
       stop
     endif
   else
@@ -1327,6 +1332,7 @@ subroutine import_hdf5_restart(node_list, element_list, filename, format_rst, er
   call HDF5_real_reading(file_id,F_0,'F0')
   if (abs(F_0 - F0) .gt. 1.d-16) then
     write(*,*) "Error: F0 in restart file and namelist are inconsistent: ", F_0, F0
+    call MPI_Abort(MPI_COMM_WORLD, 4, ierr)
     stop
   endif
 
@@ -1334,6 +1340,7 @@ subroutine import_hdf5_restart(node_list, element_list, filename, format_rst, er
   call HDF5_integer_reading(file_id,n_tht_hdf5,'n_tht')
   if ((n_tht_hdf5 .ne. n_tht) .or. (n_flux_hdf5 .ne. n_flux)) then
     write(*, *) "Error: Number of radial and poloidal in restart file and namelist are inconsistent: ", n_flux_hdf5, n_flux, n_tht_hdf5, n_tht
+    call MPI_Abort(MPI_COMM_WORLD, 4, ierr)
     stop
   endif
 
