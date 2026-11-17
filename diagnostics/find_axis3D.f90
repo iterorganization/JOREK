@@ -76,20 +76,8 @@ program find_axis3D
   
   allocate(element_neighbours(4,element_list%n_elements))
   element_neighbours = 0
-!$omp parallel default(none) &
-!$omp   shared(node_list, element_list, element_neighbours) &
-!$omp   private(i,j,iside_i,iside_j)
-!$omp do
-  do i=1,element_list%n_elements
-    do j=i+1,element_list%n_elements
-      if (neighbours(node_list,element_list%element(i),element_list%element(j),iside_i,iside_j)) then
-        element_neighbours(iside_i,i) = j
-        element_neighbours(iside_j,j) = i
-      end if
-    end do
-  end do
-!$omp end do
-!$omp end parallel
+  ! --- Neighbour search is O(N) with a bounding-box grid (see build_element_neighbours in mod_neighbours)
+  call build_element_neighbours(node_list, element_list, element_neighbours)
   
   n_phi     = 1500
   delta_phi = 2.d0*pi/float(n_period*n_phi)
