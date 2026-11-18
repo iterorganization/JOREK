@@ -2019,6 +2019,17 @@ subroutine import_hdf5_restart(node_list, element_list, filename, format_rst, er
     call tr_allocate(xtime_P_ei,1,index_start+nstep,"xtime_P_ei",CAT_UNKNOWN)
     call HDF5_array1D_reading(file_id,xtime_P_ei,"xtime_P_ei")
   end if
+#else
+  if (index_start >= 1) then
+    if (allocated(xtime_rad_power)) &
+      call tr_deallocate(xtime_rad_power,"xtime_rad_power",CAT_UNKNOWN)
+
+    call tr_allocate(xtime_rad_power,1,index_start+nstep, &
+                     "xtime_rad_power",CAT_UNKNOWN)
+
+    call HDF5_array1D_reading(file_id,xtime_rad_power, &
+                              "xtime_rad_power")
+  endif
 #endif
 
   if (using_spi) then

@@ -5740,6 +5740,8 @@ end subroutine construct_pressure
 ! Subroutine which calculates radiation rates
 subroutine construct_radiation_parameters()
 
+  use mod_impurity
+
   implicit none
 
   ne_SI       = (r0_corr + alpha_e * rimp0_corr) * 1.d20 * central_density 
@@ -5753,7 +5755,7 @@ subroutine construct_radiation_parameters()
 
     do i_imp =1, n_adas
       if (i_imp == index_main_imp) cycle
-      r_imp_bg = nimp_bg(i_imp)/(1.d20 * central_density) ! Background impurity density in JOREK units     
+      r_imp_bg = nimp_bg_density(i_imp, psi_norm) / (1.d20 * central_density) ! Background impurity density in JOREK units     
       if (ne_SI > ne_SI_min .and. Te_eV > Te_eV_min .and. r_imp_bg > 0) then
         Lrad_imp_bg = 0.0
         dLrad_imp_bg_dT = 0.0
