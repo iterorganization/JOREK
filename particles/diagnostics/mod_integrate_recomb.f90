@@ -200,7 +200,7 @@ enddo
 		
 #ifdef WITH_TiTe
         T0       = eq_g(mp,var_Te,ms,mt)
-        T0_corr  = corr_neg_temp1(T0)
+        T0_corr  = corr_neg_temp1(T0*2.d0)/2.d0
         vpar0    = eq_g(mp,var_vpar,ms,mt)
         call rec_rate_to_kinetic(r0, T0, Sion_T, dSion_dT, Srec_T, dSrec_dT, LradDcont_T, dLradDcont_dT, LradDcont_corr, dLradDcont_dT_corr)
 #else
