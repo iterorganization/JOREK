@@ -495,7 +495,7 @@ do ms=1, n_gauss
         else if ((T0_i_corr_eV*MASS_ELECTRON/(central_mass*ATOMIC_MASS_UNIT) < 10) .and. (10<T0_e_corr_eV)) then
           lambda_e_bg  = 24.d0 - log((ne_SI*1.d-6)**0.5*T0_e_corr_eV**(-1.0))
         else
-          lambda_e_bg  = 30.d0 - log((ne_SI*1.d-6)**0.5*T0_i_corr_eV**(-1.5)/MU_ZERO)
+          lambda_e_bg  = 30.d0 - log((ne_SI*1.d-6)**0.5*T0_i_corr_eV**(-1.5)/central_mass)
         end if
         nu_e_bg      = 1.8d-19*(1.d6*MASS_ELECTRON*ATOMIC_MASS_UNIT*central_mass) ** 0.5&
                      * (1.d14*central_density*rho0_corr) * lambda_e_bg &
