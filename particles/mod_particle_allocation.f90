@@ -3,7 +3,7 @@
 
 !> TODO:
 !> In the future this module should use the different initialization schemes defined
-!> in mod_initialise_particles.f90 (or similar) once that system has been reworked.
+!> in mod_particle_group_init.f90 (or similar) once that system has been reworked.
 module mod_particle_allocation
 use mpi
 use mod_particle_sim

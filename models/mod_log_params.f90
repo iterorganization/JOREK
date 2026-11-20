@@ -476,6 +476,12 @@ write(*,'(1x,a)',advance='no') ' USE_DOMM            : '
     else
       write(*,CHAR_FMT) 'ZK_i_perp_file        ', trim(ZK_i_perp_file)
     end if
+    write(*,REAL_FMT) 'ZK_i_perp_pri          ', ZK_i_perp_pri(1:2)
+    write(*,REAL_FMT) 'ZK_i_perp_pri_z0       ', ZK_i_perp_pri_z0(1:2)
+    write(*,REAL_FMT) 'ZK_i_perp_pri_width    ', ZK_i_perp_pri_width(1:2)
+    write(*,REAL_FMT) 'ZK_e_perp_pri          ', ZK_e_perp_pri(1:2)
+    write(*,REAL_FMT) 'ZK_e_perp_pri_z0       ', ZK_e_perp_pri_z0(1:2)
+    write(*,REAL_FMT) 'ZK_e_perp_pri_width    ', ZK_e_perp_pri_width(1:2)
     write(*,REAL_FMT) 'heatsource_e           ', heatsource_e
     write(*,REAL_FMT) 'heatsource_e_psin      ', heatsource_e_psin
     write(*,REAL_FMT) 'heatsource_e_sig       ', heatsource_e_sig
@@ -512,6 +518,9 @@ write(*,'(1x,a)',advance='no') ' USE_DOMM            : '
     else
       write(*,CHAR_FMT) 'ZK_perp_file          ', trim(ZK_perp_file)
     end if
+    write(*,REAL_FMT) 'ZK_perp_pri            ', ZK_perp_pri(1:2)
+    write(*,REAL_FMT) 'ZK_perp_pri_z0         ', ZK_perp_pri_z0(1:2)
+    write(*,REAL_FMT) 'ZK_perp_pri_width      ', ZK_perp_pri_width(1:2)
     write(*,REAL_FMT) 'ZK_par                ', ZK_par
     write(*,REAL_FMT) 'ZK_par_max            ', ZK_par_max
     write(*,REAL_FMT) 'ZK_par_SpitzerHaerm (not input parameter; printed for reference in JOREK units)', ZK_par_SpitzerHaerm
@@ -529,6 +538,9 @@ write(*,'(1x,a)',advance='no') ' USE_DOMM            : '
   else
     write(*,CHAR_FMT) 'D_perp_file           ', trim(D_perp_file)
   end if
+  write(*,REAL_FMT) 'D_perp_pri              ', D_perp_pri(1:2)
+  write(*,REAL_FMT) 'D_perp_pri_z0           ', D_perp_pri_z0(1:2)
+  write(*,REAL_FMT) 'D_perp_pri_width        ', D_perp_pri_width(1:2)
 #ifdef WITH_Impurities
   write(*,REAL_FMT) 'D_par_imp               ', D_par_imp
   if ( .not. num_d_perp_imp ) then
@@ -550,6 +562,9 @@ write(*,'(1x,a)',advance='no') ' USE_DOMM            : '
   write(*,REAL_FMT) 'edgeparticlesource    ', edgeparticlesource
   write(*,REAL_FMT) 'edgeparticlesource_psin', edgeparticlesource_psin
   write(*,REAL_FMT) 'edgeparticlesource_sig', edgeparticlesource_sig
+  write(*,REAL_FMT) 'privparticlesource    ', privparticlesource
+  write(*,REAL_FMT) 'privparticlesource_z0 ', privparticlesource_z0
+  write(*,REAL_FMT) 'privparticlesource_width', privparticlesource_width
   write(*,REAL_FMT) 'particlesource_gauss  ', particlesource_gauss
   write(*,REAL_FMT) 'particlesource_gauss_psin', particlesource_gauss_psin
   write(*,REAL_FMT) 'particlesource_gauss_sig ', particlesource_gauss_sig
@@ -646,6 +661,10 @@ write(*,'(1x,a)',advance='no') ' USE_DOMM            : '
 
 
   write(*,LOGI_FMT) 'keep_current_prof     ', keep_current_prof
+  write(*,LOGI_FMT) 'keep_current_prof_open', keep_current_prof_open
+  write(*,REAL_FMT) 'keep_current_psin_cutoff', keep_current_psin_cutoff
+  write(*,REAL_FMT) 'keep_current_psin_sig ', keep_current_psin_sig
+  write(*,REAL_FMT) 'keep_current_z_sig    ', keep_current_z_sig
   write(*,LOGI_FMT) 'init_current_prof     ', init_current_prof
   write(*,LOGI_FMT) 'current_prof_initialized', current_prof_initialized
   write(*,LOGI_FMT) 'linear_run            ', linear_run
@@ -745,11 +764,11 @@ write(*,'(1x,a)',advance='no') ' USE_DOMM            : '
       write(*,REAL_FMT2) 'wall_resistivity      ', wall_resistivity, ' (used only if STARWALL response file_version==1)'
       write(*,REAL_FMT2) 'wall_resistivity_fact ', wall_resistivity_fact, ' (used only if STARWALL response file_version>=2)'
     end if
-    write(*,REAL_FMT) 'start_VFB_ts          ', start_VFB_ts
+    write(*,REAL_FMT) 'start_PFB_ts          ', start_PFB_ts
     write(*,REAL_FMT) 'vert_FB_gain          ', vert_FB_gain(:)
     write(*,REAL_FMT) 'vert_FB_amp_ts        ', vert_FB_amp_ts(1:n_pf_coils)
-    write(*,REAL_FMT) 'vert_FB_tact          ', vert_FB_tact
-    write(*,CHAR_FMT) 'vert_pos_file         ', trim(vert_pos_file)
+    write(*,REAL_FMT) 'pos_FB_tact           ', pos_FB_tact
+    write(*,CHAR_FMT) 'axis_pos_file         ', trim(axis_pos_file)
     write(*,REAL_FMT) 'I_coils_max           ', I_coils_max(1:n_pf_coils)
 
     
@@ -1146,19 +1165,15 @@ write(*,'(1x,a)',advance='no') ' USE_DOMM            : '
 
       endif ! 'ncs' or 'ics'
 
-      ! rep (runaway electrons, only pressure coupling for now) -----
-      if (sim%groups(group_num)%coupling_scheme .eq. 'rep') then
-        write(*,REAL_FMT) 'num_re,                 ',part_group_configs(group_num)%num_re
+      ! rep and epf (runaway electrons, energetic particles), a few common params e.g. n_particles_total for weight setting
+      if (sim%groups(group_num)%coupling_scheme .eq. 'rep' .or. &
+          sim%groups(group_num)%coupling_scheme .eq. 'epf') then
+        write(*,REAL_FMT) 'n_particles_total,      ',part_group_configs(group_num)%n_particles_total
         write(*,REAL_FMT) 're_energy,              ',part_group_configs(group_num)%re_energy
         write(*,REAL_FMT) 're_std_energy,          ',part_group_configs(group_num)%re_std_energy
         write(*,REAL_FMT) 're_pitch,               ',part_group_configs(group_num)%re_pitch
-      endif
-
-      ! epf (energetic particles, full pressure tensor coupling)
-      if (sim%groups(group_num)%coupling_scheme .eq. 'epf') then
         write(*,REAL_FMT) 'T_maxwell,              ',part_group_configs(group_num)%T_maxwell
         write(*,INTG_FMT) 'n_phi_planes,           ',part_group_configs(group_num)%n_phi_planes
-        write(*,REAL_FMT) 'n_particles_total,      ',part_group_configs(group_num)%n_particles_total
         write(*,INTG_FMT) 'proj_collection_period, ',proj_collection_period
       endif
 

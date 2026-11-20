@@ -308,7 +308,7 @@ module live_data
                                     integrated_momenta bnd_fluxes dEdt helicity dissipative_terms work_terms momentum_conservation &
                                     mag_energy_balance Xpoint_up Xpoint_low bnd_point                                          &
                                     area volume li3 energy_conservation net_tor_wall_curr dparticles_dt bnd_particle_fluxes    & 
-                                     vert_FB_response vert_FB_axis'
+                                     pos_FB_response pos_FB_axis'
     write(LIVE_DATA_HANDLE,'(A,15(A11,1X))') '@variable_names: ', variable_names((/(i, i=1,n_var)/))
     
     ! --- Write file headers indicating what data is in the files.
@@ -913,7 +913,7 @@ module live_data
   
   subroutine write_live_data_vacuum(index)
     
-    use phys_module, only: xtime, mu_zero, sqrt_mu0_rho0, Z_axis_t
+    use phys_module, only: xtime, mu_zero, sqrt_mu0_rho0, Z_axis_t, R_axis_t
     use vacuum
       
     integer,             intent(in) :: index
@@ -998,31 +998,31 @@ module live_data
       write(LIVE_DATA_HANDLE,'(A,999ES17.9)') '@net_tor_wall_curr: ', xtime(index), net_tor_wall_curr(index)
     end if
 
-    if ( allocated(vert_FB_response) ) then
+    if ( allocated(pos_FB_response) ) then
       if ( .not. header_written_VFB ) then
-        write(LIVE_DATA_HANDLE,'(A,I5)') '@n_vert_FB_response: ', 3
-        write(LIVE_DATA_HANDLE,'(A)') '@vert_FB_response_xlabel: normalized time'
-        write(LIVE_DATA_HANDLE,'(A)') '@vert_FB_response_xlabel_si: time [ms]'
-        write(LIVE_DATA_HANDLE,'(A)') '@vert_FB_response_ylabel: VFB response [-]'
-        write(LIVE_DATA_HANDLE,'(A)') '@vert_FB_response_ylabel_si: VFB response [-]'
-        write(LIVE_DATA_HANDLE,'(A,5ES17.9)') '@vert_FB_response_x2si: ', sqrt_mu0_rho0*1.e3
-        write(LIVE_DATA_HANDLE,'(A,5ES17.9)') '@vert_FB_response_y2si: ', 1.
-        write(LIVE_DATA_HANDLE,'(A)') '@vert_FB_response_logy: 0'
-        write(LIVE_DATA_HANDLE,'(A)') '@vert_FB_response: %"time"           "proportional_FB"              "derivative_FB"           "integral_FB"'
+        write(LIVE_DATA_HANDLE,'(A,I5)') '@n_pos_FB_response: ', 6
+        write(LIVE_DATA_HANDLE,'(A)') '@pos_FB_response_xlabel: normalized time'
+        write(LIVE_DATA_HANDLE,'(A)') '@pos_FB_response_xlabel_si: time [ms]'
+        write(LIVE_DATA_HANDLE,'(A)') '@pos_FB_response_ylabel: pos FB response [-]'
+        write(LIVE_DATA_HANDLE,'(A)') '@pos_FB_response_ylabel_si: pos FB response [-]'
+        write(LIVE_DATA_HANDLE,'(A,5ES17.9)') '@pos_FB_response_x2si: ', sqrt_mu0_rho0*1.e3
+        write(LIVE_DATA_HANDLE,'(A,5ES17.9)') '@pos_FB_response_y2si: ', 1.
+        write(LIVE_DATA_HANDLE,'(A)') '@pos_FB_response_logy: 0'
+        write(LIVE_DATA_HANDLE,'(A)') '@pos_FB_response: %"time"           "proportional_VFB"              "derivative_VFB"           "integral_VFB" "proportional_RFB"              "derivative_RFB"           "integral_RFB"'
 
-        write(LIVE_DATA_HANDLE,'(A,I5)') '@n_vert_FB_axis: ', 2
-        write(LIVE_DATA_HANDLE,'(A)') '@vert_FB_axis_xlabel: normalized time'
-        write(LIVE_DATA_HANDLE,'(A)') '@vert_FB_axis_xlabel_si: time [ms]'
-        write(LIVE_DATA_HANDLE,'(A)') '@vert_FB_axis_ylabel: Z-axis [m]'
-        write(LIVE_DATA_HANDLE,'(A)') '@vert_FB_axis_ylabel_si: Z-axis [m]'
-        write(LIVE_DATA_HANDLE,'(A,5ES17.9)') '@vert_FB_axis_x2si: ', sqrt_mu0_rho0*1.e3
-        write(LIVE_DATA_HANDLE,'(A,5ES17.9)') '@vert_FB_axis_y2si: ', 1.
-        write(LIVE_DATA_HANDLE,'(A)') '@vert_FB_axis_logy: 0'
-        write(LIVE_DATA_HANDLE,'(A)') '@vert_FB_axis: %"time"           "Z-axis"              "Z-axis,target"'
+        write(LIVE_DATA_HANDLE,'(A,I5)') '@n_pos_FB_axis: ', 4
+        write(LIVE_DATA_HANDLE,'(A)') '@pos_FB_axis_xlabel: normalized time'
+        write(LIVE_DATA_HANDLE,'(A)') '@pos_FB_axis_xlabel_si: time [ms]'
+        write(LIVE_DATA_HANDLE,'(A)') '@pos_FB_axis_ylabel: axis [m]'
+        write(LIVE_DATA_HANDLE,'(A)') '@pos_FB_axis_ylabel_si: axis [m]'
+        write(LIVE_DATA_HANDLE,'(A,5ES17.9)') '@pos_FB_axis_x2si: ', sqrt_mu0_rho0*1.e3
+        write(LIVE_DATA_HANDLE,'(A,5ES17.9)') '@pos_FB_axis_y2si: ', 1.
+        write(LIVE_DATA_HANDLE,'(A)') '@pos_FB_axis_logy: 0'
+        write(LIVE_DATA_HANDLE,'(A)') '@pos_FB_axis: %"time"           "Z-axis"              "Z-axis,target" "R-axis"              "R-axis,target" '
         header_written_VFB = .true.
       end if
-      write(LIVE_DATA_HANDLE,'(A,999ES17.9)') '@vert_FB_response: ', xtime(index), vert_FB_response(index,1:3)
-      write(LIVE_DATA_HANDLE,'(A,999ES17.9)') '@vert_FB_axis:     ', xtime(index), Z_axis_t(index), vert_FB_response(index,4)
+      write(LIVE_DATA_HANDLE,'(A,999ES17.9)') '@pos_FB_response: ', xtime(index), pos_FB_response(index,1:6)
+      write(LIVE_DATA_HANDLE,'(A,999ES17.9)') '@pos_FB_axis:     ', xtime(index), Z_axis_t(index), pos_FB_response(index,7), R_axis_t(index), pos_FB_response(index,8)
     end if
    
     close(LIVE_DATA_HANDLE)
