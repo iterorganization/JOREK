@@ -84,12 +84,18 @@ module mod_sparse
         if (verbose) write(*,*) "Using MUMPS solver"
         solver%mmss%equilibrium = solver%equilibrium
         call solve_mumps_all(solver%mmss, a_mat, rhs_vec, solver%solve_only, tag)
+#else
+        write(*,*) ' FATAL : solve_sparse_system: MUMPS selected but not compiled (USE_MUMPS)'
+        call MPI_Abort(MPI_COMM_WORLD, 3, ierr)
 #endif
       elseif (solver%library.eq.strumpack) then
 #ifdef USE_STRUMPACK
         if (verbose) write(*,*) "Using STRUMPACK solver"
         solver%spss%equilibrium = solver%equilibrium
         call solve_strumpack_all(solver%spss, a_mat, rhs_vec, solver%solve_only, tag)
+#else
+        write(*,*) ' FATAL : solve_sparse_system: STRUMPACK selected but not compiled (USE_STRUMPACK)'
+        call MPI_Abort(MPI_COMM_WORLD, 3, ierr)
 #endif
       elseif (solver%library.eq.pastix) then
 #if (defined USE_PASTIX) || (defined USE_PASTIX6)
@@ -97,6 +103,9 @@ module mod_sparse
         solver%ptss%equilibrium = solver%equilibrium
         solver%ptss%refine = .true.
         call solve_pastix_all(solver%ptss, a_mat, rhs_vec, solver%solve_only, tag)
+#else
+        write(*,*) ' FATAL : solve_sparse_system: PaStiX selected but not compiled (USE_PASTIX)'
+        call MPI_Abort(MPI_COMM_WORLD, 3, ierr)
 #endif
       endif
 
