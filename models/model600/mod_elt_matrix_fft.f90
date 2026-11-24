@@ -5740,7 +5740,7 @@ end subroutine construct_pressure
 ! Subroutine which calculates radiation rates
 subroutine construct_radiation_parameters()
 
-  use mod_impurity
+  use mod_impurity, only: nimp_bg_density, radiation_function_linear
 
   implicit none
 
