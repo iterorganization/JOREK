@@ -118,16 +118,13 @@ module mod_impurity
       aux1 = (Psi_N - num_nimp_bg_x(left)) / (num_nimp_bg_x(right) - num_nimp_bg_x(left))
       aux2 = (1. - aux1)
 
+      ! Unknown profile type is handled in initialise_parameters
       if ( nimp_bg_profile_type(i_imp) == 1 ) then
         leftvalue = num_nimp_bg_prof1(left)
         rightvalue = num_nimp_bg_prof1(right)
       else if ( nimp_bg_profile_type(i_imp) == 2 ) then
         leftvalue = num_nimp_bg_prof2(left)
         rightvalue = num_nimp_bg_prof2(right)
-      else
-        ! Unknown profile type, fall back to uniform
-        leftvalue = 1.d0
-        rightvalue = 1.d0
       end if
       
       ! Convert from normalized [0, 1] density to m^-3
