@@ -3157,7 +3157,7 @@ module exec_commands
 
     type (type_element)                   :: element
     type (type_node)                      :: nodes(n_vertex_max)
-    type (type_node)                      :: aux_nodes_elm(n_vertex_max)   !< aux (kinetic) nodes of the element
+    type (type_node)                      :: aux_nodes(n_vertex_max)   !< aux (kinetic) nodes of the element
   
     type(t_pol_pos_list) :: pol_pos_list
     type(t_tor_pos_list) :: tor_pos_list
@@ -3406,7 +3406,7 @@ module exec_commands
     !$omp parallel default(none) &
     !$omp   shared(element_list,node_list, ES, get_terms, BSmat, n_basis,              &
     !$omp          xpoint,xcase, rhs, my_id, test_struct,n_tor_fft_thresh, aux_node_list) &
-    !$omp   private(ife,iv,inode,element,nodes,aux_nodes_elm,i_order, info,       &
+    !$omp   private(ife,iv,inode,element,nodes,aux_nodes,i_order, info,           &
     !$omp           index_large_i,index_ij, index_node, BSmat_elm, rhs_term,           &
     !$omp           omp_nthreads,omp_tid, i_term, i,j,k,l,i_bs,j_bs,ftor,ipiv,BSmat_tmp  )
   
@@ -3428,9 +3428,9 @@ module exec_commands
       do iv = 1, n_vertex_max
         inode     = element%vertex(iv)
         nodes(iv) = node_list%node(inode)
-        ! aux (kinetic) nodes, if present; previously the fluid nodes were passed as aux_nodes
-        aux_nodes_elm(iv) = node_list%node(inode)
-        if (associated(aux_node_list)) aux_nodes_elm(iv) = aux_node_list%node(inode)
+        ! aux (kinetic) nodes, if present
+        aux_nodes(iv) = node_list%node(inode)
+        if (associated(aux_node_list)) aux_nodes(iv) = aux_node_list%node(inode)
       enddo
 
       call element_matrix_fft(element,nodes, xpoint, xcase, ES%R_axis, ES%Z_axis, ES%psi_axis, ES%psi_bnd,   &
@@ -3440,7 +3440,7 @@ module exec_commands
        test_struct(omp_tid)%eq_g, test_struct(omp_tid)%eq_s, test_struct(omp_tid)%eq_t,     &
        test_struct(omp_tid)%eq_p, test_struct(omp_tid)%eq_ss, test_struct(omp_tid)%eq_st,   &
        test_struct(omp_tid)%eq_tt, test_struct(omp_tid)%delta_g,                              &
-       test_struct(omp_tid)%delta_s, test_struct(omp_tid)%delta_t, 1, n_tor, aux_nodes_elm, &
+       test_struct(omp_tid)%delta_s, test_struct(omp_tid)%delta_t, 1, n_tor, aux_nodes,     &
        test_struct(omp_tid)%ELM_pnn, get_terms=get_terms)
 
       do i_term=1, max_terms
@@ -3693,8 +3693,7 @@ module exec_commands
           solver%equilibrium = .true.
           solver%verbose = .false.
           solver%iterative = .false.
-          ! select the projection solver as in mod_project_particles (the default library, pastix,
-          ! may not be compiled; the solve was then skipped silently)
+          ! select the projection solver as in mod_project_particles
           if (use_strumpack_prj) then
 #ifdef USE_STRUMPACK
             solver%library = strumpack
@@ -3718,7 +3717,7 @@ module exec_commands
 #endif
           endif
           a_mat%comm  = MPI_COMM_WORLD
-          rhs_vec%n    = n_AA   ! was never set (no default in type_RHS)
+          rhs_vec%n    = n_AA
           rhs_vec%nrhs = 1
           if (size(rhs_vec%val) /= n_AA .or. a_mat%ng /= n_AA) then
             write(*,*) ' FATAL : RHS_terms_vtk: projection matrix/vector size mismatch'
