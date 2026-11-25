@@ -127,7 +127,7 @@ module mod_expression
     call add(exprs_all, 'qpar_tot    ', 'Total parallel heat-flux (conduc + convec + kin)      ')
     call add(exprs_all, 'qpar_e      ', 'Electron parallel heat-flux (conduction + enthalpy)   ')
     call add(exprs_all, 'qpar_i      ', 'Ion parallel heat-flux (conduction + enthalpy + kin)  ')
-    call add(exprs_all, 'partF_par   ', 'Ambipolar main-plasma particle flux parallel to B    ')
+    call add(exprs_all, 'partF_par   ', 'Ambipolar main-plasma particle flux parallel to B     ')
     call add(exprs_all, 'zj          ', 'Toroidal Current Density Multiplied by 1/R            ')
     call add(exprs_all, 'currdens    ', 'Physical Toroidal Current Density (== zj/R)           ')
     call add(exprs_all, 'JR          ', 'Physical current density (R component)                ')

@@ -40,7 +40,7 @@ use mod_atomic_coeff_deuterium, only: ad_deuterium
 use data_structure, only: type_bnd_element_list, type_bnd_node_list 
 use mod_boundary,   only: boundary_from_grid
 use mod_coupling_settings, only: use_kin_recomb_global
-use mod_initialise_particles
+use mod_particle_group_init
 use equil_info
 use mod_output_file_routines, only: write_to_outputfile
 use mod_neutral_density, only: get_neutral_density

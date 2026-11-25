@@ -12,7 +12,9 @@ This work is based on kinetic_develop branch [Introduction to the kinetic framew
 
 # Initialize the REs
 
-Apart from the jorek_restart.h5, an part_restart.h5 file is required by any simulations with particles. Without particle restart, kinetic_main runs the same way as jorek2_main. The guide for initialization can be found in [initialise_particles_in_phase_space](./../initialization.md). To start with, ''test_initialisation_phase_space'' in particles/examples is a good example for initializing REs, where the energy, pitch, and toroidal coordinate spectrums are initialized uniformly within a specified range, while the poloidal distribution can be set to follow the current density in a fluid restart file ''jorek_equilibrium_restart.h5''.
+The easiest way is to let kinetic_main initialise the REs itself: set `restart_particles = .f.` and `init_function = 're_gaussian'` for the RE group. This samples a Gaussian energy distribution (`re_energy`, `re_std_energy`) with a single pitch (`re_pitch`). The spatial distribution is chosen with `init_pdf`, e.g. `'current'` to follow the toroidal current density of the equilibrium (models with `var_zj`, e.g. model600), or `'RZ'` / `'analytical'` / `'none'`. The particles are written to `part_restart_init.h5`. With `init_particles_only = .t.` kinetic_main stops after that, so you can rename the file to `part_restart.h5` and continue with `restart_particles = .t.`. See [Kinetic particle initialization](./../initialization.md) for all options and an example namelist (from the `particle_rep_600` regression test).
+
+To get more control, you can also write the initial particle file with your own program. ''test_initialisation_phase_space'' in particles/examples is an example where the energy, pitch, and toroidal coordinate spectrums are initialized uniformly within a specified range, while the poloidal distribution can be set to follow the current density in a fluid restart file ''jorek_equilibrium_restart.h5''.
 
 **ATTENTION:** the example scripts are now outdated. The ''group%id'' should be three letters in latest kinetic_main, but it's "001" in the script. You will need to edit the group id in the particle restart file. 
 
@@ -29,7 +31,7 @@ Apart from the jorek_restart.h5, an part_restart.h5 file is required by any simu
  part_group_configs(1)%type                        = 'particle_kinetic_relativistic'
  part_group_configs(1)%n_particles                 = 1e6    ! number of super particles
  part_group_configs(1)%mass                        = 0.000548579870184805     
- part_group_configs(1)%num_re                      = 1.175403e16      ! number of physical REs, doesn't work if initialized according to current
+ part_group_configs(1)%n_particles_total           = 1.175403e16      ! number of physical REs (sum of weights), required for 'rep' (formerly num_re)
  part_group_configs(1)%use_kin_recombination       = .false.
 
 ! Projecting (particle field -> MHD) smoothing

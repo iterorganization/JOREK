@@ -110,10 +110,10 @@ program tae_phase_space_project
     !< If projecting phase space, it is vital to use a by construction phi independent initial distribution, i.e. phi planes.
     !< This lowers the sampling in the other coordinates naturally, so for the example it's not done 
     !< Example of usage is here in any case
-    !call initialise_particles_H_mu_psi_phiplanes(sim%groups(1)%particles, sim%fields, pcg32_rng(),sim%groups(1)%mass, &
+    !call initialise_particles_maxwell_phiplanes(sim%groups(1)%particles, sim%fields, pcg32_rng(),sim%groups(1)%mass, &
     !     uniform_space=.true., uniform_space_rej_f=f_toroidal_flux, &
     !     uniform_space_rej_vars=[1], charge = 1, T_maxwell = 4d5)   
-    call initialise_particles_H_mu_psi_phiplanes(sim%groups(1)%particles, sim%fields, pcg32_rng(),sim%groups(1)%mass, &
+    call initialise_particles_maxwell_phiplanes(sim%groups(1)%particles, sim%fields, pcg32_rng(),sim%groups(1)%mass, &
          uniform_space=.true., uniform_space_rej_f=f_toroidal_flux, &
          uniform_space_rej_vars=[1], charge = 1, T_maxwell = 4d5,n_phi_planes_in=12)   
 
