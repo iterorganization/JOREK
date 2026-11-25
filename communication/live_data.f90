@@ -616,7 +616,7 @@ module live_data
                                                     "Parallel viscosity power"  "Radiated power"  "Ionization power"'
 #else
     write(LIVE_DATA_HANDLE,'(A)') '@dissipative_terms: %"time"         "Ohmic power"   "Frictional heating"   "Perp. viscosity power"  &
-                                                    "Parallel viscosity power" "Radiated power"'
+                                                    "Parallel viscosity power" "Radiated power from bg imp"'
 #endif
     write(LIVE_DATA_HANDLE,*)
 
