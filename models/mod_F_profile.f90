@@ -299,8 +299,8 @@ subroutine F_profile(xpoint2,xcase2,Z,Z_xpoint,psi,psi_axis,psi_bnd,&
   
   end if
 
-  ! --- Normally not needed since we don't allow FF_1 with model710
-  FFprime_prof = FFprime_prof + FF_1
+  ! FF_1 is already included in the integrated F-profile. Adding it here
+  ! would violate FFprime_prof = F*dF/dpsi for nonzero profile endpoints.
 
   return
 end subroutine F_profile
@@ -312,12 +312,13 @@ end subroutine F_profile
 ! --- This routine integrates the FFprime numerically.
 subroutine integrate_F_profile()
 
+  use mpi_mod, only: MPI_ABORT, MPI_COMM_WORLD
   use phys_module, only: xpoint, F0, FF_0, FF_1, FF_coef, n_Fprofile_internal, Fprofile_internal, Fprofile_psi_max, num_ffprime
 
   implicit none
   
   ! --- Internal variables
-  integer :: i_prof, j, j_prev, i_step, n_integral, n_integral_max, stay_safe
+  integer :: i_prof, j, j_prev, i_step, n_integral, n_integral_max, stay_safe, ierr
   real*8  :: no_delta_psi, delta_psi
   real*8  :: integral, integrand, dx, step, step_min, step_max, psi
   real*8  :: FFprime_now, FFprime_prev, FFprime_mid
@@ -342,7 +343,8 @@ subroutine integrate_F_profile()
     write(*,*)'                    where psi_axis and psi_bnd have been calculated from'
     write(*,*)'                    the Grad-Shafranov with Reduced-MHD'
     write(*,*)'                    Aborting...'
-    stop
+    call MPI_ABORT(MPI_COMM_WORLD, 1, ierr)
+    stop 1
   endif
 
   ! --- The equilibrium psi amplitude
@@ -399,7 +401,8 @@ subroutine integrate_F_profile()
     stay_safe = stay_safe + 1
     if (stay_safe .gt. 10*n_integral_max) then
       write(*,*)'Warning! F-profile integration stuck in infinite loop!'
-      stop
+      call MPI_ABORT(MPI_COMM_WORLD, 1, ierr)
+      stop 1
     endif
     
     ! --- New step (we go from 0.0 to ~1.0)
@@ -504,12 +507,13 @@ end subroutine integrate_F_profile
 ! --- This routine checks that the numerically integrated F-profile is coherent with the input FFprime
 subroutine check_F_profile_accuracy()
 
+  use mpi_mod, only: MPI_ABORT, MPI_COMM_WORLD
   use phys_module, only: n_Fprofile_internal, Fprofile_internal, Fprofile_psi_max, Fprofile_tolerance
 
   implicit none
 
   ! --- Internal variables
-  integer :: i_prof, n_prof_core
+  integer :: i_prof, n_prof_core, ierr
   real*8  :: psi, psi_n(n_Fprofile_internal)
   real*8  :: iff1(n_Fprofile_internal),ff1(n_Fprofile_internal),ff2,ff3,ff4,ff5,ff6
   real*8  :: Z_fake, Z_xpoint_fake(2)
@@ -549,7 +553,9 @@ subroutine check_F_profile_accuracy()
       write(*,'(A,4e15.7)')'error on profile:',psi_n(i_prof),ff1(i_prof),iff1(i_prof),abs(ff1(i_prof)-iff1(i_prof))
     enddo
     write(*,'(A,1e15.7)')'averaged error (%):',diff_average_percent
-    stop
+    ! Only rank zero checks the profile; terminate ranks waiting for broadcast too.
+    call MPI_ABORT(MPI_COMM_WORLD, 1, ierr)
+    stop 1
   endif
 
   return
