@@ -557,7 +557,7 @@ omp_tid      = 0
 !$omp do reduction(+:local_pellet_particles, local_plasma_particles, local_pellet_volume,     &
 !$omp                local_radiation_bg,                                                      &
 #if (defined WITH_Neutrals) || (defined WITH_Impurities)
-!$omp                local_n_particles_inj,  local_n_particles,i local_radiation_cont,        &
+!$omp                local_n_particles_inj,  local_n_particles, local_radiation_cont,         &
 !$omp                local_radiation, local_radiation_phi, local_E_ion, local_P_ei, local_P_ion, &
 !$omp                local_source_volume, local_source_volume_drift,                          &
 #endif
