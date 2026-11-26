@@ -151,7 +151,7 @@ end subroutine check_flat_density_profile
 !> Verify that we are not doing stupid things. Run this after loading parameters
 !> from the input file.
 subroutine sanity_checks(my_id, n_mpi, mpi_required, mpi_provided)
-  use mod_parameters, only: n_tor, n_plane
+  use mod_parameters, only: n_tor, n_plane, n_period, n_coord_period
   use phys_module
   use gauss
 
@@ -330,6 +330,13 @@ subroutine sanity_checks(my_id, n_mpi, mpi_required, mpi_provided)
     stop
   else if ( n_plane < 2*(n_tor-1) ) then
     write(*,*) ' FATAL: n_plane >= 2 * (n_tor-1) required to avoid aliasing.'
+    call MPI_Abort(MPI_COMM_WORLD, 4, ierr)
+    stop
+  else if ( mod(n_period*n_plane, n_coord_period) /= 0 ) then
+    ! The toroidal integrals are sums over n_period*n_plane equally spaced planes. Unless n_coord_period divides
+    ! that number, aliasing couples toroidal harmonics of different field-period mode families.
+    write(*,*) ' FATAL: n_coord_period must divide n_period*n_plane, otherwise plane aliasing couples'
+    write(*,*) '        the field-period mode families.', n_coord_period, n_period, n_plane
     call MPI_Abort(MPI_COMM_WORLD, 4, ierr)
     stop
 #ifndef USE_FFTW
