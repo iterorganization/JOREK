@@ -47,8 +47,10 @@ if (xpoint2) then
   endif
 endif
 
-particle_source = particlesource * (0.5d0 - 0.5d0*tanh((psi_n - particlesource_psin)/particlesource_sig)) &
-     + edgeparticlesource * (0.5d0 + 0.5d0*tanh((psi_n - edgeparticlesource_psin)/edgeparticlesource_sig))
+particle_source = particlesource * (0.5d0 - 0.5d0*tanh((psi_n - particlesource_psin)/particlesource_sig))       &
+     + edgeparticlesource * (0.5d0 + 0.5d0*tanh((psi_n - edgeparticlesource_psin)/edgeparticlesource_sig))      &
+     + privparticlesource(1)*0.5d0*(1.d0 - tanh( (Z - privparticlesource_z0(1))/privparticlesource_width(1) ) ) &
+     + privparticlesource(2)*0.5d0*(1.d0 + tanh( (Z - privparticlesource_z0(2))/privparticlesource_width(2) ) )
 
 heat_source_i     = heatsource_i * ( 0.5d0 - 0.5d0*tanh((psi_n - heatsource_i_psin)/heatsource_i_sig))  
                                                                                                          
@@ -97,8 +99,10 @@ if (xpoint2) then
   endif
 endif
 
-particle_source = particlesource * (0.5d0 - 0.5d0*tanh((psi_n - particlesource_psin)/particlesource_sig)) &
-     + edgeparticlesource * (0.5d0 + 0.5d0*tanh((psi_n - edgeparticlesource_psin)/edgeparticlesource_sig))
+particle_source = particlesource * (0.5d0 - 0.5d0*tanh((psi_n - particlesource_psin)/particlesource_sig))       &
+     + edgeparticlesource * (0.5d0 + 0.5d0*tanh((psi_n - edgeparticlesource_psin)/edgeparticlesource_sig))      &
+     + privparticlesource(1)*0.5d0*(1.d0 - tanh( (Z - privparticlesource_z0(1))/privparticlesource_width(1) ) ) &
+     + privparticlesource(2)*0.5d0*(1.d0 + tanh( (Z - privparticlesource_z0(2))/privparticlesource_width(2) ) )
 
 heat_source     = heatsource   * ( 0.5d0 - 0.5d0*tanh((psi_n - heatsource_psin  )/heatsource_sig  ))
 

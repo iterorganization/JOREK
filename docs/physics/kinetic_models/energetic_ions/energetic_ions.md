@@ -100,7 +100,8 @@ EPs can have large orbit widths and do not necessarily remain on a specific flux
 
 ### Importing a fast particle experimental distribution
 
-The option to import an experimental distribution function for fast particles is located in the file `mod_import_experimental_dist.f90`.
+The option to import an experimental distribution function for fast particles is located in the file `particles/initialisers/mod_import_experimental_dist.f90` (subroutine `initialise_particles_experimental`, formerly `import_particles`).
+In kinetic_main it is selected per group with `part_group_configs(i)%init_function = 'experimental'` (with `restart_particles = .f.`). This needs `type = 'particle_kinetic_leapfrog'`, `n_phi_planes` ≥ 1 and `n_particles_total`, and the file must be called `experimental_dist.h5` and be in the run directory. `init_pdf` is ignored, since the spatial distribution is part of the file. From kinetic_main all particles are copied over the $\phi$ planes (`fraction_phi_planes = 1`). See also [Kinetic particle initialization](../initialization.md).
 For now, the only option is to use a 4D distribution function, as it is assumed the other two dimensions (gyrophase and toroidal angle) are uniformly distributed. The dimensions then are $(R,Z, \lambda,E)$ where $\lambda$ is the pitch angle defined as  $\lambda = \frac{v_\parallel}{|\mathbf{v}|}$. This distribution function is then 4D rejection sampled, with linear interpolation on the 4D grids. The gyrophase and toroidal angle are then sampled uniformly, but with the option to copy the particles $n_\phi$ amount of times with $\phi$ increasing by $\frac{2\pi}{n_\phi}$ (eliminating toroidal harmonics). This can also be done for a subset of the particles (as to keep some noise perturbation large enough).
 
 The expected HDF5 is structured as follows:

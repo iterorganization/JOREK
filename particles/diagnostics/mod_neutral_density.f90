@@ -16,6 +16,7 @@ contains
 
 !> first calculates the neutral density from all particles with ncs, then projects it
 subroutine get_neutral_density(sim, neutral_density_proj)
+  use phys_module, only: n_part_groups
   implicit none
 
   class(particle_sim), target, intent(inout)                :: sim

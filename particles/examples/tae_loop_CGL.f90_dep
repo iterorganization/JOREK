@@ -113,7 +113,7 @@ program tae_loop_CGL
     !< you would need an already present mode in order to not have to wait > 2000 timesteps in order for a mode to emerge.
     !< This mode can be obtained by removing the phi plane initialisation and using isotropic pressure (i.e. modifying the pressure
     !< coupling terms in the local particle loop to be a the identity tensor times scalar pressure) (this is done in the tae_loop_full_isotrop example)
-    call initialise_particles_H_mu_psi_phiplanes(sim%groups(1)%particles, sim%fields, pcg32_rng(),sim%groups(1)%mass, &
+    call initialise_particles_maxwell_phiplanes(sim%groups(1)%particles, sim%fields, pcg32_rng(),sim%groups(1)%mass, &
                                      uniform_space=.true., uniform_space_rej_f=f_toroidal_flux, &
                                      uniform_space_rej_vars=[1], charge = 1, T_maxwell = 4d5, n_phi_planes_in = 12)
 

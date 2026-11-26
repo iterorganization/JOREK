@@ -68,7 +68,7 @@ See also [pf coils](asdex_upgrade_pf-coils-cliste) for the geometry of the PF co
 <img src="assets/asdex_upgrade/aug_coils_eng.png" width="500" alt="Description of image">
 
 The coil currents for a specific shot can be directly extracted by cliste from the shotfile. During the free-boundary equilibrium the V2 coils are used for the feedback.
-When using the [controller](active_controller_model_for_vertical_stabilization) for active stabilization during the simulation, the CoI coils are used like in the experiment for fast feedback.
+When using the [controller](../physics/model_extensions/freebound/freebnd_tools.md#active-controller-model-for-vertical-and-radial-stabilization) for active stabilization during the simulation, the CoI coils are used like in the experiment for fast feedback.
 
 <!-- [Coil feedings as ascii and sw input](https://www.jorek.eu/wiki/lib/exe/fetch.php?media=aug_feeding.tar.gz) -->
 The coil feedings were provided by I. Zammuto and transformed into STARWALL data.
