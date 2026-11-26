@@ -98,12 +98,12 @@ subroutine bootstrap_current(R, Z,                           &
   rho   = rho   * rho_norm
   rho_x = r0_x  * rho_norm
   rho_y = r0_y  * rho_norm
-  Ti    = corr_neg_temp(Ti0)
+  Ti    = corr_neg_temp(Ti0*2.d0) / 2.d0
   Ti    = Ti    / (MU_ZERO*rho_norm)
   Ti_eV = Ti    / 1.6021765d-19
   Ti_x  = Ti0_x / (MU_ZERO*rho_norm)
   Ti_y  = Ti0_y / (MU_ZERO*rho_norm)
-  Te    = corr_neg_temp(Te0)
+  Te    = corr_neg_temp(Te0*2.d0) / 2.d0
   Te    = Te    / (MU_ZERO*rho_norm)
   Te_eV = Te    / 1.6021765d-19
   Te_x  = Te0_x / (MU_ZERO*rho_norm)
