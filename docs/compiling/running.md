@@ -96,7 +96,7 @@ mpirun -n 4 ./jorek_model303 < input
 | `tgnum(i)` | Factor for Taylor-Galerkin stabilization in equation i | See information about using the stabilization. |
 | `iter_precon` | redo factorisation if gmres iterations > `iter_precon` | GMRES parameters |
 | `gmres_m` | gmres dimension | |
-| `gmres_4` | scaling of error | see source code |
+| `gmres_4` | unused (kept for input compatibility) | — |
 | `gmres_max_iter` | maximum number of gmres iterations | |
 | `gmres_tol` | convergence when error < `gmres_tol` | |
 
