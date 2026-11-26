@@ -396,7 +396,8 @@ subroutine do_read(this, sim, ev)
         if (this%i .eq. -1) then
           write(restart_file,'(A,A)') trim(this%basename), '_restart.h5'
         else
-          write(tmp_name,rst_file_ind_fmt(1)) trim(this%basename), this%i
+          ! WARNING: change manually bellow rst_file_ind_fmt(1) for a 6-digit, or rst_file_ind_fmt(2) for a 5-digit restart file format
+          write(tmp_name,rst_file_ind_fmt(2)) trim(this%basename), this%i
           write(restart_file,'(A,A)') trim(tmp_name), '.h5'
         end if
         inquire(file=trim(restart_file), exist=file_exists)
@@ -429,7 +430,8 @@ subroutine do_read(this, sim, ev)
       else ! Linearly interpolating case
         ! If nothing has been loaded (i.e. fields%time_prev = 0.d0) load the initial file
         if (abs(f%time_prev) .lt. 1.d-50) then
-          write(tmp_name,rst_file_ind_fmt(1)) trim(this%basename), this%i
+          ! WARNING: change manually bellow rst_file_ind_fmt(1) for a 6-digit, or rst_file_ind_fmt(2) for a 5-digit restart file format
+          write(tmp_name,rst_file_ind_fmt(2)) trim(this%basename), this%i
           write(restart_file,'(A,A)') trim(tmp_name), '.h5'
           inquire(file=trim(restart_file), exist=file_exists)
           if (file_exists) then
@@ -457,9 +459,10 @@ subroutine do_read(this, sim, ev)
         
         ! Find the following file (next timestep number)
         next_file_found=.false.
-        do i=this%i+1,this%i+20 ! check 20 files ahead
-          write(tmp_name,rst_file_ind_fmt(1)) trim(this%basename), i
-          write(restart_file,'(A,A)') tmp_name, '.h5'
+        do i=this%i+1,this%i+10000 ! check 10000 files ahead
+          ! WARNING: change manually bellow rst_file_ind_fmt(1) for a 6-digit, or rst_file_ind_fmt(2) for a 5-digit restart file format
+          write(tmp_name,rst_file_ind_fmt(2)) trim(this%basename), i
+          write(restart_file,'(A,A)') trim(tmp_name), '.h5'
           inquire(file=trim(restart_file), exist=file_exists)
           if (file_exists) then
             next_file_found=.true.

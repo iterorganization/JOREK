@@ -15,6 +15,7 @@ module mod_ccoll_relativistic
   use mod_simpson, only : simpson_adaptive, func_real8_1D
   use mod_interp_methods, only: interp_bilinear
   use mod_coordinate_transforms, only: vector_cylindrical_to_cartesian
+  use, intrinsic :: ieee_arithmetic
   implicit none
 
   real*8, parameter :: DEFAULT_L0L1_eps    = 1.D-8 !< default tolerance in eval_L0L1
@@ -283,12 +284,11 @@ contains
 
     else
        allocate( dat%Z0(1), dat%Zi(1), dat%mi(1) )
+       allocate( dat%Ii(1), dat%ai(1) )
        dat%m_i_over_m_imp = 1
 
     end if
 
-
-    allocate( dat%Ii(1), dat%ai(1) )
     dat%mi(1) = central_mass * ATOMIC_MASS_UNIT
     dat%Zi(1) = 1
     dat%Z0(1) = 1
@@ -509,16 +509,18 @@ contains
   !> Pushing is done by calling the explicit push function. This function is just a wrapper
   !> that additionally evaluates the plasma quantities and takes care of the coordinate transformation
   !> in momentum space thus simplifying the process of including collisions in simulations.
-  subroutine ccoll_gc_relativistic_push(dat, prt, fields, mass, time, dt)
+  subroutine ccoll_gc_relativistic_push(dat, prt, fields, mass, time, dt, jump_coll)
     implicit none
     class(ccoll_data), intent(in) :: dat !< Collision data
     class(particle_gc_relativistic), intent(inout) :: prt
     class(fields_base), intent(in) :: fields
     real*8,intent(in) :: mass, time, dt !< Mass in AMU and time in seconds
+    real*8,optional,intent(in) :: jump_coll !< if provided, check if a marker perform a non-physical jump from p<p_th to p>jump_coll * p_th (used in hot_tail_tracker.f90)
 
-    real*8 :: pnorm, E(3), B(3), psi, U, Te, Ti, the, ne, rnd(2), pin, xiin, pout, xiout
+    real*8 :: pnorm, E(3), B(3), psi, U, Te, Ti, the, ne, rnd(2), pin, xiin, pout, xiout, pth
     real*8, allocatable :: ni(:), thi(:)
-    integer :: ierr
+    integer :: ierr, i_try_jump
+    logical :: is_jump
 
     allocate(ni(size(dat%mi)), thi(size(dat%mi)))
     call fields%calc_EBpsiU(time, prt%i_elm, prt%st, prt%x(3), E, B, psi, U)                                                                                                                                                                                                          
@@ -526,15 +528,53 @@ contains
     pin   = pnorm / ( mass * SPEED_OF_LIGHT )
     xiin  = prt%p(1) / pnorm
     call fields%calc_NjTj(time, prt%i_elm, prt%st, prt%x(3), dat%m_i_over_m_imp, ne, Te, ni, Ti)
-    the = Te * K_BOLTZ / ( MASS_ELECTRON * SPEED_OF_LIGHT**2 )
-    thi = Ti * K_BOLTZ / ( dat%mi * SPEED_OF_LIGHT**2 )
     
-    call random_number(rnd)
-    rnd = floor(2.d0*rnd)
-    rnd = -1.d0 + 2.d0 * rnd
+    if (present(jump_coll)) then 
+      ! Limit low temperature to avoid the divergence of the collision operator
+      if(Te*K_BOLTZ/EL_CHG .lt. 10.0) then
+         Te = 10.0*EL_CHG/K_BOLTZ
+      end if
+      if(Ti*K_BOLTZ/EL_CHG .lt. 10.0) then
+         Ti = 10.0*EL_CHG/K_BOLTZ
+      end if
+      the = Te * K_BOLTZ / ( MASS_ELECTRON * SPEED_OF_LIGHT**2 )
+      thi = Ti * K_BOLTZ / ( dat%mi * SPEED_OF_LIGHT**2 )
 
-    call ccoll_gc_relativistic_explicitpush(dat, mass * ATOMIC_MASS_UNIT, prt%q,  &
-         ne, the, ni, thi, pin, pout, xiin, xiout, dt, rnd, 1.0e-4, ierr)
+      pth = SQRT((1 + the)**2 - 1)
+      is_jump = .TRUE.
+      i_try_jump = 0
+
+      ! Try the collision push and assess if a jump occured
+      do while (is_jump)
+         call random_number(rnd)
+         rnd = floor(2.d0*rnd)
+         rnd = -1.d0 + 2.d0 * rnd
+
+         call ccoll_gc_relativistic_explicitpush(dat, mass * ATOMIC_MASS_UNIT, prt%q,  &
+               ABS(ne), the, ABS(ni), thi, pin, pout, xiin, xiout, dt, rnd, 0.5*SQRT(2*the), ierr)    !<- change for different adapative reflection condition
+
+         ! Condition of what is considered as a jump (in ||p|| or Xi)
+         is_jump = ((pin .lt. pth) .AND. (pout .gt. jump_coll*pth)) .OR. (ierr .ne. 0) .OR. ((ieee_is_nan(xiout)))
+         ! If not stable after 3 tries, set the out momentum to the thermal momentum isotropically
+         if ((i_try_jump .gt. 3)) then
+            pout = pth
+            call random_number(rnd)
+            xiout = 2.d0 * rnd(1) - 1.d0
+            is_jump = .FALSE.
+            ierr = 0
+         end if 
+         i_try_jump = i_try_jump + 1
+      end do
+    else
+      the = Te * K_BOLTZ / ( MASS_ELECTRON * SPEED_OF_LIGHT**2 )
+      thi = Ti * K_BOLTZ / ( dat%mi * SPEED_OF_LIGHT**2 )
+
+      call random_number(rnd)
+      rnd = floor(2.d0*rnd)
+      rnd = -1.d0 + 2.d0 * rnd
+      call ccoll_gc_relativistic_explicitpush(dat, mass * ATOMIC_MASS_UNIT, prt%q,  &
+            ne, the, ni, thi, pin, pout, xiin, xiout, dt, rnd, 1.0e-4, ierr)
+    end if
 
     if (ierr .ne. 0) then
       prt%i_elm = 0
