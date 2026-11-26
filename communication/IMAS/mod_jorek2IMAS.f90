@@ -1334,7 +1334,7 @@ module mod_jorek2IMAS
           plasma_profiles_ids%profiles_1d(i_slice)%ion(index)%density(j) = nimp_bg_density(i, avg(j,i_psi)) ! given as 1/m^3
         end do
        else
-        plasma_profiles_ids%profiles_1d(i_slice)%ion(index)%density(:) = nimp_bg_density(i, 0)  ! second argument is unused
+        plasma_profiles_ids%profiles_1d(i_slice)%ion(index)%density(:) = nimp_bg_density(i, 0.d0)  ! second argument is unused
        end if
        allocate( plasma_profiles_ids%profiles_1d(i_slice)%ion(index)%element(1) )
        call get_element_atomic_numbers(imp_type(i), a_imp, z_imp )
