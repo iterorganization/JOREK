@@ -105,7 +105,7 @@ namelist /in1/  tstep, nstep, tstep_n, nstep_n,                     &
                 use_pastix, use_murge, use_murge_element, use_wsmp, &
                 n_tor_fft_thresh, use_strumpack,                    &
                 refinement, force_central_node,                     &
-                fix_axis_nodes,                                     &
+                fix_axis_nodes, treat_axis,                         &
                 adaptive_time, equil, bench_without_plot,           &
                 eta_T_dependent, visco_T_dependent,                 &
                 zkpar_T_dependent, T_max_eta, T_max_eta_ohm,        & 
