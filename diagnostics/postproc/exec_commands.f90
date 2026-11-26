@@ -3140,7 +3140,7 @@ module exec_commands
     use mod_position, only: t_pol_pos_list, t_tor_pos_list
     
     use mod_sparse,          only: solve_sparse_system
-    use mod_sparse_data,     only: type_SP_SOLVER
+    use mod_sparse_data,     only: type_SP_SOLVER, strumpack, mumps, pastix
     use data_structure,      only: type_SP_MATRIX, type_RHS, type_thread_buffer
  
     implicit none
@@ -3157,6 +3157,7 @@ module exec_commands
 
     type (type_element)                   :: element
     type (type_node)                      :: nodes(n_vertex_max)
+    type (type_node)                      :: aux_nodes(n_vertex_max)   !< aux (kinetic) nodes of the element
   
     type(t_pol_pos_list) :: pol_pos_list
     type(t_tor_pos_list) :: tor_pos_list
@@ -3404,8 +3405,8 @@ module exec_commands
     ! --- Declare shared and private variables for omp
     !$omp parallel default(none) &
     !$omp   shared(element_list,node_list, ES, get_terms, BSmat, n_basis,              &
-    !$omp          xpoint,xcase, rhs, my_id, test_struct,n_tor_fft_thresh)             &
-    !$omp   private(ife,iv,inode,element,nodes,i_order, info,                     &
+    !$omp          xpoint,xcase, rhs, my_id, test_struct,n_tor_fft_thresh, aux_node_list) &
+    !$omp   private(ife,iv,inode,element,nodes,aux_nodes,i_order, info,           &
     !$omp           index_large_i,index_ij, index_node, BSmat_elm, rhs_term,           &
     !$omp           omp_nthreads,omp_tid, i_term, i,j,k,l,i_bs,j_bs,ftor,ipiv,BSmat_tmp  )
   
@@ -3427,6 +3428,9 @@ module exec_commands
       do iv = 1, n_vertex_max
         inode     = element%vertex(iv)
         nodes(iv) = node_list%node(inode)
+        ! aux (kinetic) nodes, if present
+        aux_nodes(iv) = node_list%node(inode)
+        if (associated(aux_node_list)) aux_nodes(iv) = aux_node_list%node(inode)
       enddo
 
       call element_matrix_fft(element,nodes, xpoint, xcase, ES%R_axis, ES%Z_axis, ES%psi_axis, ES%psi_bnd,   &
@@ -3436,7 +3440,7 @@ module exec_commands
        test_struct(omp_tid)%eq_g, test_struct(omp_tid)%eq_s, test_struct(omp_tid)%eq_t,     &
        test_struct(omp_tid)%eq_p, test_struct(omp_tid)%eq_ss, test_struct(omp_tid)%eq_st,   &
        test_struct(omp_tid)%eq_tt, test_struct(omp_tid)%delta_g,                              &
-       test_struct(omp_tid)%delta_s, test_struct(omp_tid)%delta_t, 1, n_tor, nodes,         &
+       test_struct(omp_tid)%delta_s, test_struct(omp_tid)%delta_t, 1, n_tor, aux_nodes,     &
        test_struct(omp_tid)%ELM_pnn, get_terms=get_terms)
 
       do i_term=1, max_terms
@@ -3628,6 +3632,12 @@ module exec_commands
         if (trim(term_names(k_var, i_term))=='') cycle
 
         sum_rhs = 0.d0
+        ! clear the output buffer, so that harmonics skipped with only_itor do not keep the Psi field
+        do i = 1, pol_pos_list%n_pos(1)
+          do iv = 1, n_vertex_max
+            pol_pos_list%pos(i,1)%nodes(iv)%values(:, :, 1) = 0.d0
+          enddo
+        enddo
  
         ! get RHS of individual harmonics for each term
         do i_tor=1, n_tor
@@ -3682,6 +3692,37 @@ module exec_commands
 !!!! solve here
           solver%equilibrium = .true.
           solver%verbose = .false.
+          solver%iterative = .false.
+          ! select the projection solver as in mod_project_particles
+          if (use_strumpack_prj) then
+#ifdef USE_STRUMPACK
+            solver%library = strumpack
+#else
+            write(*,*) ' FATAL : use_strumpack_prj requires defined USE_STRUMPACK'
+            call MPI_Abort(MPI_COMM_WORLD, 3, ierr)
+#endif
+          else if (use_pastix_prj) then
+#if (defined USE_PASTIX) || (defined USE_PASTIX6)
+            solver%library = pastix
+#else
+            write(*,*) ' FATAL : use_pastix_prj requires defined USE_PASTIX'
+            call MPI_Abort(MPI_COMM_WORLD, 3, ierr)
+#endif
+          else if (use_mumps_prj) then
+#ifdef USE_MUMPS
+            solver%library = mumps
+#else
+            write(*,*) ' FATAL : use_mumps_prj requires defined USE_MUMPS'
+            call MPI_Abort(MPI_COMM_WORLD, 3, ierr)
+#endif
+          endif
+          a_mat%comm  = MPI_COMM_WORLD
+          rhs_vec%n    = n_AA
+          rhs_vec%nrhs = 1
+          if (size(rhs_vec%val) /= n_AA .or. a_mat%ng /= n_AA) then
+            write(*,*) ' FATAL : RHS_terms_vtk: projection matrix/vector size mismatch'
+            call MPI_Abort(MPI_COMM_WORLD, 3, ierr)
+          endif
           call solve_sparse_system(a_mat, rhs_vec, rhs_vec, solver)
           call solver%finalize()  
 
