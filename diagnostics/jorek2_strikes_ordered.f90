@@ -228,8 +228,9 @@ close(f_divstart)
 
 n_lines = n_div * n_phi    ! number of starting points
 
-allocate(R_strike(n_lines),Z_strike(n_lines),P_strike(n_lines),C_strike(n_lines),B_strike(n_lines))
-allocate(T0_strike(n_lines),T_strike(n_lines),ZN0_strike(n_lines),ZN_strike(n_lines),PS0_strike(n_lines))
+! one strike per direction (i_dir = -1, 1) for each starting point
+allocate(R_strike(2*n_lines),Z_strike(2*n_lines),P_strike(2*n_lines),C_strike(2*n_lines),B_strike(2*n_lines))
+allocate(T0_strike(2*n_lines),T_strike(2*n_lines),ZN0_strike(2*n_lines),ZN_strike(2*n_lines),PS0_strike(2*n_lines))
 
 allocate(R_all(n_lines),Z_all(n_lines),C_all(n_lines))
 allocate(R_turn(n_turns+1,2),Z_turn(n_turns+1,2),C_turn(n_turns+1,2),C_turn_tmp(n_turns+1,2))
@@ -328,7 +329,7 @@ write (*,*) 'closed phi_start.dat'
 
 write (*,*) 'calculating heat flux'
 allocate(heatflux_div(n_R_start, n_phi), dens_div(n_R_start, n_phi), &
-     &temp_div(n_R_start, n_phi))
+     &temp_div(n_R_start, n_phi), heatflux_par(n_R_start, n_phi), dens_norm(n_R_start, n_phi))
 do k=1, n_R_start
    if (div_is_bnd) then
       call divpos2s_t_elm_bnd(element_list, bnd_elements, divpos(k), s_ini, t_ini, i)
@@ -1383,14 +1384,14 @@ contains
          &(1:bnd_elm_list%n_bnd_elements)%vertex(1))%x(1,1,1), &
          &dim=1, mask=node_list%node(bnd_elm_list%bnd_element&
          &(1:bnd_elm_list%n_bnd_elements)%vertex(1))%boundary == 3 &
-         & .and. node_list%node(bnd_elm_list%bnd_element&
-         &(1:bnd_elm_list%n_bnd_elements)%vertex(2))%boundary == 1)
+         & .and. is_target_bnd(node_list%node(bnd_elm_list%bnd_element&
+         &(1:bnd_elm_list%n_bnd_elements)%vertex(2))%boundary))
 
     do i_bnd_rel =1, bnd_elm_list%n_bnd_elements
       !i: absolute postition in bnd_elm_list, i_bnd_rel: relative to i_bnd_start
       i = modulo(i_bnd_rel+i_bnd_start-2, bnd_elm_list%n_bnd_elements)+1
       associate (el => bnd_elm_list%bnd_element(i))      
-        if(any(node_list%node(el%vertex)%boundary == 1)) then
+        if(any(is_target_bnd(node_list%node(el%vertex)%boundary))) then
            i_bnd = i_bnd + 1
            bnd_list(i_bnd) = i
         end if
@@ -1430,7 +1431,7 @@ contains
 
       if (ov2 /= v1) then
          if (node_list%node(v1)%boundary == 3) then
-            if (node_list%node(v2)%boundary == 1) then
+            if (is_target_bnd(node_list%node(v2)%boundary)) then
                ! start of a divertor segment
                i_bnd_beg = i_bnd
             else
@@ -1447,7 +1448,7 @@ contains
       endif
 
       if (node_list%node(v2)%boundary == 3) then
-         if (node_list%node(v1)%boundary == 1) then
+         if (is_target_bnd(node_list%node(v1)%boundary)) then
             ! end of a divertor segment
 
             if (i_bnd_beg == 0) then
@@ -1475,6 +1476,12 @@ contains
       ov2 = v2
     enddo
   end subroutine divertor_from_boundary
+
+  !> Target boundary node types: 1 and 4 (side 2), 5 (side 3) and the corners 9 between them.
+  elemental logical function is_target_bnd(btype)
+    integer, intent(in) :: btype
+    is_target_bnd = (btype == 1) .or. (btype == 4) .or. (btype == 5) .or. (btype == 9)
+  end function is_target_bnd
 end program jorek2_connection2
 
 subroutine step(i_elm,s_in,t_in,p_in,delta_p,delta_s,delta_t,R,Z,R_s,R_t,Z_s,Z_t)
