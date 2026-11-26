@@ -320,7 +320,7 @@ subroutine export_hdf5_restart(node_list,element_list,filename,aux_node_list)
   character*(*),                intent(in)         :: filename
 
   ! --- Local variables
-  integer :: i
+  integer :: i, n_values
   character(len=50)        :: version_control
 
 #ifdef USE_HDF5
@@ -330,8 +330,8 @@ subroutine export_hdf5_restart(node_list,element_list,filename,aux_node_list)
 
   ! type_node, node_list%n_nodes
   real(RKIND), allocatable :: t_x(:,:,:,:)                 ! n_coord_tor, n_degrees, n_dim
-  real(RKIND), allocatable :: t_values(:,:,:,:)            !       n_tor, n_degrees, n_var
-  real(RKIND), allocatable :: t_deltas(:,:,:,:)            !       n_tor, n_degrees, n_var
+  real(RKIND), allocatable :: t_values(:,:,:,:)            !       n_tor, n_degrees, n_values
+  real(RKIND), allocatable :: t_deltas(:,:,:,:)            !       n_tor, n_degrees, n_values
   real(RKIND), allocatable :: t_aux_values(:,:,:,:)        !       n_tor, n_degrees, n_aux_var
   
   ! Stellarator node members
@@ -401,12 +401,14 @@ subroutine export_hdf5_restart(node_list,element_list,filename,aux_node_list)
 #endif
 #endif
 
+  n_values = node_list%n_values
+
   ! type_node, node_list%n_nodes
   call tr_allocate(t_x,1,node_list%n_nodes,1,n_coord_tor,1,n_degrees,1,n_dim, &
       "node_list%x",CAT_UNKNOWN)
-  call tr_allocate(t_values,1,node_list%n_nodes,1,n_tor,1,n_degrees,1,n_var, &
+  call tr_allocate(t_values,1,node_list%n_nodes,1,n_tor,1,n_degrees,1,n_values, &
        "node_list%values",CAT_UNKNOWN)
-  call tr_allocate(t_deltas,1,node_list%n_nodes,1,n_tor,1,n_degrees,1,n_var, &
+  call tr_allocate(t_deltas,1,node_list%n_nodes,1,n_tor,1,n_degrees,1,n_values, &
        "node_list%deltas",CAT_UNKNOWN)
   if(present(aux_node_list)) then
     if(export_aux_node_list .and. associated(aux_node_list)) then
@@ -589,7 +591,7 @@ subroutine export_hdf5_restart(node_list,element_list,filename,aux_node_list)
 
   ! -> Save parameters
   call HDF5_integer_saving(file_id,jorek_model,'jorek_model'//char(0))
-  call HDF5_integer_saving(file_id,n_var,'n_var'//char(0))
+  call HDF5_integer_saving(file_id,n_values,'n_var'//char(0))
   call HDF5_integer_saving(file_id,n_dim,'n_dim'//char(0))
   call HDF5_integer_saving(file_id,n_order,'n_order'//char(0))
   call HDF5_integer_saving(file_id,n_tor,'n_tor'//char(0))
@@ -620,9 +622,9 @@ subroutine export_hdf5_restart(node_list,element_list,filename,aux_node_list)
          node_list%n_nodes,n_degrees,n_dim,'x'//char(0))
   endif
   call HDF5_array4D_saving(file_id,t_values, &
-       node_list%n_nodes,n_tor,n_degrees,n_var,'values'//char(0))
+       node_list%n_nodes,n_tor,n_degrees,n_values,'values'//char(0))
   call HDF5_array4D_saving(file_id,t_deltas, &
-       node_list%n_nodes,n_tor,n_degrees,n_var,'deltas'//char(0))
+       node_list%n_nodes,n_tor,n_degrees,n_values,'deltas'//char(0))
   if(present(aux_node_list)) then
     if(export_aux_node_list .and. associated(aux_node_list)) then
       if(aux_node_list%n_nodes .gt. 0) then

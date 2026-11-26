@@ -1,6 +1,6 @@
 module construct_matrix_mod
 
-use mod_parameters, only : n_var, n_order, n_degrees_1d
+use mod_parameters, only : n_var, n_eq_var, n_order, n_degrees_1d, var_index
 
 implicit none
 
@@ -395,8 +395,26 @@ subroutine construct_matrix(mhd_sim, local_elms, n_local_elms, a_mat, rhs_vec, h
     endif
   endif
 
+  if (mhd_sim%node_list%n_values < n_eq_var) then
+    if (my_id .eq. 0) then
+      write(*,*) 'ERROR: Insufficient node values for equilibrium interpolation.'
+      write(*,*) ' stored node values = ', mhd_sim%node_list%n_values
+      write(*,*) ' required equilibrium values = ', n_eq_var
+    endif
+    stop
+  endif
+
+  if (any(var_index < 1) .or. any(var_index > mhd_sim%node_list%n_values)) then
+    if (my_id .eq. 0) then
+      write(*,*) 'ERROR: Invalid equation-variable to node-storage mapping.'
+      write(*,*) ' stored node values = ', mhd_sim%node_list%n_values
+      write(*,*) ' equation variable storage indices = ', var_index
+    endif
+    stop
+  endif
+
   ! --- Initialise the buffers needed by OpenMP threads. The values of n_tor,
-  ! --- n_plane, n_var have to remain the same until the end of the program.
+  ! --- n_plane, n_var and n_eq_var have to remain the same until the end of the program.
   call new_thread_buffers()
 
   my_ind_min = a_mat%index_min(my_id+1)
@@ -879,4 +897,3 @@ end subroutine check_if_distributed
 
 
 end module construct_matrix_mod
-

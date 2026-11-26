@@ -401,7 +401,7 @@ subroutine do_read(this, sim, ev)
         end if
         inquire(file=trim(restart_file), exist=file_exists)
         if (file_exists) then
-          call import_hdf5_restart(f%node_list,f%element_list,restart_file,this%rst_format,ierr)
+          call import_hdf5_restart(f%node_list,f%element_list,restart_file,this%rst_format,ierr,field_import=.true.)
           f%static = .true.
         else
           if (my_id .eq. 0) write(*,*) "ERROR: file ", trim(restart_file), " does not exist"
@@ -433,7 +433,7 @@ subroutine do_read(this, sim, ev)
           write(restart_file,'(A,A)') trim(tmp_name), '.h5'
           inquire(file=trim(restart_file), exist=file_exists)
           if (file_exists) then
-            call import_hdf5_restart(f%node_list,f%element_list,trim(restart_file),this%rst_format,ierr)
+            call import_hdf5_restart(f%node_list,f%element_list,trim(restart_file),this%rst_format,ierr,field_import=.true.)
             if (ierr .ne. 0) then
               if (my_id .eq. 0) write(*,*) "ERROR: cannot open restart file"
               call exit(1)
@@ -535,11 +535,13 @@ subroutine merge_restart(node_list,element_list, restart_file, format_rst,my_id,
 
   ! --- Internal variables
   real*8, allocatable, dimension(:,:,:,:) :: values
-  integer :: inode
+  integer :: inode, n_nodes_old, n_values_old
   real*8 :: tstart_old
 
   ! Save the old values to calculate the new deltas
-  allocate(values(n_tor,n_degrees,n_var,node_list%n_nodes))
+  n_nodes_old = node_list%n_nodes
+  n_values_old = node_list%n_values
+  allocate(values(n_tor,n_degrees,n_values_old,n_nodes_old))
   !$omp parallel do default(shared) private(inode)
   do inode=1,node_list%n_nodes
     values(:,:,:,inode) = node_list%node(inode)%values(:,:,:)
@@ -548,7 +550,19 @@ subroutine merge_restart(node_list,element_list, restart_file, format_rst,my_id,
   tstart_old = t_start
 
   ! Import new values
-  call import_hdf5_restart(node_list,element_list, restart_file, format_rst, ierr)
+  call import_hdf5_restart(node_list,element_list, restart_file, format_rst, ierr,field_import=.true.)
+  if (node_list%n_nodes /= n_nodes_old) then
+    write(*,*) 'ERROR: Node count changed between interpolated field files.'
+    write(*,*) '  previous node count = ', n_nodes_old
+    write(*,*) '  new node count      = ', node_list%n_nodes
+    stop
+  endif
+  if (node_list%n_values /= n_values_old) then
+    write(*,*) 'ERROR: Stored field count changed between interpolated field files.'
+    write(*,*) '  previous stored fields = ', n_values_old
+    write(*,*) '  new stored fields      = ', node_list%n_values
+    stop
+  endif
 
   ! Calculate deltas as values_new - values_old
   !$omp parallel do default(shared) private(inode)

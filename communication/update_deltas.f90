@@ -4,7 +4,7 @@ subroutine update_deltas(node_list, deltas)
 !---------------------------------------------------------------------
 use tr_module
 use data_structure, only: type_node_list, type_RHS
-use mod_parameters, only: n_tor, n_var, n_degrees
+use mod_parameters, only: n_tor, n_var, n_degrees, var_index
 !use global_distributed_matrix
 
 implicit none
@@ -30,7 +30,7 @@ do i = 1, node_list%n_nodes
 
         index = n_tor*n_var * (index_node - 1) + n_tor*(k-1) + in
 
-        deltas%val(index) = node_list%node(i)%deltas(in,j,k)
+        deltas%val(index) = node_list%node(i)%deltas(in,j,var_index(k))
 
       enddo
 
