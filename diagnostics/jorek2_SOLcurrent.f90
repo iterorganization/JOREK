@@ -134,21 +134,8 @@ program jorek2_SOLcurrent
 
   element_neighbours = 0
 
-  !$omp parallel do default(none)                              &
-  !$omp shared(node_list, element_list, element_neighbours)    &
-  !$omp private(j, iside_i, iside_j)
-  do i=1,element_list%n_elements
-    
-    do j=i+1,element_list%n_elements
-      
-      if (neighbours(node_list,element_list%element(i),element_list%element(j),iside_i,iside_j)) then
-        element_neighbours(iside_i,i) = j
-        element_neighbours(iside_j,j) = i
-      endif
-      
-    enddo
-  enddo
-  !$omp end parallel do
+  ! --- Neighbour search is O(N) with a bounding-box grid (see build_element_neighbours in mod_neighbours)
+  call build_element_neighbours(node_list, element_list, element_neighbours)
 
   ! maximum stepsize delta_phi (stepsize is automatically made smaller if an element boundary is crossed)
   delta_phi = 2.d0 * PI / float(n_period*n_phi_steps)
