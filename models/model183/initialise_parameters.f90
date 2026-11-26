@@ -74,7 +74,7 @@ namelist /in1/  tstep, nstep, tstep_n, nstep_n,                     &
                 freeboundary_equil, freeboundary,  freeb_change_indices, &
                 resistive_wall,                                     &
                 wall_resistivity, wall_resistivity_fact,            &
-                bc_natural_open,                                    &
+                bc_natural_open, CARIDDI_mode,                      &
                 use_mumps_eq, use_pastix_eq, use_strumpack_eq,      &
                 use_mumps_prj, use_pastix_prj, use_strumpack_prj,   &
                 use_mumps, mumps_ordering,                          &

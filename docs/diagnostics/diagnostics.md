@@ -26,6 +26,7 @@ There are a lot of diagnostics available for JOREK. Some of the most important:
 | **[jorek2\_connection2](/JOREK/howto/introduction_to_jorek_diagnostics.html#beyond)** | This diagnostic produces a poincaré plot of the magnetic field geometry |
 | **[jorek2\_connection\_flux\_aligned](jorek2_connection_flux_aligned.html)** | Calculates connection length to the simulation boundary and the corresponding strike points of field lines on n=0 flux surfaces |
 | **[jorek2\_fields\_xyz](jorek2_fields_xyz.html)** | Calculates B_x, B_y, B_z at given (x,y,z) cartesian coordinates |
+| **[jorek2\_gradchi\_domm / \_full](jorek2_gradchi.html)** | Calculates the stellarator vacuum field grad(chi) at given (x,y,z) cartesian coordinates |
 | **[jorek2\_wall\_forces](jorek2_wall_forces.html)** | Calculates the total wall forces (F_x, F_y, F_z). It needs [JOREK-STARWALL](/JOREK/howto/running_jorek-starwall_for_the_first_time.html) |
 | **[jorek2\_fast\_camera](jorek2_fast_camera.html)** | This diagnostic produces a camera image of the visible plasma (Dalpha) |
 | **[rst\_bin2hdf5](rst_bin2hdf5.html)** & **[rst\_hdf52bin](rst_bin2hdf5.html#rst_hdf52bin)** | Convert `jorek_restart.rst` to `jorek_restart.h5` and vice-versa. |
