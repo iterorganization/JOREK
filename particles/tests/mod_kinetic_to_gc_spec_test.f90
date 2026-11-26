@@ -28,6 +28,7 @@ subroutine run_fruit_kinetic_to_gc_spec
   call run_test_case(test_gc_kinetic_gc,'test_gc_kinetic_gc')
   call run_test_case(test_gc_kinetic_gc_negative_mu,'test_gc_kinetic_gc_negative_mu')
   call run_test_case(test_get_orthonormals,'test_get_orthonormals')
+  call run_test_case(test_cartesian_conversions,'test_cartesian_conversions')
   write(*,'(/A)') "  ... tearing-down: kinetic to gc spec"
   call dealloc_node_list(node_list)
 end subroutine run_fruit_kinetic_to_gc_spec
@@ -250,4 +251,128 @@ subroutine do_test_orthonormality(in, e1, e2)
   call assert_equals(dot_product(e1,e2), 0.d0, tol, "1 must be orthogonal to 2")
 end subroutine do_test_orthonormality
 !> ------------------------------------------------
+! A uniform CARTESIAN field must be expressed at each particle's local phi.
+! Independent Cartesian formulas below deliberately do not use the geometry helper.
+subroutine test_cartesian_conversions
+  use constants, only: ATOMIC_MASS_UNIT, EL_CHG, TWOPI, SPEED_OF_LIGHT
+  use mod_pusher_tools, only: get_orthonormals
+  use mod_math_operators, only: cross_product
+  use mod_gc_variational, only: convert_gc_vpar_to_kinetic, convert_leapfrog_to_gc_vpar
+  use mod_gc_relativistic, only: relativistic_gc_to_relativistic_kinetic
+  use mod_kinetic_relativistic, only: gc_to_relativistic_kinetic, &
+      relativistic_kinetic_to_gc, relativistic_kinetic_to_relativistic_gc
+  type(particle_gc) :: gc, back
+  type(particle_gc_vpar) :: gv, gv_back
+  type(particle_gc_relativistic) :: gr, gr_back
+  type(particle_kinetic) :: kin
+  type(particle_kinetic_leapfrog) :: orbit(4)
+  type(particle_kinetic_relativistic) :: kr
+  real*8 :: field(3), bh(3), e1(3), e2(3), v(3), vc(3), bc(3), rho(3), bp(3), pc(3)
+  real*8 :: radii(3), angles(3), dirs(3,3), bn, phase, u, energy, moment, test_mass
+  integer :: i,j,k,q,fail,nseed
+  integer, allocatable :: saved(:), seed(:), expected(:), actual(:)
+
+  radii=[.23d0,1.7d0,4.6d0]; angles=[-.2d0,TWOPI-1.d-4,3.d0*TWOPI+.2d0]
+  dirs(:,1)=[0.d0,0.d0,1.d0];dirs(:,2)=[0.d0,1.d0,0.d0];dirs(:,3)=[.3d0,.8d0,.5d0]
+  test_mass=2.01410178d0
+  call random_seed(size=nseed);allocate(saved(nseed),seed(nseed),expected(nseed),actual(nseed))
+  call random_seed(get=saved)
+  do i=1,3
+  do j=1,3
+  do k=1,3
+  do q=-1,1,2
+    field=2.3d0*dirs(:,i)/norm2(dirs(:,i));bn=norm2(field);bh=field/bn
+    gv%x=[radii(j),.13d0,angles(k)];gv%st=0.d0;gv%i_elm=0;gv%q=int(q,1);gv%weight=1.d0
+    gv%vpar=q*1.7d5;gv%mu=2.1d10;gv%B_norm=bn
+    ! Determine the existing randomized phase without changing its production API.
+    seed=9173+13*i+7*j+3*k
+    call random_seed(put=seed);call random_number(u);phase=TWOPI*u
+    call random_seed(get=expected);call random_seed(put=seed)
+    call convert_gc_vpar_to_kinetic(node_list,element_list,gv,field,test_mass,4,orbit,fail)
+    call random_seed(get=actual)
+    call assert_true(all(actual==expected),'positive-N conversion consumes exactly one RNG draw')
+    call get_orthonormals(bh,e1,e2)
+    v=gv%vpar*bh+sqrt(2.d0*gv%mu*bn)*(cos(phase)*e1+sin(phase)*e2)
+    vc=cart_vector(gv%x(3),v);bc=cart_vector(gv%x(3),bh)
+    rho=test_mass*ATOMIC_MASS_UNIT/(q*EL_CHG*bn)*cart_cross(bc,vc)
+    call assert_true(norm2(cart_vector(gv%x(3),-cross_product(v,bh))-cart_cross(bc,vc)) &
+        <tol*norm2(v),'existing cross-product sign agrees with Cartesian determinant')
+    call assert_true(norm2(cart_position(orbit(1)%x)-cart_position(gv%x)-rho)<tol, &
+        'vpar conversion: Cartesian displacement, including toroidal length')
+    call assert_true(norm2(cart_vector(orbit(1)%x(3),orbit(1)%v)-vc)<tol*norm2(v), &
+        'vpar conversion: physical Cartesian velocity is unchanged')
+    bp=local_vector(orbit(1)%x(3),bn*bc)
+    call convert_leapfrog_to_gc_vpar(node_list,element_list,orbit(1),bp,test_mass,gv_back)
+    call assert_true(norm2(cart_position(gv_back%x)-cart_position(gv%x))<tol,'vpar inverse position')
+    call assert_equals(gv%x(3),gv_back%x(3),tol,'continuous phi round trip')
+    call assert_equals(1.d0,gv_back%vpar/gv%vpar,tol,'vpar inverse parallel velocity')
+    call assert_equals(1.d0,gv_back%mu/gv%mu,tol,'vpar inverse magnetic moment')
+    call assert_equals(1.d0,sum(orbit(1)%v**2)/(gv%vpar**2+2.d0*gv%mu*bn),tol,'kinetic energy')
+
+    energy=.5d0*test_mass*ATOMIC_MASS_UNIT*sum(v**2)/EL_CHG
+    moment=sign(test_mass*ATOMIC_MASS_UNIT*gv%mu/EL_CHG,gv%vpar)
+    gc=gv;gc%q=gv%q;gc%E=energy;gc%mu=moment
+    kin=gc_to_kinetic(node_list,element_list,gc,phase,field,test_mass)
+    call assert_true(norm2(cart_position(kin%x)-cart_position(gc%x)-rho)<tol,'E/mu forward position')
+    call assert_true(norm2(cart_vector(kin%x(3),kin%v)-vc)<tol*norm2(v),'E/mu velocity basis')
+    bp=local_vector(kin%x(3),bn*bc)
+    back=kinetic_to_gc(node_list,element_list,kin,bp,test_mass)
+    call assert_true(norm2(cart_position(back%x)-cart_position(gc%x))<tol,'E/mu inverse position')
+    call assert_equals(1.d0,back%E/energy,tol,'E/mu inverse energy')
+    call assert_equals(1.d0,back%mu/moment,tol,'E/mu inverse signed magnetic moment')
+
+    ! Larger momenta avoid ill-conditioning from subtracting total rest energy
+    ! in the legacy relativistic E/mu interface; no test tolerance is relaxed.
+    gr=gv;gr%q=gv%q;gr%p=[100.d0*test_mass*gv%vpar,1.d4*test_mass*gv%mu]
+    pc=100.d0*test_mass*vc
+    kr=relativistic_gc_to_relativistic_kinetic(node_list,element_list,gr,test_mass,field,phase)
+    call assert_true(norm2(cart_position(kr%x)-cart_position(gv%x)-100.d0*rho)<tol,'relativistic position')
+    call assert_true(norm2(kr%p-pc)<tol*norm2(pc),'relativistic Cartesian momentum uses GC angle')
+    bp=local_vector(kr%x(3),bn*bc)
+    gr_back=relativistic_kinetic_to_relativistic_gc(node_list,element_list,kr,test_mass,bp)
+    call assert_true(norm2(cart_position(gr_back%x)-cart_position(gr%x))<tol,'relativistic inverse position')
+    call assert_true(all(abs(gr_back%p/gr%p-1.d0)<tol),'relativistic inverse momenta')
+    gc%E=ATOMIC_MASS_UNIT*SPEED_OF_LIGHT*sqrt((test_mass*SPEED_OF_LIGHT)**2+sum(pc**2))/EL_CHG
+    gc%mu=moment*1.d4
+    kr=gc_to_relativistic_kinetic(node_list,element_list,gc,0.d0,test_mass,phase,field)
+    call assert_true(norm2(kr%p-pc)<tol*norm2(pc),'legacy relativistic Cartesian momentum')
+    call assert_true(norm2(cart_position(kr%x)-cart_position(gc%x)-100.d0*rho)<tol, &
+        'legacy relativistic forward position')
+    bp=local_vector(kr%x(3),bn*bc)
+    back=relativistic_kinetic_to_gc(node_list,element_list,kr,test_mass,bp)
+    call assert_true(norm2(cart_position(back%x)-cart_position(gc%x))<tol,'legacy relativistic inverse position')
+    call assert_equals(1.d0,back%E/gc%E,tol,'relativistic total energy')
+    call assert_equals(1.d0,back%mu/gc%mu,tol,'relativistic signed magnetic moment')
+  enddo
+  enddo
+  enddo
+  enddo
+  call random_seed(get=expected)
+  call convert_gc_vpar_to_kinetic(node_list,element_list,gv,field,test_mass,0,orbit,fail)
+  call random_seed(get=actual)
+  call assert_true(all(actual==expected),'zero-N conversion consumes no RNG')
+  call random_seed(put=saved)
+end subroutine test_cartesian_conversions
+
+pure function cart_position(x) result(y)
+  real*8,intent(in)::x(3)
+  real*8::y(3)
+  y=[x(1)*cos(x(3)),-x(1)*sin(x(3)),x(2)]
+end function
+pure function cart_vector(phi,v) result(w)
+  real*8,intent(in)::phi,v(3)
+  real*8::w(3)
+  w=[cos(phi)*v(1)-sin(phi)*v(3),-sin(phi)*v(1)-cos(phi)*v(3),v(2)]
+end function
+pure function local_vector(phi,v) result(w)
+  real*8,intent(in)::phi,v(3)
+  real*8::w(3)
+  w=[cos(phi)*v(1)-sin(phi)*v(2),v(3),-sin(phi)*v(1)-cos(phi)*v(2)]
+end function
+pure function cart_cross(a,b) result(c)
+  real*8,intent(in)::a(3),b(3)
+  real*8::c(3)
+  c=[a(2)*b(3)-a(3)*b(2),a(3)*b(1)-a(1)*b(3),a(1)*b(2)-a(2)*b(1)]
+end function
+
 end module mod_kinetic_to_gc_spec_test
