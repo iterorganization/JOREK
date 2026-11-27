@@ -177,7 +177,8 @@ namelist /in1/  tstep, nstep, tstep_n, nstep_n,                     &
                 drift_distance, energy_teleported,                  &
                 K_Dmv, A_Dmv, L_tube, V_Dmv, P_Dmv,                 &
                 spi_Vel_diff, t_ns, JET_MGI, ASDEX_MGI,             &
-                delta_n_convection, nimp_bg, output_prad_phi,       &
+                delta_n_convection, nimp_bg, nimp_bg_file,          &
+                nimp_bg_profile_type, output_prad_phi,              &
                 RMP_on, RMP_har_cos,RMP_har_sin, spi_shard_file,    &
                 spi_plume_file, spi_plume_hdf5,                     &
                 RMP_growth_rate, RMP_ramp_up_time,                  &
@@ -375,6 +376,14 @@ if ( my_id == 0 ) then
     write(*,*) "ERROR: index_main_imp:", index_main_imp
     stop
   end if
+
+  do i = 1, n_adas
+    if (nimp_bg_profile_type(i) < 0 .or. nimp_bg_profile_type(i) > 2) then
+      write(*,*) "ERROR: Invalid nimp_bg_profile_type for impurity ", i, ": ", nimp_bg_profile_type(i)
+      write(*,*) "       Only 0 (uniform), 1 (profile 1), 2 (profile 2) are allowed. EXITING!"
+      stop
+    end if
+  end do
 
   do i = 1,n_inj
     if (drift_distance(i) < 0.d0 .or. energy_teleported(i) < 0.d0) then 

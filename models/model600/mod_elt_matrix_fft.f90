@@ -5740,20 +5740,21 @@ end subroutine construct_pressure
 ! Subroutine which calculates radiation rates
 subroutine construct_radiation_parameters()
 
+  use mod_impurity, only: nimp_bg_density, radiation_function_linear
+
   implicit none
 
   ne_SI       = (r0_corr + alpha_e * rimp0_corr) * 1.d20 * central_density 
   Te_eV       = Te0/(EL_CHG*MU_ZERO*central_density*1.d20)       
   Te_corr_eV  = Te0_corr/(EL_CHG*MU_ZERO*central_density*1.d20)
 
+  frad_bg     = 0. 
+  dfrad_bg_dT = 0.
   ! --- Radiation from background impurity
   if (use_imp_adas .or. with_impurities) then  ! use open adas by default
-    frad_bg     = 0. 
-    dfrad_bg_dT = 0.
-
     do i_imp =1, n_adas
       if (i_imp == index_main_imp) cycle
-      r_imp_bg = nimp_bg(i_imp)/(1.d20 * central_density) ! Background impurity density in JOREK units     
+      r_imp_bg = nimp_bg_density(i_imp, psi_norm) / (1.d20 * central_density) ! Background impurity density in JOREK units     
       if (ne_SI > ne_SI_min .and. Te_eV > Te_eV_min .and. r_imp_bg > 0) then
         Lrad_imp_bg = 0.0
         dLrad_imp_bg_dT = 0.0
@@ -5775,7 +5776,7 @@ subroutine construct_radiation_parameters()
 
     end do
 
-  else
+  else if (sum(nimp_bg) > 1.d-16) then
 
     if ( trim(imp_type(1)) == 'Ar') then ! Hard-coded fitting exists for argon
       Arad_bg = 2.4d-31

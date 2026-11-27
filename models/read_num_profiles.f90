@@ -190,7 +190,22 @@ subroutine read_num_profiles(my_id)
     Phi_0 = num_Phi_y0(1)
     num_phi_y0 = num_phi_y0 - phi_1
   end if
-  
+
+  num_nimp_bg = ( nimp_bg_file /= 'none' )
+  if ( num_nimp_bg .and. ( my_id == 0 ) ) then
+    ! use "Neo" to read 3 column file, 2 profiles specified
+    call readProfNeo(num_nimp_bg_x, num_nimp_bg_prof1, num_nimp_bg_prof2, num_nimp_bg_len, nimp_bg_file)
+    if ( num_nimp_bg_len <= 2 ) then 
+      write(*,*) 'ERROR: Could not read the numerical profile for background impurities.'
+      write(*,*) '       The profile should always contain 3 columns: Psi_N, profile 1, profile 2,'
+      write(*,*) '       even if only one profile is needed / used. In that case, set `nimp_bg_profile_type`'
+      write(*,*) '       to 1 for that impurity and fill the profile 2 column with zeros. EXITING.'
+      stop
+    end if
+    call check_num_prof(num_nimp_bg, num_nimp_bg_x, num_nimp_bg_prof1, num_nimp_bg_len, 'nimp_bg', check_positive=.true.)
+    call check_num_prof(num_nimp_bg, num_nimp_bg_x, num_nimp_bg_prof2, num_nimp_bg_len, 'nimp_bg', check_positive=.true.)
+  end if
+
   contains
   
   
