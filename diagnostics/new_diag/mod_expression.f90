@@ -242,10 +242,9 @@ module mod_expression
     call add(exprs_all, 'J_bootstrap ', 'Bootstrap Current                                     ')
 #endif
 #if (defined WITH_Neutrals) || (defined WITH_Impurities)
-    call add(exprs_all, 'radiation_bg', 'Radiation terms from background impurities for bolometry diagnostic ')
     call add(exprs_all, 'radiation   ', 'Radiation terms for bolometry diagnostic              ')
 #endif
-    call add(exprs_all, 'bg_imp_rad  ', 'Background impurity radiation                          ')
+    call add(exprs_all, 'radiation_bg', 'Radiation terms from background impurities for bolometry diagnostic ')
 #if (defined WITH_Neutrals) && (!defined WITH_Impurities)
     call add(exprs_all, 'line_rad    ', 'D neutral line radiation                              ')
     call add(exprs_all, 'brem        ', 'Brem terms for bolometry diagnostic                   ')
@@ -2170,20 +2169,19 @@ module mod_expression
               case ( 'brem' ) !< outputs radiation power (i.e. what a bolometer would measure), rather than the radiative cooling
                 res = r0 * r0 * LradDcont_T * fact_rad
 
-              case ('line_rad')
+              case ( 'line_rad' )
                 res = r0 * max(rn0,0.d0) * LradDrays_T * fact_rad
 #endif
-
-              case ('bg_imp_rad')
-                res = r0 * fact_ne * frad_bg
+              case ( 'radiation_bg' )
+#ifdef WITH_Impurities
+                res = (r0_corr + beta_imp*rimp0_corr) * frad_bg * fact_rad
+#else
+                res = r0_corr * fact_ne * frad_bg
+#endif
 #ifdef WITH_Impurities
               case ( 'radiation' )
                 res = (r0_corr + beta_imp*rimp0_corr) * (rimp0_corr * Lrad + frad_bg) * fact_rad
-
-              case ( 'radiation_bg' )
-                res = (r0_corr + beta_imp*rimp0_corr) * frad_bg * fact_rad
 #endif
-
               case default
                 write(*,*) 'ERROR in '//trim(THIS_ROUTINE_NAME)//': Illegal expression ("' //      &
                   trim(expr_list%expr(iexpr)%name) // '")'
