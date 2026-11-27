@@ -670,6 +670,7 @@ def normalize_model600_text(
         "Bgrad_vpar": "((F0*vpar0_p/BigR+vpar0_x*ps0_y-vpar0_y*ps0_x)/BigR)",
         "Bgrad_vpar_psi": "((vpar0_x*psi_y-vpar0_y*psi_x)/BigR)",
         "Bgrad_vpar_vpar": "((vpar_x*ps0_y-vpar_y*ps0_x)/BigR)",
+        "Bgrad_vpar_vpar_n": "(F0*vpar_p/BigR**2)",
         # Prescribed rotation profile: a flux function whose flux derivative
         # is stored as ``dV_dpsi_source``.
         "Vt0_x": "(dV_dpsi_source*ps0_x)",
